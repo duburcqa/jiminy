@@ -1077,7 +1077,7 @@ namespace jiminy
             float64_t blendingLaw = std::tanh(2 * blendingFactor);
             forceJoint *= blendingLaw;
 
-            u(rigidJointsVelocityIdx[i]) += forceJoint;
+            //u(rigidJointsVelocityIdx[i]) += forceJoint;
         }
 
         // Compute the flexibilities
