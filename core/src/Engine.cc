@@ -708,8 +708,8 @@ namespace jiminy
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
             else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
-            && std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS
-            && std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS)
+            && std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS
+            && std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS)
             {
                 std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be multiple of each other if not infinite." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
