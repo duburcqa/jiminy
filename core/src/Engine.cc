@@ -927,22 +927,22 @@ namespace jiminy
            energy of the system decreases most of the time when active, BUT it
            may happens that the energy slightly goes back up (but at a lower
            energy level than initially). */
-        std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-        vectorN_t const & velocityLimit = model_->getVelocityLimit();
-        for (uint32_t i = 0; i < rigidJointsVelocityIdx.size(); i++)
-        {
-            float64_t const & vJoint = v(rigidJointsVelocityIdx[i]);
-            float64_t & aJoint = a(rigidJointsVelocityIdx[i]);
-            float64_t const & vJointMax = velocityLimit[rigidJointsVelocityIdx[i]];
-            if (vJoint > vJointMax && aJoint > 0.0)
-            {
-                aJoint = 0.0;
-            }
-            else if (vJoint < -vJointMax && aJoint < 0.0)
-            {
-                aJoint = 0.0;
-            }
-        }
+        //std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
+        //vectorN_t const & velocityLimit = model_->getVelocityLimit();
+        //for (uint32_t i = 0; i < rigidJointsVelocityIdx.size(); i++)
+        //{
+        //    float64_t const & vJoint = v(rigidJointsVelocityIdx[i]);
+        //    float64_t & aJoint = a(rigidJointsVelocityIdx[i]);
+        //    float64_t const & vJointMax = velocityLimit[rigidJointsVelocityIdx[i]];
+        //    if (vJoint > vJointMax && aJoint > 0.0)
+        //    {
+        //        aJoint = 0.0;
+        //    }
+        //    else if (vJoint < -vJointMax && aJoint < 0.0)
+        //    {
+        //        aJoint = 0.0;
+        //    }
+        //}
 
         // Fill up dxdt
         dxdt.resize(model_->nx());
