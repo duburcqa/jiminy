@@ -357,7 +357,7 @@ namespace jiminy
         std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
         for(uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
-            model_->contactForces_[i] = pinocchio::Force(contactDynamics(contactFramesIdx[i]));
+            model_->contactForces_[i] = pinocchio::Force(contactDynamics(contactFramesIdx[i]), vector3_t::Zero());
         }
 
         // Initialize the sensor data
@@ -854,10 +854,15 @@ namespace jiminy
         std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
         for(uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
+            // Compute force in the contact frame.
             int32_t const & contactFrameIdx = contactFramesIdx[i];
-            model_->contactForces_[i] = pinocchio::Force(contactDynamics(contactFrameIdx));
+            vector3_t const fextInFrame = contactDynamics(contactFrameIdx);
+            model_->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
+
+            // Apply the force at the origin of the parent joint frame
+            vector6_t const fextLocal = computeFrameForceOnParentJoint(contactFrameIdx, fextInFrame);
             int32_t const & parentIdx = model_->pncModel_.frames[contactFrameIdx].parent;
-            fext[parentIdx] += model_->contactForces_[i];
+            fext[parentIdx] += pinocchio::Force(fextLocal);
         }
 
         /* Update the sensor data if necessary (only for infinite update frequency).
@@ -966,8 +971,10 @@ namespace jiminy
         return fextLocal;
     }
 
-    vectorN_t Engine::contactDynamics(int32_t const & frameId) const
+    vector3_t Engine::contactDynamics(int32_t const & frameId) const
     {
+        // Returns the external force in the contact frame.
+        // It must then be converted into a force onto the parent joint.
         // /* /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
         contactOptions_t const * const contactOptions_ = &engineOptions_->contacts;
@@ -975,13 +982,12 @@ namespace jiminy
         matrix3_t const & tformFrameRot = model_->pncData_.oMf[frameId].rotation();
         vector3_t const & posFrame = model_->pncData_.oMf[frameId].translation();
 
-        vector6_t fextLocal;
+        // Initialize the contact force
+        vector3_t fextInWorld;
 
         if(posFrame(2) < 0.0)
         {
-            // Initialize the contact force
-            vector3_t fextInWorld;
-
+            // Get frame motion in the motion frame.
             vector3_t motionFrame = pinocchio::getFrameVelocity(model_->pncModel_,
                                                                 model_->pncData_,
                                                                 frameId).linear();
@@ -1022,20 +1028,17 @@ namespace jiminy
             // Make sure that the tangential force never exceeds 1e5 N for the sake of numerical stability
             fextInWorld.head<2>() = clamp(fextInWorld.head<2>(), -1e5, 1e5);
 
-            // Compute the forces at the origin of the parent joint frame
-            fextLocal = computeFrameForceOnParentJoint(frameId, fextInWorld);
-
             // Add blending factor
             float64_t blendingFactor = -posFrame(2) / contactOptions_->transitionEps;
             float64_t blendingLaw = std::tanh(2 * blendingFactor);
-            fextLocal *= blendingLaw;
+            fextInWorld *= blendingLaw;
         }
         else
         {
-            fextLocal.setZero();
+            fextInWorld.setZero();
         }
 
-        return fextLocal;
+        return fextInWorld;
     }
 
     void Engine::internalDynamics(vectorN_t const & q,

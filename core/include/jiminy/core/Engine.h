@@ -419,7 +419,7 @@ namespace jiminy
                               vectorN_t       & u);
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
                                                  vector3_t const & fextInWorld) const;
-        vectorN_t contactDynamics(int32_t const & frameId) const;
+        vector3_t contactDynamics(int32_t const & frameId) const;
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
