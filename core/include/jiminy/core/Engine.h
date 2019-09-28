@@ -201,6 +201,7 @@ namespace jiminy
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;
+            config["zGround"] = 0.0;
 
             return config;
         };
@@ -213,6 +214,7 @@ namespace jiminy
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
+            float64_t const zGround;
 
             contactOptions_t(configHolder_t const & options) :
             frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
@@ -220,7 +222,8 @@ namespace jiminy
             dryFrictionVelEps(boost::get<float64_t>(options.at("dryFrictionVelEps"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
+            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
+            zGround(boost::get<float64_t>(options.at("zGround")))
             {
                 // Empty.
             }

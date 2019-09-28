@@ -984,8 +984,9 @@ namespace jiminy
 
         // Initialize the contact force
         vector3_t fextInWorld;
+        float64_t zGround = contactOptions_->zGround;
 
-        if(posFrame(2) < 0.0)
+        if(posFrame(2) < zGround)
         {
             // Get frame motion in the motion frame.
             vector3_t motionFrame = pinocchio::getFrameVelocity(model_->pncModel_,
@@ -999,7 +1000,7 @@ namespace jiminy
             {
                 damping = -contactOptions_->damping * vFrameInWorld(2);
             }
-            fextInWorld(2) = -contactOptions_->stiffness * posFrame(2) + damping;
+            fextInWorld(2) = -contactOptions_->stiffness * (posFrame(2) - zGround) + damping;
 
             // Compute friction forces
             Eigen::Vector2d const & vxy = vFrameInWorld.head<2>();
@@ -1029,7 +1030,7 @@ namespace jiminy
             fextInWorld.head<2>() = clamp(fextInWorld.head<2>(), -1e5, 1e5);
 
             // Add blending factor
-            float64_t blendingFactor = -posFrame(2) / contactOptions_->transitionEps;
+            float64_t blendingFactor = -(posFrame(2) - zGround) / contactOptions_->transitionEps;
             float64_t blendingLaw = std::tanh(2 * blendingFactor);
             fextInWorld *= blendingLaw;
         }
