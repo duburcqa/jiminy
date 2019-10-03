@@ -480,7 +480,8 @@ namespace python
             bp::class_<Model,
                        boost::shared_ptr<Model>,
                        boost::noncopyable>("model")
-                .def(PyModelVisitor());
+                .def(PyModelVisitor())
+                .def("reset", &Model::reset);
         }
     };
 
