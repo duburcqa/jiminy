@@ -317,6 +317,7 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
+
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
