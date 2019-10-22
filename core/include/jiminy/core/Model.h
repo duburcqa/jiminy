@@ -44,6 +44,8 @@ namespace jiminy
             config["positionLimitMax"] = vectorN_t();
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
+            config["usePositionLimit"] = false;
+            config["useVelocityLimit"] = false;
 
             return config;
         };
@@ -55,13 +57,17 @@ namespace jiminy
             vectorN_t const positionLimitMax;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
+            bool      const usePositionLimit;
+            bool      const useVelocityLimit;
 
             jointOptions_t(configHolder_t const & options) :
             positionLimitFromUrdf(boost::get<bool>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
+            usePositionLimit(boost::get<bool>(options.at("usePositionLimit"))),
+            useVelocityLimit(boost::get<bool>(options.at("useVelocityLimit")))
             {
                 // Empty.
             }
