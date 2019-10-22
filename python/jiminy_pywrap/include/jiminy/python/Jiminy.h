@@ -317,7 +317,7 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
-
+                .def("reset", &Model::reset)
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
@@ -480,8 +480,7 @@ namespace python
             bp::class_<Model,
                        boost::shared_ptr<Model>,
                        boost::noncopyable>("model")
-                .def(PyModelVisitor())
-                .def("reset", &Model::reset);
+                .def(PyModelVisitor());
         }
     };
 
