@@ -1,7 +1,3 @@
-"""
-Classic cart-pole system simulated using Jiminy Engine
-"""
-
 import os
 from math import pi
 import numpy as np
@@ -14,43 +10,60 @@ from jiminy_py import engine_asynchronous
 from gym_jiminy.common import RobotJiminyEnv
 
 
+"""
+@brief      Implementation of a Gym environment for the Cartpole which is using
+            Jiminy Engine to perform physics computations and Gepetto-viewer for
+            rendering. It is a specialization of RobotJiminyGoalEnv. The Cartpole
+            is a pole attached by an un-actuated joint to a cart. The goal is to
+            prevent the pendulum from falling over by increasing and reducing the
+            cart's velocity.
+
+@details    **OBSERVATION:**
+            Type: Box(4)
+            Num	Observation                Min         Max
+            0	Cart Position             -1.5         1.5
+            1	Cart Velocity             -Inf         Inf
+            2	Pole Angle                -50 deg      50 deg
+            3	Pole Velocity At Tip      -Inf         Inf
+
+            **ACTIONS:**
+            Type: Discrete(2)
+            Num	Action
+            0	Push cart to the left
+            1	Push cart to the right
+
+            Note that the amount the velocity that is reduced or increased is not
+            fixed, it depends on the angle the pole is pointing. This is because the
+            center of gravity of the pole increases the amount of energy needed to
+            move the cart underneath it.
+
+            **REWARD:**
+            Reward is 1 for every step taken, including the termination step.
+            move the cart underneath it.
+
+            **STARTING STATE:**
+            All observations are assigned a uniform random value in [-0.05..0.05]
+
+            **EPISODE TERMINATION:**
+            If any of these conditions is satisfied:
+                - Pole Angle is more than 25 degrees Cart
+                - Position is more than 75 cm
+                - Episode length is greater than 200
+
+            **SOLVED REQUIREMENTS:**
+            Considered solved when the average reward is greater than or equal to
+            195.0 over 100 consecutive trials.
+"""
 class JiminyCartPoleEnv(RobotJiminyEnv):
-    """
-    Description:
-        A pole is attached by an un-actuated joint to a cart.
-        The goal is to prevent the pendulum from falling over by increasing and reducing the cart's velocity.
-    Observation:
-        Type: Box(4)
-        Num	Observation                Min         Max
-        0	Cart Position             -1.5         1.5
-        1	Cart Velocity             -Inf         Inf
-        2	Pole Angle                -50 deg      50 deg
-        3	Pole Velocity At Tip      -Inf         Inf
-
-    Actions:
-        Type: Discrete(2)
-        Num	Action
-        0	Push cart to the left
-        1	Push cart to the right
-
-        Note: The amount the velocity that is reduced or increased is not fixed, it depends on the angle the pole is pointing.
-              This is because the center of gravity of the pole increases the amount of energy needed to move the cart underneath it.
-    Reward:
-        Reward is 1 for every step taken, including the termination step.
-    Starting State:
-        All observations are assigned a uniform random value in [-0.05..0.05]
-    Episode Termination:
-        Pole Angle is more than 25 degrees
-        Cart Position is more than 75 cm
-        Episode length is greater than 200
-    Solved Requirements:
-        Considered solved when the average reward is greater than or equal to 195.0 over 100 consecutive trials.
-    """
-
     metadata = {
         'render.modes': ['human']
     }
 
+    """
+    @brief      Constructor
+
+    @return     Instance of the environment.
+    """
     def __init__(self):
         ################################# Initialize Jiminy ####################################
 
@@ -117,6 +130,16 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         self.action_space = spaces.Discrete(2) # Force using a discrete action space
 
+
+    """
+    @brief      Run a simulation step for a given.
+
+    @param[in]  a       The action to perform (in the action space rather than
+                        the original torque space).
+
+    @return     The next state, the reward, the status of the simulation (done or not),
+                and an empty dictionary for compatibility with Gym OpenAI.
+    """
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
 
@@ -143,9 +166,30 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         return self.state, reward, done, {}
 
+
+    """
+    @brief      Get the current observation based on the current state of the model.
+                Mostly defined for compatibility with Gym OpenAI.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     The current state of the model
+    """
     def _get_obs(self):
         return self.state
 
+
+    """
+    @brief      Determine whether the desired goal has been achieved.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     Boolean flag
+    """
     def _is_success(self):
         x, theta, x_dot, theta_dot = self.state
         return        x < -self.x_threshold \

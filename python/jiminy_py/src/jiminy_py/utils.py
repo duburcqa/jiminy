@@ -485,7 +485,8 @@ def get_gepetto_client(open_if_needed=False):
             object and geometry type.
 
 @remark     This is a hidden function that is not automatically imported
-            using 'from wdc_jiminy_py import *'.
+            using 'from wdc_jiminy_py import *'. It is not intended to
+            be called manually.
 
 @param[in]  geometry_object     Geometry object from which to get the node
 @param[in]  geometry_type       Geometry type. It must be either
@@ -505,7 +506,8 @@ def _getViewerNodeName(rb, geometry_object, geometry_type):
 @brief      Update the generalized position of a geometry object.
 
 @remark     This is a hidden function that is not automatically imported
-            using 'from wdc_jiminy_py import *'.
+            using 'from wdc_jiminy_py import *'. It is not intended to
+            be called manually.
 
 @param[in]  data        Up-to-date Pinocchio.Data object associated to the model.
 @param[in]  visual      Wether it is a visual or collision update
