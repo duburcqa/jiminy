@@ -1,9 +1,10 @@
 #ifndef SIMU_ABSTRACT_SENSOR_H
 #define SIMU_ABSTRACT_SENSOR_H
 
+#include <boost/circular_buffer.hpp>
+
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/TelemetrySender.h"
-#include "jiminy/core/Model.h"
 #include "jiminy/core/Types.h"
 
 namespace jiminy
@@ -11,8 +12,33 @@ namespace jiminy
     static uint8_t const MIN_DELAY_BUFFER_RESERVE(20);
     static uint8_t const MAX_DELAY_BUFFER_EXCEED(20);
 
+    class Model;
     class TelemetryData;
     template<typename> class AbstractSensorTpl;
+
+    struct SensorDataHolder_t
+    {
+        SensorDataHolder_t(void) :
+        time_(),
+        data_(),
+        counters_(),
+        sensors_(),
+        num_()
+        {
+            // Empty.
+        };
+
+        ~SensorDataHolder_t(void)
+        {
+            // Empty.
+        };
+
+        boost::circular_buffer_space_optimized<float64_t> time_;
+        boost::circular_buffer_space_optimized<matrixN_t> data_;
+        std::vector<uint32_t> counters_;
+        std::vector<AbstractSensorBase *> sensors_;
+        uint32_t num_;
+    };
 
     class AbstractSensorBase
     {

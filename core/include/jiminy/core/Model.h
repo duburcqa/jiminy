@@ -10,8 +10,6 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include <boost/circular_buffer.hpp>
-
 #include "jiminy/core/Types.h"
 
 
@@ -268,30 +266,6 @@ namespace jiminy
         uint32_t nq_;
         uint32_t nv_;
         uint32_t nx_;
-    };
-
-    struct SensorDataHolder_t
-    {
-        SensorDataHolder_t(void) :
-        time_(),
-        data_(),
-        counters_(),
-        sensors_(),
-        num_()
-        {
-            // Empty.
-        };
-
-        ~SensorDataHolder_t(void)
-        {
-            // Empty.
-        };
-
-        boost::circular_buffer_space_optimized<float64_t> time_;
-        boost::circular_buffer_space_optimized<matrixN_t> data_;
-        std::vector<uint32_t> counters_;
-        std::vector<AbstractSensorBase *> sensors_;
-        uint32_t num_;
     };
 }
 

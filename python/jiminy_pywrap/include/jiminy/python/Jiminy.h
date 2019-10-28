@@ -731,14 +731,14 @@ namespace python
                               vectorN_t const & x_init,
                               bool      const & resetRandomNumbers)
         {
-            // Only way to handle C++ default values
+            // Only way to handle C++ default values that are not accessible in Python
             return self.reset(x_init, resetRandomNumbers);
         }
 
         static result_t step(Engine          & self,
                              float64_t const & dtDesired)
         {
-            // Only way to handle C++ default values
+            // Only way to handle C++ default values that are not accessible in Python
             return self.step(dtDesired);
         }
 

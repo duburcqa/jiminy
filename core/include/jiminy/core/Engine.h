@@ -11,6 +11,7 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Model.h"
 #include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"

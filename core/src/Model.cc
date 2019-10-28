@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/AbstractSensor.h"
 #include "jiminy/core/Model.h"
 
 

@@ -5,8 +5,8 @@ import os
 import re
 import shutil
 import time
-from copy import copy
-import subprocess
+from copy import copy, deepcopy
+import subprocesslock
 from threading import Thread, Lock
 from bisect import bisect_right
 import numpy as np
@@ -21,31 +21,55 @@ import libpinocchio_pywrap as pin
 from gepetto.corbaserver import Client
 
 
-## @brief Object that contains the kinematics and dynamics state of the robot at a given time.
+"""
+@brief      Object that contains the kinematics and dynamics state of the
+            robot at a given time.
+"""
 class State:
+    """
+    @brief      Constructor
+
+    @param[in]  q       Configuration vector (with freeflyer if any) (1D numpy array)
+    @param[in]  v       Velocity vector (1D numpy array)
+    @param[in]  a       Acceleration vector (1D numpy array)
+    @param[in]  t       Current time
+    @param[in]  f       Forces on the different bodies of the robot. Dictionary whose keys represent
+                        a given foot orientation. For each orientation, a dictionary contains the
+                        6D-force for each body (1D numpy array).
+    @param[in]  tau     Joint torques. Dictionary whose keys represent a given foot orientation.
+    @param[in]  f_ext   External forces represented in the frame of the Henke ankle. Dictionary
+                        whose keys represent a given foot orientation.
+
+    @return     Instance of a state.
+    """
     def __init__(self, q, v, a, t=None, f=None, tau=None, f_ext=None):
-        self.t = copy(t)  #< @brief Time.
-        self.q = copy(q)  #< @brief Positions of the robot (with freeflyer).
-        self.v = copy(v)  #< @brief Velocities of the robot.
-        self.a = copy(a)  #< @brief Accelerations of the robot.
-        ## @brief   Forces on the different bodies of the robot. It is a dictionary. The keys represent a given foot
-        ##          orientation. For each orientation, a dictionary contains the 6D-force for each body.
+        self.t = copy(t)
+        self.q = copy(q)
+        self.v = copy(v)
+        self.a = copy(a)
         if f is None:
             self.f = {}
         else:
             self.f = deepcopy(f)
-        ## @brief   Joint torques. It is a dictionary. The keys represent a given foot orientation.
         if tau is None:
             self.tau = {}
         else:
             self.tau = deepcopy(tau)
-        ## @brief   External forces represented in the frame of the Henke ankle. It is a dicionary. The keys represent a
-        ##          given foot orientation.
         if f_ext is None:
             self.f_ext = {}
         else:
             self.f_ext = deepcopy(f_ext)
 
+
+    """
+    @brief      Get the dictionary whose keys are the kinematics and dynamics
+                properties at several time steps from a list of State objects.
+
+    @param[in]  state_list      List of State objects
+
+    @return     Kinematics and dynamics state as a dictionary. Each property
+                is a 2D numpy array (row: state, column: time)
+    """
     @staticmethod
     def todict(state_list):
         state_dict = dict()
@@ -58,6 +82,16 @@ class State:
         state_dict['f_ext'] = [s.f_ext for s in state_list]
         return state_dict
 
+
+    """
+    @brief      Get a list of State objects from a dictionary whose keys are
+                the kinematics and dynamics properties at several time steps.
+
+    @param[in]  state_dict      Dictionary whose keys are the kinematics and dynamics properties.
+                                Each property is a 2D numpy array (row: state, column: time)
+
+    @return     List of State object
+    """
     @staticmethod
     def fromdict(state_dict):
         default_state_dict = defaultdict(lambda: [None for i in range(state_dict['q'].shape[1])], state_dict)
@@ -72,20 +106,49 @@ class State:
                                     default_state_dict['f_ext'][i]))
         return state_list
 
-    def update(self, q, v, a, t=None, hzd_state=None):
-        self.q = copy(q)
-        self.v = copy(v)
-        self.a = copy(a)
-        if t:
-            self.t = copy(t)
-        if hzd_state:
-            self.hzd_state = copy(hzd_state)
 
+    """
+    @brief      Convert the kinematics and dynamics properties into string
+
+    @return     The kinematics and dynamics properties as a string
+    """
     def __repr__(self):
         return "State(q=\n{!r},\nv=\n{!r},\na=\n{!r},\nt=\n{!r},\nf=\n{!r},\nf_ext=\n{!r})".format(
             self.q, self.v, self.a, self.t, self.f, self.f_ext)
 
-def smoothing_filter(time_in,val_in,time_out=None,relabel=None,params=None):
+
+"""
+@brief      Smoothing filter with relabeling and resampling features.
+
+@details    It supports evenly sampled multidimensional input signal.
+            Relabeling can be used to infer the value of samples at
+            time steps before and after the explicitly provided samples.
+            As a reminder, relabeling is a generalization of periodicity.
+
+@param[in]  time_in     Time steps of the input signal (1D numpy array)
+@param[in]  val_in      Sampled values of the input signal
+                        (2D numpy array: row = sample, column = time)
+@param[in]  time_out    Time steps of the output signal (1D numpy array)
+@param[in]  relabel     Relabeling matrix (identity for periodic signals)
+                        Optional: Disable if omitted
+@param[in]  params      Parameters of the filter. Dictionary with keys:
+                        'mixing_ratio_1': Relative time at the begining of the signal
+                                          during the output signal corresponds to a
+                                          linear mixing over time of the filtered and
+                                          original signal. (only used if relabel is omitted)
+                        'mixing_ratio_2': Relative time at the end of the signal
+                                          during the output signal corresponds to a
+                                          linear mixing over time of the filtered and
+                                          original signal. (only used if relabel is omitted)
+                        'smoothness'[0]: Smoothing factor to filter the begining of the signal
+                                         (only used if relabel is omitted)
+                        'smoothness'[1]: Smoothing factor to filter the end of the signal
+                                         (only used if relabel is omitted)
+                        'smoothness'[2]: Smoothing factor to filter the middle part of the signal
+
+@return     Filtered signal (2D numpy array: row = sample, column = time)
+"""
+def smoothing_filter(time_in, val_in, time_out=None, relabel=None, params=None):
     if time_out is None:
         time_out = time_in
     if params is None:
@@ -135,16 +198,36 @@ def smoothing_filter(time_in,val_in,time_out=None,relabel=None,params=None):
 
     return val_out
 
-def load_csv_log(csv_log_path):
-    return np.genfromtxt(csv_log_path, delimiter=',')
 
+"""
+@brief      Delete a 'node' in Gepetto-viewer.
+
+@remark     Be careful, one must specify the full path of a node, including
+            all parent group, but without the window name, ie
+            'scene_name/robot_name' to delete the robot.
+
+@param[in]  nodes_path     Full path of the node to delete
+"""
 def delete_nodes_viewer(*nodes_path):
     client = Client()
     for node_path in nodes_path:
         if node_path in client.gui.getNodeList():
             client.gui.deleteNode(node_path, True)
 
-# Fix bug if root_joint=None
+
+"""
+@brief      Init a RobotWrapper with a given URDF.
+
+@remark     Overload of the original method defined by `pinocchio` module.
+
+@param[out] self            RobotWrapper object to update
+@param[in]  filename        Full path of the URDF file
+@param[in]  package_dirs    Unused
+@param[in]  root_joint      Root joint. It is used to append a free flyer to the URDF
+                            model if necessary. If so, root_joint = pnc.JointModelFreeFlyer().
+@param[in]  verbose         Unused
+@param[in]  meshLoader      Unused
+"""
 def initFromURDF(self, filename, package_dirs=None, root_joint=None, verbose=False, meshLoader=None):
     if root_joint is None:
         model = pin.buildModelFromUrdf(filename)
@@ -179,13 +262,27 @@ def initFromURDF(self, filename, package_dirs=None, root_joint=None, verbose=Fal
                 raise Exception('The list of package directories is wrong. At least one is not a string')
             else:
                 collision_model = _buildGeomFromUrdf(model, filename, pin.GeometryType.COLLISION, meshLoader,
-                                                        dirs = utils.fromListToVectorOfString(package_dirs))
+                                                     dirs = utils.fromListToVectorOfString(package_dirs))
                 visual_model = _buildGeomFromUrdf(model, filename, pin.GeometryType.VISUAL, meshLoader,
-                                                        dirs = utils.fromListToVectorOfString(package_dirs))
+                                                  dirs = utils.fromListToVectorOfString(package_dirs))
 
 
     RobotWrapper.__init__(self, model=model, collision_model=collision_model, visual_model=visual_model)
 
+
+"""
+@brief      Extract a trajectory object using from raw simulation data.
+
+@param[in]  log_header          List of field names
+@param[in]  log_data            Data logged (2D numpy array: row = time, column = data)
+@param[in]  urdf_path           Full path of the URDF file
+@param[in]  pinocchio_model     Pinocchio model. Optional: None if omitted
+@param[in]  has_freeflyer       Whether the model has a freeflyer
+
+@return     Trajectory dictionary. The actual trajectory corresponds to
+            the field "evolution_robot" and it is a list of State object.
+            The other fields are additional information.
+"""
 def extract_state_from_simulation_log(log_header, log_data, urdf_path, pinocchio_model=None, has_freeflyer=True):
     # Extract time, joint positions and velocities evolution from log.
     # Note that the quaternion angular velocity vectors are expressed
@@ -209,7 +306,28 @@ def extract_state_from_simulation_log(log_header, log_data, urdf_path, pinocchio
             "has_freeflyer": has_freeflyer,
             "pinocchio_model": pinocchio_model}
 
-## @brief   Display robot evolution in Gepetto viewer.
+
+"""
+@brief      Display robot evolution in Gepetto-viewer at stable speed.
+
+@remark     The speed is independent of the machine, and more
+            specifically of CPU power.
+
+@param[in]  trajectory_data     Trajectory dictionary with keys:
+                                "evolution_robot": list of State object of increasing time
+                                "urdf": Full path of the URDF file
+                                "has_freeflyer": Whether the model has a freeflyer
+                                "pinocchio_model": Pinocchio model (None if omitted)
+@param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
+@param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
+                                Optional: Original colors of each link. No alpha.
+@param[in]  speed_ratio         Speed ratio of the simulation
+@param[in]  window_name         Name of the Gepetto-viewer's window in which to display the robot.
+                                Optional: Common default name if omitted.
+@param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
+                                Optional: Common default name if omitted.
+"""
+## @brief
 lock = Lock()
 def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
                       speed_ratio=1.0, window_name='python-pinocchio', scene_name='world'):
@@ -287,6 +405,18 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
     for i in range(len(trajectory_data)):
         threads[i].join()
 
+
+"""
+@brief      Generate a unique colorized URDF.
+
+@remark     Multiple identical URDF model of different colors can be
+            loaded in Gepetto-viewer this way.
+
+@param[in]  urdf_path     Full path of the URDF file
+@param[in]  rgb           RGB code defining the color of the model. It is the same for each link.
+
+@return     Full path of the colorized URDF file.
+"""
 def get_colorized_urdf(urdf_path, rgb):
     color_string = "%.3f_%.3f_%.3f_1.0" % rgb
     color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % rgb # don't close tag with '>', in order to handle <color/> and <color></color>
@@ -313,6 +443,18 @@ def get_colorized_urdf(urdf_path, rgb):
 
     return colorized_urdf_path
 
+
+"""
+@brief      Get a pointer to the running process of Gepetto-Viewer.
+
+@details    This method can be used to open a new process if necessary.
+
+@param[in]  open_if_needed      Whether a new process must be opened if
+                                no running process is found.
+                                Optional: False by default
+
+@return     A pointer to the running Gepetto-viewer Client and its PID.
+"""
 def get_gepetto_client(open_if_needed=False):
     try:
         return Client(), None
@@ -337,12 +479,39 @@ def get_gepetto_client(open_if_needed=False):
 
     return None, None
 
+
+"""
+@brief      Get the full path of a node associated to a given geometry
+            object and geometry type.
+
+@remark     This is a hidden function that is not automatically imported
+            using 'from wdc_jiminy_py import *'. It is not intended to
+            be called manually.
+
+@param[in]  geometry_object     Geometry object from which to get the node
+@param[in]  geometry_type       Geometry type. It must be either
+                                pin.GeometryType.VISUAL or pin.GeometryType.COLLISION
+                                for display and collision, respectively.
+
+@return     Full path of the associated node.
+"""
 def _getViewerNodeName(rb, geometry_object, geometry_type):
     if geometry_type is pin.GeometryType.VISUAL:
         return rb.viewerVisualGroupName + '/' + geometry_object.name
     elif geometry_type is pin.GeometryType.COLLISION:
         return rb.viewerCollisionGroupName + '/' + geometry_object.name
 
+
+"""
+@brief      Update the generalized position of a geometry object.
+
+@remark     This is a hidden function that is not automatically imported
+            using 'from wdc_jiminy_py import *'. It is not intended to
+            be called manually.
+
+@param[in]  data        Up-to-date Pinocchio.Data object associated to the model.
+@param[in]  visual      Wether it is a visual or collision update
+"""
 def _updateGeometryPlacements(rb, data, visual=False):
     if visual:
         geom_model = rb.visual_model
@@ -353,6 +522,15 @@ def _updateGeometryPlacements(rb, data, visual=False):
 
     pin.updateGeometryPlacements(rb.model, data, geom_model, geom_data)
 
+
+"""
+@brief      Update the configuration of Model in Gepetto-viewer.
+
+@details    It updates both the collision and display if necessary.
+
+@param[in]  data        Up-to-date Pinocchio.Data object associated to the model
+@param[in]  client      Pointer to the Gepetto-viewer Client
+"""
 def update_gepetto_viewer(rb, data, client):
     if rb.display_collisions:
         client.gui.applyConfigurations(

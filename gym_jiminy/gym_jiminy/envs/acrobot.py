@@ -1,7 +1,3 @@
-"""
-Classic acrobot system simulated using Jiminy Engine
-"""
-
 import os
 from math import sin, cos, pi
 import numpy as np
@@ -14,41 +10,51 @@ from jiminy_py import engine_asynchronous
 from gym_jiminy.common import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
+"""
+@brief      Implementation of a Gym environment for the Acrobot which is using
+            Jiminy Engine to perform physics computations and Gepetto-viewer for
+            rendering. It is a specialization of RobotJiminyGoalEnv. The acrobot
+            is a 2-link pendulum with only the second joint actuated. Initially,
+            both links point downwards. The goal is to swing the end-effector at
+            a height at least the length of one link above the base. Both links
+            can swing freely and can pass by each other, i.e. they don't collide
+            when they have the same angle.
+
+@details    **STATE:**
+            The state consists of the sin() and cos() of the two rotational joint
+            angles and the joint angular velocities :
+            [cos(theta1) sin(theta1) cos(theta2) sin(theta2) thetaDot1 thetaDot2].
+            For the first link, an angle of 0 corresponds to the link pointing
+            downwards. The angle of the second link is relative to the angle of
+            the first link. An angle of 0 corresponds to having the same angle
+            between the two links. A state of [1, 0, 1, 0, ..., ...] means that
+            both links point downwards.
+
+            **ACTIONS:**
+            The action is either applying +1, 0 or -1 torque on the joint between
+            the two pendulum links.
+
+@seealso    R. Sutton: Generalization in Reinforcement Learning:
+                Successful Examples Using Sparse Coarse Coding (NIPS 1996)
+@seealso    R. Sutton and A. G. Barto:
+                Reinforcement learning: An introduction.
+                Cambridge: MIT press, 1998.
+"""
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
-    """
-    Acrobot is a 2-link pendulum with only the second joint actuated.
-    Initially, both links point downwards. The goal is to swing the
-    end-effector at a height at least the length of one link above the base.
-    Both links can swing freely and can pass by each other, i.e., they don't
-    collide when they have the same angle.
-
-    **STATE:**
-    The state consists of the sin() and cos() of the two rotational joint
-    angles and the joint angular velocities :
-    [cos(theta1) sin(theta1) cos(theta2) sin(theta2) thetaDot1 thetaDot2].
-    For the first link, an angle of 0 corresponds to the link pointing downwards.
-    The angle of the second link is relative to the angle of the first link.
-    An angle of 0 corresponds to having the same angle between the two links.
-    A state of [1, 0, 1, 0, ..., ...] means that both links point downwards.
-
-    **ACTIONS:**
-    The action is either applying +1, 0 or -1 torque on the joint between
-    the two pendulum links.
-
-    **REFERENCE:**
-    .. seealso::
-        R. Sutton: Generalization in Reinforcement Learning:
-        Successful Examples Using Sparse Coarse Coding (NIPS 1996)
-    .. seealso::
-        R. Sutton and A. G. Barto:
-        Reinforcement learning: An introduction.
-        Cambridge: MIT press, 1998.
-    """
 
     metadata = {
         'render.modes': ['human'],
     }
 
+    """
+    @brief      Constructor
+
+    @param[in]  continuous      Whether the action space is continuous or not. If
+                                not continuous, the action space has only 3 states,
+                                i.e. low, zero, and high. Optional: True by default
+
+    @return     Instance of the environment.
+    """
     def __init__(self, continuous=True):
         ############################ Backup the input arguments ################################
 
@@ -145,11 +151,34 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         else:
             self.action_space = spaces.Discrete(3)
 
+
+    """
+    @brief      Samples a new goal and returns it.
+
+    @details    The goal is randomly sampled using a uniform
+                distribution between `0.2*self._tipPosZMax` and
+                `0.98*self._tipPosZMax`.
+
+    @remark     `self._tipPosZMax` can be overwritten to tweak the
+                difficulty of the problem. By default, it is the
+                maximum high of the highest joint that can be reached
+                by the pendulum.
+
+    @return     Sample goal.
+    """
     def _sample_goal(self):
-        """Samples a new goal and returns it.
-        """
         return self.np_random.uniform(low=-0.2*self._tipPosZMax, high=0.98*self._tipPosZMax, size=(1,))
 
+
+    """
+    @brief      Run a simulation step for a given.
+
+    @param[in]  a       The action to perform (in the action space rather than
+                        the original torque space).
+
+    @return     The next observation, the reward, the status of the simulation
+                (done or not), and a dictionary of extra information
+    """
     def step(self, a):
         if self.continuous:
             torque = a
@@ -183,6 +212,17 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         return obs, reward, done, info
 
+
+    """
+    @brief      Get the observation associated to the current state of the model,
+                along with some additional information.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     The next observation and a dictionary of extra information
+    """
     def _get_info(self):
         # Get observation about the current state
         obs = self._get_obs()
@@ -195,6 +235,16 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         return info, obs
 
+
+    """
+    @brief      Compute the reward at the current state.
+
+    @param[in]  achieved_goal   Currently achieved goal
+    @param[in]  desired_goal    Desired goal
+    @param[in]  info            Dictionary of extra information
+
+    @return     The computed reward.
+    """
     def compute_reward(self, achieved_goal, desired_goal, info):
         # Must NOT use info, since it is not available while using HER (Experience Replay)
 
@@ -209,12 +259,43 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         return reward
 
+
+    """
+    @brief      Compute the achieved goal based on the current state of the model.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     The currently achieved goal
+    """
     def _get_achieved_goal(self):
         return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation.A1[[2]]
 
+
+    """
+    @brief      Determine whether the desired goal has been achieved.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     Boolean flag
+    """
     def _is_success(self, achieved_goal, desired_goal):
         return bool(achieved_goal > desired_goal)
 
+
+    """
+    @brief      Get the current observation based on the current state of the model.
+
+    @remark     This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
+
+    @return     Dictionary with the current observation, achieved goal,
+                and desired goal.
+    """
     def _get_obs(self):
         theta1, theta2, theta1_dot, theta2_dot  = self.state
         theta1_dot = min(max(theta1_dot, -self.MAX_VEL_1), self.MAX_VEL_1)
@@ -233,7 +314,14 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
             'desired_goal': self.goal.copy(),
         }
 
+"""
+@brief      Implementation of a Gym goal-environment for the Acrobot which is using
+            Jiminy Engine to perform physics computations and Gepetto-viewer for
+            rendering.
 
+@details    It only changes the observation mechanism wrt the base class
+            `JiminyAcrobotGoalEnv`. See its documentation for more information.
+"""
 class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
     def __init__(self, continuous=True, enableGoalEnv=False):
         self.enableGoalEnv = enableGoalEnv
