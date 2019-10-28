@@ -909,7 +909,7 @@ namespace jiminy
         return urdfPath_;
     }
 
-    bool const & Model::getHasFreeFlyer(void) const
+    bool const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
     }

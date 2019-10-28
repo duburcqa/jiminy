@@ -16,7 +16,7 @@
 namespace jiminy
 {
     std::string const JOINT_PREFIX_BASE("current");
-    std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "FreeFlyer");
+    std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "Freeflyer");
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
     class Engine;
@@ -173,7 +173,7 @@ namespace jiminy
         bool const & getIsInitialized(void) const;
         bool const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
-        bool const & getHasFreeFlyer(void) const;
+        bool const & getHasFreeflyer(void) const;
         std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
         result_t getSensorsData(std::vector<matrixN_t> & data) const;
         result_t getSensorsData(std::string const & sensorType,

@@ -6,7 +6,7 @@ import re
 import shutil
 import time
 from copy import copy, deepcopy
-import subprocesslock
+import subprocess
 from threading import Thread, Lock
 from bisect import bisect_right
 import numpy as np
@@ -156,9 +156,9 @@ def smoothing_filter(time_in, val_in, time_out=None, relabel=None, params=None):
         params['mixing_ratio_1'] = 0.12
         params['mixing_ratio_2'] = 0.04
         params['smoothness'] = [0.0,0.0,0.0]
-        params['smoothness'][0]  = 5e-4
-        params['smoothness'][1]  = 5e-4
-        params['smoothness'][2]  = 5e-4
+        params['smoothness'][0]  = 5e-3
+        params['smoothness'][1]  = 5e-3
+        params['smoothness'][2]  = 3e-3
 
     if relabel is None:
         mix_fit    = [None,None,None]
@@ -289,11 +289,11 @@ def extract_state_from_simulation_log(log_header, log_data, urdf_path, pinocchio
     # it body frame rather than world frame.
 
     t = log_data[:,log_header.index('Global.Time')]
-    qe = log_data[:,np.array(['currentFreeFlyerPosition' in field
+    qe = log_data[:,np.array(['currentFreeflyerPosition' in field
                               or 'currentPosition' in field for field in log_header])].T
-    dqe = log_data[:,np.array(['currentFreeFlyerVelocity' in field
+    dqe = log_data[:,np.array(['currentFreeflyerVelocity' in field
                                or 'currentVelocity' in field for field in log_header])].T
-    ddqe = log_data[:,np.array(['currentFreeFlyerAcceleration' in field
+    ddqe = log_data[:,np.array(['currentFreeflyerAcceleration' in field
                                 or 'currentAcceleration' in field for field in log_header])].T
 
     # Create state sequence
