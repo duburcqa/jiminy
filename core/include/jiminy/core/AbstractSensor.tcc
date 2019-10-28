@@ -1,3 +1,4 @@
+#include "jiminy/core/Model.h"
 #include "jiminy/core/Engine.h" // Required to get access to MIN_TIME_STEP and MAX_TIME_STEP
 
 namespace jiminy
