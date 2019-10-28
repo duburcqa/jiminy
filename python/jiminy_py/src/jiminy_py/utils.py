@@ -156,9 +156,9 @@ def smoothing_filter(time_in, val_in, time_out=None, relabel=None, params=None):
         params['mixing_ratio_1'] = 0.12
         params['mixing_ratio_2'] = 0.04
         params['smoothness'] = [0.0,0.0,0.0]
-        params['smoothness'][0]  = 5e-4
-        params['smoothness'][1]  = 5e-4
-        params['smoothness'][2]  = 5e-4
+        params['smoothness'][0]  = 5e-3
+        params['smoothness'][1]  = 5e-3
+        params['smoothness'][2]  = 3e-3
 
     if relabel is None:
         mix_fit    = [None,None,None]
