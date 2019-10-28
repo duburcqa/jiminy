@@ -289,11 +289,11 @@ def extract_state_from_simulation_log(log_header, log_data, urdf_path, pinocchio
     # it body frame rather than world frame.
 
     t = log_data[:,log_header.index('Global.Time')]
-    qe = log_data[:,np.array(['currentFreeFlyerPosition' in field
+    qe = log_data[:,np.array(['currentFreeflyerPosition' in field
                               or 'currentPosition' in field for field in log_header])].T
-    dqe = log_data[:,np.array(['currentFreeFlyerVelocity' in field
+    dqe = log_data[:,np.array(['currentFreeflyerVelocity' in field
                                or 'currentVelocity' in field for field in log_header])].T
-    ddqe = log_data[:,np.array(['currentFreeFlyerAcceleration' in field
+    ddqe = log_data[:,np.array(['currentFreeflyerAcceleration' in field
                                 or 'currentAcceleration' in field for field in log_header])].T
 
     # Create state sequence
