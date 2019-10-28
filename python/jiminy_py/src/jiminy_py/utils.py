@@ -112,6 +112,14 @@ class State:
                                     default_state_dict['f_ext'][i]))
         return state_list
 
+    def update(self, q, v, a, t=None, hzd_state=None):
+        self.q = copy(q)
+        self.v = copy(v)
+        self.a = copy(a)
+        if t:
+            self.t = copy(t)
+        if hzd_state:
+            self.hzd_state = copy(hzd_state)
 
     def __repr__(self):
         """
