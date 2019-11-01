@@ -25,7 +25,7 @@ import jiminy_py
 @remark     This class can be used for synchronous purpose. In such a case, one has
             to call the method `step` specifying the optional argument `action_next`.
 """
-class engine_asynchronous(object):
+class EngineAsynchronous(object):
     """
     @brief      Constructor
 
@@ -42,12 +42,12 @@ class engine_asynchronous(object):
         self._action = np.zeros((len(model.motors_names), ))
 
         # Instantiate the Jiminy controller
-        self._controller = jiminy.controller_functor(
+        self._controller = jiminy.ControllerFunctor(
             self._send_command, self._internal_dynamics, len(self._sensors_types))
         self._controller.initialize(model)
 
         # Instantiate the Jiminy engine (model and controller are pass-by-reference)
-        self._engine = jiminy.engine()
+        self._engine = jiminy.Engine()
         self._engine.initialize(model, self._controller)
 
         self.is_gepetto_available = False

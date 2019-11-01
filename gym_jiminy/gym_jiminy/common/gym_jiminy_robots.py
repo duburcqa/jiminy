@@ -5,7 +5,7 @@ from gym import core, spaces
 from gym.utils import seeding
 
 import jiminy
-from jiminy_py import engine_asynchronous
+from jiminy_py import EngineAsynchronous
 from gym_jiminy.common import RenderOutMock
 
 
@@ -18,7 +18,7 @@ from gym_jiminy.common import RenderOutMock
 
 @details    The Python Jiminy engine must be completely initialized beforehand,
             which means that the Jiminy Model and Controller are already setup.
-            For now, the only engine available is `engine_asynchronous`.
+            For now, the only engine available is `EngineAsynchronous`.
 """
 class RobotJiminyEnv(core.Env):
 
@@ -32,7 +32,7 @@ class RobotJiminyEnv(core.Env):
     @param[in]  robot_name  Name of the robot
     @param[in]  engine_py   Python Jiminy engine used for physics computations.
                             It must be completely initialized. For now, the
-                            only engine available is `engine_asynchronous`.
+                            only engine available is `EngineAsynchronous`.
     @param[in]  dt          Desired update period of the simulation
 
     @return     Instance of the environment.
@@ -168,7 +168,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
     @param[in]  robot_name  Name of the robot
     @param[in]  engine_py   Python Jiminy engine used for physics computations.
                             It must be completely initialized. For now, the
-                            only engine available is `engine_asynchronous`.
+                            only engine available is `EngineAsynchronous`.
     @param[in]  dt          Desired update period of the simulation
 
     @return     Instance of the environment.

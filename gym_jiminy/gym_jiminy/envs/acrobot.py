@@ -6,7 +6,7 @@ from gym import core, spaces, logger
 from gym.utils import seeding
 
 import jiminy
-from jiminy_py import engine_asynchronous
+from jiminy_py import EngineAsynchronous
 from gym_jiminy.common import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
@@ -65,11 +65,11 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         cur_dir = os.path.dirname(os.path.realpath(__file__))
         urdf_path = os.path.join(cur_dir, "../../../data/double_pendulum/double_pendulum.urdf")
         motors = ["SecondPendulumJoint"]
-        self.model = jiminy.model() # Model has to be an attribute of the class to avoid it being garbage collected
+        self.model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected
         self.model.initialize(urdf_path, motors=motors)
         self.model.add_encoder_sensor(joint_name="PendulumJoint")
         self.model.add_encoder_sensor(joint_name="SecondPendulumJoint")
-        engine_py = engine_asynchronous(self.model)
+        engine_py = EngineAsynchronous(self.model)
 
         ################################# Configure Jiminy #####################################
 

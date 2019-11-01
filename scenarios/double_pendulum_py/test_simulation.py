@@ -17,7 +17,7 @@ urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/doub
 # Instantiate the model
 contacts = []
 motors = ["SecondPendulumJoint"]
-model = jiminy.model()
+model = jiminy.Model()
 model.initialize(urdf_path, contacts, motors, False)
 
 # Instantiate the controller
@@ -30,11 +30,11 @@ def computeCommand(t, q, v, u):
 def internalDynamics(t, q, v, u):
     u[:] = 0.0
 
-controller = jiminy.controller_functor(computeCommand, internalDynamics)
+controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(model)
 
 # Instantiate the engine
-engine = jiminy.engine()
+engine = jiminy.Engine()
 engine.initialize(model, controller)
 
 ########################### Configuration the simulation ################################

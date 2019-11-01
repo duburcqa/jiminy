@@ -248,25 +248,25 @@ namespace python
         {
             bp::class_<AbstractSensorBase,
                        boost::shared_ptr<AbstractSensorBase>,
-                       boost::noncopyable>("abstract_sensor", bp::no_init)
+                       boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<AbstractSensorBase> >(); // Required to handle shared_ptr from/to Python
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ImuSensor>,
-                       boost::noncopyable>("imu_sensor", bp::no_init)
+                       boost::noncopyable>("ImuSensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ForceSensor>,
-                       boost::noncopyable>("force_sensor", bp::no_init)
+                       boost::noncopyable>("ForceSensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<EncoderSensor>,
-                       boost::noncopyable>("encoder_sensor", bp::no_init)
+                       boost::noncopyable>("EncoderSensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<EncoderSensor> >();
         }
@@ -479,7 +479,7 @@ namespace python
         {
             bp::class_<Model,
                        boost::shared_ptr<Model>,
-                       boost::noncopyable>("model")
+                       boost::noncopyable>("Model")
                 .def(PyModelVisitor());
         }
     };
@@ -553,7 +553,7 @@ namespace python
         {
             bp::class_<AbstractController,
                        boost::shared_ptr<AbstractController>,
-                       boost::noncopyable>("abstract_controller", bp::no_init)
+                       boost::noncopyable>("AbstractController", bp::no_init)
                 .def(PyAbstractControllerVisitor());
         }
     };
@@ -661,7 +661,7 @@ namespace python
         {
             bp::class_<stepperState_t,
                        boost::shared_ptr<stepperState_t>,
-                       boost::noncopyable>("stepper_state", bp::no_init)
+                       boost::noncopyable>("StepperState", bp::no_init)
                 .def(PyStepperVisitor());
         }
     };
@@ -803,7 +803,7 @@ namespace python
         {
             bp::class_<Engine,
                        boost::shared_ptr<Engine>,
-                       boost::noncopyable>("engine")
+                       boost::noncopyable>("Engine")
                 .def(PyEngineVisitor());
         }
     };
