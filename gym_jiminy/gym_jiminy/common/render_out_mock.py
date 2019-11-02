@@ -2,11 +2,6 @@
 
 import numpy as np
 
-"""
-@brief      Fake output of the Render method of Gym environment.
-            Required for compatibility with Gym OpenAI if returning
-            an output does not make sense for a given environment.
-"""
 class RenderOutMock:
     """
     @brief      Fake output of the Render method of Gym environment.

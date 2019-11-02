@@ -119,7 +119,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         ## Max velocity of joint 2
         self.MAX_VEL_2 = 4 * pi
 
-        # Torque magnitude of the action
         if not self.continuous:
             ## Torque magnitude of the action
             self.AVAIL_TORQUE = [-1.0, 0.0, +1.0]
