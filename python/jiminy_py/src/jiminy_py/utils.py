@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-## @file
+## @file jiminy_py/utils.py
 
 import sys
 import os
@@ -497,6 +497,7 @@ def _getViewerNodeName(rb, geometry_object, geometry_type):
                 using 'from wdc_jiminy_py import *'. It is not intended to
                 be called manually.
 
+    @param[in]  rb                  RobotWrapper object from which to extract the name of the node
     @param[in]  geometry_object     Geometry object from which to get the node
     @param[in]  geometry_type       Geometry type. It must be either
                                     pin.GeometryType.VISUAL or pin.GeometryType.COLLISION
@@ -518,6 +519,7 @@ def _updateGeometryPlacements(rb, data, visual=False):
                 using 'from wdc_jiminy_py import *'. It is not intended to
                 be called manually.
 
+    @param[in]  rb          RobotWrapper object to update
     @param[in]  data        Up-to-date Pinocchio.Data object associated to the model.
     @param[in]  visual      Wether it is a visual or collision update
     """
@@ -537,24 +539,25 @@ def update_gepetto_viewer(rb, data, client):
 
     @details    It updates both the collision and display if necessary.
     .
+    @param[in]  rb          RobotWrapper object to update
     @param[in]  data        Up-to-date Pinocchio.Data object associated to the model
     @param[in]  client      Pointer to the Gepetto-viewer Client
     """
     if rb.display_collisions:
         client.gui.applyConfigurations(
             [_getViewerNodeName(rb, collision,pin.GeometryType.COLLISION)
-             for collision in rb.collision_model.geometryObjects ],
+             for collision in rb.collision_model.geometryObjects],
             [pin.se3ToXYZQUATtuple(rb.collision_data.oMg[rb.collision_model.getGeometryId(collision.name)])
-             for collision in rb.collision_model.geometryObjects ]
+             for collision in rb.collision_model.geometryObjects]
         )
 
     if rb.display_visuals:
         _updateGeometryPlacements(rb, data, visual=True)
         client.gui.applyConfigurations(
             [_getViewerNodeName(rb, visual,pin.GeometryType.VISUAL)
-                for visual in rb.visual_model.geometryObjects ],
+                for visual in rb.visual_model.geometryObjects],
             [pin.se3ToXYZQUATtuple(rb.visual_data.oMg[rb.visual_model.getGeometryId(visual.name)])
-                for visual in rb.visual_model.geometryObjects ]
+                for visual in rb.visual_model.geometryObjects]
         )
 
     client.gui.refresh()

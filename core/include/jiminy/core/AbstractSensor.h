@@ -8,8 +8,6 @@
 ///                 Each sensor added to a Jiminy Model is downcasted as an instance of
 ///                 AbstractSensor and polymorphism is used to call the actual implementations.
 ///
-/// \copyright      Wandercraft
-///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef SIMU_ABSTRACT_SENSOR_H

@@ -14,8 +14,6 @@
 ///                          vectorN_t       & u)
 ///                 where I is range(n), with n the number of different type of sensor.
 ///
-/// \copyright      Wandercraft
-///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifndef WDC_CONTROLLER_FUNCTOR_H

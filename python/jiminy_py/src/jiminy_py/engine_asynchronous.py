@@ -1,4 +1,4 @@
-## @file
+## @file src/jiminy_py/engine_asynchronous.py
 
 """
 @package    jiminy_py

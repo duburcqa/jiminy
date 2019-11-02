@@ -24,8 +24,6 @@ namespace jiminy
     ///                 instance of AbstractController and polymorphism is used to call the actual
     ///                 implementations.
     ///
-    /// \copyright      Wandercraft
-    ///
     //////////////////////////////////////////////////////////////////////////////////////////////
     class AbstractController
     {
