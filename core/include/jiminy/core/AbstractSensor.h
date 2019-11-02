@@ -23,8 +23,8 @@
 
 namespace jiminy
 {
-    static uint8_t const MIN_DELAY_BUFFER_RESERVE(20); // Minimum memory allocation is memory is full and the older data stored is dated less than the desired delay
-    static uint8_t const MAX_DELAY_BUFFER_EXCEED(20);  // Maximum number of data stored allowed to be dated more than the desired delay
+    static uint8_t const MIN_DELAY_BUFFER_RESERVE(20); ///< Minimum memory allocation is memory is full and the older data stored is dated less than the desired delay
+    static uint8_t const MAX_DELAY_BUFFER_EXCEED(20);  ///< Maximum number of data stored allowed to be dated more than the desired delay
 
     class TelemetryData;
     class Model;
@@ -66,10 +66,10 @@ namespace jiminy
             // Empty.
         };
 
-        boost::circular_buffer_space_optimized<float64_t> time_;    // Circular buffer with the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;    // Circular buffer with past sensor data
-        std::vector<AbstractSensorBase *> sensors_;                 // Vector of pointers to the sensors
-        uint32_t num_;                                              // Number of sensors of that type
+        boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer with the stored timesteps
+        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer with past sensor data
+        std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
+        uint32_t num_;                                              ///< Number of sensors of that type
     };
 
     class AbstractSensorBase
@@ -96,11 +96,11 @@ namespace jiminy
 
         struct abstractSensorOptions_t
         {
-            bool      const rawData;    // Flag to enable raw sensor data instead of the pre-processed one (#TODO raw mode not available)
-            vectorN_t const noiseStd;   // Standard deviation of the noise of the sensor
-            vectorN_t const bias;       // Bias of the sensor
-            float64_t const delay;      // Delay of the sensor
-            uint32_t  const delayInterpolationOrder; // Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
+            bool      const rawData;    ///< Flag to enable raw sensor data instead of the pre-processed one (#TODO raw mode not available)
+            vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
+            vectorN_t const bias;       ///< Bias of the sensor
+            float64_t const delay;      ///< Delay of the sensor
+            uint32_t  const delayInterpolationOrder; ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
             rawData(boost::get<bool>(options.at("rawData"))),
@@ -388,19 +388,19 @@ namespace jiminy
         virtual std::string getTelemetryName(void) const = 0;
 
     public:
-        std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; // Structure with the parameters of the sensor
+        std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; ///< Structure with the parameters of the sensor
 
     protected:
-        configHolder_t sensorOptionsHolder_;    // Dictionary with the parameters of the sensor
-        TelemetrySender telemetrySender_;       // Telemetry sender of the sensor used to register and update telemetry variables
-        bool isInitialized_;                    // Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;            // Flag to determine whether the telemetry of the controller has been initialized or not
-        Model const * model_;                   // Model of the system for which the command and internal dynamics
+        configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
+        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
+        bool isInitialized_;                    ///< Flag to determine whether the controller has been initialized or not
+        bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        Model const * model_;                   ///< Model of the system for which the command and internal dynamics
 
     private:
-        std::string name_;                      // Name of the sensor
-        vectorN_t data_;                        // Measurement buffer to avoid recomputing the same "current" measurement multiple times
-        bool isDataUpToDate_;                   // Flag to determine whether the measurement buffer ois update-to-date or not
+        std::string name_;                      ///< Name of the sensor
+        vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
+        bool isDataUpToDate_;                   ///< Flag to determine whether the measurement buffer ois update-to-date or not
     };
 
     template<class T>

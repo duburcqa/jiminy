@@ -1,19 +1,3 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-///
-/// \brief          Generic interface for any controller.
-///
-///                 Any controller must inherit from this base class and implement its virtual
-///                 methods.
-///
-///                 The controller used to initialize a Jiminy Engine is downcasted as an
-///                 instance of AbstractController and polymorphism is used to call the actual
-///                 implementations.
-///
-/// \copyright      Wandercraft
-///
-///////////////////////////////////////////////////////////////////////////////////////////////
-
-
 #ifndef SIMU_ABSTRACT_CONTROLLER_H
 #define SIMU_ABSTRACT_CONTROLLER_H
 
@@ -23,12 +7,26 @@
 
 namespace jiminy
 {
-    std::string const CONTROLLER_OBJECT_NAME("HighLevelController");
+    std::string const CONTROLLER_OBJECT_NAME("HighLevelController"); ///< Name of the telemetry object
 
     class TelemetryData;
     class Model;
     class Engine;
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// \brief          Generic interface for any controller.
+    ///
+    ///                 Any controller must inherit from this base class and implement its virtual
+    ///                 methods.
+    ///
+    ///                 The controller used to initialize a Jiminy Engine is downcasted as an
+    ///                 instance of AbstractController and polymorphism is used to call the actual
+    ///                 implementations.
+    ///
+    /// \copyright      Wandercraft
+    ///
+    //////////////////////////////////////////////////////////////////////////////////////////////
     class AbstractController
     {
         friend Engine;
@@ -44,10 +42,12 @@ namespace jiminy
 
             return config;
         };
-
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Structure with the configuration options shared between controllers
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         struct controllerOptions_t
         {
-            bool const telemetryEnable;     // Flag used to enable the telemetry of the controller
+            bool const telemetryEnable;     ///< Flag used to enable the telemetry of the controller
 
             controllerOptions_t(configHolder_t const & options) :
             telemetryEnable(boost::get<bool>(options.at("telemetryEnable")))
@@ -261,16 +261,15 @@ namespace jiminy
         virtual void reset(bool const & resetDynamicTelemetry = false);
 
     public:
-        std::unique_ptr<controllerOptions_t const> ctrlOptions_; // Structure with the parameters of the controller
+        std::unique_ptr<controllerOptions_t const> ctrlOptions_;    ///< Structure with the parameters of the controller
 
     protected:
-        Model const * model_;               // Model of the system for which the command and internal dynamics
-                                            // must be computed, as a raw pointer to avoid managing its deletion
-        bool isInitialized_;                // Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;        // Flag to determine whether the telemetry of the controller has been initialized or not
-        configHolder_t ctrlOptionsHolder_;  // Dictionary with the parameters of the controller
-        TelemetrySender telemetrySender_;   // Telemetry sender of the controller used to register and update telemetry variables
-        std::vector<std::pair<std::string, float64_t const *> > registeredInfo_;    // Vector of dynamically registered telemetry variables
+        Model const * model_;               ///< Model of the system for which to compute the command and internal dynamics must be computed, as a raw pointer to avoid managing its deletion
+        bool isInitialized_;                ///< Flag to determine whether the controller has been initialized or not
+        bool isTelemetryConfigured_;        ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        configHolder_t ctrlOptionsHolder_;  ///< Dictionary with the parameters of the controller
+        TelemetrySender telemetrySender_;   ///< Telemetry sender of the controller used to register and update telemetry variables
+        std::vector<std::pair<std::string, float64_t const *> > registeredInfo_;    ///< Vector of dynamically registered telemetry variables
     };
 }
 
