@@ -19,10 +19,10 @@ namespace jiminy
     std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "Freeflyer");
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
-    class Engine;
+    struct SensorDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
-    struct SensorDataHolder_t;
+    class Engine;
 
     class Model
     {
@@ -135,6 +135,10 @@ namespace jiminy
         };
 
     public:
+        typedef std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> > sensorsHolder_t;
+        typedef std::unordered_map<std::string, sensorsHolder_t> sensorsGroupHolder_t;
+
+    public:
         Model(void);
         virtual ~Model(void);
 
@@ -142,10 +146,6 @@ namespace jiminy
                             std::vector<std::string> const & contactFramesNames,
                             std::vector<std::string> const & motorsNames,
                             bool                     const & hasFreeflyer = true);
-        virtual void reset(void);
-
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
-        void updateTelemetry(void);
 
         template<typename TSensor>
         result_t addSensor(std::string              const & sensorName,
@@ -215,6 +215,11 @@ namespace jiminy
                            std::shared_ptr<TSensor>       & sensor);
 
     protected:
+        virtual void reset(void);
+
+        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        void updateTelemetry(void);
+
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool        const & hasFreeflyer);
         result_t generateFlexibleModel(void);

@@ -13,7 +13,6 @@
 #include "jiminy/core/TelemetryData.h"
 #include "jiminy/core/TelemetryRecorder.h"
 #include "jiminy/core/AbstractController.h"
-#include "jiminy/core/AbstractSensor.h"
 #include "jiminy/core/Model.h"
 #include "jiminy/core/Engine.h"
 
@@ -116,34 +115,6 @@ namespace jiminy
         }
 
         return returnCode;
-    }
-
-    void Engine::reset(bool const & resetDynamicForceRegister)
-    {
-        // Reset the dynamic force register if requested
-        if (resetDynamicForceRegister)
-        {
-            forcesImpulse_.clear();
-            forceImpulseNextIt_ = forcesImpulse_.begin();
-            forcesProfile_.clear();
-        }
-
-        // Reset the internal state of the model and controller
-        model_->reset();
-        controller_->reset();
-
-        // Reset the telemetry
-        telemetryRecorder_->reset();
-        telemetryData_->reset();
-
-        /* Preconfigure the telemetry with quantities known at compile time.
-           Note that registration is only locked at the beginning of the
-           simulation to enable dynamic registration until then. */
-        if (isInitialized_)
-        {
-            isTelemetryConfigured_ = false;
-            configureTelemetry();
-        }
     }
 
     result_t Engine::configureTelemetry(void)
@@ -262,6 +233,33 @@ namespace jiminy
         telemetryRecorder_->flushDataSnapshot(stepperState_.tLast);
     }
 
+    void Engine::reset(bool const & resetDynamicForceRegister)
+    {
+        // Reset the dynamic force register if requested
+        if (resetDynamicForceRegister)
+        {
+            forcesImpulse_.clear();
+            forceImpulseNextIt_ = forcesImpulse_.begin();
+            forcesProfile_.clear();
+        }
+
+        // Reset the internal state of the model and controller
+        model_->reset();
+        controller_->reset();
+
+        // Reset the telemetry
+        telemetryRecorder_->reset();
+        telemetryData_->reset();
+
+        /* Preconfigure the telemetry with quantities known at compile time.
+           Note that registration is only locked at the beginning of the
+           simulation to enable dynamic registration until then. */
+        if (isInitialized_)
+        {
+            isTelemetryConfigured_ = false;
+            configureTelemetry();
+        }
+    }
 
     result_t Engine::reset(vectorN_t const & x_init,
                            bool      const & resetRandomNumbers,

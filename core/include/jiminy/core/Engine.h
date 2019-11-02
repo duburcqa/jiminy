@@ -382,11 +382,8 @@ namespace jiminy
         result_t initialize(Model              & model,
                             AbstractController & controller,
                             callbackFct_t        callbackFct);
+
         void reset(bool const & resetDynamicForceRegister = false);
-
-        result_t configureTelemetry(void);
-        void updateTelemetry(void);
-
         result_t reset(vectorN_t const & x_init,
                        bool      const & resetRandomNumbers = false,
                        bool      const & resetDynamicForceRegister = false);
@@ -415,6 +412,9 @@ namespace jiminy
         void writeLogBinary(std::string const & filename);
 
     protected:
+        result_t configureTelemetry(void);
+        void updateTelemetry(void);
+
         void systemDynamics(float64_t const & t,
                             vectorN_t const & x,
                             vectorN_t       & dxdt);

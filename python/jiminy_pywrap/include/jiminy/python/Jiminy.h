@@ -317,7 +317,6 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
-                .def("reset", &Model::reset)
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
@@ -502,7 +501,7 @@ namespace python
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewEntry,
                                        (bp::arg("self"), "fieldname", "value"))
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry)
-                .def("remove_entries", &PyAbstractControllerVisitor::removeEntries)
+                .def("remove_entries", &AbstractController::removeEntries)
                 .def("get_options", &PyAbstractControllerVisitor::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
@@ -524,11 +523,6 @@ namespace python
             std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
             Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy)), fieldNames.size());
             self.registerNewVectorEntry(fieldNames, data);
-        }
-
-        static void removeEntries(AbstractController & self)
-        {
-            self.reset(true);
         }
 
         static bp::dict getOptions(AbstractController & self)
