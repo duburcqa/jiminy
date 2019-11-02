@@ -14,7 +14,7 @@
     - [Classes](./annotated.html), where only python classes are listed.
     - [Files](./files.html), where one may browse the file directory tree directly.
       This is the most complete reference (i.e. some file might be inaccessible from the other two interfaces).
-  - Python bindings of the C++ source code are documented as well: typically look for <ClassName>Visitor class.
+  - Python bindings of the C++ source code are documented as well: typically look for \<ClassName\>Visitor class.
 
 ## Contributing to this documentation
 

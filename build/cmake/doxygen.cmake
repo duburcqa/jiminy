@@ -14,6 +14,6 @@ MACRO (BUILD_DOC)
 	add_custom_target (doc_py
 		COMMAND doxygen ${CMAKE_BINARY_DIR}/jiminy_python.doxyfile
 		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-		COMMENT "Generating python documentation with Doxygen..."
+		COMMENT "Generating Python documentation with Doxygen..."
 		EXCLUDE_FROM_ALL TRUE)
 ENDMACRO()
