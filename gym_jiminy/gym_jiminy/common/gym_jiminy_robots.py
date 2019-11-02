@@ -1,3 +1,11 @@
+## @file
+
+"""
+@package    gym_jiminy
+
+@brief      Package containing python-native helper methods for Gym Jiminy Open Source.
+"""
+
 import os
 import numpy as np
 

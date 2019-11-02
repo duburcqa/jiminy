@@ -1,5 +1,11 @@
 ## @file
 
+"""
+@package    jiminy_py
+
+@brief      Package containing python-native helper methods for Jiminy Open Source.
+"""
+
 import os
 import tempfile
 import numpy as np

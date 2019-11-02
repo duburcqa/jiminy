@@ -1,3 +1,5 @@
+## @file
+
 import multiprocessing
 from collections import OrderedDict
 from multiprocessing import Process, Lock
@@ -9,8 +11,9 @@ from stable_baselines.common.vec_env import SubprocVecEnv, VecEnv, CloudpickleWr
 from stable_baselines.common.tile_images import tile_images
 
 
+## Unique threading.Lock for every simulation.
+# It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
 lock = Lock()
-
 
 def _worker(remote, parent_remote, env_fn_wrapper, lock=None):
     """

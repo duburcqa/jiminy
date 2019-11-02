@@ -1,3 +1,5 @@
+## @file
+
 import os
 from math import sin, cos, pi
 import numpy as np
