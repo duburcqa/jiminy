@@ -51,7 +51,7 @@ PROJECT_BRIEF          = "Jiminy open-source native Python code and bindings."
 # pixels and the maximum width should not exceed 200 pixels. Doxygen will copy
 # the logo to the output directory.
 
-PROJECT_LOGO           = @PROJECT_SOURCE_DIR@/build/doc_py/logo.png
+PROJECT_LOGO           = @PROJECT_SOURCE_DIR@/build/doc_style/logo.png
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is
@@ -1118,7 +1118,7 @@ HTML_FILE_EXTENSION    = .html
 # of the possible markers and block names see the documentation.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_HEADER            =
+HTML_HEADER            = @PROJECT_SOURCE_DIR@/build/doc_style/header.html
 
 # The HTML_FOOTER tag can be used to specify a user-defined HTML footer for each
 # generated HTML page. If the tag is left blank doxygen will generate a standard
@@ -1153,7 +1153,7 @@ HTML_STYLESHEET        =
 # list). For an example see the documentation.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_EXTRA_STYLESHEET  =
+HTML_EXTRA_STYLESHEET  = @PROJECT_SOURCE_DIR@/build/doc_style/style.css
 
 # The HTML_EXTRA_FILES tag can be used to specify one or more extra images or
 # other source files which should be copied to the HTML output directory. Note
@@ -1163,7 +1163,17 @@ HTML_EXTRA_STYLESHEET  =
 # files will be copied as-is; there are no commands or markers available.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_EXTRA_FILES       =
+HTML_EXTRA_FILES       = @PROJECT_SOURCE_DIR@/build/doc_style/img/nav_edge_left.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/nav_edge_right.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/nav_edge_inter.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/sync_off.png \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/sync_on.png \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/splitbar_handle.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/doc.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/mag_glass.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/folderclosed.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/img/folderopen.svg \
+                         @PROJECT_SOURCE_DIR@/build/doc_style/js/striped_bg.js
 
 # The HTML_COLORSTYLE_HUE tag controls the color of the HTML output. Doxygen
 # will adjust the colors in the style sheet and background images according to

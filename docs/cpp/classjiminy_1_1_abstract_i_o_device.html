@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!-- HTML header for doxygen 1.8.13-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <head>
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
@@ -9,6 +9,13 @@
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="resize.js"></script>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript">
+  $(document).ready(initResizable);
+</script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -19,6 +26,8 @@
 });
 </script><script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
+<script src="striped_bg.js"></script>
+<link href="style.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -51,6 +60,21 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(document).ready(function(){initNavTree('classjiminy_1_1_abstract_i_o_device.html','');});
+</script>
+<div id="doc-content">
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -65,11 +89,6 @@ $(function() {
 </iframe>
 </div>
 
-<div id="nav-path" class="navpath">
-  <ul>
-<li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html">AbstractIODevice</a></li>  </ul>
-</div>
-</div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
@@ -262,7 +281,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00132">132</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00115">size()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00133"></a><span class="lineno">  133</span>&#160;    {</div><div class="line"><a name="l00134"></a><span class="lineno">  134</span>&#160;        <span class="keywordflow">return</span> 0;</div><div class="line"><a name="l00135"></a><span class="lineno">  135</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="ae902906099178fa068d76fa98425283b"></a>
@@ -294,10 +313,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00073">73</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8cc_source.html#l00105">isOpen()</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;    {</div><div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;        <span class="keywordflow">if</span> (not <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ae5e2749d020ee8eda14f1c4bdbb1e5fc">isOpen</a>())</div><div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;        {</div><div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;            <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_GENERIC;</div><div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;            <span class="keywordflow">return</span>;</div><div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;        }</div><div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;</div><div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;        doClose();</div><div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;        modes_ = <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052">NOT_OPEN</a>;</div><div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ae5e2749d020ee8eda14f1c4bdbb1e5fc"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ae5e2749d020ee8eda14f1c4bdbb1e5fc">jiminy::AbstractIODevice::isOpen</a></div><div class="ttdeci">bool_t isOpen(void) const</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8cc_source.html#l00105">AbstractIODevice.cc:105</a></div></div>
-<div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052">jiminy::NOT_OPEN</a></div><div class="ttdoc">Device is not opened. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00021">AbstractIODevice.h:21</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="aec800677e5591a4f913bc126a809de17"></a>
@@ -322,8 +338,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00137">137</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00138"></a><span class="lineno">  138</span>&#160;    {</div><div class="line"><a name="l00139"></a><span class="lineno">  139</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00140"></a><span class="lineno">  140</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ae5e2749d020ee8eda14f1c4bdbb1e5fc"></a>
@@ -348,8 +363,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00021">jiminy::NOT_OPEN</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00073">close()</a>, and <a class="el" href="_abstract_i_o_device_8cc_source.html#l00044">open()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00106"></a><span class="lineno">  106</span>&#160;    {</div><div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;        <span class="keywordflow">return</span> (modes_ != <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052">OpenMode::NOT_OPEN</a>);</div><div class="line"><a name="l00108"></a><span class="lineno">  108</span>&#160;    }</div><div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eabe3b3a484bc50da58c1c3bdc893a8052">jiminy::NOT_OPEN</a></div><div class="ttdoc">Device is not opened. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00021">AbstractIODevice.h:21</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a2b100c175657a45771e1e89452c24ba3"></a>
@@ -372,9 +386,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00100">100</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00022">jiminy::READ_ONLY</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00024">jiminy::READ_WRITE</a>.</p>
-<div class="fragment"><div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;    {</div><div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;        <span class="keywordflow">return</span> (modes_ &amp; <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eaca243e033fd55cf8f116f6dbaac7d03f">OpenMode::READ_ONLY</a>) or (modes_ &amp; <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6">OpenMode::READ_WRITE</a>);</div><div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;    }</div><div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6">jiminy::READ_WRITE</a></div><div class="ttdoc">Read/Write mode (WARNING: (READ_ONLY | WRITE_ONLY) != READ_WRITE) </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00024">AbstractIODevice.h:24</a></div></div>
-<div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60eaca243e033fd55cf8f116f6dbaac7d03f"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eaca243e033fd55cf8f116f6dbaac7d03f">jiminy::READ_ONLY</a></div><div class="ttdoc">Read only mode. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00022">AbstractIODevice.h:22</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a5749b1ce151e8ced469388dcca5a21d4"></a>
@@ -405,7 +417,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a6e172f3ae22f683c3476cfc6346cba23">jiminy::MemoryDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00110">110</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00111"></a><span class="lineno">  111</span>&#160;    {</div><div class="line"><a name="l00112"></a><span class="lineno">  112</span>&#160;        <span class="keywordflow">return</span> <span class="keyword">false</span>;</div><div class="line"><a name="l00113"></a><span class="lineno">  113</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="ae8ea1b493e1b01a8824b5ed1adbb1132"></a>
@@ -428,9 +440,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00095">95</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00024">jiminy::READ_WRITE</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00023">jiminy::WRITE_ONLY</a>.</p>
-<div class="fragment"><div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;    {</div><div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;        <span class="keywordflow">return</span> (modes_ &amp; <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea8b57aca112b5ce14415cf38480914861">OpenMode::WRITE_ONLY</a>) or (modes_ &amp; <a class="code" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6">OpenMode::READ_WRITE</a>);</div><div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;    }</div><div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6">jiminy::READ_WRITE</a></div><div class="ttdoc">Read/Write mode (WARNING: (READ_ONLY | WRITE_ONLY) != READ_WRITE) </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00024">AbstractIODevice.h:24</a></div></div>
-<div class="ttc" id="namespacejiminy_html_a1a3fa6ad04819eb62f20a35642d4c60ea8b57aca112b5ce14415cf38480914861"><div class="ttname"><a href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea8b57aca112b5ce14415cf38480914861">jiminy::WRITE_ONLY</a></div><div class="ttdoc">Write only mode. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00023">AbstractIODevice.h:23</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a387f74370c159baf2fa5fc4bf23d61be"></a>
@@ -461,9 +471,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00044">44</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8cc_source.html#l00105">isOpen()</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;    {</div><div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;        <span class="keywordflow">if</span> (<a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ae5e2749d020ee8eda14f1c4bdbb1e5fc">isOpen</a>())</div><div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;        {</div><div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;            std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::open - Already open.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;            <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_GENERIC;</div><div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;            <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;        }</div><div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;</div><div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;        <span class="keywordflow">if</span> ((modes &amp; supportedModes_) != modes)</div><div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;        {</div><div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;            std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::open - At least of the modes &quot;</span> &lt;&lt; modes &lt;&lt; <span class="stringliteral">&quot; is not supported.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;            <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_BAD_INPUT;</div><div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;            <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;        }</div><div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;</div><div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;        result_t returnCode = doOpen(modes);</div><div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;        <span class="keywordflow">if</span> (returnCode == result_t::SUCCESS)</div><div class="line"><a name="l00062"></a><span class="lineno">   62</span>&#160;        {</div><div class="line"><a name="l00063"></a><span class="lineno">   63</span>&#160;            modes_ = modes;</div><div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;        }</div><div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;        <span class="keywordflow">else</span></div><div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;        {</div><div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;            <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = returnCode;</div><div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;        }</div><div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;</div><div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;        <span class="keywordflow">return</span> returnCode;</div><div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ae5e2749d020ee8eda14f1c4bdbb1e5fc"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ae5e2749d020ee8eda14f1c4bdbb1e5fc">jiminy::AbstractIODevice::isOpen</a></div><div class="ttdeci">bool_t isOpen(void) const</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8cc_source.html#l00105">AbstractIODevice.cc:105</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ae0cb93e9d8d587daa2eba7c4561aae2d"></a>
@@ -484,7 +492,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <dl class="section return"><dt>Returns</dt><dd>The current opening modes. </dd></dl>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00085">85</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;    {</div><div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;        <span class="keywordflow">return</span> modes_;</div><div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="ac84485b696cc40e32f844423aa90c22e"></a>
@@ -515,7 +523,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">jiminy::MemoryDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00127">127</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00128"></a><span class="lineno">  128</span>&#160;    {</div><div class="line"><a name="l00129"></a><span class="lineno">  129</span>&#160;        <span class="keywordflow">return</span> 0;</div><div class="line"><a name="l00130"></a><span class="lineno">  130</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="ad6c8dbec4d9d384b08a5a56513f0f7f5"></a>
@@ -549,8 +557,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8tpp_source.html#l00024">24</a> of file <a class="el" href="_abstract_i_o_device_8tpp_source.html">AbstractIODevice.tpp</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;    {</div><div class="line"><a name="l00026"></a><span class="lineno">   26</span>&#160;        int64_t toRead = <span class="keyword">sizeof</span>(T);</div><div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;        uint8_t* bufferPos = <span class="keyword">reinterpret_cast&lt;</span>uint8_t*<span class="keyword">&gt;</span>(&amp;valueIn);</div><div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;</div><div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ad6c8dbec4d9d384b08a5a56513f0f7f5">read</a>(bufferPos, toRead);</div><div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ad6c8dbec4d9d384b08a5a56513f0f7f5"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ad6c8dbec4d9d384b08a5a56513f0f7f5">jiminy::AbstractIODevice::read</a></div><div class="ttdeci">result_t read(T &amp;valueIn)</div><div class="ttdoc">Read data in the device. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8tpp_source.html#l00024">AbstractIODevice.tpp:24</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a535183f066ccabcf2723946e90312606"></a>
@@ -600,9 +607,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00169">169</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>, and <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8">readData()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00171"></a><span class="lineno">  171</span>&#160;    {</div><div class="line"><a name="l00172"></a><span class="lineno">  172</span>&#160;        int64_t toRead = dataSize;</div><div class="line"><a name="l00173"></a><span class="lineno">  173</span>&#160;        uint8_t* bufferPos = <span class="keyword">static_cast&lt;</span>uint8_t*<span class="keyword">&gt;</span>(data);</div><div class="line"><a name="l00174"></a><span class="lineno">  174</span>&#160;</div><div class="line"><a name="l00175"></a><span class="lineno">  175</span>&#160;        <span class="keywordflow">while</span> (toRead &gt; 0)</div><div class="line"><a name="l00176"></a><span class="lineno">  176</span>&#160;        {</div><div class="line"><a name="l00177"></a><span class="lineno">  177</span>&#160;            int64_t readBytes = <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8">readData</a>(bufferPos + (dataSize - toRead), toRead);</div><div class="line"><a name="l00178"></a><span class="lineno">  178</span>&#160;            <span class="keywordflow">if</span> (readBytes &lt; 0)</div><div class="line"><a name="l00179"></a><span class="lineno">  179</span>&#160;            {</div><div class="line"><a name="l00180"></a><span class="lineno">  180</span>&#160;                <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00181"></a><span class="lineno">  181</span>&#160;            }</div><div class="line"><a name="l00182"></a><span class="lineno">  182</span>&#160;</div><div class="line"><a name="l00183"></a><span class="lineno">  183</span>&#160;            <span class="keywordflow">if</span> (readBytes == 0)</div><div class="line"><a name="l00184"></a><span class="lineno">  184</span>&#160;            {</div><div class="line"><a name="l00185"></a><span class="lineno">  185</span>&#160;                std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::write - Something went wrong. No data was read.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00186"></a><span class="lineno">  186</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_GENERIC;</div><div class="line"><a name="l00187"></a><span class="lineno">  187</span>&#160;                <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00188"></a><span class="lineno">  188</span>&#160;            }</div><div class="line"><a name="l00189"></a><span class="lineno">  189</span>&#160;            toRead -= readBytes;</div><div class="line"><a name="l00190"></a><span class="lineno">  190</span>&#160;        }</div><div class="line"><a name="l00191"></a><span class="lineno">  191</span>&#160;</div><div class="line"><a name="l00192"></a><span class="lineno">  192</span>&#160;        <span class="keywordflow">return</span> result_t::SUCCESS;</div><div class="line"><a name="l00193"></a><span class="lineno">  193</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_a8c10fbba01045dd7561c62332d9612a8"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8">jiminy::AbstractIODevice::readData</a></div><div class="ttdeci">virtual int64_t readData(void *data, int64_t dataSize)=0</div><div class="ttdoc">Read data in the device. </div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a8c10fbba01045dd7561c62332d9612a8"></a>
@@ -691,8 +696,7 @@ template&lt;typename T &gt; </div>
 <p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d">jiminy::MemoryDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00120">120</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00121"></a><span class="lineno">  121</span>&#160;    {</div><div class="line"><a name="l00122"></a><span class="lineno">  122</span>&#160;        (void) <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ac84485b696cc40e32f844423aa90c22e">pos</a>;</div><div class="line"><a name="l00123"></a><span class="lineno">  123</span>&#160;        std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::seek - This methid is not available.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00124"></a><span class="lineno">  124</span>&#160;        <span class="keywordflow">return</span> result_t::ERROR_GENERIC;</div><div class="line"><a name="l00125"></a><span class="lineno">  125</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ac84485b696cc40e32f844423aa90c22e"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ac84485b696cc40e32f844423aa90c22e">jiminy::AbstractIODevice::pos</a></div><div class="ttdeci">virtual int64_t pos(void) const</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8cc_source.html#l00127">AbstractIODevice.cc:127</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ab0c9a95f4b6c58d87f88d28222e3f400"></a>
@@ -727,8 +731,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00195">195</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00196"></a><span class="lineno">  196</span>&#160;    {</div><div class="line"><a name="l00197"></a><span class="lineno">  197</span>&#160;        (void) shouldBlock;</div><div class="line"><a name="l00198"></a><span class="lineno">  198</span>&#160;        std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::setBlockingMode - This methid is not available.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00199"></a><span class="lineno">  199</span>&#160;        <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_GENERIC;</div><div class="line"><a name="l00200"></a><span class="lineno">  200</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00201"></a><span class="lineno">  201</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ac3a21f566f565e3a3af862de6054b5a2"></a>
@@ -763,8 +766,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00115">115</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8cc_source.html#l00132">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00116"></a><span class="lineno">  116</span>&#160;    {</div><div class="line"><a name="l00117"></a><span class="lineno">  117</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec">bytesAvailable</a>();</div><div class="line"><a name="l00118"></a><span class="lineno">  118</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ac08f7669db3a488b33695f5e053765ec"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec">jiminy::AbstractIODevice::bytesAvailable</a></div><div class="ttdeci">virtual int64_t bytesAvailable(void) const</div><div class="ttdoc">Returns the number of bytes that are available for reading. Commonly used with sequential device...</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8cc_source.html#l00132">AbstractIODevice.cc:132</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a7a77df2143b646727f2ab6f88a78e1d2"></a>
@@ -785,7 +787,7 @@ template&lt;typename T &gt; </div>
 <dl class="section return"><dt>Returns</dt><dd>The supported opening modes. </dd></dl>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00090">90</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;    {</div><div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;        <span class="keywordflow">return</span> supportedModes_;</div><div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="a572f6bd7bcf8e1bd418bdb5dbe9db988"></a>
@@ -819,8 +821,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8tpp_source.html#l00018">18</a> of file <a class="el" href="_abstract_i_o_device_8tpp_source.html">AbstractIODevice.tpp</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160;    {</div><div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#a572f6bd7bcf8e1bd418bdb5dbe9db988">write</a>(reinterpret_cast&lt;uint8_t const * const&gt;(&amp;valueIn), <span class="keyword">sizeof</span>(T));</div><div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_a572f6bd7bcf8e1bd418bdb5dbe9db988"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#a572f6bd7bcf8e1bd418bdb5dbe9db988">jiminy::AbstractIODevice::write</a></div><div class="ttdeci">result_t write(T const &amp;valueIn)</div><div class="ttdoc">Write data in the device. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8tpp_source.html#l00018">AbstractIODevice.tpp:18</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="aeff61e233d81579f50cfb849844f36f1"></a>
@@ -870,9 +871,7 @@ template&lt;typename T &gt; </div>
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00142">142</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>, and <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ab6dd8dbf6ea84c8b7cbe2141fb3f8888">writeData()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00144"></a><span class="lineno">  144</span>&#160;    {</div><div class="line"><a name="l00145"></a><span class="lineno">  145</span>&#160;        int64_t toWrite = dataSize;</div><div class="line"><a name="l00146"></a><span class="lineno">  146</span>&#160;        uint8_t <span class="keyword">const</span>* bufferPos = <span class="keyword">static_cast&lt;</span>uint8_t const*<span class="keyword">&gt;</span>(data);</div><div class="line"><a name="l00147"></a><span class="lineno">  147</span>&#160;</div><div class="line"><a name="l00148"></a><span class="lineno">  148</span>&#160;        <span class="keywordflow">while</span> (toWrite &gt; 0)</div><div class="line"><a name="l00149"></a><span class="lineno">  149</span>&#160;        {</div><div class="line"><a name="l00150"></a><span class="lineno">  150</span>&#160;            int64_t writtenBytes = <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#ab6dd8dbf6ea84c8b7cbe2141fb3f8888">writeData</a>(bufferPos + (dataSize - toWrite), toWrite);</div><div class="line"><a name="l00151"></a><span class="lineno">  151</span>&#160;            <span class="keywordflow">if</span> (writtenBytes &lt; 0)</div><div class="line"><a name="l00152"></a><span class="lineno">  152</span>&#160;            {</div><div class="line"><a name="l00153"></a><span class="lineno">  153</span>&#160;                <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00154"></a><span class="lineno">  154</span>&#160;            }</div><div class="line"><a name="l00155"></a><span class="lineno">  155</span>&#160;</div><div class="line"><a name="l00156"></a><span class="lineno">  156</span>&#160;            <span class="keywordflow">if</span> (writtenBytes == 0)</div><div class="line"><a name="l00157"></a><span class="lineno">  157</span>&#160;            {</div><div class="line"><a name="l00158"></a><span class="lineno">  158</span>&#160;                std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractIODevice::write - Something went wrong. No data was written.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00159"></a><span class="lineno">  159</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a> = result_t::ERROR_GENERIC;</div><div class="line"><a name="l00160"></a><span class="lineno">  160</span>&#160;                <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">lastError_</a>;</div><div class="line"><a name="l00161"></a><span class="lineno">  161</span>&#160;            }</div><div class="line"><a name="l00162"></a><span class="lineno">  162</span>&#160;</div><div class="line"><a name="l00163"></a><span class="lineno">  163</span>&#160;            toWrite -= writtenBytes;</div><div class="line"><a name="l00164"></a><span class="lineno">  164</span>&#160;        }</div><div class="line"><a name="l00165"></a><span class="lineno">  165</span>&#160;</div><div class="line"><a name="l00166"></a><span class="lineno">  166</span>&#160;        <span class="keywordflow">return</span> result_t::SUCCESS;</div><div class="line"><a name="l00167"></a><span class="lineno">  167</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_acab035426f03b4a2f5fcbfde77a53dfd"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#acab035426f03b4a2f5fcbfde77a53dfd">jiminy::AbstractIODevice::lastError_</a></div><div class="ttdeci">result_t lastError_</div><div class="ttdoc">Latest generated error. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_i_o_device_8h_source.html#l00239">AbstractIODevice.h:239</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_i_o_device_html_ab6dd8dbf6ea84c8b7cbe2141fb3f8888"><div class="ttname"><a href="classjiminy_1_1_abstract_i_o_device.html#ab6dd8dbf6ea84c8b7cbe2141fb3f8888">jiminy::AbstractIODevice::writeData</a></div><div class="ttdeci">virtual int64_t writeData(void const *data, int64_t dataSize)=0</div><div class="ttdoc">Write data in the device. </div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ab6dd8dbf6ea84c8b7cbe2141fb3f8888"></a>
@@ -931,11 +930,15 @@ template&lt;typename T &gt; </div>
 <li>core/src/<a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a></li>
 </ul>
 </div><!-- contents -->
+</div><!-- doc-content -->
 <!-- start footer part -->
-<hr class="footer"/><address class="footer"><small>
-Generated by &#160;<a href="http://www.doxygen.org/index.html">
-<img class="footer" src="doxygen.png" alt="doxygen"/>
-</a> 1.8.13
-</small></address>
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html">AbstractIODevice</a></li>
+    <li class="footer">Generated by
+    <a href="http://www.doxygen.org/index.html">
+    <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.13 </li>
+  </ul>
+</div>
 </body>
 </html>

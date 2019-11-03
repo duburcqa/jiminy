@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!-- HTML header for doxygen 1.8.13-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <head>
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
@@ -9,6 +9,13 @@
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="resize.js"></script>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript">
+  $(document).ready(initResizable);
+</script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -19,6 +26,8 @@
 });
 </script><script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
+<script src="striped_bg.js"></script>
+<link href="style.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -51,6 +60,21 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(document).ready(function(){initNavTree('classjiminy_1_1_imu_sensor.html','');});
+</script>
+<div id="doc-content">
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -65,11 +89,6 @@ $(function() {
 </iframe>
 </div>
 
-<div id="nav-path" class="navpath">
-  <ul>
-<li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_imu_sensor.html">ImuSensor</a></li>  </ul>
-</div>
-</div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
@@ -332,9 +351,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p class="definition">Definition at line <a class="el" href="_sensor_8cc_source.html#l00054">54</a> of file <a class="el" href="_sensor_8cc_source.html">Sensor.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="classjiminy_1_1_abstract_sensor_tpl.html#a37c080e062027f272629c97e8c3fed79">jiminy::AbstractSensorTpl&lt; T &gt;::reset()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;    {</div><div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;        <a class="code" href="classjiminy_1_1_abstract_sensor_tpl.html#a37c080e062027f272629c97e8c3fed79">AbstractSensorTpl&lt;ImuSensor&gt;::reset</a>();</div><div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;        getFrameIdx(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncModel_, frameName_, frameIdx_);</div><div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_ae9ca0dd02a3c3d7b03c3f17410ba059b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">jiminy::AbstractSensorBase::model_</a></div><div class="ttdeci">Model const  * model_</div><div class="ttdoc">Model of the system for which the command and internal dynamics. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00396">AbstractSensor.h:396</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_tpl_html_a37c080e062027f272629c97e8c3fed79"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_tpl.html#a37c080e062027f272629c97e8c3fed79">jiminy::AbstractSensorTpl::reset</a></div><div class="ttdeci">virtual void reset(void) override</div><div class="ttdoc">Reset the internal state of the sensor. </div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="ab7c6e62cb611002d4001082cb82cb012"></a>
@@ -406,11 +423,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <p>Implements <a class="el" href="classjiminy_1_1_abstract_sensor_base.html#a6ecfc6c45e7fb7f72f16c11f62ef4d8e">jiminy::AbstractSensorBase</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_sensor_8cc_source.html#l00065">65</a> of file <a class="el" href="_sensor_8cc_source.html">Sensor.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;    {</div><div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;        result_t returnCode = result_t::SUCCESS;</div><div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;</div><div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;        <span class="keywordflow">if</span> (!<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">isInitialized_</a>)</div><div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;        {</div><div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;            std::cout &lt;&lt; <span class="stringliteral">&quot;Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;            returnCode = result_t::ERROR_INIT_FAILED;</div><div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;        }</div><div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;</div><div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;        <span class="keywordflow">if</span> (returnCode == result_t::SUCCESS)</div><div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;        {</div><div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;            <span class="keywordflow">if</span>(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">sensorOptions_</a>-&gt;rawData)</div><div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;            {</div><div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;                pinocchio::Motion <span class="keyword">const</span> gyroIMU = pinocchio::getFrameVelocity(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncModel_, <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncData_, frameIdx_);</div><div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;                vector3_t <span class="keyword">const</span> omega = gyroIMU.angular();</div><div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_sensor_tpl.html#a1179e31c44793b0796cd820bda2b8a30">data</a>().head(3) = omega;</div><div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;                pinocchio::Motion <span class="keyword">const</span> acceleroIMU = pinocchio::getFrameAcceleration(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncModel_, <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncData_, frameIdx_);</div><div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;                vector3_t <span class="keyword">const</span> accel = acceleroIMU.linear();</div><div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_sensor_tpl.html#a1179e31c44793b0796cd820bda2b8a30">data</a>().tail(3) = accel;</div><div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;            }</div><div class="line"><a name="l00090"></a><span class="lineno">   90</span>&#160;            <span class="keywordflow">else</span></div><div class="line"><a name="l00091"></a><span class="lineno">   91</span>&#160;            {</div><div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;                matrix3_t <span class="keyword">const</span> &amp; rot = <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncData_.oMf[frameIdx_].rotation();</div><div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;                quaternion_t <span class="keyword">const</span> quat(rot); <span class="comment">// Convert a rotation matrix to a quaternion</span></div><div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_sensor_tpl.html#a1179e31c44793b0796cd820bda2b8a30">data</a>().head(4) = quat.coeffs(); <span class="comment">// (x,y,z,w)</span></div><div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;                pinocchio::Motion <span class="keyword">const</span> gyroIMU = pinocchio::getFrameVelocity(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncModel_, <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>-&gt;pncData_, frameIdx_);</div><div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;                vector3_t <span class="keyword">const</span> omega = rot * gyroIMU.angular(); <span class="comment">// Get angular velocity in world frame</span></div><div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;                <a class="code" href="classjiminy_1_1_abstract_sensor_tpl.html#a1179e31c44793b0796cd820bda2b8a30">data</a>().tail(3) = omega;</div><div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;            }</div><div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;        }</div><div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;</div><div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;        <span class="keywordflow">return</span> returnCode;</div><div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_ae9ca0dd02a3c3d7b03c3f17410ba059b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">jiminy::AbstractSensorBase::model_</a></div><div class="ttdeci">Model const  * model_</div><div class="ttdoc">Model of the system for which the command and internal dynamics. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00396">AbstractSensor.h:396</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_af7770ccd5e68d2b54440daaebcdc825b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">jiminy::AbstractSensorBase::isInitialized_</a></div><div class="ttdeci">bool isInitialized_</div><div class="ttdoc">Flag to determine whether the controller has been initialized or not. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00394">AbstractSensor.h:394</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a62f15eef304da22f7e430cee4e7f0e23"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">jiminy::AbstractSensorBase::sensorOptions_</a></div><div class="ttdeci">std::unique_ptr&lt; abstractSensorOptions_t const  &gt; sensorOptions_</div><div class="ttdoc">Structure with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00389">AbstractSensor.h:389</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_tpl_html_a1179e31c44793b0796cd820bda2b8a30"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_tpl.html#a1179e31c44793b0796cd820bda2b8a30">jiminy::AbstractSensorTpl&lt; ImuSensor &gt;::data</a></div><div class="ttdeci">virtual matrixN_t::ColXpr data(void) override</div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
@@ -418,11 +431,15 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <li>core/src/<a class="el" href="_sensor_8cc_source.html">Sensor.cc</a></li>
 </ul>
 </div><!-- contents -->
+</div><!-- doc-content -->
 <!-- start footer part -->
-<hr class="footer"/><address class="footer"><small>
-Generated by &#160;<a href="http://www.doxygen.org/index.html">
-<img class="footer" src="doxygen.png" alt="doxygen"/>
-</a> 1.8.13
-</small></address>
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_imu_sensor.html">ImuSensor</a></li>
+    <li class="footer">Generated by
+    <a href="http://www.doxygen.org/index.html">
+    <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.13 </li>
+  </ul>
+</div>
 </body>
 </html>

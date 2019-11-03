@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!-- HTML header for doxygen 1.8.13-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <head>
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
@@ -9,6 +9,13 @@
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="resize.js"></script>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript">
+  $(document).ready(initResizable);
+</script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -19,6 +26,8 @@
 });
 </script><script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
+<script src="striped_bg.js"></script>
+<link href="style.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -51,6 +60,21 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(document).ready(function(){initNavTree('classjiminy_1_1_memory_device.html','');});
+</script>
+<div id="doc-content">
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -65,11 +89,6 @@ $(function() {
 </iframe>
 </div>
 
-<div id="nav-path" class="navpath">
-  <ul>
-<li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_memory_device.html">MemoryDevice</a></li>  </ul>
-</div>
-</div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
@@ -297,7 +316,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00041">41</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 
 <p class="reference">References <a class="el" href="_memory_device_8h_source.html#l00036">pos()</a>, <a class="el" href="_memory_device_8cc_source.html#l00077">readData()</a>, <a class="el" href="_memory_device_8cc_source.html#l00065">seek()</a>, <a class="el" href="_memory_device_8cc_source.html#l00106">setBlockingMode()</a>, and <a class="el" href="_memory_device_8cc_source.html#l00091">writeData()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;        {</div><div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;            <span class="keywordflow">return</span> (buffer_.size() - currentPos_);</div><div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;        }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="a6e172f3ae22f683c3476cfc6346cba23"></a>
@@ -328,7 +347,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a5749b1ce151e8ced469388dcca5a21d4">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00031">31</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
-<div class="fragment"><div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;        {</div><div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div><div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;        }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="a080da104b911a09022a849ee835f0833"></a>
@@ -361,7 +380,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00036">36</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;        {</div><div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;            <span class="keywordflow">return</span> currentPos_;</div><div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;        }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="affc75023bf0c3fe4b60b64417f8835bc"></a>
@@ -413,8 +432,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00077">77</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00078"></a><span class="lineno">   78</span>&#160;    {</div><div class="line"><a name="l00079"></a><span class="lineno">   79</span>&#160;        <span class="comment">// Read no more than availables bytes.</span></div><div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;        int64_t toRead = <a class="code" href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">bytesAvailable</a>();</div><div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;        <span class="keywordflow">if</span> (dataSize &lt; toRead)</div><div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;        {</div><div class="line"><a name="l00083"></a><span class="lineno">   83</span>&#160;            toRead = dataSize;</div><div class="line"><a name="l00084"></a><span class="lineno">   84</span>&#160;        }</div><div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;</div><div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;        std::memcpy(data, buffer_.data() + currentPos_, <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(toRead));</div><div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;        currentPos_ += toRead;</div><div class="line"><a name="l00088"></a><span class="lineno">   88</span>&#160;        <span class="keywordflow">return</span> toRead;</div><div class="line"><a name="l00089"></a><span class="lineno">   89</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_memory_device_html_a41b575acc3c3a21b7aa5413daa29d5f7"><div class="ttname"><a href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">jiminy::MemoryDevice::bytesAvailable</a></div><div class="ttdeci">int64_t bytesAvailable(void) const override</div><div class="ttdoc">Returns the number of bytes that are available for reading. Commonly used with sequential device...</div><div class="ttdef"><b>Definition:</b> <a href="_memory_device_8h_source.html#l00041">MemoryDevice.h:41</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="aaa9b596b4d1a94fe897ccc98398a515d"></a>
@@ -455,8 +473,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00065">65</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;    {</div><div class="line"><a name="l00067"></a><span class="lineno">   67</span>&#160;        <span class="keywordflow">if</span> ((<a class="code" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a> &lt; 0) or (<a class="code" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a> &gt;= (int64_t) buffer_.size()))</div><div class="line"><a name="l00068"></a><span class="lineno">   68</span>&#160;        {</div><div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;            std::cout &lt;&lt; <span class="stringliteral">&quot;Error - MemoryDevice::seek - The requested position &#39;&quot;</span> &lt;&lt; <a class="code" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a> &lt;&lt; <span class="stringliteral">&quot;&#39; is out of scope.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;            <span class="keywordflow">return</span> result_t::ERROR_GENERIC;</div><div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;        }</div><div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;</div><div class="line"><a name="l00073"></a><span class="lineno">   73</span>&#160;        currentPos_ = <a class="code" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a>;</div><div class="line"><a name="l00074"></a><span class="lineno">   74</span>&#160;        <span class="keywordflow">return</span> result_t::SUCCESS;</div><div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_memory_device_html_a080da104b911a09022a849ee835f0833"><div class="ttname"><a href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">jiminy::MemoryDevice::pos</a></div><div class="ttdeci">int64_t pos(void) const override</div><div class="ttdef"><b>Definition:</b> <a href="_memory_device_8h_source.html#l00036">MemoryDevice.h:36</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="aa354916a40b37b220341fc9e5f3f5019"></a>
@@ -491,7 +508,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00106">106</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00107"></a><span class="lineno">  107</span>&#160;    {</div><div class="line"><a name="l00108"></a><span class="lineno">  108</span>&#160;        <span class="comment">// Since this is a memory device, it can&#39;t block when doing its job,</span></div><div class="line"><a name="l00109"></a><span class="lineno">  109</span>&#160;        <span class="comment">// thus we don&#39;t care about blocking mode and answer &#39;OK no problem&#39;.</span></div><div class="line"><a name="l00110"></a><span class="lineno">  110</span>&#160;        <span class="keywordflow">return</span> result_t::SUCCESS;</div><div class="line"><a name="l00111"></a><span class="lineno">  111</span>&#160;    }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="a1d28c7f2dfb365fe4b61a197b99a32d6"></a>
@@ -524,7 +541,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac3a21f566f565e3a3af862de6054b5a2">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00026">26</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
-<div class="fragment"><div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;        {</div><div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;            <span class="keywordflow">return</span> buffer_.size();</div><div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;        }</div></div><!-- fragment -->
+
 </div>
 </div>
 <a id="aedcea64dc60c6530e70083cc49c01888"></a>
@@ -578,8 +595,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="reference">References <a class="el" href="classjiminy_1_1_abstract_sensor_base.html#a53b3301f5277a009c2b9acc66bf6fd8a">jiminy::AbstractSensorBase::data()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00092"></a><span class="lineno">   92</span>&#160;    {</div><div class="line"><a name="l00093"></a><span class="lineno">   93</span>&#160;        <span class="comment">// Write no more than availables bytes.</span></div><div class="line"><a name="l00094"></a><span class="lineno">   94</span>&#160;        int64_t toWrite = <a class="code" href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">bytesAvailable</a>();</div><div class="line"><a name="l00095"></a><span class="lineno">   95</span>&#160;        <span class="keywordflow">if</span> (dataSize &lt; toWrite)</div><div class="line"><a name="l00096"></a><span class="lineno">   96</span>&#160;        {</div><div class="line"><a name="l00097"></a><span class="lineno">   97</span>&#160;            toWrite = dataSize;</div><div class="line"><a name="l00098"></a><span class="lineno">   98</span>&#160;        }</div><div class="line"><a name="l00099"></a><span class="lineno">   99</span>&#160;</div><div class="line"><a name="l00100"></a><span class="lineno">  100</span>&#160;        std::memcpy(buffer_.data() + currentPos_, data, <span class="keyword">static_cast&lt;</span>std::size_t<span class="keyword">&gt;</span>(toWrite));</div><div class="line"><a name="l00101"></a><span class="lineno">  101</span>&#160;        currentPos_ += toWrite;</div><div class="line"><a name="l00102"></a><span class="lineno">  102</span>&#160;</div><div class="line"><a name="l00103"></a><span class="lineno">  103</span>&#160;        <span class="keywordflow">return</span> toWrite;</div><div class="line"><a name="l00104"></a><span class="lineno">  104</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_memory_device_html_a41b575acc3c3a21b7aa5413daa29d5f7"><div class="ttname"><a href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">jiminy::MemoryDevice::bytesAvailable</a></div><div class="ttdeci">int64_t bytesAvailable(void) const override</div><div class="ttdoc">Returns the number of bytes that are available for reading. Commonly used with sequential device...</div><div class="ttdef"><b>Definition:</b> <a href="_memory_device_8h_source.html#l00041">MemoryDevice.h:41</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
@@ -587,11 +603,15 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <li>core/src/<a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a></li>
 </ul>
 </div><!-- contents -->
+</div><!-- doc-content -->
 <!-- start footer part -->
-<hr class="footer"/><address class="footer"><small>
-Generated by &#160;<a href="http://www.doxygen.org/index.html">
-<img class="footer" src="doxygen.png" alt="doxygen"/>
-</a> 1.8.13
-</small></address>
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_memory_device.html">MemoryDevice</a></li>
+    <li class="footer">Generated by
+    <a href="http://www.doxygen.org/index.html">
+    <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.13 </li>
+  </ul>
+</div>
 </body>
 </html>
