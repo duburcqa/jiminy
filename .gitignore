@@ -10,3 +10,4 @@
 *.slxc
 *.pyc
 *egg-info*
+*.sw?

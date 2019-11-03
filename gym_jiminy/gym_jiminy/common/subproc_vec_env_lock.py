@@ -1,3 +1,5 @@
+## @file
+
 import multiprocessing
 from collections import OrderedDict
 from multiprocessing import Process, Lock
@@ -9,10 +11,31 @@ from stable_baselines.common.vec_env import SubprocVecEnv, VecEnv, CloudpickleWr
 from stable_baselines.common.tile_images import tile_images
 
 
+## Unique threading.Lock for every simulation.
+# It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
 lock = Lock()
 
-
 def _worker(remote, parent_remote, env_fn_wrapper, lock=None):
+    """
+    @brief      Worker for each subprocess of SubprocVecEnvLock.
+
+    @details    It enables the use of a threading.Lock. It is the only
+                difference with the implementation provided with the
+                class `SubprocVecEnv` of Gym OpenAI.
+
+    @remark     `remote` and `parent_remote` are returned by the method `Pipe` of
+                `multiprocessing`.  It is a pair of connection objects connected
+                by a pipe which by default is duplex (two-way). See
+                `multiprocessing` documentation for more information.
+
+                This is a hidden function that is not automatically imported
+                using 'from gym_jiminy import *'.
+
+    @param[in]  remote              Child remote
+    @param[in]  parent_remote       Parent remote
+    @param[in]  env_fn_wrapper      Gym environment
+    @param[in]  lock                threading.Lock object. Optional: None by default
+    """
     parent_remote.close()
     env = env_fn_wrapper.var()
     while True:
@@ -50,29 +73,37 @@ def _worker(remote, parent_remote, env_fn_wrapper, lock=None):
 
 class SubprocVecEnvLock(SubprocVecEnv):
     """
-    Creates a multiprocess vectorized wrapper for multiple environments, distributing each environment to its own
-    process, allowing significant speed up when the environment is computationally complex.
+    @brief      Creates a multiprocess vectorized wrapper for multiple environments,
+                distributing each environment to its own process, allowing
+                significant speed up when the environment is computationally complex.
 
-    For performance reasons, if your environment is not IO bound, the number of environments should not exceed the
-    number of logical cores on your CPU.
+    @details    It features a unique threading.Lock and uses it to enable parallel
+                rendering in Gepetto-viewer. It is the only difference with the
+                based class `SubprocVecEnv` provided by Gym OpenAI.
 
-    .. warning::
-
-        Only 'forkserver' and 'spawn' start methods are thread-safe, which is
-        important when TensorFlow sessions or other non thread-safe libraries
-        are used in the parent (see issue #217).
-        However, compared to 'fork' they incur a small start-up cost and have
-        restrictions on global variables. With those methods, users must wrap
-        the code in an ``if __name__ == "__main__":``
-        For more information, see the multiprocessing documentation.
-
-    :param env_fns: ([Gym Environment]) Environments to run in subprocesses
-    :param start_method: (str) method used to start the subprocesses.
-           Must be one of the methods returned by multiprocessing.get_all_start_methods().
-           Defaults to 'fork' on available platforms, and 'spawn' otherwise.
+    @warning    For performance reasons, if your environment is not IO bound, the
+                number of environments should not exceed the number of logical cores
+                on your CPU.
     """
-
     def __init__(self, env_fns, start_method=None):
+        """
+        @brief      Constructor
+
+        @warning    Only 'forkserver' and 'spawn' start methods are thread-safe, which is
+                    important when TensorFlow sessions or other non thread-safe libraries
+                    are used in the parent.
+                    However, compared to 'fork' they incur a small start-up cost and have
+                    restrictions on global variables. With those methods, users must wrap
+                    the code in an ``if __name__ == "__main__":``
+                    For more information, see the multiprocessing documentation.
+
+        @param[in]  env_fns             List of Gym Environments to run in subprocesses
+        @param[in]  start_method        Method used to start the subprocesses. Must be one of the
+                                        methods returned by multiprocessing.get_all_start_methods().
+                                        Optional: Defaults to 'fork' on available platforms, and 'spawn' otherwise.
+
+        @return     Instance of SubprocVecEnvLock.
+        """
         global lock
 
         self.waiting = False
@@ -101,19 +132,27 @@ class SubprocVecEnvLock(SubprocVecEnv):
         observation_space, action_space = self.remotes[0].recv()
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
+
     def render(self, mode='rgb_array', *args, **kwargs):
+        """
+        @brief      Parallel rendering of the current state of each environment.
+
+        @param[in]  mode    Display mode. For now, only 'rgb_array' is supported.
+        @param[in]  args    Extra arguments passed to `render` method of each Gym environment
+        @param[in]  kwargs  Extra keyword arguments passed to `render` method of each Gym environment
+
+        @return     None or iterator of RGB images if mode == 'rgb_array'.
+        """
+
+        # gather images from subprocesses. `mode` will be taken into account later
         for pipe in self.remotes:
-            # gather images from subprocesses
-            # `mode` will be taken into account later
             pipe.send(('render', (args, {'mode': 'rgb_array', **kwargs})))
         imgs = [pipe.recv() for pipe in self.remotes]
+
         # Create a big image by tiling images from subprocesses
         bigimg = tile_images(imgs)
-        if mode == 'human':
-            import cv2
-            cv2.imshow('vecenv', bigimg[:, :, ::-1])
-            cv2.waitKey(1)
-        elif mode == 'rgb_array':
+
+        if mode == 'rgb_array':
             return bigimg
         else:
             raise NotImplementedError

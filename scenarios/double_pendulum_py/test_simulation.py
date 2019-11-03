@@ -8,20 +8,19 @@ import pinocchio as pnc
 import jiminy
 from jiminy_py import *
 
-################################## User parameters #######################################
+# ################################ User parameters #######################################
 
 urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf")
 
-############################# Initialize the simulation #################################
+# ########################### Initialize the simulation #################################
 
 # Instantiate the model
 contacts = []
 motors = ["SecondPendulumJoint"]
-model = jiminy.model()
+model = jiminy.Model()
 model.initialize(urdf_path, contacts, motors, False)
 
 # Instantiate the controller
-
 @nb.jit(nopython=True, nogil=True)
 def computeCommand(t, q, v, u):
     u[0] = 0.0
@@ -30,14 +29,14 @@ def computeCommand(t, q, v, u):
 def internalDynamics(t, q, v, u):
     u[:] = 0.0
 
-controller = jiminy.controller_functor(computeCommand, internalDynamics)
+controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(model)
 
 # Instantiate the engine
-engine = jiminy.engine()
+engine = jiminy.Engine()
 engine.initialize(model, controller)
 
-########################### Configuration the simulation ################################
+# ######################### Configuration the simulation ################################
 
 model_options = model.get_model_options()
 sensors_options = model.get_sensors_options()
@@ -71,7 +70,7 @@ model.set_sensors_options(sensors_options)
 engine.set_options(engine_options)
 controller.set_options(ctrl_options)
 
-################################ Run the simulation #####################################
+# ############################## Run the simulation #####################################
 
 x0 = np.zeros((4,1))
 x0[1] = 0.1
@@ -82,7 +81,7 @@ engine.simulate(x0, tf)
 end = time.time()
 print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 
-############################### Extract the results #####################################
+# ############################# Extract the results #####################################
 
 log_info, log_data = engine.get_log()
 log_info = list(log_info)
@@ -98,7 +97,7 @@ trajectory_data_log = extract_state_from_simulation_log(
 # Save the log in CSV
 # engine.write_log("/tmp/blackbox/log.data", False)
 
-############################## Display the results ######################################
+# ############################ Display the results ######################################
 
 # Plot some data using standard tools only
 # plt.plot(log_data[:,log_header.index('Global.Time')],

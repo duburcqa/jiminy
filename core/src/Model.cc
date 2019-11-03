@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/AbstractSensor.h"
 #include "jiminy/core/Model.h"
 
 
@@ -908,7 +909,7 @@ namespace jiminy
         return urdfPath_;
     }
 
-    bool const & Model::getHasFreeFlyer(void) const
+    bool const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
     }

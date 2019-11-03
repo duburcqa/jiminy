@@ -1,6 +1,13 @@
+## @file
+
 import numpy as np
 
 class RenderOutMock:
+    """
+    @brief      Fake output of the Render method of Gym environment.
+                Required for compatibility with Gym OpenAI if returning
+                an output does not make sense for a given environment.
+    """
     def __init__(self):
         self.mock = np.array([[[]]])
 
