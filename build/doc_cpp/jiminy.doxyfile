@@ -281,7 +281,7 @@ OPTIMIZE_OUTPUT_VHDL = NO
 # Note that for custom extensions you also need to set FILE_PATTERNS otherwise
 # the files are not read by doxygen.
 
-EXTENSION_MAPPING =
+EXTENSION_MAPPING = tpp=C++
 
 # If the MARKDOWN_SUPPORT tag is enabled then doxygen pre-processes all comments
 # according to the Markdown format, which allows for more readable
@@ -409,7 +409,7 @@ LOOKUP_CACHE_SIZE = 0
 # normally produced when WARNINGS is set to YES.
 # The default value is: NO.
 
-EXTRACT_ALL = YES
+EXTRACT_ALL = NO
 
 # If the EXTRACT_PRIVATE tag is set to YES, all private members of a class will
 # be included in the documentation.
@@ -746,7 +746,7 @@ WARN_FORMAT = "$file:$line: $text"
 # messages should be written. If left blank the output is written to standard
 # error (stderr).
 
-WARN_LOGFILE = @CMAKE_BINARY_DIR@/reports/doxygen.report
+WARN_LOGFILE =
 
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
@@ -809,7 +809,7 @@ EXCLUDE_SYMLINKS = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS = */unit/* */benchmark/* */gtest/* */kpa_ethercat/* */build/*
+EXCLUDE_PATTERNS = */unit/* */benchmark/* */gtest/* */build/*
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
 # (namespaces, classes, functions, etc.) that should be excluded from the
@@ -846,7 +846,7 @@ EXAMPLE_RECURSIVE = NO
 # that contain images that are to be included in the documentation (see the
 # \image command).
 
-IMAGE_PATH = "data/doc"
+IMAGE_PATH =
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program
@@ -863,7 +863,7 @@ IMAGE_PATH = "data/doc"
 # code is scanned, but not when the output code is generated. If lines are added
 # or removed, the anchors will not be placed correctly.
 
-INPUT_FILTER =
+INPUT_FILTER = "sed '1s/^/\/** \\file *\/ /'"
 
 # The FILTER_PATTERNS tag can be used to specify filters on a per file pattern
 # basis. Doxygen will compare the file name with each pattern and apply the
