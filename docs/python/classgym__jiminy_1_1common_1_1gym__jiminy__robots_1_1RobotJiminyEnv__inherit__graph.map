@@ -1,0 +1,6 @@
+<map id="gym_jiminy.common.gym_jiminy_robots.RobotJiminyEnv" name="gym_jiminy.common.gym_jiminy_robots.RobotJiminyEnv">
+<area shape="rect" id="node3" href="$classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyGoalEnv.html" title="Base class to train a robot in Gym OpenAI using a user&#45;specified Jiminy Engine for physics computatio..." alt="" coords="387,5,620,47"/>
+<area shape="rect" id="node6" href="$classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html" title="Implementation of a Gym environment for the Cartpole which is using Jiminy Engine to perform physics ..." alt="" coords="416,71,591,112"/>
+<area shape="rect" id="node4" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotGoalEnv.html" title="Implementation of a Gym environment for the Acrobot which is using Jiminy Engine to perform physics c..." alt="" coords="668,5,839,47"/>
+<area shape="rect" id="node5" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotEnv.html" title="Implementation of a Gym goal&#45;environment for the Acrobot which is using Jiminy Engine to perform phys..." alt="" coords="887,5,1057,47"/>
+</map>

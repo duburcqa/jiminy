@@ -1,0 +1,8 @@
+<map id="core/include/jiminy/core/TelemetryData.h" name="core/include/jiminy/core/TelemetryData.h">
+<area shape="rect" id="node2" href="$_telemetry_recorder_8h.html" title="core/include/jiminy\l/core/TelemetryRecorder.h" alt="" coords="109,95,286,136"/>
+<area shape="rect" id="node3" href="$_engine_8cc.html" title="core/src/Engine.cc" alt="" coords="5,184,136,211"/>
+<area shape="rect" id="node5" href="$_model_8cc.html" title="core/src/Model.cc" alt="" coords="310,102,437,129"/>
+<area shape="rect" id="node6" href="$_telemetry_data_8cc.html" title="core/src/TelemetryData.cc" alt="" coords="461,102,638,129"/>
+<area shape="rect" id="node7" href="$_telemetry_sender_8cc.html" title="core/src/TelemetrySender.cc" alt="" coords="662,102,853,129"/>
+<area shape="rect" id="node4" href="$_telemetry_recorder_8cc.html" title="core/src/TelemetryRecorder.cc" alt="" coords="160,184,363,211"/>
+</map>

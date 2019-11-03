@@ -10,21 +10,19 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include <boost/circular_buffer.hpp>
-
 #include "jiminy/core/Types.h"
 
 
 namespace jiminy
 {
     std::string const JOINT_PREFIX_BASE("current");
-    std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "FreeFlyer");
+    std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "Freeflyer");
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
-    class Engine;
+    struct SensorDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
-    struct SensorDataHolder_t;
+    class Engine;
 
     class Model
     {
@@ -44,6 +42,8 @@ namespace jiminy
             config["positionLimitMax"] = vectorN_t();
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
+            config["usePositionLimit"] = false;
+            config["useVelocityLimit"] = false;
 
             return config;
         };
@@ -55,13 +55,17 @@ namespace jiminy
             vectorN_t const positionLimitMax;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
+            bool      const usePositionLimit;
+            bool      const useVelocityLimit;
 
             jointOptions_t(configHolder_t const & options) :
             positionLimitFromUrdf(boost::get<bool>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
+            usePositionLimit(boost::get<bool>(options.at("usePositionLimit"))),
+            useVelocityLimit(boost::get<bool>(options.at("useVelocityLimit")))
             {
                 // Empty.
             }
@@ -131,6 +135,10 @@ namespace jiminy
         };
 
     public:
+        typedef std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> > sensorsHolder_t;
+        typedef std::unordered_map<std::string, sensorsHolder_t> sensorsGroupHolder_t;
+
+    public:
         Model(void);
         virtual ~Model(void);
 
@@ -138,10 +146,6 @@ namespace jiminy
                             std::vector<std::string> const & contactFramesNames,
                             std::vector<std::string> const & motorsNames,
                             bool                     const & hasFreeflyer = true);
-        virtual void reset(void);
-
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
-        void updateTelemetry(void);
 
         template<typename TSensor>
         result_t addSensor(std::string              const & sensorName,
@@ -169,7 +173,7 @@ namespace jiminy
         bool const & getIsInitialized(void) const;
         bool const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
-        bool const & getHasFreeFlyer(void) const;
+        bool const & getHasFreeflyer(void) const;
         std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
         result_t getSensorsData(std::vector<matrixN_t> & data) const;
         result_t getSensorsData(std::string const & sensorType,
@@ -211,6 +215,11 @@ namespace jiminy
                            std::shared_ptr<TSensor>       & sensor);
 
     protected:
+        virtual void reset(void);
+
+        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        void updateTelemetry(void);
+
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool        const & hasFreeflyer);
         result_t generateFlexibleModel(void);
@@ -262,30 +271,6 @@ namespace jiminy
         uint32_t nq_;
         uint32_t nv_;
         uint32_t nx_;
-    };
-
-    struct SensorDataHolder_t
-    {
-        SensorDataHolder_t(void) :
-        time_(),
-        data_(),
-        counters_(),
-        sensors_(),
-        num_()
-        {
-            // Empty.
-        };
-
-        ~SensorDataHolder_t(void)
-        {
-            // Empty.
-        };
-
-        boost::circular_buffer_space_optimized<float64_t> time_;
-        boost::circular_buffer_space_optimized<matrixN_t> data_;
-        std::vector<uint32_t> counters_;
-        std::vector<AbstractSensorBase *> sensors_;
-        uint32_t num_;
     };
 }
 

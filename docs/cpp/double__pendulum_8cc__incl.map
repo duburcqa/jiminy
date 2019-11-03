@@ -1,0 +1,9 @@
+<map id="scenarios/double_pendulum/src/double_pendulum.cc" name="scenarios/double_pendulum/src/double_pendulum.cc">
+<area shape="rect" id="node11" href="$core_2include_2jiminy_2core_2_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="50,259,194,285"/>
+<area shape="rect" id="node17" href="$core_2include_2jiminy_2core_2_types_8h.html" title="jiminy/core/Types.h" alt="" coords="1350,355,1486,382"/>
+<area shape="rect" id="node23" href="$_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="834,169,974,196"/>
+<area shape="rect" id="node34" href="$_controller_functor_8h.html" title="jiminy/core/ControllerFunctor.h" alt="" coords="1448,95,1648,121"/>
+<area shape="rect" id="node29" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1126,259,1260,285"/>
+<area shape="rect" id="node31" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="1436,259,1635,285"/>
+<area shape="rect" id="node35" href="$_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="1445,169,1650,196"/>
+</map>

@@ -1,0 +1,4 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classjiminy_1_1_abstract_i_o_device.html" title="Base interface class for all I/O devices. " alt="" coords="5,5,173,32"/>
+<area shape="rect" id="node2" href="$classjiminy_1_1_memory_device.html" title="Manage a memory buffer with IODevice interface. " alt="" coords="221,5,373,32"/>
+</map>

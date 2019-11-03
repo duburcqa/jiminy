@@ -1,8 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 ///
-/// \brief             Python module implementation for ExoSimulator.
-///
-/// \copyright         Wandercraft
+/// \brief             Python module implementation for Jiminy.
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -60,7 +58,7 @@ namespace python
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
-        bp::def("controller_functor",
+        bp::def("ControllerFunctor",
                 PyControllerFunctorNFactory,
                 (bp::arg("command_handle"), "internal_dynamics_handle", bp::arg("nb_sensor_types")=-1),
                 bp::return_value_policy<bp::manage_new_object>());
