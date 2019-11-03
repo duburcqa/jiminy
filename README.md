@@ -12,6 +12,8 @@ The data of the simulation can be exported in CSV format, or directely read from
 
 Python2.7 and Python3 bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python).
 
+**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`.**
+
 ## Dependencies
 
 ### Robotpkg
@@ -40,7 +42,7 @@ sudo apt install -y robotpkg-py36-pinocchio robotpkg-py36-qt4-gepetto-viewer-cor
 sudo apt install -y python3-tk
 ```
 
-## Installation Procedure 
+## Installation Procedure
 
 ```bash
 mkdir jiminy && cd jiminy
