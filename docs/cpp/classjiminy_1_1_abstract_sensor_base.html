@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!-- HTML header for doxygen 1.8.13-->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <head>
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
@@ -9,6 +9,13 @@
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="resize.js"></script>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript">
+  $(document).ready(initResizable);
+</script>
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
@@ -19,6 +26,8 @@
 });
 </script><script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
+<script src="striped_bg.js"></script>
+<link href="style.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -51,6 +60,21 @@ $(function() {
 });
 </script>
 <div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(document).ready(function(){initNavTree('classjiminy_1_1_abstract_sensor_base.html','');});
+</script>
+<div id="doc-content">
 <!-- window showing the filter options -->
 <div id="MSearchSelectWindow"
      onmouseover="return searchBox.OnSearchSelectShow()"
@@ -65,11 +89,6 @@ $(function() {
 </iframe>
 </div>
 
-<div id="nav-path" class="navpath">
-  <ul>
-<li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_abstract_sensor_base.html">AbstractSensorBase</a></li>  </ul>
-</div>
-</div><!-- top -->
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
@@ -297,18 +316,7 @@ template&lt;typename &gt; </td></tr>
 <p class="definition">Definition at line <a class="el" href="_abstract_sensor_8cc_source.html#l00007">7</a> of file <a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00083">getDefaultOptions()</a>, and <a class="el" href="_abstract_sensor_8cc_source.html#l00068">setOptions()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00008"></a><span class="lineno">    8</span>&#160;                                                                   :</div><div class="line"><a name="l00009"></a><span class="lineno">    9</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">sensorOptions_</a>(),</div><div class="line"><a name="l00010"></a><span class="lineno">   10</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">sensorOptionsHolder_</a>(),</div><div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a653748999df5f52c8beb4ec997ba24e8">telemetrySender_</a>(),</div><div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">isInitialized_</a>(<span class="keyword">false</span>),</div><div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">isTelemetryConfigured_</a>(<span class="keyword">false</span>),</div><div class="line"><a name="l00014"></a><span class="lineno">   14</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">model_</a>(&amp;model),</div><div class="line"><a name="l00015"></a><span class="lineno">   15</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a8ca724b7aa77376a986c1808b45dca2c">name_</a>(name),</div><div class="line"><a name="l00016"></a><span class="lineno">   16</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a532a4abf1803f6f25d7b1821fbe5ffa8">data_</a>(),</div><div class="line"><a name="l00017"></a><span class="lineno">   17</span>&#160;    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a71232ec15c5a6a53bb33b70a2589f25e">isDataUpToDate_</a>(<span class="keyword">false</span>)</div><div class="line"><a name="l00018"></a><span class="lineno">   18</span>&#160;    {</div><div class="line"><a name="l00019"></a><span class="lineno">   19</span>&#160;        <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ad87aca1ce6f4e152edb2d80038caf1b6">setOptions</a>(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#ad31227f8d660158bec6562e7346e7d9a">getDefaultOptions</a>());</div><div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a8ca724b7aa77376a986c1808b45dca2c"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a8ca724b7aa77376a986c1808b45dca2c">jiminy::AbstractSensorBase::name_</a></div><div class="ttdeci">std::string name_</div><div class="ttdoc">Name of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00399">AbstractSensor.h:399</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_ae9ca0dd02a3c3d7b03c3f17410ba059b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b">jiminy::AbstractSensorBase::model_</a></div><div class="ttdeci">Model const  * model_</div><div class="ttdoc">Model of the system for which the command and internal dynamics. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00396">AbstractSensor.h:396</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_af7770ccd5e68d2b54440daaebcdc825b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">jiminy::AbstractSensorBase::isInitialized_</a></div><div class="ttdeci">bool isInitialized_</div><div class="ttdoc">Flag to determine whether the controller has been initialized or not. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00394">AbstractSensor.h:394</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a532a4abf1803f6f25d7b1821fbe5ffa8"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a532a4abf1803f6f25d7b1821fbe5ffa8">jiminy::AbstractSensorBase::data_</a></div><div class="ttdeci">vectorN_t data_</div><div class="ttdoc">Measurement buffer to avoid recomputing the same &quot;current&quot; measurement multiple times. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00400">AbstractSensor.h:400</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a5ac225944872e64caf4650ff9fa412d7"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">jiminy::AbstractSensorBase::sensorOptionsHolder_</a></div><div class="ttdeci">configHolder_t sensorOptionsHolder_</div><div class="ttdoc">Dictionary with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00392">AbstractSensor.h:392</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a62f15eef304da22f7e430cee4e7f0e23"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">jiminy::AbstractSensorBase::sensorOptions_</a></div><div class="ttdeci">std::unique_ptr&lt; abstractSensorOptions_t const  &gt; sensorOptions_</div><div class="ttdoc">Structure with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00389">AbstractSensor.h:389</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a395d06ece47dc90648ed0ed0d76666b6"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">jiminy::AbstractSensorBase::isTelemetryConfigured_</a></div><div class="ttdeci">bool isTelemetryConfigured_</div><div class="ttdoc">Flag to determine whether the telemetry of the controller has been initialized or not...</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00395">AbstractSensor.h:395</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_ad31227f8d660158bec6562e7346e7d9a"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#ad31227f8d660158bec6562e7346e7d9a">jiminy::AbstractSensorBase::getDefaultOptions</a></div><div class="ttdeci">virtual configHolder_t getDefaultOptions(void)</div><div class="ttdoc">Dictionary gathering the configuration options shared between sensors. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00083">AbstractSensor.h:83</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a71232ec15c5a6a53bb33b70a2589f25e"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a71232ec15c5a6a53bb33b70a2589f25e">jiminy::AbstractSensorBase::isDataUpToDate_</a></div><div class="ttdeci">bool isDataUpToDate_</div><div class="ttdoc">Flag to determine whether the measurement buffer ois update-to-date or not. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00401">AbstractSensor.h:401</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_ad87aca1ce6f4e152edb2d80038caf1b6"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#ad87aca1ce6f4e152edb2d80038caf1b6">jiminy::AbstractSensorBase::setOptions</a></div><div class="ttdeci">virtual void setOptions(configHolder_t const &amp;sensorOptions)</div><div class="ttdoc">Set the configuration options of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8cc_source.html#l00068">AbstractSensor.cc:68</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a653748999df5f52c8beb4ec997ba24e8"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a653748999df5f52c8beb4ec997ba24e8">jiminy::AbstractSensorBase::telemetrySender_</a></div><div class="ttdeci">TelemetrySender telemetrySender_</div><div class="ttdoc">Telemetry sender of the sensor used to register and update telemetry variables. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00393">AbstractSensor.h:393</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
@@ -348,14 +356,7 @@ template&lt;typename &gt; </td></tr>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_sensor_8cc_source.html#l00027">27</a> of file <a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a>.</p>
-<div class="fragment"><div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;    {</div><div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;        result_t returnCode = result_t::SUCCESS;</div><div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;</div><div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;        <span class="keywordflow">if</span> (!<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">isInitialized_</a>)</div><div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;        {</div><div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;            std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractSensorBase::configureTelemetry - The sensor is not initialized.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;            returnCode = result_t::ERROR_INIT_FAILED;</div><div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;        }</div><div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;</div><div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;        <span class="keywordflow">if</span> (returnCode == result_t::SUCCESS)</div><div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;        {</div><div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;            <span class="keywordflow">if</span> (!<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">isTelemetryConfigured_</a>)</div><div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;            {</div><div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;                <span class="keywordflow">if</span> (telemetryData)</div><div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;                {</div><div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;                    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a653748999df5f52c8beb4ec997ba24e8">telemetrySender_</a>.<a class="code" href="classjiminy_1_1_telemetry_sender.html#a911e96a501a3de5c819ede7877258cc4">configureObject</a>(telemetryData, <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a509936559244d6d21f19e7dd716229dc">getTelemetryName</a>());</div><div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;                    (void) registerNewVectorEntry(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a653748999df5f52c8beb4ec997ba24e8">telemetrySender_</a>, <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a97d704aa97839b7dacc622a5670be171">getFieldNames</a>(), <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a532a4abf1803f6f25d7b1821fbe5ffa8">data_</a>);</div><div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;                    <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">isTelemetryConfigured_</a> = <span class="keyword">true</span>;</div><div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;                }</div><div class="line"><a name="l00047"></a><span class="lineno">   47</span>&#160;                <span class="keywordflow">else</span></div><div class="line"><a name="l00048"></a><span class="lineno">   48</span>&#160;                {</div><div class="line"><a name="l00049"></a><span class="lineno">   49</span>&#160;                    std::cout &lt;&lt; <span class="stringliteral">&quot;Error - AbstractSensorBase::configureTelemetry - Telemetry not initialized. Impossible to log sensor data.&quot;</span> &lt;&lt; std::endl;</div><div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;                    returnCode = result_t::ERROR_INIT_FAILED;</div><div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;                }</div><div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;            }</div><div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;        }</div><div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;</div><div class="line"><a name="l00055"></a><span class="lineno">   55</span>&#160;        <span class="keywordflow">if</span> (returnCode != result_t::SUCCESS)</div><div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;        {</div><div class="line"><a name="l00057"></a><span class="lineno">   57</span>&#160;            <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">isTelemetryConfigured_</a> = <span class="keyword">false</span>;</div><div class="line"><a name="l00058"></a><span class="lineno">   58</span>&#160;        }</div><div class="line"><a name="l00059"></a><span class="lineno">   59</span>&#160;</div><div class="line"><a name="l00060"></a><span class="lineno">   60</span>&#160;        <span class="keywordflow">return</span> returnCode;</div><div class="line"><a name="l00061"></a><span class="lineno">   61</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a509936559244d6d21f19e7dd716229dc"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a509936559244d6d21f19e7dd716229dc">jiminy::AbstractSensorBase::getTelemetryName</a></div><div class="ttdeci">virtual std::string getTelemetryName(void) const =0</div><div class="ttdoc">Get the name of the sensor in the telemetry. </div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_af7770ccd5e68d2b54440daaebcdc825b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">jiminy::AbstractSensorBase::isInitialized_</a></div><div class="ttdeci">bool isInitialized_</div><div class="ttdoc">Flag to determine whether the controller has been initialized or not. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00394">AbstractSensor.h:394</a></div></div>
-<div class="ttc" id="classjiminy_1_1_telemetry_sender_html_a911e96a501a3de5c819ede7877258cc4"><div class="ttname"><a href="classjiminy_1_1_telemetry_sender.html#a911e96a501a3de5c819ede7877258cc4">jiminy::TelemetrySender::configureObject</a></div><div class="ttdeci">void configureObject(std::shared_ptr&lt; TelemetryData &gt; const &amp;telemetryDataInstance, std::string const &amp;objectNameIn)</div><div class="ttdoc">Configure the object. </div><div class="ttdef"><b>Definition:</b> <a href="_telemetry_sender_8cc_source.html#l00102">TelemetrySender.cc:102</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a532a4abf1803f6f25d7b1821fbe5ffa8"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a532a4abf1803f6f25d7b1821fbe5ffa8">jiminy::AbstractSensorBase::data_</a></div><div class="ttdeci">vectorN_t data_</div><div class="ttdoc">Measurement buffer to avoid recomputing the same &quot;current&quot; measurement multiple times. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00400">AbstractSensor.h:400</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a395d06ece47dc90648ed0ed0d76666b6"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">jiminy::AbstractSensorBase::isTelemetryConfigured_</a></div><div class="ttdeci">bool isTelemetryConfigured_</div><div class="ttdoc">Flag to determine whether the telemetry of the controller has been initialized or not...</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00395">AbstractSensor.h:395</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a97d704aa97839b7dacc622a5670be171"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a97d704aa97839b7dacc622a5670be171">jiminy::AbstractSensorBase::getFieldNames</a></div><div class="ttdeci">virtual std::vector&lt; std::string &gt; const  &amp; getFieldNames(void) const =0</div><div class="ttdoc">Get the name of each element of the data measured by the sensor. </div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a653748999df5f52c8beb4ec997ba24e8"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a653748999df5f52c8beb4ec997ba24e8">jiminy::AbstractSensorBase::telemetrySender_</a></div><div class="ttdeci">TelemetrySender telemetrySender_</div><div class="ttdoc">Telemetry sender of the sensor used to register and update telemetry variables. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00393">AbstractSensor.h:393</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a53b3301f5277a009c2b9acc66bf6fd8a"></a>
@@ -524,8 +525,7 @@ template&lt;typename &gt; </td></tr>
 <p class="definition">Definition at line <a class="el" href="_abstract_sensor_8cc_source.html#l00074">74</a> of file <a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00394">isInitialized_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00075"></a><span class="lineno">   75</span>&#160;    {</div><div class="line"><a name="l00076"></a><span class="lineno">   76</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">isInitialized_</a>;</div><div class="line"><a name="l00077"></a><span class="lineno">   77</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_af7770ccd5e68d2b54440daaebcdc825b"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b">jiminy::AbstractSensorBase::isInitialized_</a></div><div class="ttdeci">bool isInitialized_</div><div class="ttdoc">Flag to determine whether the controller has been initialized or not. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00394">AbstractSensor.h:394</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a340120a1ccd4f0062c382feb726b42ef"></a>
@@ -552,8 +552,7 @@ template&lt;typename &gt; </td></tr>
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00395">isTelemetryConfigured_</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_sensor_8cc_source.html#l00089">updateTelemetry()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00080"></a><span class="lineno">   80</span>&#160;    {</div><div class="line"><a name="l00081"></a><span class="lineno">   81</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">isTelemetryConfigured_</a>;</div><div class="line"><a name="l00082"></a><span class="lineno">   82</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a395d06ece47dc90648ed0ed0d76666b6"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a395d06ece47dc90648ed0ed0d76666b6">jiminy::AbstractSensorBase::isTelemetryConfigured_</a></div><div class="ttdeci">bool isTelemetryConfigured_</div><div class="ttdoc">Flag to determine whether the telemetry of the controller has been initialized or not...</div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00395">AbstractSensor.h:395</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="addc19968eb77c541726a579344f26e22"></a>
@@ -586,8 +585,7 @@ template&lt;typename &gt; </td></tr>
 <p class="definition">Definition at line <a class="el" href="_abstract_sensor_8cc_source.html#l00084">84</a> of file <a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00399">name_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00085"></a><span class="lineno">   85</span>&#160;    {</div><div class="line"><a name="l00086"></a><span class="lineno">   86</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a8ca724b7aa77376a986c1808b45dca2c">name_</a>;</div><div class="line"><a name="l00087"></a><span class="lineno">   87</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a8ca724b7aa77376a986c1808b45dca2c"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a8ca724b7aa77376a986c1808b45dca2c">jiminy::AbstractSensorBase::name_</a></div><div class="ttdeci">std::string name_</div><div class="ttdoc">Name of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00399">AbstractSensor.h:399</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a91d73d1833d42fe89c810df2a5a7fd77"></a>
@@ -612,8 +610,7 @@ template&lt;typename &gt; </td></tr>
 <p class="definition">Definition at line <a class="el" href="_abstract_sensor_8cc_source.html#l00063">63</a> of file <a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00392">sensorOptionsHolder_</a>.</p>
-<div class="fragment"><div class="line"><a name="l00064"></a><span class="lineno">   64</span>&#160;    {</div><div class="line"><a name="l00065"></a><span class="lineno">   65</span>&#160;        <span class="keywordflow">return</span> <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">sensorOptionsHolder_</a>;</div><div class="line"><a name="l00066"></a><span class="lineno">   66</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a5ac225944872e64caf4650ff9fa412d7"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">jiminy::AbstractSensorBase::sensorOptionsHolder_</a></div><div class="ttdeci">configHolder_t sensorOptionsHolder_</div><div class="ttdoc">Dictionary with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00392">AbstractSensor.h:392</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a509936559244d6d21f19e7dd716229dc"></a>
@@ -892,9 +889,7 @@ template&lt;typename &gt; </td></tr>
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00389">sensorOptions_</a>, and <a class="el" href="_abstract_sensor_8h_source.html#l00392">sensorOptionsHolder_</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_sensor_8cc_source.html#l00007">AbstractSensorBase()</a>.</p>
-<div class="fragment"><div class="line"><a name="l00069"></a><span class="lineno">   69</span>&#160;    {</div><div class="line"><a name="l00070"></a><span class="lineno">   70</span>&#160;        <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">sensorOptionsHolder_</a> = sensorOptions;</div><div class="line"><a name="l00071"></a><span class="lineno">   71</span>&#160;        <a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">sensorOptions_</a> = std::make_unique&lt;abstractSensorOptions_t const&gt;(<a class="code" href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">sensorOptionsHolder_</a>);</div><div class="line"><a name="l00072"></a><span class="lineno">   72</span>&#160;    }</div><div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a5ac225944872e64caf4650ff9fa412d7"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7">jiminy::AbstractSensorBase::sensorOptionsHolder_</a></div><div class="ttdeci">configHolder_t sensorOptionsHolder_</div><div class="ttdoc">Dictionary with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00392">AbstractSensor.h:392</a></div></div>
-<div class="ttc" id="classjiminy_1_1_abstract_sensor_base_html_a62f15eef304da22f7e430cee4e7f0e23"><div class="ttname"><a href="classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23">jiminy::AbstractSensorBase::sensorOptions_</a></div><div class="ttdeci">std::unique_ptr&lt; abstractSensorOptions_t const  &gt; sensorOptions_</div><div class="ttdoc">Structure with the parameters of the sensor. </div><div class="ttdef"><b>Definition:</b> <a href="_abstract_sensor_8h_source.html#l00389">AbstractSensor.h:389</a></div></div>
-</div><!-- fragment -->
+
 </div>
 </div>
 <a id="a4326a78e4900512b9d379522d06a3d41"></a>
@@ -971,11 +966,15 @@ template&lt;typename &gt; </td></tr>
 <li>core/src/<a class="el" href="_abstract_sensor_8cc_source.html">AbstractSensor.cc</a></li>
 </ul>
 </div><!-- contents -->
+</div><!-- doc-content -->
 <!-- start footer part -->
-<hr class="footer"/><address class="footer"><small>
-Generated by &#160;<a href="http://www.doxygen.org/index.html">
-<img class="footer" src="doxygen.png" alt="doxygen"/>
-</a> 1.8.13
-</small></address>
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a class="el" href="namespacejiminy.html">jiminy</a></li><li class="navelem"><a class="el" href="classjiminy_1_1_abstract_sensor_base.html">AbstractSensorBase</a></li>
+    <li class="footer">Generated by
+    <a href="http://www.doxygen.org/index.html">
+    <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.8.13 </li>
+  </ul>
+</div>
 </body>
 </html>
