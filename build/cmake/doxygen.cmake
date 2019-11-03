@@ -32,7 +32,8 @@ MACRO (BUILD_DOC)
     install (
         CODE "execute_process (COMMAND ${CMAKE_MAKE_PROGRAM} doc)
               execute_process (COMMAND ${CMAKE_MAKE_PROGRAM} doc_py)
-              file (REMOVE_RECURSE \"${CMAKE_SOURCE_DIR}/docs/\")
+              file (REMOVE_RECURSE \"${CMAKE_SOURCE_DIR}/docs/cpp\")
+              file (REMOVE_RECURSE \"${CMAKE_SOURCE_DIR}/docs/python\")
               execute_process (COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/doc/html/\" \"${CMAKE_SOURCE_DIR}/docs/cpp\"
                                COMMAND ${CMAKE_COMMAND} -E copy_directory \"${CMAKE_BINARY_DIR}/doc_py/html/\" \"${CMAKE_SOURCE_DIR}/docs/python\"
                                )"
