@@ -1,0 +1,4 @@
+<map id="jiminy::TelemetryData" name="jiminy::TelemetryData">
+<area shape="rect" id="node2" href="$classjiminy_1_1_memory_buffer.html" title="{jiminy::MemoryBuffer\n|+ name_\l+ size_\l+ memAddress_\l|+ MemoryBuffer()\l+ operator=()\l+ MemoryBuffer()\l+ ~MemoryBuffer()\l+ create()\l+ address()\l}" alt="" coords="5,5,152,185"/>
+<area shape="rect" id="node3" href="$structjiminy_1_1mem_header.html" title="{jiminy::memHeader\n|+ startNameSection\l+ nextFreeNameOffset\l+ startDataSection\l+ nextFreeDataOffset\l+ isRegisteringAvailable\l|}" alt="" coords="176,27,339,163"/>
+</map>

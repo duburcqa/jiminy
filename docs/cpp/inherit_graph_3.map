@@ -1,0 +1,10 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$classjiminy_1_1_abstract_sensor_base.html" title="jiminy::AbstractSensorBase" alt="" coords="5,111,189,138"/>
+<area shape="rect" id="node2" href="$classjiminy_1_1_abstract_sensor_tpl.html" title="jiminy::AbstractSensorTpl\l\&lt; EncoderSensor \&gt;" alt="" coords="253,5,425,47"/>
+<area shape="rect" id="node4" href="$classjiminy_1_1_abstract_sensor_tpl.html" title="jiminy::AbstractSensorTpl\l\&lt; ForceSensor \&gt;" alt="" coords="253,71,425,112"/>
+<area shape="rect" id="node6" href="$classjiminy_1_1_abstract_sensor_tpl.html" title="jiminy::AbstractSensorTpl\l\&lt; ImuSensor \&gt;" alt="" coords="253,136,425,177"/>
+<area shape="rect" id="node8" href="$classjiminy_1_1_abstract_sensor_tpl.html" title="jiminy::AbstractSensorTpl\&lt; T \&gt;" alt="" coords="237,202,441,229"/>
+<area shape="rect" id="node3" href="$classjiminy_1_1_encoder_sensor.html" title="jiminy::EncoderSensor" alt="" coords="489,13,643,39"/>
+<area shape="rect" id="node5" href="$classjiminy_1_1_force_sensor.html" title="jiminy::ForceSensor" alt="" coords="497,78,635,105"/>
+<area shape="rect" id="node7" href="$classjiminy_1_1_imu_sensor.html" title="jiminy::ImuSensor" alt="" coords="503,143,629,170"/>
+</map>
