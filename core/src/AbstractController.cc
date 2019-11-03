@@ -88,7 +88,7 @@ namespace jiminy
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
         {
-            removeEntries();
+            registeredInfo_.clear();
         }
 
         isTelemetryConfigured_ = false;
@@ -177,11 +177,6 @@ namespace jiminy
         }
 
         return returnCode;
-    }
-
-    void AbstractController::removeEntries(void)
-    {
-        registeredInfo_.clear();
     }
 
     void AbstractController::updateTelemetry(void)

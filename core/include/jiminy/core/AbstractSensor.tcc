@@ -1,4 +1,3 @@
-#include "jiminy/core/Model.h"
 #include "jiminy/core/Engine.h" // Required to get access to MIN_TIME_STEP and MAX_TIME_STEP
 
 namespace jiminy
@@ -20,6 +19,7 @@ namespace jiminy
         // Add the sensor to the data holder
         ++dataHolder_->num_;
         dataHolder_->sensors_.push_back(this);
+        dataHolder_->counters_.push_back(1);
 
         // Reset the sensors' internal state
         AbstractSensorTpl<T>::reset();
@@ -28,32 +28,37 @@ namespace jiminy
     template <typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
-        // Remove associated col in the global data buffer
-        if(sensorId_ < dataHolder_->num_ - 1)
+        --dataHolder_->counters_[sensorId_];
+        if (!dataHolder_->counters_[sensorId_])
         {
+            // Remove associated col in the global data buffer
+            if(sensorId_ < dataHolder_->num_ - 1)
+            {
+                for (matrixN_t & data : dataHolder_->data_)
+                {
+                    data.block(0, sensorId_, getSize(), dataHolder_->num_ - sensorId_ - 1) =
+                        data.block(0, sensorId_ + 1, getSize(), dataHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
+                }
+            }
             for (matrixN_t & data : dataHolder_->data_)
             {
-                data.block(0, sensorId_, getSize(), dataHolder_->num_ - sensorId_ - 1) =
-                    data.block(0, sensorId_ + 1, getSize(), dataHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
+                data.resize(Eigen::NoChange, dataHolder_->num_ - 1);
             }
-        }
-        for (matrixN_t & data : dataHolder_->data_)
-        {
-            data.resize(Eigen::NoChange, dataHolder_->num_ - 1);
-        }
 
-        // Shift the sensor ids
-        for (uint32_t i=sensorId_ + 1; i < dataHolder_->num_; i++)
-        {
-            AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(dataHolder_->sensors_[i]);
-            --sensor->sensorId_;
+            // Shift the sensor ids
+            for (uint32_t i=sensorId_ + 1; i < dataHolder_->num_; i++)
+            {
+                AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(dataHolder_->sensors_[i]);
+                --sensor->sensorId_;
+            }
+
+            // Remove the deprecated elements of the global containers
+            dataHolder_->sensors_.erase(dataHolder_->sensors_.begin() + sensorId_);
+            dataHolder_->counters_.erase(dataHolder_->counters_.begin() + sensorId_);
+
+            // Update the total number of sensors left
+            --dataHolder_->num_;
         }
-
-        // Remove the deprecated elements of the global containers
-        dataHolder_->sensors_.erase(dataHolder_->sensors_.begin() + sensorId_);
-
-        // Update the total number of sensors left
-        --dataHolder_->num_;
 
         // Reset the sensors' internal state
         reset();

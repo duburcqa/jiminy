@@ -1,3 +1,6 @@
+#include "jiminy/core/AbstractSensor.h"
+#include "jiminy/core/Types.h"
+
 namespace jiminy
 {
     template<typename TSensor>

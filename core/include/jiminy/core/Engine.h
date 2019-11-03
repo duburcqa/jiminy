@@ -11,7 +11,6 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Model.h"
 #include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"
@@ -202,7 +201,6 @@ namespace jiminy
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;
-            config["zGround"] = 0.0;
 
             return config;
         };
@@ -215,7 +213,6 @@ namespace jiminy
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
-            float64_t const zGround;
 
             contactOptions_t(configHolder_t const & options) :
             frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
@@ -223,8 +220,7 @@ namespace jiminy
             dryFrictionVelEps(boost::get<float64_t>(options.at("dryFrictionVelEps"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
-            zGround(boost::get<float64_t>(options.at("zGround")))
+            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
             {
                 // Empty.
             }
@@ -382,8 +378,11 @@ namespace jiminy
         result_t initialize(Model              & model,
                             AbstractController & controller,
                             callbackFct_t        callbackFct);
-
         void reset(bool const & resetDynamicForceRegister = false);
+
+        result_t configureTelemetry(void);
+        void updateTelemetry(void);
+
         result_t reset(vectorN_t const & x_init,
                        bool      const & resetRandomNumbers = false,
                        bool      const & resetDynamicForceRegister = false);
@@ -412,9 +411,6 @@ namespace jiminy
         void writeLogBinary(std::string const & filename);
 
     protected:
-        result_t configureTelemetry(void);
-        void updateTelemetry(void);
-
         void systemDynamics(float64_t const & t,
                             vectorN_t const & x,
                             vectorN_t       & dxdt);
@@ -423,7 +419,7 @@ namespace jiminy
                               vectorN_t       & u);
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
                                                  vector3_t const & fextInWorld) const;
-        vector3_t contactDynamics(int32_t const & frameId) const;
+        vectorN_t contactDynamics(int32_t const & frameId) const;
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;

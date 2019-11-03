@@ -1,7 +1,0 @@
-<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
-<area shape="rect" id="node2" href="$classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyEnv.html" title="Base class to train a robot in Gym OpenAI using a user&#45;specified Python Jiminy engine for physics com..." alt="" coords="99,67,305,108"/>
-<area shape="rect" id="node3" href="$classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyGoalEnv.html" title="Base class to train a robot in Gym OpenAI using a user&#45;specified Jiminy Engine for physics computatio..." alt="" coords="353,5,587,47"/>
-<area shape="rect" id="node6" href="$classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html" title="Implementation of a Gym environment for the Cartpole which is using Jiminy Engine to perform physics ..." alt="" coords="383,71,557,112"/>
-<area shape="rect" id="node4" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotGoalEnv.html" title="Implementation of a Gym environment for the Acrobot which is using Jiminy Engine to perform physics c..." alt="" coords="635,5,805,47"/>
-<area shape="rect" id="node5" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotEnv.html" title="Implementation of a Gym goal&#45;environment for the Acrobot which is using Jiminy Engine to perform phys..." alt="" coords="853,5,1024,47"/>
-</map>

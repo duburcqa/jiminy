@@ -35,9 +35,15 @@ sudo apt install -y robotpkg-py36-pinocchio robotpkg-py36-qt4-gepetto-viewer-cor
 
 ### Python dependencies
 
+#### [Python 2.7 only] Installation procedure
+```bash
+pip install numba
+```
+
 #### [Python 3.6 only] Installation procedure
 ```bash
 sudo apt install -y python3-tk
+pip install numba
 ```
 
 ## Installation Procedure 
@@ -56,7 +62,7 @@ The Machine Learning library [Open AI Gym](https://github.com/openai/gym) is ful
 
 ## Dependencies [Python 3.6 only]
 
-### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
+### Tensorflow 1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
 Amazing tutorial: https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070
 
 ### Open AI Gym along with some toy models

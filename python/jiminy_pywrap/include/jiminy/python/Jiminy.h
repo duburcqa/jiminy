@@ -248,25 +248,25 @@ namespace python
         {
             bp::class_<AbstractSensorBase,
                        boost::shared_ptr<AbstractSensorBase>,
-                       boost::noncopyable>("AbstractSensor", bp::no_init)
+                       boost::noncopyable>("abstract_sensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<AbstractSensorBase> >(); // Required to handle shared_ptr from/to Python
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ImuSensor>,
-                       boost::noncopyable>("ImuSensor", bp::no_init)
+                       boost::noncopyable>("imu_sensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ForceSensor>,
-                       boost::noncopyable>("ForceSensor", bp::no_init)
+                       boost::noncopyable>("force_sensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<EncoderSensor>,
-                       boost::noncopyable>("EncoderSensor", bp::no_init)
+                       boost::noncopyable>("encoder_sensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python< std::shared_ptr<EncoderSensor> >();
         }
@@ -317,6 +317,7 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
+
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
@@ -326,7 +327,7 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
+                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeFlyer,
                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
@@ -478,7 +479,7 @@ namespace python
         {
             bp::class_<Model,
                        boost::shared_ptr<Model>,
-                       boost::noncopyable>("Model")
+                       boost::noncopyable>("model")
                 .def(PyModelVisitor());
         }
     };
@@ -501,7 +502,7 @@ namespace python
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewEntry,
                                        (bp::arg("self"), "fieldname", "value"))
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry)
-                .def("remove_entries", &AbstractController::removeEntries)
+                .def("remove_entries", &PyAbstractControllerVisitor::removeEntries)
                 .def("get_options", &PyAbstractControllerVisitor::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
@@ -523,6 +524,11 @@ namespace python
             std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
             Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy)), fieldNames.size());
             self.registerNewVectorEntry(fieldNames, data);
+        }
+
+        static void removeEntries(AbstractController & self)
+        {
+            self.reset(true);
         }
 
         static bp::dict getOptions(AbstractController & self)
@@ -547,7 +553,7 @@ namespace python
         {
             bp::class_<AbstractController,
                        boost::shared_ptr<AbstractController>,
-                       boost::noncopyable>("AbstractController", bp::no_init)
+                       boost::noncopyable>("abstract_controller", bp::no_init)
                 .def(PyAbstractControllerVisitor());
         }
     };
@@ -655,7 +661,7 @@ namespace python
         {
             bp::class_<stepperState_t,
                        boost::shared_ptr<stepperState_t>,
-                       boost::noncopyable>("StepperState", bp::no_init)
+                       boost::noncopyable>("stepper_state", bp::no_init)
                 .def(PyStepperVisitor());
         }
     };
@@ -725,14 +731,14 @@ namespace python
                               vectorN_t const & x_init,
                               bool      const & resetRandomNumbers)
         {
-            // Only way to handle C++ default values that are not accessible in Python
+            // Only way to handle C++ default values
             return self.reset(x_init, resetRandomNumbers);
         }
 
         static result_t step(Engine          & self,
                              float64_t const & dtDesired)
         {
-            // Only way to handle C++ default values that are not accessible in Python
+            // Only way to handle C++ default values
             return self.step(dtDesired);
         }
 
@@ -797,7 +803,7 @@ namespace python
         {
             bp::class_<Engine,
                        boost::shared_ptr<Engine>,
-                       boost::noncopyable>("Engine")
+                       boost::noncopyable>("engine")
                 .def(PyEngineVisitor());
         }
     };

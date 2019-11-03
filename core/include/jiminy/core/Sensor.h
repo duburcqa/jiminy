@@ -23,7 +23,7 @@ namespace jiminy
 
         std::string getFrameName(void) const;
 
-    private:
+    protected:
         result_t set(float64_t const & t,
                      vectorN_t const & q,
                      vectorN_t const & v,
@@ -48,7 +48,7 @@ namespace jiminy
 
         std::string getFrameName(void) const;
 
-    private:
+    protected:
         result_t set(float64_t const & t,
                      vectorN_t const & q,
                      vectorN_t const & v,
@@ -73,7 +73,7 @@ namespace jiminy
 
         std::string getMotorName(void) const;
 
-    private:
+    protected:
         result_t set(float64_t const & t,
                      vectorN_t const & q,
                      vectorN_t const & v,

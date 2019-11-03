@@ -4,17 +4,17 @@ from math import *
 import numpy as np
 
 import jiminy
-from jiminy_py import EngineAsynchronous
+from jiminy_py import engine_asynchronous
 
 
 urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/cartpole/cartpole.urdf")
 contacts = []
 motors = ["slider_to_cart"]
-model = jiminy.Model()
+model = jiminy.model()
 model.initialize(urdf_path, contacts, motors, False)
 model.add_encoder_sensor("slider", "slider_to_cart")
 model.add_encoder_sensor("pole", "cart_to_pole")
-engine_py = EngineAsynchronous(model)
+engine_py = engine_asynchronous(model)
 
 model_options = model.get_model_options()
 sensors_options = model.get_sensors_options()

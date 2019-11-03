@@ -897,19 +897,6 @@ namespace jiminy
 
     // ********************** Math utilities *************************
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief      Continuously differentiable piecewise-defined saturation function. More
-    ///             precisely, it consists in adding fillets at the two discontinuous points:
-    ///             - It is perfectly linear for `uc` between `-bevelStart` and `bevelStart`.
-    ///             - It is  perfectly constant equal to mi (resp. ma) for `uc` lower than
-    ///               `-bevelStop` (resp. higher than `-bevelStop`).
-    ///             - Then, two arcs of a circle connect those two modes continuously between
-    ///             `bevelStart` and `bevelStop` (resp. `-bevelStop` and `-bevelStart`).
-    ///             See the implementation for details about how `uc`, `bevelStart` and `bevelStop`
-    ///             are computed.
-    ///
-    ///////////////////////////////////////////////////////////////////////////////////////////////
     float64_t saturateSoft(float64_t const & in,
                            float64_t const & mi,
                            float64_t const & ma,
