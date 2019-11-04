@@ -1,6 +1,7 @@
 var NAVTREE =
 [
   [ "jiminy", "index.html", [
+    [ "Jiminy C++ documentation", "index.html", null ],
     [ "Namespaces", null, [
       [ "Namespace List", "namespaces.html", "namespaces" ],
       [ "Namespace Members", "namespacemembers.html", [
@@ -35,7 +36,7 @@ var NAVTREEINDEX =
 "_abstract_controller_8cc.html",
 "classjiminy_1_1_abstract_i_o_device.html#a387f74370c159baf2fa5fc4bf23d61be",
 "classjiminy_1_1_model.html#a346cb7f287e68371e9be4a40c4d5564c",
-"structjiminy_1_1_sensor_data_holder__t.html"
+"structjiminy_1_1_model_1_1model_options__t.html#ad59a6d337be411dfc999323122fff511"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
