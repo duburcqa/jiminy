@@ -88,7 +88,8 @@ $(document).ready(function(){initNavTree('index.html','');});
 <div class="title">Jiminy python documentation </div>  </div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><dl class="section note"><dt>Note</dt><dd>This documentation is currently in beta.</dd></dl>
+<div class="textblock"><p>Jiminy is an open-source C++ simulator of poly-articulated systems. It is maintained by <a href="https://www.wandercraft.eu/en/">Wandercraft Team</a>, and available on <a href="https://github.com/Wandercraft/jiminy">Github</a>.</p>
+<p>This page contains only the Doxygen documentation for Python code. It is automatically generated. A README is available on the Github. Take a look to the <a href="https://github.com/Wandercraft/jiminy/wiki">Wiki</a> for more information.</p>
 <h2>Usage</h2>
 <p>This documentation groups together all the native Python code and bindings, that is part of the jiminy project. The source code is split in several python packages, each containing both source code for the package and command line scripts, both of which are covered here.</p>
 <ul>
@@ -107,11 +108,14 @@ $(document).ready(function(){initNavTree('index.html','');});
 <li>doxygen is used to parse the documentation, thus everything works like in C code:<ul>
 <li>use double comment (##, like /// in C) to start a doxygen line.</li>
 <li>comments must be placed before the declaration of the function they comment, or the class creation.</li>
-<li>all <a href="https://www.stack.nl/~dimitri/doxygen/manual/commands.html">special commands</a> are available. For declaring a command, \ or @ character can be used: for backward compatibility with previously written code, please use @ symbol only in python. Here is an example ({at} stands for @ character): <pre class="fragment">## {at}brief Gives the answer.
-## {at}details This function gives the answer life, the universe and everything.
-## {at}note Not everybody might be psychologically ready for the answer.
-## {at}param question The question input.
-## {at}return 42
+<li>all <a href="https://www.stack.nl/~dimitri/doxygen/manual/commands.html">special commands</a> are available. For declaring a command, \ or @ character can be used: for backward compatibility with previously written code, please use @ symbol only in python. Here is an example ({at} stands for @ character): <pre class="fragment">##
+# 
+#           {at}brief Gives the answer to The question.
+#           {at}details This function gives the answer life, the universe and everything.
+#           {at}note Not everybody might be psychologically ready for the answer.
+#           {at}param question The question.
+#           {at}return 42
+#           
 def answer(the_question):
   return 42
 </pre></li>
