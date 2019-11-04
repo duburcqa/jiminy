@@ -16,10 +16,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${BUILD_VERSION}
 )
 
-# Set include directory
+# Substitute Docstring @copydoc flags with C++ Doxygen documentations
+pythonDocstingSubstitution()
+
+# Set include directory (build folder because of the substitution)
 target_include_directories(${PROJECT_NAME} PUBLIC
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/${PROJECT_NAME}/include/>"
 )
 
 # Link with other libraries
