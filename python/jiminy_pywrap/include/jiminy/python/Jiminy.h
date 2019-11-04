@@ -500,7 +500,8 @@ namespace python
                 .def("initialize", &AbstractController::initialize,
                                    (bp::arg("self"), "model"))
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewEntry,
-                                       (bp::arg("self"), "fieldname", "value"))
+                                       (bp::arg("self"), "fieldname", "value"),
+                                       "@copydoc AbstractController::registerNewEntry")
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry)
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("get_options", &PyAbstractControllerVisitor::getOptions,
