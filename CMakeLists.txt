@@ -33,3 +33,6 @@ install(FILES ${CMAKE_SOURCE_DIR}/build/cmake/base.cmake
         DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
         RENAME ${LIBRARY_NAME}_base.cmake
 )
+install(FILES ${CMAKE_SOURCE_DIR}/build/cmake/boostPythonDocstring.cmake
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
+)
