@@ -24,24 +24,24 @@ This page contains only the Doxygen documentation for Python code. It is automat
  Here are some guidelines on how this documentation is generated:
 
  - doxygen is used to parse the documentation, thus everything works like in C code:
-  - use double comment (##, like /// in C) to start a doxygen line.
-  - comments must be placed before the declaration of the function they comment, or the class creation.
+  - use triple-double quote comment (""") to start and end a doxygen comment block.
+  - comments must be placed after the declaration of the function they comment, or the class creation.
   - all [special commands](https://www.stack.nl/~dimitri/doxygen/manual/commands.html) are available. For declaring
     a command, \\ or \@ character can be used: for backward compatibility with previously written code, please use
-    \@ symbol only in python. Here is an example ({at} stands for \@ character):
+    \@ symbol only in python. Here is an example:
 
         def answer(the_question):
           """
-          {at}brief Gives the answer to The question.
-          {at}details This function gives the answer life, the universe and everything.
-          {at}note Not everybody might be psychologically ready for the answer.
-          {at}param question The question.
-          {at}return 42
+          \@brief Gives the answer to The question.
+          \@details This function gives the answer life, the universe and everything.
+          \@note Not everybody might be psychologically ready for the answer.
+          \@param question The question.
+          \@return 42
           """
           return 42
 
  - File parsed: the following file are parsed:
-  - all python files (files with extension .py) in jiminy, **except** __init__.py  and setup.py files and
+  - all python files (files with extension .py) in jiminy, **except** \__init__.py  and setup.py files and
     files in a build (sub)directory or in a unit (sub)directory.
   - all files in a scripts directory, regardless of extension (command line scripts have no extensions). Files
     without extensions are considered to be python scripts.

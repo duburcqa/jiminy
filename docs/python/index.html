@@ -106,23 +106,22 @@ $(document).ready(function(){initNavTree('index.html','');});
 <p>Here are some guidelines on how this documentation is generated:</p>
 <ul>
 <li>doxygen is used to parse the documentation, thus everything works like in C code:<ul>
-<li>use double comment (##, like /// in C) to start a doxygen line.</li>
-<li>comments must be placed before the declaration of the function they comment, or the class creation.</li>
-<li>all <a href="https://www.stack.nl/~dimitri/doxygen/manual/commands.html">special commands</a> are available. For declaring a command, \ or @ character can be used: for backward compatibility with previously written code, please use @ symbol only in python. Here is an example ({at} stands for @ character): <pre class="fragment">##
-# 
-#           {at}brief Gives the answer to The question.
-#           {at}details This function gives the answer life, the universe and everything.
-#           {at}note Not everybody might be psychologically ready for the answer.
-#           {at}param question The question.
-#           {at}return 42
-#           
-def answer(the_question):
+<li>use triple-double quote comment (""") to start and end a doxygen comment block.</li>
+<li>comments must be placed after the declaration of the function they comment, or the class creation.</li>
+<li>all <a href="https://www.stack.nl/~dimitri/doxygen/manual/commands.html">special commands</a> are available. For declaring a command, \ or @ character can be used: for backward compatibility with previously written code, please use @ symbol only in python. Here is an example: <pre class="fragment">def answer(the_question):
+  """
+  \@brief Gives the answer to The question.
+  \@details This function gives the answer life, the universe and everything.
+  \@note Not everybody might be psychologically ready for the answer.
+  \@param question The question.
+  \@return 42
+  """
   return 42
 </pre></li>
 </ul>
 </li>
 <li>File parsed: the following file are parsed:<ul>
-<li>all python files (files with extension .py) in jiminy, <b>except</b> <b>init</b>.py and setup.py files and files in a build (sub)directory or in a unit (sub)directory.</li>
+<li>all python files (files with extension .py) in jiminy, <b>except</b> __init__.py and setup.py files and files in a build (sub)directory or in a unit (sub)directory.</li>
 <li>all files in a scripts directory, regardless of extension (command line scripts have no extensions). Files without extensions are considered to be python scripts.</li>
 <li>.h files inside a directory named python.</li>
 </ul>
