@@ -36,7 +36,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 # Set include directory
 target_include_directories(${PROJECT_NAME} PUBLIC
-    "$<INSTALL_INTERFACE:include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
 )
 
@@ -49,7 +49,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
-
 
 # Install
 install(DIRECTORY "include/${LIBRARY_NAME}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")

@@ -11,6 +11,7 @@ set(LIBRARY_NAME ${PROJECT_NAME})
 # Set build environment and standard dependencies
 include(${CMAKE_SOURCE_DIR}/build/cmake/base.cmake)
 include(${CMAKE_SOURCE_DIR}/build/cmake/doxygen.cmake)
+include(${CMAKE_SOURCE_DIR}/build/cmake/boostPythonDocstring.cmake)
 
 # Sub-projects
 add_subdirectory(core)

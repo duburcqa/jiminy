@@ -14,7 +14,7 @@ add_executable(${PROJECT_NAME} ${SRC})
 
 # Set include directory
 target_include_directories(${PROJECT_NAME} PUBLIC
-    "$<INSTALL_INTERFACE:include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
 )
 
