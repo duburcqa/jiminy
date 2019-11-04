@@ -110,10 +110,10 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_engine.html','');});
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_engine__coll__graph.png" border="0" usemap="#jiminy_1_1_engine_coll__map" alt="Collaboration graph"/></div>
 <map name="jiminy_1_1_engine_coll__map" id="jiminy_1_1_engine_coll__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="41,181,204,464"/>
-<area shape="rect" id="node3" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="174,703,366,1103"/>
-<area shape="rect" id="node4" href="classjiminy_1_1_model.html" title="{jiminy::Model\n|+ pncModel_\l+ pncData_\l+ mdlOptions_\l+ contactForces_\l# isInitialized_\l# isTelemetryConfigured_\l# urdfPath_\l# hasFreeflyer_\l# mdlOptionsHolder_\l# telemetryData_\l# sensorsGroupHolder_\l# sensorTelemetryOptions_\l# contactFramesNames_\l# contactFramesIdx_\land 16 more...\l&#45; Engine\l&#45; pncModelRigidOrig_\l&#45; pncModelFlexibleOrig_\l&#45; sensorsDataHolder_\l&#45; nq_\l&#45; nv_\l&#45; nx_\l|+ Model()\l+ operator=()\l+ getDefaultJointOptions()\l+ getDefaultDynamicsOptions()\l+ getDefaultOptions()\l+ Model()\l+ ~Model()\l+ initialize()\l+ addSensor()\l+ removeSensor()\land 41 more...\l# reset()\l# configureTelemetry()\l# updateTelemetry()\l# loadUrdfModel()\l# generateFlexibleModel()\l# generateBiasedModel()\l# generateFieldNames()\l}" alt="" coords="239,5,446,640"/>
-<area shape="rect" id="node5" href="structjiminy_1_1stepper_state__t.html" title="{jiminy::stepperState_t\n|+ iterLast\l+ tLast\l+ qLast\l+ vLast\l+ aLast\l+ uLast\l+ uCommandLast\l+ energyLast\l+ t\l+ dt\l+ x\l+ dxdt\l+ uControl\l+ fext\l+ uInternal\l&#45; isInitialized\l|+ stepperState_t()\l+ getIsInitialized()\l+ initialize()\l+ initialize()\l+ updateLast()\l}" alt="" coords="492,725,641,1081"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="40,181,203,464"/>
+<area shape="rect" id="node3" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="173,703,365,1103"/>
+<area shape="rect" id="node4" href="classjiminy_1_1_model.html" title="{jiminy::Model\n|+ pncModel_\l+ pncData_\l+ mdlOptions_\l+ contactForces_\l# isInitialized_\l# isTelemetryConfigured_\l# urdfPath_\l# hasFreeflyer_\l# mdlOptionsHolder_\l# telemetryData_\l# sensorsGroupHolder_\l# sensorTelemetryOptions_\l# contactFramesNames_\l# contactFramesIdx_\land 16 more...\l&#45; Engine\l&#45; pncModelRigidOrig_\l&#45; pncModelFlexibleOrig_\l&#45; sensorsDataHolder_\l&#45; nq_\l&#45; nv_\l&#45; nx_\l|+ Model()\l+ operator=()\l+ getDefaultJointOptions()\l+ getDefaultDynamicsOptions()\l+ getDefaultOptions()\l+ Model()\l+ ~Model()\l+ initialize()\l+ addSensor()\l+ removeSensor()\land 41 more...\l# reset()\l# configureTelemetry()\l# updateTelemetry()\l# loadUrdfModel()\l# generateFlexibleModel()\l# generateBiasedModel()\l# generateFieldNames()\l}" alt="" coords="238,5,445,640"/>
+<area shape="rect" id="node5" href="structjiminy_1_1stepper_state__t.html" title="{jiminy::stepperState_t\n|+ iterLast\l+ tLast\l+ qLast\l+ vLast\l+ aLast\l+ uLast\l+ uCommandLast\l+ energyLast\l+ t\l+ dt\l+ x\l+ dxdt\l+ uControl\l+ fext\l+ uInternal\l&#45; isInitialized\l|+ stepperState_t()\l+ getIsInitialized()\l+ initialize()\l+ initialize()\l+ updateLast()\l}" alt="" coords="491,725,640,1081"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -200,15 +200,15 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>getIsTelemetryConfigu
 <tr class="memitem:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memItemLeft" align="right" valign="top"><a id="a69b2cd9e7ba8052791f6cb35d67d59b7"></a>
 std::vector&lt; vectorN_t &gt; const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getContactForces</b> (void) const</td></tr>
 <tr class="separator:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab45e3e4d16430c6bf8abfe709a615237"><td class="memItemLeft" align="right" valign="top"><a id="ab45e3e4d16430c6bf8abfe709a615237"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>getLogData</b> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
-<tr class="separator:ab45e3e4d16430c6bf8abfe709a615237"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad5dbb4540a5793db749a7620b7696db4"><td class="memItemLeft" align="right" valign="top"><a id="ad5dbb4540a5793db749a7620b7696db4"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogTxt</b> (std::string const &amp;filename)</td></tr>
-<tr class="separator:ad5dbb4540a5793db749a7620b7696db4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af742aca850b61139331107bd765043cf"><td class="memItemLeft" align="right" valign="top"><a id="af742aca850b61139331107bd765043cf"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogBinary</b> (std::string const &amp;filename)</td></tr>
-<tr class="separator:af742aca850b61139331107bd765043cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a477e94313568596aec2eb492715675dc"><td class="memItemLeft" align="right" valign="top"><a id="a477e94313568596aec2eb492715675dc"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>getLogData</b> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
+<tr class="separator:a477e94313568596aec2eb492715675dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab91bd8f3a80fac940214e2f49832c67e"><td class="memItemLeft" align="right" valign="top"><a id="ab91bd8f3a80fac940214e2f49832c67e"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogTxt</b> (std::string const &amp;filename)</td></tr>
+<tr class="separator:ab91bd8f3a80fac940214e2f49832c67e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa395096de18348153ee7a1d14326760b"><td class="memItemLeft" align="right" valign="top"><a id="aa395096de18348153ee7a1d14326760b"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogBinary</b> (std::string const &amp;filename)</td></tr>
+<tr class="separator:aa395096de18348153ee7a1d14326760b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -245,6 +245,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>systemDynamics</b> (f
 <tr class="memitem:aab6224d34d6d50dc5e8a927ce18fc206"><td class="memItemLeft" align="right" valign="top"><a id="aab6224d34d6d50dc5e8a927ce18fc206"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>internalDynamics</b> (vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t &amp;u)</td></tr>
 <tr class="separator:aab6224d34d6d50dc5e8a927ce18fc206"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a96e2555727babeb5592605e607b93dc1"><td class="memItemLeft" align="right" valign="top"><a id="a96e2555727babeb5592605e607b93dc1"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>updateCommand</b> (float64_t const &amp;t, vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t &amp;u)</td></tr>
+<tr class="separator:a96e2555727babeb5592605e607b93dc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adfea3ce15904c714fa994dc1c3d0c977"><td class="memItemLeft" align="right" valign="top"><a id="adfea3ce15904c714fa994dc1c3d0c977"></a>
 vector6_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeFrameForceOnParentJoint</b> (int32_t const &amp;frameId, vector3_t const &amp;fextInWorld) const</td></tr>
 <tr class="separator:adfea3ce15904c714fa994dc1c3d0c977"><td class="memSeparator" colspan="2">&#160;</td></tr>

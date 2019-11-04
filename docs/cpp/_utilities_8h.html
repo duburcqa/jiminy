@@ -230,6 +230,12 @@ result_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::getFrameI
 <tr class="memitem:a3afd791aab914187a9e415534a894943"><td class="memItemLeft" align="right" valign="top"><a id="a3afd791aab914187a9e415534a894943"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::getFramesIdx</b> (pinocchio::Model const &amp;model, std::vector&lt; std::string &gt; const &amp;framesNames, std::vector&lt; int32_t &gt; &amp;framesIdx)</td></tr>
 <tr class="separator:a3afd791aab914187a9e415534a894943"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd72ce87c0bbb8d9a9e54ea61ffc4faf"><td class="memItemLeft" align="right" valign="top"><a id="afd72ce87c0bbb8d9a9e54ea61ffc4faf"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::getJointModelIdx</b> (pinocchio::Model const &amp;model, std::string const &amp;jointName, int32_t &amp;jointModelIdx)</td></tr>
+<tr class="separator:afd72ce87c0bbb8d9a9e54ea61ffc4faf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a96b3d6e84eb146e520bae586f34a56e3"><td class="memItemLeft" align="right" valign="top"><a id="a96b3d6e84eb146e520bae586f34a56e3"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::getJointsModelIdx</b> (pinocchio::Model const &amp;model, std::vector&lt; std::string &gt; const &amp;jointsNames, std::vector&lt; int32_t &gt; &amp;jointsModelIdx)</td></tr>
+<tr class="separator:a96b3d6e84eb146e520bae586f34a56e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1135a38068cf909b1f0b35c415d79992"><td class="memItemLeft" align="right" valign="top"><a id="a1135a38068cf909b1f0b35c415d79992"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::getJointPositionIdx</b> (pinocchio::Model const &amp;model, std::string const &amp;jointName, std::vector&lt; int32_t &gt; &amp;jointPositionIdx)</td></tr>
 <tr class="separator:a1135a38068cf909b1f0b35c415d79992"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -261,6 +267,9 @@ template&lt;typename T0 , typename T1 , typename... Ts&gt; </td></tr>
 <tr class="memitem:adc68f5ddb933a12a44db44525debed9a"><td class="memItemLeft" align="right" valign="top"><a id="adc68f5ddb933a12a44db44525debed9a"></a>
 vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::clamp</b> (Eigen::Ref&lt; vectorN_t const &gt; data, float64_t const &amp;minThr=-INF, float64_t const &amp;maxThr=+INF)</td></tr>
 <tr class="separator:adc68f5ddb933a12a44db44525debed9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a97d100f5092cf2d18f87b2bd1133a214"><td class="memItemLeft" align="right" valign="top"><a id="a97d100f5092cf2d18f87b2bd1133a214"></a>
+float64_t&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::clamp</b> (float64_t const &amp;data, float64_t const &amp;minThr=-INF, float64_t const &amp;maxThr=+INF)</td></tr>
+<tr class="separator:a97d100f5092cf2d18f87b2bd1133a214"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3cc57194073394461d9cf386efd40958"><td class="memTemplParams" colspan="2"><a id="a3cc57194073394461d9cf386efd40958"></a>
 template&lt;typename KeyType , typename ValueType &gt; </td></tr>
 <tr class="memitem:a3cc57194073394461d9cf386efd40958"><td class="memTemplItemLeft" align="right" valign="top">std::vector&lt; ValueType &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>jiminy::getMapValues</b> (std::map&lt; KeyType, ValueType &gt; m)</td></tr>

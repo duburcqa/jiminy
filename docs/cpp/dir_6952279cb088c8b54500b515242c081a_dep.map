@@ -1,7 +1,0 @@
-<map id="scenarios/double_pendulum" name="scenarios/double_pendulum">
-<area shape="rect" id="node2" href="dir_c22cab1b575cbfe3345d27973d43b671.html" title="src" alt="" coords="37,63,109,111"/>
-<area shape="rect" id="node3" href="dir_4270bfced15e0e73154b13468c7c9ad9.html" title="core" alt="" coords="37,159,109,207"/>
-<area shape="rect" id="edge1-headlabel" href="dir_000013_000000.html" title="4" alt="" coords="78,133,86,147"/>
-<area shape="rect" id="clust2" href="dir_6952279cb088c8b54500b515242c081a.html" alt="" coords="27,52,267,121"/>
-<area shape="rect" id="clust1" href="dir_ef2be79bbdc3ecbfe4013ef68fe6d646.html" title="scenarios" alt="" coords="16,16,277,132"/>
-</map>

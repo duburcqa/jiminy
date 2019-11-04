@@ -1,9 +1,6 @@
 var searchData=
 [
-  ['sensoroptions_5f',['sensorOptions_',['../classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23',1,'jiminy::AbstractSensorBase']]],
-  ['sensoroptionsholder_5f',['sensorOptionsHolder_',['../classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7',1,'jiminy::AbstractSensorBase']]],
-  ['sensors_5f',['sensors_',['../structjiminy_1_1_sensor_data_holder__t.html#a2ca346bdb6e6ae18536291fd070dfa4e',1,'jiminy::SensorDataHolder_t']]],
-  ['size_5f',['size_',['../classjiminy_1_1_memory_buffer.html#a7ac144d64fe84d5703ba8cd2b525c5f1',1,'jiminy::MemoryBuffer']]],
-  ['startdatasection',['startDataSection',['../structjiminy_1_1mem_header.html#a92ccafcd1a8462649303765fc3976ae8',1,'jiminy::memHeader']]],
-  ['startnamesection',['startNameSection',['../structjiminy_1_1mem_header.html#a5f23895ae2ee277f0a75bc78362a92d1',1,'jiminy::memHeader']]]
+  ['rawdata',['rawData',['../structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#abb646f65a130c7ec354048a03c561674',1,'jiminy::AbstractSensorBase::abstractSensorOptions_t']]],
+  ['recordedbytes_5f',['recordedBytes_',['../classjiminy_1_1_telemetry_recorder.html#a31b04d2afaa88d163800e9d26107387b',1,'jiminy::TelemetryRecorder']]],
+  ['registeredinfo_5f',['registeredInfo_',['../classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd',1,'jiminy::AbstractController']]]
 ];

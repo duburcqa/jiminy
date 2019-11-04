@@ -1,5 +1,13 @@
 var NAVTREEINDEX3 =
 {
+"structjiminy_1_1_model_1_1joint_options__t.html#a8de1235acf06480bcb7b22e06555a3bc":[2,0,0,13,1,3],
+"structjiminy_1_1_model_1_1joint_options__t.html#aa43f6c99c69212b15cee9dc917e02a5c":[2,0,0,13,1,6],
+"structjiminy_1_1_model_1_1joint_options__t.html#aed1d4f91d5b349d26fe08935fd5e964b":[2,0,0,13,1,2],
+"structjiminy_1_1_model_1_1joint_options__t.html#af0ccbf2eea45be2337ccc8eeda161578":[2,0,0,13,1,0],
+"structjiminy_1_1_model_1_1joint_options__t.html#af9bce27f955312fc658d05b497767f62":[2,0,0,13,1,7],
+"structjiminy_1_1_model_1_1model_options__t.html":[2,0,0,13,2],
+"structjiminy_1_1_model_1_1model_options__t.html#a0d14492815914973c324d28173554318":[2,0,0,13,2,0],
+"structjiminy_1_1_model_1_1model_options__t.html#a496a3a4f2d827c08eddbe8e980d5b770":[2,0,0,13,2,2],
 "structjiminy_1_1_model_1_1model_options__t.html#ad59a6d337be411dfc999323122fff511":[2,0,0,13,2,1],
 "structjiminy_1_1_sensor_data_holder__t.html":[2,0,0,14],
 "structjiminy_1_1_sensor_data_holder__t.html#a1b66b05818c53277f8fa04ac86bea7a8":[2,0,0,14,5],

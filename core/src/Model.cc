@@ -32,11 +32,11 @@ namespace jiminy
     motorsPositionIdx_(),
     motorsVelocityIdx_(),
     rigidJointsNames_(),
+    rigidJointsModelIdx_(),
     rigidJointsPositionIdx_(),
     rigidJointsVelocityIdx_(),
     flexibleJointsNames_(),
-    flexibleJointsPositionIdx_(),
-    flexibleJointsVelocityIdx_(),
+    flexibleJointsModelIdx_(),
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
@@ -87,18 +87,23 @@ namespace jiminy
             pncModelRigidOrig_ = pncModel_;
 
             /* Get the list of joint names of the rigid model and
-               Erase the 'universe', since it is not an actual joint. */
+               remove the 'universe' and 'root' if any, since there
+               are not actual joints. */
             rigidJointsNames_ = pncModelRigidOrig_.names;
-            rigidJointsNames_.erase(rigidJointsNames_.begin());
+            rigidJointsNames_.erase(rigidJointsNames_.begin()); // remove the 'universe'
+            if (hasFreeflyer)
+            {
+                rigidJointsNames_.erase(rigidJointsNames_.begin()); // remove the 'root'
+            }
         }
 
-        // Add biases to the dynamics properties of the model
+        // Create the flexible model and add biases to the dynamics properties of the model
         if (returnCode == result_t::SUCCESS)
         {
             returnCode = generateBiasedModel();
         }
 
-        // Create the flexible model and update the bounds if necessary
+        // Update the bounds if necessary
         if (returnCode == result_t::SUCCESS)
         {
             returnCode = setOptions(mdlOptionsHolder_);
@@ -276,10 +281,10 @@ namespace jiminy
             pncModelFlexibleOrig_ = pncModelRigidOrig_;
             for(std::string jointName : mdlOptions_->dynamics.flexibleJointsNames)
             {
-                int32_t jointId;
+                int32_t jointIdx;
                 if(returnCode == result_t::SUCCESS)
                 {
-                    returnCode = getJointPositionIdx(pncModel_, jointName, jointId);
+                    returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
                 }
 
                 // Look if given joint exists in the joint list.
@@ -321,14 +326,9 @@ namespace jiminy
         {
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
-                getJointsPositionIdx(pncModelFlexibleOrig_,
-                                     flexibleJointsNames_,
-                                     flexibleJointsPositionIdx_,
-                                     true);
-                getJointsVelocityIdx(pncModelFlexibleOrig_,
-                                     flexibleJointsNames_,
-                                     flexibleJointsVelocityIdx_,
-                                     true);
+                getJointsModelIdx(pncModelFlexibleOrig_,
+                                  flexibleJointsNames_,
+                                  flexibleJointsModelIdx_);
             }
         }
 
@@ -346,29 +346,29 @@ namespace jiminy
 
             for (std::string const & jointName : rigidJointsNames_)
             {
-                int32_t const jointId = pncModel_.getJointId(jointName);
+                int32_t const jointIdx = pncModel_.getJointId(jointName);
 
                 vector3_t & comRelativePositionBody =
-                    const_cast<vector3_t &>(pncModel_.inertias[jointId].lever());
+                    const_cast<vector3_t &>(pncModel_.inertias[jointIdx].lever());
                 comRelativePositionBody +=
                     randVectorNormal(3U, mdlOptions_->dynamics.centerOfMassPositionBodiesBiasStd);
 
                 // Cannot be less than 1g for numerical stability
                 float64_t & massBody =
-                    const_cast<float64_t &>(pncModel_.inertias[jointId].mass());
+                    const_cast<float64_t &>(pncModel_.inertias[jointIdx].mass());
                 massBody =
                     std::max(massBody +
                         randNormal(0.0, mdlOptions_->dynamics.massBodiesBiasStd), 1.0e-3);
 
                 // Cannot be less 1g applied at 1mm of distance from the rotation center
                 vector6_t & inertiaBody =
-                    const_cast<vector6_t &>(pncModel_.inertias[jointId].inertia().data());
+                    const_cast<vector6_t &>(pncModel_.inertias[jointIdx].inertia().data());
                 inertiaBody =
                     clamp(inertiaBody +
                         randVectorNormal(6U, mdlOptions_->dynamics.inertiaBodiesBiasStd), 1.0e-9);
 
                 vector3_t & relativePositionBody =
-                    pncModel_.jointPlacements[jointId].translation();
+                    pncModel_.jointPlacements[jointIdx].translation();
                 relativePositionBody +=
                     randVectorNormal(3U, mdlOptions_->dynamics.relativePositionBodiesBiasStd);
             }
@@ -385,6 +385,7 @@ namespace jiminy
         // Extract some joint and frame indices in the model
         if (returnCode == result_t::SUCCESS)
         {
+            getJointsModelIdx(pncModel_, rigidJointsNames_, rigidJointsModelIdx_);
             getJointsPositionIdx(pncModel_, rigidJointsNames_, rigidJointsPositionIdx_, false);
             getJointsVelocityIdx(pncModel_, rigidJointsNames_, rigidJointsVelocityIdx_, false);
             returnCode = getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
@@ -426,23 +427,33 @@ namespace jiminy
         // Update the position and velocity limits
         if (returnCode == result_t::SUCCESS)
         {
-            positionLimitMin_ = pncModel_.lowerPositionLimit;
-            positionLimitMax_ = pncModel_.upperPositionLimit;
-            if (!mdlOptions_->joints.positionLimitFromUrdf)
+            if (mdlOptions_->joints.positionLimitFromUrdf)
             {
-                for (uint32_t i=0; i < rigidJointsNames_.size(); ++i)
+                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
+                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
+                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
                 {
-                    positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
-                    positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
+                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
                 }
             }
-            velocityLimit_ = pncModel_.velocityLimit;
-            if (!mdlOptions_->joints.velocityLimitFromUrdf)
+            else
             {
-                for (uint32_t i=0; i < rigidJointsNames_.size(); ++i)
+                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
+                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
+            }
+
+            if (mdlOptions_->joints.velocityLimitFromUrdf)
+            {
+                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
+                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
                 {
-                    velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
                 }
+            }
+            else
+            {
+                velocityLimit_ = mdlOptions_->joints.velocityLimit;
             }
         }
 
@@ -473,19 +484,19 @@ namespace jiminy
             for (uint32_t i=0; i<jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
-                int32_t const jointId = pncModel_.getJointId(jointName);
+                int32_t const jointIdx = pncModel_.getJointId(jointName);
 
-                int32_t idx_q = pncModel_.joints[jointId].idx_q();
+                int32_t idx_q = pncModel_.joints[jointIdx].idx_q();
 
                 if (idx_q >= 0) // Otherwise the joint is not part of the vectorial representation
                 {
-                    int32_t idx_v = pncModel_.joints[jointId].idx_v();
+                    int32_t idx_v = pncModel_.joints[jointIdx].idx_v();
 
                     joint_t jointType;
                     std::string jointPrefix;
                     if (returnCode == result_t::SUCCESS)
                     {
-                        returnCode = getJointTypeFromId(pncModel_, jointId, jointType);
+                        returnCode = getJointTypeFromId(pncModel_, jointIdx, jointType);
                     }
                     if (returnCode == result_t::SUCCESS)
                     {
@@ -500,7 +511,7 @@ namespace jiminy
                             jointPrefix = JOINT_PREFIX_BASE;
                         }
 
-                        returnCode = getJointTypeFromId(pncModel_, jointId, jointType);
+                        returnCode = getJointTypeFromId(pncModel_, jointIdx, jointType);
                     }
 
                     std::vector<std::string> jointTypePositionSuffixes;
@@ -839,40 +850,21 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        mdlOptionsHolder_ = mdlOptions;
-
-        // Clear the flexible model and associated variables if needed
-        configHolder_t & dynOptionsHolder =
-            boost::get<configHolder_t>(mdlOptionsHolder_.at("dynamics"));
-        std::vector<std::string> const & flexibleJointsNames =
-            boost::get<std::vector<std::string> >(dynOptionsHolder.at("flexibleJointsNames"));
-
-        if(mdlOptions_
-        && (flexibleJointsNames.size() != mdlOptions_->dynamics.flexibleJointsNames.size()
-            || !std::equal(flexibleJointsNames.begin(),
-                           flexibleJointsNames.end(),
-                           mdlOptions_->dynamics.flexibleJointsNames.begin())))
-        {
-            pncModelFlexibleOrig_ = pinocchio::Model();
-        }
-        flexibleJointsPositionIdx_.clear();
-        flexibleJointsVelocityIdx_.clear();
-
-        // Make sure the user-defined position limit has the right dimension
         if (isInitialized_)
         {
+            // Make sure the user-defined position limit has the right dimension
             configHolder_t & jointOptionsHolder =
-                boost::get<configHolder_t>(mdlOptionsHolder_.at("joints"));
+                boost::get<configHolder_t>(mdlOptions.at("joints"));
             if (!boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf")))
             {
                 vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
-                if((int32_t) rigidJointsNames_.size() != positionLimitMin.size())
+                if((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for positionLimitMin." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
-                if((uint32_t) rigidJointsNames_.size() != positionLimitMax.size())
+                if((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for positionLimitMax." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
@@ -881,7 +873,7 @@ namespace jiminy
             if (!boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
                 vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
-                if((int32_t) rigidJointsNames_.size() != velocityLimit.size())
+                if((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for velocityLimit." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
@@ -889,7 +881,45 @@ namespace jiminy
             }
         }
 
-        mdlOptions_ = std::make_unique<modelOptions_t const>(mdlOptionsHolder_);
+        // Check if the flexible model and its associated variables must be regenerated
+        bool isFlexibleModelInvalid = false;
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (isInitialized_)
+            {
+                configHolder_t & dynOptionsHolder =
+                    boost::get<configHolder_t>(mdlOptions.at("dynamics"));
+                std::vector<std::string> const & flexibleJointsNames =
+                    boost::get<std::vector<std::string> >(dynOptionsHolder.at("flexibleJointsNames"));
+
+                if(mdlOptions_
+                && (flexibleJointsNames.size() != mdlOptions_->dynamics.flexibleJointsNames.size()
+                    || !std::equal(flexibleJointsNames.begin(),
+                                flexibleJointsNames.end(),
+                                mdlOptions_->dynamics.flexibleJointsNames.begin())))
+                {
+                    isFlexibleModelInvalid = true;
+                }
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Update the internal options
+            mdlOptionsHolder_ = mdlOptions;
+
+            // Create a fast struct accessor
+            mdlOptions_ = std::make_unique<modelOptions_t const>(mdlOptionsHolder_);
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (isFlexibleModelInvalid)
+            {
+                pncModelFlexibleOrig_ = pinocchio::Model(); // Required to trigger flexible model regeneration
+                generateBiasedModel();
+            }
+        }
 
         return returnCode;
     }
@@ -1083,6 +1113,11 @@ namespace jiminy
         return rigidJointsNames_;
     }
 
+    std::vector<int32_t> const & Model::getRigidJointsModelIdx(void) const
+    {
+        return rigidJointsModelIdx_;
+    }
+
     std::vector<int32_t> const & Model::getRigidJointsPositionIdx(void) const
     {
         return rigidJointsPositionIdx_;
@@ -1098,16 +1133,10 @@ namespace jiminy
         return mdlOptions_->dynamics.flexibleJointsNames;
     }
 
-    std::vector<int32_t> const & Model::getFlexibleJointsPositionIdx(void) const
+    std::vector<int32_t> const & Model::getFlexibleJointsModelIdx(void) const
     {
-        return flexibleJointsPositionIdx_;
+        return flexibleJointsModelIdx_;
     }
-
-    std::vector<int32_t> const & Model::getFlexibleJointsVelocityIdx(void) const
-    {
-        return flexibleJointsVelocityIdx_;
-    }
-
 
     uint32_t const & Model::nq(void) const
     {

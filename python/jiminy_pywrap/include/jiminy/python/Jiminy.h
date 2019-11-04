@@ -502,7 +502,8 @@ namespace python
                 .def("register_entry", &PyAbstractControllerVisitor::registerNewEntry,
                                        (bp::arg("self"), "fieldname", "value"),
                                        "@copydoc AbstractController::registerNewEntry")
-                .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry)
+                .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry,
+                                       (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("get_options", &PyAbstractControllerVisitor::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
@@ -510,21 +511,43 @@ namespace python
                 ;
         }
 
-        static void registerNewEntry(AbstractController       & self,
-                                     std::string        const & fieldName,
-                                     PyObject                 * dataPy)
+        static result_t registerNewEntry(AbstractController       & self,
+                                         std::string        const & fieldName,
+                                         PyObject                 * dataPy)
         {
-            float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
-            self.registerNewEntry(fieldName, *data);
+            // Note that  Const qualifier is not supported by PyArray_DATA
+
+            const char* p = Py_TYPE(dataPy)->tp_name;
+            if (p == std::string("numpy.ndarray"))
+            {
+                float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
+                return self.registerNewEntry(fieldName, *data);
+            }
+            else
+            {
+                std::cout << "Error - PyAbstractControllerVisitor::registerNewEntry - 'value' input must have type 'numpy.ndarray'." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
         }
 
-        static void registerNewVectorEntry(AbstractController       & self,
-                                           bp::list           const & fieldNamesPy,
-                                           PyObject                 * dataPy) // Const qualifier is not supported by PyArray_DATA anyway
+        static result_t registerNewVectorEntry(AbstractController       & self,
+                                               bp::list           const & fieldNamesPy,
+                                               PyObject                 * dataPy)
         {
-            std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
-            Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy)), fieldNames.size());
-            self.registerNewVectorEntry(fieldNames, data);
+            // Note that  Const qualifier is not supported by PyArray_DATA
+
+            const char* p = Py_TYPE(dataPy)->tp_name;
+            if (p == std::string("numpy.ndarray"))
+            {
+                std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
+                Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy)), fieldNames.size());
+                return self.registerNewVectorEntry(fieldNames, data);
+            }
+            else
+            {
+                std::cout << "Error - PyAbstractControllerVisitor::registerNewVectorEntry - 'values' input must have type 'numpy.ndarray'." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
         }
 
         static bp::dict getOptions(AbstractController & self)

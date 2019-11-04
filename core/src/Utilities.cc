@@ -626,6 +626,51 @@ namespace jiminy
         return returnCode;
     }
 
+    result_t getJointModelIdx(pinocchio::Model const & model,
+                              std::string      const & jointName,
+                              int32_t                & jointModelIdx)
+    {
+        // It returns the first index even if the joint has multiple degrees of freedom
+
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!model.existJointName(jointName))
+        {
+            std::cout << "Error - Utilities::getJointPositionIdx - Joint not found in urdf." << std::endl;
+            returnCode = result_t::ERROR_BAD_INPUT;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            jointModelIdx = model.getJointId(jointName);
+        }
+
+        return returnCode;
+    }
+
+    result_t getJointsModelIdx(pinocchio::Model         const & model,
+                               std::vector<std::string> const & jointsNames,
+                               std::vector<int32_t>           & jointsModelIdx)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        jointsModelIdx.clear();
+        int32_t jointModelIdx;
+        for (std::string const & jointName : jointsNames)
+        {
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = getJointModelIdx(model, jointName, jointModelIdx);
+            }
+            if (returnCode == result_t::SUCCESS)
+            {
+                jointsModelIdx.push_back(jointModelIdx);
+            }
+        }
+
+        return returnCode;
+    }
+
     result_t getJointVelocityIdx(pinocchio::Model     const & model,
                                  std::string          const & jointName,
                                  std::vector<int32_t>       & jointVelocityIdx)
@@ -636,7 +681,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - ExogetFrameIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - getJointVelocityIdx - Frame not found in urdf." << std::endl;
             returnCode = result_t::ERROR_BAD_INPUT;
         }
 
@@ -662,7 +707,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - ExogetFrameIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - getJointVelocityIdx - Frame not found in urdf." << std::endl;
             returnCode = result_t::ERROR_BAD_INPUT;
         }
 
@@ -964,7 +1009,21 @@ namespace jiminy
     {
         return data.unaryExpr([&minThr, &maxThr](float64_t const & x) -> float64_t
                               {
-                                  return std::min(std::max(x, minThr), maxThr);
+                                  return clamp(x, minThr, maxThr);
                               });
+    }
+
+    float64_t clamp(float64_t const & data,
+                    float64_t const & minThr,
+                    float64_t const & maxThr)
+    {
+        if (!isnan(data))
+        {
+            return std::min(std::max(data, minThr), maxThr);
+        }
+        else
+        {
+            return 0.0;
+        }
     }
 }
