@@ -13,6 +13,7 @@ The data of the simulation can be exported in CSV format, or directely read from
 Python2.7 and Python3 bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python).
 
 **The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`. **
+
 Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/that_style).
 
 ## Dependencies
