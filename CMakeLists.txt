@@ -17,6 +17,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/boostPythonDocstring.cmake)
 add_subdirectory(core)
 add_subdirectory(python)
 add_subdirectory(scenarios)
+add_subdirectory(unit)
 
 # Build documentation from Doxygen.
 build_DOC ()
