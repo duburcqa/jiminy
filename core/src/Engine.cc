@@ -507,8 +507,8 @@ namespace jiminy
                 // Update the sensor data if necessary (only for finite update frequency)
                 if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
                 {
-                    float const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                    float dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
+                    float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                    float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
                     if (dtNextSensorsUpdatePeriod < MIN_TIME_STEP
                     || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_TIME_STEP)
                     {
@@ -523,8 +523,8 @@ namespace jiminy
                 // Update the controller command if necessary (only for finite update frequency)
                 if (engineOptions_->stepper.controllerUpdatePeriod > EPS)
                 {
-                    float const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
-                    float dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
+                    float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+                    float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
                     if (dtNextControllerUpdatePeriod < MIN_TIME_STEP
                     || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_TIME_STEP)
                     {
@@ -574,7 +574,7 @@ namespace jiminy
             if (stepperUpdatePeriod_ > EPS)
             {
                 // Get the target time at next iteration
-                float dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < MIN_TIME_STEP)
                 {
                     tNext += min(stepperUpdatePeriod_,
@@ -748,8 +748,8 @@ namespace jiminy
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
             else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
-            && std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS
-            && std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS)
+            && (std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS
+             || std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS))
             {
                 std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be multiple of each other if not infinite." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
@@ -848,9 +848,9 @@ namespace jiminy
     result_t Engine::getLogData(std::vector<std::string> & header,
                               matrixN_t                & logData)
     {
-        if(!isInitialized_)
+        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
         {
-            std::cout << "Error - Engine::getLogData - Engine not initialized. Impossible to get log data." << std::endl;
+            std::cout << "Error - Engine::getLogData - Telemetry not initialized. Impossible to get log data." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
@@ -881,9 +881,9 @@ namespace jiminy
 
     result_t Engine::writeLogTxt(std::string const & filename)
     {
-        if(!isInitialized_)
+        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
         {
-            std::cout << "Error - Engine::writeLogTxt - Engine not initialized. Impossible to write log txt." << std::endl;
+            std::cout << "Error - Engine::writeLogTxt - Telemetry not initialized. Impossible to write log txt." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
@@ -927,9 +927,9 @@ namespace jiminy
 
     result_t Engine::writeLogBinary(std::string const & filename)
     {
-        if(!isInitialized_)
+        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
         {
-            std::cout << "Error - Engine::writeLogBinary - Engine not initialized. Impossible to write log data." << std::endl;
+            std::cout << "Error - Engine::writeLogBinary - Telemetry not initialized. Impossible to write log data." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
