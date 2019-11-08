@@ -370,8 +370,8 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
             client.gui.addSceneToWindow(scene_name, window_id)
             client.gui.createGroup(scene_name + '/' + scene_name)
             client.gui.addLandmark(scene_name + '/' + scene_name, 0.1)
-        rb.initDisplay(window_name, scene_name, loadModel=False)
-        rb.loadDisplayModel(robot_name)
+        rb.initViewer(windowName=window_name, sceneName=scene_name, loadModel=False)
+        rb.loadViewerModel(robot_name)
         client.gui.setFloatProperty(scene_name + '/' + robot_name, "Transparency", 1-alpha)
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]["evolution_robot"][0].q.copy() # Make sure to use a copy to avoid altering the original data
@@ -414,7 +414,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
         threads[i].join()
 
 
-def get_colorized_urdf(urdf_path, rgb):
+def get_colorized_urdf(urdf_path, rgb, custom_mesh_search_path=None):
     """
     @brief      Generate a unique colorized URDF.
 
@@ -426,6 +426,7 @@ def get_colorized_urdf(urdf_path, rgb):
 
     @return     Full path of the colorized URDF file.
     """
+
     color_string = "%.3f_%.3f_%.3f_1.0" % rgb
     color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % rgb # don't close tag with '>', in order to handle <color/> and <color></color>
     colorized_tmp_path = os.path.join("/tmp", "colorized_urdf_rgba_" + color_string)

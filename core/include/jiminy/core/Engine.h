@@ -277,6 +277,7 @@ namespace jiminy
         configHolder_t getDefaultStepperOptions()
         {
             configHolder_t config;
+            config["verbose"] = false;
             config["randomSeed"] = 0U;
             config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
             config["tolAbs"] = 1.0e-5;
@@ -291,6 +292,7 @@ namespace jiminy
 
         struct stepperOptions_t
         {
+            bool        const verbose;
             uint32_t    const randomSeed;
             std::string const odeSolver;
             float64_t   const tolAbs;
@@ -301,6 +303,7 @@ namespace jiminy
             float64_t   const controllerUpdatePeriod;
 
             stepperOptions_t(configHolder_t const & options) :
+            verbose(boost::get<bool>(options.at("verbose"))),
             randomSeed(boost::get<uint32_t>(options.at("randomSeed"))),
             odeSolver(boost::get<std::string>(options.at("odeSolver"))),
             tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
@@ -406,10 +409,10 @@ namespace jiminy
         Model const & getModel(void) const;
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
-        void getLogData(std::vector<std::string> & header,
-                        matrixN_t                & logData);
-        void writeLogTxt(std::string const & filename);
-        void writeLogBinary(std::string const & filename);
+        result_t getLogData(std::vector<std::string> & header,
+                            matrixN_t                & logData);
+        result_t writeLogTxt(std::string const & filename);
+        result_t writeLogBinary(std::string const & filename);
 
     protected:
         result_t configureTelemetry(void);
@@ -421,6 +424,10 @@ namespace jiminy
         void internalDynamics(vectorN_t const & q,
                               vectorN_t const & v,
                               vectorN_t       & u);
+        void updateCommand(float64_t const & t,
+                           vectorN_t const & q,
+                           vectorN_t const & v,
+                           vectorN_t       & u);
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
                                                  vector3_t const & fextInWorld) const;
         vector3_t contactDynamics(int32_t const & frameId) const;

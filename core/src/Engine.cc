@@ -16,7 +16,6 @@
 #include "jiminy/core/Model.h"
 #include "jiminy/core/Engine.h"
 
-#include <boost/algorithm/clamp.hpp>
 #include <boost/numeric/odeint/iterator/n_step_iterator.hpp>
 
 
@@ -274,7 +273,11 @@ namespace jiminy
         // Check the dimension of the initial rigid state
         std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
         std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-        if(x_init.rows() != (uint32_t) (rigidJointsPositionIdx.size() + rigidJointsVelocityIdx.size()))
+
+        if ((model_->getHasFreeflyer() &&
+                x_init.rows() != (uint32_t) (7 + rigidJointsPositionIdx.size() + 6 + rigidJointsVelocityIdx.size()))
+            || (!model_->getHasFreeflyer() &&
+                x_init.rows() != (uint32_t) (rigidJointsPositionIdx.size() + rigidJointsVelocityIdx.size())))
         {
             std::cout << "Error - Engine::reset - Size of x_init inconsistent with model size." << std::endl;
             return result_t::ERROR_BAD_INPUT;
@@ -294,17 +297,33 @@ namespace jiminy
 
         // Compute the initial flexible state based on the initial rigid state
         vectorN_t x0 = vectorN_t::Zero(model_->nx());
-        for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+        if (model_->getHasFreeflyer())
         {
-            x0[rigidJointsPositionIdx[i]] = x_init[i];
+            x0.head<7>() = x_init.head<7>();
+            for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+            {
+                x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+            }
+            x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
+            for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+            {
+                x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+            }
         }
-        for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+        else
         {
-            x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+            for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+            {
+                x0[rigidJointsPositionIdx[i]] = x_init[i];
+            }
+            for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+            {
+                x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+            }
         }
-        for (int32_t const & jointId : model_->getFlexibleJointsPositionIdx())
+        for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
         {
-            x0[jointId + 3] = 1.0;
+            x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
         }
 
         // Reset the impulse for iterator counter
@@ -366,10 +385,10 @@ namespace jiminy
                                stepperState_.uLast);
 
         // Initialize the controller's dynamically registered variables
-        controller_->computeCommand(stepperState_.tLast,
-                                    stepperState_.qLast,
-                                    stepperState_.vLast,
-                                    stepperState_.uCommandLast);
+        updateCommand(stepperState_.tLast,
+                      stepperState_.qLast,
+                      stepperState_.vLast,
+                      stepperState_.uCommandLast);
 
         /* Initialize the monitoring of the current iteration number,
            and log the initial time, state, command, and sensors data. */
@@ -404,14 +423,29 @@ namespace jiminy
             /* Stop the simulation if the end time has been reached, if
                the callback returns false, or if the number of integration
                steps exceeds 1e5. */
-            if (tEnd - stepperState_.t < MIN_TIME_STEP
-            || !callbackFct_(stepperState_.t, stepperState_.x))
+            if (tEnd - stepperState_.t < MIN_TIME_STEP)
             {
+                if (engineOptions_->stepper.verbose)
+                {
+                    std::cout << "Simulation done: desired final time reached." << std::endl;
+                }
+                break;
+            }
+            else if (!callbackFct_(stepperState_.t, stepperState_.x))
+            {
+                if (engineOptions_->stepper.verbose)
+                {
+                    std::cout << "Simulation done: callback returned false." << std::endl;
+                }
                 break;
             }
             else if (engineOptions_->stepper.iterMax > 0
             && stepperState_.iterLast >= (uint32_t) engineOptions_->stepper.iterMax)
             {
+                if (engineOptions_->stepper.verbose)
+                {
+                    std::cout << "Simulation done: maximum number of integration steps exceeded." << std::endl;
+                }
                 break;
             }
             else if (returnCode != result_t::SUCCESS)
@@ -494,20 +528,10 @@ namespace jiminy
                     if (dtNextControllerUpdatePeriod < MIN_TIME_STEP
                     || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_TIME_STEP)
                     {
-                        controller_->computeCommand(stepperState_.tLast,
-                                                    stepperState_.qLast,
-                                                    stepperState_.vLast,
-                                                    stepperState_.uCommandLast);
-
-                        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-                        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
-                        {
-                            uint32_t jointId = motorsVelocityIdx[i];
-                            float64_t torque_max = model_->pncModel_.effortLimit(jointId); // effortLimit is given in the velocity vector space
-                            stepperState_.uControl[jointId] = stepperState_.uCommandLast[i];
-                            stepperState_.uControl[i] = boost::algorithm::clamp(
-                                stepperState_.uControl[i], -torque_max, torque_max);
-                        }
+                        updateCommand(stepperState_.tLast,
+                                      stepperState_.qLast,
+                                      stepperState_.vLast,
+                                      stepperState_.uCommandLast);
 
                         /* Update the internal stepper state dxdt since the dynamics has changed.
                             Make sure the next impulse force iterator has NOT been updated at this point ! */
@@ -647,6 +671,24 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    void Engine::updateCommand(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t       & u)
+    {
+        controller_->computeCommand(t, q, v, u);
+
+        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+        {
+            uint32_t jointIdx = motorsVelocityIdx[i];
+            float64_t torque_max = model_->pncModel_.effortLimit(jointIdx); // effortLimit is given in the velocity vector space
+            stepperState_.uCommandLast[i] = clamp(
+                stepperState_.uCommandLast[i], -torque_max, torque_max);   // Clamp BEFORE logging
+            stepperState_.uControl[jointIdx] = stepperState_.uCommandLast[i];
+        }
+    }
+
     void Engine::registerForceImpulse(std::string const & frameName,
                                       float64_t   const & t,
                                       float64_t   const & dt,
@@ -714,6 +756,39 @@ namespace jiminy
             }
         }
 
+        // Make sure the contacts options are fine
+        if (returnCode == result_t::SUCCESS)
+        {
+            configHolder_t contactsOptions = boost::get<configHolder_t>(engineOptions.at("contacts"));
+            float64_t const & dryFrictionVelEps =
+                boost::get<float64_t>(contactsOptions.at("dryFrictionVelEps"));
+            float64_t const & transitionEps =
+                boost::get<float64_t>(contactsOptions.at("transitionEps"));
+            if (dryFrictionVelEps < 0.0)
+            {
+                std::cout << "Error - Engine::setOptions - The contacts option 'dryFrictionVelEps' must be positive." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+            else if (transitionEps < 0.0)
+            {
+                std::cout << "Error - Engine::setOptions - The contacts option 'transitionEps' must be positive." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Make sure the joints options are fine
+        if (returnCode == result_t::SUCCESS)
+        {
+            configHolder_t jointsOptions = boost::get<configHolder_t>(engineOptions.at("joints"));
+            float64_t const & boundTransitionEps =
+                boost::get<float64_t>(jointsOptions.at("boundTransitionEps"));
+            if (boundTransitionEps < 0.0)
+            {
+                std::cout << "Error - Engine::setOptions - The joints option 'boundTransitionEps' must be positive." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
         // Compute the breakpoints' period (for command or observation) during the integration loop
         if (returnCode == result_t::SUCCESS)
         {
@@ -770,9 +845,15 @@ namespace jiminy
         return stepperState_;
     }
 
-    void Engine::getLogData(std::vector<std::string> & header,
-                            matrixN_t                & logData)
+    result_t Engine::getLogData(std::vector<std::string> & header,
+                              matrixN_t                & logData)
     {
+        if(!isInitialized_)
+        {
+            std::cout << "Error - Engine::getLogData - Engine not initialized. Impossible to get log data." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
         std::vector<float32_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
@@ -794,10 +875,18 @@ namespace jiminy
                 Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                     floatData[i].data(), floatData[i].size()).cast<float64_t>();
         }
+
+        return result_t::SUCCESS;
     }
 
-    void Engine::writeLogTxt(std::string const & filename)
+    result_t Engine::writeLogTxt(std::string const & filename)
     {
+        if(!isInitialized_)
+        {
+            std::cout << "Error - Engine::writeLogTxt - Engine not initialized. Impossible to write log txt." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
         std::vector<std::string> header;
         matrixN_t log;
         getLogData(header, log);
@@ -806,29 +895,47 @@ namespace jiminy
                                              std::ios::out |
                                              std::ofstream::trunc);
 
-        auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
-        std::copy(header.begin() + 1,
-                  indexConstantEnd - 1,
-                  std::ostream_iterator<std::string>(myfile, ", ")); // Discard the first one (start constant flag)
-        std::copy(indexConstantEnd - 1,
-                  indexConstantEnd,
-                  std::ostream_iterator<std::string>(myfile, "\n"));
-        std::copy(indexConstantEnd + 1,
-                  header.end() - 2,
-                  std::ostream_iterator<std::string>(myfile, ", "));
-        std::copy(header.end() - 2,
-                  header.end() - 1,
-                  std::ostream_iterator<std::string>(myfile, "\n")); // Discard the last one (start data flag)
+        if (myfile.is_open())
+        {
+            auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
+            std::copy(header.begin() + 1,
+                    indexConstantEnd - 1,
+                    std::ostream_iterator<std::string>(myfile, ", ")); // Discard the first one (start constant flag)
+            std::copy(indexConstantEnd - 1,
+                    indexConstantEnd,
+                    std::ostream_iterator<std::string>(myfile, "\n"));
+            std::copy(indexConstantEnd + 1,
+                    header.end() - 2,
+                    std::ostream_iterator<std::string>(myfile, ", "));
+            std::copy(header.end() - 2,
+                    header.end() - 1,
+                    std::ostream_iterator<std::string>(myfile, "\n")); // Discard the last one (start data flag)
 
-        Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-        myfile << log.format(CSVFormat);
+            Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+            myfile << log.format(CSVFormat);
 
-        myfile.close();
+            myfile.close();
+        }
+        else
+        {
+            std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        return result_t::SUCCESS;
     }
 
-    void Engine::writeLogBinary(std::string const & filename)
+    result_t Engine::writeLogBinary(std::string const & filename)
     {
+        if(!isInitialized_)
+        {
+            std::cout << "Error - Engine::writeLogBinary - Engine not initialized. Impossible to write log data." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
         telemetryRecorder_->writeDataBinary(filename);
+
+        return result_t::SUCCESS;
     }
 
     void Engine::systemDynamics(float64_t const & t,
@@ -874,17 +981,7 @@ namespace jiminy
            Be careful, in this particular case uCommandLast is not guarantee to be the last command. */
         if (engineOptions_->stepper.controllerUpdatePeriod < MIN_TIME_STEP)
         {
-            controller_->computeCommand(t, q, v, stepperState_.uCommandLast);
-
-            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
-            {
-                uint32_t const & jointId = motorsVelocityIdx[i];
-                float64_t const & torque_max = model_->pncModel_.effortLimit(jointId); // effortLimit is given in the velocity vector space
-                stepperState_.uControl[jointId] = stepperState_.uCommandLast[i];
-                stepperState_.uControl[i] = boost::algorithm::clamp(
-                    stepperState_.uControl[i], -torque_max, torque_max);
-            }
+            updateCommand(t, q, v, stepperState_.uCommandLast);
         }
 
         // Add the effect of user-defined external forces
@@ -922,33 +1019,6 @@ namespace jiminy
         float64_t dt = t - stepperState_.tLast;
         vectorN_t qDot(model_->nq());
         computePositionDerivative(model_->pncModel_, q, v, qDot, dt);
-
-        if (model_->mdlOptions_->joints.useVelocityLimit)
-        {
-            /* Velocity bounds are applied directly on the analytical acceleration
-               since it is always possible to enforce the desired acceleration under
-               the assumption of infinite torque.
-               Note that it behaves ALMOST like a friction force because the total
-               energy of the system decreases most of the time when active, BUT it
-               may happens that the energy slightly goes back up (but at a lower
-               energy level than initially). */
-            std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-            vectorN_t const & velocityLimit = model_->getVelocityLimit();
-            for (uint32_t i = 0; i < rigidJointsVelocityIdx.size(); i++)
-            {
-                float64_t const & vJoint = v(rigidJointsVelocityIdx[i]);
-                float64_t & aJoint = a(rigidJointsVelocityIdx[i]);
-                float64_t const & vJointMax = velocityLimit[rigidJointsVelocityIdx[i]];
-                if (vJoint > vJointMax && aJoint > 0.0)
-                {
-                    aJoint = 0.0;
-                }
-                else if (vJoint < -vJointMax && aJoint < 0.0)
-                {
-                    aJoint = 0.0;
-                }
-            }
-        }
 
         // Fill up dxdt
         dxdt.resize(model_->nx());
@@ -1007,7 +1077,7 @@ namespace jiminy
             Eigen::Vector2d const & vxy = vFrameInWorld.head<2>();
             float64_t vNorm = vxy.norm();
             float64_t frictionCoeff;
-            if(vNorm > contactOptions_->dryFrictionVelEps)
+            if(vNorm - contactOptions_->dryFrictionVelEps >= 0.0)
             {
                 if(vNorm < 1.5 * contactOptions_->dryFrictionVelEps)
                 {
@@ -1031,9 +1101,12 @@ namespace jiminy
             fextInWorld.head<2>() = clamp(fextInWorld.head<2>(), -1e5, 1e5);
 
             // Add blending factor
-            float64_t blendingFactor = -(posFrame(2) - zGround) / contactOptions_->transitionEps;
-            float64_t blendingLaw = std::tanh(2 * blendingFactor);
-            fextInWorld *= blendingLaw;
+            if (contactOptions_->transitionEps > EPS)
+            {
+                float64_t blendingFactor = -(posFrame(2) - zGround) / contactOptions_->transitionEps;
+                float64_t blendingLaw = std::tanh(2 * blendingFactor);
+                fextInWorld *= blendingLaw;
+            }
         }
         else
         {
@@ -1049,56 +1122,123 @@ namespace jiminy
     {
         // Do NOT reinitialize the output to Zero !
 
-        // Enforce the position limit
+        // Enforce the position limit (do not support spherical joints)
         if (model_->mdlOptions_->joints.usePositionLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
-            std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
-            std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
+            std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
             vectorN_t const & positionLimitMin = model_->getPositionLimitMin();
             vectorN_t const & positionLimitMax = model_->getPositionLimitMax();
-            for (uint32_t i = 0; i < rigidJointsPositionIdx.size(); i++)
+            uint32_t jointIdxOffset = 0;
+            for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
             {
-                float64_t const & qJoint = q(rigidJointsPositionIdx[i]);
-                float64_t const & vJoint = v(rigidJointsVelocityIdx[i]);
-                float64_t const & qJointMin = positionLimitMin[rigidJointsPositionIdx[i]];
-                float64_t const & qJointMax = positionLimitMax[rigidJointsPositionIdx[i]];
+                uint32_t const & jointPositionIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_q();
+                uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+                uint32_t const & jointDof = model_->pncModel_.joints[jointsModelIdx[i]].nq();
 
-                float64_t forceJoint = 0;
-                float64_t qJointError = 0;
-                if (qJoint > qJointMax)
+                for (uint32_t j = 0; j < jointDof; j++)
                 {
-                    qJointError = qJoint - qJointMax;
-                    float64_t damping = -engineJointOptions.boundDamping * std::max(vJoint, 0.0);
-                    forceJoint = -engineJointOptions.boundStiffness * qJointError + damping;
-                }
-                else if (qJoint < qJointMin)
-                {
-                    qJointError = qJointMin - qJoint;
-                    float64_t damping = -engineJointOptions.boundDamping * std::min(vJoint, 0.0);
-                    forceJoint = engineJointOptions.boundStiffness * qJointError + damping;
-                }
+                    float64_t const & qJoint = q(jointPositionIdx + j);
+                    float64_t const & vJoint = v(jointVelocityIdx + j);
+                    float64_t const & qJointMin = positionLimitMin[jointIdxOffset];
+                    float64_t const & qJointMax = positionLimitMax[jointIdxOffset];
 
-                float64_t blendingFactor = qJointError / engineJointOptions.boundTransitionEps;
-                float64_t blendingLaw = std::tanh(2 * blendingFactor);
-                forceJoint *= blendingLaw;
+                    float64_t forceJoint = 0;
+                    float64_t qJointError = 0;
+                    if (qJoint > qJointMax)
+                    {
+                        qJointError = qJoint - qJointMax;
+                        // std::cout << model_->positionFieldNames_[jointPositionIdx]
+                        //           << " - " << jointPositionIdx << " - " << jointVelocityIdx << " - "
+                        //           << " : BBBBAAAAAAAAMMM! Hiting bounds qJoint > qJointMax = " << qJointError << std::endl;
+                        float64_t damping = -engineJointOptions.boundDamping * std::max(vJoint, 0.0);
+                        forceJoint = -engineJointOptions.boundStiffness * qJointError + damping;
+                    }
+                    else if (qJoint < qJointMin)
+                    {
+                        qJointError = qJointMin - qJoint;
+                        // std::cout << model_->positionFieldNames_[jointPositionIdx]
+                        //           << " - " << jointPositionIdx << " - " << jointVelocityIdx << " - "
+                        //           << " : BBBBAAAAAAAAMMM! Hiting bounds qJoint < qJointMin = " << qJointError << std::endl;
+                        float64_t damping = -engineJointOptions.boundDamping * std::min(vJoint, 0.0);
+                        forceJoint = engineJointOptions.boundStiffness * qJointError + damping;
+                    }
 
-                u(rigidJointsVelocityIdx[i]) += forceJoint;
+                    if (engineJointOptions.boundTransitionEps > EPS)
+                    {
+                        float64_t blendingFactor = qJointError / engineJointOptions.boundTransitionEps;
+                        float64_t blendingLaw = std::tanh(2 * blendingFactor);
+                        forceJoint *= blendingLaw;
+                    }
+
+                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+
+                    jointIdxOffset += 1;
+                }
             }
         }
 
-        // Compute the flexibilities
-        Model::dynamicsOptions_t const & mdlDynOptions = model_->mdlOptions_->dynamics;
-        std::vector<int32_t> const & jointPositionId = model_->getFlexibleJointsPositionIdx();
-        std::vector<int32_t> const & jointVelocityId = model_->getFlexibleJointsVelocityIdx();
-        for (uint32_t i=0; i<jointVelocityId.size(); ++i)
+        // Enforce the velocity limit (do not support spherical joints)
+        if (model_->mdlOptions_->joints.useVelocityLimit)
         {
+            Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
+
+            std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
+            vectorN_t const & velocityLimitMin = model_->getVelocityLimit();
+
+            uint32_t jointIdxOffset = 0;
+            for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
+            {
+                uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+                uint32_t const & jointDof = model_->pncModel_.joints[jointsModelIdx[i]].nq();
+
+                for (uint32_t j = 0; j < jointDof; j++)
+                {
+                    float64_t const & vJoint = v(jointVelocityIdx + j);
+                    float64_t const & vJointMin = -velocityLimitMin[jointIdxOffset];
+                    float64_t const & vJointMax = velocityLimitMin[jointIdxOffset];
+
+                    float64_t forceJoint = 0;
+                    float64_t vJointError = 0;
+                    if (vJoint > vJointMax)
+                    {
+                        vJointError = vJoint - vJointMax;
+                        forceJoint = -engineJointOptions.boundDamping * std::max(vJoint, 0.0);
+                    }
+                    else if (vJoint < vJointMin)
+                    {
+                        vJointError = vJointMin - vJoint;
+                        forceJoint = -engineJointOptions.boundDamping * std::min(vJoint, 0.0);
+                    }
+
+                    if (engineJointOptions.boundTransitionEps > EPS)
+                    {
+                        float64_t blendingFactor = vJointError / engineJointOptions.boundTransitionEps;
+                        float64_t blendingLaw = std::tanh(2 * blendingFactor);
+                        forceJoint *= blendingLaw;
+                    }
+
+                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+
+                    jointIdxOffset += 1;
+                }
+            }
+        }
+
+        // Compute the flexibilities (only support joint_t::SPHERICAL so far)
+        Model::dynamicsOptions_t const & mdlDynOptions = model_->mdlOptions_->dynamics;
+        std::vector<int32_t> const & jointsModelIdx = model_->getFlexibleJointsModelIdx();
+        for (uint32_t i=0; i<jointsModelIdx.size(); ++i)
+        {
+            uint32_t const & jointPositionIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_q();
+            uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+
             float64_t theta;
-            quaternion_t quat(q.segment<4>(jointPositionId[i]).data()); // Only way to initialize with [x,y,z,w] order
+            quaternion_t quat(q.segment<4>(jointPositionIdx).data()); // Only way to initialize with [x,y,z,w] order
             vectorN_t axis = pinocchio::quaternion::log3(quat, theta);
-            u.segment<3>(jointVelocityId[i]).array() += -mdlDynOptions.flexibleJointsStiffness[i].array() * axis.array()
-                - mdlDynOptions.flexibleJointsDamping[i].array() * v.segment<3>(jointVelocityId[i]).array();
+            u.segment<3>(jointVelocityIdx).array() += -mdlDynOptions.flexibleJointsStiffness[i].array() * axis.array()
+                - mdlDynOptions.flexibleJointsDamping[i].array() * v.segment<3>(jointVelocityIdx).array();
         }
     }
 }

@@ -1,15 +1,18 @@
 var _utilities_8cc =
 [
     [ "clamp", "_utilities_8cc.html#adc68f5ddb933a12a44db44525debed9a", null ],
+    [ "clamp", "_utilities_8cc.html#a97d100f5092cf2d18f87b2bd1133a214", null ],
     [ "computePositionDerivative", "_utilities_8cc.html#a334f03efcf72794f8cd3152fdd8911e2", null ],
     [ "defaultVectorFieldnames", "_utilities_8cc.html#ab331cd56f9f576aa19e40d1fa1cdbe02", null ],
     [ "distUniform_", "_utilities_8cc.html#ad0db976b27679babd7b105a9f1c25d0a", null ],
     [ "getFrameIdx", "_utilities_8cc.html#aac71897bc6aeb8f365261a780fe6f17c", null ],
     [ "getFramesIdx", "_utilities_8cc.html#a3afd791aab914187a9e415534a894943", null ],
+    [ "getJointModelIdx", "_utilities_8cc.html#afd72ce87c0bbb8d9a9e54ea61ffc4faf", null ],
     [ "getJointNameFromPositionId", "_utilities_8cc.html#a7c6fa0a939cf0637803fe41da24c06d0", null ],
     [ "getJointNameFromVelocityId", "_utilities_8cc.html#af146b2e9a8b4541a0c8c7ccbf8e57056", null ],
     [ "getJointPositionIdx", "_utilities_8cc.html#a1135a38068cf909b1f0b35c415d79992", null ],
     [ "getJointPositionIdx", "_utilities_8cc.html#a8def12dba548f447bd1966f955bb6652", null ],
+    [ "getJointsModelIdx", "_utilities_8cc.html#a96b3d6e84eb146e520bae586f34a56e3", null ],
     [ "getJointsPositionIdx", "_utilities_8cc.html#aea32ed511aee1619b054ee6fe1ff8b57", null ],
     [ "getJointsVelocityIdx", "_utilities_8cc.html#ab71c800904afe37d26c64ef6c19592dd", null ],
     [ "getJointTypeFromId", "_utilities_8cc.html#ac057bb9bade13509293f414e9ee7dbb3", null ],

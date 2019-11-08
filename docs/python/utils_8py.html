@@ -118,9 +118,9 @@ Functions</h2></td></tr>
 <tr class="memitem:ab7d932baa27b769c16a4f44f6ab57bb1"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8py.html#ab7d932baa27b769c16a4f44f6ab57bb1">jiminy_py.utils.play_trajectories</a> (trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0, window_name='python-pinocchio', scene_name='world')</td></tr>
 <tr class="memdesc:ab7d932baa27b769c16a4f44f6ab57bb1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Display robot evolution in Gepetto-viewer at stable speed.  <a href="utils_8py.html#ab7d932baa27b769c16a4f44f6ab57bb1">More...</a><br /></td></tr>
 <tr class="separator:ab7d932baa27b769c16a4f44f6ab57bb1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3733e5db7e422ea3beee2fa9659d6a9a"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8py.html#a3733e5db7e422ea3beee2fa9659d6a9a">jiminy_py.utils.get_colorized_urdf</a> (urdf_path, rgb)</td></tr>
-<tr class="memdesc:a3733e5db7e422ea3beee2fa9659d6a9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a unique colorized URDF.  <a href="utils_8py.html#a3733e5db7e422ea3beee2fa9659d6a9a">More...</a><br /></td></tr>
-<tr class="separator:a3733e5db7e422ea3beee2fa9659d6a9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8066df3222cd50373e79ba81f01e82c8"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8py.html#a8066df3222cd50373e79ba81f01e82c8">jiminy_py.utils.get_colorized_urdf</a> (urdf_path, rgb, custom_mesh_search_path=None)</td></tr>
+<tr class="memdesc:a8066df3222cd50373e79ba81f01e82c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a unique colorized URDF.  <a href="utils_8py.html#a8066df3222cd50373e79ba81f01e82c8">More...</a><br /></td></tr>
+<tr class="separator:a8066df3222cd50373e79ba81f01e82c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1ac88e2bbce08cd1efe90fbff3af1184"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="utils_8py.html#a1ac88e2bbce08cd1efe90fbff3af1184">jiminy_py.utils.get_gepetto_client</a> (open_if_needed=False)</td></tr>
 <tr class="memdesc:a1ac88e2bbce08cd1efe90fbff3af1184"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get a pointer to the running process of Gepetto-Viewer.  <a href="utils_8py.html#a1ac88e2bbce08cd1efe90fbff3af1184">More...</a><br /></td></tr>
 <tr class="separator:a1ac88e2bbce08cd1efe90fbff3af1184"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -193,7 +193,7 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Full path of the associated node. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00519">519</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00520">520</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
 
 </div>
 </div>
@@ -248,7 +248,7 @@ Variables</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00538">538</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00539">539</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
 
 </div>
 </div>
@@ -343,8 +343,8 @@ Variables</h2></td></tr>
 
 </div>
 </div>
-<a id="file_a3733e5db7e422ea3beee2fa9659d6a9a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#file_a3733e5db7e422ea3beee2fa9659d6a9a">&#9670;&nbsp;</a></span>get_colorized_urdf()</h2>
+<a id="file_a8066df3222cd50373e79ba81f01e82c8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#file_a8066df3222cd50373e79ba81f01e82c8">&#9670;&nbsp;</a></span>get_colorized_urdf()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -359,7 +359,13 @@ Variables</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">&#160;</td>
-          <td class="paramname"><em>rgb</em>&#160;</td>
+          <td class="paramname"><em>rgb</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>custom_mesh_search_path</em> = <code>None</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -409,7 +415,7 @@ Variables</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>A pointer to the running Gepetto-viewer Client and its PID. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00477">477</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00478">478</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
 
 </div>
 </div>
@@ -653,7 +659,7 @@ Variables</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00559">559</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="utils_8py_source.html#l00560">560</a> of file <a class="el" href="utils_8py_source.html">utils.py</a>.</p>
 
 </div>
 </div>

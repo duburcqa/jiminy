@@ -42,8 +42,8 @@ namespace jiminy
             config["positionLimitMax"] = vectorN_t();
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
-            config["usePositionLimit"] = false;
-            config["useVelocityLimit"] = false;
+            config["usePositionLimit"] = true;
+            config["useVelocityLimit"] = true;
 
             return config;
         };
@@ -51,7 +51,7 @@ namespace jiminy
         struct jointOptions_t
         {
             bool      const positionLimitFromUrdf;
-            vectorN_t const positionLimitMin;
+            vectorN_t const positionLimitMin;         ///< Min position limit of all the actual joints, namely without freeflyer and flexible joints if any
             vectorN_t const positionLimitMax;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
@@ -191,11 +191,11 @@ namespace jiminy
         std::vector<int32_t> const & getMotorsPositionIdx(void) const;
         std::vector<int32_t> const & getMotorsVelocityIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
+        std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
         std::vector<int32_t> const & getRigidJointsPositionIdx(void) const;
         std::vector<int32_t> const & getRigidJointsVelocityIdx(void) const;
         std::vector<std::string> const & getFlexibleJointsNames(void) const;
-        std::vector<int32_t> const & getFlexibleJointsPositionIdx(void) const;
-        std::vector<int32_t> const & getFlexibleJointsVelocityIdx(void) const;
+        std::vector<int32_t> const & getFlexibleJointsModelIdx(void) const;
         std::vector<std::string> const & getPositionFieldNames(void) const;
         std::vector<std::string> const & getVelocityFieldNames(void) const;
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
@@ -248,12 +248,12 @@ namespace jiminy
         std::vector<std::string> motorsNames_;              // Joint name of the motors of the model
         std::vector<int32_t> motorsPositionIdx_;            // First indices of the motors in the configuration vector of the model
         std::vector<int32_t> motorsVelocityIdx_;            // First indices of the motors in the velocity vector of the model
-        std::vector<std::string> rigidJointsNames_;         // Name of the actual joints of the model
-        std::vector<int32_t> rigidJointsPositionIdx_;       // Indices of the actual joints in the configuration vector of the model
-        std::vector<int32_t> rigidJointsVelocityIdx_;       // Indices of the actual joints in the velocity vector of the model
-        std::vector<std::string> flexibleJointsNames_;      // Name of the flexibility joints of the model
-        std::vector<int32_t> flexibleJointsPositionIdx_;    // First indices of the flexibility joints in the configuration vector of the model
-        std::vector<int32_t> flexibleJointsVelocityIdx_;    // First indices of the flexibility joints in the velocity vector of the model
+        std::vector<std::string> rigidJointsNames_;         // Name of the actual joints of the model, not taking into account the freeflyer
+        std::vector<int32_t> rigidJointsModelIdx_;          // Index of the actual joints in the pinocchio model
+        std::vector<int32_t> rigidJointsPositionIdx_;       // All the indices of the actual joints in the configuration vector of the model
+        std::vector<int32_t> rigidJointsVelocityIdx_;       // All the indices of the actual joints in the velocity vector of the model
+        std::vector<std::string> flexibleJointsNames_;      // Name of the flexibility joints of the model ONLY
+        std::vector<int32_t> flexibleJointsModelIdx_;       // Index of the flexibility joints in the pinocchio model
 
         vectorN_t positionLimitMin_;
         vectorN_t positionLimitMax_;

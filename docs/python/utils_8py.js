@@ -5,7 +5,7 @@ var utils_8py =
     [ "_updateGeometryPlacements", "utils_8py.html#a598afdad65841839dd98cfa8e195aa08", null ],
     [ "delete_nodes_viewer", "utils_8py.html#a6cf74c6bbf35feb29df7412717c66f21", null ],
     [ "extract_state_from_simulation_log", "utils_8py.html#ab2e37b153b6a57dea17bee5a541d1ee0", null ],
-    [ "get_colorized_urdf", "utils_8py.html#a3733e5db7e422ea3beee2fa9659d6a9a", null ],
+    [ "get_colorized_urdf", "utils_8py.html#a8066df3222cd50373e79ba81f01e82c8", null ],
     [ "get_gepetto_client", "utils_8py.html#a1ac88e2bbce08cd1efe90fbff3af1184", null ],
     [ "initFromURDF", "utils_8py.html#abf385ad1a1e25f9622f770de42936ab3", null ],
     [ "play_trajectories", "utils_8py.html#ab7d932baa27b769c16a4f44f6ab57bb1", null ],

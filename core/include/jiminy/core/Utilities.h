@@ -125,6 +125,13 @@ namespace jiminy
                           std::vector<std::string> const & framesNames,
                           std::vector<int32_t>           & framesIdx);
 
+    result_t getJointModelIdx(pinocchio::Model const & model,
+                              std::string      const & jointName,
+                              int32_t                & jointModelIdx);
+    result_t getJointsModelIdx(pinocchio::Model         const & model,
+                               std::vector<std::string> const & jointsNames,
+                               std::vector<int32_t>           & jointsModelIdx);
+
     result_t getJointPositionIdx(pinocchio::Model     const & model,
                                  std::string          const & jointName,
                                  std::vector<int32_t>       & jointPositionIdx);
@@ -164,6 +171,10 @@ namespace jiminy
     vectorN_t clamp(Eigen::Ref<vectorN_t const>         data,
                     float64_t                   const & minThr = -INF,
                     float64_t                   const & maxThr = +INF);
+
+    float64_t clamp(float64_t const & data,
+                    float64_t const & minThr = -INF,
+                    float64_t const & maxThr = +INF);
 
     // *********************** Miscellaneous **************************
 
