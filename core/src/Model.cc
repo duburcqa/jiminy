@@ -29,6 +29,7 @@ namespace jiminy
     contactFramesNames_(),
     contactFramesIdx_(),
     motorsNames_(),
+    motorsModelIdx_(),
     motorsPositionIdx_(),
     motorsVelocityIdx_(),
     rigidJointsNames_(),
@@ -322,6 +323,7 @@ namespace jiminy
                 returnCode = generateFlexibleModel();
             }
         }
+
         if(returnCode == result_t::SUCCESS)
         {
             if (mdlOptions_->dynamics.enableFlexibleModel)
@@ -392,17 +394,12 @@ namespace jiminy
         }
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = getJointsPositionIdx(pncModel_,
-                                              motorsNames_,
-                                              motorsPositionIdx_,
-                                              true);
+            returnCode = getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
         }
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = getJointsVelocityIdx(pncModel_,
-                                              motorsNames_,
-                                              motorsVelocityIdx_,
-                                              true);
+            getJointsPositionIdx(pncModel_, motorsNames_, motorsPositionIdx_, true);
+            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
         }
 
         /* Generate the fieldnames of the elements of the vectorial
@@ -454,6 +451,19 @@ namespace jiminy
             else
             {
                 velocityLimit_ = mdlOptions_->joints.velocityLimit;
+            }
+        }
+
+        // Update pncModel_.rotorInertia
+        if(returnCode == result_t::SUCCESS)
+        {
+            pncModel_.rotorInertia.setConstant(0.0);
+            if (mdlOptions_->joints.useMotorInertia)
+            {
+                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+                {
+                    pncModel_.rotorInertia[motorsVelocityIdx_[i]] = mdlOptions_->joints.motorInertia[i];
+                }
             }
         }
 
@@ -860,13 +870,13 @@ namespace jiminy
                 vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
                 if((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for positionLimitMin." << std::endl;
+                    std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for positionLimitMax." << std::endl;
+                    std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
             }
@@ -875,7 +885,21 @@ namespace jiminy
                 vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
                 if((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for velocityLimit." << std::endl;
+                    std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                }
+            }
+            if (boost::get<bool>(jointOptionsHolder.at("useMotorInertia")))
+            {
+                vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
+                if((int32_t) motorsVelocityIdx_.size() != motorInertia.size())
+                {
+                    std::cout << "Error - Model::setOptions - Wrong vector size for 'motorInertia'." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                }
+                if(!(motorInertia.array() >= 0.0).all())
+                {
+                    std::cout << "Error - Model::setOptions - Every values in 'motorInertia' must be positive." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
             }
@@ -914,9 +938,10 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
+            // Trigger flexible model regeneration if necessary
             if (isFlexibleModelInvalid)
             {
-                pncModelFlexibleOrig_ = pinocchio::Model(); // Required to trigger flexible model regeneration
+                pncModelFlexibleOrig_ = pinocchio::Model();
                 generateBiasedModel();
             }
         }
@@ -1061,6 +1086,11 @@ namespace jiminy
     std::vector<std::string> const & Model::getMotorsNames(void) const
     {
         return motorsNames_;
+    }
+
+    std::vector<int32_t> const & Model::getMotorsModelIdx(void) const
+    {
+        return motorsModelIdx_;
     }
 
     std::vector<int32_t> const & Model::getMotorsPositionIdx(void) const

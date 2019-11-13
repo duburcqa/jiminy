@@ -432,6 +432,18 @@ namespace jiminy
                                                  vector3_t const & fextInWorld) const;
         vector3_t contactDynamics(int32_t const & frameId) const;
 
+    private:
+        template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl,
+                  typename ConfigVectorType, typename TangentVectorType1,
+                  typename TangentVectorType2, typename ForceDerived>
+        inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+        aba(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+                   pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+                   Eigen::MatrixBase<ConfigVectorType>                    const & q,
+                   Eigen::MatrixBase<TangentVectorType1>                  const & v,
+                   Eigen::MatrixBase<TangentVectorType2>                  const & tau,
+                   pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
 

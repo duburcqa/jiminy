@@ -832,11 +832,6 @@ namespace jiminy
                              modelInOut.joints[firstJointId].nq(),
                              modelInOut.joints[secondJointId].idx_q(),
                              modelInOut.joints[secondJointId].nq());
-            swapVectorBlocks(modelInOut.neutralConfiguration,
-                             modelInOut.joints[firstJointId].idx_q(),
-                             modelInOut.joints[firstJointId].nq(),
-                             modelInOut.joints[secondJointId].idx_q(),
-                             modelInOut.joints[secondJointId].nq());
 
             // Switch elements in joint-indexed vectors:
             // parents, names, subtrees, joints, jointPlacements, inertias.

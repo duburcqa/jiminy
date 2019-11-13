@@ -36,7 +36,7 @@ namespace jiminy
         virtual configHolder_t getDefaultOptions()
         {
             configHolder_t config;
-            config["telemetryEnable"] = false;
+            config["telemetryEnable"] = true;
 
             return config;
         };
