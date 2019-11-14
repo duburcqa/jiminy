@@ -13,6 +13,7 @@ var classjiminy_1_1_engine =
     [ "Engine", "classjiminy_1_1_engine.html#a70c6bf098688081fdb7e590c8bb42b5f", null ],
     [ "Engine", "classjiminy_1_1_engine.html#afd95df6f3e60d1cc0e6c9062d025888a", null ],
     [ "~Engine", "classjiminy_1_1_engine.html#a6cb992440ea116d38febb1cf9c570b34", null ],
+    [ "aba", "classjiminy_1_1_engine.html#ab40998272f460d1e8b8c418f4aa657dc", null ],
     [ "computeFrameForceOnParentJoint", "classjiminy_1_1_engine.html#adfea3ce15904c714fa994dc1c3d0c977", null ],
     [ "configureTelemetry", "classjiminy_1_1_engine.html#af7ee07d6be5c63dd085ef8063d750d52", null ],
     [ "contactDynamics", "classjiminy_1_1_engine.html#ade02891b75a67f36735dc5686c7ce3f1", null ],

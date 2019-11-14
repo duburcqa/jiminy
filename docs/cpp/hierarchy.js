@@ -27,6 +27,9 @@ var hierarchy =
     [ "jiminy::explicit_euler", "classjiminy_1_1explicit__euler.html", null ],
     [ "jiminy::Model::jointOptions_t", "structjiminy_1_1_model_1_1joint_options__t.html", null ],
     [ "jiminy::Engine::jointOptions_t", "structjiminy_1_1_engine_1_1joint_options__t.html", null ],
+    [ "JointVisitorBase", null, [
+      [ "jiminy::AbaBackwardStep< Scalar, Options, JointCollectionTpl >", "structjiminy_1_1_aba_backward_step.html", null ]
+    ] ],
     [ "jiminy::memHeader", "structjiminy_1_1mem_header.html", null ],
     [ "jiminy::MemoryBuffer", "classjiminy_1_1_memory_buffer.html", null ],
     [ "jiminy::Model", "classjiminy_1_1_model.html", null ],

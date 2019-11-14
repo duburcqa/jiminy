@@ -19,9 +19,11 @@ if (PYTHON_EXECUTABLE)
 else(PYTHON_EXECUTABLE)
     message(FATAL_ERROR "Python executable not found.")
 endif(PYTHON_EXECUTABLE)
-        
+
+unset(NUMPY_INCLUDE_DIRS)
+unset(NUMPY_INCLUDE_DIRS CACHE)
 find_path(NUMPY_INCLUDE_DIRS numpy/arrayobject.h
-    HINTS "${__numpy_path}" "${PYTHON_INCLUDE_PATH}" NO_DEFAULT_PATH)
+    HINTS "${__numpy_path}" "${PYTHON_INCLUDE_DIRS}" NO_DEFAULT_PATH)
 
 if(NUMPY_INCLUDE_DIRS)
     set(NUMPY_FOUND 1 CACHE INTERNAL "Python numpy found")

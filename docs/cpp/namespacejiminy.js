@@ -1,5 +1,6 @@
 var namespacejiminy =
 [
+    [ "AbaBackwardStep", "structjiminy_1_1_aba_backward_step.html", "structjiminy_1_1_aba_backward_step" ],
     [ "AbstractController", "classjiminy_1_1_abstract_controller.html", "classjiminy_1_1_abstract_controller" ],
     [ "AbstractIODevice", "classjiminy_1_1_abstract_i_o_device.html", "classjiminy_1_1_abstract_i_o_device" ],
     [ "AbstractSensorBase", "classjiminy_1_1_abstract_sensor_base.html", "classjiminy_1_1_abstract_sensor_base" ],

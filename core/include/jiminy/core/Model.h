@@ -37,35 +37,41 @@ namespace jiminy
         virtual configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;
+            config["useMotorInertia"] = false;
+            config["motorInertia"] = vectorN_t();
+            config["usePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = vectorN_t();
             config["positionLimitMax"] = vectorN_t();
+            config["useVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
-            config["usePositionLimit"] = true;
-            config["useVelocityLimit"] = true;
 
             return config;
         };
 
         struct jointOptions_t
         {
+            bool      const useMotorInertia;
+            vectorN_t const motorInertia;
+            bool      const usePositionLimit;
             bool      const positionLimitFromUrdf;
             vectorN_t const positionLimitMin;         ///< Min position limit of all the actual joints, namely without freeflyer and flexible joints if any
             vectorN_t const positionLimitMax;
+            bool      const useVelocityLimit;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
-            bool      const usePositionLimit;
-            bool      const useVelocityLimit;
 
             jointOptions_t(configHolder_t const & options) :
+            useMotorInertia(boost::get<bool>(options.at("useMotorInertia"))),
+            motorInertia(boost::get<vectorN_t>(options.at("motorInertia"))),
+            usePositionLimit(boost::get<bool>(options.at("usePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
+            useVelocityLimit(boost::get<bool>(options.at("useVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
-            usePositionLimit(boost::get<bool>(options.at("usePositionLimit"))),
-            useVelocityLimit(boost::get<bool>(options.at("useVelocityLimit")))
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
             {
                 // Empty.
             }
@@ -188,6 +194,7 @@ namespace jiminy
                             vectorN_t const & u);
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
+        std::vector<int32_t> const & getMotorsModelIdx(void) const;
         std::vector<int32_t> const & getMotorsPositionIdx(void) const;
         std::vector<int32_t> const & getMotorsVelocityIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
@@ -246,6 +253,7 @@ namespace jiminy
         std::vector<std::string> contactFramesNames_;       // Name of the frames of the contact points of the model
         std::vector<int32_t> contactFramesIdx_;             // Indices of the contact frames in the frame list of the model
         std::vector<std::string> motorsNames_;              // Joint name of the motors of the model
+        std::vector<int32_t> motorsModelIdx_;               // Index of the motors in the pinocchio model
         std::vector<int32_t> motorsPositionIdx_;            // First indices of the motors in the configuration vector of the model
         std::vector<int32_t> motorsVelocityIdx_;            // First indices of the motors in the velocity vector of the model
         std::vector<std::string> rigidJointsNames_;         // Name of the actual joints of the model, not taking into account the freeflyer
