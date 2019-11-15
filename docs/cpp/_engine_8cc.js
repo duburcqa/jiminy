@@ -1,6 +1,6 @@
 var _engine_8cc =
 [
     [ "AbaBackwardStep", "structjiminy_1_1_aba_backward_step.html", "structjiminy_1_1_aba_backward_step" ],
-    [ "ComputeMinverseBackwardStep", "structjiminy_1_1_compute_minverse_backward_step.html", "structjiminy_1_1_compute_minverse_backward_step" ],
-    [ "computeMinverse", "_engine_8cc.html#a960cc077e8a994e945939d8b71a54346", null ]
+    [ "kineticEnergy", "_engine_8cc.html#ac508ad1081de2511c72fbe7fa76fda47", null ],
+    [ "rnea", "_engine_8cc.html#a9d7ffa566a17ba75d340b660a6f0ee84", null ]
 ];

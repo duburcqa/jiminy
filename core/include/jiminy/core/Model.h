@@ -187,11 +187,6 @@ namespace jiminy
         result_t getSensorData(std::string const & sensorType,
                                std::string const & sensorName,
                                vectorN_t         & data) const;
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & u);
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> const & getMotorsModelIdx(void) const;
@@ -226,6 +221,12 @@ namespace jiminy
 
         virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
         void updateTelemetry(void);
+
+        void setSensorsData(float64_t const & t,
+                            vectorN_t const & q,
+                            vectorN_t const & v,
+                            vectorN_t const & a,
+                            vectorN_t const & u);
 
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool        const & hasFreeflyer);

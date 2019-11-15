@@ -46,6 +46,6 @@ var _utilities_8h =
     [ "saturateSoft", "_utilities_8h.html#ab0d5977c4dac6ab1c5003690977c1014", null ],
     [ "staticCastSharedPtrVector", "_utilities_8h.html#a7e9d650a7e937326c604835e284069a0", null ],
     [ "swapVectorBlocks", "_utilities_8h.html#ac99ed6baaf9acff3db5b1caa73484aaf", null ],
-    [ "updateVectorValue", "_utilities_8h.html#ac5eeef3baff7a2ce6b7c04dea64a308f", null ],
-    [ "updateVectorValue", "_utilities_8h.html#af4cb58f7cd456cd5cf7915ba86e7f0ec", null ]
+    [ "updateVectorValue", "_utilities_8h.html#a235789650da7aa4b035eb9919b5e5d72", null ],
+    [ "updateVectorValue", "_utilities_8h.html#a8a82d3de655a0430c4682b2d1a08a289", null ]
 ];

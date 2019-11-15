@@ -25,7 +25,9 @@ var searchData=
   ['startdatasection',['startDataSection',['../structjiminy_1_1mem_header.html#a92ccafcd1a8462649303765fc3976ae8',1,'jiminy::memHeader']]],
   ['startnamesection',['startNameSection',['../structjiminy_1_1mem_header.html#a5f23895ae2ee277f0a75bc78362a92d1',1,'jiminy::memHeader']]],
   ['stepperoptions_5ft',['stepperOptions_t',['../structjiminy_1_1_engine_1_1stepper_options__t.html',1,'jiminy::Engine']]],
+  ['stepperstate_5f',['stepperState_',['../classjiminy_1_1_engine.html#a861c2f58747258fc51810d171b2b5443',1,'jiminy::Engine']]],
   ['stepperstate_5ft',['stepperState_t',['../structjiminy_1_1stepper_state__t.html',1,'jiminy']]],
+  ['stepperstatelast_5f',['stepperStateLast_',['../classjiminy_1_1_engine.html#a15c999fe5e4d33f53c8c3f3b14a8fd98',1,'jiminy::Engine']]],
   ['supportedmodes',['supportedModes',['../classjiminy_1_1_abstract_i_o_device.html#a7a77df2143b646727f2ab6f88a78e1d2',1,'jiminy::AbstractIODevice']]],
   ['sync',['SYNC',['../namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea534d41e28c8404dde9c2dc66bb5250f2',1,'jiminy']]]
 ];

@@ -23,7 +23,7 @@
 namespace jiminy
 {
     float64_t const MIN_TIME_STEP = 1e-6;
-    float64_t const MAX_TIME_STEP = 4e-3;
+    float64_t const MAX_TIME_STEP = 5e-3;
 
 
     Engine::Engine(void):
@@ -44,6 +44,7 @@ namespace jiminy
     stepper_(),
     stepperUpdatePeriod_(),
     stepperState_(),
+    stepperStateLast_(),
     forcesImpulse_(),
     forceImpulseNextIt_(forcesImpulse_.begin()),
     forcesProfile_()
@@ -73,7 +74,7 @@ namespace jiminy
 
     result_t Engine::initialize(Model              & model,
                                 AbstractController & controller,
-                                callbackFct_t        callbackFct)
+                                callbackFunctor_t    callbackFct)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -183,54 +184,51 @@ namespace jiminy
         /* Update internal state of the stepper.
            Note that explicit kinematic computation is not needed to get
            the system energy since they were already done in RNEA. */
-        vectorN_t const & q = stepperState_.x.head(model_->nq());
-        vectorN_t const & v = stepperState_.x.tail(model_->nv());
-        vectorN_t const & a = stepperState_.dxdt.tail(model_->nv());
-        stepperState_.uLast = pinocchio::rnea(model_->pncModel_, model_->pncData_, q, v, a); // Update uLast directly to avoid temporary
-        float64_t energy = pinocchio::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
+        Eigen::Ref<vectorN_t const> q = stepperState_.q();
+        Eigen::Ref<vectorN_t const> v = stepperState_.v();
+        Eigen::Ref<vectorN_t const> a = stepperState_.a();
+        stepperState_t::forceVector_t const & fext = stepperState_.fExternal;
+        stepperState_.u = Engine::rnea(model_->pncModel_, model_->pncData_, q, v, a, fext);
+        stepperState_.energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
             + pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
-        stepperState_.updateLast(stepperState_.t,
-                                 q,
-                                 v,
-                                 a,
-                                 stepperState_.uLast,
-                                 stepperState_.uCommandLast,
-                                 energy); // uCommandLast are already up-to-date
+
+        // Backup the state of the stepper
+        stepperStateLast_ = stepperState_;
 
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
             updateVectorValue(telemetrySender_,
                               model_->getPositionFieldNames(),
-                              stepperState_.qLast);
+                              stepperStateLast_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
             updateVectorValue(telemetrySender_,
                               model_->getVelocityFieldNames(),
-                              stepperState_.vLast);
+                              stepperStateLast_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
             updateVectorValue(telemetrySender_,
                               model_->getAccelerationFieldNames(),
-                              stepperState_.aLast);
+                              stepperStateLast_.a());
         }
         if (engineOptions_->telemetry.enableCommand)
         {
             updateVectorValue(telemetrySender_,
                               model_->getMotorTorqueFieldNames(),
-                              stepperState_.uCommandLast);
+                              stepperStateLast_.uCommand);
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
-            telemetrySender_.updateValue<float64_t>("energy", stepperState_.energyLast);
+            telemetrySender_.updateValue<float64_t>("energy", stepperStateLast_.energy);
         }
         controller_->updateTelemetry();
         model_->updateTelemetry();
 
         // Flush the telemetry internal state
-        telemetryRecorder_->flushDataSnapshot(stepperState_.tLast);
+        telemetryRecorder_->flushDataSnapshot(stepperStateLast_.t);
     }
 
     void Engine::reset(bool const & resetDynamicForceRegister)
@@ -343,7 +341,7 @@ namespace jiminy
         {
             stepper_ = make_controlled(engineOptions_->stepper.tolAbs,
                                        engineOptions_->stepper.tolRel,
-                                       runge_kutta_stepper_t());
+                                       rungeKuttaStepper_t());
         }
         else if (engineOptions_->stepper.odeSolver == "explicit_euler")
         {
@@ -364,32 +362,42 @@ namespace jiminy
         // Initialize the stepper internal state
         stepperState_.initialize(*model_, x0, dt);
 
+        float64_t & t = stepperState_.t;
+        Eigen::Ref<vectorN_t> q = stepperState_.q();
+        Eigen::Ref<vectorN_t> v = stepperState_.v();
+        vectorN_t & x = stepperState_.x;
+        Eigen::Ref<vectorN_t> a = stepperState_.a();
+        vectorN_t & u = stepperState_.u;
+        vectorN_t & uCommand = stepperState_.uCommand;
+        vectorN_t & uInternal = stepperState_.uInternal;
+        stepperState_t::forceVector_t & fext = stepperState_.fExternal;
+
         // Compute the forward kinematics
-        pinocchio::forwardKinematics(model_->pncModel_,
-                                     model_->pncData_,
-                                     stepperState_.qLast,
-                                     stepperState_.vLast);
-        pinocchio::framesForwardKinematics(model_->pncModel_, model_->pncData_);
+        computeForwardKinematics(q, v);
 
         // Initialize the external contact forces
-        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
-        for(uint32_t i=0; i < contactFramesIdx.size(); i++)
-        {
-            model_->contactForces_[i] = pinocchio::Force(contactDynamics(contactFramesIdx[i]), vector3_t::Zero());
-        }
+        computeExternalForces(t, x, fext);
 
         // Initialize the sensor data
-        model_->setSensorsData(stepperState_.tLast,
-                               stepperState_.qLast,
-                               stepperState_.vLast,
-                               stepperState_.aLast,
-                               stepperState_.uLast);
+        model_->setSensorsData(t, q, v, a, u);
 
         // Initialize the controller's dynamically registered variables
-        updateCommand(stepperState_.tLast,
-                      stepperState_.qLast,
-                      stepperState_.vLast,
-                      stepperState_.uCommandLast);
+        computeCommand(t, q, v, uCommand);
+
+        // Compute the internal dynamics
+        computeInternalDynamics(t, q, v, uInternal);
+
+        // Compute the total torque vector
+        u = stepperState_.uInternal;
+        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+        {
+            uint32_t const & jointIdx = motorsVelocityIdx[i];
+            u[jointIdx] += stepperState_.uCommand[i];
+        }
+
+        // Compute dynamics
+        a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
 
         /* Initialize the monitoring of the current iteration number,
            and log the initial time, state, command, and sensors data. */
@@ -409,17 +417,20 @@ namespace jiminy
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        if(tEnd < 2e-2)
+        if(tEnd < 5e-3)
         {
-            std::cout << "Error - Engine::simulate - The duration of the simulation cannot be shorter than 20ms." << std::endl;
+            std::cout << "Error - Engine::simulate - The duration of the simulation cannot be shorter than 5ms." << std::endl;
             returnCode = result_t::ERROR_BAD_INPUT;
         }
 
         // Reset the model, controller, and engine
-        returnCode = reset(x_init, true, false);
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = reset(x_init, true, false);
+        }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
-        while (true)
+        while (returnCode == result_t::SUCCESS)
         {
             /* Stop the simulation if the end time has been reached, if
                the callback returns false, or if the number of integration
@@ -441,16 +452,12 @@ namespace jiminy
                 break;
             }
             else if (engineOptions_->stepper.iterMax > 0
-            && stepperState_.iterLast >= (uint32_t) engineOptions_->stepper.iterMax)
+            && stepperStateLast_.iter >= (uint32_t) engineOptions_->stepper.iterMax)
             {
                 if (engineOptions_->stepper.verbose)
                 {
                     std::cout << "Simulation done: maximum number of integration steps exceeded." << std::endl;
                 }
-                break;
-            }
-            else if (returnCode != result_t::SUCCESS)
-            {
                 break;
             }
 
@@ -463,35 +470,59 @@ namespace jiminy
     result_t Engine::step(float64_t const & dtDesired,
                           float64_t         tEnd)
     {
+        // Check if the engine is initialized
         if(!isInitialized_)
         {
-            std::cout << "Error - Engine::do_step - Engine not initialized. Impossible to perform a simulation step." << std::endl;
+            std::cout << "Error - Engine::step - Engine not initialized. Impossible to perform a simulation step." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
         // Check if there is something wrong with the integration
-        if ((stepperState_.x.array() != stepperState_.x.array()).any()) // nan is NOT equal to itself
+        if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
         {
-            std::cout << "Error - Engine::simulate - The low-level ode solver failed. Consider increasing accuracy." << std::endl;
+            std::cout << "Error - Engine::step - The low-level ode solver failed. Consider increasing accuracy." << std::endl;
             return result_t::ERROR_GENERIC;
         }
 
-        // Define the stepper iterators. (Do NOT use 'bind' since it passes the arguments by value)
-        auto rhsBind =
-            [this](vectorN_t const & x,
-                   vectorN_t       & dxdt,
-                   float64_t const & t)
+        // Check if the desired step size is suitable
+        if (dtDesired > EPS && (dtDesired < MIN_TIME_STEP || dtDesired > MAX_TIME_STEP))
+        {
+            std::cout << "Error - Engine::step - The desired step size 'dtDesired' is out of bounds." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        if (tEnd - stepperState_.t < MIN_TIME_STEP)
+        {
+            std::cout << "Error - Engine::step - The final time must be larger than the current time." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        // Get references/copies of some internal stepper buffers
+        float64_t t = stepperState_.t;
+        float64_t & dt = stepperState_.dt;
+        vectorN_t & x = stepperState_.x;
+        Eigen::Ref<vectorN_t> q = stepperState_.q();
+        Eigen::Ref<vectorN_t> v = stepperState_.v();
+        vectorN_t & dxdt = stepperState_.dxdt;
+        Eigen::Ref<vectorN_t> a = stepperState_.a();
+        vectorN_t & u = stepperState_.u;
+
+        // Define the stepper iterators.
+        auto system =
+            [this](vectorN_t const & xIn,
+                   vectorN_t       & dxdtIn,
+                   float64_t const & tIn)
             {
-                this->systemDynamics(t, x, dxdt);
+                this->computeSystemDynamics(tIn, xIn, dxdtIn);
             };
 
+        // Define a failure checker for the stepper
         failed_step_checker fail_checker;
 
-        float64_t t = stepperState_.t;
-        float64_t tNext = t;
-        if (tEnd < 0)
+        // Define the final time
+        if (tEnd < EPS)
         {
-            if (dtDesired < MIN_TIME_STEP)
+            if (dtDesired < EPS)
             {
                 tEnd = t + MAX_TIME_STEP;
             }
@@ -501,6 +532,8 @@ namespace jiminy
             }
         }
 
+        // Perform the integration
+        float64_t tNext = t;
         do
         {
             if (stepperUpdatePeriod_ > EPS)
@@ -513,11 +546,7 @@ namespace jiminy
                     if (dtNextSensorsUpdatePeriod < MIN_TIME_STEP
                     || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_TIME_STEP)
                     {
-                        model_->setSensorsData(stepperState_.tLast,
-                                               stepperState_.qLast,
-                                               stepperState_.vLast,
-                                               stepperState_.aLast,
-                                               stepperState_.uLast);
+                        model_->setSensorsData(t, q, v, a, u);
                     }
                 }
 
@@ -529,16 +558,13 @@ namespace jiminy
                     if (dtNextControllerUpdatePeriod < MIN_TIME_STEP
                     || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_TIME_STEP)
                     {
-                        updateCommand(stepperState_.tLast,
-                                      stepperState_.qLast,
-                                      stepperState_.vLast,
-                                      stepperState_.uCommandLast);
+                        computeCommand(t, q, v, stepperState_.uCommand);
 
                         /* Update the internal stepper state dxdt since the dynamics has changed.
                             Make sure the next impulse force iterator has NOT been updated at this point ! */
                         if (engineOptions_->stepper.odeSolver != "explicit_euler")
                         {
-                            systemDynamics(t, stepperState_.x, stepperState_.dxdt);
+                            computeSystemDynamics(t, x, dxdt);
                         }
                     }
                 }
@@ -590,34 +616,29 @@ namespace jiminy
                 }
                 if (dtDesired > EPS)
                 {
-                    tNext = std::min(tNext,
-                                     stepperState_.t + dtDesired);
+                    tNext = std::min(tNext, stepperState_.t + dtDesired);
                 }
 
                 // Compute the next step using adaptive step method
                 while (t < tNext)
                 {
                     // adjust stepsize to end up exactly at the next breakpoint
-                    float64_t dtCurrent = std::min(stepperState_.dt, tNext - t);
+                    float64_t dtCurrent = std::min(dt, tNext - t);
                     if (success == boost::apply_visitor(
                         [&](auto && one)
                         {
-                            return one.try_step(rhsBind,
-                                                stepperState_.x,
-                                                stepperState_.dxdt,
-                                                t,
-                                                dtCurrent);
+                            return one.try_step(system, x, dxdt, t, dtCurrent);
                         }, stepper_))
                     {
                         fail_checker.reset(); // reset the fail counter, see #173
-                        stepperState_.dt = std::max(stepperState_.dt, dtCurrent); // continue with the original step size if dt was reduced due to the next breakpoint
+                        dt = std::max(dt, dtCurrent); // continue with the original step size if dt was reduced due to the next breakpoint
                     }
                     else
                     {
                         fail_checker();  // check for possible overflow of failed steps in step size adjustment
-                        stepperState_.dt = dtCurrent;
+                        dt = dtCurrent;
                     }
-                    stepperState_.dt = std::min(stepperState_.dt, engineOptions_->stepper.dtMax); // Make sure it never exceeds dtMax
+                    dt = std::min(dt, engineOptions_->stepper.dtMax); // Make sure it never exceeds dtMax
                 }
 
                 // Update the current time
@@ -626,14 +647,13 @@ namespace jiminy
             else
             {
                 // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
-                stepperState_.dt = min(stepperState_.dt,
-                                       engineOptions_->stepper.dtMax,
-                                       tEnd - t,
-                                       tForceImpulseNext - t);
+                dt = min(dt,
+                         engineOptions_->stepper.dtMax,
+                         tEnd - t,
+                         tForceImpulseNext - t);
                 if (dtDesired > EPS)
                 {
-                    stepperState_.dt = std::min(stepperState_.dt,
-                                                stepperState_.t + dtDesired - t);
+                    dt = std::min(dt, stepperState_.t + dtDesired - t);
                 }
 
                 // Compute the next step using adaptive step method
@@ -643,11 +663,7 @@ namespace jiminy
                     res = boost::apply_visitor(
                         [&](auto && one)
                         {
-                            return one.try_step(rhsBind,
-                                                stepperState_.x,
-                                                stepperState_.dxdt,
-                                                t,
-                                                stepperState_.dt);
+                            return one.try_step(system, x, dxdt, t, dt);
                         }, stepper_);
                     if (res == success)
                     {
@@ -659,34 +675,95 @@ namespace jiminy
                     }
                 }
             }
-        } while(dtDesired > 0.0 && stepperState_.t + dtDesired - t > MIN_TIME_STEP);
+        } while(dtDesired > EPS && stepperState_.t + dtDesired - t > MIN_TIME_STEP);
 
-        // Update the current time
+        // Update the iteration counter
         stepperState_.t = t;
+        ++stepperState_.iter;
 
-        /* Monitor current iteration number, and log the current time, state,
-           command, and sensors data.
-           Make sure that 'stepperState_.t' is up-to-date. */
+        /* Monitor current iteration number, and log the current time,
+           state, command, and sensors data. */
         updateTelemetry();
 
         return result_t::SUCCESS;
     }
 
-    void Engine::updateCommand(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t       & u)
+
+    void Engine::computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
+                                          Eigen::Ref<vectorN_t const> v)
     {
+        pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v);
+        pinocchio::framesForwardKinematics(model_->pncModel_, model_->pncData_);
+    }
+
+    void Engine::computeExternalForces(float64_t const & t,
+                                       vectorN_t const & x,
+                                       pinocchio::container::aligned_vector<pinocchio::Force> & fext)
+    {
+        // Reinitialize the external forces
+        for (pinocchio::Force & fext_i : fext)
+        {
+            fext_i.setZero();
+        }
+
+        // Compute the contact forces
+        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
+        for(uint32_t i=0; i < contactFramesIdx.size(); i++)
+        {
+            // Compute force in the contact frame.
+            int32_t const & contactFrameIdx = contactFramesIdx[i];
+            vector3_t const fextInFrame = computeContactDynamics(contactFrameIdx);
+            model_->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
+
+            // Apply the force at the origin of the parent joint frame
+            vector6_t const fextLocal = computeFrameForceOnParentJoint(contactFrameIdx, fextInFrame);
+            int32_t const & parentIdx = model_->pncModel_.frames[contactFrameIdx].parent;
+            fext[parentIdx] += pinocchio::Force(fextLocal);
+        }
+
+        // Add the effect of user-defined external forces
+        if (forceImpulseNextIt_ != forcesImpulse_.end())
+        {
+            float64_t const & tForceImpulseNext = forceImpulseNextIt_->first;
+            float64_t const & dt = std::get<1>(forceImpulseNextIt_->second);
+            if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
+            {
+                int32_t frameIdx;
+                std::string const & frameName = std::get<0>(forceImpulseNextIt_->second);
+                vector3_t const & F = std::get<2>(forceImpulseNextIt_->second);
+                getFrameIdx(model_->pncModel_, frameName, frameIdx);
+                int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
+                fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, F));
+            }
+        }
+
+        for (auto const & forceProfile : forcesProfile_)
+        {
+            int32_t const & frameIdx = std::get<0>(forceProfile.second);
+            int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
+            forceFunctor_t const & forceFct = std::get<1>(forceProfile.second);
+            fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, forceFct(t, x)));
+        }
+    }
+
+    void Engine::computeCommand(float64_t                   const & t,
+                                Eigen::Ref<vectorN_t const>         q,
+                                Eigen::Ref<vectorN_t const>         v,
+                                vectorN_t                         & u)
+    {
+        // Reinitialize the external forces
+        u.setZero();
+
+        // Command the command
         controller_->computeCommand(t, q, v, u);
 
+        // Enforce the torque limits
         std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
         for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
         {
-            uint32_t jointIdx = motorsVelocityIdx[i];
-            float64_t torque_max = model_->pncModel_.effortLimit(jointIdx); // effortLimit is given in the velocity vector space
-            stepperState_.uCommandLast[i] = clamp(
-                stepperState_.uCommandLast[i], -torque_max, torque_max);   // Clamp BEFORE logging
-            stepperState_.uControl[jointIdx] = stepperState_.uCommandLast[i];
+            uint32_t const & jointIdx = motorsVelocityIdx[i];
+            float64_t const & torque_max = model_->pncModel_.effortLimit(jointIdx); // effortLimit is given in the velocity vector space
+            u[i] = clamp(u[i], -torque_max, torque_max);
         }
     }
 
@@ -701,7 +778,7 @@ namespace jiminy
     }
 
     void Engine::registerForceProfile(std::string      const & frameName,
-                                      external_force_t         forceFct)
+                                      forceFunctor_t           forceFct)
     {
         forcesProfile_.emplace_back(frameName, std::make_tuple(0, forceFct));
     }
@@ -939,86 +1016,62 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    void Engine::systemDynamics(float64_t const & t,
-                                vectorN_t const & x,
-                                vectorN_t       & dxdt)
+    void Engine::computeSystemDynamics(float64_t const & t,
+                                       vectorN_t const & x,
+                                       vectorN_t       & dxdt)
     {
         /* Note that the position of the free flyer is in world frame, whereas the
            velocities and accelerations are relative to the parent body frame. */
 
-        // Extract configuration and velocity vectors
-        vectorN_t const & q = x.head(model_->nq());
-        vectorN_t const & v = x.tail(model_->nv());
+        // Get references to the internal stepper buffers
+        Eigen::Ref<vectorN_t const> q = x.head(model_->nq());
+        Eigen::Ref<vectorN_t const> v = x.tail(model_->nv());
+        vectorN_t & u = stepperState_.u;
+        vectorN_t & uCommand = stepperState_.uCommand;
+        vectorN_t & uInternal = stepperState_.uInternal;
+        stepperState_t::forceVector_t & fext = stepperState_.fExternal;
 
         // Compute kinematics information
-        pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v);
-        pinocchio::framesForwardKinematics(model_->pncModel_, model_->pncData_);
+        computeForwardKinematics(q, v);
 
-        // Compute the external contact forces
-        pinocchio::container::aligned_vector<pinocchio::Force> fext(
-            model_->pncModel_.joints.size(), pinocchio::Force::Zero());
-        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
-        for(uint32_t i=0; i < contactFramesIdx.size(); i++)
-        {
-            // Compute force in the contact frame.
-            int32_t const & contactFrameIdx = contactFramesIdx[i];
-            vector3_t const fextInFrame = contactDynamics(contactFrameIdx);
-            model_->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
-
-            // Apply the force at the origin of the parent joint frame
-            vector6_t const fextLocal = computeFrameForceOnParentJoint(contactFrameIdx, fextInFrame);
-            int32_t const & parentIdx = model_->pncModel_.frames[contactFrameIdx].parent;
-            fext[parentIdx] += pinocchio::Force(fextLocal);
-        }
+        /* Compute the external contact forces.
+           Note that one must call this method BEFORE updating the sensors since
+           the force sensor measurements rely on model_->contactForces_ */
+        computeExternalForces(t, x, fext);
 
         /* Update the sensor data if necessary (only for infinite update frequency).
-           Impossible to have access to the current acceleration and efforts. */
+           Note that it is impossible to have access to the torques
+           since they depend on the sensor values themselves. */
         if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_TIME_STEP)
         {
-            model_->setSensorsData(t, q, v, stepperState_.aLast, stepperState_.uLast);
+            model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.u);
         }
 
         /* Update the controller command if necessary (only for infinite update frequency).
-           Be careful, in this particular case uCommandLast is not guarantee to be the last command. */
+           Make sure that the sensor state has been updated beforehand. */
         if (engineOptions_->stepper.controllerUpdatePeriod < MIN_TIME_STEP)
         {
-            updateCommand(t, q, v, stepperState_.uCommandLast);
+            computeCommand(t, q, v, uCommand);
         }
 
-        // Add the effect of user-defined external forces
-        if (forceImpulseNextIt_ != forcesImpulse_.end())
+        /* Compute the internal dynamics.
+           Make sure that the sensor state has been updated beforehand since
+           the user-defined internal dynamics may rely on it. */
+        computeInternalDynamics(t, q, v, uInternal);
+
+        // Compute the total torque vector
+        u = uInternal;
+        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
         {
-            float64_t const & tForceImpulseNext = forceImpulseNextIt_->first;
-            float64_t const & dt = std::get<1>(forceImpulseNextIt_->second);
-            if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
-            {
-                int32_t frameIdx;
-                std::string const & frameName = std::get<0>(forceImpulseNextIt_->second);
-                vector3_t const & F = std::get<2>(forceImpulseNextIt_->second);
-                getFrameIdx(model_->pncModel_, frameName, frameIdx);
-                int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
-                fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, F));
-            }
+            uint32_t const & jointIdx = motorsVelocityIdx[i];
+            u[jointIdx] += uCommand[i];
         }
 
-        for (auto const & forceProfile : forcesProfile_)
-        {
-            int32_t const & frameIdx = std::get<0>(forceProfile.second);
-            int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
-            external_force_t const & forceFct = std::get<1>(forceProfile.second);
-            fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, forceFct(t, x)));
-        }
-
-        // Compute command and internal dynamics
-        stepperState_.uInternal.setZero();
-        controller_->internalDynamics(t, q, v, stepperState_.uInternal); // TODO: Send the values at previous iteration instead
-        internalDynamics(q, v, stepperState_.uInternal);
-        vectorN_t u = stepperState_.uInternal + stepperState_.uControl;
-
-        // Compute dynamics
+        // Compute the dynamics
         vectorN_t a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
 
-        float64_t dt = t - stepperState_.tLast;
+        float64_t dt = t - stepperStateLast_.t;
         vectorN_t qDot(model_->nq());
         computePositionDerivative(model_->pncModel_, q, v, qDot, dt);
 
@@ -1044,7 +1097,7 @@ namespace jiminy
         return fextLocal;
     }
 
-    vector3_t Engine::contactDynamics(int32_t const & frameId) const
+    vector3_t Engine::computeContactDynamics(int32_t const & frameId) const
     {
         // Returns the external force in the contact frame.
         // It must then be converted into a force onto the parent joint.
@@ -1118,11 +1171,16 @@ namespace jiminy
         return fextInWorld;
     }
 
-    void Engine::internalDynamics(vectorN_t const & q,
-                                  vectorN_t const & v,
-                                  vectorN_t       & u)
+    void Engine::computeInternalDynamics(float64_t                   const & t,
+                                         Eigen::Ref<vectorN_t const>         q,
+                                         Eigen::Ref<vectorN_t const>         v,
+                                         vectorN_t                         & u)
     {
-        // Do NOT reinitialize the output to Zero !
+        // Reinitialize the internal torque vector
+        u.setZero();
+
+        // Compute the user-defined internal dynamics
+        controller_->internalDynamics(t, q, v, u);
 
         // Enforce the position limit (do not support spherical joints)
         if (model_->mdlOptions_->joints.usePositionLimit)
@@ -1151,18 +1209,12 @@ namespace jiminy
                     if (qJoint > qJointMax)
                     {
                         qJointError = qJoint - qJointMax;
-                        // std::cout << model_->positionFieldNames_[jointPositionIdx]
-                        //           << " - " << jointPositionIdx << " - " << jointVelocityIdx << " - "
-                        //           << " : BBBBAAAAAAAAMMM! Hiting bounds qJoint > qJointMax = " << qJointError << std::endl;
                         float64_t damping = -engineJointOptions.boundDamping * std::max(vJoint, 0.0);
                         forceJoint = -engineJointOptions.boundStiffness * qJointError + damping;
                     }
                     else if (qJoint < qJointMin)
                     {
                         qJointError = qJointMin - qJoint;
-                        // std::cout << model_->positionFieldNames_[jointPositionIdx]
-                        //           << " - " << jointPositionIdx << " - " << jointVelocityIdx << " - "
-                        //           << " : BBBBAAAAAAAAMMM! Hiting bounds qJoint < qJointMin = " << qJointError << std::endl;
                         float64_t damping = -engineJointOptions.boundDamping * std::min(vJoint, 0.0);
                         forceJoint = engineJointOptions.boundStiffness * qJointError + damping;
                     }
@@ -1244,7 +1296,45 @@ namespace jiminy
         }
     }
 
-    template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+    // =====================================================================================================
+    // ================ Custom implementation of Pinocchio methods to support motor inertia ================
+    // =====================================================================================================
+
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+             typename ConfigVectorType, typename TangentVectorType>
+    inline Scalar
+    Engine::kineticEnergy(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+                          pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+                          Eigen::MatrixBase<ConfigVectorType>                    const & q,
+                          Eigen::MatrixBase<TangentVectorType>                   const & v,
+                          bool                                                   const & update_kinematics)
+    {
+        pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
+        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+        for (uint32_t const & motorIdx : motorsVelocityIdx)
+        {
+            data.kinetic_energy += 0.5 * model.rotorInertia[motorIdx] * std::pow(v[motorIdx], 2);
+        }
+        return data.kinetic_energy;
+    }
+
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+             typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+             typename ForceDerived>
+    inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+    Engine::rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+                 pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+                 Eigen::MatrixBase<ConfigVectorType>                    const & q,
+                 Eigen::MatrixBase<TangentVectorType1>                  const & v,
+                 Eigen::MatrixBase<TangentVectorType2>                  const & a,
+                 pinocchio::container::aligned_vector<ForceDerived>     const & fext)
+    {
+        pinocchio::rnea(model, data, q, v, a, fext);
+        data.tau += model_->pncModel_.rotorInertia.asDiagonal() * a;
+        return data.tau;
+    }
+
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>
     struct AbaBackwardStep
     : public pinocchio::fusion::JointVisitorBase< AbaBackwardStep<Scalar,Options,JointCollectionTpl> >
     {
@@ -1306,7 +1396,7 @@ namespace jiminy
             jmodel.jointVelocitySelector(data.u) -= jdata.S().transpose()*data.f[i];
 
             // jmodel.calc_aba(jdata.derived(), Ia, parent > 0);
-            Scalar Im = model.rotorInertia[jmodel.idx_v()];
+            Scalar const & Im = model.rotorInertia[jmodel.idx_v()];
             jdata.derived().U = Ia.col(Inertia::ANGULAR + getAxis(jmodel));
             jdata.derived().Dinv[0] = (Scalar)(1) / (jdata.derived().U[Inertia::ANGULAR + getAxis(jmodel)] + Im); // Here is the modification !
             jdata.derived().UDinv.noalias() = jdata.derived().U * jdata.derived().Dinv[0];
@@ -1328,7 +1418,7 @@ namespace jiminy
         }
     };
 
-    template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl,
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType1,
              typename TangentVectorType2, typename ForceDerived>
     inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &

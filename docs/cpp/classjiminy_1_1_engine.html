@@ -159,9 +159,9 @@ configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>getDefaultT
 <tr class="memitem:a4eed51212520e4114793709a0ca84e19"><td class="memItemLeft" align="right" valign="top"><a id="a4eed51212520e4114793709a0ca84e19"></a>
 configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>getDefaultOptions</b> ()</td></tr>
 <tr class="separator:a4eed51212520e4114793709a0ca84e19"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aba610f8ce145249d16f93e198630fff1"><td class="memItemLeft" align="right" valign="top"><a id="aba610f8ce145249d16f93e198630fff1"></a>
-result_t&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (<a class="el" href="classjiminy_1_1_model.html">Model</a> &amp;model, <a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> &amp;controller, callbackFct_t callbackFct)</td></tr>
-<tr class="separator:aba610f8ce145249d16f93e198630fff1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e69b4f48af6f844706c5822f65d2586"><td class="memItemLeft" align="right" valign="top"><a id="a5e69b4f48af6f844706c5822f65d2586"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (<a class="el" href="classjiminy_1_1_model.html">Model</a> &amp;model, <a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> &amp;controller, callbackFunctor_t callbackFct)</td></tr>
+<tr class="separator:a5e69b4f48af6f844706c5822f65d2586"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa0611a180895abad9ca96803260b4078"><td class="memItemLeft" align="right" valign="top"><a id="aa0611a180895abad9ca96803260b4078"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> (bool const &amp;resetDynamicForceRegister=false)</td></tr>
 <tr class="separator:aa0611a180895abad9ca96803260b4078"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -177,9 +177,9 @@ result_t&#160;</td><td class="memItemRight" valign="bottom"><b>step</b> (float64
 <tr class="memitem:aed2002fcd36584200587e2a2b43c3ef8"><td class="memItemLeft" align="right" valign="top"><a id="aed2002fcd36584200587e2a2b43c3ef8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>registerForceImpulse</b> (std::string const &amp;frameName, float64_t const &amp;t, float64_t const &amp;dt, vector3_t const &amp;F)</td></tr>
 <tr class="separator:aed2002fcd36584200587e2a2b43c3ef8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6aeeeb58267a077f42d0d832a7aab06e"><td class="memItemLeft" align="right" valign="top"><a id="a6aeeeb58267a077f42d0d832a7aab06e"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>registerForceProfile</b> (std::string const &amp;frameName, external_force_t forceFct)</td></tr>
-<tr class="separator:a6aeeeb58267a077f42d0d832a7aab06e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afed18041d436581980e3cfeed4c6b1d8"><td class="memItemLeft" align="right" valign="top"><a id="afed18041d436581980e3cfeed4c6b1d8"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>registerForceProfile</b> (std::string const &amp;frameName, forceFunctor_t forceFct)</td></tr>
+<tr class="separator:afed18041d436581980e3cfeed4c6b1d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a920fdc863b6705dd6f4e591b674f684e"><td class="memItemLeft" align="right" valign="top"><a id="a920fdc863b6705dd6f4e591b674f684e"></a>
 configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>getOptions</b> (void) const</td></tr>
 <tr class="separator:a920fdc863b6705dd6f4e591b674f684e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -219,18 +219,18 @@ std::unique_ptr&lt; <a class="el" href="structjiminy_1_1_engine_1_1engine_option
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-types"></a>
 Protected Types</h2></td></tr>
-<tr class="memitem:aae022efa81e2ef854604c922aca73ddb"><td class="memItemLeft" align="right" valign="top"><a id="aae022efa81e2ef854604c922aca73ddb"></a>
-typedef std::function&lt; vector3_t(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>external_force_t</b></td></tr>
-<tr class="separator:aae022efa81e2ef854604c922aca73ddb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3f159f9dd5c1774b797ba50517b7fae9"><td class="memItemLeft" align="right" valign="top"><a id="a3f159f9dd5c1774b797ba50517b7fae9"></a>
-typedef std::function&lt; bool(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFct_t</b></td></tr>
-<tr class="separator:a3f159f9dd5c1774b797ba50517b7fae9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab152624bc59d20cc78c9e6e7fb554682"><td class="memItemLeft" align="right" valign="top"><a id="ab152624bc59d20cc78c9e6e7fb554682"></a>
-typedef runge_kutta_dopri5&lt; vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>runge_kutta_stepper_t</b></td></tr>
-<tr class="separator:ab152624bc59d20cc78c9e6e7fb554682"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a85698fc289e75adf80ea9860a3b73210"><td class="memItemLeft" align="right" valign="top"><a id="a85698fc289e75adf80ea9860a3b73210"></a>
-typedef boost::variant&lt; result_of::make_controlled&lt; runge_kutta_stepper_t &gt;::type, <a class="el" href="classjiminy_1_1explicit__euler.html">explicit_euler</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>stepper_t</b></td></tr>
-<tr class="separator:a85698fc289e75adf80ea9860a3b73210"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac6f1ea1959791b0ccb108a875a59092c"><td class="memItemLeft" align="right" valign="top"><a id="ac6f1ea1959791b0ccb108a875a59092c"></a>
+typedef std::function&lt; vector3_t(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forceFunctor_t</b></td></tr>
+<tr class="separator:ac6f1ea1959791b0ccb108a875a59092c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a22a23fa6761dc4044ee0ded623971275"><td class="memItemLeft" align="right" valign="top"><a id="a22a23fa6761dc4044ee0ded623971275"></a>
+typedef std::function&lt; bool(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFunctor_t</b></td></tr>
+<tr class="separator:a22a23fa6761dc4044ee0ded623971275"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a105aae07907ce833b4817af9e1053d44"><td class="memItemLeft" align="right" valign="top"><a id="a105aae07907ce833b4817af9e1053d44"></a>
+typedef runge_kutta_dopri5&lt; vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>rungeKuttaStepper_t</b></td></tr>
+<tr class="separator:a105aae07907ce833b4817af9e1053d44"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ada17f58aced89f3d753d7199d886f3f7"><td class="memItemLeft" align="right" valign="top"><a id="ada17f58aced89f3d753d7199d886f3f7"></a>
+typedef boost::variant&lt; result_of::make_controlled&lt; rungeKuttaStepper_t &gt;::type, <a class="el" href="classjiminy_1_1explicit__euler.html">explicit_euler</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>stepper_t</b></td></tr>
+<tr class="separator:ada17f58aced89f3d753d7199d886f3f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-methods"></a>
 Protected Member Functions</h2></td></tr>
@@ -240,21 +240,27 @@ result_t&#160;</td><td class="memItemRight" valign="bottom"><b>configureTelemetr
 <tr class="memitem:a88c142d673a621930055c78a83651de9"><td class="memItemLeft" align="right" valign="top"><a id="a88c142d673a621930055c78a83651de9"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>updateTelemetry</b> (void)</td></tr>
 <tr class="separator:a88c142d673a621930055c78a83651de9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3a35b5e064080d03959dad20b3908692"><td class="memItemLeft" align="right" valign="top"><a id="a3a35b5e064080d03959dad20b3908692"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>systemDynamics</b> (float64_t const &amp;t, vectorN_t const &amp;x, vectorN_t &amp;dxdt)</td></tr>
-<tr class="separator:a3a35b5e064080d03959dad20b3908692"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aab6224d34d6d50dc5e8a927ce18fc206"><td class="memItemLeft" align="right" valign="top"><a id="aab6224d34d6d50dc5e8a927ce18fc206"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>internalDynamics</b> (vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t &amp;u)</td></tr>
-<tr class="separator:aab6224d34d6d50dc5e8a927ce18fc206"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a96e2555727babeb5592605e607b93dc1"><td class="memItemLeft" align="right" valign="top"><a id="a96e2555727babeb5592605e607b93dc1"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>updateCommand</b> (float64_t const &amp;t, vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t &amp;u)</td></tr>
-<tr class="separator:a96e2555727babeb5592605e607b93dc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adfea3ce15904c714fa994dc1c3d0c977"><td class="memItemLeft" align="right" valign="top"><a id="adfea3ce15904c714fa994dc1c3d0c977"></a>
-vector6_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeFrameForceOnParentJoint</b> (int32_t const &amp;frameId, vector3_t const &amp;fextInWorld) const</td></tr>
-<tr class="separator:adfea3ce15904c714fa994dc1c3d0c977"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ade02891b75a67f36735dc5686c7ce3f1"><td class="memItemLeft" align="right" valign="top"><a id="ade02891b75a67f36735dc5686c7ce3f1"></a>
-vector3_t&#160;</td><td class="memItemRight" valign="bottom"><b>contactDynamics</b> (int32_t const &amp;frameId) const</td></tr>
-<tr class="separator:ade02891b75a67f36735dc5686c7ce3f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a9ec47d13fd13640bfb6f3be3b6f437"><td class="memItemLeft" align="right" valign="top"><a id="a0a9ec47d13fd13640bfb6f3be3b6f437"></a>
+vector6_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeFrameForceOnParentJoint</b> (int32_t const &amp;frameId, vector3_t const &amp;fExtInWorld) const</td></tr>
+<tr class="separator:a0a9ec47d13fd13640bfb6f3be3b6f437"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a562091d75e30e46a52faf8747272285e"><td class="memItemLeft" align="right" valign="top"><a id="a562091d75e30e46a52faf8747272285e"></a>
+vector3_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeContactDynamics</b> (int32_t const &amp;frameId) const</td></tr>
+<tr class="separator:a562091d75e30e46a52faf8747272285e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4fd107df366e04c890b35420c9a7456d"><td class="memItemLeft" align="right" valign="top"><a id="a4fd107df366e04c890b35420c9a7456d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeForwardKinematics</b> (Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v)</td></tr>
+<tr class="separator:a4fd107df366e04c890b35420c9a7456d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a789c24702576fe993e82ac664f0378e7"><td class="memItemLeft" align="right" valign="top"><a id="a789c24702576fe993e82ac664f0378e7"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeCommand</b> (float64_t const &amp;t, Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v, vectorN_t &amp;u)</td></tr>
+<tr class="separator:a789c24702576fe993e82ac664f0378e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adf26917134e13f05506cfb59736a4c3d"><td class="memItemLeft" align="right" valign="top"><a id="adf26917134e13f05506cfb59736a4c3d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeExternalForces</b> (float64_t const &amp;t, vectorN_t const &amp;x, pinocchio::container::aligned_vector&lt; pinocchio::Force &gt; &amp;fext)</td></tr>
+<tr class="separator:adf26917134e13f05506cfb59736a4c3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adbddbdd10405758683ed6fa4b552c372"><td class="memItemLeft" align="right" valign="top"><a id="adbddbdd10405758683ed6fa4b552c372"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeInternalDynamics</b> (float64_t const &amp;t, Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v, vectorN_t &amp;u)</td></tr>
+<tr class="separator:adbddbdd10405758683ed6fa4b552c372"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac1b8b0ded2b24853f05ae57dfc60d18f"><td class="memItemLeft" align="right" valign="top"><a id="ac1b8b0ded2b24853f05ae57dfc60d18f"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeSystemDynamics</b> (float64_t const &amp;tIn, vectorN_t const &amp;xIn, vectorN_t &amp;dxdtIn)</td></tr>
+<tr class="separator:ac1b8b0ded2b24853f05ae57dfc60d18f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
@@ -273,12 +279,20 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isTelemetryConfigured
 <tr class="memitem:a8ca18ebaa7639241eead086aabbc48b0"><td class="memItemLeft" align="right" valign="top"><a id="a8ca18ebaa7639241eead086aabbc48b0"></a>
 configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>engineOptionsHolder_</b></td></tr>
 <tr class="separator:a8ca18ebaa7639241eead086aabbc48b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad01dedc11f75e43d6d2c1904d7bb018a"><td class="memItemLeft" align="right" valign="top"><a id="ad01dedc11f75e43d6d2c1904d7bb018a"></a>
-callbackFct_t&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFct_</b></td></tr>
-<tr class="separator:ad01dedc11f75e43d6d2c1904d7bb018a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd69c3a3d4bc626bdd832820b1a80be1"><td class="memItemLeft" align="right" valign="top"><a id="afd69c3a3d4bc626bdd832820b1a80be1"></a>
+callbackFunctor_t&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFct_</b></td></tr>
+<tr class="separator:afd69c3a3d4bc626bdd832820b1a80be1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
+<tr class="memitem:a6865ce9d85c9ac4d8c82b95be51931cb"><td class="memTemplParams" colspan="2"><a id="a6865ce9d85c9ac4d8c82b95be51931cb"></a>
+template&lt;typename Scalar , int Options, template&lt; typename, int &gt; class JointCollectionTpl, typename ConfigVectorType , typename TangentVectorType &gt; </td></tr>
+<tr class="memitem:a6865ce9d85c9ac4d8c82b95be51931cb"><td class="memTemplItemLeft" align="right" valign="top">Scalar&#160;</td><td class="memTemplItemRight" valign="bottom"><b>kineticEnergy</b> (pinocchio::ModelTpl&lt; Scalar, Options, JointCollectionTpl &gt; const &amp;model, pinocchio::DataTpl&lt; Scalar, Options, JointCollectionTpl &gt; &amp;data, Eigen::MatrixBase&lt; ConfigVectorType &gt; const &amp;q, Eigen::MatrixBase&lt; TangentVectorType &gt; const &amp;v, bool const &amp;update_kinematics)</td></tr>
+<tr class="separator:a6865ce9d85c9ac4d8c82b95be51931cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac4d44cd64b321fa0d3019688a240a1ec"><td class="memTemplParams" colspan="2"><a id="ac4d44cd64b321fa0d3019688a240a1ec"></a>
+template&lt;typename Scalar , int Options, template&lt; typename, int &gt; class JointCollectionTpl, typename ConfigVectorType , typename TangentVectorType1 , typename TangentVectorType2 , typename ForceDerived &gt; </td></tr>
+<tr class="memitem:ac4d44cd64b321fa0d3019688a240a1ec"><td class="memTemplItemLeft" align="right" valign="top">const pinocchio::DataTpl&lt; Scalar, Options, JointCollectionTpl &gt;::TangentVectorType &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>rnea</b> (pinocchio::ModelTpl&lt; Scalar, Options, JointCollectionTpl &gt; const &amp;model, pinocchio::DataTpl&lt; Scalar, Options, JointCollectionTpl &gt; &amp;data, Eigen::MatrixBase&lt; ConfigVectorType &gt; const &amp;q, Eigen::MatrixBase&lt; TangentVectorType1 &gt; const &amp;v, Eigen::MatrixBase&lt; TangentVectorType2 &gt; const &amp;a, pinocchio::container::aligned_vector&lt; ForceDerived &gt; const &amp;fext)</td></tr>
+<tr class="separator:ac4d44cd64b321fa0d3019688a240a1ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab40998272f460d1e8b8c418f4aa657dc"><td class="memTemplParams" colspan="2"><a id="ab40998272f460d1e8b8c418f4aa657dc"></a>
 template&lt;typename Scalar , int Options, template&lt; typename, int &gt; class JointCollectionTpl, typename ConfigVectorType , typename TangentVectorType1 , typename TangentVectorType2 , typename ForceDerived &gt; </td></tr>
 <tr class="memitem:ab40998272f460d1e8b8c418f4aa657dc"><td class="memTemplItemLeft" align="right" valign="top">const pinocchio::DataTpl&lt; Scalar, Options, JointCollectionTpl &gt;::TangentVectorType &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>aba</b> (pinocchio::ModelTpl&lt; Scalar, Options, JointCollectionTpl &gt; const &amp;model, pinocchio::DataTpl&lt; Scalar, Options, JointCollectionTpl &gt; &amp;data, Eigen::MatrixBase&lt; ConfigVectorType &gt; const &amp;q, Eigen::MatrixBase&lt; TangentVectorType1 &gt; const &amp;v, Eigen::MatrixBase&lt; TangentVectorType2 &gt; const &amp;tau, pinocchio::container::aligned_vector&lt; ForceDerived &gt; const &amp;fext)</td></tr>
@@ -302,21 +316,26 @@ stepper_t&#160;</td><td class="memItemRight" valign="bottom"><b>stepper_</b></td
 float64_t&#160;</td><td class="memItemRight" valign="bottom"><b>stepperUpdatePeriod_</b></td></tr>
 <tr class="separator:adf8b6dec0a347d5ab03e06498329ca40"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a861c2f58747258fc51810d171b2b5443"><td class="memItemLeft" align="right" valign="top"><a id="a861c2f58747258fc51810d171b2b5443"></a>
-<a class="el" href="structjiminy_1_1stepper_state__t.html">stepperState_t</a>&#160;</td><td class="memItemRight" valign="bottom"><b>stepperState_</b></td></tr>
+<a class="el" href="structjiminy_1_1stepper_state__t.html">stepperState_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a861c2f58747258fc51810d171b2b5443">stepperState_</a></td></tr>
+<tr class="memdesc:a861c2f58747258fc51810d171b2b5443"><td class="mdescLeft">&#160;</td><td class="mdescRight">Internal buffer with the state for the integration loop. <br /></td></tr>
 <tr class="separator:a861c2f58747258fc51810d171b2b5443"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a15c999fe5e4d33f53c8c3f3b14a8fd98"><td class="memItemLeft" align="right" valign="top"><a id="a15c999fe5e4d33f53c8c3f3b14a8fd98"></a>
+<a class="el" href="structjiminy_1_1stepper_state__t.html">stepperState_t</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a15c999fe5e4d33f53c8c3f3b14a8fd98">stepperStateLast_</a></td></tr>
+<tr class="memdesc:a15c999fe5e4d33f53c8c3f3b14a8fd98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Internal state for the integration loop at the end of the previous iteration. <br /></td></tr>
+<tr class="separator:a15c999fe5e4d33f53c8c3f3b14a8fd98"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a575849ea15e95a4e1ce93c982494765e"><td class="memItemLeft" align="right" valign="top"><a id="a575849ea15e95a4e1ce93c982494765e"></a>
 std::map&lt; float64_t, std::tuple&lt; std::string, float64_t, vector3_t &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forcesImpulse_</b></td></tr>
 <tr class="separator:a575849ea15e95a4e1ce93c982494765e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a726e3d32db0009b7e415daea6c232460"><td class="memItemLeft" align="right" valign="top"><a id="a726e3d32db0009b7e415daea6c232460"></a>
 std::map&lt; float64_t, std::tuple&lt; std::string, float64_t, vector3_t &gt; &gt;::const_iterator&#160;</td><td class="memItemRight" valign="bottom"><b>forceImpulseNextIt_</b></td></tr>
 <tr class="separator:a726e3d32db0009b7e415daea6c232460"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a35e7588c40baefe91190926fd84ad91b"><td class="memItemLeft" align="right" valign="top"><a id="a35e7588c40baefe91190926fd84ad91b"></a>
-std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, external_force_t &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forcesProfile_</b></td></tr>
-<tr class="separator:a35e7588c40baefe91190926fd84ad91b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9a787c7b70f8089fbbcb2431ac6e77a9"><td class="memItemLeft" align="right" valign="top"><a id="a9a787c7b70f8089fbbcb2431ac6e77a9"></a>
+std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_t &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forcesProfile_</b></td></tr>
+<tr class="separator:a9a787c7b70f8089fbbcb2431ac6e77a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
-<p class="definition">Definition at line <a class="el" href="_engine_8h_source.html#l00177">177</a> of file <a class="el" href="_engine_8h_source.html">Engine.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8h_source.html#l00169">169</a> of file <a class="el" href="_engine_8h_source.html">Engine.h</a>.</p>
 </div><hr/>The documentation for this class was generated from the following files:<ul>
 <li>core/include/jiminy/core/<a class="el" href="_engine_8h_source.html">Engine.h</a></li>
 <li>core/src/<a class="el" href="_engine_8cc_source.html">Engine.cc</a></li>
