@@ -647,30 +647,59 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def_readonly("iter_last", &stepperState_t::iterLast)
-                .def_readonly("t_last", &stepperState_t::tLast)
-                .add_property("q_last", bp::make_getter(&stepperState_t::qLast,
-                                        bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("v_last", bp::make_getter(&stepperState_t::vLast,
-                                        bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("a_last", bp::make_getter(&stepperState_t::aLast,
-                                        bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_last", bp::make_getter(&stepperState_t::uLast,
-                                        bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_command_last", bp::make_getter(&stepperState_t::uCommandLast,
-                                                bp::return_value_policy<bp::copy_non_const_reference>()))
-                .def_readonly("energy_last", &stepperState_t::energyLast)
+                .def_readonly("iter", &stepperState_t::iter)
                 .def_readonly("t", &stepperState_t::t)
                 .def_readonly("dt", &stepperState_t::dt)
                 .add_property("x", bp::make_getter(&stepperState_t::x,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("q", bp::make_function(&PyStepperVisitor::q,
+                                   bp::return_value_policy<bp::return_by_value>()))
+                .add_property("v", bp::make_function(&PyStepperVisitor::v,
+                                   bp::return_value_policy<bp::return_by_value>()))
                 .add_property("dxdt", bp::make_getter(&stepperState_t::dxdt,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_control", bp::make_getter(&stepperState_t::uControl,
+                .add_property("qDot", bp::make_function(&PyStepperVisitor::qDot,
+                                      bp::return_value_policy<bp::return_by_value>()))
+                .add_property("a", bp::make_function(&PyStepperVisitor::a,
+                                   bp::return_value_policy<bp::return_by_value>()))
+                .add_property("u", bp::make_getter(&stepperState_t::u,
+                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_command", bp::make_getter(&stepperState_t::uCommand,
                                            bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u_internal", bp::make_getter(&stepperState_t::uInternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("f_external", bp::make_getter(&stepperState_t::fExternal,
+                                            bp::return_value_policy<bp::copy_non_const_reference>()))
+                .def_readonly("energy", &stepperState_t::energy)
                 ;
+        }
+
+        static vectorN_t q(stepperState_t & self)
+        {
+            // Eigenpy is not able to convert automatically a Eigen::Ref object
+
+            return self.q();
+        }
+
+        static vectorN_t v(stepperState_t & self)
+        {
+            // Eigenpy is not able to convert automatically a Eigen::Ref object
+
+            return self.v();
+        }
+
+        static vectorN_t qDot(stepperState_t & self)
+        {
+            // Eigenpy is not able to convert automatically a Eigen::Ref object
+
+            return self.qDot();
+        }
+
+        static vectorN_t a(stepperState_t & self)
+        {
+            // Eigenpy is not able to convert automatically a Eigen::Ref object
+
+            return self.a();
         }
 
         ///////////////////////////////////////////////////////////////////////////////

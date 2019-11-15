@@ -65,11 +65,11 @@ namespace jiminy
 
     void updateVectorValue(TelemetrySender                & telemetrySender,
                            std::vector<std::string> const & fieldNames,
-                           vectorN_t                const & values,
+                           Eigen::Ref<vectorN_t const>      values,
                            std::vector<uint32_t>    const & idx);
     void updateVectorValue(TelemetrySender                & telemetrySender,
                            std::vector<std::string> const & fieldNames,
-                           vectorN_t                const & values);
+                           Eigen::Ref<vectorN_t const>      values);
 
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size);

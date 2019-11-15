@@ -1,7 +1,7 @@
 var searchData=
 [
   ['encodersensor',['EncoderSensor',['../classjiminy_1_1_encoder_sensor.html',1,'jiminy']]],
-  ['energylast',['energyLast',['../structjiminy_1_1stepper_state__t.html#ab884e6631620f4414e9e942544825f8a',1,'jiminy::stepperState_t']]],
+  ['energy',['energy',['../structjiminy_1_1stepper_state__t.html#a47c9c02f0acaeba71b79d026390f3bbe',1,'jiminy::stepperState_t']]],
   ['engine',['Engine',['../classjiminy_1_1_engine.html',1,'jiminy']]],
   ['engine_2ecc',['Engine.cc',['../_engine_8cc.html',1,'']]],
   ['engine_2eh',['Engine.h',['../_engine_8h.html',1,'']]],

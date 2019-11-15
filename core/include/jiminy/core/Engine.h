@@ -64,33 +64,27 @@ namespace jiminy
 
     struct stepperState_t
     {
-    // Internal state for the integration loop
+    public:
+        typedef pinocchio::container::aligned_vector<pinocchio::Force> forceVector_t;
 
     public:
         stepperState_t(void) :
-        iterLast(),
-        tLast(),
-        qLast(),
-        vLast(),
-        aLast(),
-        uLast(),
-        uCommandLast(),
-        energyLast(0.0),
+        iter(0),
         t(0.0),
         dt(0.0),
         x(),
         dxdt(),
-        uControl(),
-        fext(),
+        u(),
+        uCommand(),
         uInternal(),
-        isInitialized()
+        fExternal(),
+        energy(0.0),
+        nx_(0),
+        nq_(0),
+        nv_(0),
+        isInitialized_(false)
         {
             // Empty.
-        }
-
-        bool const & getIsInitialized(void) const
-        {
-            return isInitialized;
         }
 
         void initialize(Model & model)
@@ -102,90 +96,88 @@ namespace jiminy
                         vectorN_t const & x_init,
                         float64_t const & dt_init)
         {
-            // Initialize the ode stepper state buffers
-            iterLast = -1;
-            tLast = 0.0;
-            qLast = x_init.head(model.nq());
-            vLast = x_init.tail(model.nv());
-            aLast = vectorN_t::Zero(model.nv());
-            uCommandLast = vectorN_t::Zero(model.getMotorsNames().size());
-            uLast = pinocchio::rnea(model.pncModel_, model.pncData_, qLast, vLast, aLast);
-            energyLast = pinocchio::kineticEnergy(model.pncModel_, model.pncData_, qLast, vLast, false)
-                + pinocchio::potentialEnergy(model.pncModel_, model.pncData_, qLast, false);
+            // Extract some information from the model
+            nx_ = model.nx();
+            nq_ = model.nq();
+            nv_ = model.nv();
 
-            // Initialize the internal systemDynamics buffers
+            // Initialize the ode stepper state buffers
+            iter = 0;
             t = 0.0;
             dt = dt_init;
             x = x_init;
-            dxdt = vectorN_t::Zero(model.nx());
-            computePositionDerivative(model.pncModel_, qLast, vLast, dxdt.head(model.nq()));
-            uControl = vectorN_t::Zero(model.nv());
 
-            fext = pinocchio::container::aligned_vector<pinocchio::Force>(
-                model.pncModel_.joints.size(),
-                pinocchio::Force::Zero());
-            uInternal = vectorN_t::Zero(model.nv());
+            dxdt = vectorN_t::Zero(nx_);
+            computePositionDerivative(model.pncModel_, q(), v(), qDot());
+
+            fExternal = stepperState_t::forceVector_t(model.pncModel_.joints.size(),
+                                                      pinocchio::Force::Zero());
+            uInternal = vectorN_t::Zero(nv_);
+            uCommand = vectorN_t::Zero(model.getMotorsNames().size());
+            u = vectorN_t::Zero(nv_);
+            energy = 0.0;
 
             // Set the initialization flag
-            isInitialized = true;
+            isInitialized_ = true;
         }
 
-        void updateLast(float64_t const & time,
-                        vectorN_t const & q,
-                        vectorN_t const & v,
-                        vectorN_t const & a,
-                        vectorN_t const & u,
-                        vectorN_t const & uCommand,
-                        float64_t const & energy)
+        bool const & getIsInitialized(void) const
         {
-            tLast = time;
-            qLast = q;
-            vLast = v;
-            aLast = a;
-            uLast = u;
-            uCommandLast = uCommand;
-            energyLast = energy;
-            ++iterLast;
+            return isInitialized_;
+        }
+
+        Eigen::Ref<vectorN_t> q(void)
+        {
+            return x.head(nq_);
+        }
+
+        Eigen::Ref<vectorN_t> v(void)
+        {
+            return x.tail(nv_);
+        }
+
+        Eigen::Ref<vectorN_t> qDot(void)
+        {
+            return dxdt.head(nq_);
+        }
+
+        Eigen::Ref<vectorN_t> a(void)
+        {
+            return dxdt.tail(nv_);
         }
 
     public:
-        // State information about the last iteration
-        uint32_t iterLast;
-        float64_t tLast;
-        vectorN_t qLast;
-        vectorN_t vLast;
-        vectorN_t aLast;
-        vectorN_t uLast;
-        vectorN_t uCommandLast;
-        float64_t energyLast; ///< Energy (kinetic + potential) of the system at the last state.
-
-        // Internal buffers required for the adaptive step computation and system dynamics
+        uint32_t iter;
         float64_t t;
         float64_t dt;
         vectorN_t x;
         vectorN_t dxdt;
-        vectorN_t uControl;
-
-        // Internal buffers to speed up the evaluation of the system dynamics
-        pinocchio::container::aligned_vector<pinocchio::Force> fext;
+        vectorN_t u;
+        vectorN_t uCommand;
         vectorN_t uInternal;
+        forceVector_t fExternal;
+        float64_t energy; ///< Energy of the system (kinetic + potential)
 
-    private:
-        bool isInitialized;
+    public:
+        uint32_t nx_;
+        uint32_t nq_;
+        uint32_t nv_;
+
+        bool isInitialized_;
     };
 
     class Engine
     {
     protected:
         typedef std::function<vector3_t(float64_t const & /*t*/,
-                                        vectorN_t const & /*x*/)> external_force_t;
+                                        vectorN_t const & /*x*/)> forceFunctor_t;
 
         typedef std::function<bool(float64_t const & /*t*/,
-                                   vectorN_t const & /*x*/)> callbackFct_t;
+                                   vectorN_t const & /*x*/)> callbackFunctor_t;
 
-        typedef runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra> runge_kutta_stepper_t;
+        typedef runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra> rungeKuttaStepper_t;
 
-        typedef boost::variant<result_of::make_controlled<runge_kutta_stepper_t>::type, explicit_euler> stepper_t;
+        typedef boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler> stepper_t;
 
     public:
         // Disable the copy of the class
@@ -384,7 +376,7 @@ namespace jiminy
 
         result_t initialize(Model              & model,
                             AbstractController & controller,
-                            callbackFct_t        callbackFct);
+                            callbackFunctor_t    callbackFct);
 
         void reset(bool const & resetDynamicForceRegister = false);
         result_t reset(vectorN_t const & x_init,
@@ -400,7 +392,7 @@ namespace jiminy
                                   float64_t   const & dt,
                                   vector3_t   const & F);
         void registerForceProfile(std::string      const & frameName,
-                                  external_force_t         forceFct);
+                                  forceFunctor_t           forceFct);
 
         configHolder_t getOptions(void) const;
         result_t setOptions(configHolder_t const & engineOptions);
@@ -418,31 +410,57 @@ namespace jiminy
         result_t configureTelemetry(void);
         void updateTelemetry(void);
 
-        void systemDynamics(float64_t const & t,
-                            vectorN_t const & x,
-                            vectorN_t       & dxdt);
-        void internalDynamics(vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t       & u);
-        void updateCommand(float64_t const & t,
-                           vectorN_t const & q,
-                           vectorN_t const & v,
-                           vectorN_t       & u);
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
-                                                 vector3_t const & fextInWorld) const;
-        vector3_t contactDynamics(int32_t const & frameId) const;
+                                                 vector3_t const & fExtInWorld) const;
+        vector3_t computeContactDynamics(int32_t const & frameId) const;
+        void computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
+                                      Eigen::Ref<vectorN_t const> v);
+        void computeCommand(float64_t                   const & t,
+                            Eigen::Ref<vectorN_t const>         q,
+                            Eigen::Ref<vectorN_t const>         v,
+                            vectorN_t                         & u);
+        void computeExternalForces(float64_t const & t,
+                                   vectorN_t const & x,
+                                   pinocchio::container::aligned_vector<pinocchio::Force> & fext);
+        void computeInternalDynamics(float64_t                   const & t,
+                                     Eigen::Ref<vectorN_t const>         q,
+                                     Eigen::Ref<vectorN_t const>         v,
+                                     vectorN_t                         & u);
+        void computeSystemDynamics(float64_t const & tIn,
+                                   vectorN_t const & xIn,
+                                   vectorN_t       & dxdtIn);
+
+
 
     private:
-        template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl,
-                  typename ConfigVectorType, typename TangentVectorType1,
-                  typename TangentVectorType2, typename ForceDerived>
+        template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+                 typename ConfigVectorType, typename TangentVectorType>
+        inline Scalar
+        kineticEnergy(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+                      pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+                      Eigen::MatrixBase<ConfigVectorType>                    const & q,
+                      Eigen::MatrixBase<TangentVectorType>                   const & v,
+                      bool                                                   const & update_kinematics);
+        template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+                 typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+                 typename ForceDerived>
+        inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+        rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+             pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+             Eigen::MatrixBase<ConfigVectorType>                    const & q,
+             Eigen::MatrixBase<TangentVectorType1>                  const & v,
+             Eigen::MatrixBase<TangentVectorType2>                  const & a,
+             pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+        template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+                 typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
+                 typename ForceDerived>
         inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
         aba(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-                   pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
-                   Eigen::MatrixBase<ConfigVectorType>                    const & q,
-                   Eigen::MatrixBase<TangentVectorType1>                  const & v,
-                   Eigen::MatrixBase<TangentVectorType2>                  const & tau,
-                   pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+            pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+            Eigen::MatrixBase<ConfigVectorType>                    const & q,
+            Eigen::MatrixBase<TangentVectorType1>                  const & v,
+            Eigen::MatrixBase<TangentVectorType2>                  const & tau,
+            pinocchio::container::aligned_vector<ForceDerived>     const & fext);
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
@@ -453,7 +471,7 @@ namespace jiminy
         Model * model_;
         AbstractController * controller_;
         configHolder_t engineOptionsHolder_;
-        callbackFct_t callbackFct_;
+        callbackFunctor_t callbackFct_;
 
     private:
         TelemetrySender telemetrySender_;
@@ -461,10 +479,11 @@ namespace jiminy
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
         stepper_t stepper_;
         float64_t stepperUpdatePeriod_;
-        stepperState_t stepperState_; // Internal state for the integration loop
-        std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> > forcesImpulse_; // MUST use ordered map (wrt. the application time)
+        stepperState_t stepperState_;       ///< Internal buffer with the state for the integration loop
+        stepperState_t stepperStateLast_;   ///< Internal state for the integration loop at the end of the previous iteration
+        std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> > forcesImpulse_; // Note that one MUST use an ordered map wrt. the application time
         std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> >::const_iterator forceImpulseNextIt_;
-        std::vector<std::pair<std::string, std::tuple<int32_t, external_force_t> > > forcesProfile_;
+        std::vector<std::pair<std::string, std::tuple<int32_t, forceFunctor_t> > > forcesProfile_;
     };
 }
 

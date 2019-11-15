@@ -91,9 +91,9 @@ $(document).ready(function(){initNavTree('structjiminy_1_1stepper_state__t.html'
 
 <div class="header">
   <div class="summary">
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="#pri-attribs">Private Attributes</a> &#124;
 <a href="structjiminy_1_1stepper_state__t-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">jiminy::stepperState_t Struct Reference</div>  </div>
@@ -107,48 +107,41 @@ $(document).ready(function(){initNavTree('structjiminy_1_1stepper_state__t.html'
 <div class="center"><img src="structjiminy_1_1stepper_state__t__coll__graph.png" border="0" usemap="#jiminy_1_1stepper_state__t_coll__map" alt="Collaboration graph"/></div>
 </div>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:a1318cbc9230b84491e3860ba4a936693"><td class="memItemLeft" align="right" valign="top"><a id="a1318cbc9230b84491e3860ba4a936693"></a>
+typedef pinocchio::container::aligned_vector&lt; pinocchio::Force &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forceVector_t</b></td></tr>
+<tr class="separator:a1318cbc9230b84491e3860ba4a936693"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a8476c9fe4672ee68a69c07ed818fbfd7"><td class="memItemLeft" align="right" valign="top"><a id="a8476c9fe4672ee68a69c07ed818fbfd7"></a>
-bool const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getIsInitialized</b> (void) const</td></tr>
-<tr class="separator:a8476c9fe4672ee68a69c07ed818fbfd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa095a0db26d29cd1b47c97f2164dca5e"><td class="memItemLeft" align="right" valign="top"><a id="aa095a0db26d29cd1b47c97f2164dca5e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (<a class="el" href="classjiminy_1_1_model.html">Model</a> &amp;model)</td></tr>
 <tr class="separator:aa095a0db26d29cd1b47c97f2164dca5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af41d718b0ab10ba74ca30b054f1b16ed"><td class="memItemLeft" align="right" valign="top"><a id="af41d718b0ab10ba74ca30b054f1b16ed"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (<a class="el" href="classjiminy_1_1_model.html">Model</a> &amp;model, vectorN_t const &amp;x_init, float64_t const &amp;dt_init)</td></tr>
 <tr class="separator:af41d718b0ab10ba74ca30b054f1b16ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8c0d11de2dfd5dfe2812043500e0be79"><td class="memItemLeft" align="right" valign="top"><a id="a8c0d11de2dfd5dfe2812043500e0be79"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>updateLast</b> (float64_t const &amp;time, vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t const &amp;a, vectorN_t const &amp;u, vectorN_t const &amp;uCommand, float64_t const &amp;energy)</td></tr>
-<tr class="separator:a8c0d11de2dfd5dfe2812043500e0be79"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8476c9fe4672ee68a69c07ed818fbfd7"><td class="memItemLeft" align="right" valign="top"><a id="a8476c9fe4672ee68a69c07ed818fbfd7"></a>
+bool const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getIsInitialized</b> (void) const</td></tr>
+<tr class="separator:a8476c9fe4672ee68a69c07ed818fbfd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a431c94de7fe0f504fc6d4297ddb14642"><td class="memItemLeft" align="right" valign="top"><a id="a431c94de7fe0f504fc6d4297ddb14642"></a>
+Eigen::Ref&lt; vectorN_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>q</b> (void)</td></tr>
+<tr class="separator:a431c94de7fe0f504fc6d4297ddb14642"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a294b9658711f12beb7902e9c6fd7f206"><td class="memItemLeft" align="right" valign="top"><a id="a294b9658711f12beb7902e9c6fd7f206"></a>
+Eigen::Ref&lt; vectorN_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>v</b> (void)</td></tr>
+<tr class="separator:a294b9658711f12beb7902e9c6fd7f206"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac80a618d512447644f54414d8d54d879"><td class="memItemLeft" align="right" valign="top"><a id="ac80a618d512447644f54414d8d54d879"></a>
+Eigen::Ref&lt; vectorN_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>qDot</b> (void)</td></tr>
+<tr class="separator:ac80a618d512447644f54414d8d54d879"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a81136b8093b95c97b7a947792f9f1579"><td class="memItemLeft" align="right" valign="top"><a id="a81136b8093b95c97b7a947792f9f1579"></a>
+Eigen::Ref&lt; vectorN_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>a</b> (void)</td></tr>
+<tr class="separator:a81136b8093b95c97b7a947792f9f1579"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:aefdb531b61a587b6b5ba17968391b558"><td class="memItemLeft" align="right" valign="top"><a id="aefdb531b61a587b6b5ba17968391b558"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>iterLast</b></td></tr>
-<tr class="separator:aefdb531b61a587b6b5ba17968391b558"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8a3180dec631de3d23bf580844a2a3da"><td class="memItemLeft" align="right" valign="top"><a id="a8a3180dec631de3d23bf580844a2a3da"></a>
-float64_t&#160;</td><td class="memItemRight" valign="bottom"><b>tLast</b></td></tr>
-<tr class="separator:a8a3180dec631de3d23bf580844a2a3da"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a673d45f9aebc1ae406f93d88062033b1"><td class="memItemLeft" align="right" valign="top"><a id="a673d45f9aebc1ae406f93d88062033b1"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>qLast</b></td></tr>
-<tr class="separator:a673d45f9aebc1ae406f93d88062033b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0b3fbe7e3b8e4ca16ca22a6475fb1f34"><td class="memItemLeft" align="right" valign="top"><a id="a0b3fbe7e3b8e4ca16ca22a6475fb1f34"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>vLast</b></td></tr>
-<tr class="separator:a0b3fbe7e3b8e4ca16ca22a6475fb1f34"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a514aa9efa3461694acf8048247272ad0"><td class="memItemLeft" align="right" valign="top"><a id="a514aa9efa3461694acf8048247272ad0"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>aLast</b></td></tr>
-<tr class="separator:a514aa9efa3461694acf8048247272ad0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acdb1771be49577b7d0a78329473908a1"><td class="memItemLeft" align="right" valign="top"><a id="acdb1771be49577b7d0a78329473908a1"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>uLast</b></td></tr>
-<tr class="separator:acdb1771be49577b7d0a78329473908a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:addb464bc72b1f77c0b030281671321ca"><td class="memItemLeft" align="right" valign="top"><a id="addb464bc72b1f77c0b030281671321ca"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>uCommandLast</b></td></tr>
-<tr class="separator:addb464bc72b1f77c0b030281671321ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab884e6631620f4414e9e942544825f8a"><td class="memItemLeft" align="right" valign="top"><a id="ab884e6631620f4414e9e942544825f8a"></a>
-float64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1stepper_state__t.html#ab884e6631620f4414e9e942544825f8a">energyLast</a></td></tr>
-<tr class="memdesc:ab884e6631620f4414e9e942544825f8a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Energy (kinetic + potential) of the system at the last state. <br /></td></tr>
-<tr class="separator:ab884e6631620f4414e9e942544825f8a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a078ca41f1a6e59d934fcd6378e518271"><td class="memItemLeft" align="right" valign="top"><a id="a078ca41f1a6e59d934fcd6378e518271"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>iter</b></td></tr>
+<tr class="separator:a078ca41f1a6e59d934fcd6378e518271"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaeb3d7f308bbe15bb1fa9d25c737bb6e"><td class="memItemLeft" align="right" valign="top"><a id="aaeb3d7f308bbe15bb1fa9d25c737bb6e"></a>
 float64_t&#160;</td><td class="memItemRight" valign="bottom"><b>t</b></td></tr>
 <tr class="separator:aaeb3d7f308bbe15bb1fa9d25c737bb6e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -161,21 +154,34 @@ vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>x</b></td></tr>
 <tr class="memitem:ac93f220b9c5485fc3f70569baf0c4213"><td class="memItemLeft" align="right" valign="top"><a id="ac93f220b9c5485fc3f70569baf0c4213"></a>
 vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>dxdt</b></td></tr>
 <tr class="separator:ac93f220b9c5485fc3f70569baf0c4213"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5e8146066543a5c27fc124d45d8effa0"><td class="memItemLeft" align="right" valign="top"><a id="a5e8146066543a5c27fc124d45d8effa0"></a>
-vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>uControl</b></td></tr>
-<tr class="separator:a5e8146066543a5c27fc124d45d8effa0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3a75412032aebcd09c570d228ae9424d"><td class="memItemLeft" align="right" valign="top"><a id="a3a75412032aebcd09c570d228ae9424d"></a>
-pinocchio::container::aligned_vector&lt; pinocchio::Force &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fext</b></td></tr>
-<tr class="separator:a3a75412032aebcd09c570d228ae9424d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a783b2017a881132ef403da714f71fea1"><td class="memItemLeft" align="right" valign="top"><a id="a783b2017a881132ef403da714f71fea1"></a>
+vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>u</b></td></tr>
+<tr class="separator:a783b2017a881132ef403da714f71fea1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aff4c9c16ed22ec30535a9a6efa0f9f64"><td class="memItemLeft" align="right" valign="top"><a id="aff4c9c16ed22ec30535a9a6efa0f9f64"></a>
+vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>uCommand</b></td></tr>
+<tr class="separator:aff4c9c16ed22ec30535a9a6efa0f9f64"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8ed61d15a61ad6272bd8a963106f3240"><td class="memItemLeft" align="right" valign="top"><a id="a8ed61d15a61ad6272bd8a963106f3240"></a>
 vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><b>uInternal</b></td></tr>
 <tr class="separator:a8ed61d15a61ad6272bd8a963106f3240"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
-Private Attributes</h2></td></tr>
-<tr class="memitem:ab62c4e559c26ff54173b0c9db9d8afce"><td class="memItemLeft" align="right" valign="top"><a id="ab62c4e559c26ff54173b0c9db9d8afce"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>isInitialized</b></td></tr>
-<tr class="separator:ab62c4e559c26ff54173b0c9db9d8afce"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3139a900f43da7f1b231f5a59b3fec02"><td class="memItemLeft" align="right" valign="top"><a id="a3139a900f43da7f1b231f5a59b3fec02"></a>
+forceVector_t&#160;</td><td class="memItemRight" valign="bottom"><b>fExternal</b></td></tr>
+<tr class="separator:a3139a900f43da7f1b231f5a59b3fec02"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a47c9c02f0acaeba71b79d026390f3bbe"><td class="memItemLeft" align="right" valign="top"><a id="a47c9c02f0acaeba71b79d026390f3bbe"></a>
+float64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1stepper_state__t.html#a47c9c02f0acaeba71b79d026390f3bbe">energy</a></td></tr>
+<tr class="memdesc:a47c9c02f0acaeba71b79d026390f3bbe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Energy of the system (kinetic + potential) <br /></td></tr>
+<tr class="separator:a47c9c02f0acaeba71b79d026390f3bbe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a84a67b26f2af41e7cccb2a31d81edc61"><td class="memItemLeft" align="right" valign="top"><a id="a84a67b26f2af41e7cccb2a31d81edc61"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>nx_</b></td></tr>
+<tr class="separator:a84a67b26f2af41e7cccb2a31d81edc61"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48a33ffde3382bf95b7f6895793b83dd"><td class="memItemLeft" align="right" valign="top"><a id="a48a33ffde3382bf95b7f6895793b83dd"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>nq_</b></td></tr>
+<tr class="separator:a48a33ffde3382bf95b7f6895793b83dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab9fb4aa9f2ed2e41fcb85166635c4bbf"><td class="memItemLeft" align="right" valign="top"><a id="ab9fb4aa9f2ed2e41fcb85166635c4bbf"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>nv_</b></td></tr>
+<tr class="separator:ab9fb4aa9f2ed2e41fcb85166635c4bbf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a65a7b02335a9093baf852dce313469bd"><td class="memItemLeft" align="right" valign="top"><a id="a65a7b02335a9093baf852dce313469bd"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>isInitialized_</b></td></tr>
+<tr class="separator:a65a7b02335a9093baf852dce313469bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">

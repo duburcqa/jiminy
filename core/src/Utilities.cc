@@ -230,7 +230,7 @@ namespace jiminy
 
     void updateVectorValue(TelemetrySender                & telemetrySender,
                            std::vector<std::string> const & fieldNames,
-                           vectorN_t                const & values,
+                           Eigen::Ref<vectorN_t const>      values,
                            std::vector<uint32_t>    const & idx)
     {
         for (uint32_t i=0; i < idx.size(); ++i)
@@ -241,7 +241,7 @@ namespace jiminy
 
     void updateVectorValue(TelemetrySender                & telemetrySender,
                            std::vector<std::string> const & fieldNames,
-                           vectorN_t                const & values)
+                           Eigen::Ref<vectorN_t const>      values)
     {
         for (uint32_t i=0; i < values.size(); ++i)
         {
