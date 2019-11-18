@@ -289,7 +289,7 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("contacts") = std::vector<std::string>(),
                                     bp::arg("motors") = std::vector<std::string>(),
-                                    bp::arg("had_freeflyer") = false))
+                                    bp::arg("has_freeflyer") = false))
 
                 .def("add_imu_sensor", &PyModelVisitor::createAndAddSensor<ImuSensor>,
                                        (bp::arg("self"),
