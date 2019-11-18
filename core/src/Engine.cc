@@ -1183,7 +1183,7 @@ namespace jiminy
         controller_->internalDynamics(t, q, v, u);
 
         // Enforce the position limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.usePositionLimit)
+        if (model_->mdlOptions_->joints.enablePositionLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
@@ -1234,7 +1234,7 @@ namespace jiminy
         }
 
         // Enforce the velocity limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.useVelocityLimit)
+        if (model_->mdlOptions_->joints.enableVelocityLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 

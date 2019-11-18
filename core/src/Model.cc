@@ -458,7 +458,7 @@ namespace jiminy
         if(returnCode == result_t::SUCCESS)
         {
             pncModel_.rotorInertia.setConstant(0.0);
-            if (mdlOptions_->joints.useMotorInertia)
+            if (mdlOptions_->joints.enableMotorInertia)
             {
                 for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
                 {
@@ -889,7 +889,7 @@ namespace jiminy
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
             }
-            if (boost::get<bool>(jointOptionsHolder.at("useMotorInertia")))
+            if (boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")))
             {
                 vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
                 if((int32_t) motorsVelocityIdx_.size() != motorInertia.size())

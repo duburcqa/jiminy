@@ -37,13 +37,13 @@ namespace jiminy
         virtual configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;
-            config["useMotorInertia"] = false;
+            config["enableMotorInertia"] = false;
             config["motorInertia"] = vectorN_t();
-            config["usePositionLimit"] = true;
+            config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = vectorN_t();
             config["positionLimitMax"] = vectorN_t();
-            config["useVelocityLimit"] = true;
+            config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
 
@@ -52,24 +52,24 @@ namespace jiminy
 
         struct jointOptions_t
         {
-            bool      const useMotorInertia;
+            bool      const enableMotorInertia;
             vectorN_t const motorInertia;
-            bool      const usePositionLimit;
+            bool      const enablePositionLimit;
             bool      const positionLimitFromUrdf;
             vectorN_t const positionLimitMin;         ///< Min position limit of all the actual joints, namely without freeflyer and flexible joints if any
             vectorN_t const positionLimitMax;
-            bool      const useVelocityLimit;
+            bool      const enableVelocityLimit;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
 
             jointOptions_t(configHolder_t const & options) :
-            useMotorInertia(boost::get<bool>(options.at("useMotorInertia"))),
+            enableMotorInertia(boost::get<bool>(options.at("enableMotorInertia"))),
             motorInertia(boost::get<vectorN_t>(options.at("motorInertia"))),
-            usePositionLimit(boost::get<bool>(options.at("usePositionLimit"))),
+            enablePositionLimit(boost::get<bool>(options.at("enablePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
-            useVelocityLimit(boost::get<bool>(options.at("useVelocityLimit"))),
+            enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
             {
