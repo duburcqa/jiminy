@@ -85,6 +85,7 @@ var classjiminy_1_1_model =
     [ "nv_", "classjiminy_1_1_model.html#a2662d74ec48c155b8b46ddac01cf1422", null ],
     [ "nx_", "classjiminy_1_1_model.html#ad16b22cd0ad9a947a0b223e5fe698e8c", null ],
     [ "pncData_", "classjiminy_1_1_model.html#a253b90725c0633f9ccee0ff77a092c6e", null ],
+    [ "pncDataRigidOrig_", "classjiminy_1_1_model.html#aead37cf4080c6a77e0d0b5cb1a9e04b1", null ],
     [ "pncModel_", "classjiminy_1_1_model.html#a59321f0e4653b37b816809ac5090ecc5", null ],
     [ "pncModelFlexibleOrig_", "classjiminy_1_1_model.html#a346cb7f287e68371e9be4a40c4d5564c", null ],
     [ "pncModelRigidOrig_", "classjiminy_1_1_model.html#acc7ad7a78322af0e14bd6718cb89c5e4", null ],

@@ -237,6 +237,8 @@ namespace jiminy
     public:
         pinocchio::Model pncModel_;
         pinocchio::Data pncData_;
+        pinocchio::Model pncModelRigidOrig_;
+        pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
         pinocchio::container::aligned_vector<pinocchio::Force> contactForces_; // Buffer to store the contact forces
 
@@ -274,7 +276,6 @@ namespace jiminy
         std::vector<std::string> motorTorqueFieldNames_;    // Fieldnames of the torques of the motors
 
     private:
-        pinocchio::Model pncModelRigidOrig_;
         pinocchio::Model pncModelFlexibleOrig_;
         std::unordered_map<std::string, std::shared_ptr<SensorDataHolder_t> > sensorsDataHolder_;
         uint32_t nq_;
