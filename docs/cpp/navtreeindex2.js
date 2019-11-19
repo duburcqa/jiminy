@@ -1,5 +1,6 @@
 var NAVTREEINDEX2 =
 {
+"classjiminy_1_1_model.html#a0de08434dce12fe8ba0ded7276f9f0d1":[2,0,0,14,9],
 "classjiminy_1_1_model.html#a0f9b1928559c97d680cb576884a50bd3":[2,0,0,14,101],
 "classjiminy_1_1_model.html#a10257b0a858420322a7be4db72bff71e":[2,0,0,14,42],
 "classjiminy_1_1_model.html#a1992cb1191a6a2e01917f3b674d93620":[2,0,0,14,78],
@@ -185,8 +186,8 @@ var NAVTREEINDEX2 =
 "hierarchy.html":[2,2],
 "index.html":[0],
 "index.html":[],
-"namespacejiminy.html":[1,0,0],
 "namespacejiminy.html":[2,0,0],
+"namespacejiminy.html":[1,0,0],
 "namespacemembers.html":[1,1,0],
 "namespacemembers_enum.html":[1,1,2],
 "namespacemembers_eval.html":[1,1,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX2 =
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#ab2566161be2688e3c93b079dc316d209":[2,0,0,7,4,2],
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#ab7df3e53b0021746d4851ab3484b4961":[2,0,0,7,4,0],
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#adb169b4d7e60652f925ce26381d44e75":[2,0,0,7,4,3],
-"structjiminy_1_1_engine_1_1telemetry_options__t.html#aebb56c00cbf0e60832225f98f9785ec4":[2,0,0,7,4,4],
-"structjiminy_1_1_engine_1_1world_options__t.html":[2,0,0,7,5]
+"structjiminy_1_1_engine_1_1telemetry_options__t.html#aebb56c00cbf0e60832225f98f9785ec4":[2,0,0,7,4,4]
 };

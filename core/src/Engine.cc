@@ -913,9 +913,14 @@ namespace jiminy
         return isInitialized_;
     }
 
-    Model const & Engine::getModel(void) const
+    Model & Engine::getModel(void) const
     {
         return *model_;
+    }
+
+    AbstractController & Engine::getController(void) const
+    {
+        return *controller_;
     }
 
     stepperState_t const & Engine::getStepperState(void) const

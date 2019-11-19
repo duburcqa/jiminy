@@ -755,6 +755,8 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("model", bp::make_function(&Engine::getModel,
                                        bp::return_internal_reference<>()))
+                .add_property("controller", bp::make_function(&Engine::getController,
+                                            bp::return_internal_reference<>()))
                 ;
         }
 

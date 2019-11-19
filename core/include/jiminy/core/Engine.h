@@ -398,7 +398,8 @@ namespace jiminy
         result_t setOptions(configHolder_t const & engineOptions);
         bool getIsInitialized(void) const;
         bool getIsTelemetryConfigured(void) const;
-        Model const & getModel(void) const;
+        Model & getModel(void) const;
+        AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
         result_t getLogData(std::vector<std::string> & header,
