@@ -229,18 +229,27 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Update the internal buffers of the telemetry associated with variables
         ///             monitored by the controller.
+        /// \details    As the main entry point for a user to log extra variables, the engine also
+        ///             passes the current state of the robot to enable logging of custom state-related variables.
+        ///
+        ///
+        /// \param[in]  t Current time.
+        /// \param[in]  q Current position.
+        /// \param[in]  v Current velocity.
         ///
         /// \remark     This method is not intended to be called manually. The Engine is taking care
         ///             of it before flushing the telemetry data at the end of each simulation steps.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        void updateTelemetry(void);
+        virtual void updateTelemetry(float64_t const& t,
+                                     vectorN_t const& q,
+                                     vectorN_t const& v);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

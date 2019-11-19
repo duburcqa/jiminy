@@ -224,7 +224,7 @@ namespace jiminy
         {
             telemetrySender_.updateValue<float64_t>("energy", stepperStateLast_.energy);
         }
-        controller_->updateTelemetry();
+        controller_->updateTelemetry(stepperState_.t, q, v);
         model_->updateTelemetry();
 
         // Flush the telemetry internal state

@@ -100,24 +100,6 @@ namespace jiminy
                                   vectorN_t       & u) override;
 
     private:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Configure the telemetry of the controller.
-        ///
-        /// \details    This method connects the controller-specific telemetry sender to a given
-        ///             telemetry data (which is unique for a given model), so that it is
-        ///             later possible to register the variables that one want to monitor. Finally,
-        ///             the telemetry recoder logs every registered variables at each timestep in a
-        ///             memory buffer.
-        ///
-        /// \param[in]  telemetryData       Shared pointer to the model-wide telemetry data object
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
-
-    private:
         // std::conditional_t enables to use both functors and lambdas
         std::conditional_t<std::is_function<F1>::value,
                            std::add_pointer_t<F1>, F1> commandFct_;             // 'Callable' computing the command
