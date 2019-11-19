@@ -72,29 +72,29 @@ namespace jiminy
         // Empty
     }
 
-    result_t Engine::initialize(Model              & model,
-                                AbstractController & controller,
-                                callbackFunctor_t    callbackFct)
+    result_t Engine::initialize(std::shared_ptr<Model>              const & model,
+                                std::shared_ptr<AbstractController> const & controller,
+                                callbackFunctor_t                           callbackFct)
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!model.getIsInitialized())
+        if (!model->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
-        model_ = &model;
+        model_ = model;
 
         stepperState_.initialize(*model_);
 
-        if (!controller.getIsInitialized())
+        if (!controller->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Controller not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
         if (returnCode == result_t::SUCCESS)
         {
-            controller_ = &controller;
+            controller_ = controller;
         }
 
         // TODO: Check that the callback function is working as expected

@@ -118,7 +118,7 @@ namespace python
     private:
         bp::object funcPyPtr_;
         T * outPtr_;
-        PyObject * outPyPtr_; // Its lifetime in managed by boost::python
+        PyObject * outPyPtr_; // Its lifetime is managed by boost::python
     };
 
     // ******************************  ***************************************
@@ -760,9 +760,9 @@ namespace python
                 ;
         }
 
-        static result_t initialize(Engine             & self,
-                                   Model              & model,
-                                   AbstractController & controller)
+        static result_t initialize(Engine                                    & self,
+                                   std::shared_ptr<Model>              const & model,
+                                   std::shared_ptr<AbstractController> const & controller)
         {
             callbackFct_t callbackFct = [](float64_t const & t,
                                            vectorN_t const & x) -> bool
@@ -772,10 +772,10 @@ namespace python
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
-        static result_t initializeWithCallback(Engine             & self,
-                                               Model              & model,
-                                               AbstractController & controller,
-                                               bp::object const   & callbackPy)
+        static result_t initializeWithCallback(Engine                                    & self,
+                                               std::shared_ptr<Model>              const & model,
+                                               std::shared_ptr<AbstractController> const & controller,
+                                               bp::object                          const & callbackPy)
         {
             TimeStateFctPyWrapper<bool> callbackFct(callbackPy);
             return self.initialize(model, controller, std::move(callbackFct));

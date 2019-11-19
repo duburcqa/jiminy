@@ -374,8 +374,8 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        result_t initialize(Model              & model,
-                            AbstractController & controller,
+        result_t initialize(std::shared_ptr<Model>              const & model,
+                            std::shared_ptr<AbstractController> const & controller,
                             callbackFunctor_t    callbackFct);
 
         void reset(bool const & resetDynamicForceRegister = false);
@@ -469,8 +469,8 @@ namespace jiminy
     protected:
         bool isInitialized_;
         bool isTelemetryConfigured_;
-        Model * model_;
-        AbstractController * controller_;
+        std::shared_ptr<Model> model_;
+        std::shared_ptr<AbstractController> controller_;
         configHolder_t engineOptionsHolder_;
         callbackFunctor_t callbackFct_;
 

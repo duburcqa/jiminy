@@ -111,10 +111,8 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_engine.html','');});
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_engine__coll__graph.png" border="0" usemap="#jiminy_1_1_engine_coll__map" alt="Collaboration graph"/></div>
 <map name="jiminy_1_1_engine_coll__map" id="jiminy_1_1_engine_coll__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="36,196,199,479"/>
-<area shape="rect" id="node3" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="169,732,361,1132"/>
-<area shape="rect" id="node4" href="classjiminy_1_1_model.html" title="{jiminy::Model\n|+ pncModel_\l+ pncData_\l+ pncModelRigidOrig_\l+ pncDataRigidOrig_\l+ mdlOptions_\l+ contactForces_\l# isInitialized_\l# isTelemetryConfigured_\l# urdfPath_\l# hasFreeflyer_\l# mdlOptionsHolder_\l# telemetryData_\l# sensorsGroupHolder_\l# sensorTelemetryOptions_\l# contactFramesNames_\l# contactFramesIdx_\land 17 more...\l&#45; Engine\l&#45; pncModelFlexibleOrig_\l&#45; sensorsDataHolder_\l&#45; nq_\l&#45; nv_\l&#45; nx_\l|+ Model()\l+ operator=()\l+ getDefaultJointOptions()\l+ getDefaultDynamicsOptions()\l+ getDefaultOptions()\l+ Model()\l+ ~Model()\l+ initialize()\l+ addSensor()\l+ removeSensor()\land 41 more...\l# reset()\l# configureTelemetry()\l# updateTelemetry()\l# setSensorsData()\l# loadUrdfModel()\l# generateFlexibleModel()\l# generateBiasedModel()\l# generateFieldNames()\l}" alt="" coords="234,5,441,669"/>
-<area shape="rect" id="node5" href="structjiminy_1_1stepper_state__t.html" title="{jiminy::stepperState_t\n|+ iter\l+ t\l+ dt\l+ x\l+ dxdt\l+ u\l+ uCommand\l+ uInternal\l+ fExternal\l+ energy\l+ nx_\l+ nq_\l+ nv_\l+ isInitialized_\l|+ stepperState_t()\l+ initialize()\l+ initialize()\l+ getIsInitialized()\l+ q()\l+ v()\l+ qDot()\l+ a()\l}" alt="" coords="487,747,636,1117"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="5,49,168,332"/>
+<area shape="rect" id="node3" href="structjiminy_1_1stepper_state__t.html" title="{jiminy::stepperState_t\n|+ iter\l+ t\l+ dt\l+ x\l+ dxdt\l+ u\l+ uCommand\l+ uInternal\l+ fExternal\l+ energy\l+ nx_\l+ nq_\l+ nv_\l+ isInitialized_\l|+ stepperState_t()\l+ initialize()\l+ initialize()\l+ getIsInitialized()\l+ q()\l+ v()\l+ qDot()\l+ a()\l}" alt="" coords="192,5,341,376"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -159,9 +157,9 @@ configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>getDefaultT
 <tr class="memitem:a4eed51212520e4114793709a0ca84e19"><td class="memItemLeft" align="right" valign="top"><a id="a4eed51212520e4114793709a0ca84e19"></a>
 configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>getDefaultOptions</b> ()</td></tr>
 <tr class="separator:a4eed51212520e4114793709a0ca84e19"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5e69b4f48af6f844706c5822f65d2586"><td class="memItemLeft" align="right" valign="top"><a id="a5e69b4f48af6f844706c5822f65d2586"></a>
-result_t&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (<a class="el" href="classjiminy_1_1_model.html">Model</a> &amp;model, <a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> &amp;controller, callbackFunctor_t callbackFct)</td></tr>
-<tr class="separator:a5e69b4f48af6f844706c5822f65d2586"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a21da678b9c2f5b5e41da8887e1923c3d"><td class="memItemLeft" align="right" valign="top"><a id="a21da678b9c2f5b5e41da8887e1923c3d"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> &gt; const &amp;model, std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> &gt; const &amp;controller, callbackFunctor_t callbackFct)</td></tr>
+<tr class="separator:a21da678b9c2f5b5e41da8887e1923c3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa0611a180895abad9ca96803260b4078"><td class="memItemLeft" align="right" valign="top"><a id="aa0611a180895abad9ca96803260b4078"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> (bool const &amp;resetDynamicForceRegister=false)</td></tr>
 <tr class="separator:aa0611a180895abad9ca96803260b4078"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -273,12 +271,12 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>isInitialized_</b></t
 <tr class="memitem:a300d371fdab7cfd1dfefa9ad07fad053"><td class="memItemLeft" align="right" valign="top"><a id="a300d371fdab7cfd1dfefa9ad07fad053"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>isTelemetryConfigured_</b></td></tr>
 <tr class="separator:a300d371fdab7cfd1dfefa9ad07fad053"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af6c08cc878e9e01cd39769499cdfe395"><td class="memItemLeft" align="right" valign="top"><a id="af6c08cc878e9e01cd39769499cdfe395"></a>
-<a class="el" href="classjiminy_1_1_model.html">Model</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>model_</b></td></tr>
-<tr class="separator:af6c08cc878e9e01cd39769499cdfe395"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad184f7807bdf6b7d71db1e4af3ebcef8"><td class="memItemLeft" align="right" valign="top"><a id="ad184f7807bdf6b7d71db1e4af3ebcef8"></a>
-<a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>controller_</b></td></tr>
-<tr class="separator:ad184f7807bdf6b7d71db1e4af3ebcef8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a82f519378098d9d482a9aeea2574e193"><td class="memItemLeft" align="right" valign="top"><a id="a82f519378098d9d482a9aeea2574e193"></a>
+std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>model_</b></td></tr>
+<tr class="separator:a82f519378098d9d482a9aeea2574e193"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a70e71c7a0bf132a172625428e6291663"><td class="memItemLeft" align="right" valign="top"><a id="a70e71c7a0bf132a172625428e6291663"></a>
+std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_controller.html">AbstractController</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>controller_</b></td></tr>
+<tr class="separator:a70e71c7a0bf132a172625428e6291663"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8ca18ebaa7639241eead086aabbc48b0"><td class="memItemLeft" align="right" valign="top"><a id="a8ca18ebaa7639241eead086aabbc48b0"></a>
 configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><b>engineOptionsHolder_</b></td></tr>
 <tr class="separator:a8ca18ebaa7639241eead086aabbc48b0"><td class="memSeparator" colspan="2">&#160;</td></tr>

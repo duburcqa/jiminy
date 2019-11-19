@@ -25,11 +25,11 @@ namespace jiminy
     }
 
 
-    result_t AbstractController::initialize(Model const & model)
+    result_t AbstractController::initialize(std::shared_ptr<Model const> const & model)
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!model.getIsInitialized())
+        if (!model->getIsInitialized())
         {
             std::cout << "Error - AbstractController::initialize - The model is not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
@@ -37,7 +37,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            model_ = &model;
+            model_ = model;
 
             try
             {
