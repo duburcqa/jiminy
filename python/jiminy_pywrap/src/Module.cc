@@ -15,6 +15,7 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
+
 #if PY_VERSION_HEX >= 0x03000000
     static void* initNumpyC() {
         import_array();
@@ -47,6 +48,12 @@ namespace python
         .value("ERROR_BAD_INPUT", result_t::ERROR_BAD_INPUT)
         .value("ERROR_INIT_FAILED", result_t::ERROR_INIT_FAILED);
 
+        // Interfaces for heatMapType_t enum
+        bp::enum_<heatMapType_t>("heatMapType_t")
+        .value("CONSTANT", heatMapType_t::CONSTANT)
+        .value("STAIRS", heatMapType_t::STAIRS)
+        .value("GENERIC", heatMapType_t::GENERIC);
+
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, stdVectorToListPyConverter<std::string> >();
         bp::to_python_converter<std::vector<int32_t>, stdVectorToListPyConverter<int32_t> >();
@@ -59,9 +66,10 @@ namespace python
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
         bp::def("ControllerFunctor",
-                PyControllerFunctorNFactory,
+                ControllerFunctorPyFactory,
                 (bp::arg("command_handle"), "internal_dynamics_handle", bp::arg("nb_sensor_types")=-1),
                 bp::return_value_policy<bp::manage_new_object>());
+        jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::PyStepperVisitor::expose();
         jiminy::python::PyEngineVisitor::expose();
     }

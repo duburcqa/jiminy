@@ -1,9 +1,6 @@
 var searchData=
 [
-  ['pyabstractcontrollervisitor',['PyAbstractControllerVisitor',['../structjiminy_1_1python_1_1PyAbstractControllerVisitor.html',1,'jiminy::python']]],
-  ['pyenginevisitor',['PyEngineVisitor',['../structjiminy_1_1python_1_1PyEngineVisitor.html',1,'jiminy::python']]],
-  ['pymodelvisitor',['PyModelVisitor',['../structjiminy_1_1python_1_1PyModelVisitor.html',1,'jiminy::python']]],
-  ['pysensorvisit',['PySensorVisit',['../classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html',1,'jiminy::python::PySensorVisitor']]],
-  ['pysensorvisitor',['PySensorVisitor',['../structjiminy_1_1python_1_1PySensorVisitor.html',1,'jiminy::python']]],
-  ['pysteppervisitor',['PyStepperVisitor',['../structjiminy_1_1python_1_1PyStepperVisitor.html',1,'jiminy::python']]]
+  ['jiminyacrobotenv',['JiminyAcrobotEnv',['../classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotEnv.html',1,'gym_jiminy::envs::acrobot']]],
+  ['jiminyacrobotgoalenv',['JiminyAcrobotGoalEnv',['../classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotGoalEnv.html',1,'gym_jiminy::envs::acrobot']]],
+  ['jiminycartpoleenv',['JiminyCartPoleEnv',['../classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html',1,'gym_jiminy::envs::cartpole']]]
 ];

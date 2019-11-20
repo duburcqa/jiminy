@@ -92,6 +92,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_engine.html','');});
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
+<a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
 <a href="#pro-types">Protected Types</a> &#124;
@@ -130,6 +131,15 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1_engine_1_1world_options__t.html">worldOptions_t</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-types"></a>
+Public Types</h2></td></tr>
+<tr class="memitem:ac6f1ea1959791b0ccb108a875a59092c"><td class="memItemLeft" align="right" valign="top"><a id="ac6f1ea1959791b0ccb108a875a59092c"></a>
+typedef std::function&lt; vector3_t(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forceFunctor_t</b></td></tr>
+<tr class="separator:ac6f1ea1959791b0ccb108a875a59092c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a22a23fa6761dc4044ee0ded623971275"><td class="memItemLeft" align="right" valign="top"><a id="a22a23fa6761dc4044ee0ded623971275"></a>
+typedef std::function&lt; bool(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFunctor_t</b></td></tr>
+<tr class="separator:a22a23fa6761dc4044ee0ded623971275"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -220,12 +230,6 @@ std::unique_ptr&lt; <a class="el" href="structjiminy_1_1_engine_1_1engine_option
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-types"></a>
 Protected Types</h2></td></tr>
-<tr class="memitem:ac6f1ea1959791b0ccb108a875a59092c"><td class="memItemLeft" align="right" valign="top"><a id="ac6f1ea1959791b0ccb108a875a59092c"></a>
-typedef std::function&lt; vector3_t(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>forceFunctor_t</b></td></tr>
-<tr class="separator:ac6f1ea1959791b0ccb108a875a59092c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a22a23fa6761dc4044ee0ded623971275"><td class="memItemLeft" align="right" valign="top"><a id="a22a23fa6761dc4044ee0ded623971275"></a>
-typedef std::function&lt; bool(float64_t const &amp;, vectorN_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>callbackFunctor_t</b></td></tr>
-<tr class="separator:a22a23fa6761dc4044ee0ded623971275"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a105aae07907ce833b4817af9e1053d44"><td class="memItemLeft" align="right" valign="top"><a id="a105aae07907ce833b4817af9e1053d44"></a>
 typedef runge_kutta_dopri5&lt; vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>rungeKuttaStepper_t</b></td></tr>
 <tr class="separator:a105aae07907ce833b4817af9e1053d44"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -336,7 +340,7 @@ std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
-<p class="definition">Definition at line <a class="el" href="_engine_8h_source.html#l00169">169</a> of file <a class="el" href="_engine_8h_source.html">Engine.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8h_source.html#l00170">170</a> of file <a class="el" href="_engine_8h_source.html">Engine.h</a>.</p>
 </div><hr/>The documentation for this class was generated from the following files:<ul>
 <li>core/include/jiminy/core/<a class="el" href="_engine_8h_source.html">Engine.h</a></li>
 <li>core/src/<a class="el" href="_engine_8cc_source.html">Engine.cc</a></li>

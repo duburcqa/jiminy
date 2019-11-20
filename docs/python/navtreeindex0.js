@@ -157,11 +157,11 @@ var NAVTREEINDEX0 =
 "classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html#ab981649adcdb58b0a4cbe7b2e4d32a94":[2,0,0,1,1,0,20],
 "classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html#ac1859f7d906c817d59e04ae679742d96":[2,0,0,1,1,0,7],
 "classgym__jiminy_1_1envs_1_1cartpole_1_1JiminyCartPoleEnv.html#afa627f742d33aa6bbdca5d5a07180e44":[2,0,0,1,1,0,12],
-"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html":[2,0,1,0,5,0],
-"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a338081de9460445540ba663d48892fb4":[2,0,1,0,5,0,0],
-"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a62848fdd276f23d5872da14784542b32":[2,0,1,0,5,0,1],
-"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a65a5a3b6d0084cb90e31297b59312596":[2,0,1,0,5,0,3],
-"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a77240c44c4ddbaee5030b4d78b85b5fb":[2,0,1,0,5,0,2],
+"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html":[2,0,1,0,7,0],
+"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a338081de9460445540ba663d48892fb4":[2,0,1,0,7,0,0],
+"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a62848fdd276f23d5872da14784542b32":[2,0,1,0,7,0,1],
+"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a65a5a3b6d0084cb90e31297b59312596":[2,0,1,0,7,0,3],
+"classjiminy_1_1python_1_1PySensorVisitor_1_1PySensorVisit.html#a77240c44c4ddbaee5030b4d78b85b5fb":[2,0,1,0,7,0,2],
 "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html":[2,0,2,0,0],
 "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a0a0a32f7a812b0b14983db45034dd841":[2,0,2,0,0,21],
 "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a0de547824fd1d66fb344e225cf1397ea":[2,0,2,0,0,28],
@@ -247,7 +247,7 @@ var NAVTREEINDEX0 =
 "structjiminy_1_1python_1_1ControllerFctWrapperN_3_01N_00_01std_1_1index__sequence_3_01Is_8_8_8_01_4_01_4.html#ab16306c8b6aa0fbb46b88f2639f7499e":[2,0,1,0,1,1],
 "structjiminy_1_1python_1_1ControllerFctWrapperN_3_01N_00_01std_1_1index__sequence_3_01Is_8_8_8_01_4_01_4.html#ab828c686c376ecb669b876e80da13dea":[2,0,1,0,1,2],
 "structjiminy_1_1python_1_1ControllerFctWrapperN_3_01N_00_01std_1_1index__sequence_3_01Is_8_8_8_01_4_01_4.html#ae625e34a71696c2ca799121bc5e0a460":[2,0,1,0,1,3],
-"structjiminy_1_1python_1_1PyAbstractControllerVisitor.html":[2,0,1,0,2],
-"structjiminy_1_1python_1_1PyAbstractControllerVisitor.html#a093687ba3f69e1b686ff8f6101895ac0":[2,0,1,0,2,2],
-"structjiminy_1_1python_1_1PyAbstractControllerVisitor.html#a2bb0540c3b321d5f5bdf75fea949796f":[2,0,1,0,2,5]
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html":[2,0,1,0,2],
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a0a0131e9f675cd32ba5887a49873b624":[2,0,1,0,2,0],
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a2528ff117e84978157255bbcaec7188c":[2,0,1,0,2,9]
 };

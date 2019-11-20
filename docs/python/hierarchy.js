@@ -3,6 +3,7 @@ var hierarchy =
     [ "jiminy::python::ControllerFctWrapperN< N, class >", "structjiminy_1_1python_1_1ControllerFctWrapperN.html", null ],
     [ "jiminy::python::ControllerFctWrapperN< N, std::index_sequence< Is... > >", "structjiminy_1_1python_1_1ControllerFctWrapperN_3_01N_00_01std_1_1index__sequence_3_01Is_8_8_8_01_4_01_4.html", null ],
     [ "def_visitor", null, [
+      [ "jiminy::python::HeatMapFunctorVisitor", "structjiminy_1_1python_1_1HeatMapFunctorVisitor.html", null ],
       [ "jiminy::python::PyAbstractControllerVisitor", "structjiminy_1_1python_1_1PyAbstractControllerVisitor.html", null ],
       [ "jiminy::python::PyEngineVisitor", "structjiminy_1_1python_1_1PyEngineVisitor.html", null ],
       [ "jiminy::python::PyModelVisitor", "structjiminy_1_1python_1_1PyModelVisitor.html", null ],
@@ -22,6 +23,7 @@ var hierarchy =
     [ "GoalEnv", null, [
       [ "gym_jiminy.common.gym_jiminy_robots.RobotJiminyGoalEnv", "classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyGoalEnv.html", null ]
     ] ],
+    [ "jiminy::python::HeatMapFunctorPyWrapper", "structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html", null ],
     [ "object", null, [
       [ "jiminy_py.engine_asynchronous.EngineAsynchronous", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html", null ]
     ] ],
