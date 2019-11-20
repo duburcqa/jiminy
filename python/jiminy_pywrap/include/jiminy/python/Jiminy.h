@@ -173,7 +173,7 @@ namespace python
         }
 
         // Move constructor, takes a rvalue reference &&
-        HeatMapFunctorPyWrapper(HeatMapFunctorPyWrapper&& other) :
+        HeatMapFunctorPyWrapper(HeatMapFunctorPyWrapper && other) :
         heatMapType_(other.heatMapType_),
         handlePyPtr_(other.handlePyPtr_),
         out1Ptr_(nullptr),
@@ -282,8 +282,7 @@ namespace python
         static void expose()
         {
             bp::class_<heatMapFunctor_t,
-                       boost::shared_ptr<heatMapFunctor_t>,
-                       boost::noncopyable>("HeatMapFunctor", bp::no_init)
+                       boost::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
                 .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
                                  bp::default_call_policies(),
                                 (bp::args("heatmap_handle", "heatmap_type"))))
@@ -420,7 +419,7 @@ namespace python
                        boost::shared_ptr<AbstractSensorBase>,
                        boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python< std::shared_ptr<AbstractSensorBase> >(); // Required to handle shared_ptr from/to Python
+            bp::register_ptr_to_python< std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ImuSensor>,

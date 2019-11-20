@@ -9,7 +9,7 @@ var _types_8h =
     [ "constBlockXpr", "_types_8h.html#af89bc42ee9fe8fc8206dc096b89e591a", null ],
     [ "float32_t", "_types_8h.html#ac8e32957d96894ccb4cae0a2a313165d", null ],
     [ "float64_t", "_types_8h.html#aaf73ad8631cc0ef70ecb7a3c8b6d89ac", null ],
-    [ "heatMapFunctor_t", "_types_8h.html#ae0fed6d22e662f343d0a4fc3928a25a7", null ],
+    [ "heatMapFunctor_t", "_types_8h.html#a52e34dfe0d14ea69de4040f2f9fc4e9c", null ],
     [ "matrix3_t", "_types_8h.html#a647f113cebb9ae9178a39a5bc64af4a4", null ],
     [ "matrixN_t", "_types_8h.html#a85aec56be3b2951cce4a46312446eb9b", null ],
     [ "quaternion_t", "_types_8h.html#ae737d8f78f5549c2d56dccc0e798d74a", null ],

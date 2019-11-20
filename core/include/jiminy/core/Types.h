@@ -46,7 +46,7 @@ namespace jiminy
         ERROR_INIT_FAILED = -3
     };
 
-    typedef std::function<std::pair<float64_t, vector3_t>(vectorN_t const & /*pos*/)> heatMapFunctor_t; // Impossible to use function pointer since it does not support functors
+    typedef std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)> heatMapFunctor_t; // Impossible to use function pointer since it does not support functors
 
     typedef boost::make_recursive_variant<bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t,
                                           std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
