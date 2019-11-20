@@ -1276,7 +1276,7 @@ namespace jiminy
                     else if (vJoint < vJointMin)
                     {
                         vJointError = vJointMin - vJoint;
-                        forceJoint = -engineJointOptions.boundDamping * vJointError;
+                        forceJoint = engineJointOptions.boundDamping * vJointError;
                     }
 
                     if (engineJointOptions.boundTransitionEps > EPS)
