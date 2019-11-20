@@ -10,6 +10,7 @@ var namespacejiminy =
       [ "PyModelVisitor", "structjiminy_1_1python_1_1PyModelVisitor.html", "structjiminy_1_1python_1_1PyModelVisitor" ],
       [ "PySensorVisitor", "structjiminy_1_1python_1_1PySensorVisitor.html", "structjiminy_1_1python_1_1PySensorVisitor" ],
       [ "PyStepperVisitor", "structjiminy_1_1python_1_1PyStepperVisitor.html", "structjiminy_1_1python_1_1PyStepperVisitor" ],
+      [ "SensorsDataMapVisitor", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html", "structjiminy_1_1python_1_1SensorsDataMapVisitor" ],
       [ "stdVectorToListPyConverter", "structjiminy_1_1python_1_1stdVectorToListPyConverter.html", "structjiminy_1_1python_1_1stdVectorToListPyConverter" ],
       [ "TimeStateFctPyWrapper", "structjiminy_1_1python_1_1TimeStateFctPyWrapper.html", "structjiminy_1_1python_1_1TimeStateFctPyWrapper" ]
     ] ]

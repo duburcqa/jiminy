@@ -62,6 +62,7 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>, stdVectorToListPyConverter<matrixN_t> >();
 
         // Expose classes
+        jiminy::python::SensorsDataMapVisitor::expose();
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();

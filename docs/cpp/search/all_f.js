@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['rawdata',['rawData',['../structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#abb646f65a130c7ec354048a03c561674',1,'jiminy::AbstractSensorBase::abstractSensorOptions_t']]],
   ['read',['read',['../classjiminy_1_1_abstract_i_o_device.html#ad6c8dbec4d9d384b08a5a56513f0f7f5',1,'jiminy::AbstractIODevice::read(T &amp;valueIn)'],['../classjiminy_1_1_abstract_i_o_device.html#a535183f066ccabcf2723946e90312606',1,'jiminy::AbstractIODevice::read(void *data, int64_t dataSize)']]],
   ['read_5fonly',['READ_ONLY',['../namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60eaca243e033fd55cf8f116f6dbaac7d03f',1,'jiminy']]],
   ['read_5fwrite',['READ_WRITE',['../namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60ea79851306a576e71c4ce273a15f1d45c6',1,'jiminy']]],

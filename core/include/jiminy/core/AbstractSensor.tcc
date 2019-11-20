@@ -101,27 +101,13 @@ namespace jiminy
     template <typename T>
     std::vector<std::string> const & AbstractSensorTpl<T>::getFieldNames(void) const
     {
-        if(sensorOptions_->rawData)
-        {
-            return fieldNamesPreProcess_;
-        }
-        else
-        {
-            return fieldNamesPostProcess_;
-        }
+        return fieldNames_;
     }
 
     template <typename T>
     uint32_t AbstractSensorTpl<T>::getSize(void) const
     {
-        if(sensorOptions_->rawData)
-        {
-            return fieldNamesPreProcess_.size();
-        }
-        else
-        {
-            return fieldNamesPostProcess_.size();
-        }
+        return fieldNames_.size();
     }
 
     template <typename T>

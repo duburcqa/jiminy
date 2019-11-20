@@ -8,7 +8,8 @@ var hierarchy =
       [ "jiminy::python::PyEngineVisitor", "structjiminy_1_1python_1_1PyEngineVisitor.html", null ],
       [ "jiminy::python::PyModelVisitor", "structjiminy_1_1python_1_1PyModelVisitor.html", null ],
       [ "jiminy::python::PySensorVisitor", "structjiminy_1_1python_1_1PySensorVisitor.html", null ],
-      [ "jiminy::python::PyStepperVisitor", "structjiminy_1_1python_1_1PyStepperVisitor.html", null ]
+      [ "jiminy::python::PyStepperVisitor", "structjiminy_1_1python_1_1PyStepperVisitor.html", null ],
+      [ "jiminy::python::SensorsDataMapVisitor", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html", null ]
     ] ],
     [ "Env", null, [
       [ "gym_jiminy.common.gym_jiminy_robots.RobotJiminyEnv", "classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyEnv.html", [

@@ -83,7 +83,6 @@ namespace jiminy
         virtual configHolder_t getDefaultOptions(void)
         {
             configHolder_t config;
-            config["rawData"] = false;
             config["noiseStd"] = vectorN_t();
             config["bias"] = vectorN_t();
             config["delay"] = 0.0;
@@ -94,14 +93,12 @@ namespace jiminy
 
         struct abstractSensorOptions_t
         {
-            bool      const rawData;    ///< Flag to enable raw sensor data instead of the pre-processed one (#TODO raw mode not available)
             vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
             vectorN_t const bias;       ///< Bias of the sensor
             float64_t const delay;      ///< Delay of the sensor
             uint32_t  const delayInterpolationOrder; ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
-            rawData(boost::get<bool>(options.at("rawData"))),
             noiseStd(boost::get<vectorN_t>(options.at("noiseStd"))),
             bias(boost::get<vectorN_t>(options.at("bias"))),
             delay(boost::get<float64_t>(options.at("delay"))),
@@ -249,10 +246,6 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Get the name of each element of the data measured by the sensor
-        ///
-        /// \details    It depends on the type of output of the sensor, which is defined by the
-        ///             configuration options of the sensor. More precisely, it is different whether
-        ///             `rawData` is True or False.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual std::vector<std::string> const & getFieldNames(void) const = 0;
@@ -440,8 +433,7 @@ namespace jiminy
     public:
         static std::string const type_;
         static bool const areFieldNamesGrouped_;
-        static std::vector<std::string> const fieldNamesPostProcess_;
-        static std::vector<std::string> const fieldNamesPreProcess_;
+        static std::vector<std::string> const fieldNames_;
         static float64_t delayMax_;
 
     private:

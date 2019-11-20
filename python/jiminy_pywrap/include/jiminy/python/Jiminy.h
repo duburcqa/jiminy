@@ -259,7 +259,7 @@ namespace python
         {
             cl
                 .def("__call__", &HeatMapFunctorVisitor::eval,
-                                 (bp::arg("self"), bp::arg("position")));
+                                 (bp::arg("self"), bp::arg("position")))
                 ;
         }
 
@@ -290,7 +290,44 @@ namespace python
         }
     };
 
-    // ******************************  ***************************************
+    // ******************************* sensorsDataMap_t ********************************
+
+
+    struct SensorsDataMapVisitor
+        : public bp::def_visitor<SensorsDataMapVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("__getitem__", &getitem,
+                                    bp::return_value_policy<bp::copy_const_reference>());
+        }
+
+        static vectorN_t const & getitem(sensorsDataMap_t & self,
+                                        bp::tuple const & sensorInfo)
+        {
+            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            return self.at(std::pair<std::string, std::string>(std::move(sensorType),
+                                                            std::move(sensorName)));
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<sensorsDataMap_t>("sensorsData", bp::no_init)
+                .def(SensorsDataMapVisitor());
+        }
+    };
+
+    // **************************** ControllerFctWrapperN ******************************
 
     template<std::size_t N, class = std::make_index_sequence<N> >
     struct ControllerFctWrapperN;
@@ -348,12 +385,8 @@ namespace python
 
                     .add_property("name", bp::make_function(&AbstractSensorBase::getName,
                                           bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("type", bp::make_function(&AbstractSensorBase::getType,
-                                          bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldNames,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
@@ -364,7 +397,10 @@ namespace python
                 visitAbstract(cl);
 
                 cl
-                    .def("initialize", &TSensor::initialize);
+                    .def("initialize", &TSensor::initialize)
+                    .def_readonly("type", &TSensor::type_)
+                    .add_static_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNamesStatic<TSensor>,
+                                                       bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
@@ -373,6 +409,13 @@ namespace python
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
+
+                cl
+                    .add_property("type", bp::make_function(&AbstractSensorBase::getType,
+                                          bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNames,
+                                                bp::return_value_policy<bp::return_by_value>()))
+                    ;
             }
         };
 
@@ -408,6 +451,17 @@ namespace python
             configHolder_t config = self.getOptions();
             loadConfigHolder(configPy, config);
             self.setOptions(config);
+        }
+
+        template<typename TSensor>
+        static bp::list getFieldNamesStatic(void)
+        {
+            return stdVectorToListPy(TSensor::fieldNames_);
+        }
+
+        static bp::list getFieldNames(AbstractSensorBase & self)
+        {
+            return stdVectorToListPy(self.getFieldNames());
         }
 
         ///////////////////////////////////////////////////////////////////////////////

@@ -17,9 +17,7 @@ namespace jiminy
     template<>
     bool const AbstractSensorTpl<ImuSensor>::areFieldNamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNamesPreProcess_({"Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
-    template<>
-    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNamesPostProcess_({"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz"});
+    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_({"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz"});
 
     ImuSensor::ImuSensor(Model                               const & model,
                          std::shared_ptr<SensorDataHolder_t> const & dataHolder,
@@ -78,24 +76,24 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            if(sensorOptions_->rawData)
-            {
-                pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
-                vector3_t const omega = gyroIMU.angular();
-                data().head(3) = omega;
-                pinocchio::Motion const acceleroIMU = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
-                vector3_t const accel = acceleroIMU.linear();
-                data().tail(3) = accel;
-            }
-            else
-            {
+            // if(sensorOptions_->rawData)
+            // {
+            //     pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
+            //     vector3_t const omega = gyroIMU.angular();
+            //     data().head(3) = omega;
+            //     pinocchio::Motion const acceleroIMU = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
+            //     vector3_t const accel = acceleroIMU.linear();
+            //     data().tail(3) = accel;
+            // }
+            // else
+            // {
                 matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
                 quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
                 data().head(4) = quat.coeffs(); // (x,y,z,w)
                 pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
                 vector3_t const omega = rot * gyroIMU.angular(); // Get angular velocity in world frame
                 data().tail(3) = omega;
-            }
+            // }
         }
 
         return returnCode;
@@ -108,9 +106,7 @@ namespace jiminy
     template<>
     bool const AbstractSensorTpl<ForceSensor>::areFieldNamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNamesPreProcess_({"FX", "FY", "FZ"});
-    template<>
-    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNamesPostProcess_({"FX", "FY", "FZ"});
+    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
     ForceSensor::ForceSensor(Model                               const & model,
                              std::shared_ptr<SensorDataHolder_t> const & dataHolder,
@@ -184,9 +180,7 @@ namespace jiminy
     template<>
     bool const AbstractSensorTpl<EncoderSensor>::areFieldNamesGrouped_(true);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNamesPreProcess_({"Q"});
-    template<>
-    std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNamesPostProcess_({"Q", "V"});
+    std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 
     EncoderSensor::EncoderSensor(Model                               const & model,
                                  std::shared_ptr<SensorDataHolder_t> const & dataHolder,
@@ -251,15 +245,15 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            if(sensorOptions_->rawData)
-            {
-                data() = q.segment<1>(motorPositionIdx_);
-            }
-            else
-            {
+            // if(sensorOptions_->rawData)
+            // {
+            //     data() = q.segment<1>(motorPositionIdx_);
+            // }
+            // else
+            // {
                 data().head(1) = q.segment<1>(motorPositionIdx_);
                 data().tail(1) = v.segment<1>(motorVelocityIdx_);
-            }
+            // }
         }
 
         return returnCode;

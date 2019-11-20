@@ -1,8 +1,8 @@
 <map id="core/src/Sensor.cc" name="core/src/Sensor.cc">
 <area shape="rect" id="node5" href="$_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="783,229,927,256"/>
-<area shape="rect" id="node15" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="420,229,555,256"/>
-<area shape="rect" id="node19" href="$_sensor_8h.html" title="jiminy/core/Sensor.h" alt="" coords="782,80,923,107"/>
+<area shape="rect" id="node16" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="420,229,555,256"/>
+<area shape="rect" id="node20" href="$_sensor_8h.html" title="jiminy/core/Sensor.h" alt="" coords="782,80,923,107"/>
 <area shape="rect" id="node9" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="1223,311,1359,338"/>
-<area shape="rect" id="node21" href="$_abstract_sensor_8h.html" title="jiminy/core/AbstractSensor.h" alt="" coords="929,155,1120,181"/>
-<area shape="rect" id="node23" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="1192,229,1391,256"/>
+<area shape="rect" id="node22" href="$_abstract_sensor_8h.html" title="jiminy/core/AbstractSensor.h" alt="" coords="929,155,1120,181"/>
+<area shape="rect" id="node24" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="1192,229,1391,256"/>
 </map>

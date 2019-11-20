@@ -1,9 +1,5 @@
 var NAVTREEINDEX2 =
 {
-"classjiminy_1_1_model.html#a0de0420afe2078f134d9ddc60197ded0":[2,0,0,14,13],
-"classjiminy_1_1_model.html#a0de08434dce12fe8ba0ded7276f9f0d1":[2,0,0,14,9],
-"classjiminy_1_1_model.html#a0f9b1928559c97d680cb576884a50bd3":[2,0,0,14,101],
-"classjiminy_1_1_model.html#a10257b0a858420322a7be4db72bff71e":[2,0,0,14,42],
 "classjiminy_1_1_model.html#a1992cb1191a6a2e01917f3b674d93620":[2,0,0,14,78],
 "classjiminy_1_1_model.html#a1b315e8fec93450d940138171fa09fea":[2,0,0,14,20],
 "classjiminy_1_1_model.html#a1e2f011c4af45b0a0c3925fa5af65d82":[2,0,0,14,74],
@@ -187,8 +183,8 @@ var NAVTREEINDEX2 =
 "hierarchy.html":[2,2],
 "index.html":[0],
 "index.html":[],
-"namespacejiminy.html":[2,0,0],
 "namespacejiminy.html":[1,0,0],
+"namespacejiminy.html":[2,0,0],
 "namespacemembers.html":[1,1,0],
 "namespacemembers_enum.html":[1,1,2],
 "namespacemembers_eval.html":[1,1,3],
@@ -210,7 +206,6 @@ var NAVTREEINDEX2 =
 "structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#a270394050d3557bcb20bbc35b3eef124":[2,0,0,3,0,2],
 "structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#a338c70d69193089b0094a8dd51ed8fc7":[2,0,0,3,0,1],
 "structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#a432202c77b45996cf410a8b145560174":[2,0,0,3,0,0],
-"structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#abb646f65a130c7ec354048a03c561674":[2,0,0,3,0,5],
 "structjiminy_1_1_abstract_sensor_base_1_1abstract_sensor_options__t.html#af77d9c8b58dd01649eca6fec2433d790":[2,0,0,3,0,3],
 "structjiminy_1_1_engine_1_1contact_options__t.html":[2,0,0,7,0],
 "structjiminy_1_1_engine_1_1contact_options__t.html#a1e7492dd299894606f00b9a1e19667f1":[2,0,0,7,0,5],
@@ -249,5 +244,10 @@ var NAVTREEINDEX2 =
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#ab2566161be2688e3c93b079dc316d209":[2,0,0,7,4,2],
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#ab7df3e53b0021746d4851ab3484b4961":[2,0,0,7,4,0],
 "structjiminy_1_1_engine_1_1telemetry_options__t.html#adb169b4d7e60652f925ce26381d44e75":[2,0,0,7,4,3],
-"structjiminy_1_1_engine_1_1telemetry_options__t.html#aebb56c00cbf0e60832225f98f9785ec4":[2,0,0,7,4,4]
+"structjiminy_1_1_engine_1_1telemetry_options__t.html#aebb56c00cbf0e60832225f98f9785ec4":[2,0,0,7,4,4],
+"structjiminy_1_1_engine_1_1world_options__t.html":[2,0,0,7,5],
+"structjiminy_1_1_engine_1_1world_options__t.html#acf4a72057b5041b2fb08445da214ab2b":[2,0,0,7,5,1],
+"structjiminy_1_1_engine_1_1world_options__t.html#ad4f3a5b7f428ab4f1344b0c382b7c4fc":[2,0,0,7,5,0],
+"structjiminy_1_1_engine_1_1world_options__t.html#aeb6f271bd28082d38c08d8a088a819d3":[2,0,0,7,5,2],
+"structjiminy_1_1_model_1_1dynamics_options__t.html":[2,0,0,14,0]
 };
