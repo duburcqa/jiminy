@@ -362,7 +362,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
             collision_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.COLLISION)
             visual_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.VISUAL)
             rb.__init__(model=pinocchio_model, collision_model=collision_model, visual_model=visual_model)
-        client = Client()
+        client = get_gepetto_client(True)[0]
         if not scene_name in client.gui.getSceneList():
             client.gui.createSceneWithFloor(scene_name)
         if not window_name in client.gui.getWindowList():

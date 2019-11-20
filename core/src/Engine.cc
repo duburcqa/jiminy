@@ -1116,9 +1116,9 @@ namespace jiminy
         // Initialize the contact force
         vector3_t fextInWorld;
         std::pair<float64_t, vector3_t> ground = engineOptions_->world.groundProfile(posFrame);
-        // std::pair<float64_t, vector3_t> ground(0.0, (vector3_t() << 0.0, 0.0, 1.0).finished());
         float64_t const & zGround = std::get<0>(ground);
-        vector3_t const & nGround = std::get<1>(ground);
+        vector3_t nGround = std::get<1>(ground);
+        nGround.normalize();
         float64_t depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
         if(depth < 0.0)
@@ -1134,28 +1134,39 @@ namespace jiminy
             float64_t fextNormal = 0.0;
             if(vDepth < 0.0)
             {
-                fextNormal += -contactOptions_->damping * vDepth;
+                fextNormal -= contactOptions_->damping * vDepth;
             }
-            fextNormal += -contactOptions_->stiffness * depth;
+            fextNormal -= contactOptions_->stiffness * depth;
             fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
-            vector3_t const & vTangential = vFrameInWorld - vDepth * nGround;
+            vector3_t vTangential = vFrameInWorld - vDepth * nGround;
             float64_t vNorm = vTangential.norm();
 
-            float64_t fextTangential = 0.0;
-            if (vNorm < contactOptions_->dryFrictionVelEps)
+            float64_t frictionCoeff = 0.0;
+            if(vNorm >= contactOptions_->dryFrictionVelEps)
             {
-                fextTangential = contactOptions_->frictionDry * fextNormal
-                    * (vNorm / contactOptions_->dryFrictionVelEps);
+                if(vNorm < 1.5 * contactOptions_->dryFrictionVelEps)
+                {
+                    frictionCoeff = -2.0 * (contactOptions_->frictionDry -
+                        contactOptions_->frictionViscous) * (vNorm / contactOptions_->dryFrictionVelEps)
+                        + 3.0 * contactOptions_->frictionDry - 2.0*contactOptions_->frictionViscous;
+                }
+                else
+                {
+                    frictionCoeff = contactOptions_->frictionViscous;
+                }
             }
             else
             {
-                fextTangential = contactOptions_->frictionDry * fextNormal
-                    + contactOptions_->frictionViscous * (vNorm - contactOptions_->dryFrictionVelEps);
+                frictionCoeff = contactOptions_->frictionDry *
+                    (vNorm / contactOptions_->dryFrictionVelEps);
             }
+            float64_t fextTangential = frictionCoeff * fextNormal;
+            fextInWorld += -fextTangential * vTangential;
 
-            fextInWorld += -fextTangential * vTangential.normalized();
+            // Make sure that the force never exceeds 1e5 N for the sake of numerical stability
+            fextInWorld = clamp(fextInWorld, -1e5, 1e5);
 
             // Add blending factor
             if (contactOptions_->transitionEps > EPS)
@@ -1164,9 +1175,6 @@ namespace jiminy
                 float64_t blendingLaw = std::tanh(2 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
-
-            // Make sure that the force never exceeds 1e5 N for the sake of numerical stability
-            fextInWorld = clamp(fextInWorld, -1e5, 1e5);
         }
         else
         {

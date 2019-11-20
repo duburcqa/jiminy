@@ -225,7 +225,7 @@ namespace jiminy
         {
             configHolder_t config;
             config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 1.0e2;
+            config["boundDamping"] = 1.0e3;
             config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
 
             return config;
