@@ -215,10 +215,11 @@ def delete_nodes_viewer(*nodes_path):
 
     @param[in]  nodes_path     Full path of the node to delete
     """
-    client = Client()
-    for node_path in nodes_path:
-        if node_path in client.gui.getNodeList():
-            client.gui.deleteNode(node_path, True)
+    client = get_gepetto_client(False)[0]
+    if client is not None:
+        for node_path in nodes_path:
+            if node_path in client.gui.getNodeList():
+                client.gui.deleteNode(node_path, True)
 
 
 def initFromURDF(self, filename, package_dirs=None, root_joint=None, verbose=False, meshLoader=None):
@@ -339,6 +340,8 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
                                     Optional: Common default name if omitted.
     """
 
+    client, proc = get_gepetto_client(True)
+
     # Load robots in gepetto viewer
     robots = []
     for i in range(len(trajectory_data)):
@@ -362,7 +365,6 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
             collision_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.COLLISION)
             visual_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.VISUAL)
             rb.__init__(model=pinocchio_model, collision_model=collision_model, visual_model=visual_model)
-        client = get_gepetto_client(True)[0]
         if not scene_name in client.gui.getSceneList():
             client.gui.createSceneWithFloor(scene_name)
         if not window_name in client.gui.getWindowList():
@@ -413,6 +415,8 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
     for i in range(len(trajectory_data)):
         threads[i].join()
 
+    if proc is not None:
+        proc.terminate()
 
 def get_colorized_urdf(urdf_path, rgb, custom_mesh_search_path=None):
     """
