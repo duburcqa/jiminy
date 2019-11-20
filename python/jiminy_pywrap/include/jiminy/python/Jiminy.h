@@ -30,9 +30,6 @@ namespace python
 {
     namespace bp = boost::python;
 
-    typedef std::function<bool(float64_t const & /*t*/,
-                               vectorN_t const & /*x*/)> callbackFct_t;
-
     // ************************** TimeStateFctPyWrapper ******************************
 
     template<typename T>
@@ -95,7 +92,7 @@ namespace python
         }
 
         // Move assignment, takes a rvalue reference &&
-        TimeStateFctPyWrapper& operator=(TimeStateFctPyWrapper&& other)
+        TimeStateFctPyWrapper& operator = (TimeStateFctPyWrapper&& other)
         {
             /* "other" is soon going to be destroyed, so we let it destroy our current resource
                instead and we take "other"'s current resource via swapping */
@@ -105,8 +102,8 @@ namespace python
             return *this;
         }
 
-        T operator() (float64_t const & t,
-                      vectorN_t const & x)
+        T const & operator() (float64_t const & t,
+                              vectorN_t const & x)
         {
             // Pass the arguments by reference (be careful const qualifiers are lost)
             bp::handle<> xPy(getNumpyReferenceFromEigenVector(x));
@@ -118,7 +115,180 @@ namespace python
     private:
         bp::object funcPyPtr_;
         T * outPtr_;
-        PyObject * outPyPtr_; // Its lifetime in managed by boost::python
+        PyObject * outPyPtr_; // Its lifetime is managed by boost::python
+    };
+
+    enum class heatMapType_t : uint8_t
+    {
+        CONSTANT = 0x01,
+        STAIRS   = 0x02,
+        GENERIC  = 0x03,
+    };
+
+    struct HeatMapFunctorPyWrapper {
+    public:
+        // Disable the copy of the class
+        HeatMapFunctorPyWrapper & operator = (HeatMapFunctorPyWrapper const & other) = delete;
+
+    public:
+        HeatMapFunctorPyWrapper(bp::object    const & objPy,
+                                heatMapType_t const & objType) :
+        heatMapType_(objType),
+        handlePyPtr_(objPy),
+        out1Ptr_(new float64_t),
+        out2Ptr_(new vector3_t),
+        out1PyPtr_(),
+        out2PyPtr_()
+        {
+            if (heatMapType_ == heatMapType_t::CONSTANT)
+            {
+                *out1Ptr_ = bp::extract<float64_t>(handlePyPtr_);
+                *out2Ptr_ = (vector3_t() << 0.0, 0.0, 1.0).finished();
+            }
+            else if (heatMapType_ == heatMapType_t::STAIRS)
+            {
+                out1PyPtr_ = getNumpyReference(*out1Ptr_);
+                *out2Ptr_ = (vector3_t() << 0.0, 0.0, 1.0).finished();
+            }
+            else if (heatMapType_ == heatMapType_t::GENERIC)
+            {
+                out1PyPtr_ = getNumpyReference(*out1Ptr_);
+                out2PyPtr_ = getNumpyReference(*out2Ptr_);
+            }
+        }
+
+        // Copy constructor, same as the normal constructor
+        HeatMapFunctorPyWrapper(HeatMapFunctorPyWrapper const & other) :
+        heatMapType_(other.heatMapType_),
+        handlePyPtr_(other.handlePyPtr_),
+        out1Ptr_(new float64_t),
+        out2Ptr_(new vector3_t),
+        out1PyPtr_(),
+        out2PyPtr_()
+        {
+            *out1Ptr_ = *(other.out1Ptr_);
+            *out2Ptr_ = *(other.out2Ptr_);
+            out1PyPtr_ = getNumpyReference(*out1Ptr_);
+            out2PyPtr_ = getNumpyReference(*out2Ptr_);
+        }
+
+        // Move constructor, takes a rvalue reference &&
+        HeatMapFunctorPyWrapper(HeatMapFunctorPyWrapper&& other) :
+        heatMapType_(other.heatMapType_),
+        handlePyPtr_(other.handlePyPtr_),
+        out1Ptr_(nullptr),
+        out2Ptr_(nullptr),
+        out1PyPtr_(nullptr),
+        out2PyPtr_(nullptr)
+        {
+            // Steal the resource from "other"
+            out1Ptr_ = other.out1Ptr_;
+            out2Ptr_ = other.out2Ptr_;
+            out1PyPtr_ = other.out1PyPtr_;
+            out2PyPtr_ = other.out2PyPtr_;
+
+            /* "other" will soon be destroyed and its destructor will
+               do nothing because we null out its resource here */
+            other.out1Ptr_ = nullptr;
+            other.out2Ptr_ = nullptr;
+            other.out1PyPtr_ = nullptr;
+            other.out2PyPtr_ = nullptr;
+        }
+
+        // Destructor
+        ~HeatMapFunctorPyWrapper()
+        {
+            delete out1Ptr_;
+            delete out2Ptr_;
+        }
+
+        // Move assignment, takes a rvalue reference &&
+        HeatMapFunctorPyWrapper& operator = (HeatMapFunctorPyWrapper&& other)
+        {
+            /* "other" is soon going to be destroyed, so we let it destroy our current resource
+               instead and we take "other"'s current resource via swapping */
+            std::swap(heatMapType_, other.heatMapType_);
+            std::swap(handlePyPtr_, other.handlePyPtr_);
+            std::swap(out1Ptr_, other.out1Ptr_);
+            std::swap(out2Ptr_, other.out2Ptr_);
+            std::swap(out1PyPtr_, other.out1PyPtr_);
+            std::swap(out2PyPtr_, other.out2PyPtr_);
+            return *this;
+        }
+
+        std::pair<float64_t, vector3_t> operator() (vector3_t const & posFrame)
+        {
+            // Pass the arguments by reference (be careful const qualifiers are lost)
+
+            if (heatMapType_ == heatMapType_t::STAIRS)
+            {
+                bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
+                handlePyPtr_(posFrame[0], posFrame[1], out1Py);
+            }
+            else if (heatMapType_ == heatMapType_t::GENERIC)
+            {
+                bp::handle<> out1Py(bp::borrowed(out1PyPtr_));
+                bp::handle<> out2Py(bp::borrowed(out2PyPtr_));
+                handlePyPtr_(posFrame[0], posFrame[1], out1Py, out2Py);
+            }
+
+            return {*out1Ptr_, *out2Ptr_};
+        }
+
+    private:
+        heatMapType_t heatMapType_;
+        bp::object handlePyPtr_;
+        float64_t * out1Ptr_;
+        vector3_t * out2Ptr_;
+        PyObject * out1PyPtr_; // Its lifetime is managed by boost::python
+        PyObject * out2PyPtr_; // Its lifetime is managed by boost::python
+    };
+
+
+    // **************************** HeatMapFunctorVisitor *****************************
+
+    struct HeatMapFunctorVisitor
+        : public bp::def_visitor<HeatMapFunctorVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("__call__", &HeatMapFunctorVisitor::eval,
+                                 (bp::arg("self"), bp::arg("position")));
+                ;
+        }
+
+        static bp::tuple eval (heatMapFunctor_t       & self,
+                               vector3_t        const & posFrame)
+        {
+            std::pair<float64_t, vector3_t> ground = self(posFrame);
+            return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
+        }
+
+        static boost::shared_ptr<heatMapFunctor_t> HeatMapFunctorPyFactory(bp::object          & objPy,
+                                                                           heatMapType_t const & objType)
+        {
+            return boost::make_shared<heatMapFunctor_t>(HeatMapFunctorPyWrapper(std::move(objPy), objType));
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<heatMapFunctor_t,
+                       boost::shared_ptr<heatMapFunctor_t>,
+                       boost::noncopyable>("HeatMapFunctor", bp::no_init)
+                .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
+                                 bp::default_call_policies(),
+                                (bp::args("heatmap_handle", "heatmap_type"))))
+                .def(HeatMapFunctorVisitor());
+        }
     };
 
     // ******************************  ***************************************
@@ -138,7 +308,7 @@ namespace python
         void operator() (float64_t const & t,
                          vectorN_t const & q,
                          vectorN_t const & v,
-                         T_<Is>... sensorsData,
+                         T_<Is>...         sensorsData,
                          vectorN_t       & uCommand)
         {
             // Pass the arguments by reference (be careful const qualifiers are lost).
@@ -289,7 +459,7 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("contacts") = std::vector<std::string>(),
                                     bp::arg("motors") = std::vector<std::string>(),
-                                    bp::arg("had_freeflyer") = false))
+                                    bp::arg("has_freeflyer") = false))
 
                 .def("add_imu_sensor", &PyModelVisitor::createAndAddSensor<ImuSensor>,
                                        (bp::arg("self"),
@@ -323,6 +493,10 @@ namespace python
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
                 .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
+                                                bp::return_internal_reference<>()))
+                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
                                                 bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
@@ -405,7 +579,7 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static AbstractSensorBase * getSensor(Model & self,
+        static AbstractSensorBase * getSensor(Model             & self,
                                               std::string const & sensorType,
                                               std::string const & sensorName)
         {
@@ -578,9 +752,9 @@ namespace python
     };
 
     #ifdef PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES
-    static AbstractController * PyControllerFunctorNFactory(bp::object       & commandPy,
-                                                            bp::object       & internalDynamicsPy,
-                                                            int32_t    const & numSensorTypes)
+    static AbstractController * ControllerFunctorPyFactory(bp::object       & commandPy,
+                                                           bp::object       & internalDynamicsPy,
+                                                           int32_t    const & numSensorTypes)
     {
         /* 'co_varnames' is used along with 'co_argcount' to avoid accounting for
            the 'self' argument in case of class method handle.
@@ -751,25 +925,27 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("model", bp::make_function(&Engine::getModel,
                                        bp::return_internal_reference<>()))
+                .add_property("controller", bp::make_function(&Engine::getController,
+                                            bp::return_internal_reference<>()))
                 ;
         }
 
-        static result_t initialize(Engine             & self,
-                                   Model              & model,
-                                   AbstractController & controller)
+        static result_t initialize(Engine                                    & self,
+                                   std::shared_ptr<Model>              const & model,
+                                   std::shared_ptr<AbstractController> const & controller)
         {
-            callbackFct_t callbackFct = [](float64_t const & t,
-                                           vectorN_t const & x) -> bool
-            {
-                return true;
-            };
+            Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
+                                                       vectorN_t const & x) -> bool
+                                                    {
+                                                        return true;
+                                                    };
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
-        static result_t initializeWithCallback(Engine             & self,
-                                               Model              & model,
-                                               AbstractController & controller,
-                                               bp::object const   & callbackPy)
+        static result_t initializeWithCallback(Engine                                    & self,
+                                               std::shared_ptr<Model>              const & model,
+                                               std::shared_ptr<AbstractController> const & controller,
+                                               bp::object                          const & callbackPy)
         {
             TimeStateFctPyWrapper<bool> callbackFct(callbackPy);
             return self.initialize(model, controller, std::move(callbackFct));

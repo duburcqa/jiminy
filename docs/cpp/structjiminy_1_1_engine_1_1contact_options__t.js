@@ -6,6 +6,5 @@ var structjiminy_1_1_engine_1_1contact_options__t =
     [ "frictionDry", "structjiminy_1_1_engine_1_1contact_options__t.html#af4f38ca939f5549393b441f8cb905750", null ],
     [ "frictionViscous", "structjiminy_1_1_engine_1_1contact_options__t.html#a56867cb0717b8bef12b561976c00e0e1", null ],
     [ "stiffness", "structjiminy_1_1_engine_1_1contact_options__t.html#a1e7492dd299894606f00b9a1e19667f1", null ],
-    [ "transitionEps", "structjiminy_1_1_engine_1_1contact_options__t.html#af0d59d69b303af4e7bdce787db2584a8", null ],
-    [ "zGround", "structjiminy_1_1_engine_1_1contact_options__t.html#a0099bc1415d8375eb0ca68cfd80fb72b", null ]
+    [ "transitionEps", "structjiminy_1_1_engine_1_1contact_options__t.html#af0d59d69b303af4e7bdce787db2584a8", null ]
 ];

@@ -72,29 +72,29 @@ namespace jiminy
         // Empty
     }
 
-    result_t Engine::initialize(Model              & model,
-                                AbstractController & controller,
-                                callbackFunctor_t    callbackFct)
+    result_t Engine::initialize(std::shared_ptr<Model>              const & model,
+                                std::shared_ptr<AbstractController> const & controller,
+                                callbackFunctor_t                           callbackFct)
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!model.getIsInitialized())
+        if (!model->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
-        model_ = &model;
+        model_ = model;
 
         stepperState_.initialize(*model_);
 
-        if (!controller.getIsInitialized())
+        if (!controller->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Controller not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
         if (returnCode == result_t::SUCCESS)
         {
-            controller_ = &controller;
+            controller_ = controller;
         }
 
         // TODO: Check that the callback function is working as expected
@@ -827,7 +827,7 @@ namespace jiminy
             }
             else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
             && (std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS
-             || std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS))
+             && std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS))
             {
                 std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be multiple of each other if not infinite." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
@@ -913,9 +913,14 @@ namespace jiminy
         return isInitialized_;
     }
 
-    Model const & Engine::getModel(void) const
+    Model & Engine::getModel(void) const
     {
         return *model_;
+    }
+
+    AbstractController & Engine::getController(void) const
+    {
+        return *controller_;
     }
 
     stepperState_t const & Engine::getStepperState(void) const
@@ -1110,34 +1115,41 @@ namespace jiminy
 
         // Initialize the contact force
         vector3_t fextInWorld;
-        float64_t zGround = contactOptions_->zGround;
+        std::pair<float64_t, vector3_t> ground = engineOptions_->world.groundProfile(posFrame);
+        float64_t const & zGround = std::get<0>(ground);
+        vector3_t nGround = std::get<1>(ground);
+        nGround.normalize();
+        float64_t depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
-        if(posFrame(2) < zGround)
+        if(depth < 0.0)
         {
             // Get frame motion in the motion frame.
             vector3_t motionFrame = pinocchio::getFrameVelocity(model_->pncModel_,
                                                                 model_->pncData_,
                                                                 frameId).linear();
             vector3_t vFrameInWorld = tformFrameRot * motionFrame;
+            float64_t vDepth = vFrameInWorld.dot(nGround);
 
             // Compute normal force
-            float64_t damping = 0;
-            if(vFrameInWorld(2) < 0)
+            float64_t fextNormal = 0.0;
+            if(vDepth < 0.0)
             {
-                damping = -contactOptions_->damping * vFrameInWorld(2);
+                fextNormal -= contactOptions_->damping * vDepth;
             }
-            fextInWorld(2) = -contactOptions_->stiffness * (posFrame(2) - zGround) + damping;
+            fextNormal -= contactOptions_->stiffness * depth;
+            fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
-            Eigen::Vector2d const & vxy = vFrameInWorld.head<2>();
-            float64_t vNorm = vxy.norm();
-            float64_t frictionCoeff;
-            if(vNorm - contactOptions_->dryFrictionVelEps >= 0.0)
+            vector3_t vTangential = vFrameInWorld - vDepth * nGround;
+            float64_t vNorm = vTangential.norm();
+
+            float64_t frictionCoeff = 0.0;
+            if(vNorm >= contactOptions_->dryFrictionVelEps)
             {
                 if(vNorm < 1.5 * contactOptions_->dryFrictionVelEps)
                 {
-                    frictionCoeff = -2.0 * vNorm * (contactOptions_->frictionDry -
-                        contactOptions_->frictionViscous) / contactOptions_->dryFrictionVelEps
+                    frictionCoeff = -2.0 * (contactOptions_->frictionDry -
+                        contactOptions_->frictionViscous) * (vNorm / contactOptions_->dryFrictionVelEps)
                         + 3.0 * contactOptions_->frictionDry - 2.0*contactOptions_->frictionViscous;
                 }
                 else
@@ -1147,18 +1159,19 @@ namespace jiminy
             }
             else
             {
-                frictionCoeff = vNorm * contactOptions_->frictionDry /
-                    contactOptions_->dryFrictionVelEps;
+                frictionCoeff = contactOptions_->frictionDry *
+                    (vNorm / contactOptions_->dryFrictionVelEps);
             }
-            fextInWorld.head<2>() = -vxy * frictionCoeff * fextInWorld(2);
+            float64_t fextTangential = frictionCoeff * fextNormal;
+            fextInWorld += -fextTangential * vTangential;
 
-            // Make sure that the tangential force never exceeds 1e5 N for the sake of numerical stability
-            fextInWorld.head<2>() = clamp(fextInWorld.head<2>(), -1e5, 1e5);
+            // Make sure that the force never exceeds 1e5 N for the sake of numerical stability
+            fextInWorld = clamp(fextInWorld, -1e5, 1e5);
 
             // Add blending factor
             if (contactOptions_->transitionEps > EPS)
             {
-                float64_t blendingFactor = -(posFrame(2) - zGround) / contactOptions_->transitionEps;
+                float64_t blendingFactor = -depth / contactOptions_->transitionEps;
                 float64_t blendingLaw = std::tanh(2 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
@@ -1183,7 +1196,7 @@ namespace jiminy
         controller_->internalDynamics(t, q, v, u);
 
         // Enforce the position limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.usePositionLimit)
+        if (model_->mdlOptions_->joints.enablePositionLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
@@ -1234,7 +1247,7 @@ namespace jiminy
         }
 
         // Enforce the velocity limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.useVelocityLimit)
+        if (model_->mdlOptions_->joints.enableVelocityLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
@@ -1253,17 +1266,17 @@ namespace jiminy
                     float64_t const & vJointMin = -velocityLimitMin[jointIdxOffset];
                     float64_t const & vJointMax = velocityLimitMin[jointIdxOffset];
 
-                    float64_t forceJoint = 0;
-                    float64_t vJointError = 0;
+                    float64_t forceJoint = 0.0;
+                    float64_t vJointError = 0.0;
                     if (vJoint > vJointMax)
                     {
                         vJointError = vJoint - vJointMax;
-                        forceJoint = -engineJointOptions.boundDamping * std::max(vJoint, 0.0);
+                        forceJoint = -engineJointOptions.boundDamping * vJointError;
                     }
                     else if (vJoint < vJointMin)
                     {
                         vJointError = vJointMin - vJoint;
-                        forceJoint = -engineJointOptions.boundDamping * std::min(vJoint, 0.0);
+                        forceJoint = -engineJointOptions.boundDamping * vJointError;
                     }
 
                     if (engineJointOptions.boundTransitionEps > EPS)

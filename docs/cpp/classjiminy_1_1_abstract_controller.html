@@ -124,8 +124,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_abstract_controller.ht
 <div id="dynsection-1-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_abstract_controller__coll__graph.png" border="0" usemap="#jiminy_1_1_abstract_controller_coll__map" alt="Collaboration graph"/></div>
 <map name="jiminy_1_1_abstract_controller_coll__map" id="jiminy_1_1_abstract_controller_coll__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="5,181,168,464"/>
-<area shape="rect" id="node3" href="classjiminy_1_1_model.html" title="{jiminy::Model\n|+ pncModel_\l+ pncData_\l+ mdlOptions_\l+ contactForces_\l# isInitialized_\l# isTelemetryConfigured_\l# urdfPath_\l# hasFreeflyer_\l# mdlOptionsHolder_\l# telemetryData_\l# sensorsGroupHolder_\l# sensorTelemetryOptions_\l# contactFramesNames_\l# contactFramesIdx_\land 16 more...\l&#45; Engine\l&#45; pncModelRigidOrig_\l&#45; pncModelFlexibleOrig_\l&#45; sensorsDataHolder_\l&#45; nq_\l&#45; nv_\l&#45; nx_\l|+ Model()\l+ operator=()\l+ getDefaultJointOptions()\l+ getDefaultDynamicsOptions()\l+ getDefaultOptions()\l+ Model()\l+ ~Model()\l+ initialize()\l+ addSensor()\l+ removeSensor()\land 41 more...\l# reset()\l# configureTelemetry()\l# updateTelemetry()\l# loadUrdfModel()\l# generateFlexibleModel()\l# generateBiasedModel()\l# generateFieldNames()\l}" alt="" coords="193,5,399,640"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="20,5,183,288"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -156,9 +155,9 @@ virtual configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><a cla
 virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ab00879b7e7b3ac9f308ef83d79eeb7af">~AbstractController</a> (void)</td></tr>
 <tr class="memdesc:ab00879b7e7b3ac9f308ef83d79eeb7af"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destructor. <br /></td></tr>
 <tr class="separator:ab00879b7e7b3ac9f308ef83d79eeb7af"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa8cc556d612c0c19c76ca30cb71dc7b3"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aa8cc556d612c0c19c76ca30cb71dc7b3">initialize</a> (<a class="el" href="classjiminy_1_1_model.html">Model</a> const &amp;model)</td></tr>
-<tr class="memdesc:aa8cc556d612c0c19c76ca30cb71dc7b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the parameters of the controller.  <a href="#aa8cc556d612c0c19c76ca30cb71dc7b3">More...</a><br /></td></tr>
-<tr class="separator:aa8cc556d612c0c19c76ca30cb71dc7b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">initialize</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;model)</td></tr>
+<tr class="memdesc:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the parameters of the controller.  <a href="#ad6f65d16777cf71ccccf9e09ad79b1de">More...</a><br /></td></tr>
+<tr class="separator:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec45bfe282039396c0c8127598825634"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634">registerNewVectorEntry</a> (std::vector&lt; std::string &gt; const &amp;fieldNames, Eigen::Ref&lt; vectorN_t &gt; values)</td></tr>
 <tr class="memdesc:aec45bfe282039396c0c8127598825634"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamically registered a Eigen Vector to the telemetry.  <a href="#aec45bfe282039396c0c8127598825634">More...</a><br /></td></tr>
 <tr class="separator:aec45bfe282039396c0c8127598825634"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -208,10 +207,10 @@ Protected Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
-<tr class="memitem:aa8f6ff36e113edc83f0025dedf56f550"><td class="memItemLeft" align="right" valign="top"><a id="aa8f6ff36e113edc83f0025dedf56f550"></a>
-<a class="el" href="classjiminy_1_1_model.html">Model</a> const  *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aa8f6ff36e113edc83f0025dedf56f550">model_</a></td></tr>
-<tr class="memdesc:aa8f6ff36e113edc83f0025dedf56f550"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classjiminy_1_1_model.html">Model</a> of the system for which to compute the command and internal dynamics must be computed, as a raw pointer to avoid managing its deletion. <br /></td></tr>
-<tr class="separator:aa8f6ff36e113edc83f0025dedf56f550"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac8735fd81e737245344585ab1c3e8ee3"><td class="memItemLeft" align="right" valign="top"><a id="ac8735fd81e737245344585ab1c3e8ee3"></a>
+std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const  &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ac8735fd81e737245344585ab1c3e8ee3">model_</a></td></tr>
+<tr class="memdesc:ac8735fd81e737245344585ab1c3e8ee3"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classjiminy_1_1_model.html">Model</a> of the system for which to compute the command and internal dynamics must be computed. <br /></td></tr>
+<tr class="separator:ac8735fd81e737245344585ab1c3e8ee3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a18e209c2d6b32ff2d7abc9dced15e326"><td class="memItemLeft" align="right" valign="top"><a id="a18e209c2d6b32ff2d7abc9dced15e326"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a18e209c2d6b32ff2d7abc9dced15e326">isInitialized_</a></td></tr>
 <tr class="memdesc:a18e209c2d6b32ff2d7abc9dced15e326"><td class="mdescLeft">&#160;</td><td class="mdescRight">Flag to determine whether the controller has been initialized or not. <br /></td></tr>
@@ -424,8 +423,8 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 
 </div>
 </div>
-<a id="aa8cc556d612c0c19c76ca30cb71dc7b3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa8cc556d612c0c19c76ca30cb71dc7b3">&#9670;&nbsp;</a></span>initialize()</h2>
+<a id="ad6f65d16777cf71ccccf9e09ad79b1de"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad6f65d16777cf71ccccf9e09ad79b1de">&#9670;&nbsp;</a></span>initialize()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -433,7 +432,7 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
         <tr>
           <td class="memname">result_t jiminy::AbstractController::initialize </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="classjiminy_1_1_model.html">Model</a> const &amp;&#160;</td>
+          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;&#160;</td>
           <td class="paramname"><em>model</em></td><td>)</td>
           <td></td>
         </tr>

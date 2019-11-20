@@ -69,16 +69,18 @@ int main(int argc, char *argv[])
     std::vector<std::string> contacts;
     std::vector<std::string> motorNames = {std::string("SecondPendulumJoint")};
 
-    Model model;
-    configHolder_t mdlOptions = model.getOptions();
+    auto model = std::make_shared<Model>();
+    configHolder_t mdlOptions = model->getOptions();
     boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("positionLimitFromUrdf")) = true;
     boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
-    model.setOptions(mdlOptions);
-    model.initialize(urdfPath, contacts, motorNames, false);
+    model->setOptions(mdlOptions);
+    model->initialize(urdfPath, contacts, motorNames, false);
 
     // Instantiate and configuration the controller
-    ControllerFunctor<decltype(computeCommand), decltype(internalDynamics)> controller(computeCommand, internalDynamics);
-    controller.initialize(model);
+
+    auto controller = std::make_shared<ControllerFunctor<decltype(computeCommand),
+                                                         decltype(internalDynamics)> >(computeCommand, internalDynamics);
+    controller->initialize(model);
 
     // Instantiate and configuration the engine
     Engine engine;

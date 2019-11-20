@@ -177,6 +177,10 @@ namespace python
             {
                 configPy[name] = boost::get<std::string>(config.at(name));
             }
+            else if (optionType == typeid(heatMapFunctor_t))
+            {
+                configPy[name] = boost::get<heatMapFunctor_t>(config.at(name));
+            }
             else if (optionType == typeid(vectorN_t))
             {
                 configPy[name] = eigenVectorTolistPy(boost::get<vectorN_t>(config.at(name)));
@@ -351,6 +355,11 @@ namespace python
             else if (optionType == typeid(std::string))
             {
                  boost::get<std::string>(config.at(name)) = bp::extract<std::string>(configPy[name]);
+            }
+            else if (optionType == typeid(heatMapFunctor_t))
+            {
+                boost::get<heatMapFunctor_t>(config.at(name)) =
+                    bp::extract<heatMapFunctor_t>(configPy[name]);
             }
             else if (optionType == typeid(vectorN_t))
             {

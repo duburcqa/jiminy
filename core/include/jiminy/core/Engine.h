@@ -19,6 +19,7 @@
 #include <boost/numeric/odeint.hpp>
 #include <boost/numeric/odeint/external/eigen/eigen_algebra.hpp>
 
+
 namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
@@ -168,13 +169,14 @@ namespace jiminy
 
     class Engine
     {
-    protected:
+    public:
         typedef std::function<vector3_t(float64_t const & /*t*/,
-                                        vectorN_t const & /*x*/)> forceFunctor_t;
+                                        vectorN_t const & /*x*/)> forceFunctor_t; // Impossible to use function pointer since it does not support functors
 
         typedef std::function<bool(float64_t const & /*t*/,
-                                   vectorN_t const & /*x*/)> callbackFunctor_t;
+                                   vectorN_t const & /*x*/)> callbackFunctor_t; // Impossible to use function pointer since it does not support functors
 
+    protected:
         typedef runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra> rungeKuttaStepper_t;
 
         typedef boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler> stepper_t;
@@ -194,7 +196,6 @@ namespace jiminy
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;
-            config["zGround"] = 0.0;
 
             return config;
         };
@@ -207,7 +208,6 @@ namespace jiminy
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
-            float64_t const zGround;
 
             contactOptions_t(configHolder_t const & options) :
             frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
@@ -215,8 +215,7 @@ namespace jiminy
             dryFrictionVelEps(boost::get<float64_t>(options.at("dryFrictionVelEps"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps"))),
-            zGround(boost::get<float64_t>(options.at("zGround")))
+            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
             {
                 // Empty.
             }
@@ -226,7 +225,7 @@ namespace jiminy
         {
             configHolder_t config;
             config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 1.0e2;
+            config["boundDamping"] = 1.0e4;
             config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
 
             return config;
@@ -251,6 +250,11 @@ namespace jiminy
         {
             configHolder_t config;
             config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
+            config["groundProfile"] = heatMapFunctor_t(
+                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                {
+                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
+                });
 
             return config;
         };
@@ -258,9 +262,11 @@ namespace jiminy
         struct worldOptions_t
         {
             vectorN_t const gravity;
+            heatMapFunctor_t const groundProfile;
 
             worldOptions_t(configHolder_t const & options) :
-            gravity(boost::get<vectorN_t>(options.at("gravity")))
+            gravity(boost::get<vectorN_t>(options.at("gravity"))),
+            groundProfile(boost::get<heatMapFunctor_t>(options.at("groundProfile")))
             {
                 // Empty.
             }
@@ -374,8 +380,8 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        result_t initialize(Model              & model,
-                            AbstractController & controller,
+        result_t initialize(std::shared_ptr<Model>              const & model,
+                            std::shared_ptr<AbstractController> const & controller,
                             callbackFunctor_t    callbackFct);
 
         void reset(bool const & resetDynamicForceRegister = false);
@@ -398,7 +404,8 @@ namespace jiminy
         result_t setOptions(configHolder_t const & engineOptions);
         bool getIsInitialized(void) const;
         bool getIsTelemetryConfigured(void) const;
-        Model const & getModel(void) const;
+        Model & getModel(void) const;
+        AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
         result_t getLogData(std::vector<std::string> & header,
@@ -468,8 +475,8 @@ namespace jiminy
     protected:
         bool isInitialized_;
         bool isTelemetryConfigured_;
-        Model * model_;
-        AbstractController * controller_;
+        std::shared_ptr<Model> model_;
+        std::shared_ptr<AbstractController> controller_;
         configHolder_t engineOptionsHolder_;
         callbackFunctor_t callbackFct_;
 

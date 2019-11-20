@@ -1,7 +1,7 @@
 var searchData=
 [
   ['imusensor',['ImuSensor',['../classjiminy_1_1_imu_sensor.html',1,'jiminy']]],
-  ['initialize',['initialize',['../classjiminy_1_1_abstract_controller.html#aa8cc556d612c0c19c76ca30cb71dc7b3',1,'jiminy::AbstractController::initialize()'],['../classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492',1,'jiminy::TelemetryRecorder::initialize()']]],
+  ['initialize',['initialize',['../classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de',1,'jiminy::AbstractController::initialize()'],['../classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492',1,'jiminy::TelemetryRecorder::initialize()']]],
   ['intbufferpositon_5f',['intBufferPositon_',['../classjiminy_1_1_telemetry_sender.html#a1925899b84cf2f2879b501246119d396',1,'jiminy::TelemetrySender']]],
   ['integersaddress_5f',['integersAddress_',['../classjiminy_1_1_telemetry_recorder.html#a48280dde5f9cabc08fddbec30ea123a1',1,'jiminy::TelemetryRecorder']]],
   ['integersectionsize_5f',['integerSectionSize_',['../classjiminy_1_1_telemetry_recorder.html#a992ff91dfa865270918d2560d3370081',1,'jiminy::TelemetryRecorder']]],

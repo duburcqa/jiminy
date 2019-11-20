@@ -80,7 +80,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t initialize(Model const & model);
+        result_t initialize(std::shared_ptr<Model const> const & model);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -262,11 +262,11 @@ namespace jiminy
         std::unique_ptr<controllerOptions_t const> ctrlOptions_;    ///< Structure with the parameters of the controller
 
     protected:
-        Model const * model_;               ///< Model of the system for which to compute the command and internal dynamics must be computed, as a raw pointer to avoid managing its deletion
-        bool isInitialized_;                ///< Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;        ///< Flag to determine whether the telemetry of the controller has been initialized or not
-        configHolder_t ctrlOptionsHolder_;  ///< Dictionary with the parameters of the controller
-        TelemetrySender telemetrySender_;   ///< Telemetry sender of the controller used to register and update telemetry variables
+        std::shared_ptr<Model const> model_;    ///< Model of the system for which to compute the command and internal dynamics must be computed
+        bool isInitialized_;                    ///< Flag to determine whether the controller has been initialized or not
+        bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
+        TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
         std::vector<std::pair<std::string, float64_t const *> > registeredInfo_;    ///< Vector of dynamically registered telemetry variables
     };
 }

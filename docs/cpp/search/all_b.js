@@ -11,6 +11,6 @@ var searchData=
   ['model',['Model',['../classjiminy_1_1_model.html',1,'jiminy']]],
   ['model_2ecc',['Model.cc',['../_model_8cc.html',1,'']]],
   ['model_2eh',['Model.h',['../_model_8h.html',1,'']]],
-  ['model_5f',['model_',['../classjiminy_1_1_abstract_controller.html#aa8f6ff36e113edc83f0025dedf56f550',1,'jiminy::AbstractController::model_()'],['../classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b',1,'jiminy::AbstractSensorBase::model_()']]],
+  ['model_5f',['model_',['../classjiminy_1_1_abstract_controller.html#ac8735fd81e737245344585ab1c3e8ee3',1,'jiminy::AbstractController::model_()'],['../classjiminy_1_1_abstract_sensor_base.html#ae9ca0dd02a3c3d7b03c3f17410ba059b',1,'jiminy::AbstractSensorBase::model_()']]],
   ['modeloptions_5ft',['modelOptions_t',['../structjiminy_1_1_model_1_1model_options__t.html',1,'jiminy::Model']]]
 ];

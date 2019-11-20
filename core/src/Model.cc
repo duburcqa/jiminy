@@ -16,6 +16,8 @@ namespace jiminy
     Model::Model(void) :
     pncModel_(),
     pncData_(pncModel_),
+    pncModelRigidOrig_(),
+    pncDataRigidOrig_(pncModelRigidOrig_),
     mdlOptions_(nullptr),
     contactForces_(),
     isInitialized_(false),
@@ -45,7 +47,6 @@ namespace jiminy
     velocityFieldNames_(),
     accelerationFieldNames_(),
     motorTorqueFieldNames_(),
-    pncModelRigidOrig_(),
     pncModelFlexibleOrig_(),
     sensorsDataHolder_(),
     nq_(0),
@@ -84,8 +85,9 @@ namespace jiminy
                 contactFramesNames_.size(),
                 pinocchio::Force::Zero());
 
-            //Backup the original model
+            // Backup the original model and data
             pncModelRigidOrig_ = pncModel_;
+            pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
 
             /* Get the list of joint names of the rigid model and
                remove the 'universe' and 'root' if any, since there
@@ -458,7 +460,7 @@ namespace jiminy
         if(returnCode == result_t::SUCCESS)
         {
             pncModel_.rotorInertia.setConstant(0.0);
-            if (mdlOptions_->joints.useMotorInertia)
+            if (mdlOptions_->joints.enableMotorInertia)
             {
                 for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
                 {
@@ -889,7 +891,7 @@ namespace jiminy
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
             }
-            if (boost::get<bool>(jointOptionsHolder.at("useMotorInertia")))
+            if (boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")))
             {
                 vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
                 if((int32_t) motorsVelocityIdx_.size() != motorInertia.size())
