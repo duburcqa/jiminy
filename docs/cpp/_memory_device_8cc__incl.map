@@ -1,6 +1,6 @@
 <map id="core/src/MemoryDevice.cc" name="core/src/MemoryDevice.cc">
-<area shape="rect" id="node3" href="$_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="247,80,435,107"/>
-<area shape="rect" id="node4" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="239,155,443,181"/>
-<area shape="rect" id="node6" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="273,229,409,256"/>
-<area shape="rect" id="node12" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="475,229,623,256"/>
+<area shape="rect" id="node3" href="$_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="340,80,528,107"/>
+<area shape="rect" id="node4" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="332,155,536,181"/>
+<area shape="rect" id="node6" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="366,229,502,256"/>
+<area shape="rect" id="node13" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="669,229,817,256"/>
 </map>

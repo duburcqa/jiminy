@@ -14,6 +14,7 @@ var _types_8h =
     [ "matrixN_t", "_types_8h.html#a85aec56be3b2951cce4a46312446eb9b", null ],
     [ "quaternion_t", "_types_8h.html#ae737d8f78f5549c2d56dccc0e798d74a", null ],
     [ "rowN_t", "_types_8h.html#a52034259c8ee927e36522c0206361ef9", null ],
+    [ "sensorsDataMap_t", "_types_8h.html#ae66c201a4b6427095630a7b55531d0c7", null ],
     [ "vector3_t", "_types_8h.html#a971a5a377f5a25f2af8f17f83fc610cd", null ],
     [ "vector6_t", "_types_8h.html#ac4696e847f143dcda3f8c766be6e0b65", null ],
     [ "vectorN_t", "_types_8h.html#a0139e2dfe798c299c65ff33b2059b9e0", null ],

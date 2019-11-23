@@ -18,7 +18,7 @@ var classjiminy_1_1_abstract_controller =
     [ "removeEntries", "classjiminy_1_1_abstract_controller.html#aca8a68d40ab788576acb84e46b621142", null ],
     [ "reset", "classjiminy_1_1_abstract_controller.html#adc62ef8d02e3f5a265e93915e2bdd271", null ],
     [ "setOptions", "classjiminy_1_1_abstract_controller.html#a297f577b2b1d53892e15b246f4f22639", null ],
-    [ "updateTelemetry", "classjiminy_1_1_abstract_controller.html#a89768b5599cf476faf6c1b64bb207925", null ],
+    [ "updateTelemetry", "classjiminy_1_1_abstract_controller.html#ad1810de841e2bb2d89d0d190ab2208ab", null ],
     [ "ctrlOptions_", "classjiminy_1_1_abstract_controller.html#a5998e752095c7178fa640f213dde7945", null ],
     [ "ctrlOptionsHolder_", "classjiminy_1_1_abstract_controller.html#abe66065d0a166d750272b4543f466a3a", null ],
     [ "Engine", "classjiminy_1_1_abstract_controller.html#a16ea1e3fd0c9aa7a76fc44795b99c793", null ],

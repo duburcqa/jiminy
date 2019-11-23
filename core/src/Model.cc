@@ -1024,34 +1024,50 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Model::getSensorsData(std::vector<matrixN_t> & data) const
+    void Model::getSensorsData(sensorsDataMap_t & data) const
     {
-        result_t returnCode = result_t::SUCCESS;
-
-        data.resize(sensorsGroupHolder_.size());
-        sensorsGroupHolder_t::const_iterator sensorGroupIt = sensorsGroupHolder_.begin();
-        for (uint32_t i = 0; i<sensorsGroupHolder_.size(); ++i)
+        data.clear();
+        for (auto & sensorGroupIt : sensorsGroupHolder_)
         {
-            if (returnCode == result_t::SUCCESS)
+            sensorsDataMap_t::mapped_type dataType;
+            std::vector<uint32_t> sensorsId;
+            for (auto & sensorIt : sensorGroupIt.second)
             {
-                returnCode = sensorGroupIt->second.begin()->second->getAll(data[i]);
-                ++sensorGroupIt;
+                dataType.emplace_back(std::piecewise_construct,
+                                      std::forward_as_tuple(sensorIt.first),
+                                      std::forward_as_tuple(sensorIt.second->get()));
+                sensorsId.emplace_back(sensorIt.second->getId());
             }
+
+            std::vector<uint32_t> sensorsIdReverse(sensorsId.size());
+            iota(sensorsIdReverse.begin(), sensorsIdReverse.end(), 0);
+            sort(sensorsIdReverse.begin(),
+                 sensorsIdReverse.end(),
+                 [&sensorsId](size_t i1, size_t i2)
+                 {
+                     return sensorsId[i1] < sensorsId[i2];
+                 });
+            sensorsDataMap_t::mapped_type dataTypeOrdered;
+            for (uint32_t i = 0; i<sensorsId.size(); ++i)
+            {
+                dataTypeOrdered.emplace_back(std::move(dataType[sensorsIdReverse[i]]));
+            }
+
+            data.emplace(std::piecewise_construct,
+                         std::forward_as_tuple(sensorGroupIt.first),
+                         std::forward_as_tuple(dataTypeOrdered));
         }
-        return returnCode;
     }
 
-    result_t Model::getSensorsData(std::string const & sensorType,
-                                   matrixN_t         & data) const
+    matrixN_t Model::getSensorsData(std::string const & sensorType) const
     {
-        return sensorsGroupHolder_.at(sensorType).begin()->second->getAll(data);
+        return sensorsGroupHolder_.at(sensorType).begin()->second->getAll();
     }
 
-    result_t Model::getSensorData(std::string const & sensorType,
-                                  std::string const & sensorName,
-                                  vectorN_t         & data) const
+    vectorN_t const & Model::getSensorData(std::string const & sensorType,
+                                           std::string const & sensorName) const
     {
-        return sensorsGroupHolder_.at(sensorType).at(sensorName)->get(data);
+        return *sensorsGroupHolder_.at(sensorType).at(sensorName)->get();
     }
 
     void Model::setSensorsData(float64_t const & t,

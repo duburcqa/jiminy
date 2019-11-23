@@ -159,7 +159,6 @@ namespace jiminy
         forceVector_t fExternal;
         float64_t energy; ///< Energy of the system (kinetic + potential)
 
-    public:
         uint32_t nx_;
         uint32_t nq_;
         uint32_t nv_;

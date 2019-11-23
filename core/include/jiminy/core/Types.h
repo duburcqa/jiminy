@@ -11,6 +11,8 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <boost/variant.hpp>
+#include <boost/functional/hash.hpp>
+
 
 namespace jiminy
 {
@@ -53,6 +55,8 @@ namespace jiminy
                                           heatMapFunctor_t,
                                           std::unordered_map<std::string, boost::recursive_variant_> >::type configField_t;
     typedef std::unordered_map<std::string, configField_t> configHolder_t;
+
+    typedef std::unordered_map<std::string, std::vector<std::pair<std::string, vectorN_t const *> > > sensorsDataMap_t;
 }
 
 #endif  // WDC_OPTIMAL_TYPES_H

@@ -92,7 +92,6 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_controller_functor.htm
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="#pri-methods">Private Member Functions</a> &#124;
 <a href="#pri-attribs">Private Attributes</a> &#124;
 <a href="classjiminy_1_1_controller_functor-members.html">List of all members</a>  </div>
   <div class="headertitle">
@@ -140,6 +139,9 @@ Public Member Functions</h2></td></tr>
 &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_controller_functor.html#a5493f8d1bec1d80f6a0eb94d94a089b8">~ControllerFunctor</a> (void)</td></tr>
 <tr class="memdesc:a5493f8d1bec1d80f6a0eb94d94a089b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destructor. <br /></td></tr>
 <tr class="separator:a5493f8d1bec1d80f6a0eb94d94a089b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae69da657b8860249a7a594f55ff066da"><td class="memItemLeft" align="right" valign="top">virtual result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_controller_functor.html#ae69da657b8860249a7a594f55ff066da">initialize</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;model) override</td></tr>
+<tr class="memdesc:ae69da657b8860249a7a594f55ff066da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the parameters of the controller.  <a href="#ae69da657b8860249a7a594f55ff066da">More...</a><br /></td></tr>
+<tr class="separator:ae69da657b8860249a7a594f55ff066da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a087f92f1c9dcdc90bf6029b667dd32ce"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_controller_functor.html#a087f92f1c9dcdc90bf6029b667dd32ce">computeCommand</a> (float64_t const &amp;t, vectorN_t const &amp;q, vectorN_t const &amp;v, vectorN_t &amp;u) override</td></tr>
 <tr class="memdesc:a087f92f1c9dcdc90bf6029b667dd32ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compute the command.  <a href="#a087f92f1c9dcdc90bf6029b667dd32ce">More...</a><br /></td></tr>
 <tr class="separator:a087f92f1c9dcdc90bf6029b667dd32ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -166,9 +168,6 @@ virtual configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><a cla
 virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ab00879b7e7b3ac9f308ef83d79eeb7af">~AbstractController</a> (void)</td></tr>
 <tr class="memdesc:ab00879b7e7b3ac9f308ef83d79eeb7af inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destructor. <br /></td></tr>
 <tr class="separator:ab00879b7e7b3ac9f308ef83d79eeb7af inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad6f65d16777cf71ccccf9e09ad79b1de inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">initialize</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;model)</td></tr>
-<tr class="memdesc:ad6f65d16777cf71ccccf9e09ad79b1de inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the parameters of the controller.  <a href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">More...</a><br /></td></tr>
-<tr class="separator:ad6f65d16777cf71ccccf9e09ad79b1de inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec45bfe282039396c0c8127598825634 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634">registerNewVectorEntry</a> (std::vector&lt; std::string &gt; const &amp;fieldNames, Eigen::Ref&lt; vectorN_t &gt; values)</td></tr>
 <tr class="memdesc:aec45bfe282039396c0c8127598825634 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamically registered a Eigen Vector to the telemetry.  <a href="classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634">More...</a><br /></td></tr>
 <tr class="separator:aec45bfe282039396c0c8127598825634 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -191,12 +190,6 @@ virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <tr class="memdesc:a8f9235e51ff8ee690929ab9a9479edc5 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get isTelemetryConfigured_.  <a href="classjiminy_1_1_abstract_controller.html#a8f9235e51ff8ee690929ab9a9479edc5">More...</a><br /></td></tr>
 <tr class="separator:a8f9235e51ff8ee690929ab9a9479edc5 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-methods"></a>
-Private Member Functions</h2></td></tr>
-<tr class="memitem:a9c38fe94eafcb333f4a6dd6150337bde"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_controller_functor.html#a9c38fe94eafcb333f4a6dd6150337bde">configureTelemetry</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_telemetry_data.html">TelemetryData</a> &gt; const &amp;telemetryData)</td></tr>
-<tr class="memdesc:a9c38fe94eafcb333f4a6dd6150337bde"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure the telemetry of the controller.  <a href="#a9c38fe94eafcb333f4a6dd6150337bde">More...</a><br /></td></tr>
-<tr class="separator:a9c38fe94eafcb333f4a6dd6150337bde"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr class="memitem:a6db9b508329fd067feda251c42f017a2"><td class="memItemLeft" align="right" valign="top"><a id="a6db9b508329fd067feda251c42f017a2"></a>
@@ -205,9 +198,9 @@ std::conditional_t&lt; std::is_function&lt; F1 &gt;::value, std::add_pointer_t&l
 <tr class="memitem:a48d2afd8133feb148d3227bd2f4f6ef9"><td class="memItemLeft" align="right" valign="top"><a id="a48d2afd8133feb148d3227bd2f4f6ef9"></a>
 std::conditional_t&lt; std::is_function&lt; F2 &gt;::value, std::add_pointer_t&lt; F2 &gt;, F2 &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>internalDynamicsFct_</b></td></tr>
 <tr class="separator:a48d2afd8133feb148d3227bd2f4f6ef9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3c0729371eb8a2bee317d41b48731736"><td class="memItemLeft" align="right" valign="top"><a id="a3c0729371eb8a2bee317d41b48731736"></a>
-std::vector&lt; matrixN_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>sensorsData_</b></td></tr>
-<tr class="separator:a3c0729371eb8a2bee317d41b48731736"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac46aa84c57ac7e54010b7d50dfa53b53"><td class="memItemLeft" align="right" valign="top"><a id="ac46aa84c57ac7e54010b7d50dfa53b53"></a>
+sensorsDataMap_t&#160;</td><td class="memItemRight" valign="bottom"><b>sensorsData_</b></td></tr>
+<tr class="separator:ac46aa84c57ac7e54010b7d50dfa53b53"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="inherited"></a>
 Additional Inherited Members</h2></td></tr>
@@ -217,12 +210,12 @@ std::unique_ptr&lt; <a class="el" href="structjiminy_1_1_abstract_controller_1_1
 <tr class="memdesc:a5998e752095c7178fa640f213dde7945 inherit pub_attribs_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Structure with the parameters of the controller. <br /></td></tr>
 <tr class="separator:a5998e752095c7178fa640f213dde7945 inherit pub_attribs_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pro_methods_classjiminy_1_1_abstract_controller"><td colspan="2" onclick="javascript:toggleInherit('pro_methods_classjiminy_1_1_abstract_controller')"><img src="closed.png" alt="-"/>&#160;Protected Member Functions inherited from <a class="el" href="classjiminy_1_1_abstract_controller.html">jiminy::AbstractController</a></td></tr>
-<tr class="memitem:a264d589b2af254f821a9cddac7a78633 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a264d589b2af254f821a9cddac7a78633">configureTelemetry</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_telemetry_data.html">TelemetryData</a> &gt; const &amp;telemetryData)</td></tr>
+<tr class="memitem:a264d589b2af254f821a9cddac7a78633 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">virtual result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a264d589b2af254f821a9cddac7a78633">configureTelemetry</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_telemetry_data.html">TelemetryData</a> &gt; const &amp;telemetryData)</td></tr>
 <tr class="memdesc:a264d589b2af254f821a9cddac7a78633 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure the telemetry of the controller.  <a href="classjiminy_1_1_abstract_controller.html#a264d589b2af254f821a9cddac7a78633">More...</a><br /></td></tr>
 <tr class="separator:a264d589b2af254f821a9cddac7a78633 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a89768b5599cf476faf6c1b64bb207925 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a89768b5599cf476faf6c1b64bb207925">updateTelemetry</a> (void)</td></tr>
-<tr class="memdesc:a89768b5599cf476faf6c1b64bb207925 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Update the internal buffers of the telemetry associated with variables monitored by the controller.  <a href="classjiminy_1_1_abstract_controller.html#a89768b5599cf476faf6c1b64bb207925">More...</a><br /></td></tr>
-<tr class="separator:a89768b5599cf476faf6c1b64bb207925 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad1810de841e2bb2d89d0d190ab2208ab inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ad1810de841e2bb2d89d0d190ab2208ab">updateTelemetry</a> (float64_t const &amp;t, vectorN_t const &amp;q, vectorN_t const &amp;v)</td></tr>
+<tr class="memdesc:ad1810de841e2bb2d89d0d190ab2208ab inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Update the internal buffers of the telemetry associated with variables monitored by the controller.  <a href="classjiminy_1_1_abstract_controller.html#ad1810de841e2bb2d89d0d190ab2208ab">More...</a><br /></td></tr>
+<tr class="separator:ad1810de841e2bb2d89d0d190ab2208ab inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adc62ef8d02e3f5a265e93915e2bdd271 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#adc62ef8d02e3f5a265e93915e2bdd271">reset</a> (bool const &amp;resetDynamicTelemetry=false)</td></tr>
 <tr class="memdesc:adc62ef8d02e3f5a265e93915e2bdd271 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reset the internal state of the controller.  <a href="classjiminy_1_1_abstract_controller.html#adc62ef8d02e3f5a265e93915e2bdd271">More...</a><br /></td></tr>
 <tr class="separator:adc62ef8d02e3f5a265e93915e2bdd271 inherit pro_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -365,8 +358,8 @@ template&lt;typename F1 , typename F2 &gt; </div>
 
 </div>
 </div>
-<a id="a9c38fe94eafcb333f4a6dd6150337bde"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9c38fe94eafcb333f4a6dd6150337bde">&#9670;&nbsp;</a></span>configureTelemetry()</h2>
+<a id="ae69da657b8860249a7a594f55ff066da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae69da657b8860249a7a594f55ff066da">&#9670;&nbsp;</a></span>initialize()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -377,29 +370,30 @@ template&lt;typename F1 , typename F2 &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">result_t <a class="el" href="classjiminy_1_1_controller_functor.html">jiminy::ControllerFunctor</a>&lt; F1, F2 &gt;::configureTelemetry </td>
+          <td class="memname">virtual result_t <a class="el" href="classjiminy_1_1_controller_functor.html">jiminy::ControllerFunctor</a>&lt; F1, F2 &gt;::initialize </td>
           <td>(</td>
-          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_telemetry_data.html">TelemetryData</a> &gt; const &amp;&#160;</td>
-          <td class="paramname"><em>telemetryData</em></td><td>)</td>
+          <td class="paramtype">std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;&#160;</td>
+          <td class="paramname"><em>model</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">private</span></span>  </td>
+<span class="mlabels"><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
 
-<p>Configure the telemetry of the controller. </p>
-<p>This method connects the controller-specific telemetry sender to a given telemetry data (which is unique for a given model), so that it is later possible to register the variables that one want to monitor. Finally, the telemetry recoder logs every registered variables at each timestep in a memory buffer.</p>
+<p>Set the parameters of the controller. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramdir">[in]</td><td class="paramname">telemetryData</td><td>Shared pointer to the model-wide telemetry data object</td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">model</td><td><a class="el" href="classjiminy_1_1_model.html">Model</a> of the system</td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
+
+<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">jiminy::AbstractController</a>.</p>
 
 </div>
 </div>

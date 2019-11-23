@@ -224,7 +224,7 @@ namespace jiminy
         {
             telemetrySender_.updateValue<float64_t>("energy", stepperStateLast_.energy);
         }
-        controller_->updateTelemetry();
+        controller_->updateTelemetry(stepperState_.t, q, v);
         model_->updateTelemetry();
 
         // Flush the telemetry internal state
@@ -491,7 +491,7 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
 
-        if (tEnd - stepperState_.t < MIN_TIME_STEP)
+        if (tEnd > EPS && tEnd - stepperState_.t < MIN_TIME_STEP)
         {
             std::cout << "Error - Engine::step - The final time must be larger than the current time." << std::endl;
             return result_t::ERROR_BAD_INPUT;

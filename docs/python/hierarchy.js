@@ -1,14 +1,15 @@
 var hierarchy =
 [
-    [ "jiminy::python::ControllerFctWrapperN< N, class >", "structjiminy_1_1python_1_1ControllerFctWrapperN.html", null ],
-    [ "jiminy::python::ControllerFctWrapperN< N, std::index_sequence< Is... > >", "structjiminy_1_1python_1_1ControllerFctWrapperN_3_01N_00_01std_1_1index__sequence_3_01Is_8_8_8_01_4_01_4.html", null ],
+    [ "jiminy::python::ControllerFctWrapper", "structjiminy_1_1python_1_1ControllerFctWrapper.html", null ],
     [ "def_visitor", null, [
       [ "jiminy::python::HeatMapFunctorVisitor", "structjiminy_1_1python_1_1HeatMapFunctorVisitor.html", null ],
       [ "jiminy::python::PyAbstractControllerVisitor", "structjiminy_1_1python_1_1PyAbstractControllerVisitor.html", null ],
+      [ "jiminy::python::PyControllerFunctorVisitor", "structjiminy_1_1python_1_1PyControllerFunctorVisitor.html", null ],
       [ "jiminy::python::PyEngineVisitor", "structjiminy_1_1python_1_1PyEngineVisitor.html", null ],
       [ "jiminy::python::PyModelVisitor", "structjiminy_1_1python_1_1PyModelVisitor.html", null ],
       [ "jiminy::python::PySensorVisitor", "structjiminy_1_1python_1_1PySensorVisitor.html", null ],
-      [ "jiminy::python::PyStepperVisitor", "structjiminy_1_1python_1_1PyStepperVisitor.html", null ]
+      [ "jiminy::python::PyStepperVisitor", "structjiminy_1_1python_1_1PyStepperVisitor.html", null ],
+      [ "jiminy::python::SensorsDataMapVisitor", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html", null ]
     ] ],
     [ "Env", null, [
       [ "gym_jiminy.common.gym_jiminy_robots.RobotJiminyEnv", "classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyEnv.html", [

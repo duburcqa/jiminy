@@ -83,7 +83,6 @@ namespace jiminy
         virtual configHolder_t getDefaultOptions(void)
         {
             configHolder_t config;
-            config["rawData"] = false;
             config["noiseStd"] = vectorN_t();
             config["bias"] = vectorN_t();
             config["delay"] = 0.0;
@@ -94,14 +93,12 @@ namespace jiminy
 
         struct abstractSensorOptions_t
         {
-            bool      const rawData;    ///< Flag to enable raw sensor data instead of the pre-processed one (#TODO raw mode not available)
             vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
             vectorN_t const bias;       ///< Bias of the sensor
             float64_t const delay;      ///< Delay of the sensor
             uint32_t  const delayInterpolationOrder; ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
-            rawData(boost::get<bool>(options.at("rawData"))),
             noiseStd(boost::get<vectorN_t>(options.at("noiseStd"))),
             bias(boost::get<vectorN_t>(options.at("bias"))),
             delay(boost::get<float64_t>(options.at("delay"))),
@@ -152,14 +149,12 @@ namespace jiminy
         ///             is used to compute the delayed measurement based on a buffer of previously
         ///             recorded non-delayed data.
         ///
-        /// \param[out] data   Eigen reference to a Eigen Vector where to store of sensor measurement.
-        ///                    It can be an actual vectorN_t, or the extraction of a column vector from
-        ///                    a higher dimensional tensor.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
+        /// \return     Eigen reference to a Eigen Vector where to store of sensor measurement.
+        ///             It can be an actual vectorN_t, or the extraction of a column vector from
+        ///             a higher dimensional tensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t get(Eigen::Ref<vectorN_t> data) = 0;
+        virtual vectorN_t const * get(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -171,12 +166,10 @@ namespace jiminy
         ///             is used to compute the delayed measurement based on a buffer of previously
         ///             recorded non-delayed data.
         ///
-        /// \param[out] data   Eigen matrix where to store of measurement of all the sensors.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
+        /// \return     Eigen matrix where to store of measurement of all the sensors.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t getAll(matrixN_t & data) = 0;
+        virtual matrixN_t getAll(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -239,6 +232,15 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Get sensorId_.
+        ///
+        /// \details    It is the identifier of the sensor.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual uint32_t const & getId(void) const = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Get type_.
         ///
         /// \details    It is the type of the sensor.
@@ -248,11 +250,14 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Get the name of each element of the data measured by the sensor
+        /// \brief      It is the size of the sensor's data vector.
         ///
-        /// \details    It depends on the type of output of the sensor, which is defined by the
-        ///             configuration options of the sensor. More precisely, it is different whether
-        ///             `rawData` is True or False.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual uint32_t getSize(void) const = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Get the name of each element of the data measured by the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual std::vector<std::string> const & getFieldNames(void) const = 0;
@@ -349,7 +354,7 @@ namespace jiminy
         /// \return     Eigen Reference to a Eigen Vector corresponding to the last data recorded
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t::ColXpr data(void) = 0;
+        virtual Eigen::Ref<vectorN_t> data(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -385,6 +390,11 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual std::string getTelemetryName(void) const = 0;
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Update the measurement buffer.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t updateDataBuffer(void) = 0;
+
     public:
         std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; ///< Structure with the parameters of the sensor
 
@@ -398,7 +408,6 @@ namespace jiminy
     private:
         std::string name_;                      ///< Name of the sensor
         vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
-        bool isDataUpToDate_;                   ///< Flag to determine whether the measurement buffer ois update-to-date or not
     };
 
     template<class T>
@@ -419,12 +428,13 @@ namespace jiminy
 
         virtual void setOptions(configHolder_t const & sensorOptions) override;
         virtual void setOptionsAll(configHolder_t const & sensorOptions) override;
+        virtual uint32_t const & getId(void) const override;
         virtual std::string const & getType(void) const override;
         std::vector<std::string> const & getFieldNames(void) const;
-        uint32_t getSize(void) const;
+        virtual uint32_t getSize(void) const override;
 
-        virtual result_t get(Eigen::Ref<vectorN_t> data) override; // Eigen::Ref<vectorN_t> = anything that looks like a vectorN_t
-        virtual result_t getAll(matrixN_t & data) override;
+        virtual vectorN_t const * get(void) override;
+        virtual matrixN_t getAll(void) override;
         virtual result_t setAll(float64_t const & t,
                                 vectorN_t const & q,
                                 vectorN_t const & v,
@@ -435,13 +445,15 @@ namespace jiminy
     protected:
         virtual std::string getTelemetryName(void) const override;
 
-        virtual matrixN_t::ColXpr data(void) override;
+        virtual Eigen::Ref<vectorN_t> data(void) override;
+
+    private:
+        virtual result_t updateDataBuffer(void) override;
 
     public:
         static std::string const type_;
         static bool const areFieldNamesGrouped_;
-        static std::vector<std::string> const fieldNamesPostProcess_;
-        static std::vector<std::string> const fieldNamesPreProcess_;
+        static std::vector<std::string> const fieldNames_;
         static float64_t delayMax_;
 
     private:

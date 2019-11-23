@@ -4,9 +4,6 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
-// Define the maximum number of sensor types that can accept the 'ControllerFunctor' Python bindings
-#define  PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES 6
-
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
@@ -62,13 +59,11 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>, stdVectorToListPyConverter<matrixN_t> >();
 
         // Expose classes
+        jiminy::python::SensorsDataMapVisitor::expose();
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
-        bp::def("ControllerFunctor",
-                ControllerFunctorPyFactory,
-                (bp::arg("command_handle"), "internal_dynamics_handle", bp::arg("nb_sensor_types")=-1),
-                bp::return_value_policy<bp::manage_new_object>());
+        jiminy::python::PyControllerFunctorVisitor::expose();
         jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::PyStepperVisitor::expose();
         jiminy::python::PyEngineVisitor::expose();

@@ -166,12 +166,12 @@ Public Attributes</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr class="memitem:a3342f3872e6c9a757ec4d98b54834eba"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a3342f3872e6c9a757ec4d98b54834eba">_send_command</a> (self, t, q, v, args)</td></tr>
-<tr class="memdesc:a3342f3872e6c9a757ec4d98b54834eba"><td class="mdescLeft">&#160;</td><td class="mdescRight">This method implement the callback function required by Jiminy Controller to get the command.  <a href="#a3342f3872e6c9a757ec4d98b54834eba">More...</a><br /></td></tr>
-<tr class="separator:a3342f3872e6c9a757ec4d98b54834eba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afdc33cf3cbf32453ecb53266c6e74310"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#afdc33cf3cbf32453ecb53266c6e74310">_internal_dynamics</a> (self, t, q, v, args)</td></tr>
-<tr class="memdesc:afdc33cf3cbf32453ecb53266c6e74310"><td class="mdescLeft">&#160;</td><td class="mdescRight">This method implement the callback function required by Jiminy Controller to get the internal dynamics.  <a href="#afdc33cf3cbf32453ecb53266c6e74310">More...</a><br /></td></tr>
-<tr class="separator:afdc33cf3cbf32453ecb53266c6e74310"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0b94c14524c5207d25c8739e26ac547a"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a0b94c14524c5207d25c8739e26ac547a">_send_command</a> (self, t, q, v, sensor_data, uCommand)</td></tr>
+<tr class="memdesc:a0b94c14524c5207d25c8739e26ac547a"><td class="mdescLeft">&#160;</td><td class="mdescRight">This method implement the callback function required by Jiminy Controller to get the command.  <a href="#a0b94c14524c5207d25c8739e26ac547a">More...</a><br /></td></tr>
+<tr class="separator:a0b94c14524c5207d25c8739e26ac547a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acf39fe3961d598e08840758d36b3c6a3"><td class="memItemLeft" align="right" valign="top">def&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#acf39fe3961d598e08840758d36b3c6a3">_internal_dynamics</a> (self, t, q, v, sensor_data, uCommand)</td></tr>
+<tr class="memdesc:acf39fe3961d598e08840758d36b3c6a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">This method implement the callback function required by Jiminy Controller to get the internal dynamics.  <a href="#acf39fe3961d598e08840758d36b3c6a3">More...</a><br /></td></tr>
+<tr class="separator:acf39fe3961d598e08840758d36b3c6a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
@@ -257,8 +257,8 @@ Private Attributes</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="afdc33cf3cbf32453ecb53266c6e74310"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#afdc33cf3cbf32453ecb53266c6e74310">&#9670;&nbsp;</a></span>_internal_dynamics()</h2>
+<a id="acf39fe3961d598e08840758d36b3c6a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acf39fe3961d598e08840758d36b3c6a3">&#9670;&nbsp;</a></span>_internal_dynamics()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -294,7 +294,13 @@ Private Attributes</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">&#160;</td>
-          <td class="paramname"><em>args</em>&#160;</td>
+          <td class="paramname"><em>sensor_data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>uCommand</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -313,12 +319,12 @@ Private Attributes</h2></td></tr>
 <p>In practice, it does nothing.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>This is a hidden function that is not listed as part of the member methods of the class. It is not intended to be called manually. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00103">103</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00101">101</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
-<a id="a3342f3872e6c9a757ec4d98b54834eba"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3342f3872e6c9a757ec4d98b54834eba">&#9670;&nbsp;</a></span>_send_command()</h2>
+<a id="a0b94c14524c5207d25c8739e26ac547a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0b94c14524c5207d25c8739e26ac547a">&#9670;&nbsp;</a></span>_send_command()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -354,7 +360,13 @@ Private Attributes</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">&#160;</td>
-          <td class="paramname"><em>args</em>&#160;</td>
+          <td class="paramname"><em>sensor_data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">&#160;</td>
+          <td class="paramname"><em>uCommand</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -373,7 +385,7 @@ Private Attributes</h2></td></tr>
 <p>In practice, it only updates a variable shared between C++ and Python to the internal value stored by this class.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>This is a hidden function that is not listed as part of the member methods of the class. It is not intended to be called manually. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00086">86</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00085">85</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -396,7 +408,7 @@ Private Attributes</h2></td></tr>
 <p>Getter of the current command. </p>
 <dl class="section return"><dt>Returns</dt><dd>Command (1D numpy array). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00287">287</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00285">285</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -434,7 +446,7 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00298">298</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00296">296</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -457,7 +469,7 @@ Private Attributes</h2></td></tr>
 <p>Close the connection with the renderer, namely Gepetto-viewer. </p>
 <p>Must be called once before the destruction of the engine. </p>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00241">241</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00239">239</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -480,7 +492,7 @@ Private Attributes</h2></td></tr>
 <p>Getter of the options of Jiminy Controller. </p>
 <dl class="section return"><dt>Returns</dt><dd>Dictionary of options. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00331">331</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00329">329</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -503,7 +515,7 @@ Private Attributes</h2></td></tr>
 <p>Getter of the options of Jiminy Engine. </p>
 <dl class="section return"><dt>Returns</dt><dd>Dictionary of options. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00311">311</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00309">309</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -526,7 +538,7 @@ Private Attributes</h2></td></tr>
 <p>Getter of the current state of the sensors. </p>
 <dl class="section return"><dt>Returns</dt><dd>Dictionary whose the keys are the different class of sensors available. The state for a given class is a 2D numpy matrix (row: data, column: sensor). </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00272">272</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00270">270</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -574,7 +586,7 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Low-resolution rendering as an RGB array (3D numpy array) </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00178">178</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00176">176</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -613,7 +625,7 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00132">132</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00130">130</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -652,7 +664,7 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00116">116</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00114">114</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -690,7 +702,7 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00341">341</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00339">339</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -728,7 +740,7 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00321">321</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00319">319</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -751,7 +763,7 @@ Private Attributes</h2></td></tr>
 <p>Getter of the current state of the robot. </p>
 <dl class="section return"><dt>Returns</dt><dd>State of the robot (1D numpy array) </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00256">256</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00254">254</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>
@@ -798,7 +810,7 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Final state of the simulation (2D numpy matrix: column vector ???) </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00154">154</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
+<p class="definition">Definition at line <a class="el" href="engine__asynchronous_8py_source.html#l00152">152</a> of file <a class="el" href="engine__asynchronous_8py_source.html">engine_asynchronous.py</a>.</p>
 
 </div>
 </div>

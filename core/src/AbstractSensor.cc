@@ -13,8 +13,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     model_(&model),
     name_(name),
-    data_(),
-    isDataUpToDate_(false)
+    data_()
     {
         setOptions(getDefaultOptions());
     }
@@ -90,7 +89,7 @@ namespace jiminy
     {
         if(getIsTelemetryConfigured())
         {
-            get(data_); // Force update the internal buffer data_ if necessary
+            updateDataBuffer(); // Force update the internal measurement buffer if necessary
             updateVectorValue(telemetrySender_, getFieldNames(), data_);
         }
     }

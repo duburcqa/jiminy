@@ -21,12 +21,12 @@ namespace python
         matrixRow
     };
 
-    int getPyType(bool & data)
+    inline int getPyType(bool & data)
     {
         return NPY_BOOL;
     }
 
-    int getPyType(float64_t & data)
+    inline int getPyType(float64_t & data)
     {
         return NPY_DOUBLE;
     }
@@ -54,12 +54,13 @@ namespace python
     };
 
     template<class T>
-    bp::list stdVectorToListPy(std::vector<T> const & v)
-    {
-        bp::object get_iter = bp::iterator<std::vector<T> >();
-        bp::object iter = get_iter(v);
-        bp::list l(iter);
-        return l;
+    bp::list stdVectorToListPy(std::vector<T> const & v) {
+        bp::list listPy;
+        for (auto iter = v.begin(); iter != v.end(); ++iter)
+        {
+            listPy.append(*iter);
+        }
+        return listPy;
     }
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -147,7 +148,7 @@ namespace python
                                bp::dict             & configPy)
     {
         std::vector<std::string> options;
-        for(auto const& it : config)
+        for(auto const & it : config)
         {
             options.push_back(it.first);
         }
@@ -191,7 +192,7 @@ namespace python
             }
             else if (optionType == typeid(std::vector<std::string>))
             {
-                configPy[name] = boost::get<std::vector<std::string> >(config.at(name));
+                configPy[name] = stdVectorToListPy(boost::get<std::vector<std::string> >(config.at(name)));
             }
             else if (optionType == typeid(std::vector<vectorN_t>))
             {
@@ -216,7 +217,7 @@ namespace python
 
     // ****************************************************************************
     // **************************** PYTHON TO C++ *********************************
-    // **********µ*****************************************************************
+    // ****************************************************************************
 
     ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert Python list/tuple to std::vector by value.
@@ -291,7 +292,7 @@ namespace python
         matrixN_t M(nRows, nCols);
         for (int32_t i = 0; i < nRows; i++)
         {
-            bp::list const row = bp::extract<bp::list>(listPy[i]);
+            bp::list const & row = bp::extract<bp::list>(listPy[i]);
             assert(len(row) == nCols && "wrong number of columns");
             M.row(i) = listPyToEigenVector(row).transpose();
         }
@@ -306,7 +307,7 @@ namespace python
                           configHolder_t       & config)
     {
         std::vector<std::string> options;
-        for(auto const& it : config)
+        for(auto const & it : config)
         {
             options.push_back(it.first);
         }
@@ -330,7 +331,7 @@ namespace python
                 }
                 else
                 {
-                    bp::numpy::ndarray dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
+                    bp::numpy::ndarray const & dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
                     int32_t const & data = *reinterpret_cast<int32_t *>(dataPy.get_data());
                     boost::get<int32_t>(config.at(name)) = data;
                 }
@@ -343,7 +344,7 @@ namespace python
                 }
                 else
                 {
-                    bp::numpy::ndarray dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
+                    bp::numpy::ndarray const & dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
                     uint32_t const & data = *reinterpret_cast<uint32_t *>(dataPy.get_data());
                     boost::get<uint32_t>(config.at(name)) = data;
                 }

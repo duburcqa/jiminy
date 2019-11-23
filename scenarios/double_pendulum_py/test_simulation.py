@@ -21,12 +21,10 @@ model = jiminy.Model()
 model.initialize(urdf_path, contacts, motors, False)
 
 # Instantiate the controller
-@nb.jit(nopython=True, nogil=True)
-def computeCommand(t, q, v, u):
+def computeCommand(t, q, v, sensor_data, u):
     u[0] = 0.0
 
-@nb.jit(nopython=True, nogil=True)
-def internalDynamics(t, q, v, u):
+def internalDynamics(t, q, v, sensor_data, u):
     u[:] = 0.0
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)

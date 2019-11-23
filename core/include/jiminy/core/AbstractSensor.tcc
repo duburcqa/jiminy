@@ -93,6 +93,12 @@ namespace jiminy
     }
 
     template <typename T>
+    uint32_t const & AbstractSensorTpl<T>::getId(void) const
+    {
+        return sensorId_;
+    }
+
+    template <typename T>
     std::string const & AbstractSensorTpl<T>::getType(void) const
     {
         return type_;
@@ -101,136 +107,14 @@ namespace jiminy
     template <typename T>
     std::vector<std::string> const & AbstractSensorTpl<T>::getFieldNames(void) const
     {
-        if(sensorOptions_->rawData)
-        {
-            return fieldNamesPreProcess_;
-        }
-        else
-        {
-            return fieldNamesPostProcess_;
-        }
+        return fieldNames_;
     }
 
     template <typename T>
     uint32_t AbstractSensorTpl<T>::getSize(void) const
     {
-        if(sensorOptions_->rawData)
-        {
-            return fieldNamesPreProcess_.size();
-        }
-        else
-        {
-            return fieldNamesPostProcess_.size();
-        }
+        return fieldNames_.size();
     }
-
-    template <typename T>
-    result_t AbstractSensorTpl<T>::get(Eigen::Ref<vectorN_t> data)
-    {
-        result_t returnCode = result_t::SUCCESS;
-
-        if (!isDataUpToDate_)
-        {
-            // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
-            float64_t const timeDesired = dataHolder_->time_.back() - sensorOptions_->delay + 1e-9;
-
-            /* Determine the position of the closest right element.
-               Bisection method can be used since times are sorted. */
-            auto bisectLeft =
-                [&](void) -> int32_t
-                {
-                    int32_t left = 0;
-                    int32_t right = dataHolder_->time_.size() - 1;
-                    int32_t mid = 0;
-
-                    if (timeDesired >= dataHolder_->time_.back())
-                    {
-                        return right;
-                    }
-                    else if (timeDesired < dataHolder_->time_.front())
-                    {
-                        return -1;
-                    }
-
-                    while(left < right)
-                    {
-                        mid = (left + right) / 2;
-                        if (timeDesired < dataHolder_->time_[mid])
-                        {
-                            right = mid;
-                        }
-                        else if (timeDesired > dataHolder_->time_[mid])
-                        {
-                            left = mid + 1;
-                        }
-                        else
-                        {
-                            return mid;
-                        }
-                    }
-
-                    if (timeDesired < dataHolder_->time_[mid])
-                    {
-                        return mid - 1;
-                    }
-                    else
-                    {
-                        return mid;
-                    }
-                };
-
-            int32_t const inputIndexLeft = bisectLeft();
-            if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < dataHolder_->time_.size())
-            {
-                if (inputIndexLeft < 0)
-                {
-                    std::cout << "Error - AbstractSensorTpl<T>::get - No data old enough is available." << std::endl;
-                    returnCode = result_t::ERROR_GENERIC;
-                }
-                else if (sensorOptions_->delayInterpolationOrder == 0)
-                {
-                    data_ = dataHolder_->data_[inputIndexLeft].col(sensorId_);
-                }
-                else if (sensorOptions_->delayInterpolationOrder == 1)
-                {
-                    data_ = 1 / (dataHolder_->time_[inputIndexLeft + 1] - dataHolder_->time_[inputIndexLeft]) *
-                        ((timeDesired - dataHolder_->time_[inputIndexLeft]) * dataHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
-                        (dataHolder_->time_[inputIndexLeft + 1] - timeDesired) * dataHolder_->data_[inputIndexLeft].col(sensorId_));
-                }
-                else
-                {
-                    std::cout << "Error - AbstractSensorTpl<T>::get - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
-                    returnCode = result_t::ERROR_BAD_INPUT;
-                }
-            }
-            else
-            {
-                if (dataHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
-                {
-                    // Return the most recent value
-                    data_ = dataHolder_->data_.back().col(sensorId_);
-                }
-                else
-                {
-                    // Return Zero since the sensor is not fully initialized yet
-                    data_ = dataHolder_->data_.front().col(sensorId_);
-                }
-            }
-        }
-
-        if (returnCode != result_t::SUCCESS)
-        {
-            data_ = vectorN_t::Zero(getSize());
-        }
-        else
-        {
-            data = data_;
-            isDataUpToDate_ = true;
-        }
-
-        return returnCode;
-    }
-
     template <typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName(void) const
     {
@@ -245,28 +129,128 @@ namespace jiminy
     }
 
     template <typename T>
-    matrixN_t::ColXpr AbstractSensorTpl<T>::data(void)
+    inline vectorN_t const * AbstractSensorTpl<T>::get(void)
+    {
+        return &data_;
+    }
+
+    template <typename T>
+    matrixN_t AbstractSensorTpl<T>::getAll(void)
+    {
+        matrixN_t data(getSize(), dataHolder_->num_);
+        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        {
+            float64_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
+            data.col(sensorId) = *sensor->get();
+        }
+        return data;
+    }
+
+    template <typename T>
+    Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
         return dataHolder_->data_.back().col(sensorId_);
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::getAll(matrixN_t & data)
+    result_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
         result_t returnCode = result_t::SUCCESS;
 
-        data.resize(dataHolder_->data_[0].rows(), dataHolder_->num_);
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
-        {
-            if (returnCode == result_t::SUCCESS)
+        // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
+        float64_t const timeDesired = dataHolder_->time_.back() - sensorOptions_->delay + 1e-9;
+
+        /* Determine the position of the closest right element.
+        Bisection method can be used since times are sorted. */
+        auto bisectLeft =
+            [&](void) -> int32_t
             {
-                float64_t sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
-                returnCode = sensor->get(data.col(sensorId));
+                int32_t left = 0;
+                int32_t right = dataHolder_->time_.size() - 1;
+                int32_t mid = 0;
+
+                if (timeDesired >= dataHolder_->time_.back())
+                {
+                    return right;
+                }
+                else if (timeDesired < dataHolder_->time_.front())
+                {
+                    return -1;
+                }
+
+                while(left < right)
+                {
+                    mid = (left + right) / 2;
+                    if (timeDesired < dataHolder_->time_[mid])
+                    {
+                        right = mid;
+                    }
+                    else if (timeDesired > dataHolder_->time_[mid])
+                    {
+                        left = mid + 1;
+                    }
+                    else
+                    {
+                        return mid;
+                    }
+                }
+
+                if (timeDesired < dataHolder_->time_[mid])
+                {
+                    return mid - 1;
+                }
+                else
+                {
+                    return mid;
+                }
+            };
+
+        int32_t const inputIndexLeft = bisectLeft();
+        if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < dataHolder_->time_.size())
+        {
+            if (inputIndexLeft < 0)
+            {
+                std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
+                returnCode = result_t::ERROR_GENERIC;
             }
+            else if (sensorOptions_->delayInterpolationOrder == 0)
+            {
+                data_ = dataHolder_->data_[inputIndexLeft].col(sensorId_);
+            }
+            else if (sensorOptions_->delayInterpolationOrder == 1)
+            {
+                data_ = 1 / (dataHolder_->time_[inputIndexLeft + 1] - dataHolder_->time_[inputIndexLeft]) *
+                    ((timeDesired - dataHolder_->time_[inputIndexLeft]) * dataHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
+                    (dataHolder_->time_[inputIndexLeft + 1] - timeDesired) * dataHolder_->data_[inputIndexLeft].col(sensorId_));
+            }
+            else
+            {
+                std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+        else
+        {
+            if (dataHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
+            {
+                // Return the most recent value
+                data_ = dataHolder_->data_.back().col(sensorId_);
+            }
+            else
+            {
+                // Return Zero since the sensor is not fully initialized yet
+                data_ = dataHolder_->data_.front().col(sensorId_);
+            }
+        }
+
+        if (returnCode != result_t::SUCCESS)
+        {
+            data_ = vectorN_t::Zero(getSize());
         }
 
         return returnCode;
     }
+
 
     template <typename T>
     result_t AbstractSensorTpl<T>::setAll(float64_t const & t,
@@ -316,7 +300,7 @@ namespace jiminy
                 // Push back new empty buffer (Do NOT initialize it for efficiency)
                 dataHolder_->time_.push_back();
                 dataHolder_->data_.push_back();
-                dataHolder_->data_.back().resize(dataHolder_->data_[0].rows(), dataHolder_->num_);
+                dataHolder_->data_.back().resize(getSize(), dataHolder_->num_);
             }
         }
         else
@@ -351,7 +335,12 @@ namespace jiminy
                 {
                     sensor->data() += sensor->sensorOptions_->bias;
                 }
-                sensor->isDataUpToDate_ = false;
+            }
+
+            // Update data buffer
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = sensor->updateDataBuffer();
             }
         }
 

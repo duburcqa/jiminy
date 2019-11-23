@@ -377,7 +377,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            auto joint = model.joints[idIn];
+            auto const & joint = model.joints[idIn];
 
             if (joint.shortname() == "JointModelFreeFlyer")
             {

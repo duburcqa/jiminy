@@ -58,10 +58,6 @@ namespace jiminy
                               std::string              const & sensorName,
                               std::shared_ptr<TSensor>       & sensor)
     {
-        /* Casting is almost always unecessary since the base class methods are
-           virtuals and therefore the derived implementations are called, even
-           using downcasted pointers. */
-
         result_t returnCode = result_t::SUCCESS;
 
         if (!getIsInitialized())

@@ -1,5 +1,5 @@
 <map id="core/include/jiminy/core/MemoryDevice.h" name="core/include/jiminy/core/MemoryDevice.h">
-<area shape="rect" id="node2" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="239,95,443,121"/>
-<area shape="rect" id="node4" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="273,169,409,196"/>
-<area shape="rect" id="node10" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="475,169,623,196"/>
+<area shape="rect" id="node2" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="332,95,536,121"/>
+<area shape="rect" id="node4" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="366,169,502,196"/>
+<area shape="rect" id="node11" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="669,169,817,196"/>
 </map>

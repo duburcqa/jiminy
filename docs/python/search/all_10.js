@@ -1,6 +1,7 @@
 var searchData=
 [
   ['seed',['seed',['../classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyEnv.html#aaf0430e3fb1b2d96cf6277842557824b',1,'gym_jiminy.common.gym_jiminy_robots.RobotJiminyEnv.seed()'],['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#afb572fadbb204fc1c06cdc6f90afdffd',1,'jiminy_py.engine_asynchronous.EngineAsynchronous.seed()']]],
+  ['sensorsdatamapvisitor',['SensorsDataMapVisitor',['../structjiminy_1_1python_1_1SensorsDataMapVisitor.html',1,'jiminy::python']]],
   ['set_5fcontroller_5foptions',['set_controller_options',['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#ab2f9a2bf4d5be09e1a62a41f4993be4d',1,'jiminy_py::engine_asynchronous::EngineAsynchronous']]],
   ['set_5fengine_5foptions',['set_engine_options',['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#adf2158c7165037602fd7062974f2bd14',1,'jiminy_py::engine_asynchronous::EngineAsynchronous']]],
   ['smoothing_5ffilter',['smoothing_filter',['../utils_8py.html#af3f9a38aead9e5a9d49a18110702c540',1,'jiminy_py::utils']]],
