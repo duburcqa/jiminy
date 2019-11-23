@@ -448,9 +448,9 @@ namespace python
     {
     public:
         ControllerFctWrapper(bp::object const & objPy) : funcPyPtr_(objPy) {}
-        void operator() (float64_t              const & t,
-                         vectorN_t              const & q,
-                         vectorN_t              const & v,
+        void operator() (float64_t        const & t,
+                         vectorN_t        const & q,
+                         vectorN_t        const & v,
                          sensorsDataMap_t const & sensorsData,
                          vectorN_t              & uCommand)
         {
@@ -458,7 +458,7 @@ namespace python
             bp::handle<> qPy(getNumpyReferenceFromEigenVector(q));
             bp::handle<> vPy(getNumpyReferenceFromEigenVector(v));
             bp::handle<> uCommandPy(getNumpyReferenceFromEigenVector(uCommand));
-            funcPyPtr_(t, qPy, vPy, sensorsData, uCommandPy);
+            funcPyPtr_(t, qPy, vPy, boost::ref(sensorsData), uCommandPy);
         }
     private:
         bp::object funcPyPtr_;
