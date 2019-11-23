@@ -270,13 +270,7 @@ namespace jiminy
         }
 
         // Check the dimension of the initial rigid state
-        std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
-        std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-
-        if ((model_->getHasFreeflyer() &&
-                x_init.rows() != (uint32_t) (7 + rigidJointsPositionIdx.size() + 6 + rigidJointsVelocityIdx.size()))
-            || (!model_->getHasFreeflyer() &&
-                x_init.rows() != (uint32_t) (rigidJointsPositionIdx.size() + rigidJointsVelocityIdx.size())))
+        if (x_init.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv)
         {
             std::cout << "Error - Engine::reset - Size of x_init inconsistent with model size." << std::endl;
             return result_t::ERROR_BAD_INPUT;
@@ -295,6 +289,8 @@ namespace jiminy
         model_->pncModel_.gravity = engineOptions_->world.gravity;
 
         // Compute the initial flexible state based on the initial rigid state
+        std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
+        std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
         vectorN_t x0 = vectorN_t::Zero(model_->nx());
         if (model_->getHasFreeflyer())
         {
