@@ -63,6 +63,17 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Set the parameters of the controller.
+        ///
+        /// \param[in]  model   Model of the system
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t initialize(std::shared_ptr<Model const> const & model) override;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Compute the command.
         ///
         /// \details    It assumes that the model internal state (including sensors) is consistent
@@ -105,7 +116,7 @@ namespace jiminy
                            std::add_pointer_t<F1>, F1> commandFct_;             // 'Callable' computing the command
         std::conditional_t<std::is_function<F2>::value,
                            std::add_pointer_t<F2>, F2> internalDynamicsFct_;    // 'Callable' computing the internal dynamics
-        std::vector<matrixN_t> sensorsData_;                                    // Vector of the data associated with type of sensors
+        sensorsDataMap_t sensorsData_;                                          // Vector of the data associated with type of sensors
     };
 }
 

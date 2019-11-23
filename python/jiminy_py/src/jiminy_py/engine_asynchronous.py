@@ -50,8 +50,7 @@ class EngineAsynchronous(object):
         self._action = np.zeros((len(model.motors_names), ))
 
         # Instantiate the Jiminy controller
-        self._controller = jiminy.ControllerFunctor(
-            self._send_command, self._internal_dynamics, len(self._sensors_types))
+        self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
         self._controller.initialize(model)
 
         # Instantiate the Jiminy engine (model and controller are pass-by-reference)
@@ -69,7 +68,7 @@ class EngineAsynchronous(object):
         self.reset()
 
 
-    def _send_command(self, t, q, v, *args):
+    def _send_command(self, t, q, v, sensor_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the command. In practice, it only updates a
@@ -80,13 +79,12 @@ class EngineAsynchronous(object):
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        for k, sensor_type in enumerate(self._observation):
-            self._observation[sensor_type] = args[k]
-        uCommand = args[-1]
+        for sensor_type in self._sensors_types:
+            self._observation[sensor_type] = sensor_data[sensor_type]
         uCommand[:] = self._action
 
 
-    def _internal_dynamics(self, t, q, v, *args):
+    def _internal_dynamics(self, t, q, v, sensor_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the internal dynamics. In practice, it does
@@ -196,8 +194,8 @@ class EngineAsynchronous(object):
                 self._client.gui.createGroup(self._id + '/' + self._id)
                 self._client.gui.addLandmark(self._id + '/' + self._id, 0.1)
 
-                self._rb.initDisplay("jiminy", self._id, loadModel=False)
-                self._rb.loadDisplayModel(self._id + '/' + "robot")
+                self._rb.initViewer(windowName="jiminy", sceneName=self._id, loadModel=False)
+                self._rb.loadViewerModel(self._id + '/' + "robot")
 
                 self._client.gui.setCameraTransform(self._window_id,
                                                     [0.0, 9.0, 2e-5, 0.0, 1.0, 1.0, 0.0])

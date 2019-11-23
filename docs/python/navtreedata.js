@@ -24,7 +24,7 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 ".html",
-"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a5b3bc5b223a57d00fd4d48906795e56c"
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a6ae31e3bb4acc3519ba03cb4da67a6ff"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

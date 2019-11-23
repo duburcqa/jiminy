@@ -114,7 +114,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_abstract_controller.ht
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_abstract_controller__inherit__graph.png" border="0" usemap="#jiminy_1_1_abstract_controller_inherit__map" alt="Inheritance graph"/></div>
 <map name="jiminy_1_1_abstract_controller_inherit__map" id="jiminy_1_1_abstract_controller_inherit__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_controller_functor.html" title="{jiminy::ControllerFunctor\l\&lt; F1, F2 \&gt;\n|&#45; commandFct_\l&#45; internalDynamicsFct_\l&#45; sensorsData_\l|+ ControllerFunctor()\l+ operator=()\l+ ControllerFunctor()\l+ ControllerFunctor()\l+ ~ControllerFunctor()\l+ computeCommand()\l+ internalDynamics()\l}" alt="" coords="19,483,183,692"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_controller_functor.html" title="{jiminy::ControllerFunctor\l\&lt; F1, F2 \&gt;\n|&#45; commandFct_\l&#45; internalDynamicsFct_\l&#45; sensorsData_\l|+ ControllerFunctor()\l+ operator=()\l+ ControllerFunctor()\l+ ControllerFunctor()\l+ ~ControllerFunctor()\l+ initialize()\l+ computeCommand()\l+ internalDynamics()\l}" alt="" coords="19,483,183,707"/>
 </map>
 </div>
 <div id="dynsection-1" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
@@ -155,7 +155,7 @@ virtual configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><a cla
 virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ab00879b7e7b3ac9f308ef83d79eeb7af">~AbstractController</a> (void)</td></tr>
 <tr class="memdesc:ab00879b7e7b3ac9f308ef83d79eeb7af"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destructor. <br /></td></tr>
 <tr class="separator:ab00879b7e7b3ac9f308ef83d79eeb7af"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">initialize</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;model)</td></tr>
+<tr class="memitem:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="memItemLeft" align="right" valign="top">virtual result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de">initialize</a> (std::shared_ptr&lt; <a class="el" href="classjiminy_1_1_model.html">Model</a> const &gt; const &amp;model)</td></tr>
 <tr class="memdesc:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the parameters of the controller.  <a href="#ad6f65d16777cf71ccccf9e09ad79b1de">More...</a><br /></td></tr>
 <tr class="separator:ad6f65d16777cf71ccccf9e09ad79b1de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec45bfe282039396c0c8127598825634"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634">registerNewVectorEntry</a> (std::vector&lt; std::string &gt; const &amp;fieldNames, Eigen::Ref&lt; vectorN_t &gt; values)</td></tr>
@@ -428,6 +428,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 
 <div class="memitem">
 <div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">result_t jiminy::AbstractController::initialize </td>
@@ -437,6 +440,11 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
           <td></td>
         </tr>
       </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 <p>Set the parameters of the controller. </p>
@@ -447,6 +455,8 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
+
+<p>Reimplemented in <a class="el" href="classjiminy_1_1_controller_functor.html#ae69da657b8860249a7a594f55ff066da">jiminy::ControllerFunctor&lt; F1, F2 &gt;</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00028">28</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 

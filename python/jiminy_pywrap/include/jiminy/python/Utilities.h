@@ -21,12 +21,12 @@ namespace python
         matrixRow
     };
 
-    int getPyType(bool & data)
+    inline int getPyType(bool & data)
     {
         return NPY_BOOL;
     }
 
-    int getPyType(float64_t & data)
+    inline int getPyType(float64_t & data)
     {
         return NPY_DOUBLE;
     }
@@ -148,7 +148,7 @@ namespace python
                                bp::dict             & configPy)
     {
         std::vector<std::string> options;
-        for(auto const& it : config)
+        for(auto const & it : config)
         {
             options.push_back(it.first);
         }
@@ -307,7 +307,7 @@ namespace python
                           configHolder_t       & config)
     {
         std::vector<std::string> options;
-        for(auto const& it : config)
+        for(auto const & it : config)
         {
             options.push_back(it.first);
         }

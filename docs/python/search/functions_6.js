@@ -6,5 +6,5 @@ var searchData=
   ['get_5fgepetto_5fclient',['get_gepetto_client',['../utils_8py.html#a1ac88e2bbce08cd1efe90fbff3af1184',1,'jiminy_py::utils']]],
   ['getlog',['getLog',['../structjiminy_1_1python_1_1PyEngineVisitor.html#acdc46668303181d095bcb68546aabd47',1,'jiminy::python::PyEngineVisitor']]],
   ['getoptions',['getOptions',['../structjiminy_1_1python_1_1PySensorVisitor.html#aab4b3a8a3bb107d830e748eb81a5b089',1,'jiminy::python::PySensorVisitor']]],
-  ['getsensor',['getSensor',['../structjiminy_1_1python_1_1PyModelVisitor.html#ad46e9bc214788622bca4180da40b209c',1,'jiminy::python::PyModelVisitor']]]
+  ['getsensorsdata',['getSensorsData',['../structjiminy_1_1python_1_1PyModelVisitor.html#a3d0c25606d6e493f1b69d435c13d762c',1,'jiminy::python::PyModelVisitor']]]
 ];

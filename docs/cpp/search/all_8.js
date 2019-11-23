@@ -1,7 +1,7 @@
 var searchData=
 [
   ['imusensor',['ImuSensor',['../classjiminy_1_1_imu_sensor.html',1,'jiminy']]],
-  ['initialize',['initialize',['../classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de',1,'jiminy::AbstractController::initialize()'],['../classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492',1,'jiminy::TelemetryRecorder::initialize()']]],
+  ['initialize',['initialize',['../classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de',1,'jiminy::AbstractController::initialize()'],['../classjiminy_1_1_controller_functor.html#ae69da657b8860249a7a594f55ff066da',1,'jiminy::ControllerFunctor::initialize()'],['../classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492',1,'jiminy::TelemetryRecorder::initialize()']]],
   ['intbufferpositon_5f',['intBufferPositon_',['../classjiminy_1_1_telemetry_sender.html#a1925899b84cf2f2879b501246119d396',1,'jiminy::TelemetrySender']]],
   ['integersaddress_5f',['integersAddress_',['../classjiminy_1_1_telemetry_recorder.html#a48280dde5f9cabc08fddbec30ea123a1',1,'jiminy::TelemetryRecorder']]],
   ['integersectionsize_5f',['integerSectionSize_',['../classjiminy_1_1_telemetry_recorder.html#a992ff91dfa865270918d2560d3370081',1,'jiminy::TelemetryRecorder']]],
@@ -11,7 +11,6 @@ var searchData=
   ['internalregistervariable',['internalRegisterVariable',['../classjiminy_1_1_telemetry_data.html#aee96299e25d48ae9b6ee3d8638f9125b',1,'jiminy::TelemetryData']]],
   ['io_5f',['io_',['../classjiminy_1_1_abstract_i_o_device.html#a71dbd0594dd833eb23c61a93e613714f',1,'jiminy::AbstractIODevice']]],
   ['isbackendvalid',['isBackendValid',['../classjiminy_1_1_abstract_i_o_device.html#ab1e6721c17fe29ab404ae703fd8f9f2e',1,'jiminy::AbstractIODevice']]],
-  ['isdatauptodate_5f',['isDataUpToDate_',['../classjiminy_1_1_abstract_sensor_base.html#a71232ec15c5a6a53bb33b70a2589f25e',1,'jiminy::AbstractSensorBase']]],
   ['isinitialized_5f',['isInitialized_',['../classjiminy_1_1_abstract_controller.html#a18e209c2d6b32ff2d7abc9dced15e326',1,'jiminy::AbstractController::isInitialized_()'],['../classjiminy_1_1_abstract_sensor_base.html#af7770ccd5e68d2b54440daaebcdc825b',1,'jiminy::AbstractSensorBase::isInitialized_()']]],
   ['isopen',['isOpen',['../classjiminy_1_1_abstract_i_o_device.html#ae5e2749d020ee8eda14f1c4bdbb1e5fc',1,'jiminy::AbstractIODevice']]],
   ['isreadable',['isReadable',['../classjiminy_1_1_abstract_i_o_device.html#a2b100c175657a45771e1e89452c24ba3',1,'jiminy::AbstractIODevice']]],

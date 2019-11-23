@@ -181,12 +181,10 @@ namespace jiminy
         std::string const & getUrdfPath(void) const;
         bool const & getHasFreeflyer(void) const;
         std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
-        result_t getSensorsData(std::vector<matrixN_t> & data) const;
-        result_t getSensorsData(std::string const & sensorType,
-                                matrixN_t         & data) const;
-        result_t getSensorData(std::string const & sensorType,
-                               std::string const & sensorName,
-                               vectorN_t         & data) const;
+        void getSensorsData(sensorsDataMap_t & data) const;
+        matrixN_t getSensorsData(std::string const & sensorType) const;
+        vectorN_t const & getSensorData(std::string const & sensorType,
+                                        std::string const & sensorName) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> const & getMotorsModelIdx(void) const;

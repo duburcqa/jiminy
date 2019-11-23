@@ -113,9 +113,30 @@ template&lt;class PyClass &gt; </td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a9671836f1c0be5018e208e211a1d889b"><td class="memItemLeft" align="right" valign="top"><a id="a9671836f1c0be5018e208e211a1d889b"></a>
-static vectorN_t const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getitem</b> (sensorsDataMap_t &amp;self, bp::tuple const &amp;sensorInfo)</td></tr>
-<tr class="separator:a9671836f1c0be5018e208e211a1d889b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae60bc28baa9c748149b4c2aca85e6c54"><td class="memItemLeft" align="right" valign="top"><a id="ae60bc28baa9c748149b4c2aca85e6c54"></a>
+static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>len</b> (sensorsDataMap_t &amp;self)</td></tr>
+<tr class="separator:ae60bc28baa9c748149b4c2aca85e6c54"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa5b1c93479692d55e3efb24622a26b9c"><td class="memItemLeft" align="right" valign="top"><a id="aa5b1c93479692d55e3efb24622a26b9c"></a>
+static bp::object&#160;</td><td class="memItemRight" valign="bottom"><b>getItem</b> (sensorsDataMap_t &amp;self, bp::tuple const &amp;sensorInfo)</td></tr>
+<tr class="separator:aa5b1c93479692d55e3efb24622a26b9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aabdea9f8b3155554f0722bf60d547b38"><td class="memItemLeft" align="right" valign="top"><a id="aabdea9f8b3155554f0722bf60d547b38"></a>
+static bp::object&#160;</td><td class="memItemRight" valign="bottom"><b>getItemSplit</b> (sensorsDataMap_t &amp;self, std::string const &amp;sensorType, std::string const &amp;sensorName)</td></tr>
+<tr class="separator:aabdea9f8b3155554f0722bf60d547b38"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:add14e2fd9c5283e339329a1f15cecb62"><td class="memItemLeft" align="right" valign="top"><a id="add14e2fd9c5283e339329a1f15cecb62"></a>
+static matrixN_t&#160;</td><td class="memItemRight" valign="bottom"><b>getSub</b> (sensorsDataMap_t &amp;self, std::string const &amp;sensorType)</td></tr>
+<tr class="separator:add14e2fd9c5283e339329a1f15cecb62"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9ff3b728cdb357ea4140c8dd852e1e37"><td class="memItemLeft" align="right" valign="top"><a id="a9ff3b728cdb357ea4140c8dd852e1e37"></a>
+static bool&#160;</td><td class="memItemRight" valign="bottom"><b>contains</b> (sensorsDataMap_t &amp;self, bp::tuple const &amp;sensorInfo)</td></tr>
+<tr class="separator:a9ff3b728cdb357ea4140c8dd852e1e37"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a23fa637e1f708caeb4d66715444101d9"><td class="memItemLeft" align="right" valign="top"><a id="a23fa637e1f708caeb4d66715444101d9"></a>
+static bp::list&#160;</td><td class="memItemRight" valign="bottom"><b>keys</b> (sensorsDataMap_t &amp;self)</td></tr>
+<tr class="separator:a23fa637e1f708caeb4d66715444101d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3432d2406ef16b16aa6940f78183dfaa"><td class="memItemLeft" align="right" valign="top"><a id="a3432d2406ef16b16aa6940f78183dfaa"></a>
+static bp::list&#160;</td><td class="memItemRight" valign="bottom"><b>values</b> (sensorsDataMap_t &amp;self)</td></tr>
+<tr class="separator:a3432d2406ef16b16aa6940f78183dfaa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a710de0c22dfd0545b242b38ac458469b"><td class="memItemLeft" align="right" valign="top"><a id="a710de0c22dfd0545b242b38ac458469b"></a>
+static bp::list&#160;</td><td class="memItemRight" valign="bottom"><b>items</b> (sensorsDataMap_t &amp;self)</td></tr>
+<tr class="separator:a710de0c22dfd0545b242b38ac458469b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afccd7b585d0cc7530b53831fb0c849b4"><td class="memItemLeft" align="right" valign="top"><a id="afccd7b585d0cc7530b53831fb0c849b4"></a>
 static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1python_1_1SensorsDataMapVisitor.html#afccd7b585d0cc7530b53831fb0c849b4">expose</a> ()</td></tr>
 <tr class="memdesc:afccd7b585d0cc7530b53831fb0c849b4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Expose. <br /></td></tr>

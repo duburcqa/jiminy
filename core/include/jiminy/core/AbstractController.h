@@ -80,7 +80,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t initialize(std::shared_ptr<Model const> const & model);
+        virtual result_t initialize(std::shared_ptr<Model const> const & model);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

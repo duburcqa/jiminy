@@ -304,17 +304,132 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("__getitem__", &getitem,
-                                    bp::return_value_policy<bp::copy_const_reference>());
+                .def("__len__", &SensorsDataMapVisitor::len,
+                                (bp::arg("self")))
+                .def("__getitem__", &SensorsDataMapVisitor::getItem,
+                                    (bp::arg("self"), "(sensor_type, sensor_name)"))
+                .def("__getitem__", &SensorsDataMapVisitor::getItemSplit,
+                                    (bp::arg("self"), "sensor_type", "sensor_name"))
+                .def("__getitem__", &SensorsDataMapVisitor::getSub,
+                                    (bp::arg("self"), "sensor_type"))
+                .def("__iter__", bp::iterator<sensorsDataMap_t>())
+                .def("__contains__", &SensorsDataMapVisitor::contains,
+                                     (bp::arg("self"), "key"))
+                .def("keys", &SensorsDataMapVisitor::keys,
+                             (bp::arg("self")))
+                .def("values", &SensorsDataMapVisitor::values,
+                               (bp::arg("self")))
+                .def("items", &SensorsDataMapVisitor::items,
+                              (bp::arg("self")))
+                ;
         }
 
-        static vectorN_t const & getitem(sensorsDataMap_t & self,
-                                        bp::tuple const & sensorInfo)
+        static uint32_t len(sensorsDataMap_t & self)
+        {
+            return self.size();
+        }
+
+        static bp::object getItem(sensorsDataMap_t        & self,
+                                  bp::tuple         const & sensorInfo)
         {
             std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
-            return self.at(std::pair<std::string, std::string>(std::move(sensorType),
-                                                            std::move(sensorName)));
+            return SensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
+        }
+
+        static bp::object getItemSplit(sensorsDataMap_t       & self,
+                                       std::string      const & sensorType,
+                                       std::string      const & sensorName)
+        {
+            try
+            {
+                auto const & sensorDataType = self.at(sensorType);
+                auto sensorIt = std::find_if(sensorDataType.begin(),
+                                             sensorDataType.end(),
+                                             [&sensorName](auto const & element)
+                                             {
+                                                 return element.first == sensorName;
+                                             });
+                bp::handle<> valuePy(getNumpyReferenceFromEigenVector(*sensorIt->second));
+                return bp::object(valuePy);
+            }
+            catch (...)
+            {
+                PyErr_SetString(PyExc_KeyError, "The key does not exist.");
+                return bp::object();
+            }
+        }
+
+        static matrixN_t getSub(sensorsDataMap_t       & self,
+                                std::string      const & sensorType)
+        {
+            // Extract the encoder data matrix
+            auto const & sensorsDataType = self.at(sensorType);
+            matrixN_t data;
+            auto sensorDataIt = sensorsDataType.begin();
+            vectorN_t const & sensorValue = *sensorDataIt->second;
+            data.resize(sensorValue.size(), sensorsDataType.size());
+            data.col(0) = sensorValue;
+            ++sensorDataIt;
+            for (uint32_t i = 1; i<sensorsDataType.size(); ++i)
+            {
+                data.col(i) = *sensorDataIt->second;
+                ++sensorDataIt;
+            }
+            return data;
+        }
+
+        static bool contains(sensorsDataMap_t       & self,
+                             bp::tuple        const & sensorInfo)
+        {
+            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            auto const & sensorDataType = self.find(sensorType);
+            if (sensorDataType != self.end())
+            {
+                auto it = std::find_if(sensorDataType->second.begin(),
+                                       sensorDataType->second.end(),
+                                       [&sensorName](auto const & element)
+                                       {
+                                           return element.first == sensorName;
+                                       });
+                if (it != sensorDataType->second.end())
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        static bp::list keys(sensorsDataMap_t & self)
+        {
+            bp::list sensorsInfo;
+            for (auto & sensorData : self)
+            {
+                sensorsInfo.append(sensorData.first);
+            }
+            return sensorsInfo;
+        }
+
+        static bp::list values(sensorsDataMap_t & self)
+        {
+            bp::list sensorsValue;
+            for (auto const & sensorDataType : self)
+            {
+                sensorsValue.append(getSub(self, sensorDataType.first));
+            }
+            return sensorsValue;
+        }
+
+        static bp::list items(sensorsDataMap_t & self)
+        {
+            bp::list sensorsDataPy;
+            for (auto const & sensorDataType : self)
+            {
+                sensorsDataPy.append(bp::make_tuple(sensorDataType.first,
+                                                    getSub(self, sensorDataType.first)));
+            }
+            return sensorsDataPy;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -322,39 +437,28 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<sensorsDataMap_t>("sensorsData", bp::no_init)
+            bp::class_<sensorsDataMap_t>("sensorsData")
                 .def(SensorsDataMapVisitor());
         }
     };
 
-    // **************************** ControllerFctWrapperN ******************************
+    // **************************** ControllerFctWrapper *******************************
 
-    template<std::size_t N, class = std::make_index_sequence<N> >
-    struct ControllerFctWrapperN;
-
-    template <size_t N, size_t... Is>
-    struct ControllerFctWrapperN<N, std::index_sequence<Is...> >
+    struct ControllerFctWrapper
     {
-    private:
-        template <size_t >
-        using T_ = matrixN_t const &;
-
     public:
-        ControllerFctWrapperN(bp::object const & objPy) : funcPyPtr_(objPy) {}
-        void operator() (float64_t const & t,
-                         vectorN_t const & q,
-                         vectorN_t const & v,
-                         T_<Is>...         sensorsData,
-                         vectorN_t       & uCommand)
+        ControllerFctWrapper(bp::object const & objPy) : funcPyPtr_(objPy) {}
+        void operator() (float64_t              const & t,
+                         vectorN_t              const & q,
+                         vectorN_t              const & v,
+                         sensorsDataMap_t const & sensorsData,
+                         vectorN_t              & uCommand)
         {
             // Pass the arguments by reference (be careful const qualifiers are lost).
-            // Note that unlike std::vector, bp::handle<> sensorsDataPy[N] required template specialization for N=0.
             bp::handle<> qPy(getNumpyReferenceFromEigenVector(q));
             bp::handle<> vPy(getNumpyReferenceFromEigenVector(v));
-            std::vector<bp::handle<> > sensorsDataPy(
-                {bp::handle<>(getNumpyReferenceFromEigenMatrix(sensorsData))...});
             bp::handle<> uCommandPy(getNumpyReferenceFromEigenVector(uCommand));
-            funcPyPtr_(t, qPy, vPy, sensorsDataPy[Is]..., uCommandPy);
+            funcPyPtr_(t, qPy, vPy, sensorsData, uCommandPy);
         }
     private:
         bp::object funcPyPtr_;
@@ -473,25 +577,25 @@ namespace python
                        boost::shared_ptr<AbstractSensorBase>,
                        boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python< std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
+            bp::register_ptr_to_python<std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ImuSensor>,
                        boost::noncopyable>("ImuSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python< std::shared_ptr<ImuSensor> >();
+            bp::register_ptr_to_python<std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python< std::shared_ptr<ForceSensor> >();
+            bp::register_ptr_to_python<std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python< std::shared_ptr<EncoderSensor> >();
+            bp::register_ptr_to_python<std::shared_ptr<EncoderSensor> >();
         }
     };
 
@@ -540,6 +644,8 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
+
+                .add_property("sensors_data", getSensorsData)
 
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
@@ -631,6 +737,13 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
+
+        static sensorsDataMap_t getSensorsData(Model & self)
+        {
+            sensorsDataMap_t data;
+            self.getSensorsData(data);
+            return data;
+        }
 
         static AbstractSensorBase * getSensor(Model             & self,
                                               std::string const & sensorType,
@@ -804,62 +917,58 @@ namespace python
         }
     };
 
-    #ifdef PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES
-    static AbstractController * ControllerFunctorPyFactory(bp::object       & commandPy,
-                                                           bp::object       & internalDynamicsPy,
-                                                           int32_t    const & numSensorTypes)
+    // ***************************** PyControllerFunctorVisitor ***********************************
+
+    struct PyControllerFunctorVisitor
+        : public bp::def_visitor<PyControllerFunctorVisitor>
     {
-        /* 'co_varnames' is used along with 'co_argcount' to avoid accounting for
-           the 'self' argument in case of class method handle.
-           Note that it does not support Python *args and **kwargs. In such a case,
-           specify 'numSensorTypes' argument instead. */
+    public:
+        typedef ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper> CtrlFunctor;
 
-        int32_t N;
-        if (numSensorTypes < 0)
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
         {
-            std::string argsFirstPy = boost::python::extract<std::string>(
-                commandPy.attr("func_code").attr("co_varnames")[0]);
-            std::size_t argsNumPy = boost::python::extract<std::size_t>(
-                    commandPy.attr("func_code").attr("co_argcount"));
-            N = argsNumPy - 4 - (argsFirstPy == std::string("self"));
-        }
-        else
-        {
-            N = numSensorTypes;
-        }
-        assert(N <= PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES || N < 0);
-        if (N < 0)
-        {
-            std::cout << "The functors in argument are ill-defined." << std::endl;
-        }
-        if (N > PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES)
-        {
-            N = PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES;
-            std::cout << "Maximum number of sensors exceeded by 'ControllerFunctor' Python binding." << std::endl;
+            cl
+                .def("initialize", &PyControllerFunctorVisitor::initialize,
+                                   (bp::arg("self"), "model"))
+                ;
         }
 
-        #define TO_SEQ_ELEM(z, n, data) (n)
-        #define MAKE_INTEGER_SEQUENCE(n) BOOST_PP_REPEAT(n, TO_SEQ_ELEM, )
-        #define RANGE MAKE_INTEGER_SEQUENCE(PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES)
-        #define MACRO(r, data, p) \
-            if (p == N) \
-            { \
-                using T = ControllerFctWrapperN<p>; \
-                T commandFct(commandPy); \
-                T internalDynamicsFct(internalDynamicsPy); \
-                return new ControllerFunctor<T, T>(std::move(commandFct), std::move(internalDynamicsFct)); \
-            }
-        BOOST_PP_SEQ_FOR_EACH(MACRO, _, RANGE)
-        #undef MACRO
-        #undef RANGE
+        static boost::shared_ptr<CtrlFunctor> ControllerFunctorPyFactory(bp::object & commandPy,
+                                                                         bp::object & internalDynamicsPy)
+        {
+            ControllerFctWrapper commandFct(commandPy);
+            ControllerFctWrapper internalDynamicsFct(internalDynamicsPy);
+            return boost::make_shared<CtrlFunctor>(std::move(commandFct),
+                                                   std::move(internalDynamicsFct));
+        }
 
-        // Fallback in case the number of sensors N is out of range
-        using T_MAX = ControllerFctWrapperN<PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES>;
-        T_MAX commandFct(commandPy);
-        T_MAX internalDynamicsFct(internalDynamicsPy);
-        return new ControllerFunctor<T_MAX, T_MAX>(std::move(commandFct), std::move(internalDynamicsFct));
-    }
-    #endif  // PYTHON_CONTROLLER_FUNCTOR_MAX_SENSOR_TYPES
+        static void initialize(CtrlFunctor                  & self,
+                               std::shared_ptr<Model> const & model)
+        {
+            // Cannot pass const shared_ptr from Python to C++ directly...
+
+            self.initialize(model);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<CtrlFunctor, bp::bases<AbstractController>,
+                       boost::shared_ptr<CtrlFunctor>,
+                       boost::noncopyable>("ControllerFunctor", bp::no_init)
+            .def(PyControllerFunctorVisitor())
+            .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
+                             bp::default_call_policies(),
+                            (bp::arg("command_handle"), "internal_dynamics_handle")));
+        }
+    };
 
     // ***************************** PyEngineVisitor ***********************************
 

@@ -1,8 +1,8 @@
 var classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous =
 [
     [ "__init__", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a6b72c5cfbbe9c281d8b59b72b591b4c2", null ],
-    [ "_internal_dynamics", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#afdc33cf3cbf32453ecb53266c6e74310", null ],
-    [ "_send_command", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a3342f3872e6c9a757ec4d98b54834eba", null ],
+    [ "_internal_dynamics", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#acf39fe3961d598e08840758d36b3c6a3", null ],
+    [ "_send_command", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a0b94c14524c5207d25c8739e26ac547a", null ],
     [ "action", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a4c0669f4e87fc1042cc822e0672ab818", null ],
     [ "action", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a226aa7962c69d70ab958b7831b3e79ea", null ],
     [ "close", "classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#abd023b72967b8f7b4ba66e04c2db9658", null ],

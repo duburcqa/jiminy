@@ -491,7 +491,7 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
 
-        if (tEnd - stepperState_.t < MIN_TIME_STEP)
+        if (tEnd > EPS && tEnd - stepperState_.t < MIN_TIME_STEP)
         {
             std::cout << "Error - Engine::step - The final time must be larger than the current time." << std::endl;
             return result_t::ERROR_BAD_INPUT;

@@ -17,7 +17,7 @@ from scipy.interpolate import UnivariateSpline
 import jiminy # must be imported before libpinocchio_pywrap to find it
 
 import pinocchio as pnc
-from pinocchio.utils import *
+from pinocchio.utils import fromListToVectorOfString
 from pinocchio.robot_wrapper import RobotWrapper
 import libpinocchio_pywrap as pin
 from gepetto.corbaserver import Client
@@ -269,9 +269,9 @@ def initFromURDF(self, filename, package_dirs=None, root_joint=None, verbose=Fal
                 raise Exception('The list of package directories is wrong. At least one is not a string')
             else:
                 collision_model = _buildGeomFromUrdf(model, filename, pin.GeometryType.COLLISION, meshLoader,
-                                                     dirs = utils.fromListToVectorOfString(package_dirs))
+                                                     dirs = fromListToVectorOfString(package_dirs))
                 visual_model = _buildGeomFromUrdf(model, filename, pin.GeometryType.VISUAL, meshLoader,
-                                                  dirs = utils.fromListToVectorOfString(package_dirs))
+                                                  dirs = fromListToVectorOfString(package_dirs))
 
 
     RobotWrapper.__init__(self, model=model, collision_model=collision_model, visual_model=visual_model)
@@ -511,9 +511,9 @@ def _getViewerNodeName(rb, geometry_object, geometry_type):
     @return     Full path of the associated node.
     """
     if geometry_type is pin.GeometryType.VISUAL:
-        return rb.viewerVisualGroupName + '/' + geometry_object.name
+        return rb.viz.viewerVisualGroupName + '/' + geometry_object.name
     elif geometry_type is pin.GeometryType.COLLISION:
-        return rb.viewerCollisionGroupName + '/' + geometry_object.name
+        return rb.viz.viewerCollisionGroupName + '/' + geometry_object.name
 
 
 def _updateGeometryPlacements(rb, data, visual=False):
@@ -548,7 +548,7 @@ def update_gepetto_viewer(rb, data, client):
     @param[in]  data        Up-to-date Pinocchio.Data object associated to the model
     @param[in]  client      Pointer to the Gepetto-viewer Client
     """
-    if rb.display_collisions:
+    if rb.displayCollisions:
         client.gui.applyConfigurations(
             [_getViewerNodeName(rb, collision,pin.GeometryType.COLLISION)
              for collision in rb.collision_model.geometryObjects],
@@ -556,7 +556,7 @@ def update_gepetto_viewer(rb, data, client):
              for collision in rb.collision_model.geometryObjects]
         )
 
-    if rb.display_visuals:
+    if rb.displayVisuals:
         _updateGeometryPlacements(rb, data, visual=True)
         client.gui.applyConfigurations(
             [_getViewerNodeName(rb, visual,pin.GeometryType.VISUAL)

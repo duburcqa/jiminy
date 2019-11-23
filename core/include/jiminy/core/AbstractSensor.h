@@ -149,14 +149,12 @@ namespace jiminy
         ///             is used to compute the delayed measurement based on a buffer of previously
         ///             recorded non-delayed data.
         ///
-        /// \param[out] data   Eigen reference to a Eigen Vector where to store of sensor measurement.
-        ///                    It can be an actual vectorN_t, or the extraction of a column vector from
-        ///                    a higher dimensional tensor.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
+        /// \return     Eigen reference to a Eigen Vector where to store of sensor measurement.
+        ///             It can be an actual vectorN_t, or the extraction of a column vector from
+        ///             a higher dimensional tensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t get(Eigen::Ref<vectorN_t> data) = 0;
+        virtual vectorN_t const * get(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -168,12 +166,10 @@ namespace jiminy
         ///             is used to compute the delayed measurement based on a buffer of previously
         ///             recorded non-delayed data.
         ///
-        /// \param[out] data   Eigen matrix where to store of measurement of all the sensors.
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
+        /// \return     Eigen matrix where to store of measurement of all the sensors.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t getAll(matrixN_t & data) = 0;
+        virtual matrixN_t getAll(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -236,12 +232,28 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Get sensorId_.
+        ///
+        /// \details    It is the identifier of the sensor.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual uint32_t const & getId(void) const = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Get type_.
         ///
         /// \details    It is the type of the sensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual std::string const & getType(void) const = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      It is the size of the sensor's data vector.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual uint32_t getSize(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -342,7 +354,7 @@ namespace jiminy
         /// \return     Eigen Reference to a Eigen Vector corresponding to the last data recorded
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t::ColXpr data(void) = 0;
+        virtual Eigen::Ref<vectorN_t> data(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -378,6 +390,11 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual std::string getTelemetryName(void) const = 0;
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Update the measurement buffer.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t updateDataBuffer(void) = 0;
+
     public:
         std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; ///< Structure with the parameters of the sensor
 
@@ -391,7 +408,6 @@ namespace jiminy
     private:
         std::string name_;                      ///< Name of the sensor
         vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
-        bool isDataUpToDate_;                   ///< Flag to determine whether the measurement buffer ois update-to-date or not
     };
 
     template<class T>
@@ -412,12 +428,13 @@ namespace jiminy
 
         virtual void setOptions(configHolder_t const & sensorOptions) override;
         virtual void setOptionsAll(configHolder_t const & sensorOptions) override;
+        virtual uint32_t const & getId(void) const override;
         virtual std::string const & getType(void) const override;
         std::vector<std::string> const & getFieldNames(void) const;
-        uint32_t getSize(void) const;
+        virtual uint32_t getSize(void) const override;
 
-        virtual result_t get(Eigen::Ref<vectorN_t> data) override; // Eigen::Ref<vectorN_t> = anything that looks like a vectorN_t
-        virtual result_t getAll(matrixN_t & data) override;
+        virtual vectorN_t const * get(void) override;
+        virtual matrixN_t getAll(void) override;
         virtual result_t setAll(float64_t const & t,
                                 vectorN_t const & q,
                                 vectorN_t const & v,
@@ -428,7 +445,10 @@ namespace jiminy
     protected:
         virtual std::string getTelemetryName(void) const override;
 
-        virtual matrixN_t::ColXpr data(void) override;
+        virtual Eigen::Ref<vectorN_t> data(void) override;
+
+    private:
+        virtual result_t updateDataBuffer(void) override;
 
     public:
         static std::string const type_;
