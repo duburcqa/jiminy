@@ -909,6 +909,7 @@ namespace jiminy
 
         // Check if the flexible model and its associated variables must be regenerated
         bool isFlexibleModelInvalid = false;
+        bool isModelInvalid = false;
         if (returnCode == result_t::SUCCESS)
         {
             if (isInitialized_)
@@ -917,14 +918,19 @@ namespace jiminy
                     boost::get<configHolder_t>(mdlOptions.at("dynamics"));
                 std::vector<std::string> const & flexibleJointsNames =
                     boost::get<std::vector<std::string> >(dynOptionsHolder.at("flexibleJointsNames"));
+               bool const & enableFlexibleModel = boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
 
                 if(mdlOptions_
                 && (flexibleJointsNames.size() != mdlOptions_->dynamics.flexibleJointsNames.size()
                     || !std::equal(flexibleJointsNames.begin(),
-                                flexibleJointsNames.end(),
-                                mdlOptions_->dynamics.flexibleJointsNames.begin())))
+                                   flexibleJointsNames.end(),
+                                   mdlOptions_->dynamics.flexibleJointsNames.begin())))
                 {
                     isFlexibleModelInvalid = true;
+                }
+                else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
+                {
+                    isModelInvalid = true;
                 }
             }
         }
@@ -940,10 +946,15 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            // Trigger flexible model regeneration if necessary
+            // Force flexible model regeneration if necessary
             if (isFlexibleModelInvalid)
             {
                 pncModelFlexibleOrig_ = pinocchio::Model();
+            }
+
+            // Trigger biased model regeneration and info extraction if necessary
+            if (isFlexibleModelInvalid || isModelInvalid)
+            {
                 generateBiasedModel();
             }
         }
