@@ -958,6 +958,27 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    vectorN_t Engine::getLogFieldValue(std::string const & fieldName)
+    {
+        vectorN_t fieldData = vectorN_t::Zero(0);
+
+        std::vector<std::string> header;
+        matrixN_t data;
+        result_t returnCode = getLogData(header, data);
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Look in header for fieldName.
+            std::vector<std::string>::iterator iterator = std::find (header.begin(), header.end(), fieldName);
+            std::vector<std::string>::iterator start = std::find (header.begin(), header.end(), "StartColumns");
+            if (iterator != header.end())
+            {
+                fieldData = data.col(std::distance(start, iterator) - 1);
+            }
+        }
+
+        return fieldData;
+    }
+
     result_t Engine::writeLogTxt(std::string const & filename)
     {
         if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())

@@ -22,7 +22,11 @@
 using namespace jiminy;
 
 // Controller sending zero torque to the motors.
-void controllerZeroTorque(float64_t const & t, vectorN_t const & q, vectorN_t const & v, vectorN_t & u)
+void controllerZeroTorque(float64_t const & t,
+                          vectorN_t const & q,
+                          vectorN_t const & v,
+                          sensorsDataMap_t const & sensorData,
+                          vectorN_t & u)
 {
     u.setZero();
 }
@@ -31,6 +35,7 @@ void controllerZeroTorque(float64_t const & t, vectorN_t const & q, vectorN_t co
 void internalDynamics(float64_t const & t,
                       vectorN_t const & q,
                       vectorN_t const & v,
+                      sensorsDataMap_t const & sensorData,
                       vectorN_t       & u)
 {
     u.setZero();
@@ -56,11 +61,18 @@ TEST(EngineSanity, EnergyConservation)
     jointNames.push_back("PendulumJoint");
     jointNames.push_back("SecondPendulumJoint");
 
-    Model model;
-    model.initialize(urdfPath, contacts, jointNames, false);
+    std::shared_ptr<Model> model = std::make_shared<Model>();
+    // Disable velocity and position limits.
+    configHolder_t mdlOptions = model->getOptions();
+    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
+    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
+    model->setOptions(mdlOptions);
 
-    ControllerFunctor<decltype(controllerZeroTorque), decltype(internalDynamics)> controller(controllerZeroTorque, internalDynamics);
-    controller.initialize(model);
+    model->initialize(urdfPath, contacts, jointNames, false);
+
+    auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
+                                                         decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);
+    controller->initialize(model);
 
     // Continuous simulation
     Engine engine;
@@ -82,7 +94,6 @@ TEST(EngineSanity, EnergyConservation)
     vectorN_t energyCrop = energy.tail(energy.size() - 1);
     // Check that energy is constant.
     float64_t deltaEnergy = energyCrop.maxCoeff() - energyCrop.minCoeff();
-    engine.writeLogBinary("/tmp/blackbox/log.data");
     ASSERT_NEAR(0.0, std::abs(deltaEnergy), std::numeric_limits<float64_t>::epsilon());
 
     // Discrete-time simulation
