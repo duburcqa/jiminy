@@ -142,77 +142,148 @@ namespace python
     }
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert a config holder into a Python dictionary by value.
+    /// \brief  Convert most C++ objects into Python objects by value.
     ///////////////////////////////////////////////////////////////////////////////
-    void convertConfigHolderPy(configHolder_t const & config,
-                               bp::dict             & configPy)
+    template<typename CType>
+    void convertToPy(CType const & data, bp::object & dataPy)
     {
-        std::vector<std::string> options;
-        for(auto const & it : config)
-        {
-            options.push_back(it.first);
-        }
+        dataPy = bp::object(data);
+    }
 
-        for (uint32_t i = 0; i < options.size(); i++)
+    template<>
+    void convertToPy(flexibleJointData_t const & flexibleJointData, bp::object & dataPy)
+    {
+        bp::dict flexibilityJointDataPy;
+        flexibilityJointDataPy["jointName"] = flexibleJointData.jointName;
+        flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
+        flexibilityJointDataPy["damping"] = flexibleJointData.damping;
+        dataPy = flexibilityJointDataPy;
+    }
+
+    template<>
+    void convertToPy(flexibilityConfig_t const & flexibilityConfig, bp::object & dataPy)
+    {
+        bp::list flexibilityConfigPy;
+        for (auto const & flexibleJoint : flexibilityConfig)
         {
-            std::string const name = options[i];
-            const std::type_info & optionType = config.at(name).type();
+            bp::dict flexibilityJointDataPy;
+            convertToPy(flexibleJoint, flexibilityJointDataPy);
+            flexibilityConfigPy.append(flexibilityJointDataPy);
+        }
+        dataPy = flexibilityConfigPy;
+    }
+
+    template<>
+    void convertToPy(vectorN_t const & data, bp::object & dataPy)
+    {
+        dataPy = eigenVectorTolistPy(data);
+    }
+
+    template<>
+    void convertToPy(matrixN_t const & data, bp::object & dataPy)
+    {
+        dataPy = eigenMatrixTolistPy(data);
+    }
+
+    template<>
+    void convertToPy(std::vector<std::string> const & data, bp::object & dataPy)
+    {
+        dataPy = stdVectorToListPy(data);
+    }
+
+    template<>
+    void convertToPy(configHolder_t const & config, bp::object & configPy)
+    {
+        bp::dict configPyDict;
+        for (auto const & configField : config)
+        {
+            std::string const & name = configField.first;
+            const std::type_info & optionType = configField.second.type();
 
             if (optionType == typeid(bool_t))
             {
-                configPy[name] = boost::get<bool_t>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<bool_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(int32_t))
             {
-                configPy[name] = boost::get<int32_t>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<int32_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(uint32_t))
             {
-                configPy[name] = boost::get<uint32_t>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<uint32_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(float64_t))
             {
-                configPy[name] = boost::get<float64_t>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<float64_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(std::string))
             {
-                configPy[name] = boost::get<std::string>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<std::string>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(heatMapFunctor_t))
             {
-                configPy[name] = boost::get<heatMapFunctor_t>(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<heatMapFunctor_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
+            }
+            else if (optionType == typeid(flexibilityConfig_t))
+            {
+                bp::object dataPy;
+                convertToPy(boost::get<flexibilityConfig_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(vectorN_t))
             {
-                configPy[name] = eigenVectorTolistPy(boost::get<vectorN_t>(config.at(name)));
+                bp::object dataPy;
+                convertToPy(boost::get<vectorN_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(matrixN_t))
             {
-                configPy[name] = eigenMatrixTolistPy(boost::get<matrixN_t>(config.at(name)));
+                bp::object dataPy;
+                convertToPy(boost::get<matrixN_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(std::vector<std::string>))
             {
-                configPy[name] = stdVectorToListPy(boost::get<std::vector<std::string> >(config.at(name)));
+                bp::object dataPy;
+                convertToPy(boost::get<std::vector<std::string> >(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(std::vector<vectorN_t>))
             {
-                configPy[name] = boost::get<std::vector<vectorN_t> >(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<std::vector<vectorN_t> >(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(std::vector<matrixN_t>))
             {
-                configPy[name] = boost::get<std::vector<matrixN_t> >(config.at(name));
+                bp::object dataPy;
+                convertToPy(boost::get<std::vector<matrixN_t> >(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else if (optionType == typeid(configHolder_t))
             {
-                bp::dict configPyTmp;
-                convertConfigHolderPy(boost::get<configHolder_t>(config.at(name)), configPyTmp);
-                configPy[name] = configPyTmp;
+                bp::object dataPy;
+                convertToPy(boost::get<configHolder_t>(configField.second), dataPy);
+                configPyDict[name] = dataPy;
             }
             else
             {
                 assert(false && "Unsupported type");
             }
         }
+        configPy = configPyDict;
     }
 
     // ****************************************************************************
@@ -301,109 +372,155 @@ namespace python
     }
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert a Python dictionary into a config holder.
+    /// \brief  Convert most Python objects in C++ objects by value.
     ///////////////////////////////////////////////////////////////////////////////
-    void loadConfigHolder(bp::dict       const & configPy,
-                          configHolder_t       & config)
+    template<typename CType>
+    typename std::enable_if<!std::is_same<CType, int32_t>::value
+                         && !std::is_same<CType, uint32_t>::value
+                         && !std::is_same<CType, vectorN_t>::value
+                         && !std::is_same<CType, matrixN_t>::value
+                         && !std::is_same<CType, std::vector<std::string> >::value
+                         && !std::is_same<CType, std::vector<vectorN_t> >::value
+                         && !std::is_same<CType, std::vector<matrixN_t> >::value, void>::type
+    convertToC(bp::object const & dataPy, CType & data)
     {
-        std::vector<std::string> options;
-        for(auto const & it : config)
+        data = bp::extract<CType>(dataPy);
+    }
+
+    template<typename CType>
+    typename std::enable_if<std::is_same<CType, int32_t>::value
+                         || std::is_same<CType, uint32_t>::value, void>::type
+    convertToC(bp::object const & dataPy, CType & data)
+    {
+        std::string const & optionTypePyStr =
+            bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
+        if (optionTypePyStr != "ndarray")
         {
-            options.push_back(it.first);
+            data = bp::extract<CType>(dataPy);
         }
-
-        for (uint32_t i = 0; i < options.size(); i++)
+        else
         {
-            std::string const name = options[i];
-            std::type_info const & optionType = config[name].type();
-            std::string const & optionTypePyStr =
-                bp::extract<std::string>(configPy[name].attr("__class__").attr("__name__"));
+            bp::numpy::ndarray const & dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
+            data = *reinterpret_cast<CType *>(dataNumpy.get_data());
+        }
+    }
 
+    template<typename CType>
+    typename std::enable_if<std::is_same<CType, vectorN_t>::value
+                         || std::is_same<CType, matrixN_t>::value, void>::type
+    convertToC(bp::object const & dataPy, CType & data)
+    {
+        std::string const & optionTypePyStr =
+            bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
+        if (optionTypePyStr != "ndarray")
+        {
+            if(std::is_same<CType, vectorN_t>::value)
+            {
+                data = listPyToEigenVector(bp::extract<bp::list>(dataPy));
+            }
+            else
+            {
+                data = listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
+            }
+        }
+        else
+        {
+            bp::numpy::ndarray dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
+            dataNumpy = dataNumpy.astype(bp::numpy::dtype::get_builtin<float64_t>());
+            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
+            long int const * dataShape = dataNumpy.get_shape();
+            data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
+        }
+    }
+
+    template<typename CType>
+    typename std::enable_if<std::is_same<CType, std::vector<std::string> >::value
+                         || std::is_same<CType, std::vector<vectorN_t> >::value
+                         || std::is_same<CType, std::vector<matrixN_t> >::value, void>::type
+    convertToC(bp::object const & dataPy, CType & data)
+    {
+        data = listPyToStdVector<typename CType::value_type>(bp::extract<bp::list>(dataPy));
+    }
+
+    template<>
+    void convertToC(bp::object const & dataPy, flexibleJointData_t & flexibleJointData)
+    {
+        bp::dict flexibilityJointDataPy = bp::extract<bp::dict>(dataPy);
+        convertToC(flexibilityJointDataPy["jointName"], flexibleJointData.jointName);
+        convertToC(flexibilityJointDataPy["stiffness"], flexibleJointData.stiffness);
+        convertToC(flexibilityJointDataPy["damping"], flexibleJointData.damping);
+    }
+
+    template<>
+    void convertToC(bp::object const & dataPy, flexibilityConfig_t & flexibilityConfig)
+    {
+        bp::list flexibilityConfigPy = bp::extract<bp::list>(dataPy);
+        flexibilityConfig.resize(bp::len(flexibilityConfigPy));
+        for (bp::ssize_t i=0; i < bp::len(flexibilityConfigPy); i++)
+        {
+            convertToC(flexibilityConfigPy[i], flexibilityConfig[i]);
+        }
+    }
+
+    template<>
+    void convertToC(bp::object const & configPy, configHolder_t & config)
+    {
+        for (auto const & configField : config)
+        {
+            std::string const & name = configField.first;
+            const std::type_info & optionType = configField.second.type();
             if (optionType == typeid(bool_t))
             {
-                boost::get<bool_t>(config.at(name)) = bp::extract<bool_t>(configPy[name]);
+                convertToC(configPy[name], boost::get<bool_t>(config.at(name)));
             }
             else if (optionType == typeid(int32_t))
             {
-                if (optionTypePyStr != "ndarray")
-                {
-                    boost::get<int32_t>(config.at(name)) = bp::extract<int32_t>(configPy[name]);
-                }
-                else
-                {
-                    bp::numpy::ndarray const & dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
-                    int32_t const & data = *reinterpret_cast<int32_t *>(dataPy.get_data());
-                    boost::get<int32_t>(config.at(name)) = data;
-                }
+                convertToC(configPy[name], boost::get<int32_t>(config.at(name)));
             }
             else if (optionType == typeid(uint32_t))
             {
-                if (optionTypePyStr != "ndarray")
-                {
-                    boost::get<uint32_t>(config.at(name)) = bp::extract<uint32_t>(configPy[name]);
-                }
-                else
-                {
-                    bp::numpy::ndarray const & dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
-                    uint32_t const & data = *reinterpret_cast<uint32_t *>(dataPy.get_data());
-                    boost::get<uint32_t>(config.at(name)) = data;
-                }
+                convertToC(configPy[name], boost::get<uint32_t>(config.at(name)));
             }
             else if (optionType == typeid(float64_t))
             {
-                boost::get<float64_t>(config.at(name)) = bp::extract<float64_t>(configPy[name]);
+                convertToC(configPy[name], boost::get<float64_t>(config.at(name)));
             }
             else if (optionType == typeid(std::string))
             {
-                 boost::get<std::string>(config.at(name)) = bp::extract<std::string>(configPy[name]);
+                convertToC(configPy[name], boost::get<std::string>(config.at(name)));
             }
             else if (optionType == typeid(heatMapFunctor_t))
             {
-                boost::get<heatMapFunctor_t>(config.at(name)) =
-                    bp::extract<heatMapFunctor_t>(configPy[name]);
+                convertToC(configPy[name], boost::get<heatMapFunctor_t>(config.at(name)));
+            }
+            else if (optionType == typeid(flexibilityConfig_t))
+            {
+                convertToC(configPy[name], boost::get<flexibilityConfig_t>(config.at(name)));
             }
             else if (optionType == typeid(vectorN_t))
             {
-                if (optionTypePyStr != "ndarray")
-                {
-                    boost::get<vectorN_t>(config.at(name)) =
-                        listPyToEigenVector(bp::extract<bp::list>(configPy[name]));
-                }
-                else
-                {
-                    bp::numpy::ndarray dataPy = bp::extract<bp::numpy::ndarray>(configPy[name]);
-                    dataPy = dataPy.astype(bp::numpy::dtype::get_builtin<float64_t>());
-                    float64_t * dataPtr = reinterpret_cast<float64_t *>(dataPy.get_data());
-                    long int const * dataShape = dataPy.get_shape();
-                    Eigen::Map<vectorN_t> data(dataPtr, dataShape[0]);
-                    boost::get<vectorN_t>(config.at(name)) = data;
-                }
+                convertToC(configPy[name], boost::get<vectorN_t>(config.at(name)));
             }
             else if (optionType == typeid(matrixN_t))
             {
-                boost::get<matrixN_t>(config.at(name)) =
-                    listPyToEigenMatrix(bp::extract<bp::list>(configPy[name]));
+                convertToC(configPy[name], boost::get<matrixN_t>(config.at(name)));
             }
             else if (optionType == typeid(std::vector<std::string>))
             {
-                boost::get<std::vector<std::string> >(config.at(name)) =
-                    listPyToStdVector<std::string>(bp::extract<bp::list>(configPy[name]));
+                convertToC(configPy[name], boost::get<std::vector<std::string> >(config.at(name)));
             }
             else if (optionType == typeid(std::vector<vectorN_t>))
             {
-                boost::get<std::vector<vectorN_t> >(config.at(name)) =
-                    listPyToStdVector<vectorN_t>(bp::extract<bp::list>(configPy[name]));
+                convertToC(configPy[name], boost::get<std::vector<vectorN_t> >(config.at(name)));
 
             }
             else if (optionType == typeid(std::vector<matrixN_t>))
             {
-                boost::get<std::vector<matrixN_t> >(config.at(name)) =
-                    listPyToStdVector<matrixN_t>(bp::extract<bp::list>(configPy[name]));
+                convertToC(configPy[name], boost::get<std::vector<matrixN_t> >(config.at(name)));
             }
             else if (optionType == typeid(configHolder_t))
             {
-                loadConfigHolder(bp::extract<bp::dict>(configPy[name]),
-                                 boost::get<configHolder_t>(config.at(name)));
+                convertToC(configPy[name], boost::get<configHolder_t>(config.at(name)));
             }
             else
             {

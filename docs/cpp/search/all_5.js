@@ -1,6 +1,9 @@
 var searchData=
 [
   ['findentry',['findEntry',['../classjiminy_1_1_telemetry_data.html#ada2eea3b535f1b2da5c3ddcc8311a88d',1,'jiminy::TelemetryData']]],
+  ['flexiblejointdata_5ft',['flexibleJointData_t',['../structjiminy_1_1flexible_joint_data__t.html',1,'jiminy']]],
+  ['flexiblejointsmodelidx_5f',['flexibleJointsModelIdx_',['../classjiminy_1_1_model.html#a7a15a562c8c941a35eded9a9bea540b4',1,'jiminy::Model']]],
+  ['flexiblejointsnames_5f',['flexibleJointsNames_',['../classjiminy_1_1_model.html#a24b65c4da1bb91efd8582695a10780ad',1,'jiminy::Model']]],
   ['floatbufferpositon_5f',['floatBufferPositon_',['../classjiminy_1_1_telemetry_sender.html#a090ca43b122e5f0cc08df85f6e822435',1,'jiminy::TelemetrySender']]],
   ['floatsaddress_5f',['floatsAddress_',['../classjiminy_1_1_telemetry_recorder.html#a2550612789ae23dd186d03ef5f2e0ae0',1,'jiminy::TelemetryRecorder']]],
   ['floatsectionsize_5f',['floatSectionSize_',['../classjiminy_1_1_telemetry_recorder.html#a3a73269a551c87cd03d267ee2266a9e5',1,'jiminy::TelemetryRecorder']]],

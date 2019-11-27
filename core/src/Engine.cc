@@ -1317,12 +1317,14 @@ namespace jiminy
         {
             uint32_t const & jointPositionIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_q();
             uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+            vectorN_t const & jointStiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
+            vectorN_t const & jointDamping = mdlDynOptions.flexibilityConfig[i].damping;
 
             float64_t theta;
             quaternion_t quat(q.segment<4>(jointPositionIdx).data()); // Only way to initialize with [x,y,z,w] order
             vectorN_t axis = pinocchio::quaternion::log3(quat, theta);
-            u.segment<3>(jointVelocityIdx).array() += -mdlDynOptions.flexibleJointsStiffness[i].array() * axis.array()
-                - mdlDynOptions.flexibleJointsDamping[i].array() * v.segment<3>(jointVelocityIdx).array();
+            u.segment<3>(jointVelocityIdx).array() += - jointStiffness.array() * axis.array()
+                - jointDamping.array() * v.segment<3>(jointVelocityIdx).array();
         }
     }
 
@@ -1377,11 +1379,11 @@ namespace jiminy
         static typename std::enable_if<!std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
                                     && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
                                     && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>::type
-        algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+        algo(pinocchio::JointModelBase<JointModel>                const & jmodel,
                          pinocchio::JointDataBase<typename
-                                    JointModel::JointDataDerived>    & jdata,
-                         pinocchio::Model                      const & model,
-                         pinocchio::Data                             & data)
+                                    JointModel::JointDataDerived>       & jdata,
+                         pinocchio::Model                         const & model,
+                         pinocchio::Data                                & data)
         {
             typedef typename Model::JointIndex JointIndex;
             typedef typename Data::Inertia Inertia;
@@ -1407,11 +1409,11 @@ namespace jiminy
         static typename std::enable_if<std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
                                     || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
                                     || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>::type
-        algo(pinocchio::JointModelBase<JointModel > const & jmodel,
+        algo(pinocchio::JointModelBase<JointModel>                const & jmodel,
                          pinocchio::JointDataBase<typename
-                                    JointModel::JointDataDerived>    & jdata,
-                         pinocchio::Model                      const & model,
-                         pinocchio::Data                             & data)
+                                    JointModel::JointDataDerived>       & jdata,
+                         pinocchio::Model                         const & model,
+                         pinocchio::Data                                & data)
         {
             /// @brief  See equation 9.28 of Roy Featherstone Rigid Body Dynamics
 

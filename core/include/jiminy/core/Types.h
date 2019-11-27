@@ -50,9 +50,42 @@ namespace jiminy
 
     typedef std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)> heatMapFunctor_t; // Impossible to use function pointer since it does not support functors
 
+    struct flexibleJointData_t
+    {
+        std::string jointName;
+        vectorN_t stiffness;
+        vectorN_t damping;
+
+        flexibleJointData_t(void) :
+        jointName(),
+        stiffness(),
+        damping()
+        {
+            // Empty.
+        };
+
+        flexibleJointData_t(std::string const & jointNameIn,
+                            vectorN_t   const & stiffnessIn,
+                            vectorN_t   const & dampingIn) :
+        jointName(jointNameIn),
+        stiffness(stiffnessIn),
+        damping(dampingIn)
+        {
+            // Empty.
+        };
+
+        inline bool operator==(flexibleJointData_t const & other) const
+        {
+            return (this->jointName == other.jointName
+                 && this->stiffness == other.stiffness
+                 && this->damping == other.damping);
+        };
+    };
+    typedef std::vector<flexibleJointData_t> flexibilityConfig_t;
+
     typedef boost::make_recursive_variant<bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t,
                                           std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
-                                          heatMapFunctor_t,
+                                          flexibilityConfig_t, heatMapFunctor_t,
                                           std::unordered_map<std::string, boost::recursive_variant_> >::type configField_t;
     typedef std::unordered_map<std::string, configField_t> configHolder_t;
 

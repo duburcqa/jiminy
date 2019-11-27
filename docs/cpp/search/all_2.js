@@ -6,6 +6,8 @@ var searchData=
   ['configuretelemetry',['configureTelemetry',['../classjiminy_1_1_abstract_controller.html#a264d589b2af254f821a9cddac7a78633',1,'jiminy::AbstractController::configureTelemetry()'],['../classjiminy_1_1_abstract_sensor_base.html#a5c5938e7eb04c2292ac216a006a5be0b',1,'jiminy::AbstractSensorBase::configureTelemetry()']]],
   ['constantsheader_5f',['constantsHeader_',['../classjiminy_1_1_telemetry_data.html#a0ac5c3b6e876875822b6c7461c99997d',1,'jiminy::TelemetryData']]],
   ['constantsmem_5f',['constantsMem_',['../classjiminy_1_1_telemetry_data.html#ad791584324bc10c87c7b4b95ddf669d7',1,'jiminy::TelemetryData']]],
+  ['contactframesidx_5f',['contactFramesIdx_',['../classjiminy_1_1_model.html#ab08386a20be27fe38ddf20c5ba1482cb',1,'jiminy::Model']]],
+  ['contactframesnames_5f',['contactFramesNames_',['../classjiminy_1_1_model.html#a6fcb2d0efffeb7f10d84b27f89ff3615',1,'jiminy::Model']]],
   ['contactoptions_5ft',['contactOptions_t',['../structjiminy_1_1_engine_1_1contact_options__t.html',1,'jiminy::Engine']]],
   ['controller_5fobject_5fname',['CONTROLLER_OBJECT_NAME',['../namespacejiminy.html#a14137f9649e56fe39f7495ef6f0f1ea5',1,'jiminy']]],
   ['controllerfunctor',['ControllerFunctor',['../classjiminy_1_1_controller_functor.html',1,'jiminy::ControllerFunctor&lt; F1, F2 &gt;'],['../classjiminy_1_1_controller_functor.html#a1e327e62ac846394095195a1d05e2d76',1,'jiminy::ControllerFunctor::ControllerFunctor(ControllerFunctor const &amp;controller)=delete'],['../classjiminy_1_1_controller_functor.html#a1456266eb4d2c8cb5c43e6c5a38654aa',1,'jiminy::ControllerFunctor::ControllerFunctor(F1 &amp;commandFct, F2 &amp;internalDynamicsFct)']]],

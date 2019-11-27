@@ -9,6 +9,7 @@ var namespacejiminy =
     [ "EncoderSensor", "classjiminy_1_1_encoder_sensor.html", "classjiminy_1_1_encoder_sensor" ],
     [ "Engine", "classjiminy_1_1_engine.html", "classjiminy_1_1_engine" ],
     [ "explicit_euler", "classjiminy_1_1explicit__euler.html", "classjiminy_1_1explicit__euler" ],
+    [ "flexibleJointData_t", "structjiminy_1_1flexible_joint_data__t.html", "structjiminy_1_1flexible_joint_data__t" ],
     [ "ForceSensor", "classjiminy_1_1_force_sensor.html", "classjiminy_1_1_force_sensor" ],
     [ "ImuSensor", "classjiminy_1_1_imu_sensor.html", "classjiminy_1_1_imu_sensor" ],
     [ "memHeader", "structjiminy_1_1mem_header.html", "structjiminy_1_1mem_header" ],

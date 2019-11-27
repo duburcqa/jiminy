@@ -91,6 +91,7 @@ $(document).ready(function(){initNavTree('_types_8h.html','');});
 
 <div class="header">
   <div class="summary">
+<a href="#nested-classes">Classes</a> &#124;
 <a href="#namespaces">Namespaces</a> &#124;
 <a href="#typedef-members">Typedefs</a> &#124;
 <a href="#enum-members">Enumerations</a> &#124;
@@ -148,6 +149,11 @@ $(document).ready(function(){initNavTree('_types_8h.html','');});
 </div>
 <p><a href="_types_8h_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
+Classes</h2></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1flexible_joint_data__t.html">jiminy::flexibleJointData_t</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="namespaces"></a>
 Namespaces</h2></td></tr>
 <tr class="memitem:namespacejiminy"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacejiminy.html">jiminy</a></td></tr>
@@ -201,9 +207,12 @@ typedef Eigen::Quaternion&lt; float64_t &gt;&#160;</td><td class="memItemRight" 
 <tr class="memitem:a52e34dfe0d14ea69de4040f2f9fc4e9c"><td class="memItemLeft" align="right" valign="top"><a id="a52e34dfe0d14ea69de4040f2f9fc4e9c"></a>
 typedef std::function&lt; std::pair&lt; float64_t, vector3_t &gt;vector3_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::heatMapFunctor_t</b></td></tr>
 <tr class="separator:a52e34dfe0d14ea69de4040f2f9fc4e9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a028eff518bb20279c812489ec1beca60"><td class="memItemLeft" align="right" valign="top"><a id="a028eff518bb20279c812489ec1beca60"></a>
-typedef boost::make_recursive_variant&lt; bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, std::vector&lt; std::string &gt;, std::vector&lt; vectorN_t &gt;, std::vector&lt; matrixN_t &gt;, heatMapFunctor_t, std::unordered_map&lt; std::string, boost::recursive_variant_ &gt; &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::configField_t</b></td></tr>
-<tr class="separator:a028eff518bb20279c812489ec1beca60"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab09be0393a235d0a2a9eb41491fef9a1"><td class="memItemLeft" align="right" valign="top"><a id="ab09be0393a235d0a2a9eb41491fef9a1"></a>
+typedef std::vector&lt; flexibleJointData_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::flexibilityConfig_t</b></td></tr>
+<tr class="separator:ab09be0393a235d0a2a9eb41491fef9a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a21df4b411062107ec7049898c3590b"><td class="memItemLeft" align="right" valign="top"><a id="a0a21df4b411062107ec7049898c3590b"></a>
+typedef boost::make_recursive_variant&lt; bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, std::vector&lt; std::string &gt;, std::vector&lt; vectorN_t &gt;, std::vector&lt; matrixN_t &gt;, flexibilityConfig_t, heatMapFunctor_t, std::unordered_map&lt; std::string, boost::recursive_variant_ &gt; &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::configField_t</b></td></tr>
+<tr class="separator:a0a21df4b411062107ec7049898c3590b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2270b3517dbd646083038fff67f95680"><td class="memItemLeft" align="right" valign="top"><a id="a2270b3517dbd646083038fff67f95680"></a>
 typedef std::unordered_map&lt; std::string, configField_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::configHolder_t</b></td></tr>
 <tr class="separator:a2270b3517dbd646083038fff67f95680"><td class="memSeparator" colspan="2">&#160;</td></tr>

@@ -1,12 +1,14 @@
 var _types_8h =
 [
+    [ "flexibleJointData_t", "structjiminy_1_1flexible_joint_data__t.html", "structjiminy_1_1flexible_joint_data__t" ],
     [ "blockXpr", "_types_8h.html#ae9631e407ca3d3129268f2c58d38bffd", null ],
     [ "bool_t", "_types_8h.html#a111f45a37cfbfab1abd9ee45b0b0428d", null ],
     [ "char_t", "_types_8h.html#aa2f3c08ee413bd84f1b6726abd7b7877", null ],
-    [ "configField_t", "_types_8h.html#a028eff518bb20279c812489ec1beca60", null ],
+    [ "configField_t", "_types_8h.html#a0a21df4b411062107ec7049898c3590b", null ],
     [ "configHolder_t", "_types_8h.html#a2270b3517dbd646083038fff67f95680", null ],
     [ "const_cstr_t", "_types_8h.html#aa3599e21d8722337da386db94c0b5e20", null ],
     [ "constBlockXpr", "_types_8h.html#af89bc42ee9fe8fc8206dc096b89e591a", null ],
+    [ "flexibilityConfig_t", "_types_8h.html#ab09be0393a235d0a2a9eb41491fef9a1", null ],
     [ "float32_t", "_types_8h.html#ac8e32957d96894ccb4cae0a2a313165d", null ],
     [ "float64_t", "_types_8h.html#aaf73ad8631cc0ef70ecb7a3c8b6d89ac", null ],
     [ "heatMapFunctor_t", "_types_8h.html#a52e34dfe0d14ea69de4040f2f9fc4e9c", null ],
