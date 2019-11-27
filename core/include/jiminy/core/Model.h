@@ -86,23 +86,19 @@ namespace jiminy
             config["centerOfMassPositionBodiesBiasStd"] = 0.0;
             config["relativePositionBodiesBiasStd"] = 0.0;
             config["enableFlexibleModel"] = true;
-            config["flexibleJointsNames"] = std::vector<std::string>();
-            config["flexibleJointsStiffness"] = std::vector<vectorN_t>();
-            config["flexibleJointsDamping"] = std::vector<vectorN_t>();
+            config["flexibilityConfig"] = flexibilityConfig_t();
 
             return config;
         };
 
         struct dynamicsOptions_t
         {
-            float64_t                const inertiaBodiesBiasStd;
-            float64_t                const massBodiesBiasStd;
-            float64_t                const centerOfMassPositionBodiesBiasStd;
-            float64_t                const relativePositionBodiesBiasStd;
-            bool                     const enableFlexibleModel;
-            std::vector<std::string> const flexibleJointsNames;
-            std::vector<vectorN_t>   const flexibleJointsStiffness;
-            std::vector<vectorN_t>   const flexibleJointsDamping;
+            float64_t           const inertiaBodiesBiasStd;
+            float64_t           const massBodiesBiasStd;
+            float64_t           const centerOfMassPositionBodiesBiasStd;
+            float64_t           const relativePositionBodiesBiasStd;
+            bool                const enableFlexibleModel;
+            flexibilityConfig_t const flexibilityConfig;
 
             dynamicsOptions_t(configHolder_t const & options) :
             inertiaBodiesBiasStd(boost::get<float64_t>(options.at("inertiaBodiesBiasStd"))),
@@ -110,9 +106,7 @@ namespace jiminy
             centerOfMassPositionBodiesBiasStd(boost::get<float64_t>(options.at("centerOfMassPositionBodiesBiasStd"))),
             relativePositionBodiesBiasStd(boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))),
             enableFlexibleModel(boost::get<bool>(options.at("enableFlexibleModel"))),
-            flexibleJointsNames(boost::get<std::vector<std::string> >(options.at("flexibleJointsNames"))),
-            flexibleJointsStiffness(boost::get<std::vector<vectorN_t> >(options.at("flexibleJointsStiffness"))),
-            flexibleJointsDamping(boost::get<std::vector<vectorN_t> >(options.at("flexibleJointsDamping")))
+            flexibilityConfig(boost::get<flexibilityConfig_t>(options.at("flexibilityConfig")))
             {
                 // Empty.
             }
@@ -251,27 +245,27 @@ namespace jiminy
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool> sensorTelemetryOptions_;
 
-        std::vector<std::string> contactFramesNames_;       // Name of the frames of the contact points of the model
-        std::vector<int32_t> contactFramesIdx_;             // Indices of the contact frames in the frame list of the model
-        std::vector<std::string> motorsNames_;              // Joint name of the motors of the model
-        std::vector<int32_t> motorsModelIdx_;               // Index of the motors in the pinocchio model
-        std::vector<int32_t> motorsPositionIdx_;            // First indices of the motors in the configuration vector of the model
-        std::vector<int32_t> motorsVelocityIdx_;            // First indices of the motors in the velocity vector of the model
-        std::vector<std::string> rigidJointsNames_;         // Name of the actual joints of the model, not taking into account the freeflyer
-        std::vector<int32_t> rigidJointsModelIdx_;          // Index of the actual joints in the pinocchio model
-        std::vector<int32_t> rigidJointsPositionIdx_;       // All the indices of the actual joints in the configuration vector of the model
-        std::vector<int32_t> rigidJointsVelocityIdx_;       // All the indices of the actual joints in the velocity vector of the model
-        std::vector<std::string> flexibleJointsNames_;      // Name of the flexibility joints of the model ONLY
-        std::vector<int32_t> flexibleJointsModelIdx_;       // Index of the flexibility joints in the pinocchio model
+        std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the model
+        std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the model
+        std::vector<std::string> motorsNames_;              ///< Joint name of the motors of the model
+        std::vector<int32_t> motorsModelIdx_;               ///< Index of the motors in the pinocchio model
+        std::vector<int32_t> motorsPositionIdx_;            ///< First indices of the motors in the configuration vector of the model
+        std::vector<int32_t> motorsVelocityIdx_;            ///< First indices of the motors in the velocity vector of the model
+        std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the model, not taking into account the freeflyer
+        std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio model
+        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the model
+        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the model
+        std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the model regardless of whether the flexibilities are enable
+        std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio model regardless of whether the flexibilities are enable
 
         vectorN_t positionLimitMin_;
         vectorN_t positionLimitMax_;
         vectorN_t velocityLimit_;
 
-        std::vector<std::string> positionFieldNames_;       // Fieldnames of the elements in the configuration vector of the rigid model
-        std::vector<std::string> velocityFieldNames_;       // Fieldnames of the elements in the velocity vector of the rigid model
-        std::vector<std::string> accelerationFieldNames_;   // Fieldnames of the elements in the acceleration vector of the rigid model
-        std::vector<std::string> motorTorqueFieldNames_;    // Fieldnames of the torques of the motors
+        std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid model
+        std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid model
+        std::vector<std::string> accelerationFieldNames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid model
+        std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;

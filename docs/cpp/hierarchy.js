@@ -25,6 +25,7 @@ var hierarchy =
     [ "jiminy::Engine", "classjiminy_1_1_engine.html", null ],
     [ "jiminy::Engine::engineOptions_t", "structjiminy_1_1_engine_1_1engine_options__t.html", null ],
     [ "jiminy::explicit_euler", "classjiminy_1_1explicit__euler.html", null ],
+    [ "jiminy::flexibleJointData_t", "structjiminy_1_1flexible_joint_data__t.html", null ],
     [ "jiminy::Model::jointOptions_t", "structjiminy_1_1_model_1_1joint_options__t.html", null ],
     [ "jiminy::Engine::jointOptions_t", "structjiminy_1_1_engine_1_1joint_options__t.html", null ],
     [ "JointVisitorBase", null, [

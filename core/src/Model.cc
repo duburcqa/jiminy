@@ -281,27 +281,35 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             flexibleJointsNames_.clear();
+            flexibleJointsModelIdx_.clear();
             pncModelFlexibleOrig_ = pncModelRigidOrig_;
-            for(std::string jointName : mdlOptions_->dynamics.flexibleJointsNames)
+            for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
             {
-                int32_t jointIdx;
-                if(returnCode == result_t::SUCCESS)
-                {
-                    returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
-                }
+                std::string const & jointName = flexibleJoint.jointName;
 
                 // Look if given joint exists in the joint list.
                 if(returnCode == result_t::SUCCESS)
                 {
-                    // Add joints to model.
+                    int32_t jointIdx;
+                    returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
+                }
+
+                // Add joints to model.
+                if(returnCode == result_t::SUCCESS)
+                {
                     std::string newName =
                         removeFieldnameSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
                     flexibleJointsNames_.emplace_back(newName);
-
-                    // Ignore return code, as check has already been done.
-                    insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName);
+                    insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName); // Ignore return code, as check has already been done.
                 }
             }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            getJointsModelIdx(pncModelFlexibleOrig_,
+                              flexibleJointsNames_,
+                              flexibleJointsModelIdx_);
         }
 
         return returnCode;
@@ -323,16 +331,6 @@ namespace jiminy
             if(pncModelFlexibleOrig_ == pinocchio::Model())
             {
                 returnCode = generateFlexibleModel();
-            }
-        }
-
-        if(returnCode == result_t::SUCCESS)
-        {
-            if (mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                getJointsModelIdx(pncModelFlexibleOrig_,
-                                  flexibleJointsNames_,
-                                  flexibleJointsModelIdx_);
             }
         }
 
@@ -916,15 +914,15 @@ namespace jiminy
             {
                 configHolder_t & dynOptionsHolder =
                     boost::get<configHolder_t>(mdlOptions.at("dynamics"));
-                std::vector<std::string> const & flexibleJointsNames =
-                    boost::get<std::vector<std::string> >(dynOptionsHolder.at("flexibleJointsNames"));
-               bool const & enableFlexibleModel = boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
+                bool const & enableFlexibleModel = boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
+                flexibilityConfig_t const & flexibilityConfig =
+                    boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
 
                 if(mdlOptions_
-                && (flexibleJointsNames.size() != mdlOptions_->dynamics.flexibleJointsNames.size()
-                    || !std::equal(flexibleJointsNames.begin(),
-                                   flexibleJointsNames.end(),
-                                   mdlOptions_->dynamics.flexibleJointsNames.begin())))
+                && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
+                    || !std::equal(flexibilityConfig.begin(),
+                                   flexibilityConfig.end(),
+                                   mdlOptions_->dynamics.flexibilityConfig.begin())))
                 {
                     isFlexibleModelInvalid = true;
                 }
@@ -1189,12 +1187,28 @@ namespace jiminy
 
     std::vector<std::string> const & Model::getFlexibleJointsNames(void) const
     {
-        return mdlOptions_->dynamics.flexibleJointsNames;
+        static std::vector<std::string> const flexibleJointsNamesEmpty {};
+        if (mdlOptions_->dynamics.enableFlexibleModel)
+        {
+            return flexibleJointsNames_;
+        }
+        else
+        {
+            return flexibleJointsNamesEmpty;
+        }
     }
 
     std::vector<int32_t> const & Model::getFlexibleJointsModelIdx(void) const
     {
-        return flexibleJointsModelIdx_;
+        static std::vector<int32_t> const flexibleJointsModelIdxEmpty {};
+        if (mdlOptions_->dynamics.enableFlexibleModel)
+        {
+            return flexibleJointsModelIdx_;
+        }
+        else
+        {
+            return flexibleJointsModelIdxEmpty;
+        }
     }
 
     uint32_t const & Model::nq(void) const

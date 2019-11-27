@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['recordedbytes_5f',['recordedBytes_',['../classjiminy_1_1_telemetry_recorder.html#a31b04d2afaa88d163800e9d26107387b',1,'jiminy::TelemetryRecorder']]],
-  ['registeredinfo_5f',['registeredInfo_',['../classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd',1,'jiminy::AbstractController']]]
+  ['positionfieldnames_5f',['positionFieldNames_',['../classjiminy_1_1_model.html#ac688bcca891f9229a356aa8b938e9523',1,'jiminy::Model']]],
+  ['positionlimitmin',['positionLimitMin',['../structjiminy_1_1_model_1_1joint_options__t.html#a8de1235acf06480bcb7b22e06555a3bc',1,'jiminy::Model::jointOptions_t']]]
 ];

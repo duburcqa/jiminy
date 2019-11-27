@@ -10,6 +10,8 @@ var searchData=
   ['getistelemetryconfigured',['getIsTelemetryConfigured',['../classjiminy_1_1_abstract_controller.html#a8f9235e51ff8ee690929ab9a9479edc5',1,'jiminy::AbstractController::getIsTelemetryConfigured()'],['../classjiminy_1_1_abstract_sensor_base.html#a340120a1ccd4f0062c382feb726b42ef',1,'jiminy::AbstractSensorBase::getIsTelemetryConfigured()']]],
   ['getlasterror',['getLastError',['../classjiminy_1_1_abstract_i_o_device.html#aec800677e5591a4f913bc126a809de17',1,'jiminy::AbstractIODevice']]],
   ['getlocalnumentries',['getLocalNumEntries',['../classjiminy_1_1_telemetry_sender.html#ac835bc82e31cbfcd4dcd7eabc288b7af',1,'jiminy::TelemetrySender']]],
+  ['getlogdata',['getLogData',['../classjiminy_1_1_engine.html#a477e94313568596aec2eb492715675dc',1,'jiminy::Engine']]],
+  ['getlogfieldvalue',['getLogFieldValue',['../classjiminy_1_1_engine.html#af39c5c353f788a173d2f2f4f0dff9a5e',1,'jiminy::Engine']]],
   ['getname',['getName',['../classjiminy_1_1_abstract_sensor_base.html#addc19968eb77c541726a579344f26e22',1,'jiminy::AbstractSensorBase']]],
   ['getobjectname',['getObjectName',['../classjiminy_1_1_telemetry_sender.html#af8f8591fe5e4adceb9f7f9270a0592c4',1,'jiminy::TelemetrySender']]],
   ['getoptions',['getOptions',['../classjiminy_1_1_abstract_controller.html#aa84391c4f35ac55738e5f19ec7bd2902',1,'jiminy::AbstractController::getOptions()'],['../classjiminy_1_1_abstract_sensor_base.html#a91d73d1833d42fe89c810df2a5a7fd77',1,'jiminy::AbstractSensorBase::getOptions()']]],

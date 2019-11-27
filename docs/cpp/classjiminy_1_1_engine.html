@@ -212,9 +212,12 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>getIsTelemetryConfigu
 <tr class="memitem:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memItemLeft" align="right" valign="top"><a id="a69b2cd9e7ba8052791f6cb35d67d59b7"></a>
 std::vector&lt; vectorN_t &gt; const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getContactForces</b> (void) const</td></tr>
 <tr class="separator:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a477e94313568596aec2eb492715675dc"><td class="memItemLeft" align="right" valign="top"><a id="a477e94313568596aec2eb492715675dc"></a>
-result_t&#160;</td><td class="memItemRight" valign="bottom"><b>getLogData</b> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
+<tr class="memitem:a477e94313568596aec2eb492715675dc"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a477e94313568596aec2eb492715675dc">getLogData</a> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
+<tr class="memdesc:a477e94313568596aec2eb492715675dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the full logged content.  <a href="#a477e94313568596aec2eb492715675dc">More...</a><br /></td></tr>
 <tr class="separator:a477e94313568596aec2eb492715675dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="memItemLeft" align="right" valign="top">vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#af39c5c353f788a173d2f2f4f0dff9a5e">getLogFieldValue</a> (std::string const &amp;fieldName)</td></tr>
+<tr class="memdesc:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the value of a single logged variable.  <a href="#af39c5c353f788a173d2f2f4f0dff9a5e">More...</a><br /></td></tr>
+<tr class="separator:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab91bd8f3a80fac940214e2f49832c67e"><td class="memItemLeft" align="right" valign="top"><a id="ab91bd8f3a80fac940214e2f49832c67e"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogTxt</b> (std::string const &amp;filename)</td></tr>
 <tr class="separator:ab91bd8f3a80fac940214e2f49832c67e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -341,7 +344,81 @@ std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock">
 <p class="definition">Definition at line <a class="el" href="_engine_8h_source.html#l00169">169</a> of file <a class="el" href="_engine_8h_source.html">Engine.h</a>.</p>
-</div><hr/>The documentation for this class was generated from the following files:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a477e94313568596aec2eb492715675dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a477e94313568596aec2eb492715675dc">&#9670;&nbsp;</a></span>getLogData()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">result_t jiminy::Engine::getLogData </td>
+          <td>(</td>
+          <td class="paramtype">std::vector&lt; std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>header</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">matrixN_t &amp;&#160;</td>
+          <td class="paramname"><em>logData</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get the full logged content. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">header</td><td>Header, vector of field names. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">logData</td><td>Corresponding data in the log file. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>ERROR_INIT_FAILED if telemetry was not initialized, SUCCESS on success. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00927">927</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
+
+<p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00404">jiminy::AbstractSensorBase::isInitialized_</a>.</p>
+
+</div>
+</div>
+<a id="af39c5c353f788a173d2f2f4f0dff9a5e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af39c5c353f788a173d2f2f4f0dff9a5e">&#9670;&nbsp;</a></span>getLogFieldValue()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">vectorN_t jiminy::Engine::getLogFieldValue </td>
+          <td>(</td>
+          <td class="paramtype">std::string const &amp;&#160;</td>
+          <td class="paramname"><em>fieldName</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get the value of a single logged variable. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">fieldName</td><td>Full name of the variable to get </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00961">961</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
+
+<p class="reference">References <a class="el" href="classjiminy_1_1_abstract_sensor_base.html#a5180e3bdde30284596f368b749474b78">jiminy::AbstractSensorBase::data()</a>.</p>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following files:<ul>
 <li>core/include/jiminy/core/<a class="el" href="_engine_8h_source.html">Engine.h</a></li>
 <li>core/src/<a class="el" href="_engine_8cc_source.html">Engine.cc</a></li>
 </ul>

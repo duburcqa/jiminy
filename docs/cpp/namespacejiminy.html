@@ -126,6 +126,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1explicit__euler.html">explicit_euler</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1flexible_joint_data__t.html">flexibleJointData_t</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_force_sensor.html">ForceSensor</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_imu_sensor.html">ImuSensor</a></td></tr>
@@ -202,9 +204,12 @@ typedef Eigen::Quaternion&lt; float64_t &gt;&#160;</td><td class="memItemRight" 
 <tr class="memitem:a52e34dfe0d14ea69de4040f2f9fc4e9c"><td class="memItemLeft" align="right" valign="top"><a id="a52e34dfe0d14ea69de4040f2f9fc4e9c"></a>
 typedef std::function&lt; std::pair&lt; float64_t, vector3_t &gt;vector3_t const &amp;)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>heatMapFunctor_t</b></td></tr>
 <tr class="separator:a52e34dfe0d14ea69de4040f2f9fc4e9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a028eff518bb20279c812489ec1beca60"><td class="memItemLeft" align="right" valign="top"><a id="a028eff518bb20279c812489ec1beca60"></a>
-typedef boost::make_recursive_variant&lt; bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, std::vector&lt; std::string &gt;, std::vector&lt; vectorN_t &gt;, std::vector&lt; matrixN_t &gt;, heatMapFunctor_t, std::unordered_map&lt; std::string, boost::recursive_variant_ &gt; &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><b>configField_t</b></td></tr>
-<tr class="separator:a028eff518bb20279c812489ec1beca60"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab09be0393a235d0a2a9eb41491fef9a1"><td class="memItemLeft" align="right" valign="top"><a id="ab09be0393a235d0a2a9eb41491fef9a1"></a>
+typedef std::vector&lt; <a class="el" href="structjiminy_1_1flexible_joint_data__t.html">flexibleJointData_t</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>flexibilityConfig_t</b></td></tr>
+<tr class="separator:ab09be0393a235d0a2a9eb41491fef9a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a21df4b411062107ec7049898c3590b"><td class="memItemLeft" align="right" valign="top"><a id="a0a21df4b411062107ec7049898c3590b"></a>
+typedef boost::make_recursive_variant&lt; bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, std::vector&lt; std::string &gt;, std::vector&lt; vectorN_t &gt;, std::vector&lt; matrixN_t &gt;, flexibilityConfig_t, heatMapFunctor_t, std::unordered_map&lt; std::string, boost::recursive_variant_ &gt; &gt;::type&#160;</td><td class="memItemRight" valign="bottom"><b>configField_t</b></td></tr>
+<tr class="separator:a0a21df4b411062107ec7049898c3590b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2270b3517dbd646083038fff67f95680"><td class="memItemLeft" align="right" valign="top"><a id="a2270b3517dbd646083038fff67f95680"></a>
 typedef std::unordered_map&lt; std::string, configField_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>configHolder_t</b></td></tr>
 <tr class="separator:a2270b3517dbd646083038fff67f95680"><td class="memSeparator" colspan="2">&#160;</td></tr>

@@ -544,7 +544,7 @@ namespace python
         static bp::dict getOptions(TSensor & self)
         {
             bp::dict configPy;
-            convertConfigHolderPy(self.getOptions(), configPy);
+            convertToPy(self.getOptions(), configPy);
             return configPy;
         }
 
@@ -553,7 +553,7 @@ namespace python
                                bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
-            loadConfigHolder(configPy, config);
+            convertToC(configPy, config);
             self.setOptions(config);
         }
 
@@ -769,12 +769,12 @@ namespace python
         static bp::dict getModelOptions(Model & self)
         {
             bp::dict configModelPy;
-            convertConfigHolderPy(self.getOptions(), configModelPy);
+            convertToPy(self.getOptions(), configModelPy);
 
             bp::dict configTelemetryPy;
             configHolder_t configTelemetry;
             self.getTelemetryOptions(configTelemetry);
-            convertConfigHolderPy(configTelemetry, configTelemetryPy);
+            convertToPy(configTelemetry, configTelemetryPy);
             configModelPy["telemetry"] = configTelemetryPy;
 
             return configModelPy;
@@ -784,12 +784,12 @@ namespace python
                                     bp::dict const & configPy)
         {
             configHolder_t configModel = self.getOptions();
-            loadConfigHolder(configPy, configModel);
+            convertToC(configPy, configModel);
             self.setOptions(configModel);
 
             configHolder_t configTelemetry;
             self.getTelemetryOptions(configTelemetry);
-            loadConfigHolder(bp::extract<bp::dict>(configPy["telemetry"]), configTelemetry);
+            convertToC(bp::extract<bp::dict>(configPy["telemetry"]), configTelemetry);
             self.setTelemetryOptions(configTelemetry);
         }
 
@@ -798,7 +798,7 @@ namespace python
             configHolder_t config;
             bp::dict configPy;
             self.getSensorsOptions(config);
-            convertConfigHolderPy(config, configPy);
+            convertToPy(config, configPy);
 
             return configPy;
         }
@@ -808,7 +808,7 @@ namespace python
         {
             configHolder_t config;
             self.getSensorsOptions(config);
-            loadConfigHolder(configPy, config);
+            convertToC(configPy, config);
             self.setSensorsOptions(config);
         }
 
@@ -893,7 +893,7 @@ namespace python
         static bp::dict getOptions(AbstractController & self)
         {
             bp::dict configPy;
-            convertConfigHolderPy(self.getOptions(), configPy);
+            convertToPy(self.getOptions(), configPy);
             return configPy;
         }
 
@@ -901,7 +901,7 @@ namespace python
                                bp::dict           const & configPy)
         {
             configHolder_t config = self.getOptions();
-            loadConfigHolder(configPy, config);
+            convertToC(configPy, config);
             self.setOptions(config);
         }
 
@@ -1170,7 +1170,7 @@ namespace python
         static bp::dict getOptions(Engine & self)
         {
             bp::dict configPy;
-            convertConfigHolderPy(self.getOptions(), configPy);
+            convertToPy(self.getOptions(), configPy);
             return configPy;
         }
 
@@ -1178,7 +1178,7 @@ namespace python
                                    bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
-            loadConfigHolder(configPy, config);
+            convertToC(configPy, config);
             return self.setOptions(config);
         }
 

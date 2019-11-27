@@ -1,11 +1,9 @@
 var searchData=
 [
-  ['sensoroptions_5f',['sensorOptions_',['../classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23',1,'jiminy::AbstractSensorBase']]],
-  ['sensoroptionsholder_5f',['sensorOptionsHolder_',['../classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7',1,'jiminy::AbstractSensorBase']]],
-  ['sensors_5f',['sensors_',['../structjiminy_1_1_sensor_data_holder__t.html#a2ca346bdb6e6ae18536291fd070dfa4e',1,'jiminy::SensorDataHolder_t']]],
-  ['size_5f',['size_',['../classjiminy_1_1_memory_buffer.html#a7ac144d64fe84d5703ba8cd2b525c5f1',1,'jiminy::MemoryBuffer']]],
-  ['startdatasection',['startDataSection',['../structjiminy_1_1mem_header.html#a92ccafcd1a8462649303765fc3976ae8',1,'jiminy::memHeader']]],
-  ['startnamesection',['startNameSection',['../structjiminy_1_1mem_header.html#a5f23895ae2ee277f0a75bc78362a92d1',1,'jiminy::memHeader']]],
-  ['stepperstate_5f',['stepperState_',['../classjiminy_1_1_engine.html#a861c2f58747258fc51810d171b2b5443',1,'jiminy::Engine']]],
-  ['stepperstatelast_5f',['stepperStateLast_',['../classjiminy_1_1_engine.html#a15c999fe5e4d33f53c8c3f3b14a8fd98',1,'jiminy::Engine']]]
+  ['recordedbytes_5f',['recordedBytes_',['../classjiminy_1_1_telemetry_recorder.html#a31b04d2afaa88d163800e9d26107387b',1,'jiminy::TelemetryRecorder']]],
+  ['registeredinfo_5f',['registeredInfo_',['../classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd',1,'jiminy::AbstractController']]],
+  ['rigidjointsmodelidx_5f',['rigidJointsModelIdx_',['../classjiminy_1_1_model.html#a4fb612359e325c8298249a7919a7a146',1,'jiminy::Model']]],
+  ['rigidjointsnames_5f',['rigidJointsNames_',['../classjiminy_1_1_model.html#a3ca3c2613f8c0c348270693a952e0260',1,'jiminy::Model']]],
+  ['rigidjointspositionidx_5f',['rigidJointsPositionIdx_',['../classjiminy_1_1_model.html#abfafdf7c868cc6986f54098ee73cc7ad',1,'jiminy::Model']]],
+  ['rigidjointsvelocityidx_5f',['rigidJointsVelocityIdx_',['../classjiminy_1_1_model.html#aefbe00cc6c89c4ae94b4e711558ecc14',1,'jiminy::Model']]]
 ];

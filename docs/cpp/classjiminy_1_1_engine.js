@@ -33,6 +33,7 @@ var classjiminy_1_1_engine =
     [ "getIsInitialized", "classjiminy_1_1_engine.html#a1902a90a5d1548519ed8f0345cf4f335", null ],
     [ "getIsTelemetryConfigured", "classjiminy_1_1_engine.html#a831a1852cc95e954805d741449b97ce0", null ],
     [ "getLogData", "classjiminy_1_1_engine.html#a477e94313568596aec2eb492715675dc", null ],
+    [ "getLogFieldValue", "classjiminy_1_1_engine.html#af39c5c353f788a173d2f2f4f0dff9a5e", null ],
     [ "getModel", "classjiminy_1_1_engine.html#a51a3f3b92babc7738bac97f2986cf92c", null ],
     [ "getOptions", "classjiminy_1_1_engine.html#a920fdc863b6705dd6f4e591b674f684e", null ],
     [ "getStepperState", "classjiminy_1_1_engine.html#a2a322dd986a5bcc7d13338e2abde2f9d", null ],
