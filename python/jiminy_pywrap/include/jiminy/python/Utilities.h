@@ -394,14 +394,19 @@ namespace python
     {
         std::string const & optionTypePyStr =
             bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
-        if (optionTypePyStr != "ndarray")
-        {
-            data = bp::extract<CType>(dataPy);
-        }
-        else
+        if (optionTypePyStr == "ndarray")
         {
             bp::numpy::ndarray const & dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
             data = *reinterpret_cast<CType *>(dataNumpy.get_data());
+        }
+        else if (optionTypePyStr == "matrix")
+        {
+            bp::numpy::matrix const & dataMatrix = bp::extract<bp::numpy::matrix>(dataPy);
+            data = *reinterpret_cast<CType *>(dataMatrix.get_data());
+        }
+        else
+        {
+            data = bp::extract<CType>(dataPy);
         }
     }
 
@@ -412,7 +417,37 @@ namespace python
     {
         std::string const & optionTypePyStr =
             bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
-        if (optionTypePyStr != "ndarray")
+        if (optionTypePyStr == "ndarray")
+        {
+            bp::numpy::ndarray dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
+            dataNumpy = dataNumpy.astype(bp::numpy::dtype::get_builtin<float64_t>());
+            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
+            long int const * dataShape = dataNumpy.get_shape();
+            if(std::is_same<CType, vectorN_t>::value)
+            {
+                data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
+            }
+            else
+            {
+                data = Eigen::Map<matrixN_t>(dataPtr, dataShape[0], dataShape[1]);
+            }
+        }
+        else if (optionTypePyStr == "matrix")
+        {
+            bp::numpy::matrix dataMatrix = bp::extract<bp::numpy::matrix>(dataPy);
+            bp::numpy::ndarray dataNumpy = dataMatrix.astype(bp::numpy::dtype::get_builtin<float64_t>());
+            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
+            long int const * dataShape = dataNumpy.get_shape();
+            if(std::is_same<CType, vectorN_t>::value)
+            {
+                data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
+            }
+            else
+            {
+                data = Eigen::Map<matrixN_t>(dataPtr, dataShape[0], dataShape[1]);
+            }
+        }
+        else
         {
             if(std::is_same<CType, vectorN_t>::value)
             {
@@ -422,14 +457,6 @@ namespace python
             {
                 data = listPyToEigenMatrix(bp::extract<bp::list>(dataPy));
             }
-        }
-        else
-        {
-            bp::numpy::ndarray dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
-            dataNumpy = dataNumpy.astype(bp::numpy::dtype::get_builtin<float64_t>());
-            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
-            long int const * dataShape = dataNumpy.get_shape();
-            data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
         }
     }
 
