@@ -228,7 +228,7 @@ namespace jiminy
 
     public:
         pinocchio::Model pncModel_;
-        pinocchio::Data pncData_;
+        mutable pinocchio::Data pncData_;
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
