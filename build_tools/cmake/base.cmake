@@ -50,11 +50,11 @@ set(PYTHON_SITELIB ${PYTHON_ROOT}/lib/python${PYTHON_VERSION}/site-packages)
 
 # Add Python dependencies
 set(PYTHON_INCLUDE_DIRS "")
-if(EXISTS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
+if(EXISTS /usr/include/python${PYTHON_VERSION})
+    list(APPEND PYTHON_INCLUDE_DIRS /usr/include/python${PYTHON_VERSION})
+else(EXISTS /usr/include/python${PYTHON_VERSION})
     list(APPEND PYTHON_INCLUDE_DIRS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
-else(EXISTS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
-    list(APPEND PYTHON_INCLUDE_DIRS ${PYTHON_ROOT}/include/python${PYTHON_VERSION}m)
-endif(EXISTS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
+endif(EXISTS /usr/include/python${PYTHON_VERSION})
 message("-- Python version: ${PYTHON_VERSION}")
 
 # Find Numpy and add it as a dependency
