@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 from collections import OrderedDict
 
-import libpinocchio_pywrap as pin
+from pinocchio import libpinocchio_pywrap as pin
 from pinocchio.robot_wrapper import RobotWrapper
 
 import jiminy

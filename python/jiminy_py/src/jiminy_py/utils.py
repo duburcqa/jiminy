@@ -19,7 +19,7 @@ import jiminy # must be imported before libpinocchio_pywrap to find it
 import pinocchio as pnc
 from pinocchio.utils import fromListToVectorOfString
 from pinocchio.robot_wrapper import RobotWrapper
-import libpinocchio_pywrap as pin
+from pinocchio import libpinocchio_pywrap as pin
 from gepetto.corbaserver import Client
 
 
