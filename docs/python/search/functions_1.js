@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['action',['action',['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a4c0669f4e87fc1042cc822e0672ab818',1,'jiminy_py.engine_asynchronous.EngineAsynchronous.action(self)'],['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html#a226aa7962c69d70ab958b7831b3e79ea',1,'jiminy_py.engine_asynchronous.EngineAsynchronous.action(self, action_next)']]]
+  ['getlog',['getLog',['../structjiminy_1_1python_1_1PyEngineVisitor.html#acdc46668303181d095bcb68546aabd47',1,'jiminy::python::PyEngineVisitor']]],
+  ['getoptions',['getOptions',['../structjiminy_1_1python_1_1PySensorVisitor.html#aab4b3a8a3bb107d830e748eb81a5b089',1,'jiminy::python::PySensorVisitor']]],
+  ['getsensorsdata',['getSensorsData',['../structjiminy_1_1python_1_1PyModelVisitor.html#a3d0c25606d6e493f1b69d435c13d762c',1,'jiminy::python::PyModelVisitor']]]
 ];

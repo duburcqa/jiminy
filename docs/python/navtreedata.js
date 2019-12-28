@@ -11,8 +11,7 @@ var NAVTREE =
       [ "Class Hierarchy", "hierarchy.html", "hierarchy" ],
       [ "Class Members", "functions.html", [
         [ "All", "functions.html", null ],
-        [ "Functions", "functions_func.html", null ],
-        [ "Variables", "functions_vars.html", null ]
+        [ "Functions", "functions_func.html", null ]
       ] ]
     ] ],
     [ "Files", null, [
@@ -23,8 +22,7 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-".html",
-"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a6ae31e3bb4acc3519ba03cb4da67a6ff"
+".html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

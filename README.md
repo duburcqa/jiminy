@@ -18,28 +18,59 @@ Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/t
 
 ## Dependencies
 
+### Boost Python library
+
+```bash
+sudo apt install -y libboost-all-dev
+```
+
 ### Robotpkg
 
-#### Add the repository
+#### Ubuntu 18.04 Bionic
+
+##### Add the repository
 ```bash
 sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
 curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
 sudo apt update
 ```
 
-#### [Python 2.7 only] Installation procedure
+##### Linux libraries and binaries
+
 ```bash
-sudo apt install -y robotpkg-py27-pinocchio robotpkg-py27-qt4-gepetto-viewer-corba
+sudo apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
+                    robotpkg-gepetto-viewer=4.4.0
 ```
 
-#### [Python 3.6 only] Installation procedure
+##### [Python 2.7 only] Installation procedure
+
 ```bash
-sudo apt install -y robotpkg-py36-pinocchio robotpkg-py36-qt4-gepetto-viewer-corba
+sudo apt install -y robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy \
+                    robotpkg-py27-pinocchio=2.1.7
 ```
+
+##### [Python 3.6 only] Installation procedure
+
+```bash
+sudo apt install -y robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
+                    robotpkg-py36-pinocchio=2.1.7
+```
+
+#### Other distributions
+
+Robotpkg is also available for Ubuntu 14.04, Ubuntu 16.04, Ubuntu 19.04, Debian 8, and Debian 9.
+
+One can install Python bindings for Pinocchio using Conda:
+```bash
+conda install pinocchio --channel conda-forge
+```
+
+Yet, it is not helpful for compiling C++ code with Pinocchio dependency. If so, then one must compile it from sources. For Debian 10, please follow [these instructions](./Installation.md).
 
 ### Python dependencies
 
-#### [Python 3.6 only] Installation procedure
+#### [Python 3 only] Installation procedure
+
 ```bash
 sudo apt install -y python3-tk
 ```
@@ -58,7 +89,7 @@ make && make install
 
 The Machine Learning library [Open AI Gym](https://github.com/openai/gym) is fully supported. Abstract environments and examples for toy models are available. Note that Python3 is not a requirement to use openAI Gym. Nevertheless, most Machine Learning Python packages that implements many standard reinforcement learning algorithms only support Python3,  such as [openAI Gym Baseline](https://github.com/hill-a/stable-baselines), which is based on the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) for level-level computation.
 
-## Dependencies [Python 3.6 only]
+## Dependencies [Python 3 only]
 
 ### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
 Amazing tutorial: https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070
