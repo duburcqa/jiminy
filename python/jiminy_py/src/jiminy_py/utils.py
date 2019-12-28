@@ -14,7 +14,7 @@ from bisect import bisect_right
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 
-import jiminy # must be imported before libpinocchio_pywrap to find it
+import jiminy
 
 import pinocchio as pnc
 from pinocchio.utils import fromListToVectorOfString

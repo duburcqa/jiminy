@@ -2,11 +2,9 @@ import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-import numba as nb
 
-import pinocchio as pnc
 import jiminy
-from jiminy_py import *
+from jiminy_py.utils import extract_state_from_simulation_log, play_trajectories
 
 # ################################ User parameters #######################################
 

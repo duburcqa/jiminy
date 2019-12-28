@@ -16,7 +16,8 @@ from pinocchio import libpinocchio_pywrap as pin
 from pinocchio.robot_wrapper import RobotWrapper
 
 import jiminy
-import jiminy_py
+
+from .utils import get_gepetto_client, update_gepetto_viewer
 
 
 class EngineAsynchronous(object):
@@ -172,7 +173,7 @@ class EngineAsynchronous(object):
         try:
             # Instantiate the Gepetto model and viewer client if necessary
             if (not self.is_gepetto_available):
-                self._client, self._viewer_proc = jiminy_py.get_gepetto_client(True)
+                self._client, self._viewer_proc = get_gepetto_client(True)
                 self._id = next(tempfile._get_candidate_names())
                 self._rb = RobotWrapper()
                 collision_model = pin.buildGeomFromUrdf(self._engine.model.pinocchio_model,
@@ -201,9 +202,9 @@ class EngineAsynchronous(object):
                                                     [0.0, 9.0, 2e-5, 0.0, 1.0, 1.0, 0.0])
 
             # Update viewer
-            jiminy_py.update_gepetto_viewer(self._rb,
-                                            self._engine.model.pinocchio_data,
-                                            self._client)
+            update_gepetto_viewer(self._rb,
+                                  self._engine.model.pinocchio_data,
+                                  self._client)
 
             # return rgb array if needed
             if return_rgb_array:
