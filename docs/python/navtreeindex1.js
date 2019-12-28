@@ -1,5 +1,7 @@
 var NAVTREEINDEX1 =
 {
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a5b3bc5b223a57d00fd4d48906795e56c":[2,0,1,0,1,1],
+"structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a5f4229debd97abc4c409933b416149ed":[2,0,1,0,1,12],
 "structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a6ae31e3bb4acc3519ba03cb4da67a6ff":[2,0,1,0,1,5],
 "structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a78dc0d4ba60dc08cfa0be0f78cef0315":[2,0,1,0,1,8],
 "structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html#a7ed9532125ee3557acc79b2009f9ea8c":[2,0,1,0,1,7],

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['engineasynchronous',['EngineAsynchronous',['../classjiminy__py_1_1engine__asynchronous_1_1EngineAsynchronous.html',1,'jiminy_py::engine_asynchronous']]]
+  ['heatmapfunctorpywrapper',['HeatMapFunctorPyWrapper',['../structjiminy_1_1python_1_1HeatMapFunctorPyWrapper.html',1,'jiminy::python']]],
+  ['heatmapfunctorvisitor',['HeatMapFunctorVisitor',['../structjiminy_1_1python_1_1HeatMapFunctorVisitor.html',1,'jiminy::python']]]
 ];
