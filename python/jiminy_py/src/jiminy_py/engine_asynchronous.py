@@ -17,7 +17,8 @@ from pinocchio.robot_wrapper import RobotWrapper
 
 import jiminy
 
-from .utils import get_gepetto_client, update_gepetto_viewer
+from .utils import get_gepetto_client, \
+                   update_gepetto_viewer
 
 
 class EngineAsynchronous(object):
@@ -174,17 +175,21 @@ class EngineAsynchronous(object):
             # Instantiate the Gepetto model and viewer client if necessary
             if (not self.is_gepetto_available):
                 self._client, self._viewer_proc = get_gepetto_client(True)
+                if self._client is None:
+                    raise RuntimeError("Impossible to open Gepetto-viewer")
                 self._id = next(tempfile._get_candidate_names())
                 self._rb = RobotWrapper()
                 collision_model = pin.buildGeomFromUrdf(self._engine.model.pinocchio_model,
-                                                        self._engine.model.urdf_path, [],
+                                                        self._engine.model.urdf_path,
+                                                        os.environ.get('JIMINY_MESH_PATH', []),
                                                         pin.GeometryType.COLLISION)
                 visual_model = pin.buildGeomFromUrdf(self._engine.model.pinocchio_model,
-                                                     self._engine.model.urdf_path, [],
-                                                     pin.GeometryType.VISUAL)
+                                                        self._engine.model.urdf_path,
+                                                        os.environ.get('JIMINY_MESH_PATH', []),
+                                                        pin.GeometryType.VISUAL)
                 self._rb.__init__(model=self._engine.model.pinocchio_model,
-                                  collision_model=collision_model,
-                                  visual_model=visual_model)
+                                    collision_model=collision_model,
+                                    visual_model=visual_model)
                 self.is_gepetto_available = True
 
             # Load model in gepetto viewer if needed
@@ -203,8 +208,8 @@ class EngineAsynchronous(object):
 
             # Update viewer
             update_gepetto_viewer(self._rb,
-                                  self._engine.model.pinocchio_data,
-                                  self._client)
+                                    self._engine.model.pinocchio_data,
+                                    self._client)
 
             # return rgb array if needed
             if return_rgb_array:

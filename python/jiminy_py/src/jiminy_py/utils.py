@@ -20,7 +20,7 @@ import pinocchio as pnc
 from pinocchio.utils import fromListToVectorOfString
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio import libpinocchio_pywrap as pin
-from gepetto.corbaserver import Client
+from gepetto.corbaserver.client import Client
 
 
 class State:
@@ -360,10 +360,16 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None,
                 root_joint = pnc.JointModelFreeFlyer()
             else:
                 root_joint = None
-            initFromURDF(rb, urdf_path, root_joint=root_joint)
+            initFromURDF(rb, urdf_path,
+                         os.environ.get('JIMINY_MESH_PATH', []),
+                         root_joint=root_joint)
         else:
-            collision_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.COLLISION)
-            visual_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path, [], pin.GeometryType.VISUAL)
+            collision_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path,
+                                                    os.environ.get('JIMINY_MESH_PATH', []),
+                                                    pin.GeometryType.COLLISION)
+            visual_model = pin.buildGeomFromUrdf(pinocchio_model, urdf_path,
+                                                 os.environ.get('JIMINY_MESH_PATH', []),
+                                                 pin.GeometryType.VISUAL)
             rb.__init__(model=pinocchio_model, collision_model=collision_model, visual_model=visual_model)
         if not scene_name in client.gui.getSceneList():
             client.gui.createSceneWithFloor(scene_name)
@@ -478,9 +484,9 @@ def get_gepetto_client(open_if_needed=False):
             if (open_if_needed):
                 FNULL = open(os.devnull, 'w')
                 proc = subprocess.Popen(['gepetto-gui'],
-                                       shell=False,
-                                       stdout=FNULL,
-                                       stderr=FNULL)
+                                        shell=False,
+                                        stdout=FNULL,
+                                        stderr=FNULL)
                 time.sleep(1)
                 try:
                     return Client(), proc

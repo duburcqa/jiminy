@@ -8,7 +8,8 @@ from jiminy_py.utils import extract_state_from_simulation_log, play_trajectories
 
 # ################################ User parameters #######################################
 
-urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf")
+os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 
