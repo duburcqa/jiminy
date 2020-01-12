@@ -821,6 +821,7 @@ namespace python
                        boost::shared_ptr<Model>,
                        boost::noncopyable>("Model")
                 .def(PyModelVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<Model> >();
         }
     };
 

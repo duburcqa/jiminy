@@ -1,6 +1,18 @@
 # Minimum version required
 cmake_minimum_required (VERSION 3.10)
 
+# Check if network is available
+unset(BUILD_OFFLINE)
+unset(BUILD_OFFLINE CACHE)
+execute_process(COMMAND bash -c
+                        "if ping -q -c 1 -W 1 8.8.8.8 >/dev/null ; then echo 0; else echo 1; fi"
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                OUTPUT_VARIABLE BUILD_OFFLINE)
+
+if (${BUILD_OFFLINE})
+    message("Not internet connection. Not building external projects.")
+endif()
+
 # Set various flags
 set(WARN_FULL "-Wall -Wextra -Weffc++ -pedantic -pedantic-errors \
                -Wcast-align -Wcast-qual -Wfloat-equal -Wformat=2 \

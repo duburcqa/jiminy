@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import jiminy
-from jiminy_py.utils import extract_state_from_simulation_log, play_trajectories
+from jiminy_py.viewer import play_trajectories
+from jiminy_py.log import extract_state_from_simulation_log
 
 # ################################ User parameters #######################################
 
@@ -89,7 +90,7 @@ log_header = log_info[(log_info.index('StartColumns')+1):-1]
 print('%i log points' % log_data.shape[0])
 print(log_constants)
 trajectory_data_log = extract_state_from_simulation_log(
-    log_header, log_data, urdf_path, model.pinocchio_model, False)
+    log_header, log_data, urdf_path, model, False)
 
 # Save the log in CSV
 # engine.write_log("/tmp/blackbox/log.data", False)

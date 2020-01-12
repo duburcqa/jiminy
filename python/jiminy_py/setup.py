@@ -6,4 +6,6 @@ setup(name = 'jiminy_py',
       author = 'Alexis Duburcq',
       packages=find_packages('src'),
       package_dir={'': 'src'},
-      zip_safe = False)
+      install_requires = ['meshcat'],
+      zip_safe = False
+)
