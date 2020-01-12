@@ -34,7 +34,7 @@ class EngineAsynchronous(object):
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, model, viewer_backend=None, viewer_share_data=True):
+    def __init__(self, model, viewer_backend=None, viewer_use_theoretical_model=False):
         """
         @brief      Constructor
 
@@ -59,7 +59,7 @@ class EngineAsynchronous(object):
 
         ## Flag to determine if the viewer is running
         self.viewer_backend = viewer_backend
-        self.viewer_share_data = viewer_share_data
+        self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
 
         self.reset()
@@ -166,7 +166,7 @@ class EngineAsynchronous(object):
                 scene_name = next(tempfile._get_candidate_names())
                 self._viewer = Viewer(self._engine.model,
                                       backend=self.viewer_backend,
-                                      share_jiminy_data=self.viewer_share_data,
+                                      use_theoretical_model=self.viewer_use_theoretical_model,
                                       window_name='jiminy', scene_name=scene_name)
                 self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
                                                 rotation=[np.pi/2, 0.0, np.pi])

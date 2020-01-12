@@ -17,8 +17,6 @@ from pinocchio import libpinocchio_pywrap as pin
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix
 
-from .utils import get_jiminy_model
-
 
 class Viewer:
     backend = None
@@ -28,14 +26,24 @@ class Viewer:
     # It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
     _lock = Lock()
 
-    def __init__(self, jiminy_model, share_jiminy_data=False, urdf_rgba=None, robot_index=0,
+    def __init__(self, jiminy_model, use_theoretical_model=False,
+                 urdf_rgba=None, robot_index=0,
                  backend=None, window_name='python-pinocchio', scene_name='world'):
-        # Backup and extract some information
-        self.pinocchio_model = jiminy_model.pinocchio_model_th
+        # Backup some user arguments
         self.urdf_path = jiminy_model.urdf_path
         self.scene_name = scene_name
         self.window_name = window_name
+        self.use_theoretical_model = use_theoretical_model
 
+        # Extract the right Pinocchio model
+        if self.use_theoretical_model:
+            self.pinocchio_model = jiminy_model.pinocchio_model_th
+            self.pinocchio_data = jiminy_model.pinocchio_data_th
+        else:
+            self.pinocchio_model = jiminy_model.pinocchio_model
+            self.pinocchio_data = jiminy_model.pinocchio_data
+
+        # Select the desired backedn
         if backend is None:
             backend = 'gepetto-gui' if Viewer.backend is None else Viewer.backend
         if (Viewer.backend != backend) and \
@@ -44,6 +52,12 @@ class Viewer:
             Viewer.close()
             print("Different backend already running. Closing it...")
         Viewer.backend = backend
+
+        # Check if the backend is still available, if any
+        if Viewer._backend_obj is not None:
+            if Viewer._backend_proc.poll() is not None:
+                Viewer._backend_obj = None
+                Viewer._backend_proc = None
 
         # Access the current backend or create one if none is available
         try:
@@ -75,7 +89,6 @@ class Viewer:
             raise RuntimeError("Impossible to load backend.")
 
         # Create a RobotWrapper
-        self._rb = RobotWrapper()
         robot_name = "robot_" + str(robot_index)
         if (Viewer.backend == 'gepetto-gui'):
             Viewer._delete_gepetto_nodes_viewer(scene_name + '/' + robot_name)
@@ -90,10 +103,10 @@ class Viewer:
         visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                              os.environ.get('JIMINY_MESH_PATH', []),
                                              pin.GeometryType.VISUAL)
-        self._rb.__init__(model=self.pinocchio_model,
-                          collision_model=collision_model,
-                          visual_model=visual_model)
-        if share_jiminy_data:
+        self._rb = RobotWrapper(model=self.pinocchio_model,
+                                collision_model=collision_model,
+                                visual_model=visual_model)
+        if not self.use_theoretical_model:
             self._rb.data = jiminy_model.pinocchio_data
         self.pinocchio_data = self._rb.data
 
@@ -313,8 +326,8 @@ class Viewer:
         @brief      Refresh the configuration of Model in the viewer.
         """
 
-        if not self.share_jiminy_data:
-            raise RuntimeError("'Refresh' method not available if 'share_jiminy_data'=False.")
+        if self.use_theoretical_model:
+            raise RuntimeError("'Refresh' method only available if 'use_theoretical_model'=False.")
 
         if Viewer.backend == 'gepetto-gui':
             if self._rb.displayCollisions:
@@ -390,8 +403,10 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     # Load robots in gepetto viewer
     robots = []
     for i in range(len(trajectory_data)):
-        jiminy_model = get_jiminy_model(trajectory_data[i])
-        robot = Viewer(jiminy_model, urdf_rgba=urdf_rgba, robot_index=i,
+        jiminy_model = trajectory_data[i]['jiminy_model']
+        use_theoretical_model = trajectory_data[i]['use_theoretical_model']
+        robot = Viewer(jiminy_model, use_theoretical_model=use_theoretical_model,
+                       urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
                        backend=backend, window_name=window_name, scene_name=scene_name)
 
         if (xyz_offset is not None and xyz_offset[i] is not None):
@@ -409,7 +424,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     threads = []
     for i in range(len(trajectory_data)):
         threads.append(Thread(target=robots[i].display,
-                                args=(trajectory_data[i]['evolution_robot'],
+                              args=(trajectory_data[i]['evolution_robot'],
                                     speed_ratio, xyz_offset[i])))
     for i in range(len(trajectory_data)):
         threads[i].start()

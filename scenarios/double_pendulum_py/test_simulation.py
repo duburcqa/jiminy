@@ -89,8 +89,7 @@ log_header = log_info[(log_info.index('StartColumns')+1):-1]
 
 print('%i log points' % log_data.shape[0])
 print(log_constants)
-trajectory_data_log = extract_state_from_simulation_log(
-    log_header, log_data, urdf_path, model, False)
+trajectory_data_log = extract_state_from_simulation_log(log_header, log_data, model)
 
 # Save the log in CSV
 # engine.write_log("/tmp/blackbox/log.data", False)
@@ -98,6 +97,7 @@ trajectory_data_log = extract_state_from_simulation_log(
 # ############################ Display the results ######################################
 
 # Plot some data using standard tools only
+# plt.figure()
 # plt.plot(log_data[:,log_header.index('Global.Time')],
 #          log_data[:,log_header.index('HighLevelController.energy')])
 # plt.show()

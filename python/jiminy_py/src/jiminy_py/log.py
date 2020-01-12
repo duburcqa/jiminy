@@ -6,7 +6,7 @@ import numpy as np
 
 from .state import State
 
-def extract_state_from_simulation_log(log_header, log_data, urdf_path, jiminy_model=None, has_freeflyer=True):
+def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
     """
     @brief      Extract a trajectory object using from raw simulation data.
 
@@ -36,9 +36,8 @@ def extract_state_from_simulation_log(log_header, log_data, urdf_path, jiminy_mo
     # Create state sequence
     evolution_robot = []
     for i in range(len(t)):
-        evolution_robot.append(State(qe[:,[i]], dqe[:,[i]], ddqe[:,[i]], t[i]))
+        evolution_robot.append(State(qe[:, [i]], dqe[:, [i]], ddqe[:, [i]], t[i]))
 
-    return {"evolution_robot": evolution_robot,
-            "urdf": urdf_path,
-            "has_freeflyer": has_freeflyer,
-            "jiminy_model": jiminy_model}
+    return {'evolution_robot': evolution_robot,
+            'jiminy_model': jiminy_model,
+            'use_theoretical_model': False}

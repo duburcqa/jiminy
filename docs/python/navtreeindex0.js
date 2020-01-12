@@ -148,6 +148,5 @@ var NAVTREEINDEX0 =
 "structjiminy_1_1python_1_1stdVectorToListPyConverter.html":[2,0,0,0,10],
 "structjiminy_1_1python_1_1stdVectorToListPyConverter.html#abac392426bd28f3c14d32dae3df2b3ed":[2,0,0,0,10,0],
 "subproc__vec__env__lock_8py_source.html":[3,0,0,0,0,2],
-"utils_8py_source.html":[3,0,1,0,0,0,5],
-"viewer_8py_source.html":[3,0,1,0,0,0,6]
+"viewer_8py_source.html":[3,0,1,0,0,0,5]
 };

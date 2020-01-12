@@ -8,7 +8,6 @@ import pinocchio as pnc
 from pinocchio import FrameType, Quaternion, SE3, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
-from .utils import get_jiminy_model
 
 def se3ToXYZRPY(M):
     p = np.zeros(6)
@@ -19,7 +18,8 @@ def se3ToXYZRPY(M):
 def XYZRPYToSe3(xyzrpy):
     return SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
 
-def _computeQuantities(jiminy_model, position, velocity=None, acceleration=None):
+def _computeQuantities(jiminy_model, position, velocity=None, acceleration=None,
+                       use_theoretical_model=True):
     """
     @brief Compute all quantities using position, velocity and acceleration
            configurations.
@@ -56,9 +56,12 @@ def _computeQuantities(jiminy_model, position, velocity=None, acceleration=None)
     @pre model_.nv == velocityIn.size()
     @pre model_.nv == accelerationIn.size()
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
-    pnc_data = jiminy_model.pinocchio_data_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     pnc.crba(pnc_model, pnc_data, position)
     #pnc.getJacobianComFromCrba(pnc_model, pnc_data)
@@ -77,7 +80,7 @@ def _computeQuantities(jiminy_model, position, velocity=None, acceleration=None)
         pnc.kineticEnergy(pnc_model, pnc_data, position, velocity, False)
     pnc.potentialEnergy(pnc_model, pnc_data, position, False)
 
-def getBodyIndexAndFixedness(jiminy_model, body_name):
+def getBodyIndexAndFixedness(jiminy_model, body_name, use_theoretical_model=True):
     """
     @brie Retrieve a body index in model and its fixedness from the body name.
 
@@ -89,8 +92,10 @@ def getBodyIndexAndFixedness(jiminy_model, body_name):
     @return	body_id         The index of the body whose name is bodyName in model
     @return is_body_fixed   Whether or not the body is considered as a fixed-body by the model
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
 
     frame_id = pnc_model.getFrameId(body_name)
     parent_frame_id = pnc_model.frames[frame_id].previousFrame
@@ -103,7 +108,7 @@ def getBodyIndexAndFixedness(jiminy_model, body_name):
 
     return body_id, is_body_fixed
 
-def getBodyWorldTransform(jiminy_model, body_name):
+def getBodyWorldTransform(jiminy_model, body_name, use_theoretical_model=True):
     """
     @brief Get the transform from world frame to body frame for a given body.
 
@@ -115,9 +120,12 @@ def getBodyWorldTransform(jiminy_model, body_name):
 
     @pre body_name must be the name of a body existing in model.
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
-    pnc_data = jiminy_model.pinocchio_data_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     body_id, body_is_fixed = getBodyIndexAndFixedness(jiminy_model, body_name)
     if body_is_fixed:
@@ -130,7 +138,7 @@ def getBodyWorldTransform(jiminy_model, body_name):
 
     return transform
 
-def getBodyWorldVelocity(jiminy_model, body_name):
+def getBodyWorldVelocity(jiminy_model, body_name, use_theoretical_model=True):
     """
     @brief Get the velocity wrt world in body frame for a given body.
 
@@ -144,9 +152,12 @@ def getBodyWorldVelocity(jiminy_model, body_name):
 
     @pre body_name must be the name of a body existing in model.
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
-    pnc_data = jiminy_model.pinocchio_data_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     body_id, body_is_fixed = getBodyIndexAndFixedness(jiminy_model, body_name)
     if body_is_fixed:
@@ -161,7 +172,7 @@ def getBodyWorldVelocity(jiminy_model, body_name):
 
     return spatial_velocity
 
-def getBodyWorldAcceleration(jiminy_model, body_name):
+def getBodyWorldAcceleration(jiminy_model, body_name, use_theoretical_model=True):
     """
     @brief Get the body spatial acceleration in world frame.
 
@@ -176,9 +187,12 @@ def getBodyWorldAcceleration(jiminy_model, body_name):
 
     @pre body_name must be the name of a body existing in model.
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
-    pnc_data = jiminy_model.pinocchio_data_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     body_id, body_is_fixed = getBodyIndexAndFixedness(jiminy_model, body_name)
 
@@ -195,7 +209,8 @@ def getBodyWorldAcceleration(jiminy_model, body_name):
     return spatial_acceleration
 
 def computeFreeflyerStateFromFixedBody(jiminy_model, fixed_body_name, position,
-                                       velocity=None, acceleration=None):
+                                       velocity=None, acceleration=None,
+                                       use_theoretical_model=True):
     """
     @brief Fill rootjoint data from articular data when a body is fixed parallel to world.
 
@@ -214,8 +229,10 @@ def computeFreeflyerStateFromFixedBody(jiminy_model, fixed_body_name, position,
     @pre Rootjoint must be a freeflyer
     @pre positionInOut.size() == model_->nq
     """
-
-    pnc_model = jiminy_model.pinocchio_model_th
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
 
     position[:7].fill(0)
     position[6] = 1.0
@@ -251,10 +268,12 @@ def retrieve_freeflyer(trajectory_data, roll_angle=0.0, pitch_angle=0.0):
     """
     @brief   Retrieves the freeflyer positions and velocities. The reference frame is the support foot.
     """
-    jiminy_model = get_jiminy_model(trajectory_data)
+    jiminy_model = trajectory_data['jiminy_model']
+    use_theoretical_model = trajectory_data['use_theoretical_model']
     for s in trajectory_data['evolution_robot']:
         # Compute freeflyer using support foot as reference frame.
-        computeFreeflyerStateFromFixedBody(jiminy_model, s.support_foot, s.q, s.v, s.a)
+        computeFreeflyerStateFromFixedBody(jiminy_model, s.support_foot, s.q, s.v, s.a,
+                                           use_theoretical_model)
 
         # Move freeflyer to take the foot angle into account.
         # w: world frame, st: support foot frame, ff: freeflyer frame.
@@ -272,9 +291,14 @@ def compute_efforts(trajectory_data, index=(0, 0)):
     @param   index Index under which the efforts will be saved in the trajectory_data
              (usually the couple of (roll, pitch) angles of the support foot).
     """
-    jiminy_model = get_jiminy_model(trajectory_data)
-    pnc_model = jiminy_model.pinocchio_model_th
-    pnc_data = jiminy_model.pinocchio_data_th
+    jiminy_model = trajectory_data['jiminy_model']
+    use_theoretical_model = trajectory_data['use_theoretical_model']
+    if use_theoretical_model:
+        pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
+    else:
+        pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     ## Compute the efforts at each time step
     root_joint_idx = pnc_model.getJointId('root_joint')
@@ -287,17 +311,19 @@ def compute_efforts(trajectory_data, index=(0, 0)):
         fs = pnc.StdVec_Force()
         fs.extend([pnc.Force(np.matrix([0.0, 0, 0, 0, 0, 0]).T)
                    for _ in range(len(pnc_model.names))])
+
         # Compute the force at the henkle level
         support_foot_idx = pnc_model.frames[pnc_model.getBodyId(s.support_foot)].parent
         fs[support_foot_idx] = pnc_data.oMi[support_foot_idx]\
             .actInv(pnc_data.oMi[root_joint_idx]).act(pnc_data.f[root_joint_idx])
+
         # Recompute the efforts with RNEA and the correct external forces
         s.tau[index] = pnc.rnea(pnc_model, pnc_data, s.q, s.v, s.a, fs)
-
         s.f_ext[index] = fs[support_foot_idx].copy()
 
         # Add the force to the structure
         s.f[index] = dict(list(zip(pnc_model.names, [f_ind.copy() for f_ind in pnc_data.f])))
+
         # Add the external force applied at the soles as if the floor was a parent of the soles
         for joint in ['LeftSole', 'RightSole']:
             ha_M_s = pnc_model.frames[pnc_model.getBodyId(joint)].placement

@@ -64,7 +64,7 @@ class State:
         state_dict['q'] = np.concatenate([s.q for s in state_list], axis=1)
         state_dict['v'] = np.concatenate([s.v for s in state_list], axis=1)
         state_dict['a'] = np.concatenate([s.a for s in state_list], axis=1)
-        state_dict['t'] = [s.t for s in state_list]
+        state_dict['t'] = np.array([s.t for s in state_list])
         state_dict['f'] = [s.f for s in state_list]
         state_dict['tau'] = [s.tau for s in state_list]
         state_dict['f_ext'] = [s.f_ext for s in state_list]
@@ -84,7 +84,8 @@ class State:
         _state_dict = defaultdict(lambda: [None for i in range(state_dict['q'].shape[-1])], state_dict)
         state_list = []
         for i in range(state_dict['q'].shape[1]):
-            state_list.append(cls(**{k: v[..., i] for k,v in _state_dict.items()}))
+            state_list.append(cls(**{k: v[..., i] if isinstance(v, np.ndarray) else v[i]
+                                     for k,v in _state_dict.items()}))
         return state_list
 
     def __repr__(self):
