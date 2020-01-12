@@ -10,6 +10,7 @@ EXTERNALPROJECT_ADD (gtest_EXTERNAL
      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
      INSTALL_COMMAND ""
+     UPDATE_DISCONNECTED ${BUILD_OFFLINE}
      )
 
 # Create empty file to declare executable without any source files.

@@ -16,7 +16,7 @@ from pinocchio import libpinocchio_pywrap as pin
 from pinocchio.robot_wrapper import RobotWrapper
 
 import jiminy
-import jiminy_py
+from .viewer import Viewer
 
 
 class EngineAsynchronous(object):
@@ -34,7 +34,7 @@ class EngineAsynchronous(object):
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, model):
+    def __init__(self, model, viewer_backend=None, viewer_use_theoretical_model=False):
         """
         @brief      Constructor
 
@@ -42,8 +42,8 @@ class EngineAsynchronous(object):
 
         @return     Instance of the wrapper.
         """
-        # Make sure that the sensors have already been added to the model !
 
+        # Make sure that the sensors have already been added to the model !
         self._sensors_types = model.get_sensors_options().keys()
         self._state = np.zeros((model.nx, 1))
         self._observation = OrderedDict((sensor_type,[]) for sensor_type in self._sensors_types)
@@ -57,16 +57,12 @@ class EngineAsynchronous(object):
         self._engine = jiminy.Engine()
         self._engine.initialize(model, self._controller)
 
-        ## Flag to determine if Gepetto-viewer is running
-        self.is_gepetto_available = False
-        self._client = None
-        self._window_id = None
-        self._viewer_proc = None
-        self._id = None
-        self._rb = None
+        ## Flag to determine if the viewer is running
+        self.viewer_backend = viewer_backend
+        self.viewer_use_theoretical_model = viewer_use_theoretical_model
+        self._viewer = None
 
         self.reset()
-
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -83,7 +79,6 @@ class EngineAsynchronous(object):
             self._observation[sensor_type] = sensor_data[sensor_type]
         uCommand[:] = self._action
 
-
     def _internal_dynamics(self, t, q, v, sensor_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
@@ -95,7 +90,6 @@ class EngineAsynchronous(object):
                     manually.
         """
         pass
-
 
     def seed(self, seed):
         """
@@ -111,7 +105,6 @@ class EngineAsynchronous(object):
         self.reset(x0=None)
         self._engine.set_options(engine_options)
 
-
     def reset(self, x0=None):
         """
         @brief      Reset the simulation.
@@ -126,7 +119,6 @@ class EngineAsynchronous(object):
         if (int(self._engine.reset(x0)) != 1):
             raise ValueError("Reset of engine failed.")
         self._state = x0[:,0]
-
 
     def step(self, action_next=None, dt_desired=-1):
         """
@@ -146,7 +138,6 @@ class EngineAsynchronous(object):
             self.action = action_next
         self._state = None
         return self._engine.step(dt_desired)
-
 
     def render(self, return_rgb_array=False, lock=None):
         """
@@ -171,55 +162,27 @@ class EngineAsynchronous(object):
             lock.acquire()
         try:
             # Instantiate the Gepetto model and viewer client if necessary
-            if (not self.is_gepetto_available):
-                self._client, self._viewer_proc = jiminy_py.get_gepetto_client(True)
-                self._id = next(tempfile._get_candidate_names())
-                self._rb = RobotWrapper()
-                collision_model = pin.buildGeomFromUrdf(self._engine.model.pinocchio_model,
-                                                        self._engine.model.urdf_path, [],
-                                                        pin.GeometryType.COLLISION)
-                visual_model = pin.buildGeomFromUrdf(self._engine.model.pinocchio_model,
-                                                     self._engine.model.urdf_path, [],
-                                                     pin.GeometryType.VISUAL)
-                self._rb.__init__(model=self._engine.model.pinocchio_model,
-                                  collision_model=collision_model,
-                                  visual_model=visual_model)
-                self.is_gepetto_available = True
+            if (self._viewer is None):
+                scene_name = next(tempfile._get_candidate_names())
+                self._viewer = Viewer(self._engine.model,
+                                      backend=self.viewer_backend,
+                                      use_theoretical_model=self.viewer_use_theoretical_model,
+                                      window_name='jiminy', scene_name=scene_name)
+                self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
+                                                rotation=[np.pi/2, 0.0, np.pi])
 
-            # Load model in gepetto viewer if needed
-            if not self._id in self._client.gui.getSceneList():
-                self._client.gui.createSceneWithFloor(self._id)
-                self._window_id = self._client.gui.createWindow("jiminy")
-                self._client.gui.addSceneToWindow(self._id, self._window_id)
-                self._client.gui.createGroup(self._id + '/' + self._id)
-                self._client.gui.addLandmark(self._id + '/' + self._id, 0.1)
-
-                self._rb.initViewer(windowName="jiminy", sceneName=self._id, loadModel=False)
-                self._rb.loadViewerModel(self._id + '/' + "robot")
-
-                self._client.gui.setCameraTransform(self._window_id,
-                                                    [0.0, 9.0, 2e-5, 0.0, 1.0, 1.0, 0.0])
-
-            # Update viewer
-            jiminy_py.update_gepetto_viewer(self._rb,
-                                            self._engine.model.pinocchio_data,
-                                            self._client)
+            # Refresh viewer
+            self._viewer.refresh()
 
             # return rgb array if needed
             if return_rgb_array:
-                png_path = os.path.join("/tmp", self._id + ".png")
-                self._client.gui.captureFrame(self._window_id, png_path)
-                rgb_array = np.array(Image.open(png_path))[:,:,:-1]
-                os.remove(png_path)
+                rgb_array = self._viewer.captureFrame()
         except:
-            self.is_gepetto_available = False
-            self._client = None
-            self._viewer_proc = None
+            self._viewer = None
         finally:
             if (lock is not None):
                 lock.release()
             return rgb_array
-
 
     def close(self):
         """
@@ -227,12 +190,8 @@ class EngineAsynchronous(object):
 
         @details    Must be called once before the destruction of the engine.
         """
-        if (self._viewer_proc is not None):
-            self._viewer_proc.terminate()
-        self.is_gepetto_available = False
-        self._client = None
-        self._viewer_proc = None
-
+        self._viewer.close()
+        self._viewer = None
 
     @property
     def state(self):
@@ -246,7 +205,6 @@ class EngineAsynchronous(object):
             self._state = self._engine.stepper_state.x.A1
         return self._state
 
-
     @property
     def observation(self):
         """
@@ -258,11 +216,6 @@ class EngineAsynchronous(object):
         """
         return self._observation
 
-
-    ##
-    # @var        action
-    # @brief      Current command
-    ##
     @property
     def action(self):
         """
@@ -271,7 +224,6 @@ class EngineAsynchronous(object):
         @return     Command (1D numpy array).
         """
         return self._action
-
 
     @action.setter
     def action(self, action_next):
@@ -285,7 +237,6 @@ class EngineAsynchronous(object):
             raise ValueError("The action must be a numpy array with the right dimension.")
         self._action[:] = action_next
 
-
     def get_engine_options(self):
         """
         @brief      Getter of the options of Jiminy Engine.
@@ -293,7 +244,6 @@ class EngineAsynchronous(object):
         @return     Dictionary of options.
         """
         return self._engine.get_options()
-
 
     def set_engine_options(self, options):
         """
@@ -303,7 +253,6 @@ class EngineAsynchronous(object):
         """
         self._engine.set_options(options)
 
-
     def get_controller_options(self):
         """
         @brief      Getter of the options of Jiminy Controller.
@@ -311,7 +260,6 @@ class EngineAsynchronous(object):
         @return     Dictionary of options.
         """
         return self._controller.get_options()
-
 
     def set_controller_options(self, options):
         """

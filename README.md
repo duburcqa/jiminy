@@ -101,7 +101,7 @@ pip install gym[atari,box2d,classic_control]
 
 ### Open AI Gym Stable-Baseline
 ```bash
-pip install gym[atari,box2d,classic_control]
+pip install stable-baselines[mpi]
 ```
 
 ### Coach dependencies

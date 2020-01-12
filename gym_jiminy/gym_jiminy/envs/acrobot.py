@@ -8,7 +8,7 @@ from gym import core, spaces, logger
 from gym.utils import seeding
 
 import jiminy
-from jiminy_py import EngineAsynchronous
+from jiminy_py.engine_asynchronous import EngineAsynchronous
 from gym_jiminy.common.gym_jiminy_robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
@@ -83,7 +83,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # ############################### Initialize Jiminy ####################################
 
         cur_dir = os.path.dirname(os.path.realpath(__file__))
-        urdf_path = os.path.join(cur_dir, "../../../data/double_pendulum/double_pendulum.urdf")
+        os.environ["JIMINY_MESH_PATH"] = os.path.abspath(os.path.join(os.environ["HOME"], "../../../data"))
+        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
         motors = ["SecondPendulumJoint"]
         self._model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected
         self._model.initialize(urdf_path, motors=motors)

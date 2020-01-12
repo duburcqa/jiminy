@@ -1,13 +1,13 @@
 import os
 import time
-from math import *
 import numpy as np
 
 import jiminy
-from jiminy_py import EngineAsynchronous
+from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 
-urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/cartpole/cartpole.urdf")
+os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 contacts = []
 motors = ["slider_to_cart"]
 model = jiminy.Model()

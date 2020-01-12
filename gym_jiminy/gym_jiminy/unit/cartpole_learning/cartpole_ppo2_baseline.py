@@ -10,8 +10,8 @@ import jiminy_py
 from gym_jiminy.common import SubprocVecEnvLock
 
 ### Create a multiprocess environment
-nb_cpu = 4
-env = SubprocVecEnvLock([lambda: gym.make("gym_jiminy:jiminy-cartpole-v0") for _ in range(nb_cpu)])
+n_thread = 4
+env = SubprocVecEnvLock([lambda: gym.make("gym_jiminy:jiminy-cartpole-v0") for _ in range(n_thread)])
 
 ### Create the model or load one
 
