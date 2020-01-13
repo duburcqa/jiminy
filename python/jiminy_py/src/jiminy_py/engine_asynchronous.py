@@ -9,7 +9,6 @@
 import os
 import tempfile
 import numpy as np
-from PIL import Image
 from collections import OrderedDict
 
 from pinocchio import libpinocchio_pywrap as pin
