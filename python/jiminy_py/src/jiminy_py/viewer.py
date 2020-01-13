@@ -6,10 +6,12 @@ import os
 import re
 import time
 import shutil
+import tempfile
 import subprocess
 import numpy as np
 from bisect import bisect_right
 from threading import Thread, Lock
+from PIL import Image
 
 import pinocchio as pnc
 from pinocchio.robot_wrapper import RobotWrapper
@@ -306,7 +308,7 @@ class Viewer:
             self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
             # Orientation of the camera object
             Q_pnc = Quaternion(R_pnc).coeffs().A1
-            Q_meshcat = [Q_pnc[-1], *Q_pnc[:-1]]
+            Q_meshcat = np.roll(Q_pnc, shift=1)
             R_meshcat = tf.quaternion_matrix(Q_meshcat)
             self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
 
@@ -387,9 +389,8 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
 
     @param[in]  trajectory_data     Trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time
-                                    'urdf': Full path of the URDF file
-                                    'has_freeflyer': Whether the model has a freeflyer
                                     'jiminy_model': Jiminy model (None if omitted)
+                                    'use_theoretical_model':  whether the theoretical or actual model must be used
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
