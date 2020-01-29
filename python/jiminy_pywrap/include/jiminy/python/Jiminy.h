@@ -317,6 +317,8 @@ namespace python
                                      (bp::arg("self"), "key"))
                 .def("keys", &SensorsDataMapVisitor::keys,
                              (bp::arg("self")))
+                .def("keys", &SensorsDataMapVisitor::keysSensorType,
+                             (bp::arg("self"), "sensor_type"))
                 .def("values", &SensorsDataMapVisitor::values,
                                (bp::arg("self")))
                 .def("items", &SensorsDataMapVisitor::items,
@@ -405,6 +407,17 @@ namespace python
         {
             bp::list sensorsInfo;
             for (auto & sensorData : self)
+            {
+                sensorsInfo.append(sensorData.first);
+            }
+            return sensorsInfo;
+        }
+
+        static bp::list keysSensorType(sensorsDataMap_t & self,
+                                       std::string const& sensorType)
+        {
+            bp::list sensorsInfo;
+            for (auto & sensorData : self.at(sensorType))
             {
                 sensorsInfo.append(sensorData.first);
             }
