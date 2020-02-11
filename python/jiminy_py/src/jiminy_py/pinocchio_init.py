@@ -2,7 +2,10 @@ __import__('eigenpy').switchToNumpyArray()
 
 # Patching pinocchio to fix support of numpy.array
 import numpy as np
+from math import atan2, pi, sqrt
+
 import pinocchio as pin
+from pinocchio.rpy import npToTTuple
 
 def npToTuple(M):
     if M.ndim == 1:
@@ -24,6 +27,12 @@ def rotate(axis, ang):
     u[cood[axis]] = 1.0
     return np.asmatrix(pin.AngleAxis(ang, u).matrix())
 
+def rpyToMatrix(rpy):
+    '''
+    # Convert from Roll, Pitch, Yaw to transformation Matrix
+    '''
+    return rotate('z', rpy[2]) * rotate('y', rpy[1]) * rotate('x', rpy[0])
+
 def matrixToRpy(M):
     '''
     # Convert from Transformation Matrix to Roll, Pitch, Yaw
@@ -42,4 +51,5 @@ def matrixToRpy(M):
 
 pin.rpy.npToTuple = npToTuple
 pin.rpy.rotate = rotate
+pin.rpy.rpyToMatrix = rpyToMatrix
 pin.rpy.matrixToRpy = matrixToRpy
