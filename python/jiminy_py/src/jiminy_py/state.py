@@ -6,6 +6,7 @@ import numpy as np
 from collections import defaultdict
 from copy import copy, deepcopy
 
+
 class State:
     """
     @brief      Object that contains the kinematics and dynamics state of the

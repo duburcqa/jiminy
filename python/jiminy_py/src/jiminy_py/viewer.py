@@ -45,9 +45,14 @@ class Viewer:
             self.pinocchio_model = jiminy_model.pinocchio_model
             self.pinocchio_data = jiminy_model.pinocchio_data
 
-        # Select the desired backedn
+        # Select the desired backend
         if backend is None:
-            backend = 'gepetto-gui' if Viewer.backend is None else Viewer.backend
+            if Viewer.backend is None:
+                backend = 'meshcat' if Viewer._is_notebook() else 'gepetto-gui'
+            else:
+                backend = Viewer.backend
+
+        # Update the backend currently running, if any
         if (Viewer.backend != backend) and \
            (Viewer._backend_obj is not None or \
             Viewer._backend_proc is not None):
@@ -84,6 +89,7 @@ class Viewer:
                 if Viewer._is_notebook():
                     display(Viewer._backend_obj.jupyter_cell())
                 else:
+                    print(Viewer._backend_obj.url())
                     Viewer._backend_obj.open()
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj

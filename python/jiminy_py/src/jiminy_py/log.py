@@ -6,6 +6,7 @@ import numpy as np
 
 from .state import State
 
+
 def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
     """
     @brief      Extract a trajectory object using from raw simulation data.
