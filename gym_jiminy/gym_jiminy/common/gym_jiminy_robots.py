@@ -57,19 +57,20 @@ class RobotJiminyEnv(core.Env):
         ## Update period of the simulation
         self.dt = dt
 
+        ## Extract some information from the model
         motors_position_idx = self.engine_py._engine.model.motors_position_idx
-        joint_position_limit_upper = self.engine_py._engine.model.position_limit_upper.A1
-        joint_position_limit_lower = self.engine_py._engine.model.position_limit_lower.A1
-        joint_velocity_limit = self.engine_py._engine.model.velocity_limit.A1
+        joint_position_limit_upper = self.engine_py._engine.model.position_limit_upper
+        joint_position_limit_lower = self.engine_py._engine.model.position_limit_lower
+        joint_velocity_limit = self.engine_py._engine.model.velocity_limit
 
+        ## Action space
         action_high = joint_position_limit_upper[motors_position_idx]
         action_low = joint_position_limit_lower[motors_position_idx]
-        ## Action space
         self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
 
+        ## Observation space
         obs_high = np.concatenate((joint_position_limit_upper, joint_velocity_limit))
         obs_low = np.concatenate((joint_position_limit_lower, -joint_velocity_limit))
-        ## Observation space
         self.observation_space = spaces.Box(low=obs_low, high=obs_high, dtype=np.float64)
 
         ## Higher bound of the hypercube associated with the initial state of the robot
@@ -94,7 +95,6 @@ class RobotJiminyEnv(core.Env):
 
         self.engine_py.set_engine_options(engine_options)
 
-
     def seed(self, seed=None):
         """
         @brief      Specify the seed of the simulation.
@@ -113,7 +113,6 @@ class RobotJiminyEnv(core.Env):
         self.state = self.engine_py.state
         return [seed]
 
-
     def reset(self):
         """
         @brief      Reset the simulation.
@@ -130,10 +129,9 @@ class RobotJiminyEnv(core.Env):
         """
         self.state = self.np_random.uniform(low=self.state_random_low,
                                             high=self.state_random_high)
-        self.engine_py.reset(np.expand_dims(self.state, axis=-1))
+        self.engine_py.reset(self.state)
         self.steps_beyond_done = None
         return self._get_obs()
-
 
     def render(self, mode=None, lock=None):
         """
@@ -155,7 +153,6 @@ class RobotJiminyEnv(core.Env):
             self._viewer = self.engine_py._client
         return RenderOutMock()
 
-
     def close(self):
         """
         @brief      Terminate the Python Jiminy engine. Mostly defined for
@@ -163,7 +160,6 @@ class RobotJiminyEnv(core.Env):
         """
         if (self._viewer is not None):
             self.engine_py.close()
-
 
     def _get_obs(self):
         """
@@ -211,7 +207,6 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
             observation=self.observation_space
         ))
 
-
     def reset(self):
         """
         @brief      Reset the simulation.
@@ -224,7 +219,6 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         """
         self.goal = self._sample_goal().copy()
         return super(RobotJiminyGoalEnv, self).reset()
-
 
     def _sample_goal(self):
         """

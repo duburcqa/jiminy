@@ -19,3 +19,5 @@ else:
         from .libjiminy_pywrap import *
 
         _sys.stderr = old_target
+
+import jiminy_py.pinocchio_init as _patch

@@ -44,9 +44,9 @@ class EngineAsynchronous(object):
 
         # Make sure that the sensors have already been added to the model !
         self._sensors_types = model.get_sensors_options().keys()
-        self._state = np.zeros((model.nx, 1))
+        self._state = np.zeros((model.nx,))
         self._observation = OrderedDict((sensor_type,[]) for sensor_type in self._sensors_types)
-        self._action = np.zeros((len(model.motors_names), ))
+        self._action = np.zeros((len(model.motors_names),))
 
         # Instantiate the Jiminy controller
         self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
@@ -117,7 +117,7 @@ class EngineAsynchronous(object):
             x0 = np.zeros((self._engine.model.nx, 1))
         if (int(self._engine.reset(x0)) != 1):
             raise ValueError("Reset of engine failed.")
-        self._state = x0[:,0]
+        self._state = x0.squeeze()
 
     def step(self, action_next=None, dt_desired=-1):
         """
@@ -201,7 +201,7 @@ class EngineAsynchronous(object):
         """
         if (self._state is None):
             # Get x by value, then convert the matrix column into an actual 1D array by reference
-            self._state = self._engine.stepper_state.x.A1
+            self._state = self._engine.stepper_state.x
         return self._state
 
     @property
