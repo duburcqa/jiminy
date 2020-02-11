@@ -86,11 +86,11 @@ class Viewer:
                     with redirect_stdout(None):
                         Viewer._backend_obj = meshcat.Visualizer()
                         Viewer._backend_proc = Viewer._backend_obj.window.server_proc
-                if Viewer._is_notebook():
-                    display(Viewer._backend_obj.jupyter_cell())
-                else:
-                    print(Viewer._backend_obj.url())
-                    Viewer._backend_obj.open()
+                    if Viewer._is_notebook():
+                        display(Viewer._backend_obj.jupyter_cell())
+                    else:
+                        print(Viewer._backend_obj.url())
+                        Viewer._backend_obj.open()
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
         except:
