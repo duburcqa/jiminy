@@ -43,7 +43,7 @@ time_start = time.time()
 engine_py.seed(0)
 engine_py.reset()
 for i in range(10000):
-    engine_py.step(np.array([[0.001]]))
+    engine_py.step(np.array([0.001]))
     engine_py.render()
 
     time_end = time.time()

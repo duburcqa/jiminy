@@ -10,7 +10,7 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 
 def se3ToXYZRPY(M):
-    p = np.zeros(6)
+    p = np.zeros((6,))
     p[:3] = M.translation
     p[3:] = matrixToRpy(M.rotation)
     return p
@@ -239,11 +239,11 @@ def computeFreeflyerStateFromFixedBody(jiminy_model, fixed_body_name, position,
     if velocity is not None:
         velocity[:6].fill(0)
     else:
-        velocity = np.zeros((pnc_model.nv, 1))
+        velocity = np.zeros((pnc_model.nv,))
     if acceleration is not None:
         acceleration[:6].fill(0)
     else:
-        acceleration = np.zeros((pnc_model.nv, 1))
+        acceleration = np.zeros((pnc_model.nv,))
 
     _computeQuantities(jiminy_model, position, velocity, acceleration)
 
@@ -271,17 +271,20 @@ def retrieve_freeflyer(trajectory_data, roll_angle=0.0, pitch_angle=0.0):
     jiminy_model = trajectory_data['jiminy_model']
     use_theoretical_model = trajectory_data['use_theoretical_model']
     for s in trajectory_data['evolution_robot']:
+        # Extract the current position, velocity and acceleration
+        q, v, a = s.q.squeeze(), s.v.squeeze(), s.a.squeeze()
+
         # Compute freeflyer using support foot as reference frame.
-        computeFreeflyerStateFromFixedBody(jiminy_model, s.support_foot, s.q, s.v, s.a,
-                                           use_theoretical_model)
+        computeFreeflyerStateFromFixedBody(jiminy_model, s.support_foot,
+                                           q, v, a, use_theoretical_model)
 
         # Move freeflyer to take the foot angle into account.
         # w: world frame, st: support foot frame, ff: freeflyer frame.
-        w_M_sf = XYZRPYToSe3(np.array([[roll_angle, pitch_angle, 0.0, 0.0, 0.0, 0.0]]).T)
+        w_M_sf = XYZRPYToSe3(np.array([roll_angle, pitch_angle, 0.0, 0.0, 0.0, 0.0]))
         sf_M_ff = XYZQUATToSe3(s.q[:7]) # Px, Py, Pz, Qx, Qy, Qz, Qw
         w_M_ff = w_M_sf.act(sf_M_ff)
-        s.q[:3] = w_M_ff.translation
-        s.q[3:7] = Quaternion(w_M_ff.rotation).coeffs()
+        q[:3] = w_M_ff.translation
+        q[3:7] = Quaternion(w_M_ff.rotation).coeffs()
 
 def compute_efforts(trajectory_data, index=(0, 0)):
     """
@@ -309,7 +312,7 @@ def compute_efforts(trajectory_data, index=(0, 0)):
 
         # Initialize vector of exterior forces to 0
         fs = pnc.StdVec_Force()
-        fs.extend([pnc.Force(np.array([[0.0, 0, 0, 0, 0, 0]]).T)
+        fs.extend([pnc.Force(np.zeros((6,)))
                    for _ in range(len(pnc_model.names))])
 
         # Compute the force at the henkle level
@@ -330,4 +333,4 @@ def compute_efforts(trajectory_data, index=(0, 0)):
             if s.support_foot == joint:
                 s.f[index][joint] = ha_M_s.actInv(s.f_ext[index])
             else:
-                s.f[index][joint] = pnc.Force(np.array(|[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T)
+                s.f[index][joint] = pnc.Force(np.zeros((6,)))

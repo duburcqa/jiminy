@@ -32,11 +32,11 @@ class State:
         ## Time
         self.t = copy(t)
         ## Configuration vector
-        self.q = copy(q)
+        self.q = q.copy()
         ## Velocity vector
-        self.v = copy(v)
+        self.v = v.copy()
         ## Acceleration vector
-        self.a = copy(a)
+        self.a = a.copy()
         ## Forces on the different bodies of the robot
         self.f = {}
         if f is not None:
@@ -62,9 +62,9 @@ class State:
                     is a 2D numpy array (row: state, column: time)
         """
         state_dict = dict()
-        state_dict['q'] = np.concatenate([s.q for s in state_list], axis=1)
-        state_dict['v'] = np.concatenate([s.v for s in state_list], axis=1)
-        state_dict['a'] = np.concatenate([s.a for s in state_list], axis=1)
+        state_dict['q'] = np.stack([s.q for s in state_list], axis=-1)
+        state_dict['v'] = np.stack([s.v for s in state_list], axis=-1)
+        state_dict['a'] = np.stack([s.a for s in state_list], axis=-1)
         state_dict['t'] = np.array([s.t for s in state_list])
         state_dict['f'] = [s.f for s in state_list]
         state_dict['tau'] = [s.tau for s in state_list]

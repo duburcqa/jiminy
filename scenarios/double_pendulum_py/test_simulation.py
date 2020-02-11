@@ -70,7 +70,7 @@ controller.set_options(ctrl_options)
 
 # ############################## Run the simulation #####################################
 
-x0 = np.zeros((4,1))
+x0 = np.zeros((4,))
 x0[1] = 0.1
 tf = 3.0
 

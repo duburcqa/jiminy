@@ -61,8 +61,8 @@ omega = np.sqrt(g/l)
 # Initial values
 q0 = 0.0
 dq0 = -0.0
-x0 = np.zeros((model.nq + model.nv, 1))
-x0[:model.nq, 0] = model.pinocchio_model_th.neutralConfiguration
+x0 = np.zeros((model.nq + model.nv, ))
+x0[:model.nq] = model.pinocchio_model_th.neutralConfiguration
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
@@ -145,9 +145,9 @@ state_target_log = state_target.copy()
 # Instantiate the controller
 t_1 = 0.0
 u_1 = 0.0
-qi = np.zeros((model.nq, 1))
-dqi = np.zeros((model.nv, 1))
-ddqi = np.zeros((model.nv, 1))
+qi = np.zeros((model.nq, ))
+dqi = np.zeros((model.nv, ))
+ddqi = np.zeros((model.nv, ))
 def updateState(model, q, v, sensor_data):
     # Get dcm from current state
     pnc.forwardKinematics(model.pinocchio_model_th, model.pinocchio_data_th, q, v)
@@ -160,12 +160,12 @@ def updateState(model, q, v, sensor_data):
     for i,name in enumerate(contacts):
         update_frame(model.pinocchio_model_th, model.pinocchio_data_th, name)
         placement = get_frame_placement(model.pinocchio_model_th, model.pinocchio_data_th, name)
-        wrench = pnc.Force(np.concatenate([[0,0, forces[2,i]], np.zeros(3)]).T)
+        wrench = pnc.Force(np.concatenate([[0.0, 0.0, forces[2, i]], np.zeros(3)]).T)
         newWrench += placement.act(wrench)
     totalWrenchOut = newWrench
     if totalWrench.linear[2] != 0:
-        zmpOut = [-totalWrenchOut.angular[1]/totalWrenchOut.linear[2],
-                   totalWrenchOut.angular[0]/totalWrenchOut.linear[2]]
+        zmpOut = [-totalWrenchOut.angular[1] / totalWrenchOut.linear[2],
+                   totalWrenchOut.angular[0] / totalWrenchOut.linear[2]]
     else:
         zmpOut = zmp_log
     return comOut, vcomOut, dcmOut, zmpOut, totalWrenchOut
@@ -185,7 +185,7 @@ def computeCommand(t, q, v, sensor_data, u):
     d = c + vc/omega
 
     # Update state
-    com, vcom, dcm, zmp, totalWrench = updateState(model, q[:, np.newaxis], v[:, np.newaxis], sensor_data)
+    com, vcom, dcm, zmp, totalWrench = updateState(model, q, v, sensor_data)
     comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = updateState(model, qi, dqi, sensor_data)
 
     # Update logs (only the value stored by the registered variables using [:])
@@ -205,7 +205,7 @@ def computeCommand(t, q, v, sensor_data, u):
     totalWrench_linear_log[:] = totalWrench.linear
 
     # Update targets at HLC frequency
-    if int(t*1e3)%int(1e3/fHLC) == 0:
+    if int(t * 1e3) % int(1e3 / fHLC) == 0:
 
         # Compute zmp command (DCM control)
         if args.targetsFB:

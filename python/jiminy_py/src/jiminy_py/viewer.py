@@ -301,9 +301,9 @@ class Viewer:
         # translation : [Px, Py, Pz],
         # rotation : [Roll, Pitch, Yaw]
 
-        R_pnc = rpyToMatrix(np.array(rotation).reshape((-1, 1)))
+        R_pnc = rpyToMatrix(np.array(rotation))
         if Viewer.backend == 'gepetto-gui':
-            T_pnc = np.array(translation).reshape((-1, 1))
+            T_pnc = np.array(translation)
             T_R = SE3(R_pnc, T_pnc)
             self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(T_R).tolist())
         else:
@@ -321,7 +321,7 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             png_path = next(tempfile._get_candidate_names())
             self._client.captureFrame(self._window_id, png_path)
-            rgb_array = np.array(Image.open(png_path))[:,:,:-1]
+            rgb_array = np.array(Image.open(png_path))[:, :, :-1]
             os.remove(png_path)
             return rgb_array
         else:
@@ -425,7 +425,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
         robots.append(robot)
 
     if (xyz_offset is None):
-        xyz_offset = [None for i in range(len(trajectory_data))]
+        xyz_offset = len(trajectory_data) * (None,)
 
     threads = []
     for i in range(len(trajectory_data)):

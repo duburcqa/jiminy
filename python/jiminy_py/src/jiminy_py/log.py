@@ -25,17 +25,17 @@ def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
                 The other fields are additional information.
     """
     t = log_data[:,log_header.index('Global.Time')]
-    qe = log_data[:,np.array(['currentFreeflyerPosition' in field
-                              or 'currentPosition' in field for field in log_header])].T
-    dqe = log_data[:,np.array(['currentFreeflyerVelocity' in field
-                               or 'currentVelocity' in field for field in log_header])].T
-    ddqe = log_data[:,np.array(['currentFreeflyerAcceleration' in field
-                                or 'currentAcceleration' in field for field in log_header])].T
+    qe = log_data[:, np.array(['currentFreeflyerPosition' in field
+                               or 'currentPosition' in field for field in log_header])].T
+    dqe = log_data[:, np.array(['currentFreeflyerVelocity' in field
+                                or 'currentVelocity' in field for field in log_header])].T
+    ddqe = log_data[:, np.array(['currentFreeflyerAcceleration' in field
+                                 or 'currentAcceleration' in field for field in log_header])].T
 
     # Create state sequence
     evolution_robot = []
     for i in range(len(t)):
-        evolution_robot.append(State(qe[:, [i]], dqe[:, [i]], ddqe[:, [i]], t[i]))
+        evolution_robot.append(State(qe[:, i], dqe[:, i], ddqe[:, i], t[i]))
 
     return {'evolution_robot': evolution_robot,
             'jiminy_model': jiminy_model,

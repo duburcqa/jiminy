@@ -7,6 +7,7 @@ var structjiminy_1_1python_1_1SensorsDataMapVisitor =
     [ "getSub", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#add14e2fd9c5283e339329a1f15cecb62", null ],
     [ "items", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#a710de0c22dfd0545b242b38ac458469b", null ],
     [ "keys", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#a23fa637e1f708caeb4d66715444101d9", null ],
+    [ "keysSensorType", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#a989593f98b7ef3b70e97e03b52ae04e8", null ],
     [ "len", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#ae60bc28baa9c748149b4c2aca85e6c54", null ],
     [ "values", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#a3432d2406ef16b16aa6940f78183dfaa", null ],
     [ "visit", "structjiminy_1_1python_1_1SensorsDataMapVisitor.html#aed1afb8fa4073405323276f58b764156", null ]
