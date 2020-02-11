@@ -61,7 +61,7 @@ class Viewer:
         Viewer.backend = backend
 
         # Check if the backend is still available, if any
-        if Viewer._backend_obj is not None:
+        if Viewer._backend_obj is not None and Viewer._backend_proc is not None:
             if Viewer._backend_proc.poll() is not None:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
