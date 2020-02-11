@@ -201,7 +201,7 @@ class EngineAsynchronous(object):
         """
         if (self._state is None):
             # Get x by value, then convert the matrix column into an actual 1D array by reference
-            self._state = self._engine.stepper_state.x.A1
+            self._state = self._engine.stepper_state.x
         return self._state
 
     @property

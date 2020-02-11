@@ -305,15 +305,14 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             T_pnc = np.array(translation).reshape((-1, 1))
             T_R = SE3(R_pnc, T_pnc)
-            self._client.setCameraTransform(self._window_id,
-                                            se3ToXYZQUAT(T_R).A1.tolist())
+            self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(T_R).tolist())
         else:
             import meshcat.transformations as tf
             # Transformation of the camera object
             T_meshcat = tf.translation_matrix(translation)
             self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
             # Orientation of the camera object
-            Q_pnc = Quaternion(R_pnc).coeffs().A1
+            Q_pnc = Quaternion(R_pnc).coeffs()
             Q_meshcat = np.roll(Q_pnc, shift=1)
             R_meshcat = tf.quaternion_matrix(Q_meshcat)
             self._client.viewer["/Cameras/default"].set_transform(R_meshcat)

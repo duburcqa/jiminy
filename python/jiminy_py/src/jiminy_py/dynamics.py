@@ -11,8 +11,8 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 def se3ToXYZRPY(M):
     p = np.zeros(6)
-    p[:3] = M.translation.A1
-    p[3:] = matrixToRpy(M.rotation).A1
+    p[:3] = M.translation
+    p[3:] = matrixToRpy(M.rotation)
     return p
 
 def XYZRPYToSe3(xyzrpy):
@@ -309,7 +309,7 @@ def compute_efforts(trajectory_data, index=(0, 0)):
 
         # Initialize vector of exterior forces to 0
         fs = pnc.StdVec_Force()
-        fs.extend([pnc.Force(np.matrix([0.0, 0, 0, 0, 0, 0]).T)
+        fs.extend([pnc.Force(np.array([[0.0, 0, 0, 0, 0, 0]]).T)
                    for _ in range(len(pnc_model.names))])
 
         # Compute the force at the henkle level
@@ -330,4 +330,4 @@ def compute_efforts(trajectory_data, index=(0, 0)):
             if s.support_foot == joint:
                 s.f[index][joint] = ha_M_s.actInv(s.f_ext[index])
             else:
-                s.f[index][joint] = pnc.Force(np.matrix([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]).T)
+                s.f[index][joint] = pnc.Force(np.array(|[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]]).T)

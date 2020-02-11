@@ -8,6 +8,7 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
+
 contacts = []
 motors = ["slider_to_cart"]
 model = jiminy.Model()
@@ -38,9 +39,14 @@ model.set_sensors_options(sensors_options)
 engine_py.set_engine_options(engine_options)
 engine_py.set_controller_options(ctrl_options)
 
+time_start = time.time()
 engine_py.seed(0)
 engine_py.reset()
 for i in range(10000):
     engine_py.step(np.array([[0.001]]))
     engine_py.render()
-    time.sleep(1e-3)
+
+    time_end = time.time()
+    dt = engine_options["stepper"]["controllerUpdatePeriod"] - (time_end - time_start)
+    time.sleep(max(dt, 0.0))
+    time_start = time_end

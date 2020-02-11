@@ -62,7 +62,7 @@ omega = np.sqrt(g/l)
 q0 = 0.0
 dq0 = -0.0
 x0 = np.zeros((model.nq + model.nv, 1))
-x0[:model.nq,:] = model.pinocchio_model_th.neutralConfiguration
+x0[:model.nq, 0] = model.pinocchio_model_th.neutralConfiguration
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
@@ -125,8 +125,8 @@ def get_frame_placement(model, data, name):
     return data.oMf[frame_id]
 
 # Logging: create global variables to make sure they never get deleted
-com = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, x0).A1
-vcom = model.pinocchio_data_th.vcom[0].A1
+com = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, x0)
+vcom = model.pinocchio_data_th.vcom[0]
 dcm = com + vcom/omega
 totalWrench = pnc.Force.Zero()
 zmp = np.array([zmpRef[0], 0])
@@ -136,8 +136,8 @@ state_target = np.array([0.0, 0.0])
 com_log, comTarget_log, comRef_log = com.copy(), com.copy(), com.copy()
 vcom_log, vcomTarget_log, vcomRef_log = vcom.copy(), vcom.copy(), vcom.copy()
 dcm_log, dcmTarget_log, dcmRef_log = dcm.copy(), dcm.copy(), dcm.copy()
-totalWrench_angular_log = totalWrench.angular.A1.copy()
-totalWrench_linear_log = totalWrench.linear.A1.copy()
+totalWrench_angular_log = totalWrench.angular.copy()
+totalWrench_linear_log = totalWrench.linear.copy()
 zmp_log, zmpTarget_log, zmpRef_log = zmp.copy(), zmp.copy(), zmp.copy()
 zmp_cmd_log = zmp.copy()
 state_target_log = state_target.copy()
@@ -151,8 +151,8 @@ ddqi = np.zeros((model.nv, 1))
 def updateState(model, q, v, sensor_data):
     # Get dcm from current state
     pnc.forwardKinematics(model.pinocchio_model_th, model.pinocchio_data_th, q, v)
-    comOut = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, q, v).A1
-    vcomOut = model.pinocchio_data_th.vcom[0].A1
+    comOut = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, q, v)
+    vcomOut = model.pinocchio_data_th.vcom[0]
     dcmOut = comOut + vcomOut / omega
     # Create zmp from forces
     forces = np.asarray(sensor_data[ForceSensor.type])
@@ -201,8 +201,8 @@ def computeCommand(t, q, v, sensor_data, u):
     zmpTarget_log[:] = zmpTarget
     comTarget_log[:] = comTarget
     vcomTarget_log[:] = vcomTarget
-    totalWrench_angular_log[:] = totalWrench.angular.A1
-    totalWrench_linear_log[:] = totalWrench.linear.A1
+    totalWrench_angular_log[:] = totalWrench.angular
+    totalWrench_linear_log[:] = totalWrench.linear
 
     # Update targets at HLC frequency
     if int(t*1e3)%int(1e3/fHLC) == 0:
