@@ -32,11 +32,11 @@ class State:
         ## Time
         self.t = copy(t)
         ## Configuration vector
-        self.q = q.copy()
+        self.q = copy(q)
         ## Velocity vector
-        self.v = v.copy()
+        self.v = copy(v)
         ## Acceleration vector
-        self.a = a.copy()
+        self.a = copy(a)
         ## Forces on the different bodies of the robot
         self.f = {}
         if f is not None:
