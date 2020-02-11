@@ -46,14 +46,14 @@ sudo apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
 
 ```bash
 sudo apt install -y robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy \
-                    robotpkg-py27-pinocchio=2.1.7
+                    robotpkg-py27-eigenpy robotpkg-py27-pinocchio
 ```
 
 ##### [Python 3.6 only] Installation procedure
 
 ```bash
 sudo apt install -y robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
-                    robotpkg-py36-pinocchio=2.1.7
+                    robotpkg-py36-eigenpy robotpkg-py36-pinocchio
 ```
 
 #### Other distributions

@@ -11,3 +11,4 @@
 *.pyc
 *egg-info*
 *.sw?
+.*project

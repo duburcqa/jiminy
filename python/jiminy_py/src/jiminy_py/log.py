@@ -6,6 +6,7 @@ import numpy as np
 
 from .state import State
 
+
 def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
     """
     @brief      Extract a trajectory object using from raw simulation data.
@@ -17,9 +18,7 @@ def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
 
     @param[in]  log_header          List of field names
     @param[in]  log_data            Data logged (2D numpy array: row = time, column = data)
-    @param[in]  urdf_path           Full path of the URDF file
     @param[in]  jiminy_model        Jiminy model. Optional: None if omitted
-    @param[in]  has_freeflyer       Whether the model has a freeflyer
 
     @return     Trajectory dictionary. The actual trajectory corresponds to
                 the field "evolution_robot" and it is a list of State object.
