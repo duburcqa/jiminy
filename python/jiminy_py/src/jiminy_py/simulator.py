@@ -33,10 +33,10 @@ class BasicSimulator(object):
 
         # Instantiate the controller if necessary and initialize it
         if jiminy_controller is None:
-            self.controller = jiminy.ControllerFunctor(self._compute_command)
+            self.controller = jiminy.ControllerFunctor(self._compute_command_wrapper)
         else:
             self.controller = jiminy_controller
-            self.controller.initialize(self.model, self._compute_command)
+            self.controller.initialize(self.model, self._compute_command_wrapper)
 
         # Instantiate and initialize the engine
         self.engine = jiminy.Engine()
@@ -54,9 +54,9 @@ class BasicSimulator(object):
     def set_controller(self, controller_handle):
         try:
             t = 0.0
-            y, dy = np.zeros((self.model.nq, 1)), np.zeros((self.model.nv, 1))
+            y, dy = np.zeros((self.model.nq,)), np.zeros((self.model.nv,))
             sensorsData = self.model.sensors_data
-            y_target, dy_target, u_command = np.zeros((self.n_motors, 1)), np.zeros((self.n_motors, 1)), np.zeros((self.n_motors, 1))
+            y_target, dy_target, u_command = np.zeros((self.n_motors,)), np.zeros((self.n_motors,)), np.zeros((self.n_motors,))
             controller_handle(t, y, dy, sensorsData, y_target, dy_target, u_command)
             self.controller_handle = controller_handle
             self._is_controller_handle_init = True
@@ -68,7 +68,7 @@ class BasicSimulator(object):
     def callback(t, x, out):
         pass
 
-    def _compute_command(self, t, y, dy, sensorsData, y_target, dy_target, u_command):
+    def _compute_command_wrapper(self, t, y, dy, sensorsData, y_target, dy_target, u_command):
         if self._pbar is not None:
             self._pbar.update(t - self._t_pbar)
         self.controller_handle(t, y, dy, sensorsData, y_target, dy_target, u_command)
