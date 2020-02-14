@@ -53,3 +53,18 @@ pin.rpy.npToTuple = npToTuple
 pin.rpy.rotate = rotate
 pin.rpy.rpyToMatrix = rpyToMatrix
 pin.rpy.matrixToRpy = matrixToRpy
+
+def display(self, q):
+    """Display the robot at configuration q in the viewer by placing all the bodies."""
+    pin.forwardKinematics(self.model,self.data,q)
+    pin.updateGeometryPlacements(self.model, self.data, self.visual_model, self.visual_data)
+    for visual in self.visual_model.geometryObjects:
+        # Get mesh pose.
+        M = self.visual_data.oMg[self.visual_model.getGeometryId(visual.name)]
+        # Manage scaling
+        S = np.diag(np.concatenate((visual.meshScale,np.array([1.0]))).flat)
+        T = np.array(M.homogeneous).dot(S)
+        # Update viewer configuration.
+        self.viewer[self.getViewerNodeName(visual,pin.GeometryType.VISUAL)].set_transform(T)
+
+pin.visualize.meshcat_visualizer.MeshcatVisualizer.display = display
