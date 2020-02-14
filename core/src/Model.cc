@@ -953,7 +953,7 @@ namespace jiminy
             // Trigger biased model regeneration and info extraction if necessary
             if (isFlexibleModelInvalid || isModelInvalid)
             {
-                generateBiasedModel();
+                reset();
             }
         }
 

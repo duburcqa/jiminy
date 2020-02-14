@@ -340,13 +340,9 @@ print("Simulation time: %03.0fms" % ((end - start) * 1.0e3))
 
 # ############################# Extract the results #####################################
 
-log_info, log_data = engine.get_log()
-log_info = list(log_info)
-log_data = np.asarray(log_data)
-log_constants = log_info[1:log_info.index('StartColumns')]
-log_header = log_info[(log_info.index('StartColumns') + 1):-1]
+log_data, log_constants = engine.get_log()
 
-trajectory_data_log = extract_state_from_simulation_log(log_header, log_data, model)
+trajectory_data_log = extract_state_from_simulation_log(log_data, model)
 
 # Save the log in CSV
 engine.write_log("/tmp/log.data", True)
@@ -357,90 +353,86 @@ if args.plot:
     if args.targetsFB:
         plt.figure("ZMP X")
         plt.plot(
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.zmpTargetX')],'b',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.zmpCmdX')],'g',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.zmpReferenceX')], 'r',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.comReferenceX')], 'm')
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpTargetX'],'b',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpCmdX'],'g',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpReferenceX'], 'r',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.comReferenceX'], 'm')
         plt.legend((
-            "ZMP X (Targets)",
-            "ZMP CMD X",
-            "ZMP Reference X",
-            "COM Reference X"))
+                    "ZMP X (Targets)",
+                    "ZMP CMD X",
+                    "ZMP Reference X",
+                    "COM Reference X"))
         plt.figure("DCM X")
         plt.plot(
-                log_data[:,log_header.index('Global.Time')],
-                log_data[:,log_header.index('HighLevelController.dcmTargetX')],
-                log_data[:,log_header.index('Global.Time')],
-                log_data[:,log_header.index('HighLevelController.dcmReferenceX')])
-        plt.legend((
-            "DCM X (Targets)",
-            "DCM Reference X"))
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.dcmTargetX'],
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.dcmReferenceX'])
+        plt.legend(("DCM X (Targets)", "DCM Reference X"))
     else:
         plt.figure("ZMP X")
         plt.plot(
-                log_data[:,log_header.index('Global.Time')],
-                log_data[:,log_header.index('HighLevelController.zmpX')],'b',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.zmpCmdX')],'g',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.zmpReferenceX')], 'r',
-                 log_data[:,log_header.index('Global.Time')],
-                 log_data[:,log_header.index('HighLevelController.comReferenceX')], 'm')
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpX'],'b',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpCmdX'],'g',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.zmpReferenceX'], 'r',
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.comReferenceX'], 'm')
         plt.legend((
-            "ZMP X",
-            "ZMP CMD X",
-            "ZMP Reference X",
-            "COM Reference X"))
+                    "ZMP X",
+                    "ZMP CMD X",
+                    "ZMP Reference X",
+                    "COM Reference X"))
         plt.figure("DCM X")
         plt.plot(
-                log_data[:,log_header.index('Global.Time')],
-                log_data[:,log_header.index('HighLevelController.dcmX')],
-                log_data[:,log_header.index('Global.Time')],
-                log_data[:,log_header.index('HighLevelController.dcmReferenceX')])
-        plt.legend((
-            "DCM X",
-            "DCM Reference X"))
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.dcmX'],
+                 log_data['Global.Time'],
+                 log_data['HighLevelController.dcmReferenceX'])
+        plt.legend(("DCM X", "DCM Reference X"))
     fig = plt.figure("COM X")
     ax = plt.subplot()
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.comX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.comX'],
             label = "COM X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.comReferenceX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.comReferenceX'],
             label = "COM Ref X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.comTargetX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.comTargetX'],
             label = "COM X (Targets)")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.vcomX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.vcomX'],
             label = "VCOM X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.vcomReferenceX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.vcomReferenceX'],
             label = "VCOM Ref X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.vcomTargetX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.vcomTargetX'],
             label = "VCOM X (Targets)")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.vcomX')]/omega,
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.vcomX']/omega,
             label = "VCOM/omega X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.vcomTargetX')]/omega,
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.vcomTargetX']/omega,
             label = "VCOM/omega X (Targets)")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.dcmX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.dcmX'],
             label = "DCM X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.dcmReferenceX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.dcmReferenceX'],
             label = "DCM Ref X")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.dcmTargetX')],
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.dcmTargetX'],
             label = "DCM X (Targets)")
-    ax.plot(log_data[:,log_header.index('Global.Time')],
-            log_data[:,log_header.index('HighLevelController.comTargetX')] + log_data[:,log_header.index('HighLevelController.vcomTargetX')]/omega,
+    ax.plot(log_data['Global.Time'],
+            log_data['HighLevelController.comTargetX'] + log_data['HighLevelController.vcomTargetX']/omega,
             label = "DCM X (Mixed)")
     leg = interactive_legend(fig)
     plt.show()

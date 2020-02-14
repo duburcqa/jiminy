@@ -1178,7 +1178,22 @@ namespace python
             std::vector<std::string> header;
             matrixN_t log;
             self.getLogData(header, log);
-            return bp::make_tuple(header, log);
+
+            bp::dict constants;
+            bp::dict data;
+            uint lastConstantId = std::distance(header.begin(), std::find(header.begin(), header.end(), "StartColumns"));
+            for (uint i = 1; i < lastConstantId; i++)
+            {
+                int delimiter = header[i].find("=");
+                constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
+            }
+            for (uint i = lastConstantId + 1; i < header.size() - 1; i++)
+            {
+                PyObject * valuePy(getNumpyReferenceFromEigenVector(log.col(i - (lastConstantId + 1))));
+                data[header[i]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePy, NPY_ARRAY_ENSURECOPY)));
+            }
+
+            return bp::make_tuple(data, constants);
         }
 
         static bp::dict getOptions(Engine & self)

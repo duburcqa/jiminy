@@ -369,7 +369,7 @@ namespace jiminy
         stepperState_t::forceVector_t & fext = stepperState_.fExternal;
 
         // Compute the forward kinematics
-        computeForwardKinematics(q, v);
+        computeForwardKinematics(q, v, a);
 
         // Initialize the external contact forces
         computeExternalForces(t, x, fext);
@@ -686,9 +686,10 @@ namespace jiminy
 
 
     void Engine::computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
-                                          Eigen::Ref<vectorN_t const> v)
+                                          Eigen::Ref<vectorN_t const> v,
+                                          Eigen::Ref<vectorN_t const> a)
     {
-        pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v);
+        pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v, a);
         pinocchio::framesForwardKinematics(model_->pncModel_, model_->pncData_);
     }
 
@@ -1054,7 +1055,7 @@ namespace jiminy
         stepperState_t::forceVector_t & fext = stepperState_.fExternal;
 
         // Compute kinematics information
-        computeForwardKinematics(q, v);
+        computeForwardKinematics(q, v, stepperState_.a());
 
         /* Compute the external contact forces.
            Note that one must call this method BEFORE updating the sensors since
