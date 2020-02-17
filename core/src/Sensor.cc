@@ -17,7 +17,8 @@ namespace jiminy
     template<>
     bool const AbstractSensorTpl<ImuSensor>::areFieldNamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_({"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz"});
+    std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
+        {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
     ImuSensor::ImuSensor(Model                               const & model,
                          std::shared_ptr<SensorDataHolder_t> const & dataHolder,
@@ -76,25 +77,15 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            // if(sensorOptions_->rawData)
-            // {
-            //     pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
-            //     vector3_t const omega = gyroIMU.angular();
-            //     data().head(3) = omega;
-            //     pinocchio::Motion const acceleroIMU = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
-            //     vector3_t const accel = acceleroIMU.linear();
-            //     data().tail(3) = accel;
-            // }
-            // else
-            // {
-                matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
-                quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
-                data().head(4) = quat.coeffs(); // (x,y,z,w)
-                pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
-                vector3_t const omega = rot * gyroIMU.angular(); // Get angular velocity in world frame
-                data().tail(3) = omega;
-            // }
+            matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
+            quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
+            data().head(4) = quat.coeffs(); // (x,y,z,w)
+            pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
+            data().segment<3>(4) = gyroIMU.angular();
+            pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
+            data().tail(3) = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
         }
+
 
         return returnCode;
     }

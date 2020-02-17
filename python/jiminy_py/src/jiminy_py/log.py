@@ -7,7 +7,7 @@ import numpy as np
 from .state import State
 
 
-def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
+def extract_state_from_simulation_log(log_data, jiminy_model):
     """
     @brief      Extract a trajectory object using from raw simulation data.
 
@@ -16,21 +16,20 @@ def extract_state_from_simulation_log(log_header, log_data, jiminy_model):
     @remark     Note that the quaternion angular velocity vectors are expressed
                 it body frame rather than world frame.
 
-    @param[in]  log_header          List of field names
-    @param[in]  log_data            Data logged (2D numpy array: row = time, column = data)
+    @param[in]  log_data          Data from the log file, in a dictionnary.
     @param[in]  jiminy_model        Jiminy model. Optional: None if omitted
 
     @return     Trajectory dictionary. The actual trajectory corresponds to
                 the field "evolution_robot" and it is a list of State object.
                 The other fields are additional information.
     """
-    t = log_data[:,log_header.index('Global.Time')]
-    qe = log_data[:, np.array(['currentFreeflyerPosition' in field
-                               or 'currentPosition' in field for field in log_header])].T
-    dqe = log_data[:, np.array(['currentFreeflyerVelocity' in field
-                                or 'currentVelocity' in field for field in log_header])].T
-    ddqe = log_data[:, np.array(['currentFreeflyerAcceleration' in field
-                                 or 'currentAcceleration' in field for field in log_header])].T
+    t = log_data['Global.Time']
+    qe = np.array([log_data[field] for field in log_data.keys()
+                                   if 'currentFreeflyerPosition' in field or 'currentPosition' in field])
+    dqe = np.array([log_data[field] for field in log_data.keys()
+                                   if 'currentFreeflyerVelocity' in field or 'currentVelocity' in field])
+    ddqe = np.array([log_data[field] for field in log_data.keys()
+                                   if 'currentFreeflyerAcceleration' in field or 'currentAcceleration' in field])
 
     # Create state sequence
     evolution_robot = []

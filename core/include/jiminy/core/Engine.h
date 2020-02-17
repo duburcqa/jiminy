@@ -433,7 +433,8 @@ namespace jiminy
                                                  vector3_t const & fExtInWorld) const;
         vector3_t computeContactDynamics(int32_t const & frameId) const;
         void computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
-                                      Eigen::Ref<vectorN_t const> v);
+                                      Eigen::Ref<vectorN_t const> v,
+                                      Eigen::Ref<vectorN_t const> a);
         void computeCommand(float64_t                   const & t,
                             Eigen::Ref<vectorN_t const>         q,
                             Eigen::Ref<vectorN_t const>         v,

@@ -107,12 +107,7 @@ class BasicSimulator(object):
         '''
         Get log data from the engine.
         '''
-        log_info, log_data = self.engine.get_log()
-        log_info = list(log_info)
-        log_data = np.asarray(log_data)
-        log_constants = log_info[1:log_info.index('StartColumns')]
-        log_header = log_info[(log_info.index('StartColumns')+1):-1]
-        return log_data, log_header, log_constants
+        return self.engine.get_log()
 
     def run(self, x0, tf, log_path=None):
         '''
