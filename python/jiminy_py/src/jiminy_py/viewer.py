@@ -79,7 +79,6 @@ class Viewer:
             else:
                 import meshcat
                 from contextlib import redirect_stdout
-                from IPython.core.display import display
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
 
@@ -87,10 +86,7 @@ class Viewer:
                     with redirect_stdout(None):
                         Viewer._backend_obj = meshcat.Visualizer()
                         Viewer._backend_proc = Viewer._backend_obj.window.server_proc
-                    if Viewer._is_notebook():
-                        display(Viewer._backend_obj.jupyter_cell())
-                    else:
-                        print(Viewer._backend_obj.url())
+                    if not Viewer._is_notebook():
                         Viewer._backend_obj.open()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
@@ -143,6 +139,25 @@ class Viewer:
                 createDatas(self.pinocchio_model, collision_model, visual_model)
             self._client.loadViewerModel(rootNodeName=robot_name, color=urdf_rgba)
             self._rb.viz = self._client
+
+    @staticmethod
+    def display_jupyter_cell(height=600, width=900, port_forwarding=None):
+        if Viewer.backend == 'meshcat' and Viewer._is_notebook():
+            from IPython.core.display import HTML as ipython_html_display
+
+            viewer_url = Viewer._backend_obj.url()
+            if port_forwarding is not None:
+                url_port_pattern = '(?<=:)[0-9]+(?=/)'
+                port_localhost = re.search(url_port_pattern, viewer_url).group()
+                viewer_url = re.sub(url_port_pattern, str(port_forwarding[int(port_localhost)]), viewer_url)
+
+            jupyter_html = f'\n<div style="height: {height}px; width: {width}px; overflow-x: auto; overflow-y: hidden; resize: both">\
+                             \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
+                             </iframe>\n</div>\n'
+
+            return ipython_html_display(jupyter_html)
+        else:
+            raise ValueError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
     @staticmethod
     def close():
