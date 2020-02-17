@@ -249,12 +249,20 @@ namespace jiminy
                 intData.reserve(intData.size() + numberLines);
                 floatData.reserve(floatData.size() + numberLines);
             }
+
             while (flows[i]->bytesAvailable() > 0)
             {
                 flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
                 flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
                 flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
                 flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
+
+                if (!timestamps.empty() && timestamp == 0)
+                {
+                    // The buffer is not full, must stop reading !
+                    break;
+                }
+
                 timestamps.emplace_back(static_cast<float32_t>(timestamp) * 1e-6);
                 intData.emplace_back(intDataLine);
                 floatData.emplace_back(floatDataLine);
