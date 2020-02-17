@@ -5,6 +5,7 @@ var classjiminy_1_1_telemetry_recorder =
     [ "~TelemetryRecorder", "classjiminy_1_1_telemetry_recorder.html#a3790da1693f7e6d3c87ed003389565bf", null ],
     [ "createNewChunk", "classjiminy_1_1_telemetry_recorder.html#a3b3714076bd5b8be21d9568c8d4a75db", null ],
     [ "flushDataSnapshot", "classjiminy_1_1_telemetry_recorder.html#a3159a77f278628a3607ba2cf8b058b46", null ],
+    [ "getData", "classjiminy_1_1_telemetry_recorder.html#a7e553c99ef9d4a4669b32f749d68eedc", null ],
     [ "getData", "classjiminy_1_1_telemetry_recorder.html#adc32a1c49f27f1644cc932234598791b", null ],
     [ "getIsInitialized", "classjiminy_1_1_telemetry_recorder.html#a023c0c0becd390412cc592b68e4a578b", null ],
     [ "initialize", "classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492", null ],

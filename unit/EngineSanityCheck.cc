@@ -87,7 +87,10 @@ TEST(EngineSanity, EnergyConservation)
     engine.simulate(x0, tf);
 
     // Get system energy.
-    vectorN_t energy = engine.getLogFieldValue("HighLevelController.energy");
+    std::vector<std::string> header;
+    matrixN_t data;
+    engine.getLogData(header, data);
+    vectorN_t energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energy.size(), 0);
 
     // Ignore first sample where energy is zero.
@@ -104,7 +107,8 @@ TEST(EngineSanity, EnergyConservation)
     engine.reset(x0);
     engine.simulate(x0, tf);
 
-    energy = engine.getLogFieldValue("HighLevelController.energy");
+    engine.getLogData(header, data);
+    energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energy.size(), 0);
     energyCrop = energy.tail(energy.size() - 1);
     deltaEnergy = energyCrop.maxCoeff() - energyCrop.minCoeff();

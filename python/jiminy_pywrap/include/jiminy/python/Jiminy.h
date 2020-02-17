@@ -13,6 +13,7 @@
 #include "jiminy/core/Model.h"
 #include "jiminy/core/AbstractController.h"
 #include "jiminy/core/ControllerFunctor.h"
+#include "jiminy/core/TelemetryData.h"
 #include "jiminy/core/Types.h"
 #include "jiminy/python/Utilities.h"
 
@@ -984,7 +985,7 @@ namespace python
         }
     };
 
-    // ***************************** PyEngineVisitor ***********************************
+    // ***************************** PyStepperVisitor ***********************************
 
     struct PyStepperVisitor
         : public bp::def_visitor<PyStepperVisitor>
@@ -1064,6 +1065,8 @@ namespace python
         }
     };
 
+    // ***************************** PyEngineVisitor ***********************************
+
     struct PyEngineVisitor
         : public bp::def_visitor<PyEngineVisitor>
     {
@@ -1085,14 +1088,19 @@ namespace python
                              (bp::arg("self"), bp::arg("dt_desired")=-1))
                 .def("reset", &PyEngineVisitor::reset,
                               (bp::arg("self"), "x_init", bp::arg("reset_random_generator")=false))
+
                 .def("get_log", &PyEngineVisitor::getLog)
                 .def("write_log", &PyEngineVisitor::writeLog,
-                                  (bp::arg("self"), "filename", bp::arg("isModeBinary")=false))
+                                  (bp::arg("self"), "filename", bp::arg("isModeBinary")=true))
+                .def("read_log", &PyEngineVisitor::parseLogBinary, (bp::arg("filename")))
+                .staticmethod("read_log")
+
                 .def("register_force_impulse", &Engine::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_handle"))
                 .def("remove_forces", &PyEngineVisitor::removeForces)
+
                 .def("get_options", &PyEngineVisitor::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyEngineVisitor::setOptions)
@@ -1173,27 +1181,40 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple getLog(Engine & self)
+        static bp::tuple formatLog(std::vector<std::string> const & header,
+                                   matrixN_t                const & logData)
         {
-            std::vector<std::string> header;
-            matrixN_t log;
-            self.getLogData(header, log);
-
             bp::dict constants;
             bp::dict data;
-            uint lastConstantId = std::distance(header.begin(), std::find(header.begin(), header.end(), "StartColumns"));
-            for (uint i = 1; i < lastConstantId; i++)
+            uint32_t lastConstantId = std::distance(header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
+            for (uint32_t i = 1; i < lastConstantId; i++)
             {
-                int delimiter = header[i].find("=");
+                int32_t delimiter = header[i].find("=");
                 constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
             }
-            for (uint i = lastConstantId + 1; i < header.size() - 1; i++)
+            for (uint32_t i = lastConstantId + 1; i < header.size() - 1; i++)
             {
-                PyObject * valuePy(getNumpyReferenceFromEigenVector(log.col(i - (lastConstantId + 1))));
+                PyObject * valuePy(getNumpyReferenceFromEigenVector(logData.col(i - (lastConstantId + 1))));
                 data[header[i]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePy, NPY_ARRAY_ENSURECOPY)));
             }
 
             return bp::make_tuple(data, constants);
+        }
+
+        static bp::tuple getLog(Engine & self)
+        {
+            std::vector<std::string> header;
+            matrixN_t logData;
+            self.getLogData(header, logData);
+            return formatLog(header, logData);
+        }
+
+        static bp::tuple parseLogBinary(std::string const & filename)
+        {
+            std::vector<std::string> header;
+            matrixN_t logData;
+            Engine::parseLogBinary(filename, header, logData);
+            return formatLog(header, logData);
         }
 
         static bp::dict getOptions(Engine & self)

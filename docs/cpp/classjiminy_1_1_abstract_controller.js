@@ -13,6 +13,7 @@ var classjiminy_1_1_abstract_controller =
     [ "initialize", "classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de", null ],
     [ "internalDynamics", "classjiminy_1_1_abstract_controller.html#a966c71136d608375053573e8b092485a", null ],
     [ "operator=", "classjiminy_1_1_abstract_controller.html#acc47d2a9257a7e5a2c7faa3fcbb090c8", null ],
+    [ "registerConstant", "classjiminy_1_1_abstract_controller.html#a48a3a40e58f9ce6b76772c26c3cc317e", null ],
     [ "registerNewEntry", "classjiminy_1_1_abstract_controller.html#af1cb56b3abc15420c73cd18d5c83349d", null ],
     [ "registerNewVectorEntry", "classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634", null ],
     [ "removeEntries", "classjiminy_1_1_abstract_controller.html#aca8a68d40ab788576acb84e46b621142", null ],
@@ -25,6 +26,7 @@ var classjiminy_1_1_abstract_controller =
     [ "isInitialized_", "classjiminy_1_1_abstract_controller.html#a18e209c2d6b32ff2d7abc9dced15e326", null ],
     [ "isTelemetryConfigured_", "classjiminy_1_1_abstract_controller.html#a20ef93ae3134f0bd079dd2690118b6e2", null ],
     [ "model_", "classjiminy_1_1_abstract_controller.html#ac8735fd81e737245344585ab1c3e8ee3", null ],
-    [ "registeredInfo_", "classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd", null ],
+    [ "registeredConstants_", "classjiminy_1_1_abstract_controller.html#a953c9d65f2ad0c2df25dc6b28b512ff7", null ],
+    [ "registeredVariables_", "classjiminy_1_1_abstract_controller.html#a5a619a76b2d8ac2c2e9a4365f8903f7d", null ],
     [ "telemetrySender_", "classjiminy_1_1_abstract_controller.html#a91979add72f86b9770adec49ae9a3df2", null ]
 ];

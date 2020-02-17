@@ -11,6 +11,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/Utilities.h"
+#include "jiminy/core/FileDevice.h"
 #include "jiminy/core/TelemetryData.h"
 #include "jiminy/core/TelemetryRecorder.h"
 #include "jiminy/core/AbstractController.h"
@@ -925,20 +926,12 @@ namespace jiminy
         return stepperState_;
     }
 
-    result_t Engine::getLogData(std::vector<std::string> & header,
-                              matrixN_t                & logData)
+
+    void logDataToEigenMatrix(std::vector<float32_t>               const & timestamps,
+                              std::vector<std::vector<int32_t> >   const & intData,
+                              std::vector<std::vector<float32_t> > const & floatData,
+                              matrixN_t                                  & logData)
     {
-        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
-        {
-            std::cout << "Error - Engine::getLogData - Telemetry not initialized. Impossible to get log data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        std::vector<float32_t> timestamps;
-        std::vector<std::vector<int32_t> > intData;
-        std::vector<std::vector<float32_t> > floatData;
-        telemetryRecorder_->getData(header, timestamps, intData, floatData);
-
         // Never empty since it contains at least the initial state
         logData.resize(timestamps.size(), 1 + intData[0].size() + floatData[0].size());
         logData.col(0) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
@@ -955,26 +948,37 @@ namespace jiminy
                 Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                     floatData[i].data(), floatData[i].size()).cast<float64_t>();
         }
+    }
+
+    result_t Engine::getLogData(std::vector<std::string> & header,
+                                matrixN_t                & logData)
+    {
+        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
+        {
+            std::cout << "Error - Engine::getLogData - Telemetry not initialized. Impossible to get log data." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        std::vector<float32_t> timestamps;
+        std::vector<std::vector<int32_t> > intData;
+        std::vector<std::vector<float32_t> > floatData;
+        telemetryRecorder_->getData(header, timestamps, intData, floatData);
+        logDataToEigenMatrix(timestamps, intData, floatData, logData);
 
         return result_t::SUCCESS;
     }
 
-    vectorN_t Engine::getLogFieldValue(std::string const & fieldName)
+    vectorN_t Engine::getLogFieldValue(std::string              const & fieldName,
+                                       std::vector<std::string>       & header,
+                                       matrixN_t                      & logData)
     {
         vectorN_t fieldData = vectorN_t::Zero(0);
 
-        std::vector<std::string> header;
-        matrixN_t data;
-        result_t returnCode = getLogData(header, data);
-        if (returnCode == result_t::SUCCESS)
+        std::vector<std::string>::iterator iterator = std::find (header.begin(), header.end(), fieldName);
+        std::vector<std::string>::iterator start = std::find (header.begin(), header.end(), "StartColumns");
+        if (iterator != header.end())
         {
-            // Look in header for fieldName.
-            std::vector<std::string>::iterator iterator = std::find (header.begin(), header.end(), fieldName);
-            std::vector<std::string>::iterator start = std::find (header.begin(), header.end(), "StartColumns");
-            if (iterator != header.end())
-            {
-                fieldData = data.col(std::distance(start, iterator) - 1);
-            }
+            fieldData = logData.col(std::distance(start, iterator) - 1);
         }
 
         return fieldData;
@@ -1000,17 +1004,17 @@ namespace jiminy
         {
             auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
             std::copy(header.begin() + 1,
-                    indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(myfile, ", ")); // Discard the first one (start constant flag)
+                      indexConstantEnd - 1,
+                      std::ostream_iterator<std::string>(myfile, ", ")); // Discard the first one (start constant flag)
             std::copy(indexConstantEnd - 1,
-                    indexConstantEnd,
-                    std::ostream_iterator<std::string>(myfile, "\n"));
+                      indexConstantEnd,
+                      std::ostream_iterator<std::string>(myfile, "\n"));
             std::copy(indexConstantEnd + 1,
-                    header.end() - 2,
-                    std::ostream_iterator<std::string>(myfile, ", "));
+                      header.end() - 2,
+                      std::ostream_iterator<std::string>(myfile, ", "));
             std::copy(header.end() - 2,
-                    header.end() - 1,
-                    std::ostream_iterator<std::string>(myfile, "\n")); // Discard the last one (start data flag)
+                      header.end() - 1,
+                      std::ostream_iterator<std::string>(myfile, "\n")); // Discard the last one (start data flag)
 
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             myfile << log.format(CSVFormat);
@@ -1035,6 +1039,92 @@ namespace jiminy
         }
 
         telemetryRecorder_->writeDataBinary(filename);
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Engine::parseLogBinary(std::string              const & filename,
+                                    std::vector<std::string>       & header,
+                                    matrixN_t                      & logData)
+    {
+
+        int64_t integerSectionSize;
+        int64_t floatSectionSize;
+        int64_t headerSize;
+
+        std::ifstream myfile = std::ifstream(filename,
+                                             std::ios::in |
+                                             std::ifstream::binary);
+
+        if (myfile.is_open())
+        {
+            // Skip the version flag
+            int64_t header_version_length = sizeof(int32_t);
+            myfile.seekg(header_version_length);
+
+            std::vector<std::string> headerBuffer;
+            std::string subHeaderBuffer;
+
+            // Get all the logged constants
+            while (std::getline(myfile, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != START_COLUMNS)
+            {
+                headerBuffer.push_back(subHeaderBuffer);
+            }
+
+            // Get the names of the logged variables
+            while (std::getline(myfile, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
+            {
+                // Do nothing
+            }
+
+            // Make sure the log file is not corrupted
+            if (!myfile.good())
+            {
+                std::cout << "Error - Engine::parseLogBinary - Corrupted log file." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
+
+            // Extract the number of intergers and floats from the list of logged constants
+            std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
+            int32_t delimiter = headerNumIntEntries.find("=");
+            int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
+            std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
+            delimiter = headerNumFloatEntries.find("=");
+            int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
+
+            // Deduce the parameters required to parse the whole binary log file
+            integerSectionSize = (NumIntEntries - 1) * sizeof(int32_t); // Remove Global.Time
+            floatSectionSize = NumFloatEntries * sizeof(float32_t);
+            headerSize = ((int32_t) myfile.tellg()) - START_LINE_TOKEN.size() - 1;
+
+            // Close the file
+            myfile.close();
+        }
+        else
+        {
+            std::cout << "Error - Engine::parseLogBinary - Impossible to open the log file. Check that the file exists and that you have reading permissions." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        FileDevice device(filename);
+        device.open(OpenMode::READ_ONLY);
+        std::vector<AbstractIODevice *> flows;
+        flows.push_back(&device);
+
+        std::vector<float32_t> timestamps;
+        std::vector<std::vector<int32_t> > intData;
+        std::vector<std::vector<float32_t> > floatData;
+        TelemetryRecorder::getData(header,
+                                   timestamps,
+                                   intData,
+                                   floatData,
+                                   flows,
+                                   integerSectionSize,
+                                   floatSectionSize,
+                                   headerSize);
+        logDataToEigenMatrix(timestamps, intData, floatData, logData);
 
         return result_t::SUCCESS;
     }

@@ -58,6 +58,15 @@ namespace jiminy
         /// \brief Get access to the memory device holding the data
         ////////////////////////////////////////////////////////////////////////
         void writeDataBinary(std::string const & filename);
+        static void getData(std::vector<std::string>                   & header,
+                            std::vector<float32_t>                     & timestamps,
+                            std::vector<std::vector<int32_t> >         & intData,
+                            std::vector<std::vector<float32_t> >       & floatData,
+                            std::vector<AbstractIODevice *>            & flows,
+                            int64_t                              const & integerSectionSize,
+                            int64_t                              const & floatSectionSize,
+                            int64_t                              const & headerSize,
+                            int64_t                                      recordedBytesDataLine = -1);
         void getData(std::vector<std::string>             & header,
                      std::vector<float32_t>               & timestamps,
                      std::vector<std::vector<int32_t> >   & intData,

@@ -1,13 +1,15 @@
 <map id="core/src/Engine.cc" name="core/src/Engine.cc">
-<area shape="rect" id="node12" href="$_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="907,259,1051,285"/>
-<area shape="rect" id="node23" href="$_telemetry_data_8h.html" title="jiminy/core/TelemetryData.h" alt="" coords="240,169,427,196"/>
-<area shape="rect" id="node26" href="$_telemetry_recorder_8h.html" title="jiminy/core/TelemetryRecorder.h" alt="" coords="457,87,668,114"/>
-<area shape="rect" id="node31" href="$_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="681,169,887,196"/>
-<area shape="rect" id="node32" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="2031,259,2166,285"/>
-<area shape="rect" id="node35" href="$_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1177,169,1317,196"/>
-<area shape="rect" id="node16" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="667,355,803,382"/>
-<area shape="rect" id="node25" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="202,259,401,285"/>
-<area shape="rect" id="node27" href="$_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="469,169,657,196"/>
-<area shape="rect" id="node28" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="475,259,679,285"/>
-<area shape="rect" id="node30" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="494,355,642,382"/>
+<area shape="rect" id="node12" href="$_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="1047,259,1191,285"/>
+<area shape="rect" id="node23" href="$_file_device_8h.html" title="jiminy/core/FileDevice.h" alt="" coords="259,169,421,196"/>
+<area shape="rect" id="node28" href="$_telemetry_data_8h.html" title="jiminy/core/TelemetryData.h" alt="" coords="496,169,683,196"/>
+<area shape="rect" id="node30" href="$_telemetry_recorder_8h.html" title="jiminy/core/TelemetryRecorder.h" alt="" coords="160,87,371,114"/>
+<area shape="rect" id="node32" href="$_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="788,169,993,196"/>
+<area shape="rect" id="node34" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1317,259,1451,285"/>
+<area shape="rect" id="node37" href="$_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1654,169,1794,196"/>
+<area shape="rect" id="node16" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="800,355,936,382"/>
+<area shape="rect" id="node25" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="43,259,247,285"/>
+<area shape="rect" id="node27" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="99,355,247,382"/>
+<area shape="rect" id="node29" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="723,259,922,285"/>
+<area shape="rect" id="node31" href="$_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="46,169,234,196"/>
+<area shape="rect" id="node33" href="$_abstract_controller_8tpp.html" title="AbstractController.tpp" alt="" coords="475,355,624,382"/>
 </map>

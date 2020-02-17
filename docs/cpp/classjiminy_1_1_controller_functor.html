@@ -105,7 +105,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_controller_functor.htm
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_controller_functor__inherit__graph.png" border="0" usemap="#jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_inherit__map" alt="Inheritance graph"/></div>
 <map name="jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_inherit__map" id="jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_inherit__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,5,197,435"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,5,187,391"/>
 </map>
 </div>
 <div id="dynsection-1" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
@@ -115,8 +115,8 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_controller_functor.htm
 <div id="dynsection-1-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_controller_functor__coll__graph.png" border="0" usemap="#jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_coll__map" alt="Collaboration graph"/></div>
 <map name="jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_coll__map" id="jiminy_1_1_controller_functor_3_01_f1_00_01_f2_01_4_coll__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,351,197,765"/>
-<area shape="rect" id="node3" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="20,5,183,288"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,351,187,721"/>
+<area shape="rect" id="node3" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="15,5,177,288"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -174,6 +174,10 @@ virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <tr class="memitem:af1cb56b3abc15420c73cd18d5c83349d inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#af1cb56b3abc15420c73cd18d5c83349d">registerNewEntry</a> (std::string const &amp;fieldName, float64_t const &amp;value)</td></tr>
 <tr class="memdesc:af1cb56b3abc15420c73cd18d5c83349d inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamically registered a float64 to the telemetry.  <a href="classjiminy_1_1_abstract_controller.html#af1cb56b3abc15420c73cd18d5c83349d">More...</a><br /></td></tr>
 <tr class="separator:af1cb56b3abc15420c73cd18d5c83349d inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48a3a40e58f9ce6b76772c26c3cc317e inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a48a3a40e58f9ce6b76772c26c3cc317e inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memTemplItemLeft" align="right" valign="top">result_t&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a48a3a40e58f9ce6b76772c26c3cc317e">registerConstant</a> (std::string const &amp;fieldName, T const &amp;value)</td></tr>
+<tr class="memdesc:a48a3a40e58f9ce6b76772c26c3cc317e inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Register a constant float64 to the telemetry.  <a href="classjiminy_1_1_abstract_controller.html#a48a3a40e58f9ce6b76772c26c3cc317e">More...</a><br /></td></tr>
+<tr class="separator:a48a3a40e58f9ce6b76772c26c3cc317e inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca8a68d40ab788576acb84e46b621142 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aca8a68d40ab788576acb84e46b621142">removeEntries</a> (void)</td></tr>
 <tr class="memdesc:aca8a68d40ab788576acb84e46b621142 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Remove all variables dynamically registered to the telemetry.  <a href="classjiminy_1_1_abstract_controller.html#aca8a68d40ab788576acb84e46b621142">More...</a><br /></td></tr>
 <tr class="separator:aca8a68d40ab788576acb84e46b621142 inherit pub_methods_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -240,10 +244,6 @@ configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 <a class="el" href="classjiminy_1_1_telemetry_sender.html">TelemetrySender</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a91979add72f86b9770adec49ae9a3df2">telemetrySender_</a></td></tr>
 <tr class="memdesc:a91979add72f86b9770adec49ae9a3df2 inherit pro_attribs_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Telemetry sender of the controller used to register and update telemetry variables. <br /></td></tr>
 <tr class="separator:a91979add72f86b9770adec49ae9a3df2 inherit pro_attribs_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a183475e6106345263db7ad60d7de65bd inherit pro_attribs_classjiminy_1_1_abstract_controller"><td class="memItemLeft" align="right" valign="top"><a id="a183475e6106345263db7ad60d7de65bd"></a>
-std::vector&lt; std::pair&lt; std::string, float64_t const * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd">registeredInfo_</a></td></tr>
-<tr class="memdesc:a183475e6106345263db7ad60d7de65bd inherit pro_attribs_classjiminy_1_1_abstract_controller"><td class="mdescLeft">&#160;</td><td class="mdescRight">Vector of dynamically registered telemetry variables. <br /></td></tr>
-<tr class="separator:a183475e6106345263db7ad60d7de65bd inherit pro_attribs_classjiminy_1_1_abstract_controller"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;typename F1, typename F2&gt;<br />

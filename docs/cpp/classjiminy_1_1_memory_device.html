@@ -128,7 +128,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_memory_device.html',''
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a459854a633bc223ec037a4f4d3e442c4"><td class="memItemLeft" align="right" valign="top"><a id="a459854a633bc223ec037a4f4d3e442c4"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryDevice</b> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#a1d28c7f2dfb365fe4b61a197b99a32d6">size</a>)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryDevice</b> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#af2443343ce13d3d1fffe16fad7af5413">size</a>)</td></tr>
 <tr class="separator:a459854a633bc223ec037a4f4d3e442c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a411626303ec2a9751269ebf9c5eacb40"><td class="memItemLeft" align="right" valign="top"><a id="a411626303ec2a9751269ebf9c5eacb40"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>MemoryDevice</b> (<a class="el" href="classjiminy_1_1_memory_device.html">MemoryDevice</a> const &amp;other)</td></tr>
@@ -145,17 +145,17 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ac0b8f93e8d039e4a2409df6899213634"><td class="memItemLeft" align="right" valign="top"><a id="ac0b8f93e8d039e4a2409df6899213634"></a>
 <a class="el" href="classjiminy_1_1_memory_device.html">MemoryDevice</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classjiminy_1_1_memory_device.html">MemoryDevice</a> &amp;&amp;other)</td></tr>
 <tr class="separator:ac0b8f93e8d039e4a2409df6899213634"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1d28c7f2dfb365fe4b61a197b99a32d6"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#a1d28c7f2dfb365fe4b61a197b99a32d6">size</a> (void) const override</td></tr>
-<tr class="memdesc:a1d28c7f2dfb365fe4b61a197b99a32d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned.  <a href="#a1d28c7f2dfb365fe4b61a197b99a32d6">More...</a><br /></td></tr>
-<tr class="separator:a1d28c7f2dfb365fe4b61a197b99a32d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af2443343ce13d3d1fffe16fad7af5413"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#af2443343ce13d3d1fffe16fad7af5413">size</a> (void) override</td></tr>
+<tr class="memdesc:af2443343ce13d3d1fffe16fad7af5413"><td class="mdescLeft">&#160;</td><td class="mdescRight">For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_memory_device.html#a8e38968f66f19f33f1721840e4b69590" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned.  <a href="#af2443343ce13d3d1fffe16fad7af5413">More...</a><br /></td></tr>
+<tr class="separator:af2443343ce13d3d1fffe16fad7af5413"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6e172f3ae22f683c3476cfc6346cba23"><td class="memItemLeft" align="right" valign="top">bool_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#a6e172f3ae22f683c3476cfc6346cba23">isSequential</a> (void) const override</td></tr>
 <tr class="separator:a6e172f3ae22f683c3476cfc6346cba23"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a080da104b911a09022a849ee835f0833"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a> (void) const override</td></tr>
-<tr class="separator:a080da104b911a09022a849ee835f0833"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a41b575acc3c3a21b7aa5413daa29d5f7"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">bytesAvailable</a> (void) const override</td></tr>
-<tr class="memdesc:a41b575acc3c3a21b7aa5413daa29d5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes that are available for reading. Commonly used with sequential device.  <a href="#a41b575acc3c3a21b7aa5413daa29d5f7">More...</a><br /></td></tr>
-<tr class="separator:a41b575acc3c3a21b7aa5413daa29d5f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaa9b596b4d1a94fe897ccc98398a515d"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d">seek</a> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">pos</a>) override</td></tr>
+<tr class="memitem:ab7d02fe0fec1001178649c98dc37681d"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#ab7d02fe0fec1001178649c98dc37681d">pos</a> (void) override</td></tr>
+<tr class="separator:ab7d02fe0fec1001178649c98dc37681d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8e38968f66f19f33f1721840e4b69590"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#a8e38968f66f19f33f1721840e4b69590">bytesAvailable</a> (void) override</td></tr>
+<tr class="memdesc:a8e38968f66f19f33f1721840e4b69590"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes that are available for reading. Commonly used with sequential device.  <a href="#a8e38968f66f19f33f1721840e4b69590">More...</a><br /></td></tr>
+<tr class="separator:a8e38968f66f19f33f1721840e4b69590"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa9b596b4d1a94fe897ccc98398a515d"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d">seek</a> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#ab7d02fe0fec1001178649c98dc37681d">pos</a>) override</td></tr>
 <tr class="memdesc:aaa9b596b4d1a94fe897ccc98398a515d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move the current position cursor to pos if possible.  <a href="#aaa9b596b4d1a94fe897ccc98398a515d">More...</a><br /></td></tr>
 <tr class="separator:aaa9b596b4d1a94fe897ccc98398a515d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:affc75023bf0c3fe4b60b64417f8835bc"><td class="memItemLeft" align="right" valign="top">int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_memory_device.html#affc75023bf0c3fe4b60b64417f8835bc">readData</a> (void *data, int64_t dataSize) override</td></tr>
@@ -168,7 +168,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:aa354916a40b37b220341fc9e5f3f5019"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the device blocking fashion.  <a href="#aa354916a40b37b220341fc9e5f3f5019">More...</a><br /></td></tr>
 <tr class="separator:aa354916a40b37b220341fc9e5f3f5019"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4a7f330f88f2f925fc69770e294bc6e8"><td class="memItemLeft" align="right" valign="top"><a id="a4a7f330f88f2f925fc69770e294bc6e8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>resize</b> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#a1d28c7f2dfb365fe4b61a197b99a32d6">size</a>)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>resize</b> (int64_t <a class="el" href="classjiminy_1_1_memory_device.html#af2443343ce13d3d1fffe16fad7af5413">size</a>)</td></tr>
 <tr class="separator:a4a7f330f88f2f925fc69770e294bc6e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_classjiminy_1_1_abstract_i_o_device"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_classjiminy_1_1_abstract_i_o_device')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html">jiminy::AbstractIODevice</a></td></tr>
 <tr class="memitem:a257692691457aeb42d55afe1d3ec4cca inherit pub_methods_classjiminy_1_1_abstract_i_o_device"><td class="memItemLeft" align="right" valign="top"><a id="a257692691457aeb42d55afe1d3ec4cca"></a>
@@ -254,9 +254,9 @@ Protected Member Functions</h2></td></tr>
 <tr class="memitem:ac98e6dda8fe198ca2effefa003a0c2dc"><td class="memItemLeft" align="right" valign="top"><a id="ac98e6dda8fe198ca2effefa003a0c2dc"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>doOpen</b> (enum <a class="el" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60e">OpenMode</a> modes) override</td></tr>
 <tr class="separator:ac98e6dda8fe198ca2effefa003a0c2dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a44753b1955d42d279fd6f966c5d1eb5a"><td class="memItemLeft" align="right" valign="top"><a id="a44753b1955d42d279fd6f966c5d1eb5a"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>doClose</b> () override</td></tr>
-<tr class="separator:a44753b1955d42d279fd6f966c5d1eb5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a23e1ff0465aa6c22255746e8734a1ac8"><td class="memItemLeft" align="right" valign="top"><a id="a23e1ff0465aa6c22255746e8734a1ac8"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>doClose</b> (void) override</td></tr>
+<tr class="separator:a23e1ff0465aa6c22255746e8734a1ac8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
@@ -284,8 +284,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00012">12</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a id="a41b575acc3c3a21b7aa5413daa29d5f7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a41b575acc3c3a21b7aa5413daa29d5f7">&#9670;&nbsp;</a></span>bytesAvailable()</h2>
+<a id="a8e38968f66f19f33f1721840e4b69590"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e38968f66f19f33f1721840e4b69590">&#9670;&nbsp;</a></span>bytesAvailable()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -298,7 +298,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -311,11 +311,11 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Returns the number of bytes that are available for reading. Commonly used with sequential device. </p>
 <dl class="section return"><dt>Returns</dt><dd>The available bytesfor reading. </dd></dl>
 
-<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec">jiminy::AbstractIODevice</a>.</p>
+<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a46a7d36d89e5ec2022e05aa1aab7ee9f">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00041">41</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 
-<p class="reference">References <a class="el" href="_memory_device_8h_source.html#l00036">pos()</a>, <a class="el" href="_memory_device_8cc_source.html#l00077">readData()</a>, <a class="el" href="_memory_device_8cc_source.html#l00065">seek()</a>, <a class="el" href="_memory_device_8cc_source.html#l00106">setBlockingMode()</a>, and <a class="el" href="_memory_device_8cc_source.html#l00091">writeData()</a>.</p>
+<p class="reference">References <a class="el" href="_memory_device_8h_source.html#l00036">pos()</a>, <a class="el" href="_memory_device_8cc_source.html#l00077">readData()</a>, <a class="el" href="_memory_device_8cc_source.html#l00065">seek()</a>, <a class="el" href="_memory_device_8cc_source.html#l00108">setBlockingMode()</a>, and <a class="el" href="_memory_device_8cc_source.html#l00092">writeData()</a>.</p>
 
 </div>
 </div>
@@ -350,8 +350,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 </div>
 </div>
-<a id="a080da104b911a09022a849ee835f0833"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a080da104b911a09022a849ee835f0833">&#9670;&nbsp;</a></span>pos()</h2>
+<a id="ab7d02fe0fec1001178649c98dc37681d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab7d02fe0fec1001178649c98dc37681d">&#9670;&nbsp;</a></span>pos()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -364,7 +364,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -375,7 +375,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>The current cursor position (0 if there is not concept of position cursor). </dd></dl>
 
-<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac84485b696cc40e32f844423aa90c22e">jiminy::AbstractIODevice</a>.</p>
+<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a3f345a921f0d1877701f2fd00ab6049a">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00036">36</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 
@@ -430,6 +430,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Implements <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00077">77</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
+
+<p class="reference">References <a class="el" href="_file_device_8cc_source.html#l00139">jiminy::FileDevice::bytesAvailable()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
 
@@ -505,14 +507,14 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 <p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ab0c9a95f4b6c58d87f88d28222e3f400">jiminy::AbstractIODevice</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00106">106</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00108">108</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
 
 </div>
 </div>
-<a id="a1d28c7f2dfb365fe4b61a197b99a32d6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1d28c7f2dfb365fe4b61a197b99a32d6">&#9670;&nbsp;</a></span>size()</h2>
+<a id="af2443343ce13d3d1fffe16fad7af5413"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af2443343ce13d3d1fffe16fad7af5413">&#9670;&nbsp;</a></span>size()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -525,7 +527,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -535,10 +537,10 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 </table>
 </div><div class="memdoc">
 
-<p>For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned. </p>
+<p>For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_memory_device.html#a8e38968f66f19f33f1721840e4b69590" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned. </p>
 <dl class="section return"><dt>Returns</dt><dd>The size of the device. </dd></dl>
 
-<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac3a21f566f565e3a3af862de6054b5a2">jiminy::AbstractIODevice</a>.</p>
+<p>Reimplemented from <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a7952eabc371e20c31b3799a9237ec968">jiminy::AbstractIODevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_memory_device_8h_source.html#l00026">26</a> of file <a class="el" href="_memory_device_8h_source.html">MemoryDevice.h</a>.</p>
 
@@ -590,7 +592,9 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 <p>Implements <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ab6dd8dbf6ea84c8b7cbe2141fb3f8888">jiminy::AbstractIODevice</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00091">91</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_memory_device_8cc_source.html#l00092">92</a> of file <a class="el" href="_memory_device_8cc_source.html">MemoryDevice.cc</a>.</p>
+
+<p class="reference">References <a class="el" href="_file_device_8cc_source.html#l00139">jiminy::FileDevice::bytesAvailable()</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_memory_device_8h_source.html#l00041">bytesAvailable()</a>.</p>
 

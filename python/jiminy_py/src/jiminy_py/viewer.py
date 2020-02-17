@@ -82,6 +82,7 @@ class Viewer:
                 from IPython.core.display import display
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
+
                 if Viewer._backend_obj is None:
                     with redirect_stdout(None):
                         Viewer._backend_obj = meshcat.Visualizer()
@@ -91,6 +92,7 @@ class Viewer:
                     else:
                         print(Viewer._backend_obj.url())
                         Viewer._backend_obj.open()
+
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
         except:

@@ -54,7 +54,8 @@ namespace jiminy
                                     integerSectionSize_,
                                     floatsAddress_,
                                     floatSectionSize_);
-            recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_ + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint32_t));
+            recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
+                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint32_t));
 
             // Get the header
             telemetryData_->formatHeader(header);
@@ -110,8 +111,8 @@ namespace jiminy
 
         // Create a new one.
         uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxRecordedDataLines = ((MAX_BUFFER_SIZE - isHeaderThere*headerSize_) / recordedBytesDataLine_);
-        recordedBytesLimits_ = isHeaderThere*headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
+        uint32_t maxRecordedDataLines = ((MAX_BUFFER_SIZE - isHeaderThere * headerSize_) / recordedBytesDataLine_);
+        recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(OpenMode::READ_WRITE);
 
@@ -184,10 +185,15 @@ namespace jiminy
         myfile.close();
     }
 
-    void TelemetryRecorder::getData(std::vector<std::string>             & header,
-                                    std::vector<float32_t>               & timestamps,
-                                    std::vector<std::vector<int32_t> >   & intData,
-                                    std::vector<std::vector<float32_t> > & floatData)
+    void TelemetryRecorder::getData(std::vector<std::string>                   & header,
+                                    std::vector<float32_t>                     & timestamps,
+                                    std::vector<std::vector<int32_t> >         & intData,
+                                    std::vector<std::vector<float32_t> >       & floatData,
+                                    std::vector<AbstractIODevice *>            & flows,
+                                    int64_t                              const & integerSectionSize,
+                                    int64_t                              const & floatSectionSize,
+                                    int64_t                              const & headerSize,
+                                    int64_t                                      recordedBytesDataLine)
     {
         header.clear();
         timestamps.clear();
@@ -196,23 +202,24 @@ namespace jiminy
 
         int32_t timestamp;
         std::vector<int32_t> intDataLine;
-        intDataLine.resize(integerSectionSize_ / sizeof(int32_t));
+        intDataLine.resize(integerSectionSize / sizeof(int32_t));
         std::vector<float32_t> floatDataLine;
-        floatDataLine.resize(floatSectionSize_ / sizeof(float32_t));
+        floatDataLine.resize(floatSectionSize / sizeof(float32_t));
 
-        for (uint32_t i=0; i<flows_.size(); i++)
+        for (uint32_t i=0; i<flows.size(); i++)
         {
-            int64_t pos_old = flows_[i].pos();
-            flows_[i].seek(0);
+            int64_t pos_old = flows[i]->pos();
+            flows[i]->seek(0);
 
             /* Dealing with version flag, constants, header, and descriptor.
                It makes the reasonable assumption that it does not overlap on several chunks. */
             if (i == 0)
             {
-                flows_[i].seek(4); // Skip the version flag
+                int64_t header_version_length = sizeof(int32_t);
+                flows[i]->seek(header_version_length); // Skip the version flag
                 std::vector<char_t> headerCharBuffer;
-                headerCharBuffer.resize(headerSize_ - 4);
-                flows_[i].readData(headerCharBuffer.data(), headerSize_ - 4);
+                headerCharBuffer.resize(headerSize - header_version_length);
+                flows[i]->readData(headerCharBuffer.data(), headerSize - header_version_length);
                 char_t const * pHeader = &headerCharBuffer[0];
                 uint32_t posHeader = 0;
                 std::string fieldHeader(pHeader);
@@ -235,25 +242,50 @@ namespace jiminy
             }
 
             /* Dealing with data lines, starting with new line flag, time, integers, and ultimately floats. */
-            uint32_t numberLines = (pos_old - flows_[i].pos()) / recordedBytesDataLine_;
-            timestamps.reserve(timestamps.size() + numberLines);
-            intData.reserve(intData.size() + numberLines);
-            floatData.reserve(floatData.size() + numberLines);
-            for (uint32_t j=0; j < numberLines; j++)
+            if (recordedBytesDataLine > 0)
             {
-                flows_[i].seek(flows_[i].pos() + START_LINE_TOKEN.size()); // Skip new line flag
-                flows_[i].readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
-                flows_[i].readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize_);
-                flows_[i].readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize_);
+                uint32_t numberLines = (flows[i]->size() - flows[i]->pos()) / recordedBytesDataLine;
+                timestamps.reserve(timestamps.size() + numberLines);
+                intData.reserve(intData.size() + numberLines);
+                floatData.reserve(floatData.size() + numberLines);
+            }
+            while (flows[i]->bytesAvailable() > 0)
+            {
+                flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
+                flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
+                flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
+                flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
                 timestamps.emplace_back(static_cast<float32_t>(timestamp) * 1e-6);
                 intData.emplace_back(intDataLine);
                 floatData.emplace_back(floatDataLine);
             }
 
-            if (i == flows_.size() - 1)
+            if (i == flows.size() - 1)
             {
-                flows_[i].seek(pos_old);
+                flows[i]->seek(pos_old);
             }
         }
+    }
+
+    void TelemetryRecorder::getData(std::vector<std::string>             & header,
+                                    std::vector<float32_t>               & timestamps,
+                                    std::vector<std::vector<int32_t> >   & intData,
+                                    std::vector<std::vector<float32_t> > & floatData)
+    {
+        std::vector<AbstractIODevice *> abstractFlows_;
+        for(MemoryDevice & device: flows_)
+        {
+            abstractFlows_.push_back(&device);
+        }
+
+        getData(header,
+                timestamps,
+                intData,
+                floatData,
+                abstractFlows_,
+                integerSectionSize_,
+                floatSectionSize_,
+                headerSize_,
+                recordedBytesDataLine_);
     }
 }

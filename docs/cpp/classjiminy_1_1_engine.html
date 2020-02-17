@@ -94,6 +94,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_engine.html','');});
 <a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
 <a href="#pro-types">Protected Types</a> &#124;
 <a href="#pro-methods">Protected Member Functions</a> &#124;
@@ -215,15 +216,21 @@ std::vector&lt; vectorN_t &gt; const  &amp;&#160;</td><td class="memItemRight" v
 <tr class="memitem:a477e94313568596aec2eb492715675dc"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a477e94313568596aec2eb492715675dc">getLogData</a> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
 <tr class="memdesc:a477e94313568596aec2eb492715675dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the full logged content.  <a href="#a477e94313568596aec2eb492715675dc">More...</a><br /></td></tr>
 <tr class="separator:a477e94313568596aec2eb492715675dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="memItemLeft" align="right" valign="top">vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#af39c5c353f788a173d2f2f4f0dff9a5e">getLogFieldValue</a> (std::string const &amp;fieldName)</td></tr>
-<tr class="memdesc:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the value of a single logged variable.  <a href="#af39c5c353f788a173d2f2f4f0dff9a5e">More...</a><br /></td></tr>
-<tr class="separator:af39c5c353f788a173d2f2f4f0dff9a5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab91bd8f3a80fac940214e2f49832c67e"><td class="memItemLeft" align="right" valign="top"><a id="ab91bd8f3a80fac940214e2f49832c67e"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogTxt</b> (std::string const &amp;filename)</td></tr>
 <tr class="separator:ab91bd8f3a80fac940214e2f49832c67e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa395096de18348153ee7a1d14326760b"><td class="memItemLeft" align="right" valign="top"><a id="aa395096de18348153ee7a1d14326760b"></a>
 result_t&#160;</td><td class="memItemRight" valign="bottom"><b>writeLogBinary</b> (std::string const &amp;filename)</td></tr>
 <tr class="separator:aa395096de18348153ee7a1d14326760b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:a0483ee5262d7ef21d064773b16e4a39c"><td class="memItemLeft" align="right" valign="top">static vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a0483ee5262d7ef21d064773b16e4a39c">getLogFieldValue</a> (std::string const &amp;fieldName, std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
+<tr class="memdesc:a0483ee5262d7ef21d064773b16e4a39c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the value of a single logged variable.  <a href="#a0483ee5262d7ef21d064773b16e4a39c">More...</a><br /></td></tr>
+<tr class="separator:a0483ee5262d7ef21d064773b16e4a39c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acb924eb6b97678bcf807fb31f3f24d92"><td class="memItemLeft" align="right" valign="top"><a id="acb924eb6b97678bcf807fb31f3f24d92"></a>
+static result_t&#160;</td><td class="memItemRight" valign="bottom"><b>parseLogBinary</b> (std::string const &amp;filename, std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
+<tr class="separator:acb924eb6b97678bcf807fb31f3f24d92"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -254,9 +261,9 @@ vector6_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeFrameForc
 <tr class="memitem:a562091d75e30e46a52faf8747272285e"><td class="memItemLeft" align="right" valign="top"><a id="a562091d75e30e46a52faf8747272285e"></a>
 vector3_t&#160;</td><td class="memItemRight" valign="bottom"><b>computeContactDynamics</b> (int32_t const &amp;frameId) const</td></tr>
 <tr class="separator:a562091d75e30e46a52faf8747272285e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4fd107df366e04c890b35420c9a7456d"><td class="memItemLeft" align="right" valign="top"><a id="a4fd107df366e04c890b35420c9a7456d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>computeForwardKinematics</b> (Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v)</td></tr>
-<tr class="separator:a4fd107df366e04c890b35420c9a7456d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a141f2380d2b87a70ed998c505d88a14a"><td class="memItemLeft" align="right" valign="top"><a id="a141f2380d2b87a70ed998c505d88a14a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>computeForwardKinematics</b> (Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v, Eigen::Ref&lt; vectorN_t const &gt; a)</td></tr>
+<tr class="separator:a141f2380d2b87a70ed998c505d88a14a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a789c24702576fe993e82ac664f0378e7"><td class="memItemLeft" align="right" valign="top"><a id="a789c24702576fe993e82ac664f0378e7"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>computeCommand</b> (float64_t const &amp;t, Eigen::Ref&lt; vectorN_t const &gt; q, Eigen::Ref&lt; vectorN_t const &gt; v, vectorN_t &amp;u)</td></tr>
 <tr class="separator:a789c24702576fe993e82ac664f0378e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -375,46 +382,72 @@ std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[out]</td><td class="paramname">header</td><td>Header, vector of field names. </td></tr>
-    <tr><td class="paramdir">[out]</td><td class="paramname">logData</td><td>Corresponding data in the log file. </td></tr>
+    <tr><td class="paramdir">[out]</td><td class="paramname">logData</td><td>Corresponding data in the log file.</td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>ERROR_INIT_FAILED if telemetry was not initialized, SUCCESS on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00927">927</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00953">953</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00404">jiminy::AbstractSensorBase::isInitialized_</a>.</p>
 
 </div>
 </div>
-<a id="af39c5c353f788a173d2f2f4f0dff9a5e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af39c5c353f788a173d2f2f4f0dff9a5e">&#9670;&nbsp;</a></span>getLogFieldValue()</h2>
+<a id="a0483ee5262d7ef21d064773b16e4a39c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0483ee5262d7ef21d064773b16e4a39c">&#9670;&nbsp;</a></span>getLogFieldValue()</h2>
 
 <div class="memitem">
 <div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
       <table class="memname">
         <tr>
           <td class="memname">vectorN_t jiminy::Engine::getLogFieldValue </td>
           <td>(</td>
           <td class="paramtype">std::string const &amp;&#160;</td>
-          <td class="paramname"><em>fieldName</em></td><td>)</td>
+          <td class="paramname"><em>fieldName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">std::vector&lt; std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>header</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">matrixN_t &amp;&#160;</td>
+          <td class="paramname"><em>logData</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
 </div><div class="memdoc">
 
 <p>Get the value of a single logged variable. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramdir">[in]</td><td class="paramname">fieldName</td><td>Full name of the variable to get </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">header</td><td>Header, vector of field names. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">logData</td><td>Corresponding data in the log file.</td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00961">961</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00971">971</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="classjiminy_1_1_abstract_sensor_base.html#a5180e3bdde30284596f368b749474b78">jiminy::AbstractSensorBase::data()</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00404">jiminy::AbstractSensorBase::isInitialized_</a>.</p>
 
 </div>
 </div>

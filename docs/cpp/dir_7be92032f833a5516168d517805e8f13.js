@@ -1,6 +1,7 @@
 var dir_7be92032f833a5516168d517805e8f13 =
 [
     [ "AbstractController.h", "_abstract_controller_8h.html", "_abstract_controller_8h" ],
+    [ "AbstractController.tpp", "_abstract_controller_8tpp.html", "_abstract_controller_8tpp" ],
     [ "AbstractIODevice.h", "_abstract_i_o_device_8h.html", "_abstract_i_o_device_8h" ],
     [ "AbstractIODevice.tpp", "_abstract_i_o_device_8tpp.html", "_abstract_i_o_device_8tpp" ],
     [ "AbstractSensor.h", "_abstract_sensor_8h.html", "_abstract_sensor_8h" ],
@@ -8,6 +9,9 @@ var dir_7be92032f833a5516168d517805e8f13 =
       [ "ControllerFunctor", "classjiminy_1_1_controller_functor.html", "classjiminy_1_1_controller_functor" ]
     ] ],
     [ "Engine.h", "_engine_8h.html", "_engine_8h" ],
+    [ "FileDevice.h", "_file_device_8h.html", [
+      [ "FileDevice", "classjiminy_1_1_file_device.html", "classjiminy_1_1_file_device" ]
+    ] ],
     [ "MemoryDevice.h", "_memory_device_8h.html", [
       [ "MemoryDevice", "classjiminy_1_1_memory_device.html", "classjiminy_1_1_memory_device" ]
     ] ],
