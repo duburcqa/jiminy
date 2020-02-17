@@ -1,10 +1,12 @@
 var structjiminy_1_1python_1_1PyEngineVisitor =
 [
     [ "expose", "structjiminy_1_1python_1_1PyEngineVisitor.html#a928ba26c23023284ed22d8700115ae70", null ],
+    [ "formatLog", "structjiminy_1_1python_1_1PyEngineVisitor.html#ac926519ea8faf77ede240fd4e2b9281d", null ],
     [ "getLog", "structjiminy_1_1python_1_1PyEngineVisitor.html#acdc46668303181d095bcb68546aabd47", null ],
     [ "getOptions", "structjiminy_1_1python_1_1PyEngineVisitor.html#a6c681a7cfec0c30d0369f18caad5294d", null ],
     [ "initialize", "structjiminy_1_1python_1_1PyEngineVisitor.html#a01dd502d9b6e283cc7f0b0e23076e7ed", null ],
     [ "initializeWithCallback", "structjiminy_1_1python_1_1PyEngineVisitor.html#a7e63667acc42c720d7b26889428f446d", null ],
+    [ "parseLogBinary", "structjiminy_1_1python_1_1PyEngineVisitor.html#a0981b79d4ff7454084c2485e1843f989", null ],
     [ "registerForceProfile", "structjiminy_1_1python_1_1PyEngineVisitor.html#a2cc6a09e4c90bc0af058b7486a1da2a9", null ],
     [ "removeForces", "structjiminy_1_1python_1_1PyEngineVisitor.html#a585d4651ee84b5d0d626cc81185d5cc0", null ],
     [ "reset", "structjiminy_1_1python_1_1PyEngineVisitor.html#a289b45b9a0d0545ea578246f45e631b7", null ],

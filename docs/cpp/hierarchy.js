@@ -4,6 +4,7 @@ var hierarchy =
       [ "jiminy::ControllerFunctor< F1, F2 >", "classjiminy_1_1_controller_functor.html", null ]
     ] ],
     [ "jiminy::AbstractIODevice", "classjiminy_1_1_abstract_i_o_device.html", [
+      [ "jiminy::FileDevice", "classjiminy_1_1_file_device.html", null ],
       [ "jiminy::MemoryDevice", "classjiminy_1_1_memory_device.html", null ]
     ] ],
     [ "jiminy::AbstractSensorBase", "classjiminy_1_1_abstract_sensor_base.html", [

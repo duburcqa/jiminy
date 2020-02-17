@@ -92,7 +92,8 @@ $(document).ready(function(){initNavTree('_engine_8cc.html','');});
 <div class="header">
   <div class="summary">
 <a href="#nested-classes">Classes</a> &#124;
-<a href="#namespaces">Namespaces</a>  </div>
+<a href="#namespaces">Namespaces</a> &#124;
+<a href="#func-members">Functions</a>  </div>
   <div class="headertitle">
 <div class="title">Engine.cc File Reference</div>  </div>
 </div><!--header-->
@@ -108,6 +109,7 @@ $(document).ready(function(){initNavTree('_engine_8cc.html','');});
 <code>#include &quot;pinocchio/algorithm/aba.hpp&quot;</code><br />
 <code>#include &quot;pinocchio/algorithm/joint-configuration.hpp&quot;</code><br />
 <code>#include &quot;<a class="el" href="_utilities_8h_source.html">jiminy/core/Utilities.h</a>&quot;</code><br />
+<code>#include &quot;<a class="el" href="_file_device_8h_source.html">jiminy/core/FileDevice.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="_telemetry_data_8h_source.html">jiminy/core/TelemetryData.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="_telemetry_recorder_8h_source.html">jiminy/core/TelemetryRecorder.h</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="_abstract_controller_8h_source.html">jiminy/core/AbstractController.h</a>&quot;</code><br />
@@ -121,17 +123,19 @@ $(document).ready(function(){initNavTree('_engine_8cc.html','');});
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="_engine_8cc__incl.png" border="0" usemap="#core_2src_2_engine_8cc" alt=""/></div>
 <map name="core_2src_2_engine_8cc" id="core_2src_2_engine_8cc">
-<area shape="rect" id="node12" href="_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="907,259,1051,285"/>
-<area shape="rect" id="node23" href="_telemetry_data_8h.html" title="jiminy/core/TelemetryData.h" alt="" coords="240,169,427,196"/>
-<area shape="rect" id="node26" href="_telemetry_recorder_8h.html" title="jiminy/core/TelemetryRecorder.h" alt="" coords="457,87,668,114"/>
-<area shape="rect" id="node31" href="_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="681,169,887,196"/>
-<area shape="rect" id="node32" href="_model_8h.html" title="jiminy/core/Model.h" alt="" coords="2031,259,2166,285"/>
-<area shape="rect" id="node35" href="_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1177,169,1317,196"/>
-<area shape="rect" id="node16" href="_types_8h.html" title="jiminy/core/Types.h" alt="" coords="667,355,803,382"/>
-<area shape="rect" id="node25" href="_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="202,259,401,285"/>
-<area shape="rect" id="node27" href="_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="469,169,657,196"/>
-<area shape="rect" id="node28" href="_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="475,259,679,285"/>
-<area shape="rect" id="node30" href="_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="494,355,642,382"/>
+<area shape="rect" id="node12" href="_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="1047,259,1191,285"/>
+<area shape="rect" id="node23" href="_file_device_8h.html" title="jiminy/core/FileDevice.h" alt="" coords="259,169,421,196"/>
+<area shape="rect" id="node28" href="_telemetry_data_8h.html" title="jiminy/core/TelemetryData.h" alt="" coords="496,169,683,196"/>
+<area shape="rect" id="node30" href="_telemetry_recorder_8h.html" title="jiminy/core/TelemetryRecorder.h" alt="" coords="160,87,371,114"/>
+<area shape="rect" id="node32" href="_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="788,169,993,196"/>
+<area shape="rect" id="node34" href="_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1317,259,1451,285"/>
+<area shape="rect" id="node37" href="_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1654,169,1794,196"/>
+<area shape="rect" id="node16" href="_types_8h.html" title="jiminy/core/Types.h" alt="" coords="800,355,936,382"/>
+<area shape="rect" id="node25" href="_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="43,259,247,285"/>
+<area shape="rect" id="node27" href="_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="99,355,247,382"/>
+<area shape="rect" id="node29" href="_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="723,259,922,285"/>
+<area shape="rect" id="node31" href="_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="46,169,234,196"/>
+<area shape="rect" id="node33" href="_abstract_controller_8tpp.html" title="AbstractController.tpp" alt="" coords="475,355,624,382"/>
 </map>
 </div>
 </div>
@@ -147,6 +151,12 @@ Namespaces</h2></td></tr>
 <tr class="memitem:namespacejiminy"><td class="memItemLeft" align="right" valign="top"> &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacejiminy.html">jiminy</a></td></tr>
 <tr class="memdesc:namespacejiminy"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html" title="Base interface class for all I/O devices. ">AbstractIODevice</a> is an interface to handle all possibles I/O that can act as a stream (file / TCP socket / pipe and so on). <br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
+Functions</h2></td></tr>
+<tr class="memitem:afb9ced401294bf245704d29701387da9"><td class="memItemLeft" align="right" valign="top"><a id="afb9ced401294bf245704d29701387da9"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::logDataToEigenMatrix</b> (std::vector&lt; float32_t &gt; const &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; const &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; const &amp;floatData, matrixN_t &amp;logData)</td></tr>
+<tr class="separator:afb9ced401294bf245704d29701387da9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 </div><!-- contents -->
 </div><!-- doc-content -->

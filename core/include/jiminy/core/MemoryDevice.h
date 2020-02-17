@@ -13,17 +13,17 @@ namespace jiminy
     {
     public:
         MemoryDevice(int64_t size);
-        MemoryDevice(MemoryDevice const& other);
-        MemoryDevice(MemoryDevice&& other);
+        MemoryDevice(MemoryDevice const & other);
+        MemoryDevice(MemoryDevice && other);
 
-        MemoryDevice(std::vector<uint8_t>&& initBuffer);
+        MemoryDevice(std::vector<uint8_t> && initBuffer);
 
         virtual ~MemoryDevice(void);
 
-        MemoryDevice& operator=(MemoryDevice const& other);
-        MemoryDevice& operator=(MemoryDevice&& other);
+        MemoryDevice & operator=(MemoryDevice const & other);
+        MemoryDevice & operator=(MemoryDevice && other);
 
-        int64_t size(void) const override
+        int64_t size(void) override
         {
             return buffer_.size();
         }
@@ -33,12 +33,12 @@ namespace jiminy
             return false;
         }
 
-        int64_t pos(void) const override
+        int64_t pos(void) override
         {
             return currentPos_;
         }
 
-        int64_t bytesAvailable(void) const override
+        int64_t bytesAvailable(void) override
         {
             return (buffer_.size() - currentPos_);
         }
@@ -56,7 +56,7 @@ namespace jiminy
 
     protected:
         result_t doOpen(enum OpenMode modes) override;
-        void doClose() override;
+        void doClose(void) override;
 
     private:
         std::vector<uint8_t> buffer_;

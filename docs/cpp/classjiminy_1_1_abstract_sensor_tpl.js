@@ -7,7 +7,7 @@ var classjiminy_1_1_abstract_sensor_tpl =
     [ "areFieldNamesGrouped_", "classjiminy_1_1_abstract_sensor_tpl.html#ad32da28777fea6a20eebef5bf234dd16", null ],
     [ "areFieldNamesGrouped_", "classjiminy_1_1_abstract_sensor_tpl.html#a137d36c01bd89e4a7177f8e55e145780", null ],
     [ "data", "classjiminy_1_1_abstract_sensor_tpl.html#a425ebc25db52b38bfd146e2ec368cc17", null ],
-    [ "fieldNames_", "classjiminy_1_1_abstract_sensor_tpl.html#a316e93a059a002e6132fa408d17837e9", null ],
+    [ "fieldNames_", "classjiminy_1_1_abstract_sensor_tpl.html#a5894b904fa21ff5f8c0090525e03d90c", null ],
     [ "fieldNames_", "classjiminy_1_1_abstract_sensor_tpl.html#a63e2afd46ed0523ed0c53c2824520023", null ],
     [ "fieldNames_", "classjiminy_1_1_abstract_sensor_tpl.html#a9ff21a18d12a1cbafcd92fb6de4157b7", null ],
     [ "get", "classjiminy_1_1_abstract_sensor_tpl.html#af3e6bbf571533dc862054ab277314d36", null ],

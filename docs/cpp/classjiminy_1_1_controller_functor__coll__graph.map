@@ -1,4 +1,4 @@
 <map id="jiminy::ControllerFunctor&lt; F1, F2 &gt;" name="jiminy::ControllerFunctor&lt; F1, F2 &gt;">
-<area shape="rect" id="node2" href="$classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,351,197,765"/>
-<area shape="rect" id="node3" href="$classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="20,5,183,288"/>
+<area shape="rect" id="node2" href="$classjiminy_1_1_abstract_controller.html" title="Generic interface for any controller. " alt="" coords="5,351,187,721"/>
+<area shape="rect" id="node3" href="$classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="15,5,177,288"/>
 </map>

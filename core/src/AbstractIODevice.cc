@@ -11,25 +11,25 @@
 
 namespace jiminy
 {
-    enum OpenMode operator | (enum OpenMode const & modeA, 
+    enum OpenMode operator | (enum OpenMode const & modeA,
                               enum OpenMode const & modeB)
     {
         return static_cast<enum OpenMode>(static_cast<int32_t>(modeA) | static_cast<int32_t>(modeB));
     }
 
-    enum OpenMode operator & (enum OpenMode const & modeA, 
+    enum OpenMode operator & (enum OpenMode const & modeA,
                               enum OpenMode const & modeB)
     {
         return static_cast<enum OpenMode>(static_cast<int32_t>(modeA) & static_cast<int32_t>(modeB));
     }
 
-    enum OpenMode operator |= (enum OpenMode       & modeA, 
+    enum OpenMode operator |= (enum OpenMode       & modeA,
                                enum OpenMode const & modeB)
     {
         return modeA = modeA | modeB;
     }
 
-    enum OpenMode operator &= (enum OpenMode       & modeA, 
+    enum OpenMode operator &= (enum OpenMode       & modeA,
                                enum OpenMode const & modeB)
     {
         return modeA = modeA & modeB;
@@ -112,7 +112,7 @@ namespace jiminy
         return false;
     }
 
-    int64_t AbstractIODevice::size(void) const
+    int64_t AbstractIODevice::size(void)
     {
         return bytesAvailable();
     }
@@ -124,12 +124,12 @@ namespace jiminy
         return result_t::ERROR_GENERIC;
     }
 
-    int64_t AbstractIODevice::pos(void) const
+    int64_t AbstractIODevice::pos(void)
     {
         return 0;
     }
 
-    int64_t AbstractIODevice::bytesAvailable(void) const
+    int64_t AbstractIODevice::bytesAvailable(void)
     {
         return 0;
     }
@@ -139,7 +139,7 @@ namespace jiminy
         return lastError_;
     }
 
-    result_t AbstractIODevice::write(void    const * data, 
+    result_t AbstractIODevice::write(void    const * data,
                                      int64_t         dataSize)
     {
         int64_t toWrite = dataSize;
@@ -166,7 +166,7 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    result_t AbstractIODevice::read(void    * data, 
+    result_t AbstractIODevice::read(void    * data,
                                     int64_t   dataSize)
     {
         int64_t toRead = dataSize;

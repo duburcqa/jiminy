@@ -14,7 +14,8 @@ namespace jiminy
     isTelemetryConfigured_(false),
     ctrlOptionsHolder_(),
     telemetrySender_(),
-    registeredInfo_()
+    registeredVariables_(),
+    registeredConstants_()
     {
         AbstractController::setOptions(getDefaultOptions()); // Clarify that the base implementation is called
     }
@@ -111,9 +112,13 @@ namespace jiminy
                 if (telemetryData)
                 {
                     telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
-                    for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredInfo_)
+                    for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                     {
                         (void) telemetrySender_.registerNewEntry<float64_t>(registeredVariable.first, *registeredVariable.second);
+                    }
+                    for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
+                    {
+                        (void) telemetrySender_.addConstantEntry(registeredConstant.first, registeredConstant.second);
                     }
                     isTelemetryConfigured_ = true;
                 }
@@ -151,7 +156,7 @@ namespace jiminy
             std::vector<std::string>::const_iterator fieldIt = fieldNames.begin();
             for (uint32_t i=0; fieldIt != fieldNames.end(); ++fieldIt, ++i)
             {
-                registeredInfo_.emplace_back(*fieldIt, values.data() + i);
+                registeredVariables_.emplace_back(*fieldIt, values.data() + i);
             }
         }
 
@@ -173,7 +178,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            registeredInfo_.emplace_back(fieldName, &value);
+            registeredVariables_.emplace_back(fieldName, &value);
         }
 
         return returnCode;
@@ -181,7 +186,8 @@ namespace jiminy
 
     void AbstractController::removeEntries(void)
     {
-        registeredInfo_.clear();
+        registeredVariables_.clear();
+        registeredConstants_.clear();
     }
 
     void AbstractController::updateTelemetry(float64_t const& t,
@@ -190,7 +196,7 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredInfo_)
+            for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
             {
                 telemetrySender_.updateValue(registeredVariable.first, *registeredVariable.second);
             }

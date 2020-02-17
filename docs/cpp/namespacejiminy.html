@@ -126,6 +126,9 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1explicit__euler.html">explicit_euler</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_file_device.html">FileDevice</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Class to manipulate a file.  <a href="classjiminy_1_1_file_device.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1flexible_joint_data__t.html">flexibleJointData_t</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_force_sensor.html">ForceSensor</a></td></tr>
@@ -489,6 +492,9 @@ enum <a class="el" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60e"
 <tr class="memitem:a5e1f881073a3df76824b07574f78dd4a"><td class="memItemLeft" align="right" valign="top"><a id="a5e1f881073a3df76824b07574f78dd4a"></a>
 enum <a class="el" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60e">OpenMode</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator&amp;=</b> (enum <a class="el" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60e">OpenMode</a> &amp;modeA, enum <a class="el" href="namespacejiminy.html#a1a3fa6ad04819eb62f20a35642d4c60e">OpenMode</a> const &amp;modeB)</td></tr>
 <tr class="separator:a5e1f881073a3df76824b07574f78dd4a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb9ced401294bf245704d29701387da9"><td class="memItemLeft" align="right" valign="top"><a id="afb9ced401294bf245704d29701387da9"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>logDataToEigenMatrix</b> (std::vector&lt; float32_t &gt; const &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; const &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; const &amp;floatData, matrixN_t &amp;logData)</td></tr>
+<tr class="separator:afb9ced401294bf245704d29701387da9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad0db976b27679babd7b105a9f1c25d0a"><td class="memItemLeft" align="right" valign="top"><a id="ad0db976b27679babd7b105a9f1c25d0a"></a>
 std::uniform_real_distribution&lt; float32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>distUniform_</b> (0.0, 1.0)</td></tr>
 <tr class="separator:ad0db976b27679babd7b105a9f1c25d0a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -517,7 +523,8 @@ float64_t const&#160;</td><td class="memItemRight" valign="bottom"><b>MAX_TIME_S
 std::string const&#160;</td><td class="memItemRight" valign="bottom"><b>FLEXIBLE_JOINT_SUFFIX</b> = &quot;FlexibleJoint&quot;</td></tr>
 <tr class="separator:af3ab7a5e46eb26217e5d29cd555109e3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aae0721e8894cf0929168c67fa282033e"><td class="memItemLeft" align="right" valign="top"><a id="aae0721e8894cf0929168c67fa282033e"></a>
-int32_t const&#160;</td><td class="memItemRight" valign="bottom"><b>TELEMETRY_VERSION</b> = 1</td></tr>
+int32_t const&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacejiminy.html#aae0721e8894cf0929168c67fa282033e">TELEMETRY_VERSION</a> = 1</td></tr>
+<tr class="memdesc:aae0721e8894cf0929168c67fa282033e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Version of the telemetry format. <br /></td></tr>
 <tr class="separator:aae0721e8894cf0929168c67fa282033e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2d735d15cd6e69f3bced2d1b183faead"><td class="memItemLeft" align="right" valign="top"><a id="a2d735d15cd6e69f3bced2d1b183faead"></a>
 std::size_t const&#160;</td><td class="memItemRight" valign="bottom"><b>CONSTANTS_MEM_SIZE</b> = 16U * 1024U</td></tr>
@@ -555,11 +562,13 @@ float32_t&#160;</td><td class="memItemRight" valign="bottom"><b>wn</b> [128]</td
 <p>Implementation of the <a class="el" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. ">TelemetrySender</a> class and localLogs class.</p>
 <p><a class="el" href="classjiminy_1_1_telemetry_recorder.html">TelemetryRecorder</a> Implementation.</p>
 <p><a class="el" href="classjiminy_1_1_telemetry_data.html" title="Manage the telemetry buffers. ">TelemetryData</a> Implementation.</p>
+<p>Contains the <a class="el" href="classjiminy_1_1_file_device.html" title="Class to manipulate a file. ">FileDevice</a> class methods implementations.</p>
 <p>Contains the <a class="el" href="classjiminy_1_1_abstract_i_o_device.html" title="Base interface class for all I/O devices. ">AbstractIODevice</a> class methods implementations.</p>
 <p>Contains types used in the optimal module.</p>
 <p>Contains the telemetry sender interface.</p>
 <p>Declaration of the <a class="el" href="classjiminy_1_1_telemetry_recorder.html">TelemetryRecorder</a> class, responsible of recording data to files.</p>
 <p>Manage the data structures of the telemetry.</p>
+<p>Contains the File class to manipulate a file.</p>
 <p>Controller wrapping any command and internal state methods.</p>
 <p>Generic interface for any sensor.</p>
 <p>Any sensor must inherit from this base class and implement its virtual methods.</p>

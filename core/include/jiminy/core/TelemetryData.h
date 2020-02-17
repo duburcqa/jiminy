@@ -18,7 +18,7 @@
 
 namespace jiminy
 {
-    int32_t const TELEMETRY_VERSION = 1; // Version of the telemetry format.
+    int32_t     const TELEMETRY_VERSION = 1;             ///< Version of the telemetry format.
     std::string const NUM_INTS("NumIntEntries=");        ///< Number of integers in the data section.
     std::string const NUM_FLOATS("NumFloatEntries=");    ///< Number of floats in the data section.
     std::string const GLOBAL_TIME("Global.Time");        ///< Special column

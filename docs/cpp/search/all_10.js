@@ -1,7 +1,7 @@
 var searchData=
 [
   ['saturatesoft',['saturateSoft',['../namespacejiminy.html#ab0d5977c4dac6ab1c5003690977c1014',1,'jiminy']]],
-  ['seek',['seek',['../classjiminy_1_1_abstract_i_o_device.html#aee8d4c8fe797601551757d4bf8205ad7',1,'jiminy::AbstractIODevice::seek()'],['../classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d',1,'jiminy::MemoryDevice::seek()']]],
+  ['seek',['seek',['../classjiminy_1_1_abstract_i_o_device.html#aee8d4c8fe797601551757d4bf8205ad7',1,'jiminy::AbstractIODevice::seek()'],['../classjiminy_1_1_file_device.html#a92ba02495fd83a0f01dac0fbbc620d35',1,'jiminy::FileDevice::seek()'],['../classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d',1,'jiminy::MemoryDevice::seek()']]],
   ['sensor_2ecc',['Sensor.cc',['../_sensor_8cc.html',1,'']]],
   ['sensor_2eh',['Sensor.h',['../_sensor_8h.html',1,'']]],
   ['sensordataholder_5ft',['SensorDataHolder_t',['../structjiminy_1_1_sensor_data_holder__t.html',1,'jiminy::SensorDataHolder_t'],['../structjiminy_1_1_sensor_data_holder__t.html#a27d6442985133bbd72d6dc192fd1e845',1,'jiminy::SensorDataHolder_t::SensorDataHolder_t()']]],
@@ -14,7 +14,9 @@ var searchData=
   ['setblockingmode',['setBlockingMode',['../classjiminy_1_1_abstract_i_o_device.html#ab0c9a95f4b6c58d87f88d28222e3f400',1,'jiminy::AbstractIODevice::setBlockingMode()'],['../classjiminy_1_1_memory_device.html#aa354916a40b37b220341fc9e5f3f5019',1,'jiminy::MemoryDevice::setBlockingMode()']]],
   ['setoptions',['setOptions',['../classjiminy_1_1_abstract_controller.html#a297f577b2b1d53892e15b246f4f22639',1,'jiminy::AbstractController::setOptions()'],['../classjiminy_1_1_abstract_sensor_base.html#ad87aca1ce6f4e152edb2d80038caf1b6',1,'jiminy::AbstractSensorBase::setOptions()'],['../classjiminy_1_1_abstract_sensor_tpl.html#acf083e73e377989f4aadf39156d4951e',1,'jiminy::AbstractSensorTpl::setOptions()']]],
   ['setoptionsall',['setOptionsAll',['../classjiminy_1_1_abstract_sensor_base.html#a4326a78e4900512b9d379522d06a3d41',1,'jiminy::AbstractSensorBase::setOptionsAll()'],['../classjiminy_1_1_abstract_sensor_tpl.html#af020958bb8d97155d473b95c0b9adbd7',1,'jiminy::AbstractSensorTpl::setOptionsAll()']]],
-  ['size',['size',['../classjiminy_1_1_abstract_i_o_device.html#ac3a21f566f565e3a3af862de6054b5a2',1,'jiminy::AbstractIODevice::size()'],['../classjiminy_1_1_memory_device.html#a1d28c7f2dfb365fe4b61a197b99a32d6',1,'jiminy::MemoryDevice::size()']]],
+  ['simu_5fabstract_5fcontroller_5ftpp',['SIMU_ABSTRACT_CONTROLLER_TPP',['../_abstract_controller_8tpp.html#a0df1aab12692a4b7ab2bc3617c6a281b',1,'AbstractController.tpp']]],
+  ['simu_5fabstract_5fio_5fdevice_5ftpp',['SIMU_ABSTRACT_IO_DEVICE_TPP',['../_abstract_i_o_device_8tpp.html#ac457217427ce4f19ebeea112410423b6',1,'AbstractIODevice.tpp']]],
+  ['size',['size',['../classjiminy_1_1_abstract_i_o_device.html#a7952eabc371e20c31b3799a9237ec968',1,'jiminy::AbstractIODevice::size()'],['../classjiminy_1_1_file_device.html#a6f278c625fb7968b1732d395f18d3c10',1,'jiminy::FileDevice::size()'],['../classjiminy_1_1_memory_device.html#af2443343ce13d3d1fffe16fad7af5413',1,'jiminy::MemoryDevice::size()']]],
   ['size_5f',['size_',['../classjiminy_1_1_memory_buffer.html#a7ac144d64fe84d5703ba8cd2b525c5f1',1,'jiminy::MemoryBuffer']]],
   ['start_5fcolumns',['START_COLUMNS',['../namespacejiminy.html#aff53e815a5c894533300786397f6ee1a',1,'jiminy']]],
   ['start_5fconstants',['START_CONSTANTS',['../namespacejiminy.html#a39cc5892b86cc9758deb0d79a572ffec',1,'jiminy']]],

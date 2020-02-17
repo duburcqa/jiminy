@@ -1,8 +1,8 @@
 var searchData=
 [
   ['read',['read',['../classjiminy_1_1_abstract_i_o_device.html#ad6c8dbec4d9d384b08a5a56513f0f7f5',1,'jiminy::AbstractIODevice::read(T &amp;valueIn)'],['../classjiminy_1_1_abstract_i_o_device.html#a535183f066ccabcf2723946e90312606',1,'jiminy::AbstractIODevice::read(void *data, int64_t dataSize)']]],
-  ['readdata',['readData',['../classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8',1,'jiminy::AbstractIODevice::readData()'],['../classjiminy_1_1_memory_device.html#affc75023bf0c3fe4b60b64417f8835bc',1,'jiminy::MemoryDevice::readData()']]],
-  ['registerconstant',['registerConstant',['../classjiminy_1_1_telemetry_data.html#aa4ce1519b3971c7bd863b746fb2de6ee',1,'jiminy::TelemetryData']]],
+  ['readdata',['readData',['../classjiminy_1_1_abstract_i_o_device.html#a8c10fbba01045dd7561c62332d9612a8',1,'jiminy::AbstractIODevice::readData()'],['../classjiminy_1_1_file_device.html#ac1f8f77de23e388c657bf23607576aa8',1,'jiminy::FileDevice::readData()'],['../classjiminy_1_1_memory_device.html#affc75023bf0c3fe4b60b64417f8835bc',1,'jiminy::MemoryDevice::readData()']]],
+  ['registerconstant',['registerConstant',['../classjiminy_1_1_abstract_controller.html#a48a3a40e58f9ce6b76772c26c3cc317e',1,'jiminy::AbstractController::registerConstant()'],['../classjiminy_1_1_telemetry_data.html#aa4ce1519b3971c7bd863b746fb2de6ee',1,'jiminy::TelemetryData::registerConstant()']]],
   ['registernewentry',['registerNewEntry',['../classjiminy_1_1_abstract_controller.html#af1cb56b3abc15420c73cd18d5c83349d',1,'jiminy::AbstractController::registerNewEntry()'],['../classjiminy_1_1_telemetry_sender.html#a8a1ce9279ba4978e5b49986be4886d2f',1,'jiminy::TelemetrySender::registerNewEntry()']]],
   ['registernewvectorentry',['registerNewVectorEntry',['../classjiminy_1_1_abstract_controller.html#aec45bfe282039396c0c8127598825634',1,'jiminy::AbstractController']]],
   ['registervariable',['registerVariable',['../classjiminy_1_1_telemetry_data.html#ac5425b9b1aca102c22a248469fa70de0',1,'jiminy::TelemetryData']]],

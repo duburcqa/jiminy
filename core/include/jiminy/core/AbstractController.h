@@ -120,6 +120,20 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Register a constant float64 to the telemetry.
+        ///
+        /// \param[in]  fieldNames      Name of the variable.
+        /// \param[in]  values          Variable to add to the telemetry
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        template<typename T>
+        result_t registerConstant(std::string const & fieldName,
+                                  T           const & value);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Remove all variables dynamically registered to the telemetry.
         ///
         /// \details    Note that one must reset Jiminy Engine for this to take effect.
@@ -276,8 +290,13 @@ namespace jiminy
         bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
-        std::vector<std::pair<std::string, float64_t const *> > registeredInfo_;    ///< Vector of dynamically registered telemetry variables
+
+    private:
+        std::vector<std::pair<std::string, float64_t const *> > registeredVariables_;    ///< Vector of dynamically registered telemetry variables
+        std::vector<std::pair<std::string, std::string> > registeredConstants_;            ///< Vector of dynamically registered telemetry constants
     };
 }
+
+#include "AbstractController.tpp"
 
 #endif //end of SIMU_ABSTRACT_CONTROLLER_H

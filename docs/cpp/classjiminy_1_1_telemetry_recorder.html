@@ -92,6 +92,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_telemetry_recorder.htm
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pri-methods">Private Member Functions</a> &#124;
 <a href="#pri-attribs">Private Attributes</a> &#124;
 <a href="classjiminy_1_1_telemetry_recorder-members.html">List of all members</a>  </div>
@@ -139,6 +140,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="clas
 <tr class="memitem:adc32a1c49f27f1644cc932234598791b"><td class="memItemLeft" align="right" valign="top"><a id="adc32a1c49f27f1644cc932234598791b"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>getData</b> (std::vector&lt; std::string &gt; &amp;header, std::vector&lt; float32_t &gt; &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; &amp;floatData)</td></tr>
 <tr class="separator:adc32a1c49f27f1644cc932234598791b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:a7e553c99ef9d4a4669b32f749d68eedc"><td class="memItemLeft" align="right" valign="top"><a id="a7e553c99ef9d4a4669b32f749d68eedc"></a>
+static void&#160;</td><td class="memItemRight" valign="bottom"><b>getData</b> (std::vector&lt; std::string &gt; &amp;header, std::vector&lt; float32_t &gt; &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; &amp;floatData, std::vector&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html">AbstractIODevice</a> *&gt; &amp;flows, int64_t const &amp;integerSectionSize, int64_t const &amp;floatSectionSize, int64_t const &amp;headerSize, int64_t recordedBytesDataLine=-1)</td></tr>
+<tr class="separator:a7e553c99ef9d4a4669b32f749d68eedc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
@@ -226,7 +233,7 @@ int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <p>Each chunk shall have a size defined by LARGE_LOG_SIZE_GB and shall be suffixed by an increasing natural number.</p>
 <dl class="section return"><dt>Returns</dt><dd>SUCCESS if successful, the corresponding telemetry error otherwise. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_telemetry_recorder_8cc_source.html#l00101">101</a> of file <a class="el" href="_telemetry_recorder_8cc_source.html">TelemetryRecorder.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_telemetry_recorder_8cc_source.html#l00102">102</a> of file <a class="el" href="_telemetry_recorder_8cc_source.html">TelemetryRecorder.cc</a>.</p>
 
 </div>
 </div>

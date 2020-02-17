@@ -1,3 +1,4 @@
 <map id="jiminy::AbstractIODevice" name="jiminy::AbstractIODevice">
-<area shape="rect" id="node2" href="$classjiminy_1_1_memory_device.html" title="Manage a memory buffer with IODevice interface. " alt="" coords="13,321,165,589"/>
+<area shape="rect" id="node2" href="$classjiminy_1_1_file_device.html" title="Class to manipulate a file. " alt="" coords="5,336,132,575"/>
+<area shape="rect" id="node3" href="$classjiminy_1_1_memory_device.html" title="Manage a memory buffer with IODevice interface. " alt="" coords="157,321,309,589"/>
 </map>

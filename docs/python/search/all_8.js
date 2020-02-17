@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['timestatefctpywrapper',['TimeStateFctPyWrapper',['../structjiminy_1_1python_1_1TimeStateFctPyWrapper.html',1,'jiminy::python']]]
+  ['sensorsdatamapvisitor',['SensorsDataMapVisitor',['../structjiminy_1_1python_1_1SensorsDataMapVisitor.html',1,'jiminy::python']]],
+  ['stdvectortolistpyconverter',['stdVectorToListPyConverter',['../structjiminy_1_1python_1_1stdVectorToListPyConverter.html',1,'jiminy::python']]]
 ];

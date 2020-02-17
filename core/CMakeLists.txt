@@ -16,6 +16,7 @@ add_definitions(${COMPILE_FLAGS})
 set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractIODevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/MemoryDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/FileDevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryData.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetrySender.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryRecorder.cc"

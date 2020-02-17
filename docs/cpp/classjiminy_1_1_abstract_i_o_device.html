@@ -111,7 +111,8 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_abstract_i_o_device.ht
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_abstract_i_o_device__inherit__graph.png" border="0" usemap="#jiminy_1_1_abstract_i_o_device_inherit__map" alt="Inheritance graph"/></div>
 <map name="jiminy_1_1_abstract_i_o_device_inherit__map" id="jiminy_1_1_abstract_i_o_device_inherit__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_memory_device.html" title="Manage a memory buffer with IODevice interface. " alt="" coords="13,321,165,589"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_file_device.html" title="Class to manipulate a file. " alt="" coords="5,336,132,575"/>
+<area shape="rect" id="node3" href="classjiminy_1_1_memory_device.html" title="Manage a memory buffer with IODevice interface. " alt="" coords="157,321,309,589"/>
 </map>
 </div>
 <div id="dynsection-1" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
@@ -150,17 +151,17 @@ virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <tr class="separator:ae5e2749d020ee8eda14f1c4bdbb1e5fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5749b1ce151e8ced469388dcca5a21d4"><td class="memItemLeft" align="right" valign="top">virtual bool_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a5749b1ce151e8ced469388dcca5a21d4">isSequential</a> (void) const</td></tr>
 <tr class="separator:a5749b1ce151e8ced469388dcca5a21d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac3a21f566f565e3a3af862de6054b5a2"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac3a21f566f565e3a3af862de6054b5a2">size</a> (void) const</td></tr>
-<tr class="memdesc:ac3a21f566f565e3a3af862de6054b5a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned.  <a href="#ac3a21f566f565e3a3af862de6054b5a2">More...</a><br /></td></tr>
-<tr class="separator:ac3a21f566f565e3a3af862de6054b5a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aee8d4c8fe797601551757d4bf8205ad7"><td class="memItemLeft" align="right" valign="top">virtual result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#aee8d4c8fe797601551757d4bf8205ad7">seek</a> (int64_t <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac84485b696cc40e32f844423aa90c22e">pos</a>)</td></tr>
+<tr class="memitem:a7952eabc371e20c31b3799a9237ec968"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a7952eabc371e20c31b3799a9237ec968">size</a> (void)</td></tr>
+<tr class="memdesc:a7952eabc371e20c31b3799a9237ec968"><td class="mdescLeft">&#160;</td><td class="mdescRight">For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a46a7d36d89e5ec2022e05aa1aab7ee9f" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned.  <a href="#a7952eabc371e20c31b3799a9237ec968">More...</a><br /></td></tr>
+<tr class="separator:a7952eabc371e20c31b3799a9237ec968"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee8d4c8fe797601551757d4bf8205ad7"><td class="memItemLeft" align="right" valign="top">virtual result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#aee8d4c8fe797601551757d4bf8205ad7">seek</a> (int64_t <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a3f345a921f0d1877701f2fd00ab6049a">pos</a>)</td></tr>
 <tr class="memdesc:aee8d4c8fe797601551757d4bf8205ad7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move the current position cursor to pos if possible.  <a href="#aee8d4c8fe797601551757d4bf8205ad7">More...</a><br /></td></tr>
 <tr class="separator:aee8d4c8fe797601551757d4bf8205ad7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac84485b696cc40e32f844423aa90c22e"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac84485b696cc40e32f844423aa90c22e">pos</a> (void) const</td></tr>
-<tr class="separator:ac84485b696cc40e32f844423aa90c22e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac08f7669db3a488b33695f5e053765ec"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec">bytesAvailable</a> (void) const</td></tr>
-<tr class="memdesc:ac08f7669db3a488b33695f5e053765ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes that are available for reading. Commonly used with sequential device.  <a href="#ac08f7669db3a488b33695f5e053765ec">More...</a><br /></td></tr>
-<tr class="separator:ac08f7669db3a488b33695f5e053765ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3f345a921f0d1877701f2fd00ab6049a"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a3f345a921f0d1877701f2fd00ab6049a">pos</a> (void)</td></tr>
+<tr class="separator:a3f345a921f0d1877701f2fd00ab6049a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a46a7d36d89e5ec2022e05aa1aab7ee9f"><td class="memItemLeft" align="right" valign="top">virtual int64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a46a7d36d89e5ec2022e05aa1aab7ee9f">bytesAvailable</a> (void)</td></tr>
+<tr class="memdesc:a46a7d36d89e5ec2022e05aa1aab7ee9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of bytes that are available for reading. Commonly used with sequential device.  <a href="#a46a7d36d89e5ec2022e05aa1aab7ee9f">More...</a><br /></td></tr>
+<tr class="separator:a46a7d36d89e5ec2022e05aa1aab7ee9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a572f6bd7bcf8e1bd418bdb5dbe9db988"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a572f6bd7bcf8e1bd418bdb5dbe9db988"><td class="memTemplItemLeft" align="right" valign="top">result_t&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a572f6bd7bcf8e1bd418bdb5dbe9db988">write</a> (T const &amp;valueIn)</td></tr>
 <tr class="memdesc:a572f6bd7bcf8e1bd418bdb5dbe9db988"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write data in the device.  <a href="#a572f6bd7bcf8e1bd418bdb5dbe9db988">More...</a><br /></td></tr>
@@ -249,8 +250,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8h_source.html#l00044">44</a> of file <a class="el" href="_abstract_i_o_device_8h_source.html">AbstractIODevice.h</a>.</p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a id="ac08f7669db3a488b33695f5e053765ec"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac08f7669db3a488b33695f5e053765ec">&#9670;&nbsp;</a></span>bytesAvailable()</h2>
+<a id="a46a7d36d89e5ec2022e05aa1aab7ee9f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a46a7d36d89e5ec2022e05aa1aab7ee9f">&#9670;&nbsp;</a></span>bytesAvailable()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -263,7 +264,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -276,7 +277,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p>Returns the number of bytes that are available for reading. Commonly used with sequential device. </p>
 <dl class="section return"><dt>Returns</dt><dd>The available bytesfor reading. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a41b575acc3c3a21b7aa5413daa29d5f7">jiminy::MemoryDevice</a>.</p>
+<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a8e38968f66f19f33f1721840e4b69590">jiminy::MemoryDevice</a>, and <a class="el" href="classjiminy_1_1_file_device.html#a80f8b3e97b05c334be0a737a90a817e8">jiminy::FileDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00132">132</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
@@ -313,6 +314,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00073">73</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8cc_source.html#l00105">isOpen()</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="_file_device_8cc_source.html#l00027">jiminy::FileDevice::~FileDevice()</a>.</p>
 
 </div>
 </div>
@@ -386,6 +389,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00100">100</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8h_source.html#l00022">jiminy::READ_ONLY</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00024">jiminy::READ_WRITE</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="_file_device_8cc_source.html#l00139">jiminy::FileDevice::bytesAvailable()</a>.</p>
 
 </div>
 </div>
@@ -472,6 +477,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 <p class="reference">References <a class="el" href="_abstract_i_o_device_8cc_source.html#l00105">isOpen()</a>, and <a class="el" href="_abstract_i_o_device_8h_source.html#l00239">lastError_</a>.</p>
 
+<p class="reference">Referenced by <a class="el" href="_file_device_8cc_source.html#l00027">jiminy::FileDevice::~FileDevice()</a>.</p>
+
 </div>
 </div>
 <a id="ae0cb93e9d8d587daa2eba7c4561aae2d"></a>
@@ -495,8 +502,8 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 
 </div>
 </div>
-<a id="ac84485b696cc40e32f844423aa90c22e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac84485b696cc40e32f844423aa90c22e">&#9670;&nbsp;</a></span>pos()</h2>
+<a id="a3f345a921f0d1877701f2fd00ab6049a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3f345a921f0d1877701f2fd00ab6049a">&#9670;&nbsp;</a></span>pos()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -509,7 +516,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -520,7 +527,7 @@ std::unique_ptr&lt; <a class="el" href="classjiminy_1_1_abstract_i_o_device.html
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>The current cursor position (0 if there is not concept of position cursor). </dd></dl>
 
-<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a080da104b911a09022a849ee835f0833">jiminy::MemoryDevice</a>.</p>
+<p>Reimplemented in <a class="el" href="classjiminy_1_1_file_device.html#a0bdafad35ae05c6a3baea91a9affe9e1">jiminy::FileDevice</a>, and <a class="el" href="classjiminy_1_1_memory_device.html#ab7d02fe0fec1001178649c98dc37681d">jiminy::MemoryDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00127">127</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
@@ -556,7 +563,7 @@ template&lt;typename T &gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8tpp_source.html#l00024">24</a> of file <a class="el" href="_abstract_i_o_device_8tpp_source.html">AbstractIODevice.tpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_file_device_8cc_source.html#l00149">jiminy::FileDevice::readData()</a>, and <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>.</p>
 
 </div>
 </div>
@@ -654,7 +661,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>the number of bytes read, -1 in case of error (error value can be retrieved with <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#aec800677e5591a4f913bc126a809de17" title="Retrieve the latest error. Usefull for call that do not return an error code directly. ">getLastError()</a>. </dd></dl>
 
-<p>Implemented in <a class="el" href="classjiminy_1_1_memory_device.html#affc75023bf0c3fe4b60b64417f8835bc">jiminy::MemoryDevice</a>.</p>
+<p>Implemented in <a class="el" href="classjiminy_1_1_memory_device.html#affc75023bf0c3fe4b60b64417f8835bc">jiminy::MemoryDevice</a>, and <a class="el" href="classjiminy_1_1_file_device.html#ac1f8f77de23e388c657bf23607576aa8">jiminy::FileDevice</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00169">read()</a>.</p>
 
@@ -693,7 +700,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>result_t::SUCCESS if successful, another result_t value otherwise. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d">jiminy::MemoryDevice</a>.</p>
+<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#aaa9b596b4d1a94fe897ccc98398a515d">jiminy::MemoryDevice</a>, and <a class="el" href="classjiminy_1_1_file_device.html#a92ba02495fd83a0f01dac0fbbc620d35">jiminy::FileDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00120">120</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
@@ -734,8 +741,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="ac3a21f566f565e3a3af862de6054b5a2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac3a21f566f565e3a3af862de6054b5a2">&#9670;&nbsp;</a></span>size()</h2>
+<a id="a7952eabc371e20c31b3799a9237ec968"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7952eabc371e20c31b3799a9237ec968">&#9670;&nbsp;</a></span>size()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -748,7 +755,7 @@ template&lt;typename T &gt; </div>
           <td>(</td>
           <td class="paramtype">void&#160;</td>
           <td class="paramname"></td><td>)</td>
-          <td> const</td>
+          <td></td>
         </tr>
       </table>
   </td>
@@ -758,10 +765,10 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#ac08f7669db3a488b33695f5e053765ec" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned. </p>
+<p>For random-access devices, this function returns the size of the device. For sequential devices, <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#a46a7d36d89e5ec2022e05aa1aab7ee9f" title="Returns the number of bytes that are available for reading. Commonly used with sequential device...">bytesAvailable()</a> is returned. </p>
 <dl class="section return"><dt>Returns</dt><dd>The size of the device. </dd></dl>
 
-<p>Reimplemented in <a class="el" href="classjiminy_1_1_memory_device.html#a1d28c7f2dfb365fe4b61a197b99a32d6">jiminy::MemoryDevice</a>.</p>
+<p>Reimplemented in <a class="el" href="classjiminy_1_1_file_device.html#a6f278c625fb7968b1732d395f18d3c10">jiminy::FileDevice</a>, and <a class="el" href="classjiminy_1_1_memory_device.html#af2443343ce13d3d1fffe16fad7af5413">jiminy::MemoryDevice</a>.</p>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8cc_source.html#l00115">115</a> of file <a class="el" href="_abstract_i_o_device_8cc_source.html">AbstractIODevice.cc</a>.</p>
 
@@ -820,7 +827,7 @@ template&lt;typename T &gt; </div>
 
 <p class="definition">Definition at line <a class="el" href="_abstract_i_o_device_8tpp_source.html#l00018">18</a> of file <a class="el" href="_abstract_i_o_device_8tpp_source.html">AbstractIODevice.tpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00214">removeBackend()</a>, and <a class="el" href="_file_device_8cc_source.html#l00161">jiminy::FileDevice::writeData()</a>.</p>
 
 </div>
 </div>
@@ -918,7 +925,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>the number of bytes written, -1 in case of error (error value can be retrieved with <a class="el" href="classjiminy_1_1_abstract_i_o_device.html#aec800677e5591a4f913bc126a809de17" title="Retrieve the latest error. Usefull for call that do not return an error code directly. ">getLastError()</a>. </dd></dl>
 
-<p>Implemented in <a class="el" href="classjiminy_1_1_memory_device.html#aedcea64dc60c6530e70083cc49c01888">jiminy::MemoryDevice</a>.</p>
+<p>Implemented in <a class="el" href="classjiminy_1_1_memory_device.html#aedcea64dc60c6530e70083cc49c01888">jiminy::MemoryDevice</a>, and <a class="el" href="classjiminy_1_1_file_device.html#ab1580d3c3e20fd6f33dd9ca28309749f">jiminy::FileDevice</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_i_o_device_8cc_source.html#l00142">write()</a>.</p>
 

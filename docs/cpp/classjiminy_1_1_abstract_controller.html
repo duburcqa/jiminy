@@ -114,7 +114,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_abstract_controller.ht
 <div id="dynsection-0-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_abstract_controller__inherit__graph.png" border="0" usemap="#jiminy_1_1_abstract_controller_inherit__map" alt="Inheritance graph"/></div>
 <map name="jiminy_1_1_abstract_controller_inherit__map" id="jiminy_1_1_abstract_controller_inherit__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_controller_functor.html" title="{jiminy::ControllerFunctor\l\&lt; F1, F2 \&gt;\n|&#45; commandFct_\l&#45; internalDynamicsFct_\l&#45; sensorsData_\l|+ ControllerFunctor()\l+ operator=()\l+ ControllerFunctor()\l+ ControllerFunctor()\l+ ~ControllerFunctor()\l+ initialize()\l+ computeCommand()\l+ internalDynamics()\l}" alt="" coords="19,483,183,707"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_controller_functor.html" title="{jiminy::ControllerFunctor\l\&lt; F1, F2 \&gt;\n|&#45; commandFct_\l&#45; internalDynamicsFct_\l&#45; sensorsData_\l|+ ControllerFunctor()\l+ operator=()\l+ ControllerFunctor()\l+ ControllerFunctor()\l+ ~ControllerFunctor()\l+ initialize()\l+ computeCommand()\l+ internalDynamics()\l}" alt="" coords="14,439,178,663"/>
 </map>
 </div>
 <div id="dynsection-1" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
@@ -124,7 +124,7 @@ $(document).ready(function(){initNavTree('classjiminy_1_1_abstract_controller.ht
 <div id="dynsection-1-content" class="dyncontent" style="display:none;">
 <div class="center"><img src="classjiminy_1_1_abstract_controller__coll__graph.png" border="0" usemap="#jiminy_1_1_abstract_controller_coll__map" alt="Collaboration graph"/></div>
 <map name="jiminy_1_1_abstract_controller_coll__map" id="jiminy_1_1_abstract_controller_coll__map">
-<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="20,5,183,288"/>
+<area shape="rect" id="node2" href="classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="15,5,177,288"/>
 </map>
 </div>
 <table class="memberdecls">
@@ -164,6 +164,10 @@ virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="c
 <tr class="memitem:af1cb56b3abc15420c73cd18d5c83349d"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#af1cb56b3abc15420c73cd18d5c83349d">registerNewEntry</a> (std::string const &amp;fieldName, float64_t const &amp;value)</td></tr>
 <tr class="memdesc:af1cb56b3abc15420c73cd18d5c83349d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamically registered a float64 to the telemetry.  <a href="#af1cb56b3abc15420c73cd18d5c83349d">More...</a><br /></td></tr>
 <tr class="separator:af1cb56b3abc15420c73cd18d5c83349d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a48a3a40e58f9ce6b76772c26c3cc317e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a48a3a40e58f9ce6b76772c26c3cc317e"><td class="memTemplItemLeft" align="right" valign="top">result_t&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a48a3a40e58f9ce6b76772c26c3cc317e">registerConstant</a> (std::string const &amp;fieldName, T const &amp;value)</td></tr>
+<tr class="memdesc:a48a3a40e58f9ce6b76772c26c3cc317e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Register a constant float64 to the telemetry.  <a href="#a48a3a40e58f9ce6b76772c26c3cc317e">More...</a><br /></td></tr>
+<tr class="separator:a48a3a40e58f9ce6b76772c26c3cc317e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca8a68d40ab788576acb84e46b621142"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#aca8a68d40ab788576acb84e46b621142">removeEntries</a> (void)</td></tr>
 <tr class="memdesc:aca8a68d40ab788576acb84e46b621142"><td class="mdescLeft">&#160;</td><td class="mdescRight">Remove all variables dynamically registered to the telemetry.  <a href="#aca8a68d40ab788576acb84e46b621142">More...</a><br /></td></tr>
 <tr class="separator:aca8a68d40ab788576acb84e46b621142"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -227,16 +231,20 @@ configHolder_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" 
 <a class="el" href="classjiminy_1_1_telemetry_sender.html">TelemetrySender</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a91979add72f86b9770adec49ae9a3df2">telemetrySender_</a></td></tr>
 <tr class="memdesc:a91979add72f86b9770adec49ae9a3df2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Telemetry sender of the controller used to register and update telemetry variables. <br /></td></tr>
 <tr class="separator:a91979add72f86b9770adec49ae9a3df2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a183475e6106345263db7ad60d7de65bd"><td class="memItemLeft" align="right" valign="top"><a id="a183475e6106345263db7ad60d7de65bd"></a>
-std::vector&lt; std::pair&lt; std::string, float64_t const * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a183475e6106345263db7ad60d7de65bd">registeredInfo_</a></td></tr>
-<tr class="memdesc:a183475e6106345263db7ad60d7de65bd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Vector of dynamically registered telemetry variables. <br /></td></tr>
-<tr class="separator:a183475e6106345263db7ad60d7de65bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr class="memitem:a16ea1e3fd0c9aa7a76fc44795b99c793"><td class="memItemLeft" align="right" valign="top"><a id="a16ea1e3fd0c9aa7a76fc44795b99c793"></a>
 friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr>
 <tr class="separator:a16ea1e3fd0c9aa7a76fc44795b99c793"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5a619a76b2d8ac2c2e9a4365f8903f7d"><td class="memItemLeft" align="right" valign="top"><a id="a5a619a76b2d8ac2c2e9a4365f8903f7d"></a>
+std::vector&lt; std::pair&lt; std::string, float64_t const * &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a5a619a76b2d8ac2c2e9a4365f8903f7d">registeredVariables_</a></td></tr>
+<tr class="memdesc:a5a619a76b2d8ac2c2e9a4365f8903f7d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Vector of dynamically registered telemetry variables. <br /></td></tr>
+<tr class="separator:a5a619a76b2d8ac2c2e9a4365f8903f7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a953c9d65f2ad0c2df25dc6b28b512ff7"><td class="memItemLeft" align="right" valign="top"><a id="a953c9d65f2ad0c2df25dc6b28b512ff7"></a>
+std::vector&lt; std::pair&lt; std::string, std::string &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_abstract_controller.html#a953c9d65f2ad0c2df25dc6b28b512ff7">registeredConstants_</a></td></tr>
+<tr class="memdesc:a953c9d65f2ad0c2df25dc6b28b512ff7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Vector of dynamically registered telemetry constants. <br /></td></tr>
+<tr class="separator:a953c9d65f2ad0c2df25dc6b28b512ff7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Generic interface for any controller. </p>
@@ -343,7 +351,7 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00097">97</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00098">98</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
 </div>
 </div>
@@ -367,9 +375,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 <p>It is a flag used to determine if the controller has been initialized.</p>
 <dl class="section remark"><dt>Remarks</dt><dd>Note that a controller can be considered initialized even if its telemetry is not properly configured. If not, it is the only to do before being ready to use. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00211">211</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00217">217</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00275">isInitialized_</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00289">isInitialized_</a>.</p>
 
 </div>
 </div>
@@ -392,9 +400,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 <p>Get isTelemetryConfigured_. </p>
 <p>It is a flag used to determine if the telemetry of the controller has been initialized. </p>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00216">216</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00222">222</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00276">isTelemetryConfigured_</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00290">isTelemetryConfigured_</a>.</p>
 
 </div>
 </div>
@@ -417,9 +425,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 <p>Get the configuration options of the controller. </p>
 <dl class="section return"><dt>Returns</dt><dd>Dictionary with the parameters of the controller </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00200">200</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00206">206</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00277">ctrlOptionsHolder_</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00291">ctrlOptionsHolder_</a>.</p>
 
 </div>
 </div>
@@ -458,7 +466,7 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 
 <p>Reimplemented in <a class="el" href="classjiminy_1_1_controller_functor.html#ae69da657b8860249a7a594f55ff066da">jiminy::ControllerFunctor&lt; F1, F2 &gt;</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00028">28</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00029">29</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
 </div>
 </div>
@@ -524,6 +532,48 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 
 </div>
 </div>
+<a id="a48a3a40e58f9ce6b76772c26c3cc317e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a48a3a40e58f9ce6b76772c26c3cc317e">&#9670;&nbsp;</a></span>registerConstant()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">result_t jiminy::AbstractController::registerConstant </td>
+          <td>(</td>
+          <td class="paramtype">std::string const &amp;&#160;</td>
+          <td class="paramname"><em>fieldName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">T const &amp;&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Register a constant float64 to the telemetry. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">fieldNames</td><td>Name of the variable. </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">values</td><td>Variable to add to the telemetry</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
+
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8tpp_source.html#l00028">28</a> of file <a class="el" href="_abstract_controller_8tpp_source.html">AbstractController.tpp</a>.</p>
+
+</div>
+</div>
 <a id="af1cb56b3abc15420c73cd18d5c83349d"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af1cb56b3abc15420c73cd18d5c83349d">&#9670;&nbsp;</a></span>registerNewEntry()</h2>
 
@@ -561,7 +611,7 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00161">161</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00166">166</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
 </div>
 </div>
@@ -602,7 +652,7 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00136">136</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00141">141</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
 </div>
 </div>
@@ -625,11 +675,11 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 <p>Remove all variables dynamically registered to the telemetry. </p>
 <p>Note that one must reset Jiminy <a class="el" href="classjiminy_1_1_engine.html">Engine</a> for this to take effect. </p>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00182">182</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00187">187</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00279">registeredInfo_</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00296">registeredConstants_</a>, and <a class="el" href="_abstract_controller_8h_source.html#l00295">registeredVariables_</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="_abstract_controller_8cc_source.html#l00086">reset()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="_abstract_controller_8cc_source.html#l00087">reset()</a>.</p>
 
 </div>
 </div>
@@ -667,9 +717,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00086">86</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00087">87</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00276">isTelemetryConfigured_</a>, and <a class="el" href="_abstract_controller_8cc_source.html#l00182">removeEntries()</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00290">isTelemetryConfigured_</a>, and <a class="el" href="_abstract_controller_8cc_source.html#l00187">removeEntries()</a>.</p>
 
 </div>
 </div>
@@ -699,9 +749,9 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Return code to determine whether the execution of the method was successful. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00205">205</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00211">211</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00271">ctrlOptions_</a>, and <a class="el" href="_abstract_controller_8h_source.html#l00277">ctrlOptionsHolder_</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00285">ctrlOptions_</a>, and <a class="el" href="_abstract_controller_8h_source.html#l00291">ctrlOptionsHolder_</a>.</p>
 
 <p class="reference">Referenced by <a class="el" href="_abstract_controller_8cc_source.html#l00010">AbstractController()</a>.</p>
 
@@ -759,14 +809,15 @@ friend&#160;</td><td class="memItemRight" valign="bottom"><b>Engine</b></td></tr
 </dl>
 <dl class="section remark"><dt>Remarks</dt><dd>This method is not intended to be called manually. The <a class="el" href="classjiminy_1_1_engine.html">Engine</a> is taking care of it before flushing the telemetry data at the end of each simulation steps. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00187">187</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_abstract_controller_8cc_source.html#l00193">193</a> of file <a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a>.</p>
 
-<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00276">isTelemetryConfigured_</a>, <a class="el" href="_abstract_controller_8h_source.html#l00279">registeredInfo_</a>, <a class="el" href="_abstract_controller_8h_source.html#l00278">telemetrySender_</a>, and <a class="el" href="classjiminy_1_1_telemetry_sender.html#a34182081e97cfa41efc5803fc2bb0935">jiminy::TelemetrySender::updateValue()</a>.</p>
+<p class="reference">References <a class="el" href="_abstract_controller_8h_source.html#l00290">isTelemetryConfigured_</a>, <a class="el" href="_abstract_controller_8h_source.html#l00295">registeredVariables_</a>, <a class="el" href="_abstract_controller_8h_source.html#l00292">telemetrySender_</a>, and <a class="el" href="classjiminy_1_1_telemetry_sender.html#a34182081e97cfa41efc5803fc2bb0935">jiminy::TelemetrySender::updateValue()</a>.</p>
 
 </div>
 </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
 <li>core/include/jiminy/core/<a class="el" href="_abstract_controller_8h_source.html">AbstractController.h</a></li>
+<li>core/include/jiminy/core/<a class="el" href="_abstract_controller_8tpp_source.html">AbstractController.tpp</a></li>
 <li>core/src/<a class="el" href="_abstract_controller_8cc_source.html">AbstractController.cc</a></li>
 </ul>
 </div><!-- contents -->

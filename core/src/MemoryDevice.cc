@@ -13,7 +13,7 @@ namespace jiminy
     }
 
 
-    MemoryDevice::MemoryDevice(MemoryDevice const& other) :
+    MemoryDevice::MemoryDevice(MemoryDevice const & other) :
     buffer_(other.buffer_),
     currentPos_(other.currentPos_)
     {
@@ -22,7 +22,7 @@ namespace jiminy
     }
 
 
-    MemoryDevice::MemoryDevice(MemoryDevice&& other) :
+    MemoryDevice::MemoryDevice(MemoryDevice && other) :
     buffer_(std::move(other.buffer_)),
     currentPos_(other.currentPos_)
     {
@@ -31,7 +31,7 @@ namespace jiminy
         other.close();
     }
 
-    MemoryDevice::MemoryDevice(std::vector<uint8_t>&& initBuffer) :
+    MemoryDevice::MemoryDevice(std::vector<uint8_t> && initBuffer) :
     buffer_(std::move(initBuffer)),
     currentPos_(0)
     {
@@ -43,7 +43,7 @@ namespace jiminy
         close();
     }
 
-    MemoryDevice& MemoryDevice::operator=(MemoryDevice const& other)
+    MemoryDevice & MemoryDevice::operator=(MemoryDevice const & other)
     {
         buffer_ = other.buffer_;
         currentPos_ = other.currentPos_;
@@ -52,7 +52,7 @@ namespace jiminy
         return *this;
     }
 
-    MemoryDevice& MemoryDevice::operator=(MemoryDevice&& other)
+    MemoryDevice & MemoryDevice::operator=(MemoryDevice && other)
     {
         buffer_ = std::move(other.buffer_);
         currentPos_ = other.currentPos_;
@@ -74,7 +74,8 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    int64_t MemoryDevice::readData(void* data, int64_t dataSize)
+    int64_t MemoryDevice::readData(void    * data,
+                                   int64_t   dataSize)
     {
         // Read no more than availables bytes.
         int64_t toRead = bytesAvailable();
@@ -88,7 +89,8 @@ namespace jiminy
         return toRead;
     }
 
-    int64_t MemoryDevice::writeData(void const* data, int64_t dataSize)
+    int64_t MemoryDevice::writeData(void    const * data,
+                                    int64_t         dataSize)
     {
         // Write no more than availables bytes.
         int64_t toWrite = bytesAvailable();

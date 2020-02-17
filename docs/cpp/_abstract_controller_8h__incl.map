@@ -1,4 +1,5 @@
 <map id="core/include/jiminy/core/AbstractController.h" name="core/include/jiminy/core/AbstractController.h">
-<area shape="rect" id="node2" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="32,95,231,121"/>
-<area shape="rect" id="node5" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="199,169,335,196"/>
+<area shape="rect" id="node2" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="179,95,378,121"/>
+<area shape="rect" id="node5" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="320,169,456,196"/>
+<area shape="rect" id="node11" href="$_abstract_controller_8tpp.html" title="AbstractController.tpp" alt="" coords="5,95,155,121"/>
 </map>

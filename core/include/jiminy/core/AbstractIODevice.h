@@ -110,7 +110,7 @@ namespace jiminy
         ///
         /// \return The size of the device.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int64_t size(void) const;
+        virtual int64_t size(void);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Move the current position cursor to pos if possible.
@@ -124,14 +124,14 @@ namespace jiminy
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return The current cursor position (0 if there is not concept of position cursor).
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int64_t pos(void) const;
+        virtual int64_t pos(void);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Returns the number of bytes that are available for reading. Commonly used with sequential device.
         ///
         /// \return The available bytesfor reading.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int64_t bytesAvailable(void) const;
+        virtual int64_t bytesAvailable(void);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.
@@ -153,7 +153,7 @@ namespace jiminy
         ///
         /// \return result_t::SUCCESS if successful, another result_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t write(void    const * data, 
+        virtual result_t write(void    const * data,
                                int64_t         dataSize);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -164,7 +164,7 @@ namespace jiminy
         ///
         /// \return the number of bytes written, -1 in case of error (error value can be retrieved with getLastError().
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int64_t writeData(void    const * data, 
+        virtual int64_t writeData(void    const * data,
                                   int64_t         dataSize) = 0;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +187,7 @@ namespace jiminy
         ///
         /// \return result_t::SUCCESS if successful, another result_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t read(void    * data, 
+        virtual result_t read(void    * data,
                               int64_t   dataSize);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,7 +198,7 @@ namespace jiminy
         ///
         /// \return the number of bytes read, -1 in case of error (error value can be retrieved with getLastError().
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int64_t readData(void    * data, 
+        virtual int64_t readData(void    * data,
                                  int64_t   dataSize) = 0;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -236,7 +236,7 @@ namespace jiminy
 
         enum OpenMode modes_{OpenMode::NOT_OPEN};           ///< Current opening mode.
         enum OpenMode supportedModes_{OpenMode::NOT_OPEN};  ///< Supported modes of the device.
-        result_t lastError_{result_t::ERROR_GENERIC};              ///< Latest generated error.
+        result_t lastError_{result_t::ERROR_GENERIC};       ///< Latest generated error.
         std::unique_ptr<AbstractIODevice> io_{nullptr};     ///< Backend to use if any
     };
 }

@@ -410,20 +410,30 @@ namespace jiminy
 
         /// \brief Get the full logged content.
         ///
-        /// \param[out] header Header, vector of field names.
-        /// \param[out] logData Corresponding data in the log file.
+        /// \param[out] header      Header, vector of field names.
+        /// \param[out] logData     Corresponding data in the log file.
+        ///
         /// \return ERROR_INIT_FAILED if telemetry was not initialized, SUCCESS on success.
         result_t getLogData(std::vector<std::string> & header,
                             matrixN_t                & logData);
 
         /// \brief Get the value of a single logged variable.
         ///
-        /// \param[in] fieldName Full name of the variable to get
+        /// \param[in] fieldName    Full name of the variable to get
+        /// \param[in] header       Header, vector of field names.
+        /// \param[in] logData      Corresponding data in the log file.
+        ///
         /// \return Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty.
-        vectorN_t getLogFieldValue(std::string const & fieldName);
+        static vectorN_t getLogFieldValue(std::string              const & fieldName,
+                                          std::vector<std::string>       & header,
+                                          matrixN_t                      & logData);
 
         result_t writeLogTxt(std::string const & filename);
         result_t writeLogBinary(std::string const & filename);
+
+        static result_t parseLogBinary(std::string              const & filename,
+                                       std::vector<std::string>       & header,
+                                       matrixN_t                      & logData);
 
     protected:
         result_t configureTelemetry(void);

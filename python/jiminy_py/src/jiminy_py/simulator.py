@@ -12,16 +12,18 @@ else:
 
 class BasicSimulator(object):
     '''
-    A helper class for launching simulations.
-    This class handles creation of the engine, the jiminy.controller object, configuration...
-    so that the user only has to worry about creating a controller, implemented as a callback
-    function, and give high-level instructions to the simulation.
-    While this class provides an already functional simulation environment, it is expect that the
-    user will develop a child class to customize it to his needs.
+    @brief   A helper class for launching simulations.
+
+    @details This class handles creation of the engine, the jiminy.controller object, configuration...
+              so that the user only has to worry about creating a controller, implemented as a callback
+              function, and give high-level instructions to the simulation.
+              While this class provides an already functional simulation environment, it is expect that the
+              user will develop a child class to customize it to his needs.
     '''
     def __init__(self, jiminy_model, jiminy_controller=None):
         '''
-        Constructor
+        @brief Constructor
+
         @param jiminy_model jiminy.Model to use
         @param jiminy_controller Optional, a jiminy controller to use. If None, a ControllerFunctor is created.
         '''
@@ -64,13 +66,14 @@ class BasicSimulator(object):
         self.n_motors = len(self.model.motors_names)
 
     def configure_simulation(self):
-        ''' User-specific configuration, applied once at the end of the constructor.
+        '''
+        @brief User-specific configuration, applied once at the end of the constructor.
         '''
         pass
 
     def set_controller(self, controller_handle):
         '''
-        Set the controller callback function to be used. It must follow the following signature:
+        @brief Set the controller callback function to be used. It must follow the following signature:
         controller_handle(t, y, dy, sensors_data, u_command).
 
         @param controller_handle Controller callback to set.
@@ -90,13 +93,14 @@ class BasicSimulator(object):
     @staticmethod
     def callback(t, x, out):
         '''
-        Callback method for the simulation.
+        @brief Callback method for the simulation.
         '''
         pass
 
 
     def _compute_command_wrapper(self, t, q, v, sensor_data, u):
-        ''' Internal controller callback, should not be called directly.
+        '''
+        @brief Internal controller callback, should not be called directly.
         '''
         if self._pbar is not None:
             self._pbar.update(t - self._t_pbar)
@@ -105,13 +109,14 @@ class BasicSimulator(object):
 
     def get_log(self):
         '''
-        Get log data from the engine.
+        @brief Get log data from the engine.
         '''
         return self.engine.get_log()
 
     def run(self, x0, tf, log_path=None):
         '''
-        Run a simulation, starting from x0 at t=0 up to tf. Optionally, log results in a logfile.
+        @brief Run a simulation, starting from x0 at t=0 up to tf. Optionally, log results in a logfile.
+
         @param x0 Initial condition
         @param tf Simulation end time
         @param log_path Optional, if set save log data to given file.
