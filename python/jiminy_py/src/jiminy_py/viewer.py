@@ -22,6 +22,7 @@ from pinocchio.rpy import rpyToMatrix
 
 class Viewer:
     backend = None
+    port_forwarding = None
     _backend_obj = None
     _backend_proc = None
     ## Unique threading.Lock for every simulation.
@@ -77,16 +78,14 @@ class Viewer:
                 else:
                     raise RuntimeError("Impossible to open Gepetto-viewer.")
             else:
-                import meshcat
-                from contextlib import redirect_stdout
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
 
                 if Viewer._backend_obj is None:
-                    with redirect_stdout(None):
-                        Viewer._backend_obj = meshcat.Visualizer()
-                        Viewer._backend_proc = Viewer._backend_obj.window.server_proc
-                    if not Viewer._is_notebook():
+                    Viewer._create_meshcat_backend()
+                    if Viewer._is_notebook():
+                        Viewer.display_jupyter_cell()
+                    else:
                         Viewer._backend_obj.open()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
@@ -141,22 +140,43 @@ class Viewer:
             self._rb.viz = self._client
 
     @staticmethod
-    def display_jupyter_cell(height=600, width=900, port_forwarding=None):
+    def _create_meshcat_backend():
+        import meshcat
+        from contextlib import redirect_stdout
+
+        with redirect_stdout(None):
+            Viewer._backend_obj = meshcat.Visualizer()
+            Viewer._backend_proc = Viewer._backend_obj.window.server_proc
+
+    @staticmethod
+    def reset_port_forwarding(port_forwarding=None):
+        Viewer.port_forwarding = port_forwarding
+
+    @staticmethod
+    def display_jupyter_cell(height=600, width=900, force_create_backend=False):
         if Viewer.backend == 'meshcat' and Viewer._is_notebook():
-            from IPython.core.display import HTML as ipython_html_display
+            from IPython.core.display import HTML, display as ipython_display
+
+            if Viewer._backend_obj is None:
+                if force_create_backend:
+                    Viewer._create_meshcat_backend()
+                else:
+                    raise ValueError("No meshcat backend available and 'force_create_backend' is set to False.")
 
             viewer_url = Viewer._backend_obj.url()
-            if port_forwarding is not None:
+            if Viewer.port_forwarding is not None:
                 url_port_pattern = '(?<=:)[0-9]+(?=/)'
                 port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-                if port_localhost in port_forwarding.keys():
-                    viewer_url = re.sub(url_port_pattern, str(port_forwarding[port_localhost]), viewer_url)
+                if port_localhost in Viewer.port_forwarding.keys():
+                    viewer_url = re.sub(url_port_pattern, str(Viewer.port_forwarding[port_localhost]), viewer_url)
+                else:
+                    print("Port forwarding defined but no port mapping associated with {port_localhost}.")
 
             jupyter_html = f'\n<div style="height: {height}px; width: {width}px; overflow-x: auto; overflow-y: hidden; resize: both">\
                              \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
                              </iframe>\n</div>\n'
 
-            return ipython_html_display(jupyter_html)
+            ipython_display(HTML(jupyter_html))
         else:
             raise ValueError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
@@ -403,7 +423,8 @@ class Viewer:
 
 
 def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
-                      backend='gepetto-gui', window_name='python-pinocchio', scene_name='world'):
+                      backend='gepetto-gui', window_name='python-pinocchio', scene_name='world',
+                      close_backend=None):
     """!
     @brief      Display robot evolution in Gepetto-viewer at stable speed.
 
@@ -423,6 +444,10 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
     """
+
+    if (close_backend is None):
+        # Close backend if it was not available beforehand
+        close_backend = Viewer._backend_obj is None
 
     # Load robots in gepetto viewer
     robots = []
@@ -455,4 +480,5 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     for i in range(len(trajectory_data)):
         threads[i].join()
 
-    Viewer.close()
+    if close_backend:
+        Viewer.close()
