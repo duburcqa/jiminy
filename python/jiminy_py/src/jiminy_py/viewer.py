@@ -148,8 +148,9 @@ class Viewer:
             viewer_url = Viewer._backend_obj.url()
             if port_forwarding is not None:
                 url_port_pattern = '(?<=:)[0-9]+(?=/)'
-                port_localhost = re.search(url_port_pattern, viewer_url).group()
-                viewer_url = re.sub(url_port_pattern, str(port_forwarding[int(port_localhost)]), viewer_url)
+                port_localhost = int(re.search(url_port_pattern, viewer_url).group())
+                if port_localhost in port_forwarding.keys():
+                    viewer_url = re.sub(url_port_pattern, str(port_forwarding[port_localhost]), viewer_url)
 
             jupyter_html = f'\n<div style="height: {height}px; width: {width}px; overflow-x: auto; overflow-y: hidden; resize: both">\
                              \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
