@@ -30,7 +30,10 @@ namespace jiminy
 
     TelemetryRecorder::~TelemetryRecorder()
     {
-        flows_.back().close();
+        if (!flows_.empty())
+        {
+            flows_.back().close();
+        }
     }
 
     result_t TelemetryRecorder::initialize(void)
