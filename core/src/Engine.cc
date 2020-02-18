@@ -926,11 +926,10 @@ namespace jiminy
         return stepperState_;
     }
 
-
-    void logDataToEigenMatrix(std::vector<float32_t>               const & timestamps,
-                              std::vector<std::vector<int32_t> >   const & intData,
-                              std::vector<std::vector<float32_t> > const & floatData,
-                              matrixN_t                                  & logData)
+    void logDataRawToEigenMatrix(std::vector<float32_t>               const & timestamps,
+                                 std::vector<std::vector<int32_t> >   const & intData,
+                                 std::vector<std::vector<float32_t> > const & floatData,
+                                 matrixN_t                                  & logData)
     {
         // Never empty since it contains at least the initial state
         logData.resize(timestamps.size(), 1 + intData[0].size() + floatData[0].size());
@@ -950,22 +949,36 @@ namespace jiminy
         }
     }
 
-    result_t Engine::getLogData(std::vector<std::string> & header,
-                                matrixN_t                & logData)
+    result_t Engine::getLogDataRaw(std::vector<std::string>             & header,
+                                   std::vector<float32_t>               & timestamps,
+                                   std::vector<std::vector<int32_t> >   & intData,
+                                   std::vector<std::vector<float32_t> > & floatData)
     {
         if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
         {
-            std::cout << "Error - Engine::getLogData - Telemetry not initialized. Impossible to get log data." << std::endl;
+            std::cout << "Error - Engine::getLogDataRaw - Telemetry not initialized. Impossible to get log data." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
+        telemetryRecorder_->getData(header, timestamps, intData, floatData);
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Engine::getLogData(std::vector<std::string> & header,
+                                matrixN_t                & logData)
+    {
         std::vector<float32_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
-        telemetryRecorder_->getData(header, timestamps, intData, floatData);
-        logDataToEigenMatrix(timestamps, intData, floatData, logData);
+        result_t returnCode = getLogDataRaw(header, timestamps, intData, floatData);
 
-        return result_t::SUCCESS;
+        if (returnCode == result_t::SUCCESS)
+        {
+            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
+        }
+
+        return returnCode;
     }
 
     vectorN_t Engine::getLogFieldValue(std::string              const & fieldName,
@@ -1043,11 +1056,12 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    result_t Engine::parseLogBinary(std::string              const & filename,
-                                    std::vector<std::string>       & header,
-                                    matrixN_t                      & logData)
+    result_t Engine::parseLogBinaryRaw(std::string                          const & filename,
+                                       std::vector<std::string>                   & header,
+                                       std::vector<float32_t>                     & timestamps,
+                                       std::vector<std::vector<int32_t> >         & intData,
+                                       std::vector<std::vector<float32_t> >       & floatData)
     {
-
         int64_t integerSectionSize;
         int64_t floatSectionSize;
         int64_t headerSize;
@@ -1113,9 +1127,6 @@ namespace jiminy
         std::vector<AbstractIODevice *> flows;
         flows.push_back(&device);
 
-        std::vector<float32_t> timestamps;
-        std::vector<std::vector<int32_t> > intData;
-        std::vector<std::vector<float32_t> > floatData;
         TelemetryRecorder::getData(header,
                                    timestamps,
                                    intData,
@@ -1124,7 +1135,27 @@ namespace jiminy
                                    integerSectionSize,
                                    floatSectionSize,
                                    headerSize);
-        logDataToEigenMatrix(timestamps, intData, floatData, logData);
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Engine::parseLogBinary(std::string              const & filename,
+                                    std::vector<std::string>       & header,
+                                    matrixN_t                      & logData)
+    {
+        std::vector<float32_t> timestamps;
+        std::vector<std::vector<int32_t> > intData;
+        std::vector<std::vector<float32_t> > floatData;
+        result_t returnCode = parseLogBinaryRaw(filename,
+                                                header,
+                                                timestamps,
+                                                intData,
+                                                floatData);
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
+        }
 
         return result_t::SUCCESS;
     }

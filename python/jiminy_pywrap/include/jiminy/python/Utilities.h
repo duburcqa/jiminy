@@ -21,14 +21,29 @@ namespace python
         matrixRow
     };
 
-    inline int getPyType(bool & data)
+    inline int getPyType(bool const & data)
     {
         return NPY_BOOL;
     }
 
-    inline int getPyType(float64_t & data)
+    inline int getPyType(float64_t const & data)
     {
-        return NPY_DOUBLE;
+        return NPY_FLOAT64;
+    }
+
+    inline int getPyType(float32_t const & data)
+    {
+        return NPY_FLOAT32;
+    }
+
+    inline int getPyType(int32_t const & data)
+    {
+        return NPY_INT32;
+    }
+
+    inline int getPyType(int64_t const & data)
+    {
+        return NPY_INT64;
     }
 
     // ****************************************************************************
@@ -76,29 +91,36 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert Eigen vector to Numpy array by reference.
     ///////////////////////////////////////////////////////////////////////////////
-    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<vectorN_t const> data, // Must use Ref to support fixed size array without copy
-                                                pyVector_t                  type = pyVector_t::vector)
-    {
-        if (type == pyVector_t::vector)
-        {
-            npy_intp dims[1] = {npy_intp(data.size())};
-            return PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, const_cast<float64_t *>(data.data()));
-        }
-        else
-        {
-            npy_intp dims[2] = {npy_intp(1), npy_intp(data.size())};
-            PyObject * pyData = PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, const_cast<float64_t *>(data.data()));
 
-            if (type == pyVector_t::matrixCol)
-            {
-                return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(pyData), NULL);
-            }
-            else
-            {
-                return pyData;
-            }
-        }
+    #define MAKE_FUNC(T) \
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> const> data, /* Must use Ref to support fixed size array without copy */ \
+                                                pyVector_t type = pyVector_t::vector) \
+    { \
+        if (type == pyVector_t::vector) \
+        { \
+            npy_intp dims[1] = {npy_intp(data.size())}; \
+            return PyArray_SimpleNewFromData(1, dims, getPyType(*data.data()), const_cast<T *>(data.data())); \
+        } \
+        else \
+        { \
+            npy_intp dims[2] = {npy_intp(1), npy_intp(data.size())}; \
+            PyObject * pyData = PyArray_SimpleNewFromData(2, dims, getPyType(*data.data()), const_cast<T *>(data.data())); \
+            if (type == pyVector_t::matrixCol) \
+            { \
+                return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(pyData), NULL); \
+            } \
+            else \
+            { \
+                return pyData; \
+            } \
+        } \
     }
+
+    MAKE_FUNC(int32_t)
+    MAKE_FUNC(float32_t)
+    MAKE_FUNC(float64_t)
+
+    #undef MAKE_FUNC
 
     ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert Eigen matrix to Numpy array by reference.

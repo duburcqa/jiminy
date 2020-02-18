@@ -1,7 +1,7 @@
 var structjiminy_1_1python_1_1PyEngineVisitor =
 [
     [ "expose", "structjiminy_1_1python_1_1PyEngineVisitor.html#a928ba26c23023284ed22d8700115ae70", null ],
-    [ "formatLog", "structjiminy_1_1python_1_1PyEngineVisitor.html#ac926519ea8faf77ede240fd4e2b9281d", null ],
+    [ "formatLog", "structjiminy_1_1python_1_1PyEngineVisitor.html#a28b186ef563f1fb7884c09f307caa747", null ],
     [ "getLog", "structjiminy_1_1python_1_1PyEngineVisitor.html#acdc46668303181d095bcb68546aabd47", null ],
     [ "getOptions", "structjiminy_1_1python_1_1PyEngineVisitor.html#a6c681a7cfec0c30d0369f18caad5294d", null ],
     [ "initialize", "structjiminy_1_1python_1_1PyEngineVisitor.html#a01dd502d9b6e283cc7f0b0e23076e7ed", null ],

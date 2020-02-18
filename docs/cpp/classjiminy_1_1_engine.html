@@ -213,6 +213,9 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>getIsTelemetryConfigu
 <tr class="memitem:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memItemLeft" align="right" valign="top"><a id="a69b2cd9e7ba8052791f6cb35d67d59b7"></a>
 std::vector&lt; vectorN_t &gt; const  &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getContactForces</b> (void) const</td></tr>
 <tr class="separator:a69b2cd9e7ba8052791f6cb35d67d59b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4c8da9cf58d9767a4c3d9fbc4b651f2d"><td class="memItemLeft" align="right" valign="top"><a id="a4c8da9cf58d9767a4c3d9fbc4b651f2d"></a>
+result_t&#160;</td><td class="memItemRight" valign="bottom"><b>getLogDataRaw</b> (std::vector&lt; std::string &gt; &amp;header, std::vector&lt; float32_t &gt; &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; &amp;floatData)</td></tr>
+<tr class="separator:a4c8da9cf58d9767a4c3d9fbc4b651f2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a477e94313568596aec2eb492715675dc"><td class="memItemLeft" align="right" valign="top">result_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a477e94313568596aec2eb492715675dc">getLogData</a> (std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
 <tr class="memdesc:a477e94313568596aec2eb492715675dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the full logged content.  <a href="#a477e94313568596aec2eb492715675dc">More...</a><br /></td></tr>
 <tr class="separator:a477e94313568596aec2eb492715675dc"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -228,6 +231,9 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a0483ee5262d7ef21d064773b16e4a39c"><td class="memItemLeft" align="right" valign="top">static vectorN_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classjiminy_1_1_engine.html#a0483ee5262d7ef21d064773b16e4a39c">getLogFieldValue</a> (std::string const &amp;fieldName, std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
 <tr class="memdesc:a0483ee5262d7ef21d064773b16e4a39c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the value of a single logged variable.  <a href="#a0483ee5262d7ef21d064773b16e4a39c">More...</a><br /></td></tr>
 <tr class="separator:a0483ee5262d7ef21d064773b16e4a39c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9de7382434c75e59b6ffc5d4958ad46f"><td class="memItemLeft" align="right" valign="top"><a id="a9de7382434c75e59b6ffc5d4958ad46f"></a>
+static result_t&#160;</td><td class="memItemRight" valign="bottom"><b>parseLogBinaryRaw</b> (std::string const &amp;filename, std::vector&lt; std::string &gt; &amp;header, std::vector&lt; float32_t &gt; &amp;timestamps, std::vector&lt; std::vector&lt; int32_t &gt; &gt; &amp;intData, std::vector&lt; std::vector&lt; float32_t &gt; &gt; &amp;floatData)</td></tr>
+<tr class="separator:a9de7382434c75e59b6ffc5d4958ad46f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acb924eb6b97678bcf807fb31f3f24d92"><td class="memItemLeft" align="right" valign="top"><a id="acb924eb6b97678bcf807fb31f3f24d92"></a>
 static result_t&#160;</td><td class="memItemRight" valign="bottom"><b>parseLogBinary</b> (std::string const &amp;filename, std::vector&lt; std::string &gt; &amp;header, matrixN_t &amp;logData)</td></tr>
 <tr class="separator:acb924eb6b97678bcf807fb31f3f24d92"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -388,9 +394,7 @@ std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>ERROR_INIT_FAILED if telemetry was not initialized, SUCCESS on success. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00953">953</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
-
-<p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00404">jiminy::AbstractSensorBase::isInitialized_</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00968">968</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
 
 </div>
 </div>
@@ -445,7 +449,7 @@ std::vector&lt; std::pair&lt; std::string, std::tuple&lt; int32_t, forceFunctor_
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00971">971</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
+<p class="definition">Definition at line <a class="el" href="_engine_8cc_source.html#l00984">984</a> of file <a class="el" href="_engine_8cc_source.html">Engine.cc</a>.</p>
 
 <p class="reference">References <a class="el" href="_abstract_sensor_8h_source.html#l00404">jiminy::AbstractSensorBase::isInitialized_</a>.</p>
 
