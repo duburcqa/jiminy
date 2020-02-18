@@ -1181,21 +1181,61 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple formatLog(std::vector<std::string> const & header,
-                                   matrixN_t                const & logData)
+        static bp::tuple formatLog(std::vector<std::string>             const & header,
+                                   std::vector<float32_t>               const & timestamps,
+                                   std::vector<std::vector<int32_t> >   const & intData,
+                                   std::vector<std::vector<float32_t> > const & floatData)
         {
             bp::dict constants;
             bp::dict data;
+
+            // Get constants
             uint32_t lastConstantId = std::distance(header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
             for (uint32_t i = 1; i < lastConstantId; i++)
             {
                 int32_t delimiter = header[i].find("=");
                 constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
             }
-            for (uint32_t i = lastConstantId + 1; i < header.size() - 1; i++)
+
+            // Get Global.Time
+            Eigen::Ref<Eigen::Matrix<float32_t, Eigen::Dynamic, 1> const> timeBuffer =
+                Eigen::Matrix<float32_t, Eigen::Dynamic, 1>::Map(
+                    timestamps.data(), timestamps.size());
+            PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
+            data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
+
+            // Get intergers
+            auto * intDataMatrix = new Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic>;
+            intDataMatrix->resize(timestamps.size(), intData[0].size());
+            for (uint32_t i=0; i<intData.size(); i++)
             {
-                PyObject * valuePy(getNumpyReferenceFromEigenVector(logData.col(i - (lastConstantId + 1))));
-                data[header[i]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePy, NPY_ARRAY_ENSURECOPY)));
+                intDataMatrix->row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
+                    intData[i].data(), intData[0].size());
+            }
+
+            for (uint32_t i=0; i<intData[0].size(); i++)
+            {
+                PyObject * valuePyInt(getNumpyReferenceFromEigenVector(intDataMatrix->col(i)));
+                std::string const header_i = header[i + (lastConstantId + 1) + 1];
+                PyArray_ENABLEFLAGS((PyArrayObject*) valuePyInt, NPY_ARRAY_OWNDATA);
+                data[header_i] = bp::object(bp::handle<>(valuePyInt));
+            }
+
+            // Get floats
+            auto * floatDataMatrix = new Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic>;
+            floatDataMatrix->resize(timestamps.size(), floatData[0].size());
+            for (uint32_t i=0; i<floatData.size(); i++)
+            {
+                floatDataMatrix->row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
+                    floatData[i].data(), floatData[0].size());
+            }
+
+            for (uint32_t i=0; i<floatData[0].size(); i++)
+            {
+                PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix->col(i)));
+                std::string const header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
+                PyArray_ENABLEFLAGS((PyArrayObject*) valuePyFloat, NPY_ARRAY_OWNDATA);
+                data[header_i] = bp::object(bp::handle<>(valuePyFloat));
             }
 
             return bp::make_tuple(data, constants);
@@ -1204,17 +1244,35 @@ namespace python
         static bp::tuple getLog(Engine & self)
         {
             std::vector<std::string> header;
-            matrixN_t logData;
-            self.getLogData(header, logData);
-            return formatLog(header, logData);
+            std::vector<float32_t> timestamps;
+            std::vector<std::vector<int32_t> > intData;
+            std::vector<std::vector<float32_t> > floatData;
+            result_t returnCode = self.getLogDataRaw(header, timestamps, intData, floatData);
+            if (returnCode == result_t::SUCCESS)
+            {
+                return formatLog(header, timestamps, intData, floatData);
+            }
+            else
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)
         {
             std::vector<std::string> header;
-            matrixN_t logData;
-            Engine::parseLogBinary(filename, header, logData);
-            return formatLog(header, logData);
+            std::vector<float32_t> timestamps;
+            std::vector<std::vector<int32_t> > intData;
+            std::vector<std::vector<float32_t> > floatData;
+            result_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
+            if (returnCode == result_t::SUCCESS)
+            {
+                return formatLog(header, timestamps, intData, floatData);
+            }
+            else
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
         }
 
         static bp::dict getOptions(Engine & self)

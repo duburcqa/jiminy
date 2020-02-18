@@ -1,5 +1,7 @@
 var NAVTREEINDEX2 =
 {
+"classjiminy_1_1_memory_buffer.html#ab344a3367c968b810ccfd1056609e038":[2,0,0,14,1],
+"classjiminy_1_1_memory_buffer.html#ad4fee335c74e32b72a934639985f44d1":[2,0,0,14,6],
 "classjiminy_1_1_memory_buffer.html#af680977a52c2aaff30645cc8e794e200":[2,0,0,14,7],
 "classjiminy_1_1_memory_device.html":[2,0,0,15],
 "classjiminy_1_1_memory_device.html#a1e3070c0465a2998fbf26f7e1d6ad02e":[2,0,0,15,3],
@@ -208,8 +210,8 @@ var NAVTREEINDEX2 =
 "dir_90fd98a0ba30abf7a6068a44995d2d6b.html":[3,0,0,1],
 "dir_ae3df7733df24665aa30a0763f4ebfc4.html":[3,0,0,0,0],
 "files.html":[3,0],
-"functions.html":[2,3,0],
 "functions.html":[2,3,0,0],
+"functions.html":[2,3,0],
 "functions_0x7e.html":[2,3,0,20],
 "functions_b.html":[2,3,0,1],
 "functions_c.html":[2,3,0,2],
@@ -237,8 +239,8 @@ var NAVTREEINDEX2 =
 "hierarchy.html":[2,2],
 "index.html":[],
 "index.html":[0],
-"namespacejiminy.html":[1,0,0],
 "namespacejiminy.html":[2,0,0],
+"namespacejiminy.html":[1,0,0],
 "namespacemembers.html":[1,1,0],
 "namespacemembers_enum.html":[1,1,3],
 "namespacemembers_eval.html":[1,1,4],
@@ -247,7 +249,5 @@ var NAVTREEINDEX2 =
 "namespaces.html":[1,0],
 "pages.html":[],
 "structjiminy_1_1_aba_backward_step.html":[2,0,0,0],
-"structjiminy_1_1_aba_backward_step.html#a531265eb1c7e6cdfd680abac3b95a314":[2,0,0,0,3],
-"structjiminy_1_1_aba_backward_step.html#a66ba7688f1c61eb92ec7d66b690599fc":[2,0,0,0,4],
-"structjiminy_1_1_aba_backward_step.html#a6f160814b38f9a2efecffc4862a578ad":[2,0,0,0,1]
+"structjiminy_1_1_aba_backward_step.html#a531265eb1c7e6cdfd680abac3b95a314":[2,0,0,0,3]
 };

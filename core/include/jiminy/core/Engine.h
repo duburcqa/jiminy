@@ -408,6 +408,11 @@ namespace jiminy
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
 
+        result_t getLogDataRaw(std::vector<std::string>             & header,
+                               std::vector<float32_t>               & timestamps,
+                               std::vector<std::vector<int32_t> >   & intData,
+                               std::vector<std::vector<float32_t> > & floatData);
+
         /// \brief Get the full logged content.
         ///
         /// \param[out] header      Header, vector of field names.
@@ -431,6 +436,11 @@ namespace jiminy
         result_t writeLogTxt(std::string const & filename);
         result_t writeLogBinary(std::string const & filename);
 
+        static result_t parseLogBinaryRaw(std::string                          const & filename,
+                                          std::vector<std::string>                   & header,
+                                          std::vector<float32_t>                     & timestamps,
+                                          std::vector<std::vector<int32_t> >         & intData,
+                                          std::vector<std::vector<float32_t> >       & floatData);
         static result_t parseLogBinary(std::string              const & filename,
                                        std::vector<std::string>       & header,
                                        matrixN_t                      & logData);
