@@ -89,6 +89,7 @@ namespace python
         // Destructor
         ~TimeStateFctPyWrapper()
         {
+            Py_XDECREF(outPyPtr_);
             delete outPtr_;
         }
 
@@ -116,7 +117,7 @@ namespace python
     private:
         bp::object funcPyPtr_;
         T * outPtr_;
-        PyObject * outPyPtr_; // Its lifetime is managed by boost::python
+        PyObject * outPyPtr_;
     };
 
     enum class heatMapType_t : uint8_t
@@ -199,6 +200,8 @@ namespace python
         // Destructor
         ~HeatMapFunctorPyWrapper()
         {
+            Py_XDECREF(out1PyPtr_);
+            Py_XDECREF(out2PyPtr_);
             delete out1Ptr_;
             delete out2Ptr_;
         }
@@ -241,8 +244,8 @@ namespace python
         bp::object handlePyPtr_;
         float64_t * out1Ptr_;
         vector3_t * out2Ptr_;
-        PyObject * out1PyPtr_; // Its lifetime is managed by boost::python
-        PyObject * out2PyPtr_; // Its lifetime is managed by boost::python
+        PyObject * out1PyPtr_;
+        PyObject * out2PyPtr_;
     };
 
 
@@ -1204,6 +1207,7 @@ namespace python
                     timestamps.data(), timestamps.size());
             PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
+            Py_XDECREF(valuePyTime);
 
             // Get intergers
             Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intDataMatrix;
@@ -1227,7 +1231,7 @@ namespace python
                 // associated to each columns independently.
                 // Moreover, one must decrease manually the counter reference for some reason...
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
-                Py_DECREF(valuePyInt);
+                Py_XDECREF(valuePyInt);
             }
 
             // Get floats
@@ -1248,7 +1252,7 @@ namespace python
                 PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix.col(i)));
                 std::string const & header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
-                Py_DECREF(valuePyFloat);
+                Py_XDECREF(valuePyFloat);
             }
 
             return bp::make_tuple(data, constants);
