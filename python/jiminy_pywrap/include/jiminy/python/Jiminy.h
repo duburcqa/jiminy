@@ -1183,8 +1183,9 @@ namespace python
 
         static bp::tuple formatLog(std::vector<std::string>             const & header,
                                    std::vector<float32_t>               const & timestamps,
-                                   std::vector<std::vector<int32_t> >   const & intData,
-                                   std::vector<std::vector<float32_t> > const & floatData)
+                                   std::vector<std::vector<int32_t> >         & intData,
+                                   std::vector<std::vector<float32_t> >       & floatData,
+                                   bool                                 const & clear_memory = true)
         {
             bp::dict constants;
             bp::dict data;
@@ -1212,6 +1213,10 @@ namespace python
                 intDataMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
                     intData[i].data(), intData[0].size());
             }
+            if (clear_memory)
+            {
+                intData.clear();
+            }
 
             for (uint32_t i=0; i<intData[0].size(); i++)
             {
@@ -1232,6 +1237,10 @@ namespace python
             {
                 floatDataMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                     floatData[i].data(), floatData[0].size());
+            }
+            if (clear_memory)
+            {
+                floatData.clear();
             }
 
             for (uint32_t i=0; i<floatData[0].size(); i++)
