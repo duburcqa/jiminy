@@ -31,7 +31,7 @@ def rpyToMatrix(rpy):
     '''
     # Convert from Roll, Pitch, Yaw to transformation Matrix
     '''
-    return rotate('z', rpy[2]) * rotate('y', rpy[1]) * rotate('x', rpy[0])
+    return rotate('z', float(rpy[2])) * rotate('y', float(rpy[1])) * rotate('x', float(rpy[0]))
 
 def matrixToRpy(M):
     '''
