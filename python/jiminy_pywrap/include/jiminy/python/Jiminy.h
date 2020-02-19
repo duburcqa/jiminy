@@ -1205,37 +1205,41 @@ namespace python
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
 
             // Get intergers
-            auto * intDataMatrix = new Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic>;
-            intDataMatrix->resize(timestamps.size(), intData[0].size());
+            Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intDataMatrix;
+            intDataMatrix.resize(timestamps.size(), intData[0].size());
             for (uint32_t i=0; i<intData.size(); i++)
             {
-                intDataMatrix->row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
+                intDataMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
                     intData[i].data(), intData[0].size());
             }
 
             for (uint32_t i=0; i<intData[0].size(); i++)
             {
-                PyObject * valuePyInt(getNumpyReferenceFromEigenVector(intDataMatrix->col(i)));
-                std::string const header_i = header[i + (lastConstantId + 1) + 1];
-                PyArray_ENABLEFLAGS((PyArrayObject*) valuePyInt, NPY_ARRAY_OWNDATA);
-                data[header_i] = bp::object(bp::handle<>(valuePyInt));
+                PyObject * valuePyInt(getNumpyReferenceFromEigenVector(intDataMatrix.col(i)));
+                std::string const & header_i = header[i + (lastConstantId + 1) + 1];
+                // One must make copies with PyArray_FROM_OF instead of using raw pointer for floatDataMatrix
+                // and setting NPY_ARRAY_OWNDATA because otherwise Python is not able to free the memory
+                // associated to each columns independently.
+                // Moreover, one must decrease manually the counter reference for some reason...
+                data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
+                Py_DECREF(valuePyInt);
             }
 
             // Get floats
-            auto * floatDataMatrix = new Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic>;
-            floatDataMatrix->resize(timestamps.size(), floatData[0].size());
+            Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic> floatDataMatrix;
+            floatDataMatrix.resize(timestamps.size(), floatData[0].size());
             for (uint32_t i=0; i<floatData.size(); i++)
             {
-                floatDataMatrix->row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
+                floatDataMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                     floatData[i].data(), floatData[0].size());
             }
 
             for (uint32_t i=0; i<floatData[0].size(); i++)
             {
-                PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix->col(i)));
-                std::string const header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
-                PyArray_ENABLEFLAGS((PyArrayObject*) valuePyFloat, NPY_ARRAY_OWNDATA);
-                data[header_i] = bp::object(bp::handle<>(valuePyFloat));
+                PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix.col(i)));
+                std::string const & header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
+                data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
+                Py_DECREF(valuePyFloat);
             }
 
             return bp::make_tuple(data, constants);
