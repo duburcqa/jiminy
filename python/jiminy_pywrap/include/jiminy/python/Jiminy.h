@@ -677,20 +677,27 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
                 .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joints_names", bp::make_function(&Model::getRigidJointsNames,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
+                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
+                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", bp::make_function(&Model::getMotorsPositionIdx,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_velocity_idx", bp::make_function(&Model::getMotorsVelocityIdx,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("position_fieldnames", bp::make_function(&Model::getPositionFieldNames,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMin,
@@ -781,6 +788,22 @@ namespace python
                 framesNames.push_back(frame.name);
             }
             return framesNames;
+        }
+
+        static bool isFlexibleModelEnable(Model & self)
+        {
+            return self.mdlOptions_->dynamics.enableFlexibleModel;
+        }
+
+        static std::vector<std::string> getFlexibleOnlyJointsNames(Model & self)
+        {
+            flexibilityConfig_t const & flexibilityConfig = self.mdlOptions_->dynamics.flexibilityConfig;
+            std::vector<std::string> flexibleJointNames;
+            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
+            {
+                flexibleJointNames.emplace_back(flexibleJoint.jointName);
+            }
+            return flexibleJointNames;
         }
 
         static bp::dict getModelOptions(Model & self)
