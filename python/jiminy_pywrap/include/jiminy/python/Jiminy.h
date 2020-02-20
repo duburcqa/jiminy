@@ -89,6 +89,7 @@ namespace python
         // Destructor
         ~TimeStateFctPyWrapper()
         {
+            Py_XDECREF(outPyPtr_);
             delete outPtr_;
         }
 
@@ -116,7 +117,7 @@ namespace python
     private:
         bp::object funcPyPtr_;
         T * outPtr_;
-        PyObject * outPyPtr_; // Its lifetime is managed by boost::python
+        PyObject * outPyPtr_;
     };
 
     enum class heatMapType_t : uint8_t
@@ -199,6 +200,8 @@ namespace python
         // Destructor
         ~HeatMapFunctorPyWrapper()
         {
+            Py_XDECREF(out1PyPtr_);
+            Py_XDECREF(out2PyPtr_);
             delete out1Ptr_;
             delete out2Ptr_;
         }
@@ -241,8 +244,8 @@ namespace python
         bp::object handlePyPtr_;
         float64_t * out1Ptr_;
         vector3_t * out2Ptr_;
-        PyObject * out1PyPtr_; // Its lifetime is managed by boost::python
-        PyObject * out2PyPtr_; // Its lifetime is managed by boost::python
+        PyObject * out1PyPtr_;
+        PyObject * out2PyPtr_;
     };
 
 
@@ -674,20 +677,27 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
                 .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("joints_names", bp::make_function(&Model::getRigidJointsNames,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
+                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
+                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", bp::make_function(&Model::getMotorsPositionIdx,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_velocity_idx", bp::make_function(&Model::getMotorsVelocityIdx,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("position_fieldnames", bp::make_function(&Model::getPositionFieldNames,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMin,
@@ -778,6 +788,22 @@ namespace python
                 framesNames.push_back(frame.name);
             }
             return framesNames;
+        }
+
+        static bool isFlexibleModelEnable(Model & self)
+        {
+            return self.mdlOptions_->dynamics.enableFlexibleModel;
+        }
+
+        static std::vector<std::string> getFlexibleOnlyJointsNames(Model & self)
+        {
+            flexibilityConfig_t const & flexibilityConfig = self.mdlOptions_->dynamics.flexibilityConfig;
+            std::vector<std::string> flexibleJointNames;
+            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
+            {
+                flexibleJointNames.emplace_back(flexibleJoint.jointName);
+            }
+            return flexibleJointNames;
         }
 
         static bp::dict getModelOptions(Model & self)
@@ -1183,8 +1209,9 @@ namespace python
 
         static bp::tuple formatLog(std::vector<std::string>             const & header,
                                    std::vector<float32_t>               const & timestamps,
-                                   std::vector<std::vector<int32_t> >   const & intData,
-                                   std::vector<std::vector<float32_t> > const & floatData)
+                                   std::vector<std::vector<int32_t> >         & intData,
+                                   std::vector<std::vector<float32_t> >       & floatData,
+                                   bool                                 const & clear_memory = true)
         {
             bp::dict constants;
             bp::dict data;
@@ -1203,6 +1230,7 @@ namespace python
                     timestamps.data(), timestamps.size());
             PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
+            Py_XDECREF(valuePyTime);
 
             // Get intergers
             Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intDataMatrix;
@@ -1211,6 +1239,10 @@ namespace python
             {
                 intDataMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
                     intData[i].data(), intData[0].size());
+            }
+            if (clear_memory)
+            {
+                intData.clear();
             }
 
             for (uint32_t i=0; i<intData[0].size(); i++)
@@ -1222,7 +1254,7 @@ namespace python
                 // associated to each columns independently.
                 // Moreover, one must decrease manually the counter reference for some reason...
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
-                Py_DECREF(valuePyInt);
+                Py_XDECREF(valuePyInt);
             }
 
             // Get floats
@@ -1233,13 +1265,17 @@ namespace python
                 floatDataMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                     floatData[i].data(), floatData[0].size());
             }
+            if (clear_memory)
+            {
+                floatData.clear();
+            }
 
             for (uint32_t i=0; i<floatData[0].size(); i++)
             {
                 PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix.col(i)));
                 std::string const & header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
-                Py_DECREF(valuePyFloat);
+                Py_XDECREF(valuePyFloat);
             }
 
             return bp::make_tuple(data, constants);

@@ -430,8 +430,8 @@ namespace jiminy
         while (returnCode == result_t::SUCCESS)
         {
             /* Stop the simulation if the end time has been reached, if
-               the callback returns false, or if the number of integration
-               steps exceeds 1e5. */
+               the callback returns false, or if the max number of
+               integration steps is exceeded. */
             if (tEnd - stepperState_.t < MIN_TIME_STEP)
             {
                 if (engineOptions_->stepper.verbose)
