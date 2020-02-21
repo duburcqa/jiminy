@@ -12,6 +12,11 @@
 #include <Eigen/Dense>
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
+#include <boost/multi_index_container.hpp>
+#include <boost/multi_index/hashed_index.hpp>
+#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/member.hpp>
+#include <boost/multi_index/tag.hpp>
 
 
 namespace jiminy
@@ -89,7 +94,53 @@ namespace jiminy
                                           std::unordered_map<std::string, boost::recursive_variant_> >::type configField_t;
     typedef std::unordered_map<std::string, configField_t> configHolder_t;
 
-    typedef std::unordered_map<std::string, std::vector<std::pair<std::string, vectorN_t const *> > > sensorsDataMap_t;
+    using namespace boost::multi_index;
+    struct sensorDataTypePair_t {
+        // Disable the copy of the class
+        sensorDataTypePair_t(sensorDataTypePair_t const & sensorDataPairIn) = delete;
+        sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
+
+        sensorDataTypePair_t(std::string const & nameIn,
+                             uint32_t    const & idIn,
+                             vectorN_t   const * valueIn) :
+        name(nameIn),
+        id(idIn),
+        value(valueIn)
+        {
+            // Empty.
+        };
+
+        ~sensorDataTypePair_t(void) = default;
+
+        sensorDataTypePair_t(sensorDataTypePair_t && other) :
+        name(other.name),
+        id(other.id),
+        value(other.value)
+        {
+            // Empty.
+        };
+
+        std::string name;
+        uint32_t id;
+        vectorN_t const * value;
+    };
+    struct IndexByName {};
+    struct IndexById {};
+    typedef multi_index_container<
+        sensorDataTypePair_t,
+        indexed_by<
+            ordered_unique<
+                tag<IndexById>,
+                member<sensorDataTypePair_t, uint32_t, &sensorDataTypePair_t::id>,
+                std::less<uint32_t> // Ordering by ascending order
+            >,
+            hashed_unique<
+                tag<IndexByName>,
+                member<sensorDataTypePair_t, std::string, &sensorDataTypePair_t::name>
+            >
+        >
+    > sensorDataTypeMap_t;
+    typedef std::unordered_map<std::string, sensorDataTypeMap_t> sensorsDataMap_t;
 }
 
 #endif  // WDC_OPTIMAL_TYPES_H

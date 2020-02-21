@@ -106,6 +106,11 @@ $(document).ready(function(){initNavTree('_types_8h.html','');});
 <code>#include &lt;Eigen/Dense&gt;</code><br />
 <code>#include &lt;boost/variant.hpp&gt;</code><br />
 <code>#include &lt;boost/functional/hash.hpp&gt;</code><br />
+<code>#include &lt;boost/multi_index_container.hpp&gt;</code><br />
+<code>#include &lt;boost/multi_index/hashed_index.hpp&gt;</code><br />
+<code>#include &lt;boost/multi_index/ordered_index.hpp&gt;</code><br />
+<code>#include &lt;boost/multi_index/member.hpp&gt;</code><br />
+<code>#include &lt;boost/multi_index/tag.hpp&gt;</code><br />
 </div><div class="textblock"><div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Include dependency graph for Types.h:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -154,6 +159,12 @@ $(document).ready(function(){initNavTree('_types_8h.html','');});
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1flexible_joint_data__t.html">jiminy::flexibleJointData_t</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1sensor_data_type_pair__t.html">jiminy::sensorDataTypePair_t</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1_index_by_name.html">jiminy::IndexByName</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structjiminy_1_1_index_by_id.html">jiminy::IndexById</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="namespaces"></a>
@@ -218,9 +229,12 @@ typedef boost::make_recursive_variant&lt; bool_t, uint32_t, int32_t, float64_t, 
 <tr class="memitem:a2270b3517dbd646083038fff67f95680"><td class="memItemLeft" align="right" valign="top"><a id="a2270b3517dbd646083038fff67f95680"></a>
 typedef std::unordered_map&lt; std::string, configField_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::configHolder_t</b></td></tr>
 <tr class="separator:a2270b3517dbd646083038fff67f95680"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae66c201a4b6427095630a7b55531d0c7"><td class="memItemLeft" align="right" valign="top"><a id="ae66c201a4b6427095630a7b55531d0c7"></a>
-typedef std::unordered_map&lt; std::string, std::vector&lt; std::pair&lt; std::string, vectorN_t const * &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::sensorsDataMap_t</b></td></tr>
-<tr class="separator:ae66c201a4b6427095630a7b55531d0c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aacdfa6661a10745ea1e9f305963c253d"><td class="memItemLeft" align="right" valign="top"><a id="aacdfa6661a10745ea1e9f305963c253d"></a>
+typedef multi_index_container&lt; sensorDataTypePair_t, indexed_by&lt; ordered_unique&lt; tag&lt; IndexById &gt;, member&lt; sensorDataTypePair_t, uint32_t, &amp;sensorDataTypePair_t::id &gt;, std::less&lt; uint32_t &gt; &gt;, hashed_unique&lt; tag&lt; IndexByName &gt;, member&lt; sensorDataTypePair_t, std::string, &amp;sensorDataTypePair_t::name &gt; &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::sensorDataTypeMap_t</b></td></tr>
+<tr class="separator:aacdfa6661a10745ea1e9f305963c253d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a798f41f5f03f50edbdf2e35f99226085"><td class="memItemLeft" align="right" valign="top"><a id="a798f41f5f03f50edbdf2e35f99226085"></a>
+typedef std::unordered_map&lt; std::string, sensorDataTypeMap_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>jiminy::sensorsDataMap_t</b></td></tr>
+<tr class="separator:a798f41f5f03f50edbdf2e35f99226085"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="enum-members"></a>
 Enumerations</h2></td></tr>

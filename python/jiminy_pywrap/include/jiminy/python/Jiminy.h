@@ -349,14 +349,10 @@ namespace python
         {
             try
             {
-                auto const & sensorDataType = self.at(sensorType);
-                auto sensorIt = std::find_if(sensorDataType.begin(),
-                                             sensorDataType.end(),
-                                             [&sensorName](auto const & element)
-                                             {
-                                                 return element.first == sensorName;
-                                             });
-                bp::handle<> valuePy(getNumpyReferenceFromEigenVector(*sensorIt->second));
+                auto & sensorDataTypeByName = self.at(sensorType).get<IndexByName>();
+                auto sensorDataIt = sensorDataTypeByName.find(sensorName);
+                vectorN_t const * sensorDataValue = sensorDataIt->value;
+                bp::handle<> valuePy(getNumpyReferenceFromEigenVector(*sensorDataValue));
                 return bp::object(valuePy);
             }
             catch (...)
@@ -373,14 +369,12 @@ namespace python
             auto const & sensorsDataType = self.at(sensorType);
             matrixN_t data;
             auto sensorDataIt = sensorsDataType.begin();
-            vectorN_t const & sensorValue = *sensorDataIt->second;
-            data.resize(sensorValue.size(), sensorsDataType.size());
-            data.col(0) = sensorValue;
+            data.resize(sensorDataIt->value->size(), sensorsDataType.size());
+            data.col(sensorDataIt->id) = *sensorDataIt->value;
             ++sensorDataIt;
-            for (uint32_t i = 1; i<sensorsDataType.size(); ++i)
+            for (; sensorDataIt != sensorsDataType.end(); ++sensorDataIt)
             {
-                data.col(i) = *sensorDataIt->second;
-                ++sensorDataIt;
+                data.col(sensorDataIt->id) = *sensorDataIt->value;
             }
             return data;
         }
@@ -393,13 +387,9 @@ namespace python
             auto const & sensorDataType = self.find(sensorType);
             if (sensorDataType != self.end())
             {
-                auto it = std::find_if(sensorDataType->second.begin(),
-                                       sensorDataType->second.end(),
-                                       [&sensorName](auto const & element)
-                                       {
-                                           return element.first == sensorName;
-                                       });
-                if (it != sensorDataType->second.end())
+                auto & sensorDataTypeByName = sensorDataType->second.get<IndexByName>();
+                auto sensorDataIt = sensorDataTypeByName.find(sensorName);
+                if (sensorDataIt != sensorDataTypeByName.end())
                 {
                     return true;
                 }
@@ -423,7 +413,7 @@ namespace python
             bp::list sensorsInfo;
             for (auto & sensorData : self.at(sensorType))
             {
-                sensorsInfo.append(sensorData.first);
+                sensorsInfo.append(sensorData.name);
             }
             return sensorsInfo;
         }
@@ -454,7 +444,9 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<sensorsDataMap_t>("sensorsData")
+            bp::class_<sensorsDataMap_t,
+                       boost::shared_ptr<sensorsDataMap_t>,
+                       boost::noncopyable>("sensorsData", bp::no_init)
                 .def(SensorsDataMapVisitor());
         }
     };
@@ -662,7 +654,8 @@ namespace python
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
 
-                .add_property("sensors_data", getSensorsData)
+                .add_property("sensors_data", bp::make_function(&PyModelVisitor::getSensorsData,
+                                              bp::return_value_policy<bp::manage_new_object>()))
 
                 .add_property("frames_names", &PyModelVisitor::getFramesNames)
 
@@ -762,10 +755,10 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static sensorsDataMap_t getSensorsData(Model & self)
+        static sensorsDataMap_t * getSensorsData(Model & model)
         {
-            sensorsDataMap_t data;
-            self.getSensorsData(data);
+            sensorsDataMap_t * data = new sensorsDataMap_t();
+            model.getSensorsData(*data);
             return data;
         }
 

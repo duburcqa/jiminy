@@ -1038,33 +1038,17 @@ namespace jiminy
         data.clear();
         for (auto & sensorGroupIt : sensorsGroupHolder_)
         {
-            sensorsDataMap_t::mapped_type dataType;
-            std::vector<uint32_t> sensorsId;
+            sensorDataTypeMap_t dataType;
             for (auto & sensorIt : sensorGroupIt.second)
             {
-                dataType.emplace_back(std::piecewise_construct,
-                                      std::forward_as_tuple(sensorIt.first),
-                                      std::forward_as_tuple(sensorIt.second->get()));
-                sensorsId.emplace_back(sensorIt.second->getId());
-            }
-
-            std::vector<uint32_t> sensorsIdReverse(sensorsId.size());
-            iota(sensorsIdReverse.begin(), sensorsIdReverse.end(), 0);
-            sort(sensorsIdReverse.begin(),
-                 sensorsIdReverse.end(),
-                 [&sensorsId](size_t i1, size_t i2)
-                 {
-                     return sensorsId[i1] < sensorsId[i2];
-                 });
-            sensorsDataMap_t::mapped_type dataTypeOrdered;
-            for (uint32_t i = 0; i<sensorsId.size(); ++i)
-            {
-                dataTypeOrdered.emplace_back(std::move(dataType[sensorsIdReverse[i]]));
+                dataType.emplace(sensorIt.first,
+                                 sensorIt.second->getId(),
+                                 sensorIt.second->get());
             }
 
             data.emplace(std::piecewise_construct,
                          std::forward_as_tuple(sensorGroupIt.first),
-                         std::forward_as_tuple(dataTypeOrdered));
+                         std::forward_as_tuple(std::move(dataType)));
         }
     }
 

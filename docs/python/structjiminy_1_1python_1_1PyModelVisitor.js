@@ -6,7 +6,7 @@ var structjiminy_1_1python_1_1PyModelVisitor =
     [ "getFramesNames", "structjiminy_1_1python_1_1PyModelVisitor.html#a0b57be62552fb761df29692a9d330656", null ],
     [ "getModelOptions", "structjiminy_1_1python_1_1PyModelVisitor.html#ad49b90c0e1fa0e3a4512dd0e11a80def", null ],
     [ "getSensor", "structjiminy_1_1python_1_1PyModelVisitor.html#ad46e9bc214788622bca4180da40b209c", null ],
-    [ "getSensorsData", "structjiminy_1_1python_1_1PyModelVisitor.html#a3d0c25606d6e493f1b69d435c13d762c", null ],
+    [ "getSensorsData", "structjiminy_1_1python_1_1PyModelVisitor.html#a7a0945cde878d54101a3a0d588cd29eb", null ],
     [ "getSensorsOptions", "structjiminy_1_1python_1_1PyModelVisitor.html#a2fe2d835bd59461378b1239b90e7e355", null ],
     [ "initialize", "structjiminy_1_1python_1_1PyModelVisitor.html#a56d0e0a64d527fd863150d1942be0152", null ],
     [ "isFlexibleModelEnable", "structjiminy_1_1python_1_1PyModelVisitor.html#a786c2bfa8ef1c2d520f435385775b990", null ],
