@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 0.9.0)
+set(BUILD_VERSION 1.0.0)
 
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})
@@ -20,7 +20,7 @@ add_subdirectory(scenarios)
 add_subdirectory(unit)
 
 # Build documentation from Doxygen.
-build_DOC ()
+build_DOC()
 
 # Install native python packages
 deploy_python_gym_package(gym_${LIBRARY_NAME})

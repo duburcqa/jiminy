@@ -5,12 +5,11 @@ cmake_minimum_required (VERSION 3.10)
 unset(BUILD_OFFLINE)
 unset(BUILD_OFFLINE CACHE)
 execute_process(COMMAND bash -c
-                        "if ping -q -c 1 -W 1 8.8.8.8 >/dev/null ; then echo 0; else echo 1; fi"
+                        "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE BUILD_OFFLINE)
-
-if (${BUILD_OFFLINE})
-    message("Not internet connection. Not building external projects.")
+if(${BUILD_OFFLINE})
+    message("-- No internet connection. Not building external projects.")
 endif()
 
 # Set various flags
@@ -19,8 +18,8 @@ set(WARN_FULL "-Wall -Wextra -Weffc++ -pedantic -pedantic-errors \
                -Wformat-nonliteral -Wformat-security -Wformat-y2k \
                -Wimport -Winit-self -Winvalid-pch -Wlong-long \
                -Wmissing-field-initializers -Wmissing-format-attribute \
-               -Wmissing-include-dirs -Wmissing-noreturn -Wpacked \
-               -Wpointer-arith -Wredundant-decls -Wshadow -Wstack-protector \
+               -Wmissing-noreturn -Wpacked -Wpointer-arith \
+               -Wredundant-decls -Wshadow -Wstack-protector \
                -Wstrict-aliasing=2 -Wswitch-default -Wswitch-enum \
                -Wunreachable-code -Wunused -Wunused-parameter"
 )
@@ -60,6 +59,17 @@ get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
 get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
 set(PYTHON_SITELIB ${PYTHON_ROOT}/lib/python${PYTHON_VERSION}/site-packages)
 
+# Check permissions on Python site-package to determine whether to use user site
+execute_process(COMMAND bash -c
+                        "if test -w ${PYTHON_SITELIB} ; then echo 0; else echo 1; fi"
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                OUTPUT_VARIABLE PYTHON_RIGHT_SITELIB)
+if(${PYTHON_RIGHT_SITELIB})
+    message("-- No right on system site-package. Using user site as fallback.")
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                    OUTPUT_VARIABLE PYTHON_SITELIB)
+endif()
+
 # Add Python dependencies
 set(PYTHON_INCLUDE_DIRS "")
 if(EXISTS /usr/include/python${PYTHON_VERSION})
@@ -81,8 +91,11 @@ else(${PYTHON_VERSION_MAJOR} EQUAL 3)
 endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
 
 # Add missing include & lib directory(ies)
+# TODO: Cleanup after support of find_package for Eigen and Pinocchio,
+# namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.4.X
 link_directories(SYSTEM /opt/openrobots/lib)
 link_directories(SYSTEM /opt/install/pc/lib)
+include_directories(SYSTEM /opt/openrobots/include/)
 include_directories(SYSTEM /opt/install/pc/include/)
 include_directories(SYSTEM /opt/install/pc/include/eigen3/)
 

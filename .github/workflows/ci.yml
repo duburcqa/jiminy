@@ -1,0 +1,29 @@
+name: C/C++ CI
+on: [push]
+jobs:
+  build-test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout branch
+      uses: actions/checkout@v2
+    - name: Installing requirements
+      run: ./build_tools/setup.sh
+    - name: Configuring Cmake
+      run: mkdir build install ; cd build ; cmake .. -DCOMPONENT=doxygen -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
+    - name: Building project
+      run: cd build ; make
+    - name: Installing project
+      run: cd build ; make install
+    - name: Running unit tests
+      run: cd build/unit ; ./unit
+    - name: Generating and installing doc
+      run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
+    - name: Deploying to GitHub Pages
+      if: success()
+      uses: crazy-max/ghaction-github-pages@v1
+      with:
+        target_branch: gh-pages
+        build_dir: docs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
