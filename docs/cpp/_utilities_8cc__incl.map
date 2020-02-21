@@ -1,7 +1,7 @@
 <map id="core/src/Utilities.cc" name="core/src/Utilities.cc">
-<area shape="rect" id="node8" href="$_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="52,184,196,211"/>
-<area shape="rect" id="node20" href="$_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1101,87,1241,114"/>
-<area shape="rect" id="node28" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="1335,184,1534,211"/>
-<area shape="rect" id="node14" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="913,281,1049,307"/>
-<area shape="rect" id="node26" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1051,184,1186,211"/>
+<area shape="rect" id="node8" href="$_utilities_8h.html" title="jiminy/core/Utilities.h" alt="" coords="841,184,985,211"/>
+<area shape="rect" id="node25" href="$_engine_8h.html" title="jiminy/core/Engine.h" alt="" coords="1635,87,1775,114"/>
+<area shape="rect" id="node33" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="1009,184,1208,211"/>
+<area shape="rect" id="node14" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="925,281,1061,307"/>
+<area shape="rect" id="node31" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1501,184,1636,211"/>
 </map>

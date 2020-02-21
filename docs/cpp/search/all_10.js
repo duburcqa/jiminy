@@ -5,6 +5,7 @@ var searchData=
   ['sensor_2ecc',['Sensor.cc',['../_sensor_8cc.html',1,'']]],
   ['sensor_2eh',['Sensor.h',['../_sensor_8h.html',1,'']]],
   ['sensordataholder_5ft',['SensorDataHolder_t',['../structjiminy_1_1_sensor_data_holder__t.html',1,'jiminy::SensorDataHolder_t'],['../structjiminy_1_1_sensor_data_holder__t.html#a27d6442985133bbd72d6dc192fd1e845',1,'jiminy::SensorDataHolder_t::SensorDataHolder_t()']]],
+  ['sensordatatypepair_5ft',['sensorDataTypePair_t',['../structjiminy_1_1sensor_data_type_pair__t.html',1,'jiminy']]],
   ['sensoroptions_5f',['sensorOptions_',['../classjiminy_1_1_abstract_sensor_base.html#a62f15eef304da22f7e430cee4e7f0e23',1,'jiminy::AbstractSensorBase']]],
   ['sensoroptionsholder_5f',['sensorOptionsHolder_',['../classjiminy_1_1_abstract_sensor_base.html#a5ac225944872e64caf4650ff9fa412d7',1,'jiminy::AbstractSensorBase']]],
   ['sensors_5f',['sensors_',['../structjiminy_1_1_sensor_data_holder__t.html#a2ca346bdb6e6ae18536291fd070dfa4e',1,'jiminy::SensorDataHolder_t']]],

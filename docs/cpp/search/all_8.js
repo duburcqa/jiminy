@@ -1,6 +1,8 @@
 var searchData=
 [
   ['imusensor',['ImuSensor',['../classjiminy_1_1_imu_sensor.html',1,'jiminy']]],
+  ['indexbyid',['IndexById',['../structjiminy_1_1_index_by_id.html',1,'jiminy']]],
+  ['indexbyname',['IndexByName',['../structjiminy_1_1_index_by_name.html',1,'jiminy']]],
   ['initialize',['initialize',['../classjiminy_1_1_abstract_controller.html#ad6f65d16777cf71ccccf9e09ad79b1de',1,'jiminy::AbstractController::initialize()'],['../classjiminy_1_1_controller_functor.html#ae69da657b8860249a7a594f55ff066da',1,'jiminy::ControllerFunctor::initialize()'],['../classjiminy_1_1_telemetry_recorder.html#aa68de3d5edd71eb3b1f0c238a6b37492',1,'jiminy::TelemetryRecorder::initialize()']]],
   ['intbufferpositon_5f',['intBufferPositon_',['../classjiminy_1_1_telemetry_sender.html#a1925899b84cf2f2879b501246119d396',1,'jiminy::TelemetrySender']]],
   ['integersaddress_5f',['integersAddress_',['../classjiminy_1_1_telemetry_recorder.html#a48280dde5f9cabc08fddbec30ea123a1',1,'jiminy::TelemetryRecorder']]],
