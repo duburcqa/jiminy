@@ -6,9 +6,9 @@ Jiminy is an open-source C++ simulator of poly-articulated systems, under the fi
 
 It is built upon [Pinocchio](https://github.com/stack-of-tasks/pinocchio), which is an open-source implementing highly efficient Rigid Body Algorithms for poly-articulated systems. It is used to handle low-level physics calculations related to the system, while the effect of the environment on it is handled by Jiminy itself. The integration of time is based on the open-source library [Boost Odeint](https://github.com/boostorg/odeint).
 
-The visualisation relies on the open-source client [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer), which is based on CORBA and omniORB at low-level. It is possible to do real-time visual rendering and to replay a simulation afterward.
+The visualisation relies on the open-source client [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer), which is based on `CORBA` and `omniORB` at low-level, or alternatively [Meshcat](https://github.com/rdeits/meshcat-python), which is a remotely-controllable web-based visualizer especially well suited to Jupyter notebook running on remote servers as one can display directly in a Jupyter cell. It is possible to do real-time visual rendering and to replay a simulation afterward.
 
-The data of the simulation can be exported in CSV format, or directely read from the RAM memory to avoid any disk acces.
+The data of the simulation can be exported in CSV or compressed binary format, or read directly from the RAM memory to avoid any disk access.
 
 Python2.7 and Python3 bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python).
 
