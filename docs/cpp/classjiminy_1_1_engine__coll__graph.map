@@ -1,4 +1,0 @@
-<map id="jiminy::Engine" name="jiminy::Engine">
-<area shape="rect" id="node2" href="$classjiminy_1_1_telemetry_sender.html" title="Class to inherit if you want to send telemetry data. " alt="" coords="5,49,168,332"/>
-<area shape="rect" id="node3" href="$structjiminy_1_1stepper_state__t.html" title="{jiminy::stepperState_t\n|+ iter\l+ t\l+ dt\l+ x\l+ dxdt\l+ u\l+ uCommand\l+ uInternal\l+ fExternal\l+ energy\l+ nx_\l+ nq_\l+ nv_\l+ isInitialized_\l|+ stepperState_t()\l+ initialize()\l+ initialize()\l+ getIsInitialized()\l+ q()\l+ v()\l+ qDot()\l+ a()\l}" alt="" coords="192,5,341,376"/>
-</map>

@@ -1,5 +1,0 @@
-<map id="gym_jiminy.common.gym_jiminy_robots.RobotJiminyGoalEnv" name="gym_jiminy.common.gym_jiminy_robots.RobotJiminyGoalEnv">
-<area shape="rect" id="node5" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotGoalEnv.html" title="Implementation of a Gym environment for the Acrobot which is using Jiminy Engine to perform physics c..." alt="" coords="113,259,283,300"/>
-<area shape="rect" id="node2" href="$classgym__jiminy_1_1common_1_1gym__jiminy__robots_1_1RobotJiminyEnv.html" title="Base class to train a robot in Gym OpenAI using a user&#45;specified Python Jiminy engine for physics com..." alt="" coords="5,80,212,121"/>
-<area shape="rect" id="node6" href="$classgym__jiminy_1_1envs_1_1acrobot_1_1JiminyAcrobotEnv.html" title="Implementation of a Gym goal&#45;environment for the Acrobot which is using Jiminy Engine to perform phys..." alt="" coords="113,348,283,389"/>
-</map>

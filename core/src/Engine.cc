@@ -691,7 +691,7 @@ namespace jiminy
                                           Eigen::Ref<vectorN_t const> a)
     {
         pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v, a);
-        pinocchio::framesForwardKinematics(model_->pncModel_, model_->pncData_);
+        pinocchio::updateFramePlacements(model_->pncModel_, model_->pncData_);
     }
 
     void Engine::computeExternalForces(float64_t const & t,

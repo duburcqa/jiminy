@@ -418,7 +418,7 @@ namespace jiminy
                                          pncData_,
                                          vectorN_t::Zero(pncModel_.nq),
                                          vectorN_t::Zero(pncModel_.nv));
-            pinocchio::framesForwardKinematics(pncModel_, pncData_);
+            pinocchio::updateFramePlacements(pncModel_, pncData_);
         }
 
         // Update the position and velocity limits

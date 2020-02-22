@@ -7,6 +7,7 @@ project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 # Find library and headers
 find_package(Boost REQUIRED)
 find_package(urdfdom REQUIRED)
+#find_package(Eigen3 3.2.8 REQUIRED NO_MODULE) # Not supported officially before 3.3.4
 
 # Pinocchio specific stuff
 SET(COMPILE_FLAGS "-D PINOCCHIO_WITH_URDFDOM")
@@ -42,7 +43,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
-target_link_libraries(${PROJECT_NAME} PUBLIC urdfdom_model boost_system)
+target_link_libraries(${PROJECT_NAME} PUBLIC urdfdom_model boost_system) #Eigen3::Eigen)
 
 # Activate c++14
 set_target_properties(${PROJECT_NAME} PROPERTIES
