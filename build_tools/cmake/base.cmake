@@ -77,7 +77,7 @@ if(EXISTS /usr/include/python${PYTHON_VERSION})
 else(EXISTS /usr/include/python${PYTHON_VERSION})
     list(APPEND PYTHON_INCLUDE_DIRS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
 endif(EXISTS /usr/include/python${PYTHON_VERSION})
-message("-- Python version: ${PYTHON_VERSION}")
+message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
 
 # Find Numpy and add it as a dependency
 find_package(NumPy REQUIRED)
