@@ -28,9 +28,10 @@ jobs:
     - name: Running unit tests
       run: cd build/unit ; ./unit
     - name: Generating and installing doc
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
     - name: Deploying to GitHub Pages
-      if: success() && github.event_name == 'push' && github.ref == 'master'
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: crazy-max/ghaction-github-pages@v1
       with:
         target_branch: gh-pages
