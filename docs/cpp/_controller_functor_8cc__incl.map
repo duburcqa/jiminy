@@ -1,8 +1,0 @@
-<map id="core/src/ControllerFunctor.cc" name="core/src/ControllerFunctor.cc">
-<area shape="rect" id="node2" href="$_controller_functor_8h.html" title="jiminy/core/ControllerFunctor.h" alt="" coords="1055,80,1255,107"/>
-<area shape="rect" id="node3" href="$_model_8h.html" title="jiminy/core/Model.h" alt="" coords="1487,229,1621,256"/>
-<area shape="rect" id="node10" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="882,311,1018,338"/>
-<area shape="rect" id="node21" href="$_abstract_controller_8h.html" title="jiminy/core/AbstractController.h" alt="" coords="983,155,1189,181"/>
-<area shape="rect" id="node22" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="987,229,1185,256"/>
-<area shape="rect" id="node23" href="$_abstract_controller_8tpp.html" title="AbstractController.tpp" alt="" coords="1209,229,1358,256"/>
-</map>

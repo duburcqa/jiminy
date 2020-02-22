@@ -1,4 +1,0 @@
-<map id="jiminy::Model::modelOptions_t" name="jiminy::Model::modelOptions_t">
-<area shape="rect" id="node2" href="$structjiminy_1_1_model_1_1joint_options__t.html" title="{jiminy::Model::jointOptions_t\n|+ enableMotorInertia\l+ motorInertia\l+ enablePositionLimit\l+ positionLimitFromUrdf\l+ positionLimitMin\l+ positionLimitMax\l+ enableVelocityLimit\l+ velocityLimitFromUrdf\l+ velocityLimit\l|+ jointOptions_t()\l}" alt="" coords="5,5,192,200"/>
-<area shape="rect" id="node3" href="$structjiminy_1_1_model_1_1dynamics_options__t.html" title="{jiminy::Model::dynamicsOptions_t\n|+ inertiaBodiesBiasStd\l+ massBodiesBiasStd\l+ centerOfMassPositionBodies\lBiasStd\l+ relativePositionBodiesBiasStd\l+ enableFlexibleModel\l+ flexibilityConfig\l|+ dynamicsOptions_t()\l}" alt="" coords="216,20,435,185"/>
-</map>

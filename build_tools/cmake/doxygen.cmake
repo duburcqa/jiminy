@@ -2,6 +2,8 @@ MACRO (BUILD_DOC)
     # Build the doc
     # =============
 
+    find_package(Doxygen REQUIRED dot)
+
     # Build the C++ documentation.
     configure_file(${CMAKE_SOURCE_DIR}/build_tools/doc_cpp/jiminy.doxyfile
     ${CMAKE_BINARY_DIR}/jiminy.doxyfile @ONLY)

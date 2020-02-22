@@ -1,9 +1,0 @@
-<map id="core/src/TelemetryRecorder.cc" name="core/src/TelemetryRecorder.cc">
-<area shape="rect" id="node4" href="$_telemetry_recorder_8h.html" title="jiminy/core/TelemetryRecorder.h" alt="" coords="361,80,572,107"/>
-<area shape="rect" id="node5" href="$_memory_device_8h.html" title="jiminy/core/MemoryDevice.h" alt="" coords="243,155,431,181"/>
-<area shape="rect" id="node22" href="$_telemetry_data_8h.html" title="jiminy/core/TelemetryData.h" alt="" coords="504,155,691,181"/>
-<area shape="rect" id="node6" href="$_abstract_i_o_device_8h.html" title="jiminy/core/AbstractIODevice.h" alt="" coords="187,229,391,256"/>
-<area shape="rect" id="node8" href="$_types_8h.html" title="jiminy/core/Types.h" alt="" coords="667,304,803,331"/>
-<area shape="rect" id="node20" href="$_abstract_i_o_device_8tpp.html" title="AbstractIODevice.tpp" alt="" coords="213,304,361,331"/>
-<area shape="rect" id="node24" href="$_telemetry_sender_8h.html" title="jiminy/core/TelemetrySender.h" alt="" coords="498,229,697,256"/>
-</map>
