@@ -12,6 +12,7 @@ set(LIBRARY_NAME ${PROJECT_NAME})
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/base.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/doxygen.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/boostPythonDocstring.cmake)
+include(${CMAKE_SOURCE_DIR}/build_tools/cmake/exportCmakeConfigFiles.cmake)
 
 # Sub-projects
 add_subdirectory(core)

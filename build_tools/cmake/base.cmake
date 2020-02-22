@@ -65,7 +65,7 @@ execute_process(COMMAND bash -c
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE PYTHON_RIGHT_SITELIB)
 if(${PYTHON_RIGHT_SITELIB})
-    message("-- No right on system site-package. Using user site as fallback.")
+    message("-- No right on system site-package: ${PYTHON_SITELIB}. Using user site as fallback.")
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
                     OUTPUT_VARIABLE PYTHON_SITELIB)
 endif()

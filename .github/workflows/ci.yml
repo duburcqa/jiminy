@@ -18,7 +18,7 @@ jobs:
     - name: Checkout branch
       uses: actions/checkout@v2
     - name: Installing requirements
-      run: ./build_tools/setup.sh
+      run: sudo ./build_tools/setup.sh
     - name: Configuring Cmake
       run: mkdir build install ; cd build ; cmake .. -DCOMPONENT=doxygen -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
     - name: Building project
@@ -27,7 +27,16 @@ jobs:
       run: cd build ; make install
     - name: Running unit tests
       run: cd build/unit ; ./unit
-    - name: Generating and installing doc
+    - name: Generating Python pip wheel
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: cd build ; cmake . -DCOMPONENT=pip -P ./cmake_install.cmake
+    - name: Publishing Python Packages to PyPI
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_TOKEN }}
+    - name: Generating and installing Doxygen documentation
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
     - name: Deploying to GitHub Pages
