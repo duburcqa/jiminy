@@ -23,7 +23,7 @@ def update_quantities(jiminy_model,
                       velocity=None,
                       acceleration=None,
                       update_physics=True,
-                      update_com=True,
+                      update_com=False,
                       update_energy=False,
                       update_jacobian=False,
                       use_theoretical_model=True):
@@ -70,8 +70,7 @@ def update_quantities(jiminy_model,
         pnc_model = jiminy_model.pinocchio_model
         pnc_data = jiminy_model.pinocchio_data
 
-
-    if (update_physics and update_physics and \
+    if (update_physics and update_com and \
         update_energy and update_jacobian and \
         velocity is not None):
         pnc.computeAllTerms(pnc_model, pnc_data, position, velocity)
@@ -100,6 +99,7 @@ def update_quantities(jiminy_model,
                 pnc.forwardKinematics(pnc_model, pnc_data, position, velocity)
             else:
                 pnc.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
+            pnc.framesForwardKinematics(pnc_model, pnc_data, position)
 
         if update_energy:
             if velocity is not None:
@@ -257,8 +257,10 @@ def compute_freeflyer_state_from_fixed_body(jiminy_model, fixed_body_name, posit
     """
     if use_theoretical_model:
         pnc_model = jiminy_model.pinocchio_model_th
+        pnc_data = jiminy_model.pinocchio_data_th
     else:
         pnc_model = jiminy_model.pinocchio_model
+        pnc_data = jiminy_model.pinocchio_data
 
     position[:6].fill(0)
     position[6] = 1.0
@@ -271,7 +273,8 @@ def compute_freeflyer_state_from_fixed_body(jiminy_model, fixed_body_name, posit
     else:
         acceleration = np.zeros((pnc_model.nv,))
 
-    update_quantities(jiminy_model, position, velocity, acceleration)
+    pnc.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
+    pnc.framesForwardKinematics(pnc_model, pnc_data, position)
 
     ff_M_fixed_body = get_body_world_transform(jiminy_model, fixed_body_name)
     w_M_ff = ff_M_fixed_body.inverse()
