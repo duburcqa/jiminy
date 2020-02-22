@@ -1,8 +1,18 @@
 name: Github CI
-on: [push]
+
+on:
+  # Trigger the workflow on push or pull request,
+  # but only for the master branch
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
 jobs:
   build-test-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     steps:
     - name: Checkout branch
@@ -20,7 +30,7 @@ jobs:
     - name: Generating and installing doc
       run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
     - name: Deploying to GitHub Pages
-      if: success()
+      if: success() && github.event_name == 'push' && github.ref == 'master'
       uses: crazy-max/ghaction-github-pages@v1
       with:
         target_branch: gh-pages
