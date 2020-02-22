@@ -13,7 +13,7 @@ pip install wheel && \
 sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
 curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add - && \
 sudo apt update && \
-sudo apt install -y doxygen libboost-all-dev && \ # libeigen3-dev
+sudo apt install -y doxygen graphviz libboost-all-dev && \ # libeigen3-dev
 sudo apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
                     robotpkg-py36-eigenpy robotpkg-py36-pinocchio
 
