@@ -29,6 +29,7 @@ sudo apt install -y libboost-all-dev
 #### Ubuntu 18.04 Bionic
 
 ##### Add the repository
+
 ```bash
 sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
 curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
@@ -75,12 +76,11 @@ Yet, it is not helpful for compiling C++ code with Pinocchio dependency. If so, 
 sudo apt install -y python3-tk
 ```
 
-## Installation Procedure
+## Easy-install procedure
 
+The project is available on Pypi and therefore can be install easily using `pip` (only binaries for Linux and Python3.6 are available so far).
 ```bash
-mkdir jiminy && cd jiminy
-cmake ~/wdc_workspace/src/jiminy -DCMAKE_INSTALL_PREFIX=/install
-make && make install
+pip install jiminy-py
 ```
 
 # Jiminy learning
@@ -109,4 +109,11 @@ pip install stable-baselines[mpi]
 sudo apt install -y python-opencv
 sudo apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
 pip install rl_coach
+```
+
+## Easy-install procedure
+
+The project is available on Pypi and therefore can be install easily using `pip` (only binaries for Linux and Python3.6 are available so far).
+```bash
+pip install gym-jiminy
 ```

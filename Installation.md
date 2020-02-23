@@ -1,5 +1,5 @@
 
-##### Prerequisites
+#### Prerequisites
 
 ```bash
 sudo apt install -y libeigen3-dev doxygen libtinyxml-dev cmake git
@@ -116,4 +116,12 @@ Add the following lines:
 export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 export PYTHONPATH=/usr/local/lib/pythonXXX/site-packages:$PYTHONPATH
+```
+
+#### Build Procedure
+
+```bash
+mkdir jiminy && cd jiminy
+cmake ~/wdc_workspace/src/jiminy -DCMAKE_INSTALL_PREFIX=/install
+make && make install
 ```

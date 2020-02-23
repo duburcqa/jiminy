@@ -7,5 +7,8 @@ setup(name = 'gym_jiminy',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url='https://github.com/Wandercraft/jiminy',
-      install_requires = ['gym', 'jiminy-py==1.0.0']
+      install_requires = [
+            'gym',
+            'jiminy-py==1.0.0'
+            ]
 )

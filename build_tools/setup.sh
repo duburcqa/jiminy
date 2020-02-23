@@ -6,7 +6,7 @@
 # fles required by `find_package`.
 
 apt update && \
-apt install -y python3-numpy python3-setuptools && \ # libeigen3-dev
+apt install -y python3-numpy python3-setuptools python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3.6 1 && \
 pip install wheel twine && \
 
