@@ -28,13 +28,13 @@ function(buildPythonWheel TARGET_PATH)
     get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_PATH}
             DESTINATION "${CMAKE_BINARY_DIR}/pypi/"
-            COMPONENT pip
+            COMPONENT pypi
             EXCLUDE_FROM_ALL
             PATTERN "*.egg-info" EXCLUDE
     )
     install(FILES ${CMAKE_SOURCE_DIR}/README.md
             DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
-            COMPONENT pip
+            COMPONENT pypi
             EXCLUDE_FROM_ALL
     )
     install(CODE "file(REMOVE_RECURSE \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist\")
@@ -43,9 +43,8 @@ function(buildPythonWheel TARGET_PATH)
                   )
                   file(GLOB PYTHON_WHEEL_FILENAME \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist/*.whl\")
                   string(REPLACE \"-linux_\" \"-manylinux1_\" PYTHON_WHEEL_FILENAME_FIXED \"\${PYTHON_WHEEL_FILENAME}\")
-                  file(RENAME \"\${PYTHON_WHEEL_FILENAME}\" \"\${PYTHON_WHEEL_FILENAME_FIXED}\")
-                  "
-            COMPONENT pip
+                  file(RENAME \"\${PYTHON_WHEEL_FILENAME}\" \"\${PYTHON_WHEEL_FILENAME_FIXED}\")"
+            COMPONENT pypi
             EXCLUDE_FROM_ALL
     )
 endfunction()
