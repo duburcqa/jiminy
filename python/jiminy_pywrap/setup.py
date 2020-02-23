@@ -15,8 +15,8 @@ setup(name='jiminy',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url='https://github.com/Wandercraft/jiminy',
-      packages=['jiminy_pywrap'],
-      package_data={'jiminy_pywrap': ['libjiminy_pywrap.so']},
+      packages=['jiminy'],
+      package_data={'jiminy': ['libjiminy_pywrap.so']},
       include_package_data=True, # make sure the shared library is included
       distclass=BinaryDistribution
 )

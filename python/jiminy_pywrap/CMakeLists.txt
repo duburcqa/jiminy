@@ -44,19 +44,30 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 # Build Python pip wheel and archive
+install(TARGETS ${PROJECT_NAME}
+        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy"
+        COMPONENT pip
+        EXCLUDE_FROM_ALL
+)
 install(FILES ${${PROJECT_NAME}_PYTHON_SOURCES}
-        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}"
+        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy"
         COMPONENT pip
         EXCLUDE_FROM_ALL
 )
 install(FILES ${${PROJECT_NAME}_PYTHON_SETUP}
-              ${CMAKE_SOURCE_DIR}/README.md
-        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/.."
+        ${CMAKE_SOURCE_DIR}/README.md
+        DESTINATION "${CMAKE_BINARY_DIR}/pypi"
         COMPONENT pip
         EXCLUDE_FROM_ALL
 )
-install(CODE "EXECUTE_PROCESS (COMMAND python setup.py sdist bdist_wheel
-                               WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..)"
+
+install(CODE "EXECUTE_PROCESS(COMMAND python setup.py sdist bdist_wheel
+                              WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi
+              )
+              file(GLOB PYTHON_WHEEL_FILENAME \"${CMAKE_BINARY_DIR}/pypi/dist/*.whl\")
+              message(\"========================> ${PYTHON_WHEEL_FILENAME}\")
+              string(REPLACE \"-linux_\" \"-manylinux1_\" PYTHON_WHEEL_FILENAME_FIXED \"${PYTHON_WHEEL_FILENAME}\")
+              file(RENAME \"${PYTHON_WHEEL_FILENAME}\" \"${CMAKE_BINARY_DIR}\")"
         COMPONENT pip
         EXCLUDE_FROM_ALL
 )

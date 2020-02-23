@@ -11,7 +11,8 @@ on:
       - master
 
 jobs:
-  build-test-and-deploy:
+  build-and-test:
+    name: "Build and install project, then run unit tests"
     runs-on: ubuntu-18.04
 
     steps:
@@ -27,6 +28,22 @@ jobs:
       run: cd build ; make install
     - name: Running unit tests
       run: cd build/unit ; ./unit
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: build-artifact
+        path: build
+
+  pypi-deploy:
+    needs: build-and-test
+    name: "Deploy Python packages"
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v1
+      with:
+        name: build-artifact
     - name: Generating Python pip wheel
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=pip -P ./cmake_install.cmake
@@ -36,6 +53,18 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
+        packages_dir: build/python
+
+  github-pages-deploy:
+    needs: build-and-test
+    name: "Deploy Github pages"
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Download build artifact
+      uses: actions/download-artifact@v1
+      with:
+        name: build-artifact
     - name: Generating and installing Doxygen documentation
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
