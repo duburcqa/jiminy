@@ -11,7 +11,7 @@ on:
       - master
 
 jobs:
-  build:
+  build-test-and-deploy:
     name: "Build and install project, then run unit tests"
     runs-on: ubuntu-18.04
 
@@ -21,82 +21,101 @@ jobs:
     - name: Installing requirements
       run: sudo ./build_tools/setup.sh
     - name: Configuring Cmake
-      run: mkdir build install ; cd build ; cmake .. -DCOMPONENT=doxygen -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
+      run: |
+        mkdir build install
+        cd build
+        cmake .. -DCOMPONENT=doxygen -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
     - name: Building project
-      run: cd build ; make
+      run: |
+        cd build
+        make -j2
     - name: Installing project
-      run: cd build ; make install
+      run: |
+        cd build
+        make install
     - name: Upload build artifact
       uses: actions/upload-artifact@v1
       with:
         name: build-artifact
         path: build
 
-  test:
-    needs: build
-    name: "Run C++/Python unit tests"
-    runs-on: ubuntu-18.04
+  # test:
+  #   needs: build
+  #   name: "Run C++/Python unit tests"
+  #   runs-on: ubuntu-18.04
 
-    steps:
-    - name: Checkout branch
-      uses: actions/checkout@v2
-    - name: Download build artifact
-      uses: actions/download-artifact@v1
-      with:
-        name: build-artifact
-        path: build
+  #   steps:
+  #   - name: Checkout branch
+  #     uses: actions/checkout@v2
+  #   - name: Installing requirements
+  #     run: sudo ./build_tools/setup.sh
+  #   - name: Download build artifact
+  #     uses: actions/download-artifact@v1
+  #     with:
+  #       name: build-artifact
+  #       path: build
     - name: Running unit tests
-      run: cd build/unit ; ./unit
+      run: |
+        cd build/unit
+        ./unit
 
-  pypi-deploy:
-    needs: build
-    name: "Deploy Python packages"
-    runs-on: ubuntu-18.04
+  # pypi-deploy:
+  #   needs: build
+  #   name: "Deploy Python packages"
+  #   runs-on: ubuntu-18.04
 
-    steps:
-    - name: Checkout branch
-      uses: actions/checkout@v2
-    - name: Download build artifact
-      uses: actions/download-artifact@v1
-      with:
-        name: build-artifact
-        path: build
+  #   steps:
+  #   - name: Checkout branch
+  #     uses: actions/checkout@v2
+  #   - name: Installing requirements
+  #     run: sudo ./build_tools/setup.sh
+  #   - name: Download build artifact
+  #     uses: actions/download-artifact@v1
+  #     with:
+  #       name: build-artifact
+  #       path: build
     - name: Generating Python pip wheel
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      run: cd build ; cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        cd build
+        cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
     - name: Publishing jiminy_py Python Packages to PyPI
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
         packages_dir: build/pypi/jiminy_py/dist/
     - name: Publishing gym_jiminy Python Packages to PyPI
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
         packages_dir: build/pypi/gym_jiminy/dist/
 
-  github-pages-deploy:
-    needs: build
-    name: "Deploy Github pages"
-    runs-on: ubuntu-18.04
+  # github-pages-deploy:
+  #   needs: build
+  #   name: "Deploy Github pages"
+  #   runs-on: ubuntu-18.04
 
-    steps:
-    - name: Checkout branch
-      uses: actions/checkout@v2
-    - name: Download build artifact
-      uses: actions/download-artifact@v1
-      with:
-        name: build-artifact
-        path: build
+  #   steps:
+  #   - name: Checkout branch
+  #     uses: actions/checkout@v2
+  #   - name: Installing requirements
+  #     run: sudo ./build_tools/setup.sh
+  #   - name: Download build artifact
+  #     uses: actions/download-artifact@v1
+  #     with:
+  #       name: build-artifact
+  #       path: build
     - name: Generating and installing Doxygen documentation
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        cd build
+        cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
     - name: Deploying to GitHub Pages
-      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: crazy-max/ghaction-github-pages@v1
       with:
         target_branch: gh-pages
