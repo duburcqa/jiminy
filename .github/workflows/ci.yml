@@ -84,14 +84,14 @@ jobs:
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
+        password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/pypi/jiminy_py/dist/
     - name: Publishing gym_jiminy Python Packages to PyPI
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
+        password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/pypi/gym_jiminy/dist/
 
   # github-pages-deploy:
@@ -121,4 +121,4 @@ jobs:
         target_branch: gh-pages
         build_dir: docs
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
