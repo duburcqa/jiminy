@@ -14,7 +14,7 @@ from collections import OrderedDict
 from pinocchio import libpinocchio_pywrap as pin
 from pinocchio.robot_wrapper import RobotWrapper
 
-import jiminy
+from . import core as jiminy
 from .viewer import Viewer
 
 

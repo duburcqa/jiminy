@@ -7,7 +7,7 @@ import numpy as np
 from gym import core, spaces, logger
 from gym.utils import seeding
 
-import jiminy
+from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 from gym_jiminy.common.gym_jiminy_robots import RobotJiminyEnv, RobotJiminyGoalEnv
 

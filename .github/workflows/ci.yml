@@ -33,11 +33,11 @@ jobs:
       run: |
         cd build
         make install
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v1
-      with:
-        name: build-artifact
-        path: build
+  #   - name: Upload build artifact
+  #     uses: actions/upload-artifact@v1
+  #     with:
+  #       name: build-artifact
+  #       path: build
 
   # test:
   #   needs: build

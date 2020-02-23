@@ -58,6 +58,7 @@ set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
 get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
 set(PYTHON_SITELIB ${PYTHON_ROOT}/lib/python${PYTHON_VERSION}/site-packages)
+set(PYTHON_INSTALL_FLAGS "--upgrade ")
 
 # Check permissions on Python site-package to determine whether to use user site
 execute_process(COMMAND bash -c
@@ -68,6 +69,7 @@ if(${PYTHON_RIGHT_SITELIB})
     message("-- No right on system site-package: ${PYTHON_SITELIB}. Using user site as fallback.")
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
                     OUTPUT_VARIABLE PYTHON_SITELIB)
+    set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
 endif()
 
 # Add Python dependencies
@@ -90,6 +92,17 @@ else(${PYTHON_VERSION_MAJOR} EQUAL 3)
     list(APPEND BOOST_PYTHON_LIB "boost_python")
 endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
 
+# Define Python install helpers
+function(deployPythonPackage TARGET_NAME)
+    install(CODE "execute_process(COMMAND pip install ${PYTHON_INSTALL_FLAGS} .
+                                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
+endfunction()
+
+function(deployPythonPackageDevelop TARGET_NAME)
+    install (CODE "EXECUTE_PROCESS (COMMAND pip install -e .
+                                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME})")
+endfunction()
+
 # Add missing include & lib directory(ies)
 # TODO: Cleanup after support of find_package for Eigen and Pinocchio,
 # namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.4.X
@@ -98,12 +111,6 @@ link_directories(SYSTEM /opt/install/pc/lib)
 include_directories(SYSTEM /opt/openrobots/include/)
 include_directories(SYSTEM /opt/install/pc/include/)
 include_directories(SYSTEM /opt/install/pc/include/eigen3/)
-
-# Python install helper
-function(deploy_python_develop TARGET_NAME)
-    install (CODE "EXECUTE_PROCESS (COMMAND pip install -e .
-                                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME})")
-endfunction()
 
 # Add utils to define package version
 include(CMakePackageConfigHelpers)

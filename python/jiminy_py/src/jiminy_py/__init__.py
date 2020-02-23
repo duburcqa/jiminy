@@ -1,1 +1,1 @@
-from . import pinocchio_init as _patch
+from . import _pinocchio_init as _patch

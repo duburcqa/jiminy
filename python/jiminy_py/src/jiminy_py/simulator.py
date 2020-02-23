@@ -1,8 +1,8 @@
 import os
 import numpy as np
 
-from jiminy_py.viewer import Viewer
-import jiminy
+from . import core as jiminy
+from .viewer import Viewer
 
 if Viewer._is_notebook():
     from tqdm.notebook import tqdm

@@ -55,14 +55,10 @@ install(DIRECTORY "include/${LIBRARY_NAME}"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
 )
 
-# Install Python package
+# Generate Cmake configuration files used by find_package
 install(TARGETS ${PROJECT_NAME}
         EXPORT  ${PROJECT_NAME}Config
         DESTINATION "${PYTHON_SITELIB}/${LIBRARY_NAME}"
 )
-install(FILES ${${PROJECT_NAME}_PYTHON_SOURCES}
-        DESTINATION "${PYTHON_SITELIB}/${LIBRARY_NAME}"
-)
 
-# Generate Cmake configuration files used by find_package
 exportCmakeConfigFiles()

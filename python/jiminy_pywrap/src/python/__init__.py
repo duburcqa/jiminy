@@ -20,4 +20,4 @@ else:
 
         _sys.stderr = old_target
 
-import jiminy_py.pinocchio_init as _patch
+import .._pinocchio_init as _patch

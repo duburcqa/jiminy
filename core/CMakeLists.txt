@@ -52,8 +52,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS NO
 )
 
-# Install project
-install(DIRECTORY "include/${LIBRARY_NAME}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+# Install C++ headers
+install(DIRECTORY "include/${LIBRARY_NAME}"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+# Generate Cmake configuration files used by find_package
 install(TARGETS ${PROJECT_NAME}
         EXPORT  ${PROJECT_NAME}Config
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
@@ -61,5 +65,4 @@ install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
 
-# Generate Cmake configuration files used by find_package
 exportCmakeConfigFiles()
