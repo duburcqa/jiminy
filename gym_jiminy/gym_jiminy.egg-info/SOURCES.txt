@@ -1,6 +1,0 @@
-setup.py
-gym_jiminy.egg-info/PKG-INFO
-gym_jiminy.egg-info/SOURCES.txt
-gym_jiminy.egg-info/dependency_links.txt
-gym_jiminy.egg-info/requires.txt
-gym_jiminy.egg-info/top_level.txt

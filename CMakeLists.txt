@@ -27,8 +27,9 @@ build_DOC()
 function(buildPythonWheel TARGET_PATH)
     get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
     install(DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_PATH}
-            DESTINATION "${CMAKE_BINARY_DIR}/pypi/"
+            DESTINATION "${CMAKE_BINARY_DIR}/pypi"
             PATTERN "*.egg-info" EXCLUDE
+            PATTERN "unit" EXCLUDE
     )
     install(FILES ${CMAKE_SOURCE_DIR}/README.md
             DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
