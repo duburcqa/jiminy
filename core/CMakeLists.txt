@@ -45,7 +45,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # Link with other libraries
 target_link_libraries(${PROJECT_NAME} PUBLIC urdfdom_model boost_system) #Eigen3::Eigen)
 
-# Activate c++14
+# Activate C++14
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES

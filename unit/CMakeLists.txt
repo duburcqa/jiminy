@@ -26,7 +26,7 @@ if(EXISTS ${UNIT_CURRENT_DATA_DIR})
 endif()
 
 # Include core library for unit tests.
-target_link_libraries(${CPP_UNIT} jiminy_core)
+target_link_libraries(${CPP_UNIT} ${LIBRARY_NAME}_core)
 
 # Finalize setup of cpp unit tests (gtest).
 add_dependencies(${CPP_UNIT} gtest_EXTERNAL)

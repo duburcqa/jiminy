@@ -58,7 +58,7 @@ set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
 get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
 get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
 set(PYTHON_SITELIB ${PYTHON_ROOT}/lib/python${PYTHON_VERSION}/site-packages)
-set(PYTHON_INSTALL_FLAGS "--upgrade ")
+set(PYTHON_INSTALL_FLAGS "--upgrade --no-deps --force-reinstall ")
 
 # Check permissions on Python site-package to determine whether to use user site
 execute_process(COMMAND bash -c
@@ -100,7 +100,7 @@ endfunction()
 
 function(deployPythonPackageDevelop TARGET_NAME)
     install (CODE "EXECUTE_PROCESS (COMMAND pip install -e .
-                                    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME})")
+                                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
 endfunction()
 
 # Add missing include & lib directory(ies)
