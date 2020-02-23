@@ -3,9 +3,10 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-import jiminy
+from jiminy_py import core as jiminy
 from jiminy_py.viewer import play_trajectories
 from jiminy_py.log import extract_state_from_simulation_log
+
 
 # ################################ User parameters #######################################
 

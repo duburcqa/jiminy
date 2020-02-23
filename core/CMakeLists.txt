@@ -52,27 +52,17 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS NO
 )
 
-# Install
-install(DIRECTORY "include/${LIBRARY_NAME}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+# Install C++ headers
+install(DIRECTORY "include/${LIBRARY_NAME}"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+
+# Generate Cmake configuration files used by find_package
 install(TARGETS ${PROJECT_NAME}
         EXPORT  ${PROJECT_NAME}Config
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
 )
-export(TARGETS ${PROJECT_NAME}
-       FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-)
-install(EXPORT
-        ${PROJECT_NAME}Config
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
-)
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-    VERSION ${BUILD_VERSION}
-    COMPATIBILITY ExactVersion
-)
-install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
-)
+
+exportCmakeConfigFiles()

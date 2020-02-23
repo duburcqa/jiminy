@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def interactive_legend(fig, separatedLegend = False, ax=None):
     if separatedLegend:
         ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1),

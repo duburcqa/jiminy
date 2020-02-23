@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 
 import pinocchio as pnc
 
-import jiminy
+from jiminy_py import core as jiminy
 from jiminy_py.log import extract_state_from_simulation_log
 from jiminy_py.viewer import play_trajectories
-from jiminy import HeatMapFunctor, heatMapType_t, ForceSensor
+from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
 
 from interactive_plot_util import interactive_legend
 
