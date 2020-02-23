@@ -9,7 +9,7 @@ class BinaryDistribution(dist.Distribution):
 
 
 setup(name = 'jiminy_py',
-      version = '1.0.0',
+      version = '1.0.1',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
