@@ -23,8 +23,38 @@ add_subdirectory(unit)
 # Build documentation from Doxygen.
 build_DOC()
 
-# Install native python packages
-deploy_python_gym_package(gym_${LIBRARY_NAME})
+# Build Python wheels and archives
+function(buildPythonWheel TARGET_PATH)
+    get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
+    install(DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_PATH}
+            DESTINATION "${CMAKE_BINARY_DIR}/pypi/"
+            COMPONENT pip
+            EXCLUDE_FROM_ALL
+            PATTERN "*.egg-info" EXCLUDE
+    )
+    install(FILES ${CMAKE_SOURCE_DIR}/README.md
+            DESTINATION "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}"
+            COMPONENT pip
+            EXCLUDE_FROM_ALL
+    )
+    install(CODE "file(REMOVE_RECURSE \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist\")
+                  execute_process(COMMAND python setup.py sdist bdist_wheel
+                                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}
+                  )
+                  file(GLOB PYTHON_WHEEL_FILENAME \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist/*.whl\")
+                  string(REPLACE \"-linux_\" \"-manylinux1_\" PYTHON_WHEEL_FILENAME_FIXED \"\${PYTHON_WHEEL_FILENAME}\")
+                  file(RENAME \"\${PYTHON_WHEEL_FILENAME}\" \"\${PYTHON_WHEEL_FILENAME_FIXED}\")
+                  "
+            COMPONENT pip
+            EXCLUDE_FROM_ALL
+    )
+endfunction()
+
+buildPythonWheel(python/jiminy_py)
+buildPythonWheel(gym_jiminy)
+
+# Install Python native packages in develop mode
+deploy_python_develop(gym_${LIBRARY_NAME})
 
 # Install the source cmake files
 file(GLOB_RECURSE SOURCE_CMAKE_FILES "${CMAKE_SOURCE_DIR}/build_tools/cmake/Find*.cmake")

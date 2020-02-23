@@ -44,16 +44,24 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: build-artifact
+        path: build
     - name: Generating Python pip wheel
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=pip -P ./cmake_install.cmake
-    - name: Publishing Python Packages to PyPI
+    - name: Publishing jiminy_py Python Packages to PyPI
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
-        packages_dir: build/python
+        packages_dir: build/pypi/jiminy_py/dist/
+    - name: Publishing gym_jiminy Python Packages to PyPI
+      if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_TOKEN }}
+        packages_dir: build/pypi/gym_jiminy/dist/
 
   github-pages-deploy:
     needs: build-and-test
@@ -65,6 +73,8 @@ jobs:
       uses: actions/download-artifact@v1
       with:
         name: build-artifact
+        path: build
+    - run: ls build
     - name: Generating and installing Doxygen documentation
       if: success() && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: cd build ; cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake

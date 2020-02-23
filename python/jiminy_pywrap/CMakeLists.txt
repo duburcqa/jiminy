@@ -9,7 +9,6 @@ set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
 
 # Python sources et setup
 file(GLOB_RECURSE ${PROJECT_NAME}_PYTHON_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/python/*.py")
-set(${PROJECT_NAME}_PYTHON_SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 
 # Make library
 add_library(${PROJECT_NAME} SHARED ${SRC})
@@ -43,33 +42,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_EXTENSIONS NO
 )
 
-# Build Python pip wheel and archive
+# Copy Python bindings submodule
 install(TARGETS ${PROJECT_NAME}
-        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy"
-        COMPONENT pip
-        EXCLUDE_FROM_ALL
+        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy_py/src/jiminy_py/core"
 )
 install(FILES ${${PROJECT_NAME}_PYTHON_SOURCES}
-        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy"
-        COMPONENT pip
-        EXCLUDE_FROM_ALL
-)
-install(FILES ${${PROJECT_NAME}_PYTHON_SETUP}
-        ${CMAKE_SOURCE_DIR}/README.md
-        DESTINATION "${CMAKE_BINARY_DIR}/pypi"
-        COMPONENT pip
-        EXCLUDE_FROM_ALL
-)
-
-install(CODE "EXECUTE_PROCESS(COMMAND python setup.py sdist bdist_wheel
-                              WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi
-              )
-              file(GLOB PYTHON_WHEEL_FILENAME \"${CMAKE_BINARY_DIR}/pypi/dist/*.whl\")
-              message(\"========================> ${PYTHON_WHEEL_FILENAME}\")
-              string(REPLACE \"-linux_\" \"-manylinux1_\" PYTHON_WHEEL_FILENAME_FIXED \"${PYTHON_WHEEL_FILENAME}\")
-              file(RENAME \"${PYTHON_WHEEL_FILENAME}\" \"${CMAKE_BINARY_DIR}\")"
-        COMPONENT pip
-        EXCLUDE_FROM_ALL
+        DESTINATION "${CMAKE_BINARY_DIR}/pypi/jiminy_py/src/jiminy_py/core"
 )
 
 # Install C++ headers

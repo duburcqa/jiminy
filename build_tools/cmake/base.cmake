@@ -100,7 +100,7 @@ include_directories(SYSTEM /opt/install/pc/include/)
 include_directories(SYSTEM /opt/install/pc/include/eigen3/)
 
 # Python install helper
-function(deploy_python_gym_package TARGET_NAME)
+function(deploy_python_develop TARGET_NAME)
     install (CODE "EXECUTE_PROCESS (COMMAND pip install -e .
                                     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${TARGET_NAME})")
 endfunction()
