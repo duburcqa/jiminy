@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name = 'gym_jiminy',
-      version = '1.0.4',
+      version = '1.0.5',
       description = 'Python-native interface between OpenAI Gym and Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
@@ -13,6 +13,6 @@ setup(name = 'gym_jiminy',
       install_requires = [
             'gym',
             'stable_baselines',
-            'jiminy-py==1.0.4'
+            'jiminy-py==1.0.5'
             ]
 )
