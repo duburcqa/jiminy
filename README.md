@@ -18,9 +18,9 @@ Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/t
 
 ## Demo
 
-![](https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png)
-![](https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer.png)
-
+<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer.png" alt="" width="430"/>
+<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="860"/>
+<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="430"/>
 ## Dependencies
 
 ### Boost Python library
