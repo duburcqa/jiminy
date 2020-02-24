@@ -1,11 +1,20 @@
 function(buildPythonWheel TARGET_PATH)
-
     get_filename_component(TARGET_NAME ${TARGET_PATH} NAME_WE)
-    install(DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_PATH}
-            DESTINATION "${CMAKE_BINARY_DIR}/pypi"
-            PATTERN "*.egg-info" EXCLUDE
-            PATTERN "unit" EXCLUDE
-    )
+    get_filename_component(TARGET_DIR ${TARGET_PATH} DIRECTORY)
+    install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
+                       LIST_DIRECTORIES false
+                       RELATIVE \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\"
+                       \"${CMAKE_SOURCE_DIR}/${TARGET_PATH}/*\"
+                  )
+                  list(FILTER src_file_list EXCLUDE REGEX \".*\.egg-info\")
+                  list(FILTER src_file_list EXCLUDE REGEX \"unit\")
+                  foreach(src_file \${src_file_list})
+                      get_filename_component(src_file_real \"\${src_file}\" REALPATH
+                                             BASE_DIR \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\")
+                      file(COPY \"\${src_file_real}/\"
+                           DESTINATION \"${CMAKE_BINARY_DIR}/pypi/\${src_file}\")
+                  endforeach()"
+           )
 
     # TODO: Use add_custom_command instead of install to enable auto-cleanup of copied files
 #     add_custom_command(

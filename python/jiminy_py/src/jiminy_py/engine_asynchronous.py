@@ -189,8 +189,9 @@ class EngineAsynchronous(object):
 
         @details    Must be called once before the destruction of the engine.
         """
-        self._viewer.close()
-        self._viewer = None
+        if self._viewer is not None:
+            self._viewer.close()
+            self._viewer = None
 
     @property
     def state(self):

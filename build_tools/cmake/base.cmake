@@ -94,7 +94,7 @@ endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
 
 # Define Python install helpers
 function(deployPythonPackage TARGET_NAME)
-    install(CODE "execute_process(COMMAND pip install ${PYTHON_INSTALL_FLAGS} -v .
+    install(CODE "execute_process(COMMAND pip install ${PYTHON_INSTALL_FLAGS} .
                                   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
 endfunction()
 

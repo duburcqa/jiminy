@@ -1,15 +1,17 @@
 ## @file
 
 import os
-from math import pi
 import numpy as np
+from math import sin, cos, pi
+from pkg_resources import resource_filename
 
 from gym import core, spaces, logger
 from gym.utils import seeding
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
-from gym_jiminy.common.gym_jiminy_robots import RobotJiminyEnv
+
+from ..common.gym_jiminy_robots import RobotJiminyEnv
 
 
 class JiminyCartPoleEnv(RobotJiminyEnv):
@@ -87,8 +89,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ############################### Initialize Jiminy ####################################
 
-        cur_dir = os.path.dirname(os.path.realpath(__file__))
-        os.environ["JIMINY_MESH_PATH"] = os.path.abspath(os.path.join(os.environ["HOME"], "../../../data"))
+        os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
         motors = ["slider_to_cart"]
         self._model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected

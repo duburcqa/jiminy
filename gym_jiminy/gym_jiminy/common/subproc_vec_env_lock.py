@@ -1,9 +1,9 @@
 ## @file
 
 import multiprocessing
+import numpy as np
 from collections import OrderedDict
 from multiprocessing import Process, Lock
-import numpy as np
 
 import gym
 

@@ -1,15 +1,17 @@
 ## @file
 
 import os
-from math import sin, cos, pi
 import numpy as np
+from math import sin, cos, pi
+from pkg_resources import resource_filename
 
 from gym import core, spaces, logger
 from gym.utils import seeding
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
-from gym_jiminy.common.gym_jiminy_robots import RobotJiminyEnv, RobotJiminyGoalEnv
+
+from ..common.gym_jiminy_robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
@@ -82,8 +84,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # ############################### Initialize Jiminy ####################################
 
-        cur_dir = os.path.dirname(os.path.realpath(__file__))
-        os.environ["JIMINY_MESH_PATH"] = os.path.abspath(os.path.join(os.environ["HOME"], "../../../data"))
+        os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
         motors = ["SecondPendulumJoint"]
         self._model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected
@@ -137,7 +138,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # Internal parameters to generate sample goals and compute the terminal condition
         self._tipIdx = engine_py._engine.model.pinocchio_model.getFrameId("SecondPendulumMass")
-        self._tipPosZMax = engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation.A1[2]
+        self._tipPosZMax = engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[2]
 
         # ####################### Configure the learning environment ###########################
 
@@ -295,7 +296,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         @return     The currently achieved goal
         """
-        return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation.A1[[2]]
+        return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[[2]]
 
 
     def _is_success(self, achieved_goal, desired_goal):
