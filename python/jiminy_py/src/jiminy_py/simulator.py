@@ -113,23 +113,27 @@ class BasicSimulator(object):
         '''
         return self.engine.get_log()
 
-    def run(self, x0, tf, log_path=None):
+    def run(self, x0, tf, log_path=None, show_progress_bar=True):
         '''
         @brief Run a simulation, starting from x0 at t=0 up to tf. Optionally, log results in a logfile.
 
         @param x0 Initial condition
         @param tf Simulation end time
         @param log_path Optional, if set save log data to given file.
+        @param show_progress_bar Optional, if set display a progress bar during the simulation
         '''
         assert self._is_controller_handle_init, "The controller handle is not initialized." + \
                                                 "Please call 'set_controller' before running a simulation."
-
         # Run the simulation
         self._t_pbar = 0.0
-        self._pbar = tqdm(total=tf, bar_format="{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]")
+        if show_progress_bar:
+            self._pbar = tqdm(total=tf, bar_format="{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]")
+        else:
+            self._pbar = None
         self.engine.simulate(x0, tf)
-        self._pbar.update(tf - self._t_pbar)
-        self._pbar.close()
+        if show_progress_bar:
+            self._pbar.update(tf - self._t_pbar)
+            self._pbar.close()
         self._pbar = None
 
         # Write log

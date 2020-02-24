@@ -12,11 +12,11 @@
 
 namespace jiminy
 {
-    TelemetrySender::TelemetrySender(void) : 
-    objectName_(DEFAULT_OBJECT_NAME), 
+    TelemetrySender::TelemetrySender(void) :
+    objectName_(DEFAULT_OBJECT_NAME),
     telemetryData_(nullptr),
-    intBufferPositon_(), 
-    floatBufferPositon_()
+    intBufferPosition_(),
+    floatBufferPosition_()
     {
         // Empty.
     }
@@ -27,11 +27,11 @@ namespace jiminy
     }
 
     template <>
-    void TelemetrySender::updateValue<int32_t>(std::string const & fieldNameIn, 
+    void TelemetrySender::updateValue<int32_t>(std::string const & fieldNameIn,
                                                int32_t     const & value)
     {
-        auto it = intBufferPositon_.find(fieldNameIn);
-        if (intBufferPositon_.end() == it)
+        auto it = intBufferPosition_.find(fieldNameIn);
+        if (intBufferPosition_.end() == it)
         {
             std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as an int32_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
             return;
@@ -42,11 +42,11 @@ namespace jiminy
     }
 
     template <>
-    void TelemetrySender::updateValue<float64_t>(std::string const & fieldNameIn, 
+    void TelemetrySender::updateValue<float64_t>(std::string const & fieldNameIn,
                                                  float64_t   const & value)
     {
-        auto it = floatBufferPositon_.find(fieldNameIn);
-        if (floatBufferPositon_.end() == it)
+        auto it = floatBufferPosition_.find(fieldNameIn);
+        if (floatBufferPosition_.end() == it)
         {
             std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as an float64_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
             return;
@@ -57,7 +57,7 @@ namespace jiminy
     }
 
     template<>
-    result_t TelemetrySender::registerNewEntry<int32_t>(std::string const & fieldNameIn, 
+    result_t TelemetrySender::registerNewEntry<int32_t>(std::string const & fieldNameIn,
                                                         int32_t     const & initialValue)
     {
         int32_t * positionInBuffer = nullptr;
@@ -66,7 +66,7 @@ namespace jiminy
         result_t returnCode = telemetryData_->registerVariable<int32_t>(fullFieldName, positionInBuffer);
         if (returnCode == result_t::SUCCESS)
         {
-            intBufferPositon_[fieldNameIn] = positionInBuffer;
+            intBufferPosition_[fieldNameIn] = positionInBuffer;
 
             updateValue(fieldNameIn, initialValue);
         }
@@ -75,7 +75,7 @@ namespace jiminy
     }
 
     template<>
-    result_t TelemetrySender::registerNewEntry<float64_t>(std::string const & fieldNameIn, 
+    result_t TelemetrySender::registerNewEntry<float64_t>(std::string const & fieldNameIn,
                                                           float64_t   const & initialValue)
     {
         float32_t * positionInBuffer = nullptr;
@@ -84,7 +84,7 @@ namespace jiminy
         result_t returnCode = telemetryData_->registerVariable<float32_t>(fullFieldName, positionInBuffer);
         if (returnCode == result_t::SUCCESS)
         {
-            floatBufferPositon_[fieldNameIn] = positionInBuffer;
+            floatBufferPosition_[fieldNameIn] = positionInBuffer;
 
             updateValue(fieldNameIn, initialValue);
         }
@@ -92,7 +92,7 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t TelemetrySender::addConstantEntry(std::string const & variableNameIn, 
+    result_t TelemetrySender::addConstantEntry(std::string const & variableNameIn,
                                                std::string const & valueIn)
     {
         std::string const fullFieldName = objectName_ + "." + variableNameIn;
@@ -104,13 +104,13 @@ namespace jiminy
     {
         objectName_ = objectNameIn;
         telemetryData_ = std::shared_ptr<TelemetryData>(telemetryDataInstance);
-        intBufferPositon_.clear();
-        floatBufferPositon_.clear();
+        intBufferPosition_.clear();
+        floatBufferPosition_.clear();
     }
 
     uint32_t TelemetrySender::getLocalNumEntries(void) const
     {
-        return static_cast<uint32_t>(floatBufferPositon_.size() + intBufferPositon_.size());
+        return static_cast<uint32_t>(floatBufferPosition_.size() + intBufferPosition_.size());
     }
 
     std::string const & TelemetrySender::getObjectName(void) const

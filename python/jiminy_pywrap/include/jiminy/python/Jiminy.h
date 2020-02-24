@@ -1105,7 +1105,8 @@ namespace python
                                  (bp::arg("self"), "x_init", "end_time"))
                 .def("step", &PyEngineVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired")=-1))
-                .def("reset", &PyEngineVisitor::reset,
+                .def("reset", &Engine::reset)
+                .def("set_state", &PyEngineVisitor::setState,
                               (bp::arg("self"), "x_init", bp::arg("reset_random_generator")=false))
 
                 .def("get_log", &PyEngineVisitor::getLog)
@@ -1154,12 +1155,12 @@ namespace python
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
-        static result_t reset(Engine          & self,
-                              vectorN_t const & x_init,
-                              bool      const & resetRandomNumbers)
+        static result_t setState(Engine          & self,
+                                 vectorN_t const & x_init,
+                                 bool      const & resetRandomNumbers)
         {
             // Only way to handle C++ default values that are not accessible in Python
-            return self.reset(x_init, resetRandomNumbers);
+            return self.setState(x_init, resetRandomNumbers);
         }
 
         static result_t step(Engine          & self,
