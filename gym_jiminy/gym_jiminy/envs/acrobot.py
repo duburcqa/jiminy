@@ -138,7 +138,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # Internal parameters to generate sample goals and compute the terminal condition
         self._tipIdx = engine_py._engine.model.pinocchio_model.getFrameId("SecondPendulumMass")
-        self._tipPosZMax = engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation.A1[2]
+        self._tipPosZMax = engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[2]
 
         # ####################### Configure the learning environment ###########################
 
@@ -296,7 +296,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         @return     The currently achieved goal
         """
-        return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation.A1[[2]]
+        return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[[2]]
 
 
     def _is_success(self, achieved_goal, desired_goal):

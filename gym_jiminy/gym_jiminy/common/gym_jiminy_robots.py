@@ -150,8 +150,6 @@ class RobotJiminyEnv(core.Env):
         """
 
         self.engine_py.render(return_rgb_array=False, lock=lock)
-        if (self._viewer is None):
-            self._viewer = self.engine_py._client
         return RenderOutMock()
 
     def close(self):
@@ -159,8 +157,7 @@ class RobotJiminyEnv(core.Env):
         @brief      Terminate the Python Jiminy engine. Mostly defined for
                     compatibility with Gym OpenAI.
         """
-        if (self._viewer is not None):
-            self.engine_py.close()
+        self.engine_py.close()
 
     def _get_obs(self):
         """
