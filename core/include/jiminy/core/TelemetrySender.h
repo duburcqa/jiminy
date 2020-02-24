@@ -46,7 +46,7 @@ namespace jiminy
         /// \param[in]  valueIn      Updated value of the variable.
         ////////////////////////////////////////////////////////////////////////
         template <typename T>
-        void updateValue(std::string const & fieldNameIn, 
+        void updateValue(std::string const & fieldNameIn,
                          T           const & valueIn);
 
         ////////////////////////////////////////////////////////////////////////
@@ -58,7 +58,7 @@ namespace jiminy
         /// \param[in]  initialValue  Initial value of the newly recored field.
         ////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t registerNewEntry(std::string const & fieldNameIn, 
+        result_t registerNewEntry(std::string const & fieldNameIn,
                                   T           const & initialValue);
 
         ////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ namespace jiminy
         /// \retval E_REGISTERING_NOT_AVAILABLE if the registering is closed (the telemetry is already started).
         /// \retval E_ALREADY_REGISTERED        if the constant was already registered.
         ///////////////////////////////////////////////////////////////////////
-        result_t addConstantEntry(std::string const & invariantNameIn, 
+        result_t addConstantEntry(std::string const & invariantNameIn,
                                   std::string const & valueIn);
 
     protected:
@@ -107,9 +107,9 @@ namespace jiminy
     private:
         std::shared_ptr<TelemetryData> telemetryData_;
         /// \brief Associate int32_t variable position to their ID.
-        std::unordered_map<std::string, int32_t *> intBufferPositon_;
+        std::unordered_map<std::string, int32_t *> intBufferPosition_;
         /// \brief Associate float32_t variable position to their ID.
-        std::unordered_map<std::string, float32_t *> floatBufferPositon_;
+        std::unordered_map<std::string, float32_t *> floatBufferPosition_;
     };
 } // End of jiminy namespace
 

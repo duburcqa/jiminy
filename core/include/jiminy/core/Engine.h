@@ -383,12 +383,35 @@ namespace jiminy
                             std::shared_ptr<AbstractController> const & controller,
                             callbackFunctor_t    callbackFct);
 
+        /// \brief Reset engine.
+        ///
+        /// \details This function resets the engine, the model and the controller.
+        ///          This method is made to be called in between simulations, to allow
+        ///          registering of new variables to log.
+        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
+        ///                                      during the simulation.
         void reset(bool const & resetDynamicForceRegister = false);
-        result_t reset(vectorN_t const & x_init,
-                       bool      const & resetRandomNumbers = false,
-                       bool      const & resetDynamicForceRegister = false);
+
+        /// \brief Reset the engine and compute initial state.
+        ///
+        /// \details This function reset the engine, the model and the controller, and update internal data
+        ///          to match the given initial state.
+        /// \param[in] x_init Initial state.
+        /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
+        /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
+        ///                                      during the simulation.
+        result_t setState(vectorN_t const & x_init,
+                          bool const & resetRandomNumbers = false,
+                          bool const & resetDynamicForceRegister = false);
+
+        /// \brief Run a simulation of duration end_time, starting at x_init.
+        ///
+        /// \param[in] x_init Initial state, i.e. state at t=0.
+        /// \param[in] end_time End time, i.e. amount of time to simulate.
         result_t simulate(vectorN_t const & x_init,
                           float64_t const & end_time);
+
+
         result_t step(float64_t const & dtDesired = -1,
                       float64_t         t_end = -1);
 

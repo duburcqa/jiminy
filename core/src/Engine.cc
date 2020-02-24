@@ -249,20 +249,12 @@ namespace jiminy
         // Reset the telemetry
         telemetryRecorder_->reset();
         telemetryData_->reset();
-
-        /* Preconfigure the telemetry with quantities known at compile time.
-           Note that registration is only locked at the beginning of the
-           simulation to enable dynamic registration until then. */
-        if (isInitialized_)
-        {
-            isTelemetryConfigured_ = false;
-            configureTelemetry();
-        }
+        isTelemetryConfigured_ = false;
     }
 
-    result_t Engine::reset(vectorN_t const & x_init,
-                           bool      const & resetRandomNumbers,
-                           bool      const & resetDynamicForceRegister)
+    result_t Engine::setState(vectorN_t const & x_init,
+                              bool      const & resetRandomNumbers,
+                              bool      const & resetDynamicForceRegister)
     {
         if (!getIsInitialized())
         {
@@ -329,10 +321,6 @@ namespace jiminy
             getFrameIdx(model_->pncModel_, forceProfile.first, std::get<0>(forceProfile.second));
         }
 
-        /* Reset the telemetry recorder, write the header, and lock
-           the registration of new variables */
-        telemetryRecorder_->initialize();
-
         // Initialize the ode solver
         if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
         {
@@ -396,10 +384,6 @@ namespace jiminy
         // Compute dynamics
         a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
 
-        /* Initialize the monitoring of the current iteration number,
-           and log the initial time, state, command, and sensors data. */
-        updateTelemetry();
-
         return result_t::SUCCESS;
     }
 
@@ -423,7 +407,7 @@ namespace jiminy
         // Reset the model, controller, and engine
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = reset(x_init, true, false);
+            returnCode = setState(x_init, true, false);
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
@@ -472,6 +456,16 @@ namespace jiminy
         {
             std::cout << "Error - Engine::step - Engine not initialized. Impossible to perform a simulation step." << std::endl;
             return result_t::ERROR_INIT_FAILED;
+        }
+
+        // Configure telemetry if needed.
+        if (!isTelemetryConfigured_)
+        {
+            configureTelemetry();
+            // Write the header: this locks the registration of new variables
+            telemetryRecorder_->initialize();
+            // Log current buffer content as first point of the log data.
+            updateTelemetry();
         }
 
         // Check if there is something wrong with the integration

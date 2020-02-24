@@ -104,7 +104,7 @@ TEST(EngineSanity, EnergyConservation)
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
     engine.setOptions(simuOptions);
-    engine.reset(x0);
+    engine.setState(x0);
     engine.simulate(x0, tf);
 
     engine.getLogData(header, data);

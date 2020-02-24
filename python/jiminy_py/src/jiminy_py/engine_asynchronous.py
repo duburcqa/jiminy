@@ -115,7 +115,7 @@ class EngineAsynchronous(object):
         """
         if (x0 is None):
             x0 = np.zeros((self._engine.model.nx, 1))
-        if (int(self._engine.reset(x0)) != 1):
+        if (int(self._engine.set_state(x0)) != 1):
             raise ValueError("Reset of engine failed.")
         self._state = x0.squeeze()
 
