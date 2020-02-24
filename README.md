@@ -16,6 +16,11 @@ Python2.7 and Python3 bindings have been written using the open-source library [
 
 Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/that_style).
 
+## Demo
+
+![](https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png)
+![](https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer.png)
+
 ## Dependencies
 
 ### Boost Python library

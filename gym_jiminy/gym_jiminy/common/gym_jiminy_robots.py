@@ -14,7 +14,8 @@ from gym.utils import seeding
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
-from gym_jiminy.common import RenderOutMock
+
+from . import RenderOutMock
 
 
 class RobotJiminyEnv(core.Env):
