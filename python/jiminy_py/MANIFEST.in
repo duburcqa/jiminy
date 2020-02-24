@@ -1,0 +1,1 @@
+recursive-include src/jiminy_py/core *.so

@@ -112,5 +112,8 @@ include_directories(SYSTEM /opt/openrobots/include/)
 include_directories(SYSTEM /opt/install/pc/include/)
 include_directories(SYSTEM /opt/install/pc/include/eigen3/)
 
+# Due to license considerations, we will only use the MPL2 parts of Eigen.
+set(EIGEN_MPL2_ONLY 1)
+
 # Add utils to define package version
 include(CMakePackageConfigHelpers)
