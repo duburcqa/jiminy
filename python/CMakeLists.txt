@@ -12,10 +12,9 @@ file(GLOB_RECURSE ${PROJECT_NAME}_NATIVE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${
 install(FILES ${${PROJECT_NAME}_NATIVE_SOURCES}
         DESTINATION "${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core"
 )
-get_filename_component(${PROJECT_NAME}_LIBCPP_PATH "${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/lib${LIBRARY_NAME}_pywrap.so" REALPATH)
-install(FILES ${${PROJECT_NAME}_LIBCPP_PATH}
-        DESTINATION "${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/"
-        RENAME "lib${LIBRARY_NAME}_pywrap.so"
+install(CODE "file(COPY \"${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/\"
+                   DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/\"
+                   FILES_MATCHING PATTERN \"lib${LIBRARY_NAME}_pywrap.so*\")"
 )
 
 # Build Python wheels and archives
