@@ -255,7 +255,7 @@ namespace jiminy
             return result_t::SUCCESS;
         }
 
-        if (not header->isRegisteringAvailable)
+        if (!header->isRegisteringAvailable)
         {
             std::cout << "Error - TelemetryData::updateValue - Entry not found: register it if possible." << std::endl;
             return result_t::ERROR_GENERIC;

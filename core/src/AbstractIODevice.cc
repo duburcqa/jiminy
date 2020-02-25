@@ -72,7 +72,7 @@ namespace jiminy
 
     void AbstractIODevice::close(void)
     {
-        if (not isOpen())
+        if (!isOpen())
         {
             lastError_ = result_t::ERROR_GENERIC;
             return;
@@ -94,12 +94,12 @@ namespace jiminy
 
     bool_t AbstractIODevice::isWritable(void) const
     {
-        return (modes_ & OpenMode::WRITE_ONLY) or (modes_ & OpenMode::READ_WRITE);
+        return (modes_ & OpenMode::WRITE_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool_t AbstractIODevice::isReadable(void) const
     {
-        return (modes_ & OpenMode::READ_ONLY) or (modes_ & OpenMode::READ_WRITE);
+        return (modes_ & OpenMode::READ_ONLY) || (modes_ & OpenMode::READ_WRITE);
     }
 
     bool_t AbstractIODevice::isOpen(void) const

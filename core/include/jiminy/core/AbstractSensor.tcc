@@ -140,7 +140,7 @@ namespace jiminy
         matrixN_t data(getSize(), dataHolder_->num_);
         for (AbstractSensorBase * sensor : dataHolder_->sensors_)
         {
-            float64_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
+            uint32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
             data.col(sensorId) = *sensor->get();
         }
         return data;

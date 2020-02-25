@@ -1,4 +1,4 @@
-name: Github CI
+name: Linux CI
 
 on:
   # Trigger the workflow on push or pull request,
@@ -14,6 +14,10 @@ jobs:
   build-test-and-deploy:
     name: "Build and install project, then run unit tests"
     runs-on: ubuntu-18.04
+
+    # strategy:
+    #   matrix:
+    #     python-version: [2.7, 3.6]
 
     steps:
     - name: Checkout branch
@@ -33,7 +37,38 @@ jobs:
       run: |
         cd build
         make install
-  #   - name: Upload build artifact
+
+    - name: Archive install artifacts
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v1
+      with:
+        name: install-artifacts-linux
+        path: install
+    # - name: Create Release
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   uses: actions/create-release@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
+    #   with:
+    #     tag_name: ${{ github.event.pull_request.head.ref }}
+    #     release_name: Release ${{ github.event.pull_request.head.ref }}
+    #     draft: false
+    #     prerelease: false
+    # - name: Archive install artifacts
+    #   run: |
+    #     zip -r install-linux ./install
+    # - name: Upload Release Asset
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_path: ./install-linux.zip
+    #     asset_name: install-linux.zip
+    #     asset_content_type: application/zip
+
+  #   - name: Archive build artifacts
   #     uses: actions/upload-artifact@v1
   #     with:
   #       name: build-artifact

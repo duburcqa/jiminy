@@ -444,7 +444,7 @@ namespace python
             bp::numpy::ndarray dataNumpy = bp::extract<bp::numpy::ndarray>(dataPy);
             dataNumpy = dataNumpy.astype(bp::numpy::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
-            long int const * dataShape = dataNumpy.get_shape();
+            Py_intptr_t const * dataShape = dataNumpy.get_shape();
             if(std::is_same<CType, vectorN_t>::value)
             {
                 data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
@@ -459,7 +459,7 @@ namespace python
             bp::numpy::matrix dataMatrix = bp::extract<bp::numpy::matrix>(dataPy);
             bp::numpy::ndarray dataNumpy = dataMatrix.astype(bp::numpy::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
-            long int const * dataShape = dataNumpy.get_shape();
+            Py_intptr_t const * dataShape = dataNumpy.get_shape();
             if(std::is_same<CType, vectorN_t>::value)
             {
                 data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);

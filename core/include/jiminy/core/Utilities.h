@@ -28,8 +28,12 @@ namespace jiminy
     public:
         std::chrono::time_point<Time> t0;
         std::chrono::time_point<Time> tf;
-        float32_t dt;
+        float64_t dt;
     };
+
+    // ************ IO file and Directory utilities **************
+
+    std::string getUserDirectory(void);
 
     // ************ Random number generator utilities **************
 
