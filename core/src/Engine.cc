@@ -750,12 +750,15 @@ namespace jiminy
         controller_->computeCommand(t, q, v, u);
 
         // Enforce the torque limits
-        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+        if (model_->mdlOptions_->joints.enableTorqueLimit)
         {
-            uint32_t const & jointIdx = motorsVelocityIdx[i];
-            float64_t const & torque_max = model_->pncModel_.effortLimit(jointIdx); // effortLimit is given in the velocity vector space
-            u[i] = clamp(u[i], -torque_max, torque_max);
+            // The torque is in motor space at this point
+            vectorN_t const & torqueLimitMax = model_->getTorqueLimit();
+            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+            {
+                float64_t const & torque_max = torqueLimitMax[i];
+                u[i] = clamp(u[i], -torque_max, torque_max);
+            }
         }
     }
 
@@ -1372,7 +1375,7 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
-                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+                    u[jointVelocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
 
                     jointIdxOffset += 1;
                 }
@@ -1385,7 +1388,7 @@ namespace jiminy
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
             std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
-            vectorN_t const & velocityLimitMin = model_->getVelocityLimit();
+            vectorN_t const & velocityLimitMax = model_->getVelocityLimit();
 
             uint32_t jointIdxOffset = 0;
             for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
@@ -1396,8 +1399,8 @@ namespace jiminy
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & vJoint = v(jointVelocityIdx + j);
-                    float64_t const & vJointMin = -velocityLimitMin[jointIdxOffset];
-                    float64_t const & vJointMax = velocityLimitMin[jointIdxOffset];
+                    float64_t const & vJointMin = -velocityLimitMax[jointIdxOffset];
+                    float64_t const & vJointMax = velocityLimitMax[jointIdxOffset];
 
                     float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
@@ -1419,7 +1422,7 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
-                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+                    u[jointVelocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
 
                     jointIdxOffset += 1;
                 }

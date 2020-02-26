@@ -43,6 +43,7 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
+    torqueLimit_(),
     positionFieldNames_(),
     velocityFieldNames_(),
     accelerationFieldNames_(),
@@ -451,6 +452,20 @@ namespace jiminy
             else
             {
                 velocityLimit_ = mdlOptions_->joints.velocityLimit;
+            }
+
+            if (mdlOptions_->joints.torqueLimitFromUrdf)
+            {
+                // effortLimit is given in the velocity vector space
+                torqueLimit_.resize(motorsVelocityIdx_.size());
+                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+                {
+                    torqueLimit_[i] = pncModel_.effortLimit[motorsVelocityIdx_[i]];
+                }
+            }
+            else
+            {
+                torqueLimit_ = mdlOptions_->joints.torqueLimit;
             }
         }
 
@@ -889,6 +904,15 @@ namespace jiminy
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
             }
+            if (!boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")))
+            {
+                vectorN_t & torqueLimit = boost::get<vectorN_t>(jointOptionsHolder.at("torqueLimit"));
+                if((int32_t) motorsVelocityIdx_.size() != torqueLimit.size())
+                {
+                    std::cout << "Error - Model::setOptions - Wrong vector size for 'torqueLimit'." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                }
+            }
             if (boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")))
             {
                 vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
@@ -1137,6 +1161,11 @@ namespace jiminy
     vectorN_t const & Model::getVelocityLimit(void) const
     {
         return velocityLimit_;
+    }
+
+    vectorN_t const & Model::getTorqueLimit(void) const
+    {
+        return torqueLimit_;
     }
 
     std::vector<std::string> const & Model::getAccelerationFieldNames(void) const

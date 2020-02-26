@@ -46,6 +46,9 @@ namespace jiminy
             config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
+            config["enableTorqueLimit"] = true;
+            config["torqueLimitFromUrdf"] = true;
+            config["torqueLimit"] = vectorN_t();
 
             return config;
         };
@@ -61,6 +64,9 @@ namespace jiminy
             bool      const enableVelocityLimit;
             bool      const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
+            bool      const enableTorqueLimit;
+            bool      const torqueLimitFromUrdf;
+            vectorN_t const torqueLimit;
 
             jointOptions_t(configHolder_t const & options) :
             enableMotorInertia(boost::get<bool>(options.at("enableMotorInertia"))),
@@ -71,7 +77,10 @@ namespace jiminy
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
             enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")),
+            enableTorqueLimit(boost::get<bool>(options.at("enableTorqueLimit"))),
+            torqueLimitFromUrdf(boost::get<bool>(options.at("torqueLimitFromUrdf"))),
+            torqueLimit(boost::get<vectorN_t>(options.at("torqueLimit")))
             {
                 // Empty.
             }
@@ -197,6 +206,7 @@ namespace jiminy
         vectorN_t const & getPositionLimitMin(void) const;
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
+        vectorN_t const & getTorqueLimit(void) const;
 
         // Getter without keywords for consistency with pinocchio C++ API
         uint32_t const & nq(void) const;
