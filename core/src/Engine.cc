@@ -621,7 +621,11 @@ namespace jiminy
                             return one.try_step(system, x, dxdt, t, dtCurrent);
                         }, stepper_))
                     {
-                        fail_checker.reset(); // reset the fail counter, see #173
+                        fail_checker.reset(); // reset the fail counter
+                        if (engineOptions_->stepper.logInternalStepperSteps)
+                        {
+                            updateTelemetry();
+                        }
                         dt = std::max(dt, dtCurrent); // continue with the original step size if dt was reduced due to the next breakpoint
                     }
                     else
@@ -659,6 +663,10 @@ namespace jiminy
                     if (res == success)
                     {
                         fail_checker.reset(); // reset the fail counter
+                        if (engineOptions_->stepper.logInternalStepperSteps)
+                        {
+                            updateTelemetry();
+                        }
                     }
                     else
                     {
@@ -674,7 +682,10 @@ namespace jiminy
 
         /* Monitor current iteration number, and log the current time,
            state, command, and sensors data. */
-        updateTelemetry();
+        if (!engineOptions_->stepper.logInternalStepperSteps)
+        {
+            updateTelemetry();
+        }
 
         return result_t::SUCCESS;
     }

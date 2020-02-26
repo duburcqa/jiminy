@@ -283,6 +283,7 @@ namespace jiminy
             config["iterMax"] = 100000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
+            config["logInternalStepperSteps"] = 0.0;
 
             return config;
         };
@@ -298,6 +299,7 @@ namespace jiminy
             int32_t     const iterMax;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
+            bool        const logInternalStepperSteps;
 
             stepperOptions_t(configHolder_t const & options) :
             verbose(boost::get<bool>(options.at("verbose"))),
@@ -308,7 +310,8 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
-            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod")))
+            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod")),
+            logInternalStepperSteps(boost::get<bool>(options.at("logInternalStepperSteps")))
             {
                 // Empty.
             }
