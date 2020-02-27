@@ -441,15 +441,15 @@ namespace jiminy
                 }
                 break;
             }
-
-            returnCode = step(-1, tEnd); // Automatic dt adjustment
+            // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log.
+            float64_t stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
+            returnCode = step(stepSize); // Automatic dt adjustment
         }
 
         return returnCode;
     }
 
-    result_t Engine::step(float64_t const & dtDesired,
-                          float64_t         tEnd)
+    result_t Engine::step(float64_t const& stepSize)
     {
         // Check if the engine is initialized
         if(!isInitialized_)
@@ -476,16 +476,21 @@ namespace jiminy
         }
 
         // Check if the desired step size is suitable
-        if (dtDesired > EPS && (dtDesired < MIN_TIME_STEP || dtDesired > MAX_TIME_STEP))
+        if (stepSize > EPS && stepSize < MIN_TIME_STEP)
         {
-            std::cout << "Error - Engine::step - The desired step size 'dtDesired' is out of bounds." << std::endl;
+            std::cout << "Error - Engine::step - The desired step size 'stepSize' is out of bounds." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        if (tEnd > EPS && tEnd - stepperState_.t < MIN_TIME_STEP)
+        // Set end time: apply default step size (stepperUpdatePeriod_) if negative value given as input.
+        float64_t tEnd;
+        if (stepSize > EPS)
         {
-            std::cout << "Error - Engine::step - The final time must be larger than the current time." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            tEnd = stepperState_.t + stepSize;
+        }
+        else
+        {
+            tEnd = stepperState_.t + stepperUpdatePeriod_;
         }
 
         // Get references/copies of some internal stepper buffers
@@ -510,24 +515,12 @@ namespace jiminy
         // Define a failure checker for the stepper
         failed_step_checker fail_checker;
 
-        // Define the final time
-        if (tEnd < EPS)
-        {
-            if (dtDesired < EPS)
-            {
-                tEnd = t + MAX_TIME_STEP;
-            }
-            else
-            {
-                tEnd = t + dtDesired;
-            }
-        }
-
         // Perform the integration
-        float64_t tNext = t;
-        do
+        while(tEnd - t > EPS)
         {
-            if (stepperUpdatePeriod_ > EPS)
+            float64_t tNext = t;
+            // Solver cannot simulate a timestep smaller than MIN_TIME_STEP
+            if (stepperUpdatePeriod_ > MIN_TIME_STEP)
             {
                 // Update the sensor data if necessary (only for finite update frequency)
                 if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
@@ -591,11 +584,17 @@ namespace jiminy
 
             if (stepperUpdatePeriod_ > EPS)
             {
-                // Get the target time at next iteration
+                // Get the time of the next breakpoint for the ODE solver:
+                // a breakpoint occurs if we reached tEnd, if an external force is applied, or if we
+                // need to update the sensors / controller.
                 float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < MIN_TIME_STEP)
                 {
-                    tNext += min(stepperUpdatePeriod_,
+                    // Step to reach next sensors / controller update is too short: skip one
+                    // controller update and jump to the next one.
+                    // Note that in this case, the sensors have already been updated in
+                    // anticipation in previous loop.
+                    tNext += min(dtNextUpdatePeriod + stepperUpdatePeriod_,
                                  tEnd - t,
                                  tForceImpulseNext - t);
                 }
@@ -605,20 +604,17 @@ namespace jiminy
                                  tEnd - t,
                                  tForceImpulseNext - t);
                 }
-                if (dtDesired > EPS)
-                {
-                    tNext = std::min(tNext, stepperState_.t + dtDesired);
-                }
 
                 // Compute the next step using adaptive step method
                 while (t < tNext)
                 {
-                    // adjust stepsize to end up exactly at the next breakpoint
-                    float64_t dtCurrent = std::min(dt, tNext - t);
+                    // Adjust stepsize to end up exactly at the next breakpoint
+                    // and prevent steps larger than dtMax
+                    dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                     if (success == boost::apply_visitor(
                         [&](auto && one)
                         {
-                            return one.try_step(system, x, dxdt, t, dtCurrent);
+                            return one.try_step(system, x, dxdt, t, dt);
                         }, stepper_))
                     {
                         fail_checker.reset(); // reset the fail counter
@@ -626,14 +622,11 @@ namespace jiminy
                         {
                             updateTelemetry();
                         }
-                        dt = std::max(dt, dtCurrent); // continue with the original step size if dt was reduced due to the next breakpoint
                     }
                     else
                     {
                         fail_checker();  // check for possible overflow of failed steps in step size adjustment
-                        dt = dtCurrent;
                     }
-                    dt = std::min(dt, engineOptions_->stepper.dtMax); // Make sure it never exceeds dtMax
                 }
 
                 // Update the current time
@@ -646,10 +639,6 @@ namespace jiminy
                          engineOptions_->stepper.dtMax,
                          tEnd - t,
                          tForceImpulseNext - t);
-                if (dtDesired > EPS)
-                {
-                    dt = std::min(dt, stepperState_.t + dtDesired - t);
-                }
 
                 // Compute the next step using adaptive step method
                 controlled_step_result res = fail;
@@ -674,7 +663,7 @@ namespace jiminy
                     }
                 }
             }
-        } while(dtDesired > EPS && stepperState_.t + dtDesired - t > MIN_TIME_STEP);
+        }
 
         // Update the iteration counter
         stepperState_.t = t;

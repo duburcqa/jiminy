@@ -414,9 +414,10 @@ namespace jiminy
         result_t simulate(vectorN_t const & x_init,
                           float64_t const & end_time);
 
-
-        result_t step(float64_t const & dtDesired = -1,
-                      float64_t         t_end = -1);
+        /// \brief Integrate from current time and state for stepSize
+        ///
+        /// \param[in] stepSize Size of the step.
+        result_t step(float64_t const & stepSize = -1);
 
         void registerForceImpulse(std::string const & frameName,
                                   float64_t   const & t,
