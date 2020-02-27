@@ -77,7 +77,7 @@ namespace jiminy
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
             enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")),
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
             enableTorqueLimit(boost::get<bool>(options.at("enableTorqueLimit"))),
             torqueLimitFromUrdf(boost::get<bool>(options.at("torqueLimitFromUrdf"))),
             torqueLimit(boost::get<vectorN_t>(options.at("torqueLimit")))
@@ -271,6 +271,7 @@ namespace jiminy
         vectorN_t positionLimitMin_;
         vectorN_t positionLimitMax_;
         vectorN_t velocityLimit_;
+        vectorN_t torqueLimit_;
 
         std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid model
         std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid model

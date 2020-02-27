@@ -765,6 +765,7 @@ namespace jiminy
         {
             // The torque is in motor space at this point
             vectorN_t const & torqueLimitMax = model_->getTorqueLimit();
+            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
             for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
             {
                 float64_t const & torque_max = torqueLimitMax[i];
@@ -828,8 +829,8 @@ namespace jiminy
             if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_TIME_STEP)
             || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_TIME_STEP))
             {
-                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than" +\
-                << MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
+                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than" << \
+                    MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
             // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
@@ -841,7 +842,7 @@ namespace jiminy
              && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
                          controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
             {
-                std::cout << "Error - Engine::setOptions - In discrete mode, the controller and sensor update periods " +\
+                std::cout << "Error - Engine::setOptions - In discrete mode, the controller and sensor update periods "\
                              "must be multiple of each other." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }

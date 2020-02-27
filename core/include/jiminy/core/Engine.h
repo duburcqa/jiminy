@@ -310,7 +310,7 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
-            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod")),
+            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
             logInternalStepperSteps(boost::get<bool>(options.at("logInternalStepperSteps")))
             {
                 // Empty.
