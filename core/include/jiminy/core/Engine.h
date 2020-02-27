@@ -283,7 +283,7 @@ namespace jiminy
             config["iterMax"] = 100000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
-            config["logInternalStepperSteps"] = 0.0;
+            config["logInternalStepperSteps"] = false;
 
             return config;
         };
