@@ -828,16 +828,21 @@ namespace jiminy
             if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_TIME_STEP)
             || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_TIME_STEP))
             {
-                std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be infinite for larger than " << MIN_TIME_STEP << "s." << std::endl;
+                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than" +\
+                << MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
+            // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
+            // to verify that b devides a with a tolerance EPS, we need to verify that a % b \in [-EPS, EPS] -
+            // however since std::fmod yields values in [0, b[, this interval maps to [O, EPS] \union [b - EPS, b[.
             else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
             && (std::min(std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod),
                          sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
              && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
                          controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
             {
-                std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be multiple of each other if not infinite." << std::endl;
+                std::cout << "Error - Engine::setOptions - In discrete mode, the controller and sensor update periods " +\
+                             "must be multiple of each other." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
         }
