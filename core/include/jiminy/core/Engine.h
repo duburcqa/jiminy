@@ -414,9 +414,13 @@ namespace jiminy
         result_t simulate(vectorN_t const & x_init,
                           float64_t const & end_time);
 
-        /// \brief Integrate from current time and state for stepSize
+        /// \brief Integrate system from current state for a duration equal to stepSize
         ///
-        /// \param[in] stepSize Size of the step.
+        /// \details This function performs a single 'integration step', in the sense that only
+        ///          the endpoint is added to the log. The integrator object is allowed to perform
+        ///          multiple steps inside of this interval.
+        ///          One may specify a negative timestep to use the default update value.
+        /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
         result_t step(float64_t const & stepSize = -1);
 
         void registerForceImpulse(std::string const & frameName,

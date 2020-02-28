@@ -546,6 +546,9 @@ namespace jiminy
 
                         /* Update the internal stepper state dxdt since the dynamics has changed.
                             Make sure the next impulse force iterator has NOT been updated at this point ! */
+                        // Note: this point is still subject to debate: it's more a subjective choice
+                        // than a true mathematical condition. Numerically the result is similar
+                        // with or without this line...
                         if (engineOptions_->stepper.odeSolver != "explicit_euler")
                         {
                             computeSystemDynamics(t, x, dxdt);

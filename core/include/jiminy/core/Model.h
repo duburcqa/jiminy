@@ -180,6 +180,9 @@ namespace jiminy
         result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
         result_t setTelemetryOptions(configHolder_t const & telemetryOptions);
         bool const & getIsInitialized(void) const;
+        /// \brief Get status of telementry object.
+        /// \details The engine needs to know this to setup the global telemetry ;
+        ///          this function is not meant to be called manually.
         bool const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
         bool const & getHasFreeflyer(void) const;
