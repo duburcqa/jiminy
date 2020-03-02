@@ -51,7 +51,7 @@ endif()
 
 # Determine if python bindings must be generated
 option(BUILD_PYTHON_INTERFACE "Build the python binding" ON)
-option(BUILD_EXAMPLES "Build the C++ example scenarios" ON)
+option(BUILD_EXAMPLES "Build the C++ examples" ON)
 
 # Add missing include & lib directory(ies)
 # TODO: Remove hard-coded paths after support of find_package for Eigen and Pinocchio,
