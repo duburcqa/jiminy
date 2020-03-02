@@ -28,7 +28,7 @@ jobs:
       run: |
         mkdir build install
         cd build
-        cmake .. -DCOMPONENT=doxygen -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
+        cmake .. -DCOMPONENT=doxygen -DBoost_NO_SYSTEM_PATHS=OFF -DCMAKE_CXX_FLAGS=-isystem\ /usr/include/eigen3 -DCMAKE_INSTALL_PREFIX=../install
     - name: Building project
       run: |
         cd build

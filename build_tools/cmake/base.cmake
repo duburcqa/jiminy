@@ -113,6 +113,11 @@ if(BUILD_PYTHON_INTERFACE)
     endif(EXISTS /usr/include/python${PYTHON_VERSION})
     message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
 
+    # Add Python library directory to search path on Windows
+    if(WIN32)
+        link_directories(SYSTEM "${PYTHON_ROOT}/lib")
+    endif()
+
     # Find Numpy and add it as a dependency
     find_package(NumPy REQUIRED)
 
