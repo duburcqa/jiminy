@@ -4,6 +4,8 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
+#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
@@ -12,26 +14,6 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
-#include <numpy/ndarrayobject.h>
-
-
-// import_array is not defined on Windows, but anyway it should be handled by boost::numpy.
-// Strangely, it is still necessary to call it manually depending on the boost version
-// to get rid of unpleasant warnings "function might be candidate for attribute ‘noreturn’".
-#if defined(import_array)
-#if PY_VERSION_HEX >= 0x03000000
-    static void* initNumpyC() {
-        import_array();
-        return NULL;
-    }
-#else
-    static void initNumpyC() {
-        import_array();
-    }
-#endif
-#else
-    static void initNumpyC() {}
-#endif
 
 namespace jiminy
 {
@@ -42,9 +24,9 @@ namespace python
     BOOST_PYTHON_MODULE(libjiminy_pywrap)
     {
         // Requirement to handle numpy::ndarray, and create PyArrays<->Eigen automatic converters
+        // Note that they already call import_array when necessary, so that it must not be called manually.
         eigenpy::enableEigenPy();
-        initNumpyC();
-        bp::numpy::initialize(); // Note that it calls import_array(), so that it is useless to call it manually.
+        bp::numpy::initialize();
 
         // Interfaces for result_t enum
         bp::enum_<result_t>("result_t")
