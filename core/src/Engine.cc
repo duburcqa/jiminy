@@ -442,7 +442,15 @@ namespace jiminy
                 break;
             }
             // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log.
-            float64_t stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
+            float64_t stepSize;
+            if (stepperUpdatePeriod_ > 0)
+            {
+                stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
+            }
+            else
+            {
+                stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
+            }
             returnCode = step(stepSize); // Automatic dt adjustment
         }
 
@@ -478,11 +486,13 @@ namespace jiminy
         // Check if the desired step size is suitable
         if (stepSize > EPS && stepSize < MIN_TIME_STEP)
         {
-            std::cout << "Error - Engine::step - The desired step size 'stepSize' is out of bounds." << std::endl;
+            std::cout << "Error - Engine::step - The step size 'stepSize' is out of bounds." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Set end time: apply default step size (stepperUpdatePeriod_) if negative value given as input.
+        /* Set end time: The default step size is equal to the controller update period if
+           discrete-time, otherwise it uses the sensor update period if discrete-time,
+           otherwise it uses the user-defined parameter dtMax. */
         float64_t tEnd;
         if (stepSize > EPS)
         {
@@ -490,7 +500,23 @@ namespace jiminy
         }
         else
         {
-            tEnd = stepperState_.t + stepperUpdatePeriod_;
+            float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+            if (controllerUpdatePeriod > EPS)
+            {
+                tEnd = stepperState_.t + controllerUpdatePeriod;
+            }
+            else
+            {
+                float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                if (sensorsUpdatePeriod > EPS)
+                {
+                    tEnd = stepperState_.t + sensorsUpdatePeriod;
+                }
+                else
+                {
+                    tEnd = stepperState_.t + engineOptions_->stepper.dtMax;
+                }
+            }
         }
 
         // Get references/copies of some internal stepper buffers
@@ -821,8 +847,8 @@ namespace jiminy
             if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_TIME_STEP)
             || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_TIME_STEP))
             {
-                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than" << \
-                    MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
+                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than";
+                std::cout << MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
             // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
