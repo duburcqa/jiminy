@@ -19,7 +19,6 @@ Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/t
 ## Demo
 
 <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="430"/>
-## Dependencies
 
 ___
 

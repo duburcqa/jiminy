@@ -76,20 +76,25 @@ endif()
 find_package(Boost REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
-    # Set Python version
+    # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
     find_program(PYTHON_EXECUTABLE python)
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE _VERSION)
     string(REPLACE ";" "." PYTHON_VERSION_STRING "${_VERSION}")
     list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
     list(GET _VERSION 1 PYTHON_VERSION_MINOR)
     set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
-    get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
-    set(PYTHON_SITELIB ${PYTHON_ROOT}/lib/python${PYTHON_VERSION}/site-packages)
+    message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
+
+    ## Get python system site-package and install flags
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
+                            "import sysconfig; print(sysconfig.get_paths()['purelib'])"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE PYTHON_SITELIB)
     set(PYTHON_INSTALL_FLAGS "--upgrade --no-deps --force-reinstall ")
 
     # Check permissions on Python site-package to determine whether to use user site
@@ -100,21 +105,20 @@ if(BUILD_PYTHON_INTERFACE)
     if(${PYTHON_RIGHT_SITELIB})
         message("-- No right on system site-package: ${PYTHON_SITELIB}. Using user site as fallback.")
         execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
                         OUTPUT_VARIABLE PYTHON_SITELIB)
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
     endif()
 
-    # Add Python dependencies
-    set(PYTHON_INCLUDE_DIRS "")
-    if(EXISTS /usr/include/python${PYTHON_VERSION})
-        list(APPEND PYTHON_INCLUDE_DIRS /usr/include/python${PYTHON_VERSION})
-    else(EXISTS /usr/include/python${PYTHON_VERSION})
-        list(APPEND PYTHON_INCLUDE_DIRS ${PYTHON_ROOT}/include/python${PYTHON_VERSION})
-    endif(EXISTS /usr/include/python${PYTHON_VERSION})
-    message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
+    # Include python headers
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
+                            "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE PYTHON_INCLUDE_DIRS)
 
     # Add Python library directory to search path on Windows
     if(WIN32)
+        get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
         link_directories(SYSTEM "${PYTHON_ROOT}/libs/")
     endif()
 
