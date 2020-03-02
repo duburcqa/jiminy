@@ -2,6 +2,15 @@
 #include <climits>
 #include <stdlib.h>     /* srand, rand */
 
+#ifndef _WIN32
+#include <pwd.h>
+#include <unistd.h>
+#include <getopt.h>
+#else
+#include <stdlib.h>
+#include <stdio.h>
+#endif
+
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
@@ -38,6 +47,21 @@ namespace jiminy
         std::chrono::duration<float64_t> timeDiff = tf - t0;
         dt = timeDiff.count();
     }
+
+    // ************ IO file and Directory utilities **************
+
+    #ifndef _WIN32
+    std::string getUserDirectory(void)
+    {
+        struct passwd *pw = getpwuid(getuid());
+        return pw->pw_dir;
+    }
+    #else
+    std::string getUserDirectory(void)
+    {
+        return {getenv("USERPROFILE")};
+    }
+    #endif
 
     // ***************** Random number generator *****************
     // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000)

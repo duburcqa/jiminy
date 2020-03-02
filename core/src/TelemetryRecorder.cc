@@ -266,7 +266,7 @@ namespace jiminy
                     break;
                 }
 
-                timestamps.emplace_back(static_cast<float32_t>(timestamp) * 1e-6);
+                timestamps.emplace_back(static_cast<float32_t>(timestamp * 1e-6));
                 intData.emplace_back(intDataLine);
                 floatData.emplace_back(floatDataLine);
             }

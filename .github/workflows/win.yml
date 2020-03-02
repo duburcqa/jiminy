@@ -1,0 +1,146 @@
+name: Windows CI
+
+on: [push, pull_request]
+
+jobs:
+  build-test-and-deploy:
+    name: "Build project on Windows"
+    runs-on: [windows-2016]
+
+    steps:
+    - name: Checkout boost
+      uses: actions/checkout@v2
+      with:
+        repository: 'boostorg/boost'
+        ref: 'boost-1.72.0'
+        path: 'boost_1_72_0'
+    - name: Checkout boost submodules
+      run: |
+        cd boost_1_72_0
+        git submodule update --init --recursive --jobs 8
+        echo "::set-env name=BOOST_MINOR_VERSION::72"
+    - name: Checkout eigen
+      uses: actions/checkout@v2
+      with:
+        repository: 'eigenteam/eigen-git-mirror'
+        ref: '3.3.7'
+        path: 'eigen3'
+    - name: Checkout tinyxml (robotology fork for cmake compatibility)
+      uses: actions/checkout@v2
+      with:
+        repository: 'robotology-dependencies/tinyxml'
+        ref: 'master'
+        path: 'tinyxml'
+    - name: Checkout console_bridge
+      uses: actions/checkout@v2
+      with:
+        repository: 'ros/console_bridge'
+        ref: '0.4.4'
+        path: 'console_bridge'
+    - name: Checkout urdfdom_headers
+      uses: actions/checkout@v2
+      with:
+        repository: 'ros/urdfdom_headers'
+        ref: '1.0.3'
+        path: 'urdfdom_headers'
+    - name: Checkout urdfdom
+      uses: actions/checkout@v2
+      with:
+        repository: 'ros/urdfdom'
+        ref: '1.0.3'
+        path: 'urdfdom'
+    - name: Checkout eigenpy
+      uses: actions/checkout@v2
+      with:
+        repository: 'stack-of-tasks/eigenpy'
+        ref: 'v2.1.2'
+        path: 'eigenpy'
+    - name: Checkout eigenpy submodules
+      run: |
+        cd eigenpy
+        git submodule update --init --recursive
+    - name: Checkout pinocchio (sbarthelemy fork for windows compatibility - based on 2.1.11)
+      uses: actions/checkout@v2
+      with:
+        repository: 'sbarthelemy/pinocchio' #'stack-of-tasks/pinocchio' #'sbarthelemy/pinocchio'
+        ref: 'f1831c3fc0384035ed6f1d8e05b748a3766fd599' #'v2.3.1' #'f1831c3fc0384035ed6f1d8e05b748a3766fd599'
+        path: 'pinocchio'
+    - name: Checkout pinocchio submodules
+      run: |
+        cd pinocchio
+        git submodule update --init --recursive
+        cd cmake
+        git checkout 52fd08980365 #65e7f52151c93dd3bf4e0017a44c170d0547d060 #52fd08980365 # 31f4a95 # To use the same version as for eigenpy v2.0.3
+    - name: Checkout jiminy
+      uses: actions/checkout@v2
+      with:
+        path: 'jiminy'
+    - name: Configure Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.6'
+        architecture: 'x64'
+    - name: Setup minimal build environment
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-PSDebug -Trace 1
+        choco install pkgconfiglite -y
+        python -m pip install numpy
+    - name: Build project dependencies
+      run: |
+        & './jiminy/build_tools/setup.ps1'
+    - name: Configure and build jiminy
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-PSDebug -Trace 1
+
+        $RootDir = $Env:GITHUB_WORKSPACE
+        $InstallDir = "$RootDir\install"
+        $BuildType = "Release"
+
+        if (Test-Path Env:/Boost_ROOT) {
+          Remove-Item Env:/Boost_ROOT
+        }
+
+        if (-not (Test-Path -PathType Container $RootDir\jiminy\build)) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build"
+        }
+        Set-Location -Path $RootDir\jiminy\build
+        $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
+        $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
+        cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                              -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF -DBUILD_PYTHON_INTERFACE=ON `
+                                              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
+        cmake --build . --target INSTALL --config "$BuildType" --parallel 2
+    - name: Archive install artifacts
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v1
+      with:
+        name: install-artifacts-win
+        path: .\install
+    # - name: Create Release
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   uses: actions/create-release@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
+    #   with:
+    #     tag_name: ${{ github.event.pull_request.head.ref }}
+    #     release_name: Release ${{ github.event.pull_request.head.ref }}
+    #     draft: false
+    #     prerelease: false
+    # - name: Archive install artifacts
+    #   shell: pwsh
+    #   run: |
+    #     Add-Type -A System.IO.Compression.FileSystem
+    #     [System.IO.Compression.ZipFile]::CreateFromDirectory(.\install, .\install-linux.zip)
+    # - name: Upload Release Asset
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   uses: actions/upload-release-asset@v1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_path: .\install-linux.zip
+    #     asset_name: install-linux.zip
+    #     asset_content_type: application/zip

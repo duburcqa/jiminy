@@ -12,7 +12,13 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
+#include <numpy/ndarrayobject.h>
 
+
+// import_array is not defined on Windows, but anyway it should be handled by boost::numpy.
+// Strangely, it is still necessary to call it manually depending on the boost version
+// to get rid of unpleasant warnings "function might be candidate for attribute ‘noreturn’".
+#if defined(import_array)
 #if PY_VERSION_HEX >= 0x03000000
     static void* initNumpyC() {
         import_array();
@@ -23,7 +29,9 @@
         import_array();
     }
 #endif
-
+#else
+    static void initNumpyC() {}
+#endif
 
 namespace jiminy
 {
@@ -35,8 +43,8 @@ namespace python
     {
         // Requirement to handle numpy::ndarray, and create PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
-        bp::numpy::initialize();
         initNumpyC();
+        bp::numpy::initialize(); // Note that it calls import_array(), so that it is useless to call it manually.
 
         // Interfaces for result_t enum
         bp::enum_<result_t>("result_t")

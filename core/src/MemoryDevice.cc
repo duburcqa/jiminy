@@ -64,7 +64,7 @@ namespace jiminy
 
     result_t MemoryDevice::seek(int64_t pos)
     {
-        if ((pos < 0) or (pos >= (int64_t) buffer_.size()))
+        if ((pos < 0) || (pos >= (int64_t) buffer_.size()))
         {
             std::cout << "Error - MemoryDevice::seek - The requested position '" << pos << "' is out of scope." << std::endl;
             return result_t::ERROR_GENERIC;
@@ -114,7 +114,7 @@ namespace jiminy
 
     result_t MemoryDevice::doOpen(enum OpenMode modes)
     {
-        if (not (modes & OpenMode::APPEND))
+        if (!(modes & OpenMode::APPEND))
         {
             currentPos_ = 0;
         }

@@ -13,3 +13,4 @@
 *.sw?
 .*project
 docs
+.vscode

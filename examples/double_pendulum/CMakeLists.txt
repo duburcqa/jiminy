@@ -19,6 +19,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${Boost_INCLUDE_DIRS}")
 target_link_libraries(${PROJECT_NAME} PUBLIC ${LIBRARY_NAME}_core)
 
 # Activate c++14

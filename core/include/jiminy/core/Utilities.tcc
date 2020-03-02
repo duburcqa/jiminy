@@ -26,7 +26,7 @@ namespace jiminy
 
     // *********************** Miscellaneous **************************
 
-    template<class F, class dF=std::decay_t<F> >
+    template<class F, class dF>
     auto not_f(F&& f){
         return [f=std::forward<F>(f)](auto&&...args) mutable
                ->decltype(!std::declval<std::result_of_t<dF&(decltype(args)...)>>()) // optional, adds sfinae

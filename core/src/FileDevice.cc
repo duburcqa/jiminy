@@ -8,10 +8,34 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
 
 #include "jiminy/core/FileDevice.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#else
+/* This is intended as a drop-in replacement for unistd.h on Windows.
+ * https://stackoverflow.com/a/826027/1202830
+ */
+#include <stdlib.h>
+#include <io.h>
+
+/* The specific versions for Windows read, write, open and close being #defined here only handle files. */
+#define lseek _lseek
+#define open _open
+#define close _close
+#define write _write
+#define read _read
+
+#define S_IRUSR _S_IREAD
+#define S_IWUSR _S_IWRITE
+
+#ifdef _WIN64
+#define ssize_t __int64
+#else
+#define ssize_t long
+#endif
+#endif
 
 namespace jiminy
 {
@@ -22,11 +46,21 @@ namespace jiminy
         supportedModes_ = OpenMode::READ_ONLY     | OpenMode::WRITE_ONLY | OpenMode::READ_WRITE |
                           OpenMode::NON_BLOCKING  | OpenMode::TRUNCATE   | OpenMode::NEW_ONLY   |
                           OpenMode::EXISTING_ONLY | OpenMode::APPEND     | OpenMode::SYNC;
+        #ifndef _WIN32
+        supportedModes_ |= OpenMode::NON_BLOCKING | OpenMode::SYNC;
+        #endif
     }
 
     FileDevice::~FileDevice(void)
     {
+        #if defined(close)
+        #   pragma push_macro("close")
+        #   undef close
+        #endif
         close();
+        #if defined(close)
+        #   pragma pop_macro("close")
+        #endif
     }
 
     result_t FileDevice::doOpen(enum OpenMode mode)
@@ -45,10 +79,6 @@ namespace jiminy
         {
             posixFLags |= O_RDWR;
         }
-        if (mode & OpenMode::NON_BLOCKING)
-        {
-            posixFLags |= O_NONBLOCK;
-        }
         if (mode & OpenMode::TRUNCATE)
         {
             posixFLags |= O_TRUNC;
@@ -65,10 +95,19 @@ namespace jiminy
         {
             posixFLags |= O_APPEND;
         }
+        #ifndef _WIN32
+        if (mode & OpenMode::NON_BLOCKING)
+        {
+            posixFLags |= O_NONBLOCK;
+        }
         if (mode & OpenMode::SYNC)
         {
             posixFLags |= O_SYNC;
         }
+        #endif
+        #ifdef _WIN32
+        posixFLags |= _O_BINARY;
+        #endif
 
         int32_t const rc = ::open(filename_.c_str(), posixFLags, S_IRUSR | S_IWUSR);
         if (rc < 0)
@@ -138,7 +177,7 @@ namespace jiminy
 
     int64_t FileDevice::bytesAvailable(void)
     {
-        if (not isReadable())
+        if (!isReadable())
         {
             return 0;
         }

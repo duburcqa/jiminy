@@ -4,13 +4,7 @@
 // with something that is not an exoskeleton).
 
 #include <sys/types.h>
-#include <pwd.h>
 #include <iostream>
-#include <iomanip>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <getopt.h>
 #include <string>
 
 #include "jiminy/core/Utilities.h"
@@ -53,8 +47,7 @@ int main(int argc, char *argv[])
     // =====================================================================
 
     // Set URDF and log output.
-    struct passwd *pw = getpwuid(getuid());
-    std::string homedir(pw->pw_dir);
+    std::string homedir = getUserDirectory();
     std::string urdfPath = homedir + std::string("/wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf");
     std::string outputDirPath("/tmp/blackbox/");
 
@@ -125,7 +118,7 @@ int main(int argc, char *argv[])
     timer.tic();
     engine.simulate(x0, tf);
     timer.toc();
-    std::cout << "Simulation time: " << timer.dt*1.0e3 << "ms" << std::endl;
+    std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> header;
