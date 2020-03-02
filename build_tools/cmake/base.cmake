@@ -115,7 +115,7 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Add Python library directory to search path on Windows
     if(WIN32)
-        link_directories(SYSTEM "${PYTHON_ROOT}/lib")
+        link_directories(SYSTEM "${PYTHON_ROOT}/libs/")
     endif()
 
     # Find Numpy and add it as a dependency
