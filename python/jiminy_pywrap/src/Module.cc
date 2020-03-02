@@ -4,7 +4,13 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
-#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+// Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
+// The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
+// if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
+#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include "numpy/ndarrayobject.h"
+#define NO_IMPORT_ARRAY
 
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
@@ -23,10 +29,12 @@ namespace python
 
     BOOST_PYTHON_MODULE(libjiminy_pywrap)
     {
-        // Requirement to handle numpy::ndarray, and create PyArrays<->Eigen automatic converters
-        // Note that they already call import_array when necessary, so that it must not be called manually.
-        eigenpy::enableEigenPy();
+        // Required to initialized Python C API
+        Py_Initialize();
+        // Required to handle numpy::ndarray object (it loads Python C API of Numpy) and ufunc
         bp::numpy::initialize();
+        // Required and create PyArrays<->Eigen automatic converters.
+        eigenpy::enableEigenPy();
 
         // Interfaces for result_t enum
         bp::enum_<result_t>("result_t")

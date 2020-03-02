@@ -5,8 +5,6 @@
 #ifndef SIMULATOR_PYTHON_H
 #define SIMULATOR_PYTHON_H
 
-#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
-
 #include <cassert>
 
 #include "jiminy/core/Engine.h"

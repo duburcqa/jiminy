@@ -256,6 +256,6 @@ Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                       -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
                                       -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
-                                      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_PYTHON_INTERFACE_ONLY=TRUE `
+                                      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=OFF -DINSTALL_PYTHON_INTERFACE_ONLY=TRUE `
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2

@@ -1,14 +1,14 @@
 #ifndef SIMU_PYTHON_UTILITIES_H
 #define SIMU_PYTHON_UTILITIES_H
 
-#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+// Make sure that the Python C API does not get redefined separately
+#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+#define NO_IMPORT_ARRAY
 
-#include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
+#include <boost/python/stl_iterator.hpp>
 #include <boost/python/numpy.hpp>
 #include <boost/python/numpy/ndarray.hpp>
-
-#include <boost/python/stl_iterator.hpp>
 
 
 namespace jiminy
