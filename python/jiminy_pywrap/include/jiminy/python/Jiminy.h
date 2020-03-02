@@ -15,14 +15,15 @@
 #include "jiminy/core/ControllerFunctor.h"
 #include "jiminy/core/TelemetryData.h"
 #include "jiminy/core/Types.h"
-#include "jiminy/python/Utilities.h"
 
-#include <boost/weak_ptr.hpp>
-#include <boost/preprocessor.hpp>
+#include "jiminy/python/Utilities.h"
 
 #include <boost/python.hpp>
 #include <boost/python/def.hpp>
 #include <boost/python/dict.hpp>
+
+#include <boost/weak_ptr.hpp>
+#include <boost/preprocessor.hpp>
 
 
 namespace jiminy
@@ -32,18 +33,6 @@ namespace python
     namespace bp = boost::python;
 
     // ************************** TimeStateFctPyWrapper ******************************
-
-    template<typename T>
-    PyObject * getNumpyReference(T & data)
-    {
-        return getNumpyReferenceFromScalar(data);
-    }
-
-    template<>
-    PyObject * getNumpyReference<vector3_t>(vector3_t & data)
-    {
-        return getNumpyReferenceFromEigenVector(data);
-    }
 
     template<typename T>
     struct TimeStateFctPyWrapper {

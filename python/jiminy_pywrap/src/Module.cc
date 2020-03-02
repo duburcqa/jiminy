@@ -4,6 +4,14 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
+// Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
+// The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
+// if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
+#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include "numpy/ndarrayobject.h"
+#define NO_IMPORT_ARRAY
+
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
@@ -12,26 +20,6 @@
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 
-#include <numpy/ndarrayobject.h>
-
-
-// import_array is not defined on Windows, but anyway it should be handled by boost::numpy.
-// Strangely, it is still necessary to call it manually depending on the boost version
-// to get rid of unpleasant warnings "function might be candidate for attribute ‘noreturn’".
-#if defined(import_array)
-#if PY_VERSION_HEX >= 0x03000000
-    static void* initNumpyC() {
-        import_array();
-        return NULL;
-    }
-#else
-    static void initNumpyC() {
-        import_array();
-    }
-#endif
-#else
-    static void initNumpyC() {}
-#endif
 
 namespace jiminy
 {
@@ -41,10 +29,12 @@ namespace python
 
     BOOST_PYTHON_MODULE(libjiminy_pywrap)
     {
-        // Requirement to handle numpy::ndarray, and create PyArrays<->Eigen automatic converters
+        // Required to initialized Python C API
+        Py_Initialize();
+        // Required to handle numpy::ndarray object (it loads Python C API of Numpy) and ufunc
+        bp::numpy::initialize();
+        // Required and create PyArrays<->Eigen automatic converters.
         eigenpy::enableEigenPy();
-        initNumpyC();
-        bp::numpy::initialize(); // Note that it calls import_array(), so that it is useless to call it manually.
 
         // Interfaces for result_t enum
         bp::enum_<result_t>("result_t")

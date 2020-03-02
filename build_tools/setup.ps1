@@ -113,10 +113,7 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 $LineNumber = 18
 $Contents = Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc
 Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-# -join('Libs: -L "${libdir}" -l eigenpy -l boost_python36-vc140-mt-x64-1_',"${Env:BOOST_MINOR_VERSION}")
-'Libs:'
-} else {$_} ; $n++ } > $InstallDir\lib\pkgconfig\eigenpy.pc
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {'Libs:'} else {$_} ; $n++ } > $InstallDir\lib\pkgconfig\eigenpy.pc
 Set-PSDebug -Trace 1
 
 # Build tinyxml
@@ -200,16 +197,14 @@ string(SUBSTRING ${FILE_TARGET_NAME} ${FILE_TARGET_START} -1 FILE_TARGET_NAME)
 '} ; $_ ; $n++ } > $RootDir\pinocchio\cmake\python.cmake
 Set-PSDebug -Trace 1
 
-# ### TESTING: remove line 278 of \CMakeLists.txt to avoid scanning utils, unittest, examples, and benchmark subdirectories
-# $LineNumbers = @(275, 278, 281, 284)
-# $Contents = Get-Content $RootDir\pinocchio\CMakeLists.txt
-# Set-PSDebug -Trace 0
-# $Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++ } > $RootDir\pinocchio\CMakeLists.txt
-# Set-PSDebug -Trace 1
-
-# ### TESTING: replace BUILD_PYTHON_INTERFACE by FALSE in \pinocchio\bindings\python\CMakeLists.txt
-# $file = "$RootDir\pinocchio\bindings\python\CMakeLists.txt"
-# (Get-Content $file).replace('BUILD_PYTHON_INTERFACE', 'FALSE') | Set-Content $file
+### add line before 170 of \CMakeLists.txt to include directory of python lib
+$LineNumber = 170
+$Contents = Get-Content $RootDir\pinocchio\CMakeLists.txt
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'link_directories(SYSTEM "${PYTHON_LIBRARY_DIRS}")'
+} ; $_ ; $n++ } > $RootDir\pinocchio\CMakeLists.txt
+Set-PSDebug -Trace 1
 
 ### For some reason, the preprocessor directive `PINOCCHIO_EIGEN_PLAIN_TYPE((...))` is not properly generated. Expending it manually
 #   in src\algorithm\joint-configuration.hpp and src\algorithm\joint-configuration.hxx
@@ -260,8 +255,7 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
 Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                       -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                      -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF `
+                                      -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
                                       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=OFF -DINSTALL_PYTHON_INTERFACE_ONLY=TRUE `
-                                      -DBUILD_TESTING=OFF `
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2

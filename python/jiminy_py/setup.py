@@ -9,17 +9,17 @@ class BinaryDistribution(dist.Distribution):
 
 
 setup(name = 'jiminy_py',
-      version = '1.0.8',
+      version = '1.0.9',
       license = 'MIT',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url = 'https://github.com/Wandercraft/jiminy',
-      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.0.8.tar.gz',
+      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.0.9.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      package_data = {'jiminy_py.core': ['libjiminy_pywrap.so']},
+      package_data = {'jiminy_py.core': ['libjiminy_pywrap.*']},
       include_package_data = True, # make sure the shared library is included
       distclass = BinaryDistribution,
       install_requires = ['meshcat']

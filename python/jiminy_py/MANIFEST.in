@@ -1,1 +1,1 @@
-recursive-include src/jiminy_py/core *.so
+recursive-include src/jiminy_py/core *.so *.lib

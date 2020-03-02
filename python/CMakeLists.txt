@@ -14,7 +14,7 @@ install(FILES ${${PROJECT_NAME}_NATIVE_SOURCES}
 )
 install(CODE "file(COPY \"${CMAKE_CURRENT_BINARY_DIR}/${LIBRARY_NAME}_pywrap/\"
                    DESTINATION \"${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/src/${LIBRARY_NAME}_py/core/\"
-                   FILES_MATCHING PATTERN \"lib${LIBRARY_NAME}_pywrap.so*\")"
+                   FILES_MATCHING PATTERN \"lib${LIBRARY_NAME}_pywrap.*\")"
 )
 
 # Build Python wheels and archives

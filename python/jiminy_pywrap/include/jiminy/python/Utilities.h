@@ -1,7 +1,10 @@
 #ifndef SIMU_PYTHON_UTILITIES_H
 #define SIMU_PYTHON_UTILITIES_H
 
-#include <eigenpy/eigenpy.hpp>
+// Make sure that the Python C API does not get redefined separately
+#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+#define NO_IMPORT_ARRAY
+
 #include <boost/python.hpp>
 #include <boost/python/stl_iterator.hpp>
 #include <boost/python/numpy.hpp>
@@ -130,6 +133,22 @@ namespace python
         npy_intp dims[2] = {npy_intp(data.cols()), npy_intp(data.rows())};
         return  PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
             PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, const_cast<float64_t *>(data.data()))),NULL);
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////////
+    /// \brief  Template specializations
+    ///////////////////////////////////////////////////////////////////////////////
+    template<typename T>
+    PyObject * getNumpyReference(T & data)
+    {
+        return getNumpyReferenceFromScalar(data);
+    }
+
+    template<>
+    PyObject * getNumpyReference<vector3_t>(vector3_t & data)
+    {
+        return getNumpyReferenceFromEigenVector(data);
     }
 
     ///////////////////////////////////////////////////////////////////////////////
