@@ -56,6 +56,7 @@ engine_options["stepper"]["dtMax"] = 2.0e-3 # 2.0e-4 for "explicit_euler", 3.0e-
 engine_options["stepper"]["iterMax"] = 100000
 engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
+engine_options["stepper"]["logInternalStepperSteps"] = False
 engine_options["stepper"]["randomSeed"] = 0
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0

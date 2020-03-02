@@ -66,6 +66,7 @@ TEST(EngineSanity, EnergyConservation)
     configHolder_t mdlOptions = model->getOptions();
     boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
     boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
+    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
     model->setOptions(mdlOptions);
 
     model->initialize(urdfPath, contacts, jointNames, false);

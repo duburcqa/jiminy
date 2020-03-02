@@ -441,15 +441,23 @@ namespace jiminy
                 }
                 break;
             }
-
-            returnCode = step(-1, tEnd); // Automatic dt adjustment
+            // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log.
+            float64_t stepSize;
+            if (stepperUpdatePeriod_ > 0)
+            {
+                stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
+            }
+            else
+            {
+                stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
+            }
+            returnCode = step(stepSize); // Automatic dt adjustment
         }
 
         return returnCode;
     }
 
-    result_t Engine::step(float64_t const & dtDesired,
-                          float64_t         tEnd)
+    result_t Engine::step(float64_t const& stepSize)
     {
         // Check if the engine is initialized
         if(!isInitialized_)
@@ -476,16 +484,39 @@ namespace jiminy
         }
 
         // Check if the desired step size is suitable
-        if (dtDesired > EPS && (dtDesired < MIN_TIME_STEP || dtDesired > MAX_TIME_STEP))
+        if (stepSize > EPS && stepSize < MIN_TIME_STEP)
         {
-            std::cout << "Error - Engine::step - The desired step size 'dtDesired' is out of bounds." << std::endl;
+            std::cout << "Error - Engine::step - The step size 'stepSize' is out of bounds." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        if (tEnd > EPS && tEnd - stepperState_.t < MIN_TIME_STEP)
+        /* Set end time: The default step size is equal to the controller update period if
+           discrete-time, otherwise it uses the sensor update period if discrete-time,
+           otherwise it uses the user-defined parameter dtMax. */
+        float64_t tEnd;
+        if (stepSize > EPS)
         {
-            std::cout << "Error - Engine::step - The final time must be larger than the current time." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            tEnd = stepperState_.t + stepSize;
+        }
+        else
+        {
+            float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+            if (controllerUpdatePeriod > EPS)
+            {
+                tEnd = stepperState_.t + controllerUpdatePeriod;
+            }
+            else
+            {
+                float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                if (sensorsUpdatePeriod > EPS)
+                {
+                    tEnd = stepperState_.t + sensorsUpdatePeriod;
+                }
+                else
+                {
+                    tEnd = stepperState_.t + engineOptions_->stepper.dtMax;
+                }
+            }
         }
 
         // Get references/copies of some internal stepper buffers
@@ -510,24 +541,12 @@ namespace jiminy
         // Define a failure checker for the stepper
         failed_step_checker fail_checker;
 
-        // Define the final time
-        if (tEnd < EPS)
-        {
-            if (dtDesired < EPS)
-            {
-                tEnd = t + MAX_TIME_STEP;
-            }
-            else
-            {
-                tEnd = t + dtDesired;
-            }
-        }
-
         // Perform the integration
-        float64_t tNext = t;
-        do
+        while(tEnd - t > EPS)
         {
-            if (stepperUpdatePeriod_ > EPS)
+            float64_t tNext = t;
+            // Solver cannot simulate a timestep smaller than MIN_TIME_STEP
+            if (stepperUpdatePeriod_ > MIN_TIME_STEP)
             {
                 // Update the sensor data if necessary (only for finite update frequency)
                 if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
@@ -553,6 +572,9 @@ namespace jiminy
 
                         /* Update the internal stepper state dxdt since the dynamics has changed.
                             Make sure the next impulse force iterator has NOT been updated at this point ! */
+                        // Note: this point is still subject to debate: it's more a subjective choice
+                        // than a true mathematical condition. Numerically the result is similar
+                        // with or without this line...
                         if (engineOptions_->stepper.odeSolver != "explicit_euler")
                         {
                             computeSystemDynamics(t, x, dxdt);
@@ -591,11 +613,17 @@ namespace jiminy
 
             if (stepperUpdatePeriod_ > EPS)
             {
-                // Get the target time at next iteration
+                // Get the time of the next breakpoint for the ODE solver:
+                // a breakpoint occurs if we reached tEnd, if an external force is applied, or if we
+                // need to update the sensors / controller.
                 float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < MIN_TIME_STEP)
                 {
-                    tNext += min(stepperUpdatePeriod_,
+                    // Step to reach next sensors / controller update is too short: skip one
+                    // controller update and jump to the next one.
+                    // Note that in this case, the sensors have already been updated in
+                    // anticipation in previous loop.
+                    tNext += min(dtNextUpdatePeriod + stepperUpdatePeriod_,
                                  tEnd - t,
                                  tForceImpulseNext - t);
                 }
@@ -605,31 +633,29 @@ namespace jiminy
                                  tEnd - t,
                                  tForceImpulseNext - t);
                 }
-                if (dtDesired > EPS)
-                {
-                    tNext = std::min(tNext, stepperState_.t + dtDesired);
-                }
 
                 // Compute the next step using adaptive step method
                 while (t < tNext)
                 {
-                    // adjust stepsize to end up exactly at the next breakpoint
-                    float64_t dtCurrent = std::min(dt, tNext - t);
+                    // Adjust stepsize to end up exactly at the next breakpoint
+                    // and prevent steps larger than dtMax
+                    dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                     if (success == boost::apply_visitor(
                         [&](auto && one)
                         {
-                            return one.try_step(system, x, dxdt, t, dtCurrent);
+                            return one.try_step(system, x, dxdt, t, dt);
                         }, stepper_))
                     {
-                        fail_checker.reset(); // reset the fail counter, see #173
-                        dt = std::max(dt, dtCurrent); // continue with the original step size if dt was reduced due to the next breakpoint
+                        fail_checker.reset(); // reset the fail counter
+                        if (engineOptions_->stepper.logInternalStepperSteps)
+                        {
+                            updateTelemetry();
+                        }
                     }
                     else
                     {
                         fail_checker();  // check for possible overflow of failed steps in step size adjustment
-                        dt = dtCurrent;
                     }
-                    dt = std::min(dt, engineOptions_->stepper.dtMax); // Make sure it never exceeds dtMax
                 }
 
                 // Update the current time
@@ -642,10 +668,6 @@ namespace jiminy
                          engineOptions_->stepper.dtMax,
                          tEnd - t,
                          tForceImpulseNext - t);
-                if (dtDesired > EPS)
-                {
-                    dt = std::min(dt, stepperState_.t + dtDesired - t);
-                }
 
                 // Compute the next step using adaptive step method
                 controlled_step_result res = fail;
@@ -659,6 +681,10 @@ namespace jiminy
                     if (res == success)
                     {
                         fail_checker.reset(); // reset the fail counter
+                        if (engineOptions_->stepper.logInternalStepperSteps)
+                        {
+                            updateTelemetry();
+                        }
                     }
                     else
                     {
@@ -666,7 +692,7 @@ namespace jiminy
                     }
                 }
             }
-        } while(dtDesired > EPS && stepperState_.t + dtDesired - t > MIN_TIME_STEP);
+        }
 
         // Update the iteration counter
         stepperState_.t = t;
@@ -674,7 +700,10 @@ namespace jiminy
 
         /* Monitor current iteration number, and log the current time,
            state, command, and sensors data. */
-        updateTelemetry();
+        if (!engineOptions_->stepper.logInternalStepperSteps)
+        {
+            updateTelemetry();
+        }
 
         return result_t::SUCCESS;
     }
@@ -750,12 +779,16 @@ namespace jiminy
         controller_->computeCommand(t, q, v, u);
 
         // Enforce the torque limits
-        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+        if (model_->mdlOptions_->joints.enableTorqueLimit)
         {
-            uint32_t const & jointIdx = motorsVelocityIdx[i];
-            float64_t const & torque_max = model_->pncModel_.effortLimit(jointIdx); // effortLimit is given in the velocity vector space
-            u[i] = clamp(u[i], -torque_max, torque_max);
+            // The torque is in motor space at this point
+            vectorN_t const & torqueLimitMax = model_->getTorqueLimit();
+            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+            {
+                float64_t const & torque_max = torqueLimitMax[i];
+                u[i] = clamp(u[i], -torque_max, torque_max);
+            }
         }
     }
 
@@ -814,14 +847,21 @@ namespace jiminy
             if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_TIME_STEP)
             || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_TIME_STEP))
             {
-                std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be infinite for larger than " << MIN_TIME_STEP << "s." << std::endl;
+                std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than";
+                std::cout << MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
+            // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
+            // to verify that b devides a with a tolerance EPS, we need to verify that a % b \in [-EPS, EPS] -
+            // however since std::fmod yields values in [0, b[, this interval maps to [O, EPS] \union [b - EPS, b[.
             else if (sensorsUpdatePeriod > EPS && controllerUpdatePeriod > EPS
-            && (std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod) > EPS
-             && std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod) > EPS))
+            && (std::min(std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod),
+                         sensorsUpdatePeriod - std::fmod(controllerUpdatePeriod, sensorsUpdatePeriod)) > EPS
+             && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
+                         controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
             {
-                std::cout << "Error - Engine::setOptions - The controller and sensor update periods must be multiple of each other if not infinite." << std::endl;
+                std::cout << "Error - Engine::setOptions - In discrete mode, the controller and sensor update periods "\
+                             "must be multiple of each other." << std::endl;
                 returnCode = result_t::ERROR_BAD_INPUT;
             }
         }
@@ -1372,7 +1412,7 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
-                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+                    u[jointVelocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
 
                     jointIdxOffset += 1;
                 }
@@ -1385,7 +1425,7 @@ namespace jiminy
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
             std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
-            vectorN_t const & velocityLimitMin = model_->getVelocityLimit();
+            vectorN_t const & velocityLimitMax = model_->getVelocityLimit();
 
             uint32_t jointIdxOffset = 0;
             for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
@@ -1396,8 +1436,8 @@ namespace jiminy
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & vJoint = v(jointVelocityIdx + j);
-                    float64_t const & vJointMin = -velocityLimitMin[jointIdxOffset];
-                    float64_t const & vJointMax = velocityLimitMin[jointIdxOffset];
+                    float64_t const & vJointMin = -velocityLimitMax[jointIdxOffset];
+                    float64_t const & vJointMax = velocityLimitMax[jointIdxOffset];
 
                     float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
@@ -1419,7 +1459,7 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
-                    u(jointVelocityIdx + j) += clamp(forceJoint, -1e5, 1e5);
+                    u[jointVelocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
 
                     jointIdxOffset += 1;
                 }

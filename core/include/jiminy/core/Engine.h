@@ -283,6 +283,7 @@ namespace jiminy
             config["iterMax"] = 100000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
+            config["logInternalStepperSteps"] = false;
 
             return config;
         };
@@ -298,6 +299,7 @@ namespace jiminy
             int32_t     const iterMax;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
+            bool        const logInternalStepperSteps;
 
             stepperOptions_t(configHolder_t const & options) :
             verbose(boost::get<bool>(options.at("verbose"))),
@@ -308,7 +310,8 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
-            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod")))
+            controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
+            logInternalStepperSteps(boost::get<bool>(options.at("logInternalStepperSteps")))
             {
                 // Empty.
             }
@@ -411,9 +414,14 @@ namespace jiminy
         result_t simulate(vectorN_t const & x_init,
                           float64_t const & end_time);
 
-
-        result_t step(float64_t const & dtDesired = -1,
-                      float64_t         t_end = -1);
+        /// \brief Integrate system from current state for a duration equal to stepSize
+        ///
+        /// \details This function performs a single 'integration step', in the sense that only
+        ///          the endpoint is added to the log. The integrator object is allowed to perform
+        ///          multiple steps inside of this interval.
+        ///          One may specify a negative timestep to use the default update value.
+        /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
+        result_t step(float64_t const & stepSize = -1);
 
         void registerForceImpulse(std::string const & frameName,
                                   float64_t   const & t,
