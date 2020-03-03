@@ -4,7 +4,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/double_pendulum/world.STL"/>
+                <mesh filename="package://double_pendulum/world.STL"/>
                 <!-- <sphere radius="0.005"/> -->
             </geometry>
             <material name="">
@@ -30,7 +30,7 @@
         <visual>
             <origin xyz="0 0 0.25" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/double_pendulum/SecondPendulumArm.STL"/>
+                <mesh filename="package://double_pendulum/SecondPendulumArm.STL"/>
                 <!-- <box size="0.01 0.01 0.5"/> -->
             </geometry>
             <material name="">
@@ -53,7 +53,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/double_pendulum/SecondPendulumMass.STL"/>
+                <mesh filename="package://double_pendulum/SecondPendulumMass.STL"/>
                 <!-- <sphere radius="0.06"/> -->
             </geometry>
             <material name="">
@@ -79,7 +79,7 @@
         <visual>
             <origin xyz="0 0 0.5" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/double_pendulum/PendulumArm.STL"/>
+                <mesh filename="package://double_pendulum/PendulumArm.STL"/>
                 <!-- <box size="0.02 0.02 1.0"/> -->
             </geometry>
             <material name="">
@@ -102,7 +102,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/double_pendulum/PendulumMass.STL"/>
+                <mesh filename="package://double_pendulum/PendulumMass.STL"/>
                 <!-- <sphere radius="0.06"/> -->
             </geometry>
             <material name="">

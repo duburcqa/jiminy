@@ -7,8 +7,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef EXO_SIMU_TELEMETRY_CLIENT_CLASS_H
-#define EXO_SIMU_TELEMETRY_CLIENT_CLASS_H
+#ifndef SIMU_TELEMETRY_CLIENT_CLASS_H
+#define SIMU_TELEMETRY_CLIENT_CLASS_H
 
 #include <string>
 #include <unordered_map>
@@ -49,6 +49,9 @@ namespace jiminy
         void updateValue(std::string const & fieldNameIn,
                          T           const & valueIn);
 
+        void updateValue(std::vector<std::string>    const & fieldNames,
+                         Eigen::Ref<vectorN_t const>         values);
+
         ////////////////////////////////////////////////////////////////////////
         /// \brief      Register a variable into the telemetry system..
         ///
@@ -58,8 +61,11 @@ namespace jiminy
         /// \param[in]  initialValue  Initial value of the newly recored field.
         ////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t registerNewEntry(std::string const & fieldNameIn,
+        result_t registerVariable(std::string const & fieldNameIn,
                                   T           const & initialValue);
+
+        result_t registerVariable(std::vector<std::string> const & fieldNames,
+                                  vectorN_t                const & initialValues);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Configure the object.
@@ -98,7 +104,7 @@ namespace jiminy
         /// \retval E_REGISTERING_NOT_AVAILABLE if the registering is closed (the telemetry is already started).
         /// \retval E_ALREADY_REGISTERED        if the constant was already registered.
         ///////////////////////////////////////////////////////////////////////
-        result_t addConstantEntry(std::string const & invariantNameIn,
+        result_t registerConstant(std::string const & invariantNameIn,
                                   std::string const & valueIn);
 
     protected:
@@ -113,4 +119,4 @@ namespace jiminy
     };
 } // End of jiminy namespace
 
-#endif  //  EXO_SIMU_TELEMETRY_CLIENT_CLASS_H
+#endif  //  SIMU_TELEMETRY_CLIENT_CLASS_H

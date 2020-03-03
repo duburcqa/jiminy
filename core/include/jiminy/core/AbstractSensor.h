@@ -462,6 +462,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/AbstractSensor.tcc"
+#include "jiminy/core/AbstractSensor.tpp"
 
 #endif //end of SIMU_ABSTRACT_SENSOR_H

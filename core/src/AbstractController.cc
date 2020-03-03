@@ -114,11 +114,11 @@ namespace jiminy
                     telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
                     for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                     {
-                        (void) telemetrySender_.registerNewEntry<float64_t>(registeredVariable.first, *registeredVariable.second);
+                        returnCode = telemetrySender_.registerVariable(registeredVariable.first, *registeredVariable.second);
                     }
                     for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
                     {
-                        (void) telemetrySender_.addConstantEntry(registeredConstant.first, registeredConstant.second);
+                        returnCode = telemetrySender_.registerConstant(registeredConstant.first, registeredConstant.second);
                     }
                     isTelemetryConfigured_ = true;
                 }
@@ -138,8 +138,8 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t AbstractController::registerNewVectorEntry(std::vector<std::string> const & fieldNames,
-                                                        Eigen::Ref<vectorN_t>            values)
+    result_t AbstractController::registerVariable(std::vector<std::string> const & fieldNames,
+                                                  Eigen::Ref<vectorN_t>            values)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
@@ -147,7 +147,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            std::cout << "Error - AbstractController::registerNewVectorEntry - Telemetry already initialized. Impossible to register new variables." << std::endl;
+            std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
@@ -156,6 +156,18 @@ namespace jiminy
             std::vector<std::string>::const_iterator fieldIt = fieldNames.begin();
             for (uint32_t i=0; fieldIt != fieldNames.end(); ++fieldIt, ++i)
             {
+                // Check in local cache before.
+                auto variableIt = std::find_if(registeredVariables_.begin(),
+                                               registeredVariables_.end(),
+                                               [&fieldIt](auto const & element)
+                                               {
+                                                   return element.first == *fieldIt;
+                                               });
+                if (variableIt != registeredVariables_.end())
+                {
+                    std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+                    return result_t::ERROR_BAD_INPUT;
+                }
                 registeredVariables_.emplace_back(*fieldIt, values.data() + i);
             }
         }
@@ -163,7 +175,7 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t AbstractController::registerNewEntry(std::string const & fieldName,
+    result_t AbstractController::registerVariable(std::string const & fieldName,
                                                   float64_t   const & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
@@ -172,12 +184,24 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            std::cout << "Error - AbstractController::registerNewEntry - Telemetry already initialized. Impossible to register new variables." << std::endl;
+            std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
+            // Check in local cache before.
+            auto variableIt = std::find_if(registeredVariables_.begin(),
+                                           registeredVariables_.end(),
+                                           [&fieldName](auto const & element)
+                                           {
+                                               return element.first == fieldName;
+                                           });
+            if (variableIt != registeredVariables_.end())
+            {
+                std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
             registeredVariables_.emplace_back(fieldName, &value);
         }
 

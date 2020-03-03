@@ -40,7 +40,7 @@ namespace jiminy
                 if (telemetryData)
                 {
                     telemetrySender_.configureObject(telemetryData, getTelemetryName());
-                    (void) registerNewVectorEntry(telemetrySender_, getFieldNames(), data_);
+                    returnCode = telemetrySender_.registerVariable(getFieldNames(), data_);
                     isTelemetryConfigured_ = true;
                 }
                 else
@@ -90,7 +90,7 @@ namespace jiminy
         if(getIsTelemetryConfigured())
         {
             updateDataBuffer(); // Force update the internal measurement buffer if necessary
-            updateVectorValue(telemetrySender_, getFieldNames(), data_);
+            telemetrySender_.updateValue(getFieldNames(), data_);
         }
     }
 }

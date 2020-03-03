@@ -231,48 +231,6 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
-    void registerNewVectorEntry(TelemetrySender                & telemetrySender,
-                                std::vector<std::string> const & fieldNames,
-                                vectorN_t                const & initialValues,
-                                std::vector<uint32_t>    const & idx)
-    {
-        for (uint32_t i=0; i < idx.size(); ++i)
-        {
-            (void) telemetrySender.registerNewEntry<float64_t>(fieldNames[i], initialValues[idx[i]]);
-        }
-    }
-
-    void registerNewVectorEntry(TelemetrySender                & telemetrySender,
-                                std::vector<std::string> const & fieldNames,
-                                vectorN_t                const & initialValues)
-    {
-        for (uint32_t i=0; i < initialValues.size(); ++i)
-        {
-            (void) telemetrySender.registerNewEntry<float64_t>(fieldNames[i], initialValues[i]);
-        }
-    }
-
-    void updateVectorValue(TelemetrySender                & telemetrySender,
-                           std::vector<std::string> const & fieldNames,
-                           Eigen::Ref<vectorN_t const>      values,
-                           std::vector<uint32_t>    const & idx)
-    {
-        for (uint32_t i=0; i < idx.size(); ++i)
-        {
-            telemetrySender.updateValue(fieldNames[i], values[idx[i]]);
-        }
-    }
-
-    void updateVectorValue(TelemetrySender                & telemetrySender,
-                           std::vector<std::string> const & fieldNames,
-                           Eigen::Ref<vectorN_t const>      values)
-    {
-        for (uint32_t i=0; i < values.size(); ++i)
-        {
-            telemetrySender.updateValue(fieldNames[i], values[i]);
-        }
-    }
-
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size)
     {

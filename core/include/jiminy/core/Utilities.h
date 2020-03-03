@@ -59,22 +59,6 @@ namespace jiminy
 
     // ******************* Telemetry utilities **********************
 
-    void registerNewVectorEntry(TelemetrySender                & telemetrySender,
-                                std::vector<std::string> const & fieldNames,
-                                vectorN_t                const & initialValues,
-                                std::vector<uint32_t>    const & idx);
-    void registerNewVectorEntry(TelemetrySender                & telemetrySender,
-                                std::vector<std::string> const & fieldNames,
-                                vectorN_t                const & initialValues);
-
-    void updateVectorValue(TelemetrySender                & telemetrySender,
-                           std::vector<std::string> const & fieldNames,
-                           Eigen::Ref<vectorN_t const>      values,
-                           std::vector<uint32_t>    const & idx);
-    void updateVectorValue(TelemetrySender                & telemetrySender,
-                           std::vector<std::string> const & fieldNames,
-                           Eigen::Ref<vectorN_t const>      values);
-
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size);
 
@@ -199,6 +183,6 @@ namespace jiminy
                           uint32_t                               const & secondBlockLength);
 }
 
-#include "jiminy/core/Utilities.tcc"
+#include "jiminy/core/Utilities.tpp"
 
 #endif  // SIMU_UTILITIES_H
