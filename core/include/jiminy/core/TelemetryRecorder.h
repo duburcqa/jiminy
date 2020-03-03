@@ -5,8 +5,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef EXO_SIMU_TELEMETRY_RECORDER_H
-#define EXO_SIMU_TELEMETRY_RECORDER_H
+#ifndef SIMU_TELEMETRY_RECORDER_H
+#define SIMU_TELEMETRY_RECORDER_H
 
 #include "jiminy/core/MemoryDevice.h"
 #include "jiminy/core/TelemetryData.h"
@@ -103,4 +103,4 @@ namespace jiminy
     };
 }
 
-#endif // EXO_SIMU_TELEMETRY_RECORDER_H
+#endif // SIMU_TELEMETRY_RECORDER_H

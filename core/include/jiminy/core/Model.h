@@ -290,6 +290,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/Model.tcc"
+#include "jiminy/core/Model.tpp"
 
 #endif //end of SIMU_MODEL_H

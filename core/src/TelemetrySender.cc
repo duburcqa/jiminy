@@ -56,14 +56,23 @@ namespace jiminy
         *(it->second) = static_cast<float32_t>(value);
     }
 
+    void TelemetrySender::updateValue(std::vector<std::string>    const & fieldNames,
+                                      Eigen::Ref<vectorN_t const>         values)
+    {
+        for (uint32_t i=0; i < values.size(); ++i)
+        {
+            updateValue(fieldNames[i], values[i]);
+        }
+    }
+
     template<>
-    result_t TelemetrySender::registerNewEntry<int32_t>(std::string const & fieldNameIn,
+    result_t TelemetrySender::registerVariable<int32_t>(std::string const & fieldNameIn,
                                                         int32_t     const & initialValue)
     {
         int32_t * positionInBuffer = nullptr;
         std::string const fullFieldName = objectName_ + "." + fieldNameIn;
 
-        result_t returnCode = telemetryData_->registerVariable<int32_t>(fullFieldName, positionInBuffer);
+        result_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == result_t::SUCCESS)
         {
             intBufferPosition_[fieldNameIn] = positionInBuffer;
@@ -75,13 +84,13 @@ namespace jiminy
     }
 
     template<>
-    result_t TelemetrySender::registerNewEntry<float64_t>(std::string const & fieldNameIn,
+    result_t TelemetrySender::registerVariable<float64_t>(std::string const & fieldNameIn,
                                                           float64_t   const & initialValue)
     {
         float32_t * positionInBuffer = nullptr;
         std::string const fullFieldName = objectName_ + "." + fieldNameIn;
 
-        result_t returnCode = telemetryData_->registerVariable<float32_t>(fullFieldName, positionInBuffer);
+        result_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == result_t::SUCCESS)
         {
             floatBufferPosition_[fieldNameIn] = positionInBuffer;
@@ -92,7 +101,22 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t TelemetrySender::addConstantEntry(std::string const & variableNameIn,
+    result_t TelemetrySender::registerVariable(std::vector<std::string> const & fieldNames,
+                                               vectorN_t                const & initialValues)
+    {
+        result_t returnCode = result_t::SUCCESS;
+        for (uint32_t i=0; i < initialValues.size(); ++i)
+        {
+            returnCode = registerVariable(fieldNames[i], initialValues[i]);
+            if (returnCode != result_t::SUCCESS)
+            {
+                break;
+            }
+        }
+        return returnCode;
+    }
+
+    result_t TelemetrySender::registerConstant(std::string const & variableNameIn,
                                                std::string const & valueIn)
     {
         std::string const fullFieldName = objectName_ + "." + variableNameIn;

@@ -35,7 +35,8 @@ fHLC = args.fHLC
 acceleration_control = args.acceleration
 position_control = not acceleration_control
 
-urdf_path = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data/simple_pendulum/simple_pendulum.urdf")
+os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 

@@ -136,31 +136,35 @@ namespace jiminy
                 // Register variables to the telemetry senders
                 if (engineOptions_->telemetry.enableConfiguration)
                 {
-                    (void) registerNewVectorEntry(telemetrySender_,
-                                                  model_->getPositionFieldNames(),
-                                                  vectorN_t::Zero(model_->nq()));
+                    returnCode = telemetrySender_.registerVariable(
+                        model_->getPositionFieldNames(),
+                        vectorN_t::Zero(model_->nq())
+                    );
                 }
                 if (engineOptions_->telemetry.enableVelocity)
                 {
-                    (void) registerNewVectorEntry(telemetrySender_,
-                                                  model_->getVelocityFieldNames(),
-                                                  vectorN_t::Zero(model_->nv()));
+                    returnCode = telemetrySender_.registerVariable(
+                        model_->getVelocityFieldNames(),
+                        vectorN_t::Zero(model_->nv())
+                    );
                 }
                 if (engineOptions_->telemetry.enableAcceleration)
                 {
-                    (void) registerNewVectorEntry(telemetrySender_,
-                                                  model_->getAccelerationFieldNames(),
-                                                  vectorN_t::Zero(model_->nv()));
+                    returnCode = telemetrySender_.registerVariable(
+                        model_->getAccelerationFieldNames(),
+                        vectorN_t::Zero(model_->nv())
+                    );
                 }
                 if (engineOptions_->telemetry.enableCommand)
                 {
-                    (void) registerNewVectorEntry(telemetrySender_,
-                                                  model_->getMotorTorqueFieldNames(),
-                                                  vectorN_t::Zero(model_->getMotorsNames().size()));
+                    returnCode = telemetrySender_.registerVariable(
+                        model_->getMotorTorqueFieldNames(),
+                        vectorN_t::Zero(model_->getMotorsNames().size())
+                    );
                 }
                 if (engineOptions_->telemetry.enableEnergy)
                 {
-                    telemetrySender_.registerNewEntry<float64_t>("energy", 0.0);
+                    telemetrySender_.registerVariable("energy", float64_t(0.0));
                 }
                 isTelemetryConfigured_ = true;
             }
@@ -199,31 +203,27 @@ namespace jiminy
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
-            updateVectorValue(telemetrySender_,
-                              model_->getPositionFieldNames(),
-                              stepperStateLast_.q());
+            telemetrySender_.updateValue(model_->getPositionFieldNames(),
+                                         stepperStateLast_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
-            updateVectorValue(telemetrySender_,
-                              model_->getVelocityFieldNames(),
-                              stepperStateLast_.v());
+            telemetrySender_.updateValue(model_->getVelocityFieldNames(),
+                                         stepperStateLast_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
-            updateVectorValue(telemetrySender_,
-                              model_->getAccelerationFieldNames(),
-                              stepperStateLast_.a());
+            telemetrySender_.updateValue(model_->getAccelerationFieldNames(),
+                                         stepperStateLast_.a());
         }
         if (engineOptions_->telemetry.enableCommand)
         {
-            updateVectorValue(telemetrySender_,
-                              model_->getMotorTorqueFieldNames(),
-                              stepperStateLast_.uCommand);
+            telemetrySender_.updateValue(model_->getMotorTorqueFieldNames(),
+                                         stepperStateLast_.uCommand);
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
-            telemetrySender_.updateValue<float64_t>("energy", stepperStateLast_.energy);
+            telemetrySender_.updateValue("energy", stepperStateLast_.energy);
         }
         controller_->updateTelemetry(stepperState_.t, q, v);
         model_->updateTelemetry();

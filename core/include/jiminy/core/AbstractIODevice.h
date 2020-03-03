@@ -5,8 +5,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef EXO_SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H
-#define EXO_SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H
+#ifndef SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H
+#define SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H
 
 #include <memory>
 
@@ -243,4 +243,4 @@ namespace jiminy
 
 #include "AbstractIODevice.tpp"
 
-#endif // EXO_SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H
+#endif // SIMU_SYSTEM_ABSTRACT_IO_DEVICE_H

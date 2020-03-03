@@ -132,7 +132,7 @@ namespace python
     {
         npy_intp dims[2] = {npy_intp(data.cols()), npy_intp(data.rows())};
         return  PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, NPY_DOUBLE, const_cast<float64_t *>(data.data()))),NULL);
+            PyArray_SimpleNewFromData(2, dims, NPY_FLOAT64, const_cast<float64_t *>(data.data()))), NULL);
     }
 
 

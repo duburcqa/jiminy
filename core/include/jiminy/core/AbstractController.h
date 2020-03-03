@@ -97,8 +97,8 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t registerNewVectorEntry(std::vector<std::string> const & fieldNames,
-                                        Eigen::Ref<vectorN_t>            values);
+        result_t registerVariable(std::vector<std::string> const & fieldNames,
+                                  Eigen::Ref<vectorN_t>            values);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -115,7 +115,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t registerNewEntry(std::string const & fieldName,
+        result_t registerVariable(std::string const & fieldName,
                                   float64_t   const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////

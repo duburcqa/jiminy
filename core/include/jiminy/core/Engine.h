@@ -501,8 +501,6 @@ namespace jiminy
                                    vectorN_t const & xIn,
                                    vectorN_t       & dxdtIn);
 
-
-
     private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType>

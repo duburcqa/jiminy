@@ -862,11 +862,13 @@ namespace python
             cl
                 .def("initialize", &AbstractController::initialize,
                                    (bp::arg("self"), "model"))
-                .def("register_entry", &PyAbstractControllerVisitor::registerNewEntry,
-                                       (bp::arg("self"), "fieldname", "value"),
-                                       "@copydoc AbstractController::registerNewEntry")
-                .def("register_entry", &PyAbstractControllerVisitor::registerNewVectorEntry,
-                                       (bp::arg("self"), "fieldnames", "values"))
+                .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
+                                          (bp::arg("self"), "fieldname", "value"),
+                                          "@copydoc AbstractController::registerVariable")
+                .def("register_variable", &PyAbstractControllerVisitor::registerVariableVector,
+                                          (bp::arg("self"), "fieldnames", "values"))
+                .def("register_constant", &PyAbstractControllerVisitor::registerConstant,
+                                          (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("get_options", &PyAbstractControllerVisitor::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
@@ -874,41 +876,108 @@ namespace python
                 ;
         }
 
-        static result_t registerNewEntry(AbstractController       & self,
+        static result_t registerVariable(AbstractController       & self,
                                          std::string        const & fieldName,
                                          PyObject                 * dataPy)
         {
-            // Note that  Const qualifier is not supported by PyArray_DATA
+            // Note that const qualifier is not supported by PyArray_DATA
 
             const char* p = Py_TYPE(dataPy)->tp_name;
             if (p == std::string("numpy.ndarray"))
             {
                 float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
-                return self.registerNewEntry(fieldName, *data);
+                return self.registerVariable(fieldName, *data);
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerNewEntry - 'value' input must have type 'numpy.ndarray'." << std::endl;
+                std::cout << "Error - PyAbstractControllerVisitor::registerVariable - 'value' input must have type 'numpy.ndarray'." << std::endl;
                 return result_t::ERROR_BAD_INPUT;
             }
         }
 
-        static result_t registerNewVectorEntry(AbstractController       & self,
+        static result_t registerVariableVector(AbstractController       & self,
                                                bp::list           const & fieldNamesPy,
                                                PyObject                 * dataPy)
         {
-            // Note that  Const qualifier is not supported by PyArray_DATA
+            // Note that const qualifier is not supported by PyArray_DATA
 
-            const char* p = Py_TYPE(dataPy)->tp_name;
-            if (p == std::string("numpy.ndarray"))
+            if (PyArray_Check(dataPy))
             {
                 std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
-                Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy)), fieldNames.size());
-                return self.registerNewVectorEntry(fieldNames, data);
+                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+                Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
+                return self.registerVariable(fieldNames, data);
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerNewVectorEntry - 'values' input must have type 'numpy.ndarray'." << std::endl;
+                std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - 'values' input must have type 'numpy.ndarray'." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        static result_t registerConstant(AbstractController       & self,
+                                         std::string        const & fieldName,
+                                         PyObject                 * dataPy)
+        {
+            if (PyArray_Check(dataPy))
+            {
+                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+
+                int dataPyArrayDtype = PyArray_TYPE(dataPyArray);
+                if (dataPyArrayDtype != NPY_FLOAT64)
+                {
+                    std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The only dtype supported for 'numpy.ndarray' is float." << std::endl;
+                    return result_t::ERROR_BAD_INPUT;
+                }
+                float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
+                int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
+                npy_intp * dataPyArrayShape = PyArray_SHAPE(dataPyArray);
+                if (dataPyArrayNdims == 0)
+                {
+                    return self.registerConstant(fieldName, *dataPyArrayData);
+                }
+                else if (dataPyArrayNdims == 1)
+                {
+                    Eigen::Map<vectorN_t> data(dataPyArrayData, dataPyArrayShape[0]);
+                    return self.registerConstant(fieldName, data);
+                }
+                else if (dataPyArrayNdims == 2)
+                {
+                    Eigen::Map<matrixN_t> data(dataPyArrayData, dataPyArrayShape[0], dataPyArrayShape[1]);
+                    return self.registerConstant(fieldName, data);
+                }
+                else
+                {
+                    std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The max number of dims supported for 'numpy.ndarray' is 2." << std::endl;
+                    return result_t::ERROR_BAD_INPUT;
+                }
+            }
+            else if (PyFloat_Check(dataPy))
+            {
+                return self.registerConstant(fieldName, PyFloat_AsDouble(dataPy));
+            }
+            else if (PyLong_Check(dataPy))
+            {
+                return self.registerConstant(fieldName, PyLong_AsLong(dataPy));
+            }
+            #if PY_VERSION_HEX >= 0x03000000
+            else if (PyBytes_Check(dataPy))
+            {
+                return self.registerConstant(fieldName, PyBytes_AsString(dataPy));
+            }
+            else if (PyUnicode_Check(dataPy))
+            {
+                return self.registerConstant(fieldName, PyUnicode_AsUTF8(dataPy));
+            }
+            #else
+            else if (PyString_Check(dataPy))
+            {
+                return self.registerConstant(fieldName, PyString_AsString(dataPy));
+            }
+            #endif
+            else
+            {
+                std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
                 return result_t::ERROR_BAD_INPUT;
             }
         }
@@ -1090,13 +1159,16 @@ namespace python
                                    (bp::arg("self"), "model", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
                                    (bp::arg("self"), "model", "controller", "callback_handle"))
-                .def("simulate", &Engine::simulate,
-                                 (bp::arg("self"), "x_init", "end_time"))
+                .def("reset", &Engine::reset,
+                              (bp::arg("self"), bp::arg("remove_forces")=false))
+                .def("set_state", &Engine::setState,
+                                  (bp::arg("self"), "x_init",
+                                   bp::arg("reset_random_generator")=false,
+                                   bp::arg("remove_forces")=false))
                 .def("step", &PyEngineVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired")=-1))
-                .def("reset", &Engine::reset)
-                .def("set_state", &PyEngineVisitor::setState,
-                              (bp::arg("self"), "x_init", bp::arg("reset_random_generator")=false))
+                .def("simulate", &Engine::simulate,
+                                 (bp::arg("self"), "x_init", "end_time"))
 
                 .def("get_log", &PyEngineVisitor::getLog)
                 .def("write_log", &PyEngineVisitor::writeLog,
@@ -1142,14 +1214,6 @@ namespace python
         {
             TimeStateFctPyWrapper<bool> callbackFct(callbackPy);
             return self.initialize(model, controller, std::move(callbackFct));
-        }
-
-        static result_t setState(Engine          & self,
-                                 vectorN_t const & x_init,
-                                 bool      const & resetRandomNumbers)
-        {
-            // Only way to handle C++ default values that are not accessible in Python
-            return self.setState(x_init, resetRandomNumbers);
         }
 
         static result_t step(Engine          & self,

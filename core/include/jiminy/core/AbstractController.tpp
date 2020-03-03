@@ -14,9 +14,22 @@
 
 namespace jiminy
 {
+    using std::to_string;
+
+    inline std::string to_string(char const * var) {
+        return {var};
+    }
+
+    inline std::string to_string(Eigen::Ref<matrixN_t const> var) {
+        Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
+        std::stringstream matrixStream;
+        matrixStream << var.format(HeavyFmt);
+        return matrixStream.str();
+    }
+
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///
-    /// \brief      Register a constant float64 to the telemetry.
+    /// \brief      Register a constant to the telemetry.
     ///
     /// \param[in]  fieldNames      Name of the variable.
     /// \param[in]  values          Variable to add to the telemetry
@@ -40,7 +53,19 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            registeredConstants_.emplace_back(fieldName, std::to_string(value));
+            // Check in local cache before.
+            auto constantIt = std::find_if(registeredConstants_.begin(),
+                                           registeredConstants_.end(),
+                                           [&fieldName](auto const & element)
+                                           {
+                                               return element.first == fieldName;
+                                           });
+            if (constantIt != registeredConstants_.end())
+            {
+                std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
+            registeredConstants_.emplace_back(fieldName, to_string(value));
         }
 
         return returnCode;

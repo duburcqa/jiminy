@@ -120,6 +120,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/ControllerFunctor.tcc"
+#include "jiminy/core/ControllerFunctor.tpp"
 
 #endif //end of WDC_CONTROLLER_FUNCTOR_H

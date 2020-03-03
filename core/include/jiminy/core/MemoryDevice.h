@@ -1,5 +1,5 @@
-#ifndef EXO_SIMU_CORE_MEMORY_DEVICE_H
-#define EXO_SIMU_CORE_MEMORY_DEVICE_H
+#ifndef SIMU_CORE_MEMORY_DEVICE_H
+#define SIMU_CORE_MEMORY_DEVICE_H
 
 #include "jiminy/core/AbstractIODevice.h"
 
@@ -64,4 +64,4 @@ namespace jiminy
     };
 }
 
-#endif // EXO_SIMU_CORE_MEMORY_DEVICE_H
+#endif // SIMU_CORE_MEMORY_DEVICE_H

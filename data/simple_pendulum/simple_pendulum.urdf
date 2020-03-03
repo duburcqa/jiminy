@@ -4,7 +4,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/simple_pendulum/Foot.STL"/>
+                <mesh filename="package://simple_pendulum/Foot.STL"/>
             </geometry>
             <material name="">
                 <color rgba="1.0 0.0 0.0 1.0"/>
@@ -57,7 +57,7 @@
         <visual>
             <origin xyz="0 0 0.5" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/simple_pendulum/PendulumArm.STL"/>
+                <mesh filename="package://simple_pendulum/PendulumArm.STL"/>
                 <!-- <box size="0.01 0.01 0.5"/> -->
             </geometry>
             <material name="">
@@ -80,7 +80,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="/home/builder/wdc_workspace/src/jiminy/data/simple_pendulum/PendulumMass.STL"/>
+                <mesh filename="package://simple_pendulum/PendulumMass.STL"/>
                 <!-- <sphere radius="0.06"/> -->
             </geometry>
             <material name="">

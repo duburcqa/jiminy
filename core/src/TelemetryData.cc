@@ -66,14 +66,14 @@ namespace jiminy
     result_t TelemetryData::registerVariable<int32_t>(std::string const   & variableName,
                                                       int32_t           * & positionInBufferOut)
     {
-        return internalRegisterVariable<int32_t>(integersHeader_, variableName, positionInBufferOut);
+        return internalRegisterVariable(integersHeader_, variableName, positionInBufferOut);
     }
 
     template<>
     result_t TelemetryData::registerVariable<float32_t>(std::string const   & variableName,
                                                         float32_t         * & positionInBufferOut)
     {
-        return internalRegisterVariable<float32_t>(floatsHeader_, variableName, positionInBufferOut);
+        return internalRegisterVariable(floatsHeader_, variableName, positionInBufferOut);
     }
 
     result_t TelemetryData::registerConstant(std::string const & variableNameIn,
