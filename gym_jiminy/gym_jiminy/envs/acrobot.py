@@ -11,7 +11,7 @@ from gym.utils import seeding
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 
-from ..common.gym_jiminy_robots import RobotJiminyEnv, RobotJiminyGoalEnv
+from ..common.robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
