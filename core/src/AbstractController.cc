@@ -114,11 +114,13 @@ namespace jiminy
                     telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
                     for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                     {
-                        returnCode = telemetrySender_.registerVariable(registeredVariable.first, *registeredVariable.second);
+                        returnCode = telemetrySender_.registerVariable(registeredVariable.first,
+                                                                       *registeredVariable.second);
                     }
                     for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
                     {
-                        returnCode = telemetrySender_.registerConstant(registeredConstant.first, registeredConstant.second);
+                        returnCode = telemetrySender_.registerConstant(registeredConstant.first,
+                                                                       registeredConstant.second);
                     }
                     isTelemetryConfigured_ = true;
                 }

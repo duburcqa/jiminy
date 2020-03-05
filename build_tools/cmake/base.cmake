@@ -149,7 +149,7 @@ if(BUILD_PYTHON_INTERFACE)
     endfunction()
 
     function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "EXECUTE_PROCESS (COMMAND pip install -e .
+        install (CODE "EXECUTE_PROCESS (COMMAND pip install -e . -q
                                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endfunction()
 endif()

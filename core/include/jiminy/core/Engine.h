@@ -430,7 +430,7 @@ namespace jiminy
         void registerForceProfile(std::string      const & frameName,
                                   forceFunctor_t           forceFct);
 
-        configHolder_t getOptions(void) const;
+        configHolder_t const & getOptions(void) const;
         result_t setOptions(configHolder_t const & engineOptions);
         bool getIsInitialized(void) const;
         bool getIsTelemetryConfigured(void) const;

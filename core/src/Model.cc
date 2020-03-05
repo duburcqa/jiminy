@@ -80,18 +80,12 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            motorsNames_ = motorsNames;
-            contactFramesNames_ = contactFramesNames;
-            contactForces_ = pinocchio::container::aligned_vector<pinocchio::Force>(
-                contactFramesNames_.size(),
-                pinocchio::Force::Zero());
-
             // Backup the original model and data
             pncModelRigidOrig_ = pncModel_;
             pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
 
             /* Get the list of joint names of the rigid model and
-               remove the 'universe' and 'root' if any, since there
+               remove the 'universe' and 'root' if any, since they
                are not actual joints. */
             rigidJointsNames_ = pncModelRigidOrig_.names;
             rigidJointsNames_.erase(rigidJointsNames_.begin()); // remove the 'universe'
@@ -101,21 +95,33 @@ namespace jiminy
             }
         }
 
-        // Create the flexible model and add biases to the dynamics properties of the model
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = generateBiasedModel();
+            // Create the flexible model
+            returnCode = generateModelFlexible();
         }
 
-        // Update the bounds if necessary
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = setOptions(mdlOptionsHolder_);
+            // Add biases to the dynamics properties of the model
+            returnCode = generateModelBiased();
         }
 
-        // Set the initialization flag
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Add the motors
+            returnCode = addMotors(motorsNames);
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Add the contact points
+            returnCode = addContactPoints(contactFramesNames);
+        }
+
         if (returnCode != result_t::SUCCESS)
         {
+            // Set the initialization flag
             isInitialized_ = false;
         }
 
@@ -126,9 +132,8 @@ namespace jiminy
     {
         if (isInitialized_)
         {
-            /* Update the biases added to the dynamics properties of the model.
-               It cannot throw an error. */
-            generateBiasedModel();
+            // Update the biases added to the dynamics properties of the model.
+            generateModelBiased();
         }
 
         // Reset the sensors
@@ -183,6 +188,258 @@ namespace jiminy
         if (returnCode != result_t::SUCCESS)
         {
             isTelemetryConfigured_ = false;
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::addContactPoints(std::vector<std::string> const & frameNames)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (frameNames.empty())
+        {
+            return returnCode;
+        }
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::addContactPoints - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no frame in the list are duplicates
+            if (checkDuplicates(frameNames))
+            {
+                std::cout << "Error - Model::addContactPoints - Some frames in the list are duplicates." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no motor is associated with any of the joint in the list
+            if (checkIntersection(contactFramesNames_, frameNames))
+            {
+                std::cout << "Error - Model::addContactPoints - At least one of the frame in the list is already been associated with a contact point." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that all the frames in the list exist
+            for (std::string const & frame : frameNames)
+            {
+                if (!pncModel_.existFrame(frame))
+                {
+                    std::cout << "Error - Model::addContactPoints - At least one of the frame in the list does not exist." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                    break;
+                }
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Add the list of frames to the set of contact points
+            contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
+
+            // Reset the contact force internal buffer
+            contactForces_ = pinocchio::container::aligned_vector<pinocchio::Force>(
+                contactFramesNames_.size(), pinocchio::Force::Zero());
+
+            // Refresh the attributes of the model
+            refreshModelProxies();
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::removeContactPoints(std::vector<std::string> const & frameNames)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::removeContactPoints - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no frame in the list are duplicates
+            if (checkDuplicates(frameNames))
+            {
+                std::cout << "Error - Model::removeContactPoints - Some frames in the list are duplicates." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no motor is associated with any of the joint in jointNames
+            if (!checkInclusion(contactFramesNames_, frameNames))
+            {
+                std::cout << "Error - Model::removeContactPoints - At least one of the frame in the list is not associated with any contact point." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Remove the list of frames from the set of contact points
+            if (!frameNames.empty())
+            {
+                eraseVector(contactFramesNames_, frameNames);
+            }
+            else
+            {
+                contactFramesNames_.clear();
+            }
+
+            // Reset the contact force internal buffer
+            contactForces_ = pinocchio::container::aligned_vector<pinocchio::Force>(
+                contactFramesNames_.size(), pinocchio::Force::Zero());
+
+            // Refresh the attributes of the model
+            refreshModelProxies();
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::addMotors(std::vector<std::string> const & jointNames)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (jointNames.empty())
+        {
+            return returnCode;
+        }
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::addMotors - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no joint in the list are duplicates
+            if (checkDuplicates(jointNames))
+            {
+                std::cout << "Error - Model::addMotors - Some joints in the list are duplicates." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no motor is associated with any of the joint in jointNames
+            if (checkIntersection(motorsNames_, jointNames))
+            {
+                std::cout << "Error - Model::addMotors - At least one of the joint in the list is already associated with a motor." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that all the joints in the list exist
+            for (std::string const & joint : jointNames)
+            {
+                if (!pncModel_.existJointName(joint))
+                {
+                    std::cout << "Error - Model::addContactPoints - At least one of the joint in the list does not exist." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                    break;
+                }
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Add the list of joints to the set of motors
+            motorsNames_.insert(motorsNames_.end(), jointNames.begin(), jointNames.end());
+
+            /* Make sure that no user-specified torque limits or motor inertias are used,
+               since it does not make sense to add motors otherwise */
+            if (!mdlOptions_->joints.torqueLimitFromUrdf || mdlOptions_->joints.enableMotorInertia)
+            {
+                std::cout << "Warning - Model::addMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
+                configHolder_t mdlOptions = getOptions();
+                configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
+                boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
+                boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")) = false;
+                setOptions(mdlOptions);
+            }
+
+            // Refresh the attributes of the model
+            refreshModelProxies();
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::removeMotors(std::vector<std::string> const & jointNames)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::removeMotors - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no joint in the list are duplicates
+            if (checkDuplicates(jointNames))
+            {
+                std::cout << "Error - Model::removeMotors - Some joints in the list are duplicates." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Make sure that no motor is associated with any of the joint in jointNames
+            if (!checkInclusion(motorsNames_, jointNames))
+            {
+                std::cout << "Error - Model::removeMotors - At least one of the joint in the list is not associated with any motor." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Remove the list of joints from the set of motors
+            if (!jointNames.empty())
+            {
+                eraseVector(motorsNames_, jointNames);
+            }
+            else
+            {
+                motorsNames_.clear();
+            }
+
+            /* Make sure that no user-specified torque limits or motor inertias are used,
+               since it does not make sense to add motors otherwise */
+            if (!mdlOptions_->joints.torqueLimitFromUrdf || mdlOptions_->joints.enableMotorInertia)
+            {
+                std::cout << "Warning - Model::removeMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
+                configHolder_t mdlOptions = getOptions();
+                configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
+                boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
+                boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")) = false;
+                setOptions(mdlOptions);
+            }
+
+            // Refresh the attributes of the model
+            refreshModelProxies();
         }
 
         return returnCode;
@@ -248,34 +505,43 @@ namespace jiminy
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsGroupHolder_t::iterator sensorGroupIt;
-        if (returnCode == result_t::SUCCESS)
+        if (!sensorType.empty())
         {
-            sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-            if (sensorGroupIt == sensorsGroupHolder_.end())
+            sensorsGroupHolder_t::iterator sensorGroupIt;
+            if (returnCode == result_t::SUCCESS)
             {
-                std::cout << "Error - Model::removeSensors - No sensor with this type exists." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+                if (sensorGroupIt == sensorsGroupHolder_.end())
+                {
+                    std::cout << "Error - Model::removeSensors - No sensor with this type exists." << std::endl;
+                    returnCode = result_t::ERROR_BAD_INPUT;
+                }
+            }
+
+            if (returnCode == result_t::SUCCESS)
+            {
+                sensorsGroupHolder_.erase(sensorGroupIt);
+                sensorsDataHolder_.erase(sensorType);
+                sensorTelemetryOptions_.erase(sensorType);
             }
         }
-
-        if (returnCode == result_t::SUCCESS)
+        else
         {
-            sensorsGroupHolder_.erase(sensorGroupIt);
-            sensorsDataHolder_.erase(sensorType);
-            sensorTelemetryOptions_.erase(sensorType);
+            sensorsGroupHolder_.clear();
+            sensorsDataHolder_.clear();
+            sensorTelemetryOptions_.clear();
         }
 
         return returnCode;
     }
 
-    result_t Model::generateFlexibleModel(void)
+    result_t Model::generateModelFlexible(void)
     {
         result_t returnCode = result_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::generateFlexibleModel - Model not initialized." << std::endl;
+            std::cout << "Error - Model::generateModelFlexible - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
@@ -316,23 +582,14 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Model::generateBiasedModel(void)
+    result_t Model::generateModelBiased(void)
     {
         result_t returnCode = result_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::generateBiasedModel - Model not initialized." << std::endl;
+            std::cout << "Error - Model::generateModelBiased - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
-        }
-
-        // Generate a new flexible model and associated variables if needed
-        if (returnCode == result_t::SUCCESS)
-        {
-            if(pncModelFlexibleOrig_ == pinocchio::Model())
-            {
-                returnCode = generateFlexibleModel();
-            }
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -375,128 +632,53 @@ namespace jiminy
                 relativePositionBody +=
                     randVectorNormal(3U, mdlOptions_->dynamics.relativePositionBodiesBiasStd);
             }
-        }
 
-        // Extract some high level features of the rigid model
-        if (returnCode == result_t::SUCCESS)
-        {
-            nq_ = pncModel_.nq;
-            nv_ = pncModel_.nv;
-            nx_ = nq_ + nv_;
-        }
-
-        // Extract some joint and frame indices in the model
-        if (returnCode == result_t::SUCCESS)
-        {
-            getJointsModelIdx(pncModel_, rigidJointsNames_, rigidJointsModelIdx_);
-            getJointsPositionIdx(pncModel_, rigidJointsNames_, rigidJointsPositionIdx_, false);
-            getJointsVelocityIdx(pncModel_, rigidJointsNames_, rigidJointsVelocityIdx_, false);
-            returnCode = getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
-        }
-        if (returnCode == result_t::SUCCESS)
-        {
-            returnCode = getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
-        }
-        if (returnCode == result_t::SUCCESS)
-        {
-            getJointsPositionIdx(pncModel_, motorsNames_, motorsPositionIdx_, true);
-            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
-        }
-
-        /* Generate the fieldnames of the elements of the vectorial
-           representation of the configuration, velocity, acceleration
-           and motor torques. */
-        if (returnCode == result_t::SUCCESS)
-        {
-            returnCode = generateFieldNames();
-        }
-
-        // Initialize Pinocchio Data internal state
-        if (returnCode == result_t::SUCCESS)
-        {
+            // Initialize Pinocchio Data internal state
             pncData_ = pinocchio::Data(pncModel_);
-            pinocchio::forwardKinematics(pncModel_,
-                                         pncData_,
+            pinocchio::forwardKinematics(pncModel_, pncData_,
                                          vectorN_t::Zero(pncModel_.nq),
                                          vectorN_t::Zero(pncModel_.nv));
             pinocchio::updateFramePlacements(pncModel_, pncData_);
-        }
 
-        // Update the position and velocity limits
-        if (returnCode == result_t::SUCCESS)
-        {
-            if (mdlOptions_->joints.positionLimitFromUrdf)
-            {
-                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
-                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
-                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
-                {
-                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
-                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
-                }
-            }
-            else
-            {
-                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
-                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
-            }
-
-            if (mdlOptions_->joints.velocityLimitFromUrdf)
-            {
-                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
-                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
-                {
-                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
-                }
-            }
-            else
-            {
-                velocityLimit_ = mdlOptions_->joints.velocityLimit;
-            }
-
-            if (mdlOptions_->joints.torqueLimitFromUrdf)
-            {
-                // effortLimit is given in the velocity vector space
-                torqueLimit_.resize(motorsVelocityIdx_.size());
-                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
-                {
-                    torqueLimit_[i] = pncModel_.effortLimit[motorsVelocityIdx_[i]];
-                }
-            }
-            else
-            {
-                torqueLimit_ = mdlOptions_->joints.torqueLimit;
-            }
-        }
-
-        // Update pncModel_.rotorInertia
-        if(returnCode == result_t::SUCCESS)
-        {
-            pncModel_.rotorInertia.setConstant(0.0);
-            if (mdlOptions_->joints.enableMotorInertia)
-            {
-                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
-                {
-                    pncModel_.rotorInertia[motorsVelocityIdx_[i]] = mdlOptions_->joints.motorInertia[i];
-                }
-            }
+            // Initialize the internal proxies
+            returnCode = refreshModelProxies();
         }
 
         return returnCode;
     }
 
-    result_t Model::generateFieldNames(void)
+    result_t Model::refreshModelProxies(void)
     {
         result_t returnCode = result_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::generateFieldNames - Model not initialized." << std::endl;
+            std::cout << "Error - Model::updateFieldnames - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
+            // Extract the dimensions of the configuration and velocity vectors
+            nq_ = pncModel_.nq;
+            nv_ = pncModel_.nv;
+            nx_ = nq_ + nv_;
+
+            // Extract some rigid joints indices in the model
+            getJointsModelIdx(pncModel_, rigidJointsNames_, rigidJointsModelIdx_);
+            getJointsPositionIdx(pncModel_, rigidJointsNames_, rigidJointsPositionIdx_, false);
+            getJointsVelocityIdx(pncModel_, rigidJointsNames_, rigidJointsVelocityIdx_, false);
+
+            // Extract the contact frames indices in the model
+            getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
+
+            // Extract some motor indices in the model
+            getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
+            getJointsPositionIdx(pncModel_, motorsNames_, motorsPositionIdx_, true);
+            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
+
+            /* Generate the fieldnames associated with the configuration,
+               velocity, and acceleration vectors. */
             positionFieldNames_.clear();
             positionFieldNames_.resize(nq_);
             velocityFieldNames_.clear();
@@ -535,8 +717,6 @@ namespace jiminy
                         {
                             jointPrefix = JOINT_PREFIX_BASE;
                         }
-
-                        returnCode = getJointTypeFromId(pncModel_, jointIdx, jointType);
                     }
 
                     std::vector<std::string> jointTypePositionSuffixes;
@@ -582,19 +762,79 @@ namespace jiminy
                     if (returnCode == result_t::SUCCESS)
                     {
                         std::copy(jointVelocityFieldnames.begin(),
-                                jointVelocityFieldnames.end(),
-                                velocityFieldNames_.begin() + idx_v);
+                                  jointVelocityFieldnames.end(),
+                                  velocityFieldNames_.begin() + idx_v);
                         std::copy(jointAccelerationFieldnames.begin(),
-                                jointAccelerationFieldnames.end(),
-                                accelerationFieldNames_.begin() + idx_v);
+                                  jointAccelerationFieldnames.end(),
+                                  accelerationFieldNames_.begin() + idx_v);
                     }
                 }
             }
+        }
 
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Generate the fieldnames associated with the motor torques
             motorTorqueFieldNames_.clear();
             for (std::string const & jointName : removeFieldnamesSuffix(motorsNames_, "Joint"))
             {
                 motorTorqueFieldNames_.emplace_back(JOINT_PREFIX_BASE + "Torque" + jointName);
+            }
+
+            // Get the joint position limits from the URDF or the user options
+            if (mdlOptions_->joints.positionLimitFromUrdf)
+            {
+                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
+                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
+                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                {
+                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
+                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
+                }
+            }
+            else
+            {
+                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
+                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
+            }
+
+            // Get the joint velocity limits from the URDF or the user options
+            if (mdlOptions_->joints.velocityLimitFromUrdf)
+            {
+                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
+                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                {
+                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
+                }
+            }
+            else
+            {
+                velocityLimit_ = mdlOptions_->joints.velocityLimit;
+            }
+
+            // Get the motor torque limits from the URDF or the user options
+            if (mdlOptions_->joints.torqueLimitFromUrdf)
+            {
+                // effortLimit is given in the velocity vector space
+                torqueLimit_.resize(motorsVelocityIdx_.size());
+                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+                {
+                    torqueLimit_[i] = pncModel_.effortLimit[motorsVelocityIdx_[i]];
+                }
+            }
+            else
+            {
+                torqueLimit_ = mdlOptions_->joints.torqueLimit;
+            }
+
+            // Get the motor inertia from the URDF or the user options
+            pncModel_.rotorInertia.setConstant(0.0);
+            if (mdlOptions_->joints.enableMotorInertia)
+            {
+                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+                {
+                    pncModel_.rotorInertia[motorsVelocityIdx_[i]] = mdlOptions_->joints.motorInertia[i];
+                }
             }
         }
 
@@ -875,9 +1115,12 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
+        bool internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
-            // Make sure the user-defined position limit has the right dimension
+            /* Check that the following user parameters has the right dimension,
+               then update the required internal buffers to reflect changes, if any. */
+
             configHolder_t & jointOptionsHolder =
                 boost::get<configHolder_t>(mdlOptions.at("joints"));
             if (!boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf")))
@@ -888,12 +1131,14 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
+                internalBuffersMustBeUpdated |= positionLimitMin != mdlOptions_->joints.positionLimitMin;
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
+                internalBuffersMustBeUpdated |= (positionLimitMax != mdlOptions_->joints.positionLimitMax);
             }
             if (!boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
@@ -903,6 +1148,7 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
+                internalBuffersMustBeUpdated |= velocityLimit != mdlOptions_->joints.velocityLimit;
             }
             if (!boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")))
             {
@@ -912,6 +1158,7 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'torqueLimit'." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
+                internalBuffersMustBeUpdated |= (torqueLimit != mdlOptions_->joints.torqueLimit);
             }
             if (boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")))
             {
@@ -926,12 +1173,13 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Every values in 'motorInertia' must be positive." << std::endl;
                     returnCode = result_t::ERROR_BAD_INPUT;
                 }
+                internalBuffersMustBeUpdated |= (motorInertia != mdlOptions_->joints.motorInertia);
             }
         }
 
-        // Check if the flexible model and its associated variables must be regenerated
+        // Check if the flexible model and its associated proxies must be regenerated
         bool isFlexibleModelInvalid = false;
-        bool isModelInvalid = false;
+        bool isCurrentModelInvalid = false;
         if (returnCode == result_t::SUCCESS)
         {
             if (isInitialized_)
@@ -952,7 +1200,7 @@ namespace jiminy
                 }
                 else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
                 {
-                    isModelInvalid = true;
+                    isCurrentModelInvalid = true;
                 }
             }
         }
@@ -968,16 +1216,21 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            // Force flexible model regeneration if necessary
             if (isFlexibleModelInvalid)
             {
-                pncModelFlexibleOrig_ = pinocchio::Model();
+                // Force flexible model regeneration
+                generateModelFlexible();
             }
 
-            // Trigger biased model regeneration and info extraction if necessary
-            if (isFlexibleModelInvalid || isModelInvalid)
+            if (isFlexibleModelInvalid || isCurrentModelInvalid)
             {
+                // Trigger biased model regeneration
                 reset();
+            }
+            else if (internalBuffersMustBeUpdated)
+            {
+                // Update the info extracted from the model
+                refreshModelProxies();
             }
         }
 
@@ -1113,6 +1366,11 @@ namespace jiminy
         }
     }
 
+    std::vector<std::string> const & Model::getContactFramesNames(void) const
+    {
+        return contactFramesNames_;
+    }
+
     std::vector<int32_t> const & Model::getContactFramesIdx(void) const
     {
         return contactFramesIdx_;
@@ -1166,6 +1424,16 @@ namespace jiminy
     vectorN_t const & Model::getTorqueLimit(void) const
     {
         return torqueLimit_;
+    }
+
+    vectorN_t Model::getMotorInertia(void) const
+    {
+        vectorN_t motorInertia(motorsVelocityIdx_.size());
+        for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+        {
+            motorInertia[i] = pncModel_.rotorInertia[motorsVelocityIdx_[i]];
+        }
+        return motorInertia;
     }
 
     std::vector<std::string> const & Model::getAccelerationFieldNames(void) const

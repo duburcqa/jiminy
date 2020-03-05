@@ -808,7 +808,7 @@ namespace jiminy
         forcesProfile_.emplace_back(frameName, std::make_tuple(0, forceFct));
     }
 
-    configHolder_t Engine::getOptions(void) const
+    configHolder_t const & Engine::getOptions(void) const
     {
         return engineOptionsHolder_;
     }
