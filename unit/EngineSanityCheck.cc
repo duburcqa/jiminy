@@ -54,8 +54,6 @@ TEST(EngineSanity, EnergyConservation)
 
     // Load double pendulum model.
     std::string urdfPath = "data/double_pendulum_rigid.urdf";
-    // No contact point.
-    std::vector<std::string> contacts;
     // All joints actuated.
     std::vector<std::string> jointNames;
     jointNames.push_back("PendulumJoint");
@@ -69,7 +67,8 @@ TEST(EngineSanity, EnergyConservation)
     boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
     model->setOptions(mdlOptions);
 
-    model->initialize(urdfPath, contacts, jointNames, false);
+    model->initialize(urdfPath, false);
+    model->addMotors(jointNames);
 
     auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
                                                          decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);

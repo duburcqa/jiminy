@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -151,10 +152,8 @@ namespace jiminy
         Model(void);
         virtual ~Model(void);
 
-        result_t initialize(std::string              const & urdfPath,
-                            std::vector<std::string> const & contactFramesNames,
-                            std::vector<std::string> const & motorsNames,
-                            bool                     const & hasFreeflyer = true);
+        result_t initialize(std::string const & urdfPath,
+                            bool        const & hasFreeflyer = true);
 
         result_t addContactPoints(std::vector<std::string> const & frameNames);
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
@@ -230,7 +229,8 @@ namespace jiminy
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
-
+        result_t getLock(std::unique_ptr<std::lock_guard<std::mutex> const> & lock);
+        bool getIsModelLocked(void);
 
     protected:
         virtual void reset(void);
@@ -293,6 +293,7 @@ namespace jiminy
         std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
 
     private:
+        std::mutex modelLockMutex_;
         pinocchio::Model pncModelFlexibleOrig_;
         std::unordered_map<std::string, std::shared_ptr<SensorDataHolder_t> > sensorsDataHolder_;
         uint32_t nq_;

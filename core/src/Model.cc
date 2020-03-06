@@ -48,6 +48,7 @@ namespace jiminy
     velocityFieldNames_(),
     accelerationFieldNames_(),
     motorTorqueFieldNames_(),
+    modelLockMutex_(),
     pncModelFlexibleOrig_(),
     sensorsDataHolder_(),
     nq_(0),
@@ -62,10 +63,8 @@ namespace jiminy
         // Empty.
     }
 
-    result_t Model::initialize(std::string              const & urdfPath,
-                               std::vector<std::string> const & contactFramesNames,
-                               std::vector<std::string> const & motorsNames,
-                               bool                     const & hasFreeflyer)
+    result_t Model::initialize(std::string const & urdfPath,
+                               bool        const & hasFreeflyer)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -105,18 +104,6 @@ namespace jiminy
         {
             // Add biases to the dynamics properties of the model
             returnCode = generateModelBiased();
-        }
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            // Add the motors
-            returnCode = addMotors(motorsNames);
-        }
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            // Add the contact points
-            returnCode = addContactPoints(contactFramesNames);
         }
 
         if (returnCode != result_t::SUCCESS)
@@ -202,6 +189,12 @@ namespace jiminy
             return returnCode;
         }
 
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::addContactPoints - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
         if (!isInitialized_)
         {
             std::cout << "Error - Model::addContactPoints - Model not initialized." << std::endl;
@@ -262,6 +255,12 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::removeContactPoints - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
         if (!isInitialized_)
         {
             std::cout << "Error - Model::removeContactPoints - Model not initialized." << std::endl;
@@ -318,6 +317,12 @@ namespace jiminy
         if (jointNames.empty())
         {
             return returnCode;
+        }
+
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::addMotors - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
@@ -388,6 +393,12 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::removeMotors - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
         if (!isInitialized_)
         {
             std::cout << "Error - Model::removeMotors - Model not initialized." << std::endl;
@@ -450,6 +461,12 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::removeSensor - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
         if (!isInitialized_)
         {
             std::cout << "Error - Model::removeSensor - Model not initialized." << std::endl;
@@ -498,6 +515,12 @@ namespace jiminy
     result_t Model::removeSensors(std::string const & sensorType)
     {
         result_t returnCode = result_t::SUCCESS;
+
+        if (getIsModelLocked())
+        {
+            std::cout << "Error - Model::removeSensors - Model is locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
 
         if (!isInitialized_)
         {
@@ -1364,6 +1387,24 @@ namespace jiminy
                 sensorGroup.second.begin()->second->updateTelemetryAll(); // Access static member of the sensor Group through the first instance
             }
         }
+    }
+
+    result_t Model::getLock(std::unique_ptr<std::lock_guard<std::mutex> const> & lock)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (isModelLocked_)
+        {
+            std::cout << "Error - Model::getLock - Model already locked. Please delete the current lock first." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            lock = std::move(std::make_unique<std::lock_guard<std::mutex> const>(modelLockMutex_));
+        }
+
+        return returnCode;
     }
 
     std::vector<std::string> const & Model::getContactFramesNames(void) const

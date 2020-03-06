@@ -16,10 +16,10 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double
 # ########################### Initialize the simulation #################################
 
 # Instantiate the model
-contacts = []
 motors = ["SecondPendulumJoint"]
 model = jiminy.Model()
-model.initialize(urdf_path, contacts, motors, False)
+model.initialize(urdf_path, False)
+model.add_motors(motors)
 
 # Instantiate the controller
 def computeCommand(t, q, v, sensor_data, u):

@@ -610,21 +610,19 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("initialize", &PyModelVisitor::initialize,
+                .def("initialize", &Model::initialize,
                                    (bp::arg("self"), "urdf_path",
-                                    bp::arg("contacts") = std::vector<std::string>(),
-                                    bp::arg("motors") = std::vector<std::string>(),
                                     bp::arg("has_freeflyer") = false))
 
-                .def("add_motors", &Model::addMotors,
+                .def("add_motors", &PyModelVisitor::addMotors,
                                    (bp::arg("self"), "joint_names"))
-                .def("remove_motors", &Model::removeMotors,
+                .def("remove_motors", &PyModelVisitor::removeMotors,
                                       (bp::arg("self"),
-                                      bp::arg("joint_names") = std::vector<std::string>()))
-                .def("add_contact_points", &Model::addContactPoints,
+                                       bp::arg("joint_names") = std::vector<std::string>()))
+                .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
-                .def("remove_contact_points", &Model::removeContactPoints,
+                .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
                 .def("add_imu_sensor", &PyModelVisitor::createAndAddSensor<ImuSensor>,
                                        (bp::arg("self"),
@@ -642,7 +640,7 @@ namespace python
                                       (bp::arg("self"), "sensor_type", "sensor_name"))
                 .def("remove_sensors", &Model::removeSensors,
                                        (bp::arg("self"),
-                                        bp::arg("sensorType") = std::vector<std::string>()))
+                                        bp::arg("sensorType") = std::string()))
                 .def("get_sensor", &PyModelVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
                                     bp::return_value_policy<bp::reference_existing_object>())
@@ -720,18 +718,32 @@ namespace python
                 ;
         }
 
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief      Initialize the model
-        ///////////////////////////////////////////////////////////////////////////////
-        static result_t initialize(Model             & self,
-                                   std::string const & urdfPath,
-                                   bp::list    const & contactFramesNamesPy,
-                                   bp::list    const & motorsNamesPy,
-                                   bool        const & hadFreeflyer)
+        static result_t addMotors(Model          & self,
+                                  bp::list const & jointNamesPy)
         {
-            std::vector<std::string> contactFramesNames = listPyToStdVector<std::string>(contactFramesNamesPy);
-            std::vector<std::string> motorsNames = listPyToStdVector<std::string>(motorsNamesPy);
-            return self.initialize(urdfPath, contactFramesNames, motorsNames, hadFreeflyer);
+            std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
+            return self.addMotors(jointNames);
+        }
+
+        static result_t removeMotors(Model          & self,
+                                     bp::list const & jointNamesPy)
+        {
+            std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
+            return self.removeMotors(jointNames);
+        }
+
+        static result_t addContactPoints(Model          & self,
+                                         bp::list const & frameNamesPy)
+        {
+            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            return self.addContactPoints(frameNames);
+        }
+
+        static result_t removeContactPoints(Model          & self,
+                                            bp::list const & frameNamesPy)
+        {
+            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            return self.removeContactPoints(frameNames);
         }
 
         template<typename TSensor>
@@ -1164,6 +1176,7 @@ namespace python
                                    (bp::arg("self"), "model", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
                                    (bp::arg("self"), "model", "controller", "callback_handle"))
+
                 .def("reset", &Engine::reset,
                               (bp::arg("self"), bp::arg("remove_forces")=false))
                 .def("set_state", &Engine::setState,
@@ -1172,6 +1185,7 @@ namespace python
                                    bp::arg("remove_forces")=false))
                 .def("step", &PyEngineVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired")=-1))
+                .def("stop", &Engine::stop, (bp::arg("self")))
                 .def("simulate", &Engine::simulate,
                                  (bp::arg("self"), "x_init", "end_time"))
 
@@ -1339,15 +1353,8 @@ namespace python
             std::vector<float32_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
-            result_t returnCode = self.getLogDataRaw(header, timestamps, intData, floatData);
-            if (returnCode == result_t::SUCCESS)
-            {
-                return formatLog(header, timestamps, intData, floatData);
-            }
-            else
-            {
-                return bp::make_tuple(bp::dict(), bp::dict());
-            }
+            self.getLogDataRaw(header, timestamps, intData, floatData);
+            return formatLog(header, timestamps, intData, floatData);
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)

@@ -44,7 +44,9 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple
 contacts = ["Corner1", "Corner2", "Corner3", "Corner4"]
 motors = ["PendulumJoint"]
 model = jiminy.Model()
-model.initialize(urdf_path, contacts, motors, True)
+model.initialize(urdf_path, True)
+model.add_motors(motors)
+model.add_contact_points(contacts)
 model.add_force_sensor("F1", "Corner1")
 model.add_force_sensor("F2", "Corner2")
 model.add_force_sensor("F3", "Corner3")

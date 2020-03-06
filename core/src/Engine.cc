@@ -39,6 +39,7 @@ namespace jiminy
                  {
                      return true;
                  }),
+    lockModel_(),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -232,7 +233,8 @@ namespace jiminy
         telemetryRecorder_->flushDataSnapshot(stepperStateLast_.t);
     }
 
-    void Engine::reset(bool const & resetDynamicForceRegister)
+    void Engine::reset(bool const & resetRandomNumbers,
+                       bool const & resetDynamicForceRegister)
     {
         // Reset the dynamic force register if requested
         if (resetDynamicForceRegister)
@@ -242,14 +244,18 @@ namespace jiminy
             forcesProfile_.clear();
         }
 
+        // Reset the random number generators
+        if (resetRandomNumbers)
+        {
+            resetRandGenerators(engineOptions_->stepper.randomSeed);
+        }
+
         // Reset the internal state of the model and controller
         model_->reset();
         controller_->reset();
 
-        // Reset the telemetry
-        telemetryRecorder_->reset();
-        telemetryData_->reset();
-        isTelemetryConfigured_ = false;
+        // Make sure the simulation is properly stopped
+        stop();
     }
 
     result_t Engine::setState(vectorN_t const & x_init,
@@ -269,14 +275,8 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Reset the random number generators
-        if (resetRandomNumbers)
-        {
-            resetRandGenerators(engineOptions_->stepper.randomSeed);
-        }
-
         // Reset the model, controller, engine, and registered impulse forces if requested
-        reset(resetDynamicForceRegister);
+        reset(resetRandomNumbers, resetDynamicForceRegister);
 
         // Propagate the gravity value at Pinocchio model level
         model_->pncModel_.gravity = engineOptions_->world.gravity;
@@ -454,6 +454,10 @@ namespace jiminy
             returnCode = step(stepSize); // Automatic dt adjustment
         }
 
+        /* Stop the simulation. New variables can be registered again,
+           and the lock on the model is released. */
+        stop();
+
         return returnCode;
     }
 
@@ -466,9 +470,17 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        // Configure telemetry if needed.
+        // Lock the model and initialize the telemetry if it is the first step
         if (!isTelemetryConfigured_)
         {
+            // Lock the model. At this point it is no longer possible to change the model.
+            result_t returnCode = model_->getLock(lockModel_);
+            if(returnCode != result_t::SUCCESS)
+            {
+                return returnCode;
+            }
+
+            // Lock the telemetry. At this point it is no longer possible to register new variables.
             configureTelemetry();
             // Write the header: this locks the registration of new variables
             telemetryRecorder_->initialize();
@@ -708,6 +720,18 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    void Engine::stop(void)
+    {
+        // Release the lock on the model
+        lockModel_.reset(nullptr);
+
+        /* Reset the telemetry. Note that calling `reset` does NOT clear the
+           internal data buffer of telemetryRecorder_. Clearing is done at init
+           time, so that it remains accessible until the next initialization. */
+        telemetryRecorder_->reset();
+        telemetryData_->reset();
+        isTelemetryConfigured_ = false;
+    }
 
     void Engine::computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
                                           Eigen::Ref<vectorN_t const> v,
@@ -983,36 +1007,22 @@ namespace jiminy
         }
     }
 
-    result_t Engine::getLogDataRaw(std::vector<std::string>             & header,
-                                   std::vector<float32_t>               & timestamps,
-                                   std::vector<std::vector<int32_t> >   & intData,
-                                   std::vector<std::vector<float32_t> > & floatData)
+    void Engine::getLogDataRaw(std::vector<std::string>             & header,
+                               std::vector<float32_t>               & timestamps,
+                               std::vector<std::vector<int32_t> >   & intData,
+                               std::vector<std::vector<float32_t> > & floatData)
     {
-        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
-        {
-            std::cout << "Error - Engine::getLogDataRaw - Telemetry not initialized. Impossible to get log data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
         telemetryRecorder_->getData(header, timestamps, intData, floatData);
-
-        return result_t::SUCCESS;
     }
 
-    result_t Engine::getLogData(std::vector<std::string> & header,
-                                matrixN_t                & logData)
+    void Engine::getLogData(std::vector<std::string> & header,
+                            matrixN_t                & logData)
     {
         std::vector<float32_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
-        result_t returnCode = getLogDataRaw(header, timestamps, intData, floatData);
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
-        }
-
-        return returnCode;
+        getLogDataRaw(header, timestamps, intData, floatData);
+        logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
     }
 
     vectorN_t Engine::getLogFieldValue(std::string              const & fieldName,
@@ -1033,61 +1043,46 @@ namespace jiminy
 
     result_t Engine::writeLogTxt(std::string const & filename)
     {
-        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
-        {
-            std::cout << "Error - Engine::writeLogTxt - Telemetry not initialized. Impossible to write log txt." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
         std::vector<std::string> header;
         matrixN_t log;
         getLogData(header, log);
 
-        std::ofstream myfile = std::ofstream(filename,
+        std::ofstream myFile = std::ofstream(filename,
                                              std::ios::out |
                                              std::ofstream::trunc);
 
-        if (myfile.is_open())
+        if (myFile.is_open())
         {
             auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
             std::copy(header.begin() + 1,
                       indexConstantEnd - 1,
-                      std::ostream_iterator<std::string>(myfile, ", ")); // Discard the first one (start constant flag)
+                      std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
             std::copy(indexConstantEnd - 1,
                       indexConstantEnd,
-                      std::ostream_iterator<std::string>(myfile, "\n"));
+                      std::ostream_iterator<std::string>(myFile, "\n"));
             std::copy(indexConstantEnd + 1,
                       header.end() - 2,
-                      std::ostream_iterator<std::string>(myfile, ", "));
+                      std::ostream_iterator<std::string>(myFile, ", "));
             std::copy(header.end() - 2,
                       header.end() - 1,
-                      std::ostream_iterator<std::string>(myfile, "\n")); // Discard the last one (start data flag)
+                      std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
 
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-            myfile << log.format(CSVFormat);
+            myFile << log.format(CSVFormat);
 
-            myfile.close();
+            myFile.close();
         }
         else
         {
             std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
-
         return result_t::SUCCESS;
     }
 
     result_t Engine::writeLogBinary(std::string const & filename)
     {
-        if(!isInitialized_ || !telemetryRecorder_->getIsInitialized())
-        {
-            std::cout << "Error - Engine::writeLogBinary - Telemetry not initialized. Impossible to write log data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        telemetryRecorder_->writeDataBinary(filename);
-
-        return result_t::SUCCESS;
+        return telemetryRecorder_->writeDataBinary(filename);
     }
 
     result_t Engine::parseLogBinaryRaw(std::string                          const & filename,
@@ -1100,35 +1095,35 @@ namespace jiminy
         int64_t floatSectionSize;
         int64_t headerSize;
 
-        std::ifstream myfile = std::ifstream(filename,
+        std::ifstream myFile = std::ifstream(filename,
                                              std::ios::in |
                                              std::ifstream::binary);
 
-        if (myfile.is_open())
+        if (myFile.is_open())
         {
             // Skip the version flag
             int64_t header_version_length = sizeof(int32_t);
-            myfile.seekg(header_version_length);
+            myFile.seekg(header_version_length);
 
             std::vector<std::string> headerBuffer;
             std::string subHeaderBuffer;
 
             // Get all the logged constants
-            while (std::getline(myfile, subHeaderBuffer, '\0').good() &&
+            while (std::getline(myFile, subHeaderBuffer, '\0').good() &&
                    subHeaderBuffer != START_COLUMNS)
             {
                 headerBuffer.push_back(subHeaderBuffer);
             }
 
             // Get the names of the logged variables
-            while (std::getline(myfile, subHeaderBuffer, '\0').good() &&
+            while (std::getline(myFile, subHeaderBuffer, '\0').good() &&
                    subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
             {
                 // Do nothing
             }
 
             // Make sure the log file is not corrupted
-            if (!myfile.good())
+            if (!myFile.good())
             {
                 std::cout << "Error - Engine::parseLogBinary - Corrupted log file." << std::endl;
                 return result_t::ERROR_BAD_INPUT;
@@ -1145,10 +1140,10 @@ namespace jiminy
             // Deduce the parameters required to parse the whole binary log file
             integerSectionSize = (NumIntEntries - 1) * sizeof(int32_t); // Remove Global.Time
             floatSectionSize = NumFloatEntries * sizeof(float32_t);
-            headerSize = ((int32_t) myfile.tellg()) - START_LINE_TOKEN.size() - 1;
+            headerSize = ((int32_t) myFile.tellg()) - START_LINE_TOKEN.size() - 1;
 
             // Close the file
-            myfile.close();
+            myFile.close();
         }
         else
         {

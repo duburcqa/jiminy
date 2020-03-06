@@ -341,7 +341,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(bp::extract<T>(listPy[i]));
+            v.emplace_back(bp::extract<T>(listPy[i]));
         }
 
         return v;
@@ -354,7 +354,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(bp::extract<T>(listPy[i]));
+            v.emplace_back(bp::extract<T>(listPy[i]));
         }
 
         return v;
@@ -370,7 +370,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(listPyToStdVector<T>(bp::extract<bp::list>(listPy[i])));
+            v.emplace_back(listPyToStdVector<T>(bp::extract<bp::list>(listPy[i])));
         }
 
         return v;

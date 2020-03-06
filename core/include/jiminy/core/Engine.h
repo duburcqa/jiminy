@@ -393,7 +393,8 @@ namespace jiminy
         ///          registering of new variables to log.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        void reset(bool const & resetDynamicForceRegister = false);
+        void reset(bool const & resetRandomNumbers = false,
+                   bool const & resetDynamicForceRegister = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -423,6 +424,8 @@ namespace jiminy
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
         result_t step(float64_t const & stepSize = -1);
 
+        void stop(void);
+
         void registerForceImpulse(std::string const & frameName,
                                   float64_t   const & t,
                                   float64_t   const & dt,
@@ -439,19 +442,17 @@ namespace jiminy
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
 
-        result_t getLogDataRaw(std::vector<std::string>             & header,
-                               std::vector<float32_t>               & timestamps,
-                               std::vector<std::vector<int32_t> >   & intData,
-                               std::vector<std::vector<float32_t> > & floatData);
+        void getLogDataRaw(std::vector<std::string>             & header,
+                           std::vector<float32_t>               & timestamps,
+                           std::vector<std::vector<int32_t> >   & intData,
+                           std::vector<std::vector<float32_t> > & floatData);
 
         /// \brief Get the full logged content.
         ///
         /// \param[out] header      Header, vector of field names.
         /// \param[out] logData     Corresponding data in the log file.
-        ///
-        /// \return ERROR_INIT_FAILED if telemetry was not initialized, SUCCESS on success.
-        result_t getLogData(std::vector<std::string> & header,
-                            matrixN_t                & logData);
+        void getLogData(std::vector<std::string> & header,
+                        matrixN_t                & logData);
 
         /// \brief Get the value of a single logged variable.
         ///
@@ -543,6 +544,7 @@ namespace jiminy
         callbackFunctor_t callbackFct_;
 
     private:
+        std::unique_ptr<std::lock_guard<std::mutex> const> lockModel_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
