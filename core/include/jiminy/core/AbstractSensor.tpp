@@ -155,8 +155,6 @@ namespace jiminy
     template <typename T>
     result_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
         float64_t const timeDesired = dataHolder_->time_.back() - sensorOptions_->delay + 1e-9;
 
@@ -206,12 +204,13 @@ namespace jiminy
             };
 
         int32_t const inputIndexLeft = bisectLeft();
+        data_ = vectorN_t::Zero(getSize());
         if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < dataHolder_->time_.size())
         {
             if (inputIndexLeft < 0)
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
-                returnCode = result_t::ERROR_GENERIC;
+                return result_t::ERROR_GENERIC;
             }
             else if (sensorOptions_->delayInterpolationOrder == 0)
             {
@@ -226,7 +225,7 @@ namespace jiminy
             else
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                return result_t::ERROR_BAD_INPUT;
             }
         }
         else
@@ -243,12 +242,7 @@ namespace jiminy
             }
         }
 
-        if (returnCode != result_t::SUCCESS)
-        {
-            data_ = vectorN_t::Zero(getSize());
-        }
-
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
 
@@ -318,15 +312,15 @@ namespace jiminy
         // Compute the sensors' output
         for (AbstractSensorBase * sensor : dataHolder_->sensors_)
         {
-            // Compute the true value
             if (returnCode == result_t::SUCCESS)
             {
+                // Compute the true value
                 returnCode = sensor->set(t, q, v, a, u);
             }
 
-            // Add white noise
             if (returnCode == result_t::SUCCESS)
             {
+                // Add white noise
                 if (sensorOptions_->noiseStd.size())
                 {
                     sensor->data() += randVectorNormal(sensor->sensorOptions_->noiseStd);
@@ -337,9 +331,9 @@ namespace jiminy
                 }
             }
 
-            // Update data buffer
             if (returnCode == result_t::SUCCESS)
             {
+                // Update data buffer
                 returnCode = sensor->updateDataBuffer();
             }
         }

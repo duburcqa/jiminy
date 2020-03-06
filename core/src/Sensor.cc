@@ -67,27 +67,21 @@ namespace jiminy
                             vectorN_t const & a,
                             vectorN_t const & u)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!isInitialized_)
         {
             std::cout << "Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
-            quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
-            data().head(4) = quat.coeffs(); // (x,y,z,w)
-            pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
-            data().segment<3>(4) = gyroIMU.angular();
-            pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
-            data().tail(3) = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
-        }
+        matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
+        quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
+        data().head(4) = quat.coeffs(); // (x,y,z,w)
+        pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
+        data().segment<3>(4) = gyroIMU.angular();
+        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
+        data().tail(3) = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
 
-
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
     // ===================== ForceSensor =========================
@@ -146,22 +140,17 @@ namespace jiminy
                               vectorN_t const & a,
                               vectorN_t const & u)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!isInitialized_)
         {
             std::cout << "Error - ForceSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
-            std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-            data() = model_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
-        }
+        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
+        std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
+        data() = model_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
     // ===================== EncoderSensor =========================
@@ -226,27 +215,15 @@ namespace jiminy
                                 vectorN_t const & a,
                                 vectorN_t const & u)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!isInitialized_)
         {
             std::cout << "Error - EncoderSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            // if(sensorOptions_->rawData)
-            // {
-            //     data() = q.segment<1>(motorPositionIdx_);
-            // }
-            // else
-            // {
-                data().head(1) = q.segment<1>(motorPositionIdx_);
-                data().tail(1) = v.segment<1>(motorVelocityIdx_);
-            // }
-        }
+        data().head(1) = q.segment<1>(motorPositionIdx_);
+        data().tail(1) = v.segment<1>(motorVelocityIdx_);
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 }

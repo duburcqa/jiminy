@@ -426,12 +426,12 @@ namespace jiminy
 
         void stop(void);
 
-        void registerForceImpulse(std::string const & frameName,
-                                  float64_t   const & t,
-                                  float64_t   const & dt,
-                                  vector3_t   const & F);
-        void registerForceProfile(std::string      const & frameName,
-                                  forceFunctor_t           forceFct);
+        result_t registerForceImpulse(std::string const & frameName,
+                                      float64_t   const & t,
+                                      float64_t   const & dt,
+                                      vector3_t   const & F);
+        result_t registerForceProfile(std::string      const & frameName,
+                                      forceFunctor_t           forceFct);
 
         configHolder_t const & getOptions(void) const;
         result_t setOptions(configHolder_t const & engineOptions);

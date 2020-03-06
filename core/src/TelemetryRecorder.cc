@@ -120,11 +120,6 @@ namespace jiminy
         {
             recordedBytes_ = 0;
         }
-        else
-        {
-            std::cout << "Error - TelemetryRecorder::createNewChunk - Impossible to create a new chunk of memory buffer." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
-        }
 
         return returnCode;
     }

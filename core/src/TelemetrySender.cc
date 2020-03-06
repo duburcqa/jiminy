@@ -76,7 +76,6 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             intBufferPosition_[fieldNameIn] = positionInBuffer;
-
             updateValue(fieldNameIn, initialValue);
         }
 
@@ -94,7 +93,6 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             floatBufferPosition_[fieldNameIn] = positionInBuffer;
-
             updateValue(fieldNameIn, initialValue);
         }
 
@@ -107,10 +105,9 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
         for (uint32_t i=0; i < initialValues.size(); ++i)
         {
-            returnCode = registerVariable(fieldNames[i], initialValues[i]);
-            if (returnCode != result_t::SUCCESS)
+            if (returnCode == result_t::SUCCESS)
             {
-                break;
+                returnCode = registerVariable(fieldNames[i], initialValues[i]);
             }
         }
         return returnCode;

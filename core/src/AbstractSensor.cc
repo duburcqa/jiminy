@@ -41,7 +41,10 @@ namespace jiminy
                 {
                     telemetrySender_.configureObject(telemetryData, getTelemetryName());
                     returnCode = telemetrySender_.registerVariable(getFieldNames(), data_);
-                    isTelemetryConfigured_ = true;
+                    if (returnCode == result_t::SUCCESS)
+                    {
+                        isTelemetryConfigured_ = true;
+                    }
                 }
                 else
                 {
@@ -49,11 +52,6 @@ namespace jiminy
                     returnCode = result_t::ERROR_INIT_FAILED;
                 }
             }
-        }
-
-        if (returnCode != result_t::SUCCESS)
-        {
-            isTelemetryConfigured_ = false;
         }
 
         return returnCode;

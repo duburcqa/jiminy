@@ -43,32 +43,27 @@ namespace jiminy
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
-        result_t returnCode = result_t::SUCCESS;
-
         if (isTelemetryConfigured_)
         {
             std::cout << "Error - AbstractController::registerConstant - Telemetry already initialized. Impossible to register new variables." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        // Check in local cache before.
+        auto constantIt = std::find_if(registeredConstants_.begin(),
+                                        registeredConstants_.end(),
+                                        [&fieldName](auto const & element)
+                                        {
+                                            return element.first == fieldName;
+                                        });
+        if (constantIt != registeredConstants_.end())
         {
-            // Check in local cache before.
-            auto constantIt = std::find_if(registeredConstants_.begin(),
-                                           registeredConstants_.end(),
-                                           [&fieldName](auto const & element)
-                                           {
-                                               return element.first == fieldName;
-                                           });
-            if (constantIt != registeredConstants_.end())
-            {
-                std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
-            }
-            registeredConstants_.emplace_back(fieldName, to_string(value));
+            std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
         }
+        registeredConstants_.emplace_back(fieldName, to_string(value));
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 }
 

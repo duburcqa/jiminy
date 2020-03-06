@@ -230,7 +230,7 @@ namespace jiminy
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
         result_t getLock(std::unique_ptr<std::lock_guard<std::mutex> const> & lock);
-        bool getIsModelLocked(void);
+        bool getIsLocked(void);
 
     protected:
         virtual void reset(void);
