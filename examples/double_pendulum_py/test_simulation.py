@@ -89,7 +89,7 @@ print(log_constants)
 trajectory_data_log = extract_state_from_simulation_log(log_data, model)
 
 # Save the log in CSV
-engine.write_log("/tmp/log.data", False)
+engine.write_log("/tmp/log.csv", False)
 
 # ############################ Display the results ######################################
 

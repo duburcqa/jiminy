@@ -110,7 +110,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!getIsInitialized())
+        if (!isInitialized_)
         {
             std::cout << "Error - Engine::configureTelemetry - The engine is not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
@@ -254,133 +254,156 @@ namespace jiminy
         stop();
     }
 
-    result_t Engine::setState(vectorN_t const & x_init,
-                              bool      const & resetRandomNumbers,
-                              bool      const & resetDynamicForceRegister)
+    result_t Engine::start(vectorN_t const & x_init,
+                           bool      const & resetRandomNumbers,
+                           bool      const & resetDynamicForceRegister)
     {
-        if (!getIsInitialized())
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
         {
             std::cout << "Error - Engine::reset - The engine is not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            returnCode = result_t::ERROR_INIT_FAILED;
         }
 
         // Check the dimension of the initial rigid state
         if (x_init.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv)
         {
             std::cout << "Error - Engine::reset - Size of x_init inconsistent with model size." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            returnCode = result_t::ERROR_BAD_INPUT;
         }
 
-        // Reset the model, controller, engine, and registered impulse forces if requested
-        reset(resetRandomNumbers, resetDynamicForceRegister);
-
-        // Propagate the gravity value at Pinocchio model level
-        model_->pncModel_.gravity = engineOptions_->world.gravity;
-
-        // Compute the initial flexible state based on the initial rigid state
-        std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
-        std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-        vectorN_t x0 = vectorN_t::Zero(model_->nx());
-        if (model_->getHasFreeflyer())
+        if (returnCode == result_t::SUCCESS)
         {
-            x0.head<7>() = x_init.head<7>();
-            for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+            // Reset the model, controller, engine, and registered impulse forces if requested
+            reset(resetRandomNumbers, resetDynamicForceRegister);
+
+            // Lock the model. At this point it is no longer possible to change the model.
+            returnCode = model_->getLock(lockModel_);
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Propagate the gravity value at Pinocchio model level
+            model_->pncModel_.gravity = engineOptions_->world.gravity;
+
+            // Compute the initial flexible state based on the initial rigid state
+            std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
+            std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
+            vectorN_t x0 = vectorN_t::Zero(model_->nx());
+            if (model_->getHasFreeflyer())
             {
-                x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+                x0.head<7>() = x_init.head<7>();
+                for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+                {
+                    x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+                }
+                x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
+                for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+                {
+                    x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+                }
             }
-            x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
-            for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+            else
             {
-                x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+                for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+                {
+                    x0[rigidJointsPositionIdx[i]] = x_init[i];
+                }
+                for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+                {
+                    x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+                }
             }
-        }
-        else
-        {
-            for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+            for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
             {
-                x0[rigidJointsPositionIdx[i]] = x_init[i];
+                x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
             }
-            for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+
+            // Reset the impulse for iterator counter
+            forceImpulseNextIt_ = forcesImpulse_.begin();
+            for (auto & forceProfile : forcesProfile_)
             {
-                x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+                getFrameIdx(model_->pncModel_, forceProfile.first, std::get<0>(forceProfile.second));
             }
+
+            // Initialize the ode solver
+            if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
+            {
+                stepper_ = make_controlled(engineOptions_->stepper.tolAbs,
+                                        engineOptions_->stepper.tolRel,
+                                        rungeKuttaStepper_t());
+            }
+            else if (engineOptions_->stepper.odeSolver == "explicit_euler")
+            {
+                stepper_ = explicit_euler();
+            }
+
+            // Compute the initial time step
+            float64_t dt;
+            if (stepperUpdatePeriod_ > MIN_TIME_STEP)
+            {
+                dt = stepperUpdatePeriod_; // The initial time step is the update period
+            }
+            else
+            {
+                dt = engineOptions_->stepper.dtMax; // Use the maximum allowed time step as default
+            }
+
+            // Initialize the stepper internal state
+            stepperState_.initialize(*model_, x0, dt);
+
+            float64_t & t = stepperState_.t;
+            Eigen::Ref<vectorN_t> q = stepperState_.q();
+            Eigen::Ref<vectorN_t> v = stepperState_.v();
+            vectorN_t & x = stepperState_.x;
+            Eigen::Ref<vectorN_t> a = stepperState_.a();
+            vectorN_t & u = stepperState_.u;
+            vectorN_t & uCommand = stepperState_.uCommand;
+            vectorN_t & uInternal = stepperState_.uInternal;
+            stepperState_t::forceVector_t & fext = stepperState_.fExternal;
+
+            // Compute the forward kinematics
+            computeForwardKinematics(q, v, a);
+
+            // Initialize the external contact forces
+            computeExternalForces(t, x, fext);
+
+            // Initialize the sensor data
+            model_->setSensorsData(t, q, v, a, u);
+
+            // Initialize the controller's dynamically registered variables
+            computeCommand(t, q, v, uCommand);
+
+            // Compute the internal dynamics
+            computeInternalDynamics(t, q, v, uInternal);
+
+            // Compute the total torque vector
+            u = stepperState_.uInternal;
+            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
+            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+            {
+                uint32_t const & jointIdx = motorsVelocityIdx[i];
+                u[jointIdx] += stepperState_.uCommand[i];
+            }
+
+            // Compute dynamics
+            a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
         }
-        for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
+
+        if (returnCode == result_t::SUCCESS)
         {
-            x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
+            // Lock the telemetry. At this point it is no longer possible to register new variables.
+            configureTelemetry();
+
+            // Write the header: this locks the registration of new variables
+            telemetryRecorder_->initialize();
+
+            // Log current buffer content as first point of the log data.
+            updateTelemetry();
         }
 
-        // Reset the impulse for iterator counter
-        forceImpulseNextIt_ = forcesImpulse_.begin();
-        for (auto & forceProfile : forcesProfile_)
-        {
-            getFrameIdx(model_->pncModel_, forceProfile.first, std::get<0>(forceProfile.second));
-        }
-
-        // Initialize the ode solver
-        if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
-        {
-            stepper_ = make_controlled(engineOptions_->stepper.tolAbs,
-                                       engineOptions_->stepper.tolRel,
-                                       rungeKuttaStepper_t());
-        }
-        else if (engineOptions_->stepper.odeSolver == "explicit_euler")
-        {
-            stepper_ = explicit_euler();
-        }
-
-        // Compute the initial time step
-        float64_t dt;
-        if (stepperUpdatePeriod_ > MIN_TIME_STEP)
-        {
-            dt = stepperUpdatePeriod_; // The initial time step is the update period
-        }
-        else
-        {
-            dt = engineOptions_->stepper.dtMax; // Use the maximum allowed time step as default
-        }
-
-        // Initialize the stepper internal state
-        stepperState_.initialize(*model_, x0, dt);
-
-        float64_t & t = stepperState_.t;
-        Eigen::Ref<vectorN_t> q = stepperState_.q();
-        Eigen::Ref<vectorN_t> v = stepperState_.v();
-        vectorN_t & x = stepperState_.x;
-        Eigen::Ref<vectorN_t> a = stepperState_.a();
-        vectorN_t & u = stepperState_.u;
-        vectorN_t & uCommand = stepperState_.uCommand;
-        vectorN_t & uInternal = stepperState_.uInternal;
-        stepperState_t::forceVector_t & fext = stepperState_.fExternal;
-
-        // Compute the forward kinematics
-        computeForwardKinematics(q, v, a);
-
-        // Initialize the external contact forces
-        computeExternalForces(t, x, fext);
-
-        // Initialize the sensor data
-        model_->setSensorsData(t, q, v, a, u);
-
-        // Initialize the controller's dynamically registered variables
-        computeCommand(t, q, v, uCommand);
-
-        // Compute the internal dynamics
-        computeInternalDynamics(t, q, v, uInternal);
-
-        // Compute the total torque vector
-        u = stepperState_.uInternal;
-        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
-        {
-            uint32_t const & jointIdx = motorsVelocityIdx[i];
-            u[jointIdx] += stepperState_.uCommand[i];
-        }
-
-        // Compute dynamics
-        a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
-
-        return result_t::SUCCESS;
+        return returnCode;
     }
 
     result_t Engine::simulate(vectorN_t const & x_init,
@@ -403,7 +426,7 @@ namespace jiminy
         // Reset the model, controller, and engine
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = setState(x_init, true, false);
+            returnCode = start(x_init, true, false);
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
@@ -466,26 +489,6 @@ namespace jiminy
         {
             std::cout << "Error - Engine::step - Engine not initialized. Impossible to perform a simulation step." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
-        }
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            // Lock the model and initialize the telemetry if it is the first step
-            if (!isTelemetryConfigured_)
-            {
-                // Lock the model. At this point it is no longer possible to change the model.
-                returnCode = model_->getLock(lockModel_);
-
-                if (returnCode == result_t::SUCCESS)
-                {
-                    // Lock the telemetry. At this point it is no longer possible to register new variables.
-                    configureTelemetry();
-                    // Write the header: this locks the registration of new variables
-                    telemetryRecorder_->initialize();
-                    // Log current buffer content as first point of the log data.
-                    updateTelemetry();
-                }
-            }
         }
 
         if (returnCode == result_t::SUCCESS)

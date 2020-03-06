@@ -404,16 +404,9 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        result_t setState(vectorN_t const & x_init,
-                          bool const & resetRandomNumbers = false,
-                          bool const & resetDynamicForceRegister = false);
-
-        /// \brief Run a simulation of duration end_time, starting at x_init.
-        ///
-        /// \param[in] x_init Initial state, i.e. state at t=0.
-        /// \param[in] end_time End time, i.e. amount of time to simulate.
-        result_t simulate(vectorN_t const & x_init,
-                          float64_t const & end_time);
+        result_t start(vectorN_t const & x_init,
+                       bool const & resetRandomNumbers = false,
+                       bool const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -424,7 +417,20 @@ namespace jiminy
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
         result_t step(float64_t const & stepSize = -1);
 
+        /// \brief Stop the simulation.
+        ///
+        /// \details It releases the lock on the model and the telemetry, so that
+        ///          it is possible again to update the model (for example to update
+        ///          the options, add or remove sensors...) and to register new
+        ///          variables or forces.
         void stop(void);
+
+        /// \brief Run a simulation of duration end_time, starting at x_init.
+        ///
+        /// \param[in] x_init Initial state, i.e. state at t=0.
+        /// \param[in] end_time End time, i.e. amount of time to simulate.
+        result_t simulate(vectorN_t const & x_init,
+                          float64_t const & end_time);
 
         result_t registerForceImpulse(std::string const & frameName,
                                       float64_t   const & t,
