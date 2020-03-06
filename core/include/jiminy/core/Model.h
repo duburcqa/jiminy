@@ -156,12 +156,26 @@ namespace jiminy
                             std::vector<std::string> const & motorsNames,
                             bool                     const & hasFreeflyer = true);
 
+        result_t addContactPoints(std::vector<std::string> const & frameNames);
+        result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
+        result_t addMotors(std::vector<std::string> const & jointNames);
+        result_t removeMotors(std::vector<std::string> const & jointNames = {});
         template<typename TSensor>
         result_t addSensor(std::string              const & sensorName,
                            std::shared_ptr<TSensor>       & sensor);
         result_t removeSensor(std::string const & sensorType,
                               std::string const & sensorName);
         result_t removeSensors(std::string const & sensorType);
+
+        std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
+        template<typename TSensor>
+        result_t getSensor(std::string              const & sensorType,
+                           std::string              const & sensorName,
+                           std::shared_ptr<TSensor>       & sensor);
+        void getSensorsData(sensorsDataMap_t & data) const;
+        matrixN_t getSensorsData(std::string const & sensorType) const;
+        vectorN_t const & getSensorData(std::string const & sensorType,
+                                        std::string const & sensorName) const;
 
         configHolder_t getOptions(void) const;
         result_t setOptions(configHolder_t mdlOptions); // Make a copy !
@@ -179,6 +193,7 @@ namespace jiminy
         result_t setSensorsOptions(configHolder_t const & sensorsOptions);
         result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
         result_t setTelemetryOptions(configHolder_t const & telemetryOptions);
+
         bool const & getIsInitialized(void) const;
         /// \brief Get status of telementry object.
         /// \details The engine needs to know this to setup the global telemetry ;
@@ -186,11 +201,12 @@ namespace jiminy
         bool const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
         bool const & getHasFreeflyer(void) const;
-        std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
-        void getSensorsData(sensorsDataMap_t & data) const;
-        matrixN_t getSensorsData(std::string const & sensorType) const;
-        vectorN_t const & getSensorData(std::string const & sensorType,
-                                        std::string const & sensorName) const;
+        // Getter without keywords for consistency with pinocchio C++ API
+        uint32_t const & nq(void) const;
+        uint32_t const & nv(void) const;
+        uint32_t const & nx(void) const;
+
+        std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> const & getMotorsModelIdx(void) const;
@@ -202,24 +218,19 @@ namespace jiminy
         std::vector<int32_t> const & getRigidJointsVelocityIdx(void) const;
         std::vector<std::string> const & getFlexibleJointsNames(void) const;
         std::vector<int32_t> const & getFlexibleJointsModelIdx(void) const;
-        std::vector<std::string> const & getPositionFieldNames(void) const;
-        std::vector<std::string> const & getVelocityFieldNames(void) const;
-        std::vector<std::string> const & getAccelerationFieldNames(void) const;
-        std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
+
         vectorN_t const & getPositionLimitMin(void) const;
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
         vectorN_t const & getTorqueLimit(void) const;
+        vectorN_t getMotorInertia(void) const;
 
-        // Getter without keywords for consistency with pinocchio C++ API
-        uint32_t const & nq(void) const;
-        uint32_t const & nv(void) const;
-        uint32_t const & nx(void) const;
+        std::vector<std::string> const & getPositionFieldNames(void) const;
+        std::vector<std::string> const & getVelocityFieldNames(void) const;
+        std::vector<std::string> const & getAccelerationFieldNames(void) const;
+        std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
-        template<typename TSensor>
-        result_t getSensor(std::string              const & sensorType,
-                           std::string              const & sensorName,
-                           std::shared_ptr<TSensor>       & sensor);
+
 
     protected:
         virtual void reset(void);
@@ -235,9 +246,9 @@ namespace jiminy
 
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool        const & hasFreeflyer);
-        result_t generateFlexibleModel(void);
-        result_t generateBiasedModel(void);
-        result_t generateFieldNames(void);
+        result_t generateModelFlexible(void);
+        result_t generateModelBiased(void);
+        result_t refreshModelProxies(void);
 
     public:
         pinocchio::Model pncModel_;

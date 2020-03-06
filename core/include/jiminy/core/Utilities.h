@@ -164,16 +164,27 @@ namespace jiminy
                     float64_t const & minThr = -INF,
                     float64_t const & maxThr = +INF);
 
+    // ********************* Std::vector helpers **********************
+
+    template<typename T>
+    bool checkDuplicates(std::vector<T> const & vect);
+
+    template<typename T>
+    bool checkIntersection(std::vector<T> const & vect1,
+                           std::vector<T> const & vect2);
+
+    template<typename T>
+    bool checkInclusion(std::vector<T> const & vect1,
+                        std::vector<T> const & vect2);
+
+    template<typename T>
+    void eraseVector(std::vector<T>       & vect1,
+                     std::vector<T> const & vect2);
+
     // *********************** Miscellaneous **************************
 
-    template<typename KeyType, typename ValueType>
-    std::vector<ValueType> getMapValues(std::map<KeyType, ValueType> m);
-
-    template<typename typeOut, typename typeIn>
-    std::vector<std::shared_ptr<typeOut>> staticCastSharedPtrVector(std::vector<std::shared_ptr<typeIn>> vIn);
-
     template<class F, class dF=std::decay_t<F> >
-    auto not_f(F&& f);
+    auto notF(F&& f);
 
     template<typename type>
     void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1>       & vector,

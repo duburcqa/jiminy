@@ -1,4 +1,5 @@
 #include <memory>
+#include <algorithm>
 
 
 namespace jiminy
@@ -24,45 +25,72 @@ namespace jiminy
         }
     }
 
+
+    // ********************* Std::vector helpers **********************
+
+    template<typename T>
+    bool checkDuplicates(std::vector<T> const & vect)
+    {
+        for (auto it = vect.begin(); it != vect.end(); ++it)
+        {
+            if (std::find(it + 1, vect.end(), *it) != vect.end())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    template<typename T>
+    bool checkIntersection(std::vector<T> const & vect1,
+                           std::vector<T> const & vect2)
+    {
+        auto vect2It = std::find_if(vect2.begin(), vect2.end(),
+        [&vect1](auto const & elem2)
+        {
+            auto vect1It = std::find(vect1.begin(), vect1.end(), elem2);
+            return (vect1It != vect1.end());
+        });
+        return (vect2It != vect2.end());
+    }
+
+    template<typename T>
+    bool checkInclusion(std::vector<T> const & vect1,
+                        std::vector<T> const & vect2)
+    {
+        for (auto const & elem2 : vect2)
+        {
+            auto vect1It = std::find(vect1.begin(), vect1.end(), elem2);
+            if (vect1It == vect1.end())
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template<typename T>
+    void eraseVector(std::vector<T>       & vect1,
+                     std::vector<T> const & vect2)
+    {
+        vect1.erase(std::remove_if(vect1.begin(), vect1.end(),
+        [&vect2](auto const & elem1)
+        {
+            auto vect2It = std::find(vect2.begin(), vect2.end(), elem1);
+            return (vect2It != vect2.end());
+        }), vect1.end());
+    }
+
     // *********************** Miscellaneous **************************
 
     template<class F, class dF>
-    auto not_f(F&& f){
+    auto notF(F&& f)
+    {
         return [f=std::forward<F>(f)](auto&&...args) mutable
                ->decltype(!std::declval<std::result_of_t<dF&(decltype(args)...)>>()) // optional, adds sfinae
                {
                    return !f(decltype(args)(args)...);
                };
-    }
-
-	template<typename KeyType, typename ValueType>
-	std::vector<ValueType> getMapValues(std::map<KeyType, ValueType> m)
-	{
-		std::vector<ValueType> v;
-        v.reserve(m.size());
-		std::transform(m.begin(),
-                       m.end(),
-                       std::back_inserter(v),
-                       [](std::pair<KeyType const, ValueType> & pair) -> ValueType
-                       {
-                           return pair.second;
-                       });
-		return v;
-	}
-
-	template<typename typeOut, typename typeIn>
-	std::vector<std::shared_ptr<typeOut> > staticCastSharedPtrVector(std::vector<std::shared_ptr<typeIn> > vIn)
-    {
-		std::vector<std::shared_ptr<typeOut> > vOut;
-        vOut.reserve(vIn.size());
-		std::transform(vIn.begin(),
-                       vIn.end(),
-                       std::back_inserter(vIn),
-                       [](std::shared_ptr<typeIn> & e) -> std::shared_ptr<typeOut>
-                       {
-                           return std::static_pointer_cast<typeOut>(e);
-                       });
-		return vOut;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -193,10 +193,10 @@ namespace jiminy
         if (std > 0.0)
         {
             return vectorN_t::NullaryExpr(size,
-                                        [&mean, &std] (vectorN_t::Index const &) -> float64_t
-                                        {
-                                            return randNormal(mean, std);
-                                        });
+            [&mean, &std] (vectorN_t::Index const &) -> float64_t
+            {
+                return randNormal(mean, std);
+            });
         }
         else
         {
@@ -214,19 +214,19 @@ namespace jiminy
                                vectorN_t const & std)
     {
         return vectorN_t::NullaryExpr(std.size(),
-                                      [&mean, &std] (vectorN_t::Index const & i) -> float64_t
-                                      {
-                                          return randNormal(mean[i], std[i]);
-                                      });
+        [&mean, &std] (vectorN_t::Index const & i) -> float64_t
+        {
+            return randNormal(mean[i], std[i]);
+        });
     }
 
     vectorN_t randVectorNormal(vectorN_t const & std)
     {
         return vectorN_t::NullaryExpr(std.size(),
-                                      [&std] (vectorN_t::Index const & i) -> float64_t
-                                      {
-                                          return randNormal(0, std[i]);
-                                      });
+        [&std] (vectorN_t::Index const & i) -> float64_t
+        {
+            return randNormal(0, std[i]);
+        });
     }
 
     // ******************* Telemetry utilities **********************
@@ -257,13 +257,11 @@ namespace jiminy
     std::vector<std::string> removeFieldnamesSuffix(std::vector<std::string>         fieldnames,
                                                     std::string              const & suffix)
     {
-        std::transform(fieldnames.begin(),
-                       fieldnames.end(),
-                       fieldnames.begin(),
-                       [&suffix](std::string const & name) -> std::string
-                       {
-                           return removeFieldnameSuffix(name, suffix);
-                       });
+        std::transform(fieldnames.begin(), fieldnames.end(), fieldnames.begin(),
+        [&suffix](std::string const & name) -> std::string
+        {
+            return removeFieldnameSuffix(name, suffix);
+        });
         return fieldnames;
     }
 
@@ -984,10 +982,11 @@ namespace jiminy
                     float64_t                   const & minThr,
                     float64_t                   const & maxThr)
     {
-        return data.unaryExpr([&minThr, &maxThr](float64_t const & x) -> float64_t
-                              {
-                                  return clamp(x, minThr, maxThr);
-                              });
+        return data.unaryExpr(
+        [&minThr, &maxThr](float64_t const & x) -> float64_t
+        {
+            return clamp(x, minThr, maxThr);
+        });
     }
 
     float64_t clamp(float64_t const & data,

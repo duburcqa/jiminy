@@ -8,7 +8,7 @@ namespace jiminy
 
         result_t returnCode = result_t::SUCCESS;
 
-        if (!getIsInitialized())
+        if (!isInitialized_)
         {
             std::cout << "Error - Model::addSensor - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
@@ -60,7 +60,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!getIsInitialized())
+        if (!isInitialized_)
         {
             std::cout << "Error - Model::getSensorOptions - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
