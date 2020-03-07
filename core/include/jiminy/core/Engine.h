@@ -91,7 +91,7 @@ namespace jiminy
         }
 
         void initialize(Model           & model,
-                        vectorN_t const & x_init,
+                        vectorN_t const & xInit,
                         float64_t const & dt_init)
         {
             // Extract some information from the model
@@ -103,7 +103,7 @@ namespace jiminy
             iter = 0;
             t = 0.0;
             dt = dt_init;
-            x = x_init;
+            x = xInit;
 
             dxdt = vectorN_t::Zero(nx_);
             computePositionDerivative(model.pncModel_, q(), v(), qDot());
@@ -398,12 +398,12 @@ namespace jiminy
         ///
         /// \details This function reset the engine, the model and the controller, and update internal data
         ///          to match the given initial state.
-        /// \param[in] x_init Initial state.
+        /// \param[in] xInit Initial state.
         /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        result_t start(vectorN_t const & x_init,
+        result_t start(vectorN_t const & xInit,
                        bool      const & isStateTheoretical = false,
                        bool      const & resetRandomNumbers = false,
                        bool      const & resetDynamicForceRegister = false);
@@ -425,13 +425,13 @@ namespace jiminy
         ///          variables or forces.
         void stop(void);
 
-        /// \brief Run a simulation of duration end_time, starting at x_init.
+        /// \brief Run a simulation of duration tEnd, starting at xInit.
         ///
-        /// \param[in] end_time End time, i.e. amount of time to simulate.
-        /// \param[in] x_init Initial state, i.e. state at t=0.
+        /// \param[in] tEnd End time, i.e. amount of time to simulate.
+        /// \param[in] xInit Initial state, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
-        result_t simulate(float64_t const & end_time,
-                          vectorN_t const & x_init,
+        result_t simulate(float64_t const & tEnd,
+                          vectorN_t const & xInit,
                           bool      const & isStateTheoretical = false);
 
         result_t registerForceImpulse(std::string const & frameName,

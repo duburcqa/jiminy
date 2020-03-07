@@ -254,7 +254,7 @@ namespace jiminy
         stop();
     }
 
-    result_t Engine::start(vectorN_t const & x_init,
+    result_t Engine::start(vectorN_t const & xInit,
                            bool      const & isStateTheoretical,
                            bool      const & resetRandomNumbers,
                            bool      const & resetDynamicForceRegister)
@@ -268,10 +268,10 @@ namespace jiminy
         }
 
         // Check the dimension of the state
-        if ((isStateTheoretical && (x_init.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv))
-        || (!isStateTheoretical && (x_init.rows() != model_->nx())))
+        if ((isStateTheoretical && (xInit.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv))
+        || (!isStateTheoretical && (xInit.rows() != model_->nx())))
         {
-            std::cout << "Error - Engine::reset - Size of x_init inconsistent with model size." << std::endl;
+            std::cout << "Error - Engine::reset - Size of xInit inconsistent with model size." << std::endl;
             returnCode = result_t::ERROR_BAD_INPUT;
         }
 
@@ -297,26 +297,26 @@ namespace jiminy
                 std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
                 if (model_->getHasFreeflyer())
                 {
-                    x0.head<7>() = x_init.head<7>();
+                    x0.head<7>() = xInit.head<7>();
                     for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
                     {
-                        x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+                        x0[rigidJointsPositionIdx[i]] = xInit[i + 7];
                     }
-                    x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
+                    x0.segment<6>(model_->nq()) = xInit.segment<6>(7 + rigidJointsPositionIdx.size());
                     for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
                     {
-                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = xInit[i + 7 + rigidJointsPositionIdx.size() + 6];
                     }
                 }
                 else
                 {
                     for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
                     {
-                        x0[rigidJointsPositionIdx[i]] = x_init[i];
+                        x0[rigidJointsPositionIdx[i]] = xInit[i];
                     }
                     for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
                     {
-                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = xInit[i + rigidJointsPositionIdx.size()];
                     }
                 }
                 for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
@@ -326,7 +326,7 @@ namespace jiminy
             }
             else
             {
-                x0 = x_init;
+                x0 = xInit;
             }
 
             // Reset the impulse for iterator counter
@@ -415,8 +415,8 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Engine::simulate(float64_t const & end_time,
-                              vectorN_t const & x_init,
+    result_t Engine::simulate(float64_t const & tEnd,
+                              vectorN_t const & xInit,
                               bool      const & isStateTheoretical)
     {
         result_t returnCode = result_t::SUCCESS;
@@ -436,7 +436,7 @@ namespace jiminy
         // Reset the model, controller, and engine
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = start(x_init, isStateTheoretical, false, false);
+            returnCode = start(xInit, isStateTheoretical, false, false);
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
