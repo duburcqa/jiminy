@@ -58,11 +58,6 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
-    Model::~Model(void)
-    {
-        // Empty.
-    }
-
     result_t Model::initialize(std::string const & urdfPath,
                                bool        const & hasFreeflyer)
     {

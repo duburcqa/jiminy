@@ -44,9 +44,6 @@ namespace jiminy
     ///////////////////////////////////////////////////////////////////////////////////////////////
     struct SensorSharedHolder_t
     {
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
         SensorSharedHolder_t(void) :
         time_(),
         data_(),
@@ -57,16 +54,10 @@ namespace jiminy
             // Empty.
         };
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Destructor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ~SensorSharedHolder_t(void)
-        {
-            // Empty.
-        };
+        ~SensorSharedHolder_t(void) = default;
 
-        boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer with the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer with past sensor data
+        boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
+        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
         uint32_t num_;                                              ///< Number of sensors of that type
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
@@ -128,10 +119,7 @@ namespace jiminy
         AbstractSensorBase(Model       const & model,
                            std::string const & name);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Destructor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual ~AbstractSensorBase(void);
+        virtual ~AbstractSensorBase(void) = default;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -140,7 +128,7 @@ namespace jiminy
         /// \return     Dictionary with the parameters of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        configHolder_t getOptions(void);
+        configHolder_t getOptions(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -228,7 +216,7 @@ namespace jiminy
         ///
         /// \brief      Get sensorId_.
         ///
-        /// \details    It is the identifier of the sensor.
+        /// \details    It is the index of the sensor of the global shared buffer.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual uint32_t const & getId(void) const = 0;

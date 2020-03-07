@@ -18,11 +18,6 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
-    AbstractSensorBase::~AbstractSensorBase(void)
-    {
-        // Empty.
-    }
-
     result_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
     {
         result_t returnCode = result_t::SUCCESS;
@@ -72,7 +67,7 @@ namespace jiminy
         sensorOptions_ = std::make_unique<abstractSensorOptions_t const>(sensorOptionsHolder_);
     }
 
-    configHolder_t AbstractSensorBase::getOptions(void)
+    configHolder_t AbstractSensorBase::getOptions(void) const
     {
         return sensorOptionsHolder_;
     }

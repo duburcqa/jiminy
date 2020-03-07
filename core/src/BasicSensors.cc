@@ -30,11 +30,6 @@ namespace jiminy
         // Empty.
     }
 
-    ImuSensor::~ImuSensor(void)
-    {
-        // Empty.
-    }
-
     result_t ImuSensor::initialize(std::string const & frameName)
     {
         result_t returnCode = result_t::SUCCESS;
@@ -103,11 +98,6 @@ namespace jiminy
         // Empty.
     }
 
-    ForceSensor::~ForceSensor(void)
-    {
-        // Empty.
-    }
-
     result_t ForceSensor::initialize(std::string const & frameName)
     {
         result_t returnCode = result_t::SUCCESS;
@@ -169,11 +159,6 @@ namespace jiminy
     motorName_(),
     motorPositionIdx_(),
     motorVelocityIdx_()
-    {
-        // Empty.
-    }
-
-    EncoderSensor::~EncoderSensor(void)
     {
         // Empty.
     }

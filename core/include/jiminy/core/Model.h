@@ -149,7 +149,7 @@ namespace jiminy
 
     public:
         Model(void);
-        virtual ~Model(void);
+        virtual ~Model(void) = default;
 
         result_t initialize(std::string const & urdfPath,
                             bool        const & hasFreeflyer = true);

@@ -30,11 +30,6 @@ namespace jiminy
         floatsHeader_ = static_cast<struct memHeader *>(floatsMem_.address());
     }
 
-    TelemetryData::~TelemetryData()
-    {
-        // empty on purpose
-    }
-
     void TelemetryData::reset()
     {
         entriesMap_.clear();

@@ -69,10 +69,7 @@ namespace jiminy
         resetRandGenerators(engineOptions_->stepper.randomSeed);
     }
 
-    Engine::~Engine(void)
-    {
-        // Empty
-    }
+    Engine::~Engine(void) = default; // Cannot be default in the header since some types are incomplete at this point
 
     result_t Engine::initialize(std::shared_ptr<Model>              const & model,
                                 std::shared_ptr<AbstractController> const & controller,

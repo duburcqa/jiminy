@@ -16,7 +16,7 @@ namespace jiminy
         ImuSensor(Model                                 const & model,
                   std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
                   std::string                           const & name);
-        ~ImuSensor(void);
+        ~ImuSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
         virtual void reset(void) override;
@@ -41,7 +41,7 @@ namespace jiminy
         ForceSensor(Model                                 const & model,
                     std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
                     std::string                           const & name);
-        ~ForceSensor(void);
+        ~ForceSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
         virtual void reset(void) override;
@@ -66,7 +66,7 @@ namespace jiminy
         EncoderSensor(Model                                 const & model,
                       std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
                       std::string                           const & name);
-        ~EncoderSensor(void);
+        ~EncoderSensor(void) = default;
 
         result_t initialize(std::string const & motorName);
         virtual void reset(void) override;

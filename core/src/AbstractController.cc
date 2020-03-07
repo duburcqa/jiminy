@@ -20,12 +20,6 @@ namespace jiminy
         AbstractController::setOptions(getDefaultOptions()); // Clarify that the base implementation is called
     }
 
-    AbstractController::~AbstractController(void)
-    {
-        // Empty.
-    }
-
-
     result_t AbstractController::initialize(std::shared_ptr<Model const> const & model)
     {
         if (!model->getIsInitialized())

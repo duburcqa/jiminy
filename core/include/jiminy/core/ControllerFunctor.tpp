@@ -28,12 +28,6 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::~ControllerFunctor(void)
-    {
-        // Empty.
-    }
-
-    template<typename F1, typename F2>
     result_t ControllerFunctor<F1, F2>::initialize(std::shared_ptr<Model const> const & model)
     {
         model->getSensorsData(sensorsData_);

@@ -21,11 +21,6 @@ namespace jiminy
         // Empty.
     }
 
-    TelemetrySender::~TelemetrySender(void)
-    {
-        // Empty.
-    }
-
     template <>
     void TelemetrySender::updateValue<int32_t>(std::string const & fieldNameIn,
                                                int32_t     const & value)
