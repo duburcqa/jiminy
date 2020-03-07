@@ -42,9 +42,9 @@ namespace jiminy
     ///             corresponding to the sensor ID.
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    struct SensorSharedHolder_t
+    struct SensorSharedDataHolder_t
     {
-        SensorSharedHolder_t(void) :
+        SensorSharedDataHolder_t(void) :
         time_(),
         data_(),
         sensors_(),
@@ -54,12 +54,12 @@ namespace jiminy
             // Empty.
         };
 
-        ~SensorSharedHolder_t(void) = default;
+        ~SensorSharedDataHolder_t(void) = default;
 
         boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
         boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
-        uint32_t num_;                                              ///< Number of sensors of that type
+        uint8_t num_;                                               ///< Number of sensors of that type
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
     };
 
@@ -219,7 +219,7 @@ namespace jiminy
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual uint32_t const & getId(void) const = 0;
+        virtual uint8_t const & getId(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -401,16 +401,16 @@ namespace jiminy
         AbstractSensorTpl & operator = (AbstractSensorTpl const & other) = delete;
 
     public:
-        AbstractSensorTpl(Model                                 const & model,
-                          std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
-                          std::string                           const & name);
+        AbstractSensorTpl(Model       const & model,
+                          std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                          std::string const & name);
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
 
         virtual void setOptions(configHolder_t const & sensorOptions) override;
         virtual void setOptionsAll(configHolder_t const & sensorOptions) override;
-        virtual uint32_t const & getId(void) const override;
+        virtual uint8_t const & getId(void) const override;
         virtual std::string const & getType(void) const override;
         std::vector<std::string> const & getFieldNames(void) const;
         virtual uint32_t getSize(void) const override;
@@ -441,8 +441,8 @@ namespace jiminy
         static std::vector<std::string> const fieldNames_;
 
     private:
-        std::shared_ptr<SensorSharedHolder_t> sharedHolder_;
-        uint32_t sensorId_;
+        std::shared_ptr<SensorSharedDataHolder_t> sharedHolder_;
+        uint8_t sensorId_;
     };
 }
 

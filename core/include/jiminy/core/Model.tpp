@@ -35,7 +35,7 @@ namespace jiminy
         // Create a new sensor data holder if necessary
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            sensorsSharedHolder_[sensorType] = std::make_shared<SensorSharedHolder_t>();
+            sensorsSharedHolder_[sensorType] = std::make_shared<SensorSharedDataHolder_t>();
             sensorTelemetryOptions_[sensorType] = false;
         }
 

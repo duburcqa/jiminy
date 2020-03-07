@@ -13,9 +13,9 @@ namespace jiminy
     class ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
-        ImuSensor(Model                                 const & model,
-                  std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
-                  std::string                           const & name);
+        ImuSensor(Model       const & model,
+                  std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                  std::string const & name);
         ~ImuSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
@@ -38,9 +38,9 @@ namespace jiminy
     class ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
     public:
-        ForceSensor(Model                                 const & model,
-                    std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
-                    std::string                           const & name);
+        ForceSensor(Model       const & model,
+                    std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                    std::string const & name);
         ~ForceSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
@@ -63,9 +63,9 @@ namespace jiminy
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
     public:
-        EncoderSensor(Model                                 const & model,
-                      std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
-                      std::string                           const & name);
+        EncoderSensor(Model       const & model,
+                      std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                      std::string const & name);
         ~EncoderSensor(void) = default;
 
         result_t initialize(std::string const & motorName);

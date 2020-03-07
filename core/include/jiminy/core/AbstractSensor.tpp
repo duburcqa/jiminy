@@ -7,9 +7,9 @@ namespace jiminy
     extern float64_t const MAX_TIME_STEP;
 
     template <typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(Model                                 const & model,
-                                            std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
-                                            std::string                           const & name) :
+    AbstractSensorTpl<T>::AbstractSensorTpl(Model       const & model,
+                                            std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                                            std::string const & name) :
     AbstractSensorBase(model, name),
     sharedHolder_(dataHolder),
     sensorId_(sharedHolder_->num_)
@@ -28,21 +28,23 @@ namespace jiminy
         // Remove associated col in the global data buffer
         if(sensorId_ < sharedHolder_->num_ - 1)
         {
+            int8_t sensorShift = sharedHolder_->num_ - sensorId_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
             {
-                data.block(0, sensorId_, getSize(), sharedHolder_->num_ - sensorId_ - 1) =
-                    data.block(0, sensorId_ + 1, getSize(), sharedHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
+                data.middleCols(sensorId_, sensorShift) =
+                    data.middleCols(sensorId_ + 1, sensorShift).eval();
             }
         }
         for (matrixN_t & data : sharedHolder_->data_)
         {
-            data.resize(Eigen::NoChange, sharedHolder_->num_ - 1);
+            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
 
         // Shift the sensor ids
-        for (uint32_t i=sensorId_ + 1; i < sharedHolder_->num_; i++)
+        for (uint8_t i = sensorId_ + 1; i < sharedHolder_->num_; i++)
         {
-            AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
+            AbstractSensorTpl<T> * sensor =
+                static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
             --sensor->sensorId_;
         }
 
@@ -51,6 +53,17 @@ namespace jiminy
 
         // Update the total number of sensors left
         --sharedHolder_->num_;
+
+        // Update delayMax_ proxy if necessary
+        if (sharedHolder_->delayMax_ < sensorOptions_->delay + EPS)
+        {
+            sharedHolder_->delayMax_ = 0.0;
+            for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+            {
+                sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
+                                                    sensor->sensorOptions_->delay);
+            }
+        }
 
         // Reset the sensors' internal state
         reset();
@@ -90,7 +103,7 @@ namespace jiminy
     }
 
     template <typename T>
-    uint32_t const & AbstractSensorTpl<T>::getId(void) const
+    uint8_t const & AbstractSensorTpl<T>::getId(void) const
     {
         return sensorId_;
     }
@@ -137,7 +150,7 @@ namespace jiminy
         matrixN_t data(getSize(), sharedHolder_->num_);
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            uint32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
+            uint8_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
             data.col(sensorId) = *sensor->get();
         }
         return data;
@@ -227,7 +240,8 @@ namespace jiminy
         }
         else
         {
-            if (sharedHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
+            if (sharedHolder_->time_[0] >= 0.0
+            || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
             {
                 // Return the most recent value
                 data_ = sharedHolder_->data_.back().col(sensorId_);
@@ -298,7 +312,8 @@ namespace jiminy
         {
             /* Remove the extra last elements if for some reason the solver went back in time.
                 It happens when an iteration fails using ode solvers relying on try_step mechanism. */
-            while(t + std::numeric_limits<float64_t>::epsilon() < sharedHolder_->time_.back() && sharedHolder_->time_.size() > 2)
+            while(t + std::numeric_limits<float64_t>::epsilon() < sharedHolder_->time_.back()
+            && sharedHolder_->time_.size() > 2)
             {
                 sharedHolder_->time_.pop_back();
                 sharedHolder_->data_.pop_back();

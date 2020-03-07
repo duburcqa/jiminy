@@ -10,6 +10,7 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
 
@@ -19,7 +20,9 @@ namespace jiminy
     std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "Freeflyer");
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
-    struct SensorSharedHolder_t;
+    struct MotorSharedDataHolder_t;
+    class AbstractMotor;
+    struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
     class Engine;
@@ -144,6 +147,7 @@ namespace jiminy
         };
 
     public:
+        using motorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractMotor> >;
         using sensorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
@@ -265,6 +269,7 @@ namespace jiminy
         configHolder_t mdlOptionsHolder_;
 
         std::shared_ptr<TelemetryData> telemetryData_;
+        motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool> sensorTelemetryOptions_;
 
@@ -294,7 +299,8 @@ namespace jiminy
     private:
         MutexLocal mutexLocal_;
         pinocchio::Model pncModelFlexibleOrig_;
-        std::unordered_map<std::string, std::shared_ptr<SensorSharedHolder_t> > sensorsSharedHolder_;
+        std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
+        std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
         uint32_t nq_;
         uint32_t nv_;
         uint32_t nx_;
