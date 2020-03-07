@@ -65,7 +65,7 @@ namespace jiminy
         }
     }
 
-    void AbstractController::reset(bool const & resetDynamicTelemetry)
+    void AbstractController::reset(bool_t const & resetDynamicTelemetry)
     {
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
@@ -212,12 +212,12 @@ namespace jiminy
         ctrlOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
     }
 
-    bool AbstractController::getIsInitialized(void) const
+    bool_t AbstractController::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool AbstractController::getIsTelemetryConfigured(void) const
+    bool_t AbstractController::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }

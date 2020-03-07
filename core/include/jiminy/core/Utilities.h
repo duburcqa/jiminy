@@ -32,10 +32,10 @@ namespace jiminy
 
         ~MutexLocal(void);
 
-        bool const & isLocked(void);
+        bool_t const & isLocked(void) const;
 
     private:
-        std::shared_ptr<bool> isLocked_;
+        std::shared_ptr<bool_t> isLocked_;
     };
 
     class LockGuardLocal
@@ -51,7 +51,7 @@ namespace jiminy
         ~LockGuardLocal(void);
 
     private:
-        std::shared_ptr<bool> ownerFlag_;
+        std::shared_ptr<bool_t> ownerFlag_;
     };
 
     // ************************ Timer *******************************
@@ -169,7 +169,7 @@ namespace jiminy
     result_t getJointsPositionIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsPositionIdx,
-                                  bool                     const & firstJointIdxOnly = false);
+                                  bool_t                   const & firstJointIdxOnly = false);
 
     result_t getJointVelocityIdx(pinocchio::Model     const & model,
                                  std::string          const & jointName,
@@ -180,7 +180,7 @@ namespace jiminy
     result_t getJointsVelocityIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsVelocityIdx,
-                                  bool                     const & firstJointIdxOnly = false);
+                                  bool_t                   const & firstJointIdxOnly = false);
 
     result_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
                                       std::string      const & childJointNameIn,
@@ -207,15 +207,15 @@ namespace jiminy
     // ********************* Std::vector helpers **********************
 
     template<typename T>
-    bool checkDuplicates(std::vector<T> const & vect);
+    bool_t checkDuplicates(std::vector<T> const & vect);
 
     template<typename T>
-    bool checkIntersection(std::vector<T> const & vect1,
-                           std::vector<T> const & vect2);
+    bool_t checkIntersection(std::vector<T> const & vect1,
+                             std::vector<T> const & vect2);
 
     template<typename T>
-    bool checkInclusion(std::vector<T> const & vect1,
-                        std::vector<T> const & vect2);
+    bool_t checkInclusion(std::vector<T> const & vect1,
+                          std::vector<T> const & vect2);
 
     template<typename T>
     void eraseVector(std::vector<T>       & vect1,

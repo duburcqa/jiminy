@@ -24,7 +24,7 @@ namespace python
         matrixRow
     };
 
-    inline int getPyType(bool const & data)
+    inline int getPyType(bool_t const & data)
     {
         return NPY_BOOL;
     }

@@ -35,7 +35,7 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         result_t initialize(void);
 
-        bool const & getIsInitialized(void);
+        bool_t const & getIsInitialized(void);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -81,7 +81,7 @@ namespace jiminy
         std::shared_ptr<TelemetryData const> telemetryData_;
         std::vector<MemoryDevice> flows_;
 
-        bool isInitialized_;
+        bool_t isInitialized_;
 
         int64_t recordedBytesLimits_;
         int64_t recordedBytesDataLine_;

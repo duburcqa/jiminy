@@ -16,7 +16,7 @@ namespace jiminy
 {
     using std::to_string;
 
-    inline std::string to_string(char const * var) {
+    inline std::string to_string(const_cstr_t & var) {
         return {var};
     }
 

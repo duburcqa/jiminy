@@ -35,7 +35,7 @@ namespace jiminy
     controller_(nullptr),
     engineOptionsHolder_(),
     callbackFct_([](float64_t const & t,
-                    vectorN_t const & x) -> bool
+                    vectorN_t const & x) -> bool_t
                  {
                      return true;
                  }),
@@ -226,8 +226,8 @@ namespace jiminy
         telemetryRecorder_->flushDataSnapshot(stepperStateLast_.t);
     }
 
-    void Engine::reset(bool const & resetRandomNumbers,
-                       bool const & resetDynamicForceRegister)
+    void Engine::reset(bool_t const & resetRandomNumbers,
+                       bool_t const & resetDynamicForceRegister)
     {
         // Reset the dynamic force register if requested
         if (resetDynamicForceRegister)
@@ -252,9 +252,9 @@ namespace jiminy
     }
 
     result_t Engine::start(vectorN_t const & xInit,
-                           bool      const & isStateTheoretical,
-                           bool      const & resetRandomNumbers,
-                           bool      const & resetDynamicForceRegister)
+                           bool_t    const & isStateTheoretical,
+                           bool_t    const & resetRandomNumbers,
+                           bool_t    const & resetDynamicForceRegister)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -414,7 +414,7 @@ namespace jiminy
 
     result_t Engine::simulate(float64_t const & tEnd,
                               vectorN_t const & xInit,
-                              bool      const & isStateTheoretical)
+                              bool_t    const & isStateTheoretical)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -989,7 +989,7 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    bool Engine::getIsInitialized(void) const
+    bool_t Engine::getIsInitialized(void) const
     {
         return isInitialized_;
     }
@@ -1510,7 +1510,7 @@ namespace jiminy
                           pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
                           Eigen::MatrixBase<ConfigVectorType>                    const & q,
                           Eigen::MatrixBase<TangentVectorType>                   const & v,
-                          bool                                                   const & update_kinematics)
+                          bool_t                                                 const & update_kinematics)
     {
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
         std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();

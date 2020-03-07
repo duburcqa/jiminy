@@ -61,7 +61,7 @@ namespace jiminy
     }
 
     result_t Model::initialize(std::string const & urdfPath,
-                               bool        const & hasFreeflyer)
+                               bool_t      const & hasFreeflyer)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -329,8 +329,8 @@ namespace jiminy
                 std::cout << "Warning - Model::addMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
                 configHolder_t mdlOptions = getOptions();
                 configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
-                boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
-                boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")) = false;
+                boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
+                boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")) = false;
                 setOptions(mdlOptions);
             }
 
@@ -387,8 +387,8 @@ namespace jiminy
             std::cout << "Warning - Model::removeMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
             configHolder_t mdlOptions = getOptions();
             configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
-            boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
-            boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")) = false;
+            boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
+            boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")) = false;
             setOptions(mdlOptions);
         }
 
@@ -1002,7 +1002,7 @@ namespace jiminy
                 std::cout << "Error - Model::setTelemetryOptions - Missing field." << std::endl;
                 return result_t::ERROR_GENERIC;
             }
-            sensorGroupTelemetryOption.second = boost::get<bool>(sensorTelemetryOptionIt->second);
+            sensorGroupTelemetryOption.second = boost::get<bool_t>(sensorTelemetryOptionIt->second);
         }
 
         return result_t::SUCCESS;
@@ -1022,16 +1022,16 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        bool internalBuffersMustBeUpdated = false;
-        bool isFlexibleModelInvalid = false;
-        bool isCurrentModelInvalid = false;
+        bool_t internalBuffersMustBeUpdated = false;
+        bool_t isFlexibleModelInvalid = false;
+        bool_t isCurrentModelInvalid = false;
         if (isInitialized_)
         {
             /* Check that the following user parameters has the right dimension,
                then update the required internal buffers to reflect changes, if any. */
             configHolder_t & jointOptionsHolder =
                 boost::get<configHolder_t>(mdlOptions.at("joints"));
-            if (!boost::get<bool>(jointOptionsHolder.at("positionLimitFromUrdf")))
+            if (!boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf")))
             {
                 vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
                 if((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
@@ -1048,7 +1048,7 @@ namespace jiminy
                 }
                 internalBuffersMustBeUpdated |= (positionLimitMax != mdlOptions_->joints.positionLimitMax);
             }
-            if (!boost::get<bool>(jointOptionsHolder.at("velocityLimitFromUrdf")))
+            if (!boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
                 vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
                 if((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
@@ -1058,7 +1058,7 @@ namespace jiminy
                 }
                 internalBuffersMustBeUpdated |= velocityLimit != mdlOptions_->joints.velocityLimit;
             }
-            if (!boost::get<bool>(jointOptionsHolder.at("torqueLimitFromUrdf")))
+            if (!boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")))
             {
                 vectorN_t & torqueLimit = boost::get<vectorN_t>(jointOptionsHolder.at("torqueLimit"));
                 if((int32_t) motorsVelocityIdx_.size() != torqueLimit.size())
@@ -1068,7 +1068,7 @@ namespace jiminy
                 }
                 internalBuffersMustBeUpdated |= (torqueLimit != mdlOptions_->joints.torqueLimit);
             }
-            if (boost::get<bool>(jointOptionsHolder.at("enableMotorInertia")))
+            if (boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")))
             {
                 vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
                 if((int32_t) motorsVelocityIdx_.size() != motorInertia.size())
@@ -1087,7 +1087,7 @@ namespace jiminy
             // Check if the flexible model and its associated proxies must be regenerated
             configHolder_t & dynOptionsHolder =
                 boost::get<configHolder_t>(mdlOptions.at("dynamics"));
-            bool const & enableFlexibleModel = boost::get<bool>(dynOptionsHolder.at("enableFlexibleModel"));
+            bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
             flexibilityConfig_t const & flexibilityConfig =
                 boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
 
@@ -1131,12 +1131,12 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    bool const & Model::getIsInitialized(void) const
+    bool_t const & Model::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool const & Model::getIsTelemetryConfigured(void) const
+    bool_t const & Model::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }
@@ -1146,7 +1146,7 @@ namespace jiminy
         return urdfPath_;
     }
 
-    bool const & Model::getHasFreeflyer(void) const
+    bool_t const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
     }
@@ -1165,7 +1165,7 @@ namespace jiminy
     }
 
     result_t Model::loadUrdfModel(std::string const & urdfPath,
-                                  bool        const & hasFreeflyer)
+                                  bool_t      const & hasFreeflyer)
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
@@ -1269,7 +1269,7 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    bool Model::getIsLocked(void)
+    bool_t const & Model::getIsLocked(void) const
     {
         return mutexLocal_.isLocked();
     }

@@ -15,7 +15,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<ImuSensor>::type_("ImuSensor");
     template<>
-    bool const AbstractSensorTpl<ImuSensor>::areFieldNamesGrouped_(false);
+    bool_t const AbstractSensorTpl<ImuSensor>::areFieldNamesGrouped_(false);
     template<>
     std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
@@ -84,7 +84,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<ForceSensor>::type_("ForceSensor");
     template<>
-    bool const AbstractSensorTpl<ForceSensor>::areFieldNamesGrouped_(false);
+    bool_t const AbstractSensorTpl<ForceSensor>::areFieldNamesGrouped_(false);
     template<>
     std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
@@ -148,7 +148,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<EncoderSensor>::type_("EncoderSensor");
     template<>
-    bool const AbstractSensorTpl<EncoderSensor>::areFieldNamesGrouped_(true);
+    bool_t const AbstractSensorTpl<EncoderSensor>::areFieldNamesGrouped_(true);
     template<>
     std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 

@@ -83,7 +83,7 @@ namespace jiminy
         return returnCode;
     }
 
-    bool const & TelemetryRecorder::getIsInitialized(void)
+    bool_t const & TelemetryRecorder::getIsInitialized(void)
     {
         return isInitialized_;
     }
@@ -170,7 +170,7 @@ namespace jiminy
                 std::vector<uint8_t> bufferChunk;
                 bufferChunk.resize(pos_old);
                 flows_[i].readData(bufferChunk.data(), pos_old);
-                myFile.write(reinterpret_cast<char*>(bufferChunk.data()), pos_old);
+                myFile.write(reinterpret_cast<char_t *>(bufferChunk.data()), pos_old);
 
                 if (i == flows_.size() - 1)
                 {

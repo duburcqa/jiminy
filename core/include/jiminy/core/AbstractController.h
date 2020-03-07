@@ -45,10 +45,10 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         struct controllerOptions_t
         {
-            bool const telemetryEnable;     ///< Flag used to enable the telemetry of the controller
+            bool_t const telemetryEnable;     ///< Flag used to enable the telemetry of the controller
 
             controllerOptions_t(configHolder_t const & options) :
-            telemetryEnable(boost::get<bool>(options.at("telemetryEnable")))
+            telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
             {
                 // Empty.
             }
@@ -205,7 +205,7 @@ namespace jiminy
         ///             use.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool getIsInitialized(void) const;
+        bool_t getIsInitialized(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -215,7 +215,7 @@ namespace jiminy
         ///             initialized.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool getIsTelemetryConfigured(void) const;
+        bool_t getIsTelemetryConfigured(void) const;
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -272,21 +272,21 @@ namespace jiminy
         ///                                     Optional: False by default
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(bool const & resetDynamicTelemetry = false);
+        virtual void reset(bool_t const & resetDynamicTelemetry = false);
 
     public:
         std::unique_ptr<controllerOptions_t const> ctrlOptions_;    ///< Structure with the parameters of the controller
 
     protected:
         std::shared_ptr<Model const> model_;    ///< Model of the system for which to compute the command and internal dynamics must be computed
-        bool isInitialized_;                    ///< Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
+        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
 
     private:
         std::vector<std::pair<std::string, float64_t const *> > registeredVariables_;    ///< Vector of dynamically registered telemetry variables
-        std::vector<std::pair<std::string, std::string> > registeredConstants_;            ///< Vector of dynamically registered telemetry constants
+        std::vector<std::pair<std::string, std::string> > registeredConstants_;          ///< Vector of dynamically registered telemetry constants
     };
 }
 

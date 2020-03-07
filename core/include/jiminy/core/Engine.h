@@ -119,7 +119,7 @@ namespace jiminy
             isInitialized_ = true;
         }
 
-        bool const & getIsInitialized(void) const
+        bool_t const & getIsInitialized(void) const
         {
             return isInitialized_;
         }
@@ -161,7 +161,7 @@ namespace jiminy
         uint32_t nq_;
         uint32_t nv_;
 
-        bool isInitialized_;
+        bool_t isInitialized_;
     };
 
     class Engine
@@ -170,8 +170,8 @@ namespace jiminy
         // Impossible to use function pointer since it does not support functors
         using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
                                                        vectorN_t const & /*x*/)>;
-        using callbackFunctor_t =  std::function<bool(float64_t const & /*t*/,
-                                                      vectorN_t const & /*x*/)>;
+        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
+                                                        vectorN_t const & /*x*/)>;
 
     protected:
         using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
@@ -287,7 +287,7 @@ namespace jiminy
 
         struct stepperOptions_t
         {
-            bool        const verbose;
+            bool_t      const verbose;
             uint32_t    const randomSeed;
             std::string const odeSolver;
             float64_t   const tolAbs;
@@ -296,10 +296,10 @@ namespace jiminy
             int32_t     const iterMax;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
-            bool        const logInternalStepperSteps;
+            bool_t      const logInternalStepperSteps;
 
             stepperOptions_t(configHolder_t const & options) :
-            verbose(boost::get<bool>(options.at("verbose"))),
+            verbose(boost::get<bool_t>(options.at("verbose"))),
             randomSeed(boost::get<uint32_t>(options.at("randomSeed"))),
             odeSolver(boost::get<std::string>(options.at("odeSolver"))),
             tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
@@ -308,7 +308,7 @@ namespace jiminy
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
-            logInternalStepperSteps(boost::get<bool>(options.at("logInternalStepperSteps")))
+            logInternalStepperSteps(boost::get<bool_t>(options.at("logInternalStepperSteps")))
             {
                 // Empty.
             }
@@ -327,18 +327,18 @@ namespace jiminy
 
         struct telemetryOptions_t
         {
-            bool const enableConfiguration;
-            bool const enableVelocity;
-            bool const enableAcceleration;
-            bool const enableCommand;
-            bool const enableEnergy;
+            bool_t const enableConfiguration;
+            bool_t const enableVelocity;
+            bool_t const enableAcceleration;
+            bool_t const enableCommand;
+            bool_t const enableEnergy;
 
             telemetryOptions_t(configHolder_t const & options) :
-            enableConfiguration(boost::get<bool>(options.at("enableConfiguration"))),
-            enableVelocity(boost::get<bool>(options.at("enableVelocity"))),
-            enableAcceleration(boost::get<bool>(options.at("enableAcceleration"))),
-            enableCommand(boost::get<bool>(options.at("enableCommand"))),
-            enableEnergy(boost::get<bool>(options.at("enableEnergy")))
+            enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
+            enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
+            enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
+            enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
+            enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
                 // Empty.
             }
@@ -391,8 +391,8 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        void reset(bool const & resetRandomNumbers = false,
-                   bool const & resetDynamicForceRegister = false);
+        void reset(bool_t const & resetRandomNumbers = false,
+                   bool_t const & resetDynamicForceRegister = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -404,9 +404,9 @@ namespace jiminy
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         result_t start(vectorN_t const & xInit,
-                       bool      const & isStateTheoretical = false,
-                       bool      const & resetRandomNumbers = false,
-                       bool      const & resetDynamicForceRegister = false);
+                       bool_t    const & isStateTheoretical = false,
+                       bool_t    const & resetRandomNumbers = false,
+                       bool_t    const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -432,7 +432,7 @@ namespace jiminy
         /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
         result_t simulate(float64_t const & tEnd,
                           vectorN_t const & xInit,
-                          bool      const & isStateTheoretical = false);
+                          bool_t    const & isStateTheoretical = false);
 
         result_t registerForceImpulse(std::string const & frameName,
                                       float64_t   const & t,
@@ -443,8 +443,8 @@ namespace jiminy
 
         configHolder_t const & getOptions(void) const;
         result_t setOptions(configHolder_t const & engineOptions);
-        bool getIsInitialized(void) const;
-        bool getIsTelemetryConfigured(void) const;
+        bool_t getIsInitialized(void) const;
+        bool_t getIsTelemetryConfigured(void) const;
         Model & getModel(void) const;
         AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
@@ -518,7 +518,7 @@ namespace jiminy
                       pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
                       Eigen::MatrixBase<ConfigVectorType>                    const & q,
                       Eigen::MatrixBase<TangentVectorType>                   const & v,
-                      bool                                                   const & update_kinematics);
+                      bool_t                                                 const & update_kinematics);
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
                  typename ForceDerived>
@@ -544,8 +544,8 @@ namespace jiminy
         std::unique_ptr<engineOptions_t const> engineOptions_;
 
     protected:
-        bool isInitialized_;
-        bool isTelemetryConfigured_;
+        bool_t isInitialized_;
+        bool_t isTelemetryConfigured_;
         std::shared_ptr<Model> model_;
         std::shared_ptr<AbstractController> controller_;
         configHolder_t engineOptionsHolder_;

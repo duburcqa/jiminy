@@ -58,31 +58,31 @@ namespace jiminy
 
         struct jointOptions_t
         {
-            bool      const enableMotorInertia;
+            bool_t    const enableMotorInertia;
             vectorN_t const motorInertia;
-            bool      const enablePositionLimit;
-            bool      const positionLimitFromUrdf;
+            bool_t    const enablePositionLimit;
+            bool_t    const positionLimitFromUrdf;
             vectorN_t const positionLimitMin;         ///< Min position limit of all the actual joints, namely without freeflyer and flexible joints if any
             vectorN_t const positionLimitMax;
-            bool      const enableVelocityLimit;
-            bool      const velocityLimitFromUrdf;
+            bool_t    const enableVelocityLimit;
+            bool_t    const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
-            bool      const enableTorqueLimit;
-            bool      const torqueLimitFromUrdf;
+            bool_t    const enableTorqueLimit;
+            bool_t    const torqueLimitFromUrdf;
             vectorN_t const torqueLimit;
 
             jointOptions_t(configHolder_t const & options) :
-            enableMotorInertia(boost::get<bool>(options.at("enableMotorInertia"))),
+            enableMotorInertia(boost::get<bool_t>(options.at("enableMotorInertia"))),
             motorInertia(boost::get<vectorN_t>(options.at("motorInertia"))),
-            enablePositionLimit(boost::get<bool>(options.at("enablePositionLimit"))),
-            positionLimitFromUrdf(boost::get<bool>(options.at("positionLimitFromUrdf"))),
+            enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
+            positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
-            enableVelocityLimit(boost::get<bool>(options.at("enableVelocityLimit"))),
-            velocityLimitFromUrdf(boost::get<bool>(options.at("velocityLimitFromUrdf"))),
+            enableVelocityLimit(boost::get<bool_t>(options.at("enableVelocityLimit"))),
+            velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
             velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
-            enableTorqueLimit(boost::get<bool>(options.at("enableTorqueLimit"))),
-            torqueLimitFromUrdf(boost::get<bool>(options.at("torqueLimitFromUrdf"))),
+            enableTorqueLimit(boost::get<bool_t>(options.at("enableTorqueLimit"))),
+            torqueLimitFromUrdf(boost::get<bool_t>(options.at("torqueLimitFromUrdf"))),
             torqueLimit(boost::get<vectorN_t>(options.at("torqueLimit")))
             {
                 // Empty.
@@ -109,7 +109,7 @@ namespace jiminy
             float64_t           const massBodiesBiasStd;
             float64_t           const centerOfMassPositionBodiesBiasStd;
             float64_t           const relativePositionBodiesBiasStd;
-            bool                const enableFlexibleModel;
+            bool_t              const enableFlexibleModel;
             flexibilityConfig_t const flexibilityConfig;
 
             dynamicsOptions_t(configHolder_t const & options) :
@@ -117,7 +117,7 @@ namespace jiminy
             massBodiesBiasStd(boost::get<float64_t>(options.at("massBodiesBiasStd"))),
             centerOfMassPositionBodiesBiasStd(boost::get<float64_t>(options.at("centerOfMassPositionBodiesBiasStd"))),
             relativePositionBodiesBiasStd(boost::get<float64_t>(options.at("relativePositionBodiesBiasStd"))),
-            enableFlexibleModel(boost::get<bool>(options.at("enableFlexibleModel"))),
+            enableFlexibleModel(boost::get<bool_t>(options.at("enableFlexibleModel"))),
             flexibilityConfig(boost::get<flexibilityConfig_t>(options.at("flexibilityConfig")))
             {
                 // Empty.
@@ -156,7 +156,7 @@ namespace jiminy
         virtual ~Model(void) = default;
 
         result_t initialize(std::string const & urdfPath,
-                            bool        const & hasFreeflyer = true);
+                            bool_t      const & hasFreeflyer = true);
 
         result_t addContactPoints(std::vector<std::string> const & frameNames);
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
@@ -196,13 +196,13 @@ namespace jiminy
         result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
         result_t setTelemetryOptions(configHolder_t const & telemetryOptions);
 
-        bool const & getIsInitialized(void) const;
+        bool_t const & getIsInitialized(void) const;
         /// \brief Get status of telementry object.
         /// \details The engine needs to know this to setup the global telemetry ;
         ///          this function is not meant to be called manually.
-        bool const & getIsTelemetryConfigured(void) const;
+        bool_t const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
-        bool const & getHasFreeflyer(void) const;
+        bool_t const & getHasFreeflyer(void) const;
         // Getter without keywords for consistency with pinocchio C++ API
         uint32_t const & nq(void) const;
         uint32_t const & nv(void) const;
@@ -233,7 +233,7 @@ namespace jiminy
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
         result_t getLock(std::unique_ptr<LockGuardLocal> & lock);
-        bool getIsLocked(void);
+        bool_t const & getIsLocked(void) const;
 
     protected:
         virtual void reset(void);
@@ -248,7 +248,7 @@ namespace jiminy
                             vectorN_t const & u);
 
         result_t loadUrdfModel(std::string const & urdfPath,
-                               bool        const & hasFreeflyer);
+                               bool_t      const & hasFreeflyer);
         result_t generateModelFlexible(void);
         result_t generateModelBiased(void);
         result_t refreshModelProxies(void);
@@ -262,16 +262,16 @@ namespace jiminy
         forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 
     protected:
-        bool isInitialized_;
-        bool isTelemetryConfigured_;
+        bool_t isInitialized_;
+        bool_t isTelemetryConfigured_;
         std::string urdfPath_;
-        bool hasFreeflyer_;
+        bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
         std::shared_ptr<TelemetryData> telemetryData_;
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
-        std::unordered_map<std::string, bool> sensorTelemetryOptions_;
+        std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
 
         std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the model
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the model

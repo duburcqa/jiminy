@@ -191,7 +191,7 @@ namespace jiminy
         ///             to use.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool const & getIsInitialized(void) const;
+        bool_t const & getIsInitialized(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -201,7 +201,7 @@ namespace jiminy
         ///             initialized.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool const & getIsTelemetryConfigured(void) const;
+        bool_t const & getIsTelemetryConfigured(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -383,8 +383,8 @@ namespace jiminy
     protected:
         configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
-        bool isInitialized_;                    ///< Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
+        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         Model const * model_;                   ///< Model of the system for which the command and internal dynamics
 
     private:
@@ -437,7 +437,7 @@ namespace jiminy
            keyword binds all the sensors together, even if they are associated
            to complete separated models! */
         static std::string const type_;
-        static bool const areFieldNamesGrouped_;
+        static bool_t const areFieldNamesGrouped_;
         static std::vector<std::string> const fieldNames_;
 
     private:

@@ -368,8 +368,8 @@ namespace python
             return data;
         }
 
-        static bool contains(sensorsDataMap_t       & self,
-                             bp::tuple        const & sensorInfo)
+        static bool_t contains(sensorsDataMap_t       & self,
+                               bp::tuple        const & sensorInfo)
         {
             std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
             std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
@@ -789,7 +789,7 @@ namespace python
             return sensor.get();
         }
 
-        static bool isFlexibleModelEnable(Model & self)
+        static bool_t isFlexibleModelEnable(Model & self)
         {
             return self.mdlOptions_->dynamics.enableFlexibleModel;
         }
@@ -899,7 +899,7 @@ namespace python
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            const char* p = Py_TYPE(dataPy)->tp_name;
+            const_cstr_t & p = Py_TYPE(dataPy)->tp_name;
             if (p == std::string("numpy.ndarray"))
             {
                 float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
@@ -1225,7 +1225,7 @@ namespace python
                                    std::shared_ptr<AbstractController> const & controller)
         {
             Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
-                                                       vectorN_t const & x) -> bool
+                                                       vectorN_t const & x) -> bool_t
                                                     {
                                                         return true;
                                                     };
@@ -1237,7 +1237,7 @@ namespace python
                                                std::shared_ptr<AbstractController> const & controller,
                                                bp::object                          const & callbackPy)
         {
-            TimeStateFctPyWrapper<bool> callbackFct(callbackPy);
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
@@ -1250,7 +1250,7 @@ namespace python
 
         static void writeLog(Engine            & self,
                              std::string const & filename,
-                             bool        const & isModeBinary)
+                             bool_t      const & isModeBinary)
         {
             if (isModeBinary)
             {
@@ -1283,7 +1283,7 @@ namespace python
                                    std::vector<float32_t>               const & timestamps,
                                    std::vector<std::vector<int32_t> >         & intData,
                                    std::vector<std::vector<float32_t> >       & floatData,
-                                   bool                                 const & clear_memory = true)
+                                   bool_t                               const & clear_memory = true)
         {
             bp::dict constants;
             bp::dict data;

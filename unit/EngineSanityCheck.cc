@@ -14,10 +14,10 @@
 #include <string>
 #include <gtest/gtest.h>
 
-#include "jiminy/core/Types.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
 #include "jiminy/core/ControllerFunctor.h"
+#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Types.h"
 
 using namespace jiminy;
 
@@ -41,8 +41,8 @@ void internalDynamics(float64_t const & t,
     u.setZero();
 }
 
-bool callback(float64_t const & t,
-              vectorN_t const & x)
+bool_t callback(float64_t const & t,
+                vectorN_t const & x)
 {
     return true;
 }
@@ -62,9 +62,9 @@ TEST(EngineSanity, EnergyConservation)
     std::shared_ptr<Model> model = std::make_shared<Model>();
     // Disable velocity and position limits.
     configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
     model->setOptions(mdlOptions);
 
     model->initialize(urdfPath, false);

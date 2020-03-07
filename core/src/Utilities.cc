@@ -29,7 +29,7 @@ namespace jiminy
     // *************** Local Mutex /Lock mechanism ******************
 
     MutexLocal::MutexLocal(void) :
-    isLocked_(new bool{false})
+    isLocked_(new bool_t{false})
     {
         // Empty
     }
@@ -39,7 +39,7 @@ namespace jiminy
         *isLocked_ = false;
     }
 
-    bool const & MutexLocal::isLocked(void)
+    bool_t const & MutexLocal::isLocked(void) const
     {
         return *isLocked_;
     }
@@ -558,7 +558,7 @@ namespace jiminy
     result_t getJointsPositionIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsPositionIdx,
-                                  bool                     const & firstJointIdxOnly)
+                                  bool_t                   const & firstJointIdxOnly)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -679,7 +679,7 @@ namespace jiminy
     result_t getJointsVelocityIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsVelocityIdx,
-                                  bool                     const & firstJointIdxOnly)
+                                  bool_t                   const & firstJointIdxOnly)
     {
         result_t returnCode = result_t::SUCCESS;
 
