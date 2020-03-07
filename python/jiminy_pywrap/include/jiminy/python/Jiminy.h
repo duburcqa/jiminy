@@ -1179,10 +1179,10 @@ namespace python
 
                 .def("reset", &Engine::reset,
                               (bp::arg("self"), bp::arg("remove_forces")=false))
-                .def("set_state", &Engine::start,
-                                  (bp::arg("self"), "x_init",
-                                   bp::arg("reset_random_generator")=false,
-                                   bp::arg("remove_forces")=false))
+                .def("start", &Engine::start,
+                              (bp::arg("self"), "x_init",
+                               bp::arg("reset_random_generator")=false,
+                               bp::arg("remove_forces")=false))
                 .def("step", &PyEngineVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired")=-1))
                 .def("stop", &Engine::stop, (bp::arg("self")))

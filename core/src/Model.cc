@@ -48,7 +48,7 @@ namespace jiminy
     velocityFieldNames_(),
     accelerationFieldNames_(),
     motorTorqueFieldNames_(),
-    modelLockMutex_(),
+    mutexLocal_(),
     pncModelFlexibleOrig_(),
     sensorsDataHolder_(),
     nq_(0),
@@ -1261,33 +1261,22 @@ namespace jiminy
         }
     }
 
-    result_t Model::getLock(std::unique_ptr<std::lock_guard<std::mutex> const> & lock)
+    result_t Model::getLock(std::unique_ptr<LockGuardLocal> & lock)
     {
-        // now ensure this will get called only once per event
-        if (modelLockMutex_.try_lock())
+        if (mutexLocal_.isLocked())
         {
-            lock = std::move(std::make_unique<std::lock_guard<std::mutex> const>(modelLockMutex_, std::adopt_lock));
-        }
-        else
-        {
-            std::cout << "Error - Model::getLock - Model already locked. Please delete the current lock first." << std::endl;
+            std::cout << "Error - Model::getLock - Model already locked. Please release the current lock first." << std::endl;
             return result_t::ERROR_GENERIC;
         }
+
+        lock = std::move(std::make_unique<LockGuardLocal>(mutexLocal_));
 
         return result_t::SUCCESS;
     }
 
     bool Model::getIsLocked(void)
     {
-        if (modelLockMutex_.try_lock())
-        {
-            modelLockMutex_.unlock();
-            return false;
-        }
-        else
-        {
-            return true;
-        }
+        return mutexLocal_.isLocked();
     }
 
     std::vector<std::string> const & Model::getContactFramesNames(void) const

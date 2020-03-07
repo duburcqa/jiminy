@@ -26,6 +26,35 @@ namespace jiminy
     extern float64_t const MIN_TIME_STEP;
     extern float64_t const MAX_TIME_STEP;
 
+    // *************** Local Mutex /Lock mechanism ******************
+
+    MutexLocal::MutexLocal(void) :
+    isLocked_(new bool{false})
+    {
+        // Empty
+    }
+
+    MutexLocal::~MutexLocal(void)
+    {
+        *isLocked_ = false;
+    }
+
+    bool const & MutexLocal::isLocked(void)
+    {
+        return *isLocked_;
+    }
+
+    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
+    ownerFlag_(mutexLocal.isLocked_)
+    {
+        *ownerFlag_ = true;
+    }
+
+    LockGuardLocal::~LockGuardLocal(void)
+    {
+        *ownerFlag_ = false;
+    }
+
     // ************************* Timer **************************
 
     Timer::Timer(void) :

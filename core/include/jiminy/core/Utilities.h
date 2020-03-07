@@ -14,7 +14,47 @@ namespace jiminy
 {
     class TelemetrySender;
 
-    // ************************ Timer *****************************
+    // *************** Local Mutex /Lock mechanism ******************
+
+    class LockGuardLocal;
+
+    class MutexLocal
+    {
+        friend LockGuardLocal;
+
+    public:
+        // Disable the copy of the class
+        MutexLocal(MutexLocal const & mutexLocalIn) = delete;
+        MutexLocal & operator = (MutexLocal const & other) = delete;
+
+        MutexLocal(void);
+        MutexLocal(MutexLocal && other) = default;
+
+        ~MutexLocal(void);
+
+        bool const & isLocked(void);
+
+    private:
+        std::shared_ptr<bool> isLocked_;
+    };
+
+    class LockGuardLocal
+    {
+    public:
+        // Disable the copy of the class
+        LockGuardLocal(LockGuardLocal const & lockGuardLocalIn) = delete;
+        LockGuardLocal & operator = (LockGuardLocal const & other) = delete;
+
+        LockGuardLocal(MutexLocal & mutexLocal);
+        LockGuardLocal(LockGuardLocal && other) = default;
+
+        ~LockGuardLocal(void);
+
+    private:
+        std::shared_ptr<bool> ownerFlag_;
+    };
+
+    // ************************ Timer *******************************
 
     class Timer
     {
@@ -31,11 +71,11 @@ namespace jiminy
         float64_t dt;
     };
 
-    // ************ IO file and Directory utilities **************
+    // ************ IO file and Directory utilities *****************
 
     std::string getUserDirectory(void);
 
-    // ************ Random number generator utilities **************
+    // ************ Random number generator utilities ***************
 
     void resetRandGenerators(uint32_t seed);
 

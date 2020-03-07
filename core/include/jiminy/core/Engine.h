@@ -550,7 +550,7 @@ namespace jiminy
         callbackFunctor_t callbackFct_;
 
     private:
-        std::unique_ptr<std::lock_guard<std::mutex> const> lockModel_;
+        std::unique_ptr<LockGuardLocal> lockModel_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

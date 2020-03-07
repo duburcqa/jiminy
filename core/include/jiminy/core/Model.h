@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -229,7 +228,7 @@ namespace jiminy
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
-        result_t getLock(std::unique_ptr<std::lock_guard<std::mutex> const> & lock);
+        result_t getLock(std::unique_ptr<LockGuardLocal> & lock);
         bool getIsLocked(void);
 
     protected:
@@ -293,7 +292,7 @@ namespace jiminy
         std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
 
     private:
-        std::mutex modelLockMutex_;
+        MutexLocal mutexLocal_;
         pinocchio::Model pncModelFlexibleOrig_;
         std::unordered_map<std::string, std::shared_ptr<SensorDataHolder_t> > sensorsDataHolder_;
         uint32_t nq_;

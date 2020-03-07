@@ -48,7 +48,7 @@ namespace jiminy
         auto it = floatBufferPosition_.find(fieldNameIn);
         if (floatBufferPosition_.end() == it)
         {
-            std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as an float64_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
+            std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as a float64_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
             return;
         }
 

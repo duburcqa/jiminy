@@ -484,6 +484,13 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
+        // Check if the simulation has started
+        if (!lockModel_)
+        {
+            std::cout << "Error - Engine::step - No simulation running. Please start it before using step method." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
         // Check if the engine is initialized
         if (!isInitialized_)
         {
@@ -728,15 +735,19 @@ namespace jiminy
 
     void Engine::stop(void)
     {
-        // Release the lock on the model
-        lockModel_.reset(nullptr);
+        // Make sure that a simulation running
+        if (lockModel_)
+        {
+            // Release the lock on the model
+            lockModel_.reset(nullptr);
 
-        /* Reset the telemetry. Note that calling `reset` does NOT clear the
-           internal data buffer of telemetryRecorder_. Clearing is done at init
-           time, so that it remains accessible until the next initialization. */
-        telemetryRecorder_->reset();
-        telemetryData_->reset();
-        isTelemetryConfigured_ = false;
+            /* Reset the telemetry. Note that calling `reset` does NOT clear the
+            internal data buffer of telemetryRecorder_. Clearing is done at init
+            time, so that it remains accessible until the next initialization. */
+            telemetryRecorder_->reset();
+            telemetryData_->reset();
+            isTelemetryConfigured_ = false;
+        }
     }
 
     void Engine::computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
