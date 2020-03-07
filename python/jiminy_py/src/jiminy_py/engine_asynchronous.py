@@ -56,12 +56,15 @@ class EngineAsynchronous(object):
         self._engine = jiminy.Engine()
         self._engine.initialize(model, self._controller)
 
-        ## Flag to determine if the viewer is running
+        ## Viewer management
         self.viewer_backend = viewer_backend
         self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
 
-        self.reset()
+        ## Flag to determine if the simulation is running
+        self._is_running = False
+
+        self.reset(np.zeros(model.nx))
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -101,23 +104,19 @@ class EngineAsynchronous(object):
         """
         engine_options = self._engine.get_options()
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
-        self.reset(reset_random_generator=True)
+        self._engine.reset(reset_random_generator=True)
+        self._is_running = False
         self._engine.set_options(engine_options)
 
-    def reset(self, x0=None):
+    def reset(self, x0):
         """
         @brief      Reset the simulation.
 
-        @details    The initial state is zero. Execute the method `reset` manually
-                    afterward to specify a different initial state.
-
-        @param[in]  x0    Desired initial state (2D numpy array: column vector)
+        @param[in]  x0    Desired initial state
         """
-        if (x0 is None):
-            x0 = np.zeros((self._engine.model.nx, 1))
-        if (int(self._engine.start(x0)) != 1):
-            raise ValueError("Reset of engine failed.")
-        self._state = x0.squeeze()
+        self._engine.stop()
+        self._is_running = False
+        self._state = x0
 
     def step(self, action_next=None, dt_desired=-1):
         """
@@ -126,13 +125,18 @@ class EngineAsynchronous(object):
         @details    Even if Jiminy Engine performs several simulation steps
                     internally, this method only output the final state.
 
-        @param[in]  action_next     Updated command (2D numpy array: column vector)
+        @param[in]  action_next     Updated command
                                     Optional: Use the value in the internal buffer otherwise
         @param[in]  dt_desired      Simulation time difference between before and after the steps.
                                     Optional: Perform a single integration step otherwise
 
-        @return     Final state of the simulation (2D numpy matrix: column vector ???)
+        @return     Final state of the simulation
         """
+        if (not self._is_running):
+            if (self._engine.start(self._state) != jiminy.result_t.SUCCESS):
+                raise ValueError("Failed to start the simulation")
+            self._is_running = True
+
         if (action_next is not None):
             self.action = action_next
         self._state = None
@@ -145,10 +149,10 @@ class EngineAsynchronous(object):
 
         @remark     Note that it supports parallel rendering, which means that one
                     can display multiple simulations in the same Gepetto-viewer
-                    processus at the same time in different tabs.
-                    Note that it returning an RGB array required Gepetto-viewer.
+                    processes at the same time in different tabs.
+                    Note that returning an RGB array required Gepetto-viewer.
 
-        @param[in]  return_rgb_array    Updated command (2D numpy array: column vector)
+        @param[in]  return_rgb_array    Updated command
                                         Optional: Use the value in the internal buffer otherwise
         @param[in]  lock                Unique threading.Lock for every simulation
                                         Optional: Only required for parallel rendering
@@ -198,10 +202,9 @@ class EngineAsynchronous(object):
         """
         @brief      Getter of the current state of the robot.
 
-        @return     State of the robot (1D numpy array)
+        @return     State of the robot
         """
         if (self._state is None):
-            # Get x by value, then convert the matrix column into an actual 1D array by reference
             self._state = self._engine.stepper_state.x #TODO: This is NOT the theoretical state but the actual one, which extra flexibilities if any
         return self._state
 
@@ -211,7 +214,7 @@ class EngineAsynchronous(object):
         @brief      Getter of the current state of the sensors.
 
         @return     Dictionary whose the keys are the different class of sensors
-                    available. The state for a given class is a 2D numpy matrix
+                    available.
                     (row: data, column: sensor).
         """
         return self._observation
@@ -221,7 +224,7 @@ class EngineAsynchronous(object):
         """
         @brief      Getter of the current command.
 
-        @return     Command (1D numpy array).
+        @return     Command
         """
         return self._action
 
@@ -230,11 +233,11 @@ class EngineAsynchronous(object):
         """
         @brief      Setter of the command.
 
-        @param[in]  action_next     Updated command (1D numpy array)
+        @param[in]  action_next     Updated command
         """
         if (not isinstance(action_next, (np.ndarray, np.generic))
-        or action_next.size != len(self._action) ):
-            raise ValueError("The action must be a numpy array with the right dimension.")
+                or action_next.size != self._action.size):
+            raise ValueError("The action must be a numpy array of the right dimension.")
         self._action[:] = action_next
 
     def get_engine_options(self):

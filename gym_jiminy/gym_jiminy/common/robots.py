@@ -36,7 +36,7 @@ class RobotJiminyEnv(core.Env):
         'render.modes': ['human']
     }
 
-    def __init__(self, robot_name, engine_py, dt):
+    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
         """
         @brief      Constructor
 
@@ -177,7 +177,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
     @details    The Jiminy Engine must be completely initialized beforehand, which
                 means that the Jiminy Model and Controller are already setup.
     """
-    def __init__(self, robot_name, engine_py, dt):
+    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
         """
         @brief      Constructor
 
