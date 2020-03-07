@@ -61,8 +61,9 @@ class EngineAsynchronous(object):
         self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
 
-        ## Flag to determine if the simulation is running
+        ## Flag to determine if the simulation is running, and if the state is theoretical
         self._is_running = False
+        self._is_state_theoretical = False
 
         self.reset(np.zeros(model.nx))
 
@@ -108,7 +109,7 @@ class EngineAsynchronous(object):
         self._is_running = False
         self._engine.set_options(engine_options)
 
-    def reset(self, x0):
+    def reset(self, x0, is_state_theoretical=False):
         """
         @brief      Reset the simulation.
 
@@ -117,6 +118,7 @@ class EngineAsynchronous(object):
         self._engine.stop()
         self._is_running = False
         self._state = x0
+        self._is_state_theoretical = is_state_theoretical
 
     def step(self, action_next=None, dt_desired=-1):
         """
@@ -133,7 +135,8 @@ class EngineAsynchronous(object):
         @return     Final state of the simulation
         """
         if (not self._is_running):
-            if (self._engine.start(self._state) != jiminy.result_t.SUCCESS):
+            flag = self._engine.start(self._state, self._is_state_theoretical)
+            if (flag != jiminy.result_t.SUCCESS):
                 raise ValueError("Failed to start the simulation")
             self._is_running = True
 
@@ -205,7 +208,12 @@ class EngineAsynchronous(object):
         @return     State of the robot
         """
         if (self._state is None):
-            self._state = self._engine.stepper_state.x #TODO: This is NOT the theoretical state but the actual one, which extra flexibilities if any
+            self._state = self._engine.stepper_state.x
+            self._is_state_theoretical = False
+        else:
+            if (self._is_state_theoretical):
+                raise RuntimeError("Impossible to get the current state since the initial state \
+                                    was theoretical and no steps were performed ever since.")
         return self._state
 
     @property

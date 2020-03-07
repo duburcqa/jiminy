@@ -388,6 +388,7 @@ namespace jiminy
         /// \details This function resets the engine, the model and the controller.
         ///          This method is made to be called in between simulations, to allow
         ///          registering of new variables to log.
+        /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         void reset(bool const & resetRandomNumbers = false,
@@ -398,12 +399,14 @@ namespace jiminy
         /// \details This function reset the engine, the model and the controller, and update internal data
         ///          to match the given initial state.
         /// \param[in] x_init Initial state.
+        /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         result_t start(vectorN_t const & x_init,
-                       bool const & resetRandomNumbers = false,
-                       bool const & resetDynamicForceRegister = false);
+                       bool      const & isStateTheoretical = false,
+                       bool      const & resetRandomNumbers = false,
+                       bool      const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -424,10 +427,12 @@ namespace jiminy
 
         /// \brief Run a simulation of duration end_time, starting at x_init.
         ///
-        /// \param[in] x_init Initial state, i.e. state at t=0.
         /// \param[in] end_time End time, i.e. amount of time to simulate.
-        result_t simulate(vectorN_t const & x_init,
-                          float64_t const & end_time);
+        /// \param[in] x_init Initial state, i.e. state at t=0.
+        /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
+        result_t simulate(float64_t const & end_time,
+                          vectorN_t const & x_init,
+                          bool      const & isStateTheoretical = false);
 
         result_t registerForceImpulse(std::string const & frameName,
                                       float64_t   const & t,

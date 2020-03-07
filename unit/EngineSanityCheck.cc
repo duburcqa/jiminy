@@ -84,7 +84,7 @@ TEST(EngineSanity, EnergyConservation)
     float64_t tf = 10.0;
 
     // Run simulation
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
 
     // Get system energy.
     std::vector<std::string> header;
@@ -104,7 +104,7 @@ TEST(EngineSanity, EnergyConservation)
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
     engine.setOptions(simuOptions);
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
 
     engine.getLogData(header, data);
     energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);

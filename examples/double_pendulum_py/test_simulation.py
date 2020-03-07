@@ -77,7 +77,7 @@ x0[1] = 0.1
 tf = 3.0
 
 start = time.time()
-engine.simulate(x0, tf)
+engine.simulate(tf, x0)
 end = time.time()
 print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 

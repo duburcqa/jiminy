@@ -1183,6 +1183,7 @@ namespace python
                                bp::arg("remove_forces") = false))
                 .def("start", &Engine::start,
                               (bp::arg("self"), "x_init",
+                               bp::arg("is_state_theoretical") = false,
                                bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("step", &PyEngineVisitor::step,
@@ -1190,7 +1191,8 @@ namespace python
                               bp::arg("dt_desired") = -1))
                 .def("stop", &Engine::stop, (bp::arg("self")))
                 .def("simulate", &Engine::simulate,
-                                 (bp::arg("self"), "x_init", "end_time"))
+                                 (bp::arg("self"), "end_time", "x_init",
+                                  bp::arg("is_state_theoretical") = false))
 
                 .def("get_log", &PyEngineVisitor::getLog)
                 .def("write_log", &PyEngineVisitor::writeLog,

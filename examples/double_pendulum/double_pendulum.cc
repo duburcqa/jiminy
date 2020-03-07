@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
     timer.toc();
     std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 

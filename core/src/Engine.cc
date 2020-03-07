@@ -255,6 +255,7 @@ namespace jiminy
     }
 
     result_t Engine::start(vectorN_t const & x_init,
+                           bool      const & isStateTheoretical,
                            bool      const & resetRandomNumbers,
                            bool      const & resetDynamicForceRegister)
     {
@@ -266,8 +267,9 @@ namespace jiminy
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        // Check the dimension of the initial rigid state
-        if (x_init.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv)
+        // Check the dimension of the state
+        if ((isStateTheoretical && (x_init.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv))
+        || (!isStateTheoretical && (x_init.rows() != model_->nx())))
         {
             std::cout << "Error - Engine::reset - Size of x_init inconsistent with model size." << std::endl;
             returnCode = result_t::ERROR_BAD_INPUT;
@@ -287,37 +289,44 @@ namespace jiminy
             // Propagate the gravity value at Pinocchio model level
             model_->pncModel_.gravity = engineOptions_->world.gravity;
 
-            // Compute the initial flexible state based on the initial rigid state
-            std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
-            std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
             vectorN_t x0 = vectorN_t::Zero(model_->nx());
-            if (model_->getHasFreeflyer())
+            if (isStateTheoretical && model_->mdlOptions_->dynamics.enableFlexibleModel)
             {
-                x0.head<7>() = x_init.head<7>();
-                for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+                // Compute the initial flexible state based on the initial rigid state
+                std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
+                std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
+                if (model_->getHasFreeflyer())
                 {
-                    x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+                    x0.head<7>() = x_init.head<7>();
+                    for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+                    {
+                        x0[rigidJointsPositionIdx[i]] = x_init[i + 7];
+                    }
+                    x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
+                    for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+                    {
+                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+                    }
                 }
-                x0.segment<6>(model_->nq()) = x_init.segment<6>(7 + rigidJointsPositionIdx.size());
-                for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+                else
                 {
-                    x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + 7 + rigidJointsPositionIdx.size() + 6];
+                    for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
+                    {
+                        x0[rigidJointsPositionIdx[i]] = x_init[i];
+                    }
+                    for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
+                    {
+                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
+                    }
+                }
+                for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
+                {
+                    x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
                 }
             }
             else
             {
-                for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
-                {
-                    x0[rigidJointsPositionIdx[i]] = x_init[i];
-                }
-                for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
-                {
-                    x0[rigidJointsVelocityIdx[i] + model_->nq()] = x_init[i + rigidJointsPositionIdx.size()];
-                }
-            }
-            for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
-            {
-                x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
+                x0 = x_init;
             }
 
             // Reset the impulse for iterator counter
@@ -406,8 +415,9 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Engine::simulate(vectorN_t const & x_init,
-                              float64_t const & tEnd)
+    result_t Engine::simulate(float64_t const & end_time,
+                              vectorN_t const & x_init,
+                              bool      const & isStateTheoretical)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -426,7 +436,7 @@ namespace jiminy
         // Reset the model, controller, and engine
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = start(x_init, true, false);
+            returnCode = start(x_init, isStateTheoretical, false, false);
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times

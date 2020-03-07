@@ -338,7 +338,7 @@ controller.set_options(ctrl_options)
 # ############################## Run the simulation #####################################
 
 start = time.time()
-engine.simulate(x0, tf)
+engine.simulate(tf, x0)
 end = time.time()
 print("Simulation time: %03.0fms" % ((end - start) * 1.0e3))
 
