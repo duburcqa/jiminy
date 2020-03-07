@@ -763,7 +763,7 @@ namespace python
 
             if (returnCode == result_t::SUCCESS)
             {
-                returnCode = sensor-> initialize(name);
+                returnCode = sensor->initialize(name);
             }
 
             return returnCode;

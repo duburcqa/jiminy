@@ -1,5 +1,5 @@
-#ifndef SIMU_UTILITIES_H
-#define SIMU_UTILITIES_H
+#ifndef JIMINY_UTILITIES_H
+#define JIMINY_UTILITIES_H
 
 #include <chrono>
 #include <vector>
@@ -236,4 +236,4 @@ namespace jiminy
 
 #include "jiminy/core/Utilities.tpp"
 
-#endif  // SIMU_UTILITIES_H
+#endif  // JIMINY_UTILITIES_H

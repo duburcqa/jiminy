@@ -12,9 +12,15 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
+        if (sensor)
+        {
+            std::cout << "Error - Model::addSensor - Shared pointer 'sensor' already associated to an existing sensor." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
         std::string sensorType;
         sensorsGroupHolder_t::iterator sensorGroupIt;
-        sensorType = TSensor::type_; // cannot use sensor->getType() is case of nullptr
+        sensorType = TSensor::type_;
         sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt != sensorsGroupHolder_.end())
         {
@@ -29,15 +35,14 @@ namespace jiminy
         // Create a new sensor data holder if necessary
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            sensorsDataHolder_[sensorType] = std::make_shared<SensorDataHolder_t>();
+            sensorsSharedHolder_[sensorType] = std::make_shared<SensorSharedHolder_t>();
             sensorTelemetryOptions_[sensorType] = false;
         }
 
         // Create the sensor and add it to its group
         sensorsGroupHolder_[sensorType][sensorName] =
-            std::shared_ptr<AbstractSensorBase>(new TSensor(*this,
-                                                            sensorsDataHolder_.at(sensorType),
-                                                            sensorName));
+            std::shared_ptr<AbstractSensorBase>(
+                new TSensor(*this, sensorsSharedHolder_.at(sensorType), sensorName));
 
         // Get a pointer to the sensor
         getSensor<TSensor>(sensorType, sensorName, sensor);

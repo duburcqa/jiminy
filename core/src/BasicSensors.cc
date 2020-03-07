@@ -20,9 +20,9 @@ namespace jiminy
     std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
-    ImuSensor::ImuSensor(Model                               const & model,
-                         std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                         std::string                         const & name) :
+    ImuSensor::ImuSensor(Model                                 const & model,
+                         std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                         std::string                           const & name) :
     AbstractSensorTpl(model, dataHolder, name),
     frameName_(),
     frameIdx_()
@@ -93,9 +93,9 @@ namespace jiminy
     template<>
     std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
-    ForceSensor::ForceSensor(Model                               const & model,
-                             std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                             std::string                         const & name) :
+    ForceSensor::ForceSensor(Model                                 const & model,
+                             std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                             std::string                           const & name) :
     AbstractSensorTpl(model, dataHolder, name),
     frameName_(),
     frameIdx_()
@@ -162,9 +162,9 @@ namespace jiminy
     template<>
     std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 
-    EncoderSensor::EncoderSensor(Model                               const & model,
-                                 std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                                 std::string                         const & name) :
+    EncoderSensor::EncoderSensor(Model                                 const & model,
+                                 std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                                 std::string                           const & name) :
     AbstractSensorTpl(model, dataHolder, name),
     motorName_(),
     motorPositionIdx_(),

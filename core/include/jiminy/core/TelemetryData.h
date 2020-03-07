@@ -4,8 +4,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_DATA_H
-#define SIMU_TELEMETRY_DATA_H
+#ifndef JIMINY_TELEMETRY_DATA_H
+#define JIMINY_TELEMETRY_DATA_H
 
 #include <iostream>
 #include <string>
@@ -232,4 +232,4 @@ namespace jiminy
 
 #include "TelemetryData.tpp"
 
-#endif // SIMU_TELEMETRY_DATA_H
+#endif // JIMINY_TELEMETRY_DATA_H

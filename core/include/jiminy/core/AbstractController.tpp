@@ -5,8 +5,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_ABSTRACT_CONTROLLER_TPP
-#define SIMU_ABSTRACT_CONTROLLER_TPP
+#ifndef JIMINY_ABSTRACT_CONTROLLER_TPP
+#define JIMINY_ABSTRACT_CONTROLLER_TPP
 
 #include <string>
 #include <vector>
@@ -67,6 +67,6 @@ namespace jiminy
     }
 }
 
-#endif // SIMU_ABSTRACT_CONTROLLER_TPP
+#endif // JIMINY_ABSTRACT_CONTROLLER_TPP
 
 

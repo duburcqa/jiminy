@@ -1,5 +1,5 @@
-#ifndef SIMU_ENGINE_H
-#define SIMU_ENGINE_H
+#ifndef JIMINY_ENGINE_H
+#define JIMINY_ENGINE_H
 
 #include <tuple>
 #include <string>
@@ -561,4 +561,4 @@ namespace jiminy
     };
 }
 
-#endif //end of SIMU_ENGINE_H
+#endif //end of JIMINY_ENGINE_H

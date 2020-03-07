@@ -1,5 +1,5 @@
-#ifndef SIMU_PYTHON_UTILITIES_H
-#define SIMU_PYTHON_UTILITIES_H
+#ifndef JIMINY_PYTHON_UTILITIES_H
+#define JIMINY_PYTHON_UTILITIES_H
 
 // Make sure that the Python C API does not get redefined separately
 #define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
@@ -599,4 +599,4 @@ namespace python
 }  // end of namespace python.
 }  // end of namespace jiminy.
 
-#endif  // SIMU_PYTHON_UTILITIES_H
+#endif  // JIMINY_PYTHON_UTILITIES_H

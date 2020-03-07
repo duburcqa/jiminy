@@ -10,8 +10,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_ABSTRACT_SENSOR_H
-#define SIMU_ABSTRACT_SENSOR_H
+#ifndef JIMINY_ABSTRACT_SENSOR_H
+#define JIMINY_ABSTRACT_SENSOR_H
 
 #include <boost/circular_buffer.hpp>
 
@@ -42,16 +42,17 @@ namespace jiminy
     ///             corresponding to the sensor ID.
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    struct SensorDataHolder_t
+    struct SensorSharedHolder_t
     {
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        SensorDataHolder_t(void) :
+        SensorSharedHolder_t(void) :
         time_(),
         data_(),
         sensors_(),
-        num_()
+        num_(0),
+        delayMax_(0.0)
         {
             // Empty.
         };
@@ -59,7 +60,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Destructor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        ~SensorDataHolder_t(void)
+        ~SensorSharedHolder_t(void)
         {
             // Empty.
         };
@@ -68,6 +69,7 @@ namespace jiminy
         boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer with past sensor data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
         uint32_t num_;                                              ///< Number of sensors of that type
+        float64_t delayMax_;                                        ///< Maximum delay over all the sensors
     };
 
     class AbstractSensorBase
@@ -411,9 +413,9 @@ namespace jiminy
         AbstractSensorTpl & operator = (AbstractSensorTpl const & other) = delete;
 
     public:
-        AbstractSensorTpl(Model                               const & model,
-                          std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                          std::string                         const & name);
+        AbstractSensorTpl(Model                                 const & model,
+                          std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                          std::string                           const & name);
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
@@ -443,17 +445,19 @@ namespace jiminy
         virtual result_t updateDataBuffer(void) override;
 
     public:
+        /* Be careful, the variable must be const if static since the 'static'
+           keyword binds all the sensors together, even if they are associated
+           to complete separated models! */
         static std::string const type_;
         static bool const areFieldNamesGrouped_;
         static std::vector<std::string> const fieldNames_;
-        static float64_t delayMax_;
 
     private:
-        std::shared_ptr<SensorDataHolder_t> dataHolder_;
+        std::shared_ptr<SensorSharedHolder_t> sharedHolder_;
         uint32_t sensorId_;
     };
 }
 
 #include "jiminy/core/AbstractSensor.tpp"
 
-#endif //end of SIMU_ABSTRACT_SENSOR_H
+#endif //end of JIMINY_ABSTRACT_SENSOR_H

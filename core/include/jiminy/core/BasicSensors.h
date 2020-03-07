@@ -1,5 +1,5 @@
-#ifndef SIMU_STANDARD_SENSORS_H
-#define SIMU_STANDARD_SENSORS_H
+#ifndef JIMINY_STANDARD_SENSORS_H
+#define JIMINY_STANDARD_SENSORS_H
 
 #include <iostream>
 
@@ -13,9 +13,9 @@ namespace jiminy
     class ImuSensor : public AbstractSensorTpl<ImuSensor>
     {
     public:
-        ImuSensor(Model                               const & model,
-                  std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                  std::string                         const & name);
+        ImuSensor(Model                                 const & model,
+                  std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                  std::string                           const & name);
         ~ImuSensor(void);
 
         result_t initialize(std::string const & frameName);
@@ -38,9 +38,9 @@ namespace jiminy
     class ForceSensor : public AbstractSensorTpl<ForceSensor>
     {
     public:
-        ForceSensor(Model                               const & model,
-                    std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                    std::string                         const & name);
+        ForceSensor(Model                                 const & model,
+                    std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                    std::string                           const & name);
         ~ForceSensor(void);
 
         result_t initialize(std::string const & frameName);
@@ -63,9 +63,9 @@ namespace jiminy
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
     {
     public:
-        EncoderSensor(Model                               const & model,
-                      std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                      std::string                         const & name);
+        EncoderSensor(Model                                 const & model,
+                      std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                      std::string                           const & name);
         ~EncoderSensor(void);
 
         result_t initialize(std::string const & motorName);
@@ -87,4 +87,4 @@ namespace jiminy
     };
 }
 
-#endif //end of SIMU_STANDARD_SENSORS_H
+#endif //end of JIMINY_STANDARD_SENSORS_H

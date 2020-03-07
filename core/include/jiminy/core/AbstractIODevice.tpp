@@ -4,8 +4,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_ABSTRACT_IO_DEVICE_TPP
-#define SIMU_ABSTRACT_IO_DEVICE_TPP
+#ifndef JIMINY_ABSTRACT_IO_DEVICE_TPP
+#define JIMINY_ABSTRACT_IO_DEVICE_TPP
 
 #include <string>
 #include <vector>
@@ -42,4 +42,4 @@ namespace jiminy
     template<> result_t AbstractIODevice::write<std::vector<uint64_t> >(std::vector<uint64_t> const& v);
 }
 
-#endif // SIMU_ABSTRACT_IO_DEVICE_TPP
+#endif // JIMINY_ABSTRACT_IO_DEVICE_TPP

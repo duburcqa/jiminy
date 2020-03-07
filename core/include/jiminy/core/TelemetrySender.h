@@ -7,8 +7,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_CLIENT_CLASS_H
-#define SIMU_TELEMETRY_CLIENT_CLASS_H
+#ifndef JIMINY_TELEMETRY_CLIENT_CLASS_H
+#define JIMINY_TELEMETRY_CLIENT_CLASS_H
 
 #include <string>
 #include <unordered_map>
@@ -119,4 +119,4 @@ namespace jiminy
     };
 } // End of jiminy namespace
 
-#endif  //  SIMU_TELEMETRY_CLIENT_CLASS_H
+#endif  //  JIMINY_TELEMETRY_CLIENT_CLASS_H

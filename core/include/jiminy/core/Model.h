@@ -1,5 +1,5 @@
-#ifndef SIMU_MODEL_H
-#define SIMU_MODEL_H
+#ifndef JIMINY_MODEL_H
+#define JIMINY_MODEL_H
 
 #include <string>
 #include <vector>
@@ -19,7 +19,7 @@ namespace jiminy
     std::string const FREE_FLYER_PREFIX_BASE_NAME(JOINT_PREFIX_BASE + "Freeflyer");
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
-    struct SensorDataHolder_t;
+    struct SensorSharedHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
     class Engine;
@@ -294,7 +294,7 @@ namespace jiminy
     private:
         MutexLocal mutexLocal_;
         pinocchio::Model pncModelFlexibleOrig_;
-        std::unordered_map<std::string, std::shared_ptr<SensorDataHolder_t> > sensorsDataHolder_;
+        std::unordered_map<std::string, std::shared_ptr<SensorSharedHolder_t> > sensorsSharedHolder_;
         uint32_t nq_;
         uint32_t nv_;
         uint32_t nx_;
@@ -303,4 +303,4 @@ namespace jiminy
 
 #include "jiminy/core/Model.tpp"
 
-#endif //end of SIMU_MODEL_H
+#endif //end of JIMINY_MODEL_H

@@ -7,19 +7,16 @@ namespace jiminy
     extern float64_t const MAX_TIME_STEP;
 
     template <typename T>
-    float64_t AbstractSensorTpl<T>::delayMax_(0);
-
-    template <typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(Model                               const & model,
-                                            std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                                            std::string                         const & name) :
+    AbstractSensorTpl<T>::AbstractSensorTpl(Model                                 const & model,
+                                            std::shared_ptr<SensorSharedHolder_t> const & dataHolder,
+                                            std::string                           const & name) :
     AbstractSensorBase(model, name),
-    dataHolder_(dataHolder),
-    sensorId_(dataHolder_->num_)
+    sharedHolder_(dataHolder),
+    sensorId_(sharedHolder_->num_)
     {
         // Add the sensor to the data holder
-        ++dataHolder_->num_;
-        dataHolder_->sensors_.push_back(this);
+        ++sharedHolder_->num_;
+        sharedHolder_->sensors_.push_back(this);
 
         // Reset the sensors' internal state
         AbstractSensorTpl<T>::reset();
@@ -29,31 +26,31 @@ namespace jiminy
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
         // Remove associated col in the global data buffer
-        if(sensorId_ < dataHolder_->num_ - 1)
+        if(sensorId_ < sharedHolder_->num_ - 1)
         {
-            for (matrixN_t & data : dataHolder_->data_)
+            for (matrixN_t & data : sharedHolder_->data_)
             {
-                data.block(0, sensorId_, getSize(), dataHolder_->num_ - sensorId_ - 1) =
-                    data.block(0, sensorId_ + 1, getSize(), dataHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
+                data.block(0, sensorId_, getSize(), sharedHolder_->num_ - sensorId_ - 1) =
+                    data.block(0, sensorId_ + 1, getSize(), sharedHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
             }
         }
-        for (matrixN_t & data : dataHolder_->data_)
+        for (matrixN_t & data : sharedHolder_->data_)
         {
-            data.resize(Eigen::NoChange, dataHolder_->num_ - 1);
+            data.resize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
 
         // Shift the sensor ids
-        for (uint32_t i=sensorId_ + 1; i < dataHolder_->num_; i++)
+        for (uint32_t i=sensorId_ + 1; i < sharedHolder_->num_; i++)
         {
-            AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(dataHolder_->sensors_[i]);
+            AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
             --sensor->sensorId_;
         }
 
         // Remove the deprecated elements of the global containers
-        dataHolder_->sensors_.erase(dataHolder_->sensors_.begin() + sensorId_);
+        sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorId_);
 
         // Update the total number of sensors left
-        --dataHolder_->num_;
+        --sharedHolder_->num_;
 
         // Reset the sensors' internal state
         reset();
@@ -62,13 +59,13 @@ namespace jiminy
     template <typename T>
     void AbstractSensorTpl<T>::reset(void)
     {
-        dataHolder_->time_.resize(2);
-        std::fill(dataHolder_->time_.begin(), dataHolder_->time_.end(), -1);
-        dataHolder_->time_.back() = 0;
-        dataHolder_->data_.resize(2);
-        for (matrixN_t & data : dataHolder_->data_)
+        sharedHolder_->time_.resize(2);
+        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
+        sharedHolder_->time_.back() = 0;
+        sharedHolder_->data_.resize(2);
+        for (matrixN_t & data : sharedHolder_->data_)
         {
-            data = matrixN_t::Zero(getSize(), dataHolder_->num_); // Do not use setZero since the size is ill-defined
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size is ill-defined
         }
         data_ = vectorN_t::Zero(getSize());
 
@@ -80,13 +77,13 @@ namespace jiminy
     void AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
         AbstractSensorBase::setOptions(sensorOptions);
-        delayMax_ = std::max(delayMax_, sensorOptions_->delay); // No need to loop over all sensors
+        sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, sensorOptions_->delay);
     }
 
     template <typename T>
     void AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             sensor->setOptions(sensorOptions);
         }
@@ -137,8 +134,8 @@ namespace jiminy
     template <typename T>
     matrixN_t AbstractSensorTpl<T>::getAll(void)
     {
-        matrixN_t data(getSize(), dataHolder_->num_);
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        matrixN_t data(getSize(), sharedHolder_->num_);
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             uint32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
             data.col(sensorId) = *sensor->get();
@@ -149,14 +146,14 @@ namespace jiminy
     template <typename T>
     Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
-        return dataHolder_->data_.back().col(sensorId_);
+        return sharedHolder_->data_.back().col(sensorId_);
     }
 
     template <typename T>
     result_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
         // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
-        float64_t const timeDesired = dataHolder_->time_.back() - sensorOptions_->delay + 1e-9;
+        float64_t const timeDesired = sharedHolder_->time_.back() - sensorOptions_->delay + 1e-9;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
@@ -164,14 +161,14 @@ namespace jiminy
             [&](void) -> int32_t
             {
                 int32_t left = 0;
-                int32_t right = dataHolder_->time_.size() - 1;
+                int32_t right = sharedHolder_->time_.size() - 1;
                 int32_t mid = 0;
 
-                if (timeDesired >= dataHolder_->time_.back())
+                if (timeDesired >= sharedHolder_->time_.back())
                 {
                     return right;
                 }
-                else if (timeDesired < dataHolder_->time_.front())
+                else if (timeDesired < sharedHolder_->time_.front())
                 {
                     return -1;
                 }
@@ -179,11 +176,11 @@ namespace jiminy
                 while(left < right)
                 {
                     mid = (left + right) / 2;
-                    if (timeDesired < dataHolder_->time_[mid])
+                    if (timeDesired < sharedHolder_->time_[mid])
                     {
                         right = mid;
                     }
-                    else if (timeDesired > dataHolder_->time_[mid])
+                    else if (timeDesired > sharedHolder_->time_[mid])
                     {
                         left = mid + 1;
                     }
@@ -193,7 +190,7 @@ namespace jiminy
                     }
                 }
 
-                if (timeDesired < dataHolder_->time_[mid])
+                if (timeDesired < sharedHolder_->time_[mid])
                 {
                     return mid - 1;
                 }
@@ -205,7 +202,7 @@ namespace jiminy
 
         int32_t const inputIndexLeft = bisectLeft();
         data_ = vectorN_t::Zero(getSize());
-        if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < dataHolder_->time_.size())
+        if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < sharedHolder_->time_.size())
         {
             if (inputIndexLeft < 0)
             {
@@ -214,13 +211,13 @@ namespace jiminy
             }
             else if (sensorOptions_->delayInterpolationOrder == 0)
             {
-                data_ = dataHolder_->data_[inputIndexLeft].col(sensorId_);
+                data_ = sharedHolder_->data_[inputIndexLeft].col(sensorId_);
             }
             else if (sensorOptions_->delayInterpolationOrder == 1)
             {
-                data_ = 1 / (dataHolder_->time_[inputIndexLeft + 1] - dataHolder_->time_[inputIndexLeft]) *
-                    ((timeDesired - dataHolder_->time_[inputIndexLeft]) * dataHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
-                    (dataHolder_->time_[inputIndexLeft + 1] - timeDesired) * dataHolder_->data_[inputIndexLeft].col(sensorId_));
+                data_ = 1 / (sharedHolder_->time_[inputIndexLeft + 1] - sharedHolder_->time_[inputIndexLeft]) *
+                    ((timeDesired - sharedHolder_->time_[inputIndexLeft]) * sharedHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
+                    (sharedHolder_->time_[inputIndexLeft + 1] - timeDesired) * sharedHolder_->data_[inputIndexLeft].col(sensorId_));
             }
             else
             {
@@ -230,15 +227,15 @@ namespace jiminy
         }
         else
         {
-            if (dataHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
+            if (sharedHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
             {
                 // Return the most recent value
-                data_ = dataHolder_->data_.back().col(sensorId_);
+                data_ = sharedHolder_->data_.back().col(sensorId_);
             }
             else
             {
                 // Return Zero since the sensor is not fully initialized yet
-                data_ = dataHolder_->data_.front().col(sensorId_);
+                data_ = sharedHolder_->data_.front().col(sensorId_);
             }
         }
 
@@ -257,60 +254,60 @@ namespace jiminy
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time */
-        float64_t const timeMin = t - delayMax_ - MAX_TIME_STEP;
+        float64_t const timeMin = t - sharedHolder_->delayMax_ - MAX_TIME_STEP;
 
         // Internal buffer memory management
-        if (t + std::numeric_limits<float64_t>::epsilon() > dataHolder_->time_.back())
+        if (t + std::numeric_limits<float64_t>::epsilon() > sharedHolder_->time_.back())
         {
-            if (dataHolder_->time_[0] < 0 || timeMin > dataHolder_->time_[1])
+            if (sharedHolder_->time_[0] < 0 || timeMin > sharedHolder_->time_[1])
             {
                 // Remove some unecessary extra elements if appropriate
-                if (dataHolder_->time_.size() > 2 + MAX_DELAY_BUFFER_EXCEED
-                && timeMin > dataHolder_->time_[2 + MAX_DELAY_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 2 + MAX_DELAY_BUFFER_EXCEED
+                && timeMin > sharedHolder_->time_[2 + MAX_DELAY_BUFFER_EXCEED])
                 {
                     for (uint8_t i=0; i < 1 + MAX_DELAY_BUFFER_EXCEED; i ++)
                     {
-                        dataHolder_->time_.pop_front();
-                        dataHolder_->data_.pop_front();
+                        sharedHolder_->time_.pop_front();
+                        sharedHolder_->data_.pop_front();
                     }
 
-                    dataHolder_->time_.rset_capacity(dataHolder_->time_.size() + MIN_DELAY_BUFFER_RESERVE);
-                    dataHolder_->data_.rset_capacity(dataHolder_->data_.size() + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + MIN_DELAY_BUFFER_RESERVE);
                 }
 
                 // Rotate the internal buffer
-                dataHolder_->time_.rotate(dataHolder_->time_.begin() + 1);
-                dataHolder_->data_.rotate(dataHolder_->data_.begin() + 1);
+                sharedHolder_->time_.rotate(sharedHolder_->time_.begin() + 1);
+                sharedHolder_->data_.rotate(sharedHolder_->data_.begin() + 1);
             }
             else
             {
                 // Increase capacity if required
-                if(dataHolder_->time_.full())
+                if(sharedHolder_->time_.full())
                 {
-                    dataHolder_->time_.rset_capacity(dataHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
-                    dataHolder_->data_.rset_capacity(dataHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
                 }
 
                 // Push back new empty buffer (Do NOT initialize it for efficiency)
-                dataHolder_->time_.push_back();
-                dataHolder_->data_.push_back();
-                dataHolder_->data_.back().resize(getSize(), dataHolder_->num_);
+                sharedHolder_->time_.push_back();
+                sharedHolder_->data_.push_back();
+                sharedHolder_->data_.back().resize(getSize(), sharedHolder_->num_);
             }
         }
         else
         {
             /* Remove the extra last elements if for some reason the solver went back in time.
                 It happens when an iteration fails using ode solvers relying on try_step mechanism. */
-            while(t + std::numeric_limits<float64_t>::epsilon() < dataHolder_->time_.back() && dataHolder_->time_.size() > 2)
+            while(t + std::numeric_limits<float64_t>::epsilon() < sharedHolder_->time_.back() && sharedHolder_->time_.size() > 2)
             {
-                dataHolder_->time_.pop_back();
-                dataHolder_->data_.pop_back();
+                sharedHolder_->time_.pop_back();
+                sharedHolder_->data_.pop_back();
             }
         }
-        dataHolder_->time_.back() = t;
+        sharedHolder_->time_.back() = t;
 
         // Compute the sensors' output
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             if (returnCode == result_t::SUCCESS)
             {
@@ -344,7 +341,7 @@ namespace jiminy
     template <typename T>
     void AbstractSensorTpl<T>::updateTelemetryAll(void)
     {
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             sensor->updateTelemetry();
         }

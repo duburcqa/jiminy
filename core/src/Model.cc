@@ -50,7 +50,7 @@ namespace jiminy
     motorTorqueFieldNames_(),
     mutexLocal_(),
     pncModelFlexibleOrig_(),
-    sensorsDataHolder_(),
+    sensorsSharedHolder_(),
     nq_(0),
     nv_(0),
     nx_(0)
@@ -70,7 +70,7 @@ namespace jiminy
 
         // Remove all sensors, if any
         sensorsGroupHolder_.clear();
-        sensorsDataHolder_.clear();
+        sensorsSharedHolder_.clear();
         sensorTelemetryOptions_.clear();
 
         // Initialize the URDF model
@@ -440,7 +440,7 @@ namespace jiminy
         if (sensorGroupIt->second.empty())
         {
             sensorsGroupHolder_.erase(sensorType);
-            sensorsDataHolder_.erase(sensorType);
+            sensorsSharedHolder_.erase(sensorType);
             sensorTelemetryOptions_.erase(sensorType);
         }
 
@@ -473,13 +473,13 @@ namespace jiminy
             }
 
             sensorsGroupHolder_.erase(sensorGroupIt);
-            sensorsDataHolder_.erase(sensorType);
+            sensorsSharedHolder_.erase(sensorType);
             sensorTelemetryOptions_.erase(sensorType);
         }
         else
         {
             sensorsGroupHolder_.clear();
-            sensorsDataHolder_.clear();
+            sensorsSharedHolder_.clear();
             sensorTelemetryOptions_.clear();
         }
 
