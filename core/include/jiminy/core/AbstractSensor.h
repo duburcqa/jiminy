@@ -409,28 +409,28 @@ namespace jiminy
         virtual void reset(void) override;
 
         virtual void setOptions(configHolder_t const & sensorOptions) override;
-        virtual void setOptionsAll(configHolder_t const & sensorOptions) override;
-        virtual uint8_t const & getId(void) const override;
-        virtual std::string const & getType(void) const override;
-        std::vector<std::string> const & getFieldNames(void) const;
-        virtual uint32_t getSize(void) const override;
+        virtual void setOptionsAll(configHolder_t const & sensorOptions) override final;
+        virtual uint8_t const & getId(void) const override final;
+        virtual std::string const & getType(void) const override final;
+        virtual std::vector<std::string> const & getFieldNames(void) const final;
+        virtual uint32_t getSize(void) const override final;
 
-        virtual vectorN_t const * get(void) override;
-        virtual matrixN_t getAll(void) override;
+        virtual vectorN_t const * get(void) override final;
+        virtual matrixN_t getAll(void) override final;
         virtual result_t setAll(float64_t const & t,
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u) override;
-        void updateTelemetryAll(void) override;
+                                vectorN_t const & u) override final;
+        void updateTelemetryAll(void) override final;
 
     protected:
-        virtual std::string getTelemetryName(void) const override;
+        virtual std::string getTelemetryName(void) const override final;
 
-        virtual Eigen::Ref<vectorN_t> data(void) override;
+        virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
-        virtual result_t updateDataBuffer(void) override;
+        virtual result_t updateDataBuffer(void) override final;
 
     public:
         /* Be careful, the variable must be const if static since the 'static'

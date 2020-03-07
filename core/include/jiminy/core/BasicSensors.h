@@ -1,7 +1,5 @@
-#ifndef JIMINY_STANDARD_SENSORS_H
-#define JIMINY_STANDARD_SENSORS_H
-
-#include <iostream>
+#ifndef JIMINY_BASIC_SENSORS_H
+#define JIMINY_BASIC_SENSORS_H
 
 #include "jiminy/core/AbstractSensor.h"
 
@@ -87,4 +85,4 @@ namespace jiminy
     };
 }
 
-#endif //end of JIMINY_STANDARD_SENSORS_H
+#endif //end of JIMINY_BASIC_SENSORS_H
