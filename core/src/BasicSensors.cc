@@ -5,7 +5,7 @@
 
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Model.h"
-#include "jiminy/core/Sensor.h"
+#include "jiminy/core/BasicSensors.h"
 
 
 namespace jiminy

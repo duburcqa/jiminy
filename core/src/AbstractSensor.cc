@@ -57,15 +57,24 @@ namespace jiminy
         return returnCode;
     }
 
-    configHolder_t AbstractSensorBase::getOptions(void)
+    void AbstractSensorBase::updateTelemetry(void)
     {
-        return sensorOptionsHolder_;
+        if(isTelemetryConfigured_)
+        {
+            updateDataBuffer(); // Force update the internal measurement buffer if necessary
+            telemetrySender_.updateValue(getFieldNames(), data_);
+        }
     }
 
     void AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
     {
         sensorOptionsHolder_ = sensorOptions;
         sensorOptions_ = std::make_unique<abstractSensorOptions_t const>(sensorOptionsHolder_);
+    }
+
+    configHolder_t AbstractSensorBase::getOptions(void)
+    {
+        return sensorOptionsHolder_;
     }
 
     bool const & AbstractSensorBase::getIsInitialized(void) const
@@ -81,14 +90,5 @@ namespace jiminy
     std::string const & AbstractSensorBase::getName(void) const
     {
         return name_;
-    }
-
-    void AbstractSensorBase::updateTelemetry(void)
-    {
-        if(getIsTelemetryConfigured())
-        {
-            updateDataBuffer(); // Force update the internal measurement buffer if necessary
-            telemetrySender_.updateValue(getFieldNames(), data_);
-        }
     }
 }

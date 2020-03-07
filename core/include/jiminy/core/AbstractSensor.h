@@ -175,11 +175,7 @@ namespace jiminy
         ///
         /// \brief      Set the configuration options of the sensor.
         ///
-        /// \details    Note that one must reset Jiminy Engine for this to take effect.
-        ///
         /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void setOptions(configHolder_t const & sensorOptions);
@@ -189,11 +185,7 @@ namespace jiminy
         /// \brief      Set the same configuration options of any sensor of the same type than the
         ///             current one.
         ///
-        /// \details    Note that one must reset Jiminy Engine for this to take effect.
-        ///
         /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void setOptionsAll(configHolder_t const & sensorOptions) = 0;
@@ -202,11 +194,11 @@ namespace jiminy
         ///
         /// \brief      Get isInitialized_.
         ///
-        /// \details    It is a flag used to determine if the controller has been initialized.
+        /// \details    It is a flag used to determine if the sensor has been initialized.
         ///
-        /// \remark     Note that a controller can be considered initialized even if its telemetry is
-        ///             not properly configured. If not, it is the only to do before being ready to
-        ///             use.
+        /// \remark     Note that a sensor can be considered initialized even if its telemetry is
+        ///             not properly configured. If not, it is the only thing to do before being ready
+        ///             to use.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         bool const & getIsInitialized(void) const;

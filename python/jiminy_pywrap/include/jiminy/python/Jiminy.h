@@ -9,7 +9,7 @@
 
 #include "jiminy/core/Engine.h"
 #include "jiminy/core/AbstractSensor.h"
-#include "jiminy/core/Sensor.h"
+#include "jiminy/core/BasicSensors.h"
 #include "jiminy/core/Model.h"
 #include "jiminy/core/AbstractController.h"
 #include "jiminy/core/ControllerFunctor.h"
