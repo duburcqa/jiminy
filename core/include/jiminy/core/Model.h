@@ -144,8 +144,8 @@ namespace jiminy
         };
 
     public:
-        typedef std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> > sensorsHolder_t;
-        typedef std::unordered_map<std::string, sensorsHolder_t> sensorsGroupHolder_t;
+        using sensorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> >;
+        using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
     public:
         Model(void);
@@ -255,7 +255,7 @@ namespace jiminy
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
-        pinocchio::container::aligned_vector<pinocchio::Force> contactForces_; // Buffer to store the contact forces
+        forceVector_t contactForces_;                       ///< Buffer storing the contact forces
 
     protected:
         bool isInitialized_;

@@ -224,8 +224,7 @@ namespace jiminy
             contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
 
             // Reset the contact force internal buffer
-            contactForces_ = pinocchio::container::aligned_vector<pinocchio::Force>(
-                contactFramesNames_.size(), pinocchio::Force::Zero());
+            contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
 
             // Refresh the attributes of the model
             refreshModelProxies();
@@ -274,8 +273,7 @@ namespace jiminy
         }
 
         // Reset the contact force internal buffer
-        contactForces_ = pinocchio::container::aligned_vector<pinocchio::Force>(
-            contactFramesNames_.size(), pinocchio::Force::Zero());
+        contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
 
         // Refresh the attributes of the model
         refreshModelProxies();

@@ -189,7 +189,7 @@ namespace jiminy
         Eigen::Ref<vectorN_t const> q = stepperState_.q();
         Eigen::Ref<vectorN_t const> v = stepperState_.v();
         Eigen::Ref<vectorN_t const> a = stepperState_.a();
-        stepperState_t::forceVector_t const & fext = stepperState_.fExternal;
+        forceVector_t const & fext = stepperState_.fExternal;
         stepperState_.u = Engine::rnea(model_->pncModel_, model_->pncData_, q, v, a, fext);
         stepperState_.energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
             + pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
@@ -361,7 +361,7 @@ namespace jiminy
             vectorN_t & u = stepperState_.u;
             vectorN_t & uCommand = stepperState_.uCommand;
             vectorN_t & uInternal = stepperState_.uInternal;
-            stepperState_t::forceVector_t & fext = stepperState_.fExternal;
+            forceVector_t & fext = stepperState_.fExternal;
 
             // Compute the forward kinematics
             computeForwardKinematics(q, v, a);
@@ -758,9 +758,9 @@ namespace jiminy
         pinocchio::updateFramePlacements(model_->pncModel_, model_->pncData_);
     }
 
-    void Engine::computeExternalForces(float64_t const & t,
-                                       vectorN_t const & x,
-                                       pinocchio::container::aligned_vector<pinocchio::Force> & fext)
+    void Engine::computeExternalForces(float64_t     const & t,
+                                       vectorN_t     const & x,
+                                       forceVector_t       & fext)
     {
         // Reinitialize the external forces
         for (pinocchio::Force & fext_i : fext)
@@ -1215,7 +1215,7 @@ namespace jiminy
         vectorN_t & u = stepperState_.u;
         vectorN_t & uCommand = stepperState_.uCommand;
         vectorN_t & uInternal = stepperState_.uInternal;
-        stepperState_t::forceVector_t & fext = stepperState_.fExternal;
+        forceVector_t & fext = stepperState_.fExternal;
 
         // Compute kinematics information
         computeForwardKinematics(q, v, stepperState_.a());

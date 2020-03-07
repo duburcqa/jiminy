@@ -101,7 +101,7 @@ class EngineAsynchronous(object):
         """
         engine_options = self._engine.get_options()
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
-        self.reset(x0=None)
+        self.reset(reset_random_generator=True)
         self._engine.set_options(engine_options)
 
     def reset(self, x0=None):
@@ -202,7 +202,7 @@ class EngineAsynchronous(object):
         """
         if (self._state is None):
             # Get x by value, then convert the matrix column into an actual 1D array by reference
-            self._state = self._engine.stepper_state.x
+            self._state = self._engine.stepper_state.x #TODO: This is NOT the theoretical state but the actual one, which extra flexibilities if any
         return self._state
 
     @property

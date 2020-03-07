@@ -36,11 +36,11 @@ namespace jiminy
     class explicit_euler
     {
     public:
-        typedef vectorN_t state_type;
-        typedef vectorN_t deriv_type;
-        typedef float64_t value_type;
-        typedef float64_t time_type;
-        typedef unsigned short order_type;
+        using state_type = vectorN_t;
+        using deriv_type = vectorN_t;
+        using value_type = float64_t;
+        using time_type = float64_t;
+        using order_type = unsigned short;
 
         using stepper_category = controlled_stepper_tag;
 
@@ -65,9 +65,6 @@ namespace jiminy
 
     struct stepperState_t
     {
-    public:
-        typedef pinocchio::container::aligned_vector<pinocchio::Force> forceVector_t;
-
     public:
         stepperState_t(void) :
         iter(0),
@@ -111,8 +108,8 @@ namespace jiminy
             dxdt = vectorN_t::Zero(nx_);
             computePositionDerivative(model.pncModel_, q(), v(), qDot());
 
-            fExternal = stepperState_t::forceVector_t(model.pncModel_.joints.size(),
-                                                      pinocchio::Force::Zero());
+            fExternal = forceVector_t(model.pncModel_.joints.size(),
+                                      pinocchio::Force::Zero());
             uInternal = vectorN_t::Zero(nv_);
             uCommand = vectorN_t::Zero(model.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
@@ -157,8 +154,9 @@ namespace jiminy
         vectorN_t uCommand;
         vectorN_t uInternal;
         forceVector_t fExternal;
-        float64_t energy; ///< Energy of the system (kinetic + potential)
+        float64_t energy;           ///< Energy of the system (kinetic + potential)
 
+    private:
         uint32_t nx_;
         uint32_t nq_;
         uint32_t nv_;
@@ -169,16 +167,15 @@ namespace jiminy
     class Engine
     {
     public:
-        typedef std::function<vector3_t(float64_t const & /*t*/,
-                                        vectorN_t const & /*x*/)> forceFunctor_t; // Impossible to use function pointer since it does not support functors
-
-        typedef std::function<bool(float64_t const & /*t*/,
-                                   vectorN_t const & /*x*/)> callbackFunctor_t; // Impossible to use function pointer since it does not support functors
+        // Impossible to use function pointer since it does not support functors
+        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
+                                                       vectorN_t const & /*x*/)>;
+        using callbackFunctor_t =  std::function<bool(float64_t const & /*t*/,
+                                                      vectorN_t const & /*x*/)>;
 
     protected:
-        typedef runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra> rungeKuttaStepper_t;
-
-        typedef boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler> stepper_t;
+        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
+        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
 
     public:
         // Disable the copy of the class
@@ -497,9 +494,9 @@ namespace jiminy
                             Eigen::Ref<vectorN_t const>         q,
                             Eigen::Ref<vectorN_t const>         v,
                             vectorN_t                         & u);
-        void computeExternalForces(float64_t const & t,
-                                   vectorN_t const & x,
-                                   pinocchio::container::aligned_vector<pinocchio::Force> & fext);
+        void computeExternalForces(float64_t     const & t,
+                                   vectorN_t     const & x,
+                                   forceVector_t       & fext);
         void computeInternalDynamics(float64_t                   const & t,
                                      Eigen::Ref<vectorN_t const>         q,
                                      Eigen::Ref<vectorN_t const>         v,

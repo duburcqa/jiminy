@@ -8,6 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "pinocchio/container/aligned-vector.hpp"
+#include "pinocchio/spatial/force.hpp"
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <boost/variant.hpp>
@@ -21,30 +24,41 @@
 
 namespace jiminy
 {
+    // ******************* General definitions *******************
+
     // "Standard" types
-    typedef bool   bool_t;
-    typedef char   char_t;
-    typedef float  float32_t;
-    typedef double float64_t;
-    typedef char_t const* const const_cstr_t;
+    using bool_t = bool;
+    using char_t = char;
+    using float32_t = float;
+    using float64_t = double;
 
-    // Math types
-    typedef Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic> matrixN_t;
-    typedef Eigen::Matrix<float64_t, 3, 3>                           matrix3_t;
-    typedef Eigen::Matrix<float64_t, Eigen::Dynamic, 1>              vectorN_t;
-    typedef Eigen::Matrix<float64_t, 3, 1>                           vector3_t;
-    typedef Eigen::Matrix<float64_t, 6, 1>                           vector6_t;
-    typedef Eigen::Matrix<float64_t, 1, Eigen::Dynamic>              rowN_t;
+    using const_cstr_t = char_t const * const ;
 
-    typedef Eigen::Block<matrixN_t const, Eigen::Dynamic, Eigen::Dynamic> constBlockXpr;
-    typedef Eigen::Block<matrixN_t, Eigen::Dynamic, Eigen::Dynamic> blockXpr;
+    // Eigen types
+    using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
+    using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;
+    using vectorN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, 1>;
+    using vector3_t = Eigen::Matrix<float64_t, 3, 1>;
+    using vector6_t = Eigen::Matrix<float64_t, 6, 1>;
+    using rowN_t = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>;
 
-    typedef Eigen::Quaternion<float64_t> quaternion_t;
+    using constBlockXpr = Eigen::Block<matrixN_t const, Eigen::Dynamic, Eigen::Dynamic>;
+    using blockXpr = Eigen::Block<matrixN_t, Eigen::Dynamic, Eigen::Dynamic>;
 
+    using quaternion_t = Eigen::Quaternion<float64_t>;
+
+    // Pinocchio types
+    using forceVector_t = pinocchio::container::aligned_vector<pinocchio::Force>;
+
+    // *************** Constant of the universe ******************
+
+    // Define some constant of the universe
     float64_t const INF = std::numeric_limits<float64_t>::infinity();
     float64_t const EPS = std::numeric_limits<float64_t>::epsilon();
 
-    // Jiminy-specific type
+    // *************** Jiminy-specific definitions ***************
+
+    // Error codes
     enum class result_t : int32_t
     {
         SUCCESS = 1,
@@ -53,8 +67,11 @@ namespace jiminy
         ERROR_INIT_FAILED = -3
     };
 
-    typedef std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)> heatMapFunctor_t; // Impossible to use function pointer since it does not support functors
+    /* Ground profile signature.
+       Note that it is impossible to use function pointer since it does not support functors. */
+    using heatMapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;
 
+    // Flexible joints
     struct flexibleJointData_t
     {
         std::string jointName;
@@ -86,15 +103,19 @@ namespace jiminy
                  && this->damping == other.damping);
         };
     };
-    typedef std::vector<flexibleJointData_t> flexibilityConfig_t;
 
-    typedef boost::make_recursive_variant<bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t,
-                                          std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
-                                          flexibilityConfig_t, heatMapFunctor_t,
-                                          std::unordered_map<std::string, boost::recursive_variant_> >::type configField_t;
-    typedef std::unordered_map<std::string, configField_t> configHolder_t;
+    using flexibilityConfig_t =  std::vector<flexibleJointData_t>;
 
-    using namespace boost::multi_index;
+    // Configuration/option holder
+    using configField_t = boost::make_recursive_variant<
+        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t,
+        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
+        flexibilityConfig_t, heatMapFunctor_t,
+        std::unordered_map<std::string, boost::recursive_variant_> >::type;
+
+    using configHolder_t = std::unordered_map<std::string, configField_t>;
+
+    // Sensor data holder
     struct sensorDataTypePair_t {
         // Disable the copy of the class
         sensorDataTypePair_t(sensorDataTypePair_t const & sensorDataPairIn) = delete;
@@ -124,9 +145,11 @@ namespace jiminy
         uint32_t id;
         vectorN_t const * value;
     };
+
+    using namespace boost::multi_index;
     struct IndexByName {};
     struct IndexById {};
-    typedef multi_index_container<
+    using sensorDataTypeMap_t = multi_index_container<
         sensorDataTypePair_t,
         indexed_by<
             ordered_unique<
@@ -139,8 +162,9 @@ namespace jiminy
                 member<sensorDataTypePair_t, std::string, &sensorDataTypePair_t::name>
             >
         >
-    > sensorDataTypeMap_t;
-    typedef std::unordered_map<std::string, sensorDataTypeMap_t> sensorsDataMap_t;
+    >;
+
+    using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 }
 
 #endif  // WDC_OPTIMAL_TYPES_H

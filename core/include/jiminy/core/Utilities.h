@@ -58,7 +58,7 @@ namespace jiminy
 
     class Timer
     {
-        typedef std::chrono::high_resolution_clock Time;
+        using Time = std::chrono::high_resolution_clock;
 
     public:
         Timer(void);

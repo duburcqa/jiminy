@@ -1032,7 +1032,7 @@ namespace python
         : public bp::def_visitor<PyControllerFunctorVisitor>
     {
     public:
-        typedef ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper> CtrlFunctor;
+        using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1178,20 +1178,24 @@ namespace python
                                    (bp::arg("self"), "model", "controller", "callback_handle"))
 
                 .def("reset", &Engine::reset,
-                              (bp::arg("self"), bp::arg("remove_forces")=false))
+                              (bp::arg("self"),
+                               bp::arg("reset_random_generator") = false,
+                               bp::arg("remove_forces") = false))
                 .def("start", &Engine::start,
                               (bp::arg("self"), "x_init",
-                               bp::arg("reset_random_generator")=false,
-                               bp::arg("remove_forces")=false))
+                               bp::arg("reset_random_generator") = false,
+                               bp::arg("remove_forces") = false))
                 .def("step", &PyEngineVisitor::step,
-                             (bp::arg("self"), bp::arg("dt_desired")=-1))
+                             (bp::arg("self"),
+                              bp::arg("dt_desired") = -1))
                 .def("stop", &Engine::stop, (bp::arg("self")))
                 .def("simulate", &Engine::simulate,
                                  (bp::arg("self"), "x_init", "end_time"))
 
                 .def("get_log", &PyEngineVisitor::getLog)
                 .def("write_log", &PyEngineVisitor::writeLog,
-                                  (bp::arg("self"), "filename", bp::arg("isModeBinary")=true))
+                                  (bp::arg("self"), "filename",
+                                   bp::arg("isModeBinary") = true))
                 .def("read_log", &PyEngineVisitor::parseLogBinary, (bp::arg("filename")))
                 .staticmethod("read_log")
 
