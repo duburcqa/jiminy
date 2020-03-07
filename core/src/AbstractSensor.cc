@@ -7,7 +7,7 @@ namespace jiminy
     AbstractSensorBase::AbstractSensorBase(Model       const & model,
                                            std::string const & name) :
     sensorOptions_(),
-    sensorOptionsHolder_(),
+    baseSensorOptionsHolder_(),
     telemetrySender_(),
     isInitialized_(false),
     isTelemetryConfigured_(false),
@@ -61,15 +61,16 @@ namespace jiminy
         }
     }
 
-    void AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
+    result_t AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
     {
-        sensorOptionsHolder_ = sensorOptions;
-        sensorOptions_ = std::make_unique<abstractSensorOptions_t const>(sensorOptionsHolder_);
+        baseSensorOptionsHolder_ = sensorOptions;
+        sensorOptions_ = std::make_unique<abstractSensorOptions_t const>(baseSensorOptionsHolder_);
+        return result_t::SUCCESS;
     }
 
     configHolder_t AbstractSensorBase::getOptions(void) const
     {
-        return sensorOptionsHolder_;
+        return baseSensorOptionsHolder_;
     }
 
     bool_t const & AbstractSensorBase::getIsInitialized(void) const

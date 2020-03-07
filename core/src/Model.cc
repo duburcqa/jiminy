@@ -871,92 +871,141 @@ namespace jiminy
                                      std::string    const & sensorName,
                                      configHolder_t const & sensorOptions)
     {
-        if (!isInitialized_)
+        result_t returnCode = result_t::SUCCESS;
+
+        if (getIsLocked())
         {
-            std::cout << "Error - Model::setSensorOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            std::cout << "Error - Model::setSensorOptions - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before updating the sensor options." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - Model::setSensorOptions - Model not initialized." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         sensorsGroupHolder_t::iterator sensorGroupIt;
         sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
+        if (returnCode == result_t::SUCCESS)
         {
-            std::cout << "Error - Model::setSensorOptions - This type of sensor does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            if (sensorGroupIt == sensorsGroupHolder_.end())
+            {
+                std::cout << "Error - Model::setSensorOptions - This type of sensor does not exist." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
         }
 
         sensorsHolder_t::iterator sensorIt;
         sensorIt = sensorGroupIt->second.find(sensorName);
-        if (sensorIt == sensorGroupIt->second.end())
+        if (returnCode == result_t::SUCCESS)
         {
-            std::cout << "Error - Model::setSensorOptions - No sensor with this type and name exists." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            if (sensorIt == sensorGroupIt->second.end())
+            {
+                std::cout << "Error - Model::setSensorOptions - No sensor with this type and name exists." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
         }
-        sensorIt->second->setOptions(sensorOptions);
 
-        return result_t::SUCCESS;
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = sensorIt->second->setOptions(sensorOptions);
+        }
+
+        return returnCode;
     }
 
     result_t Model::setSensorsOptions(std::string    const & sensorType,
                                       configHolder_t const & sensorsOptions)
     {
-        if (!isInitialized_)
+        result_t returnCode = result_t::SUCCESS;
+
+        if (getIsLocked())
         {
-            std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            std::cout << "Error - Model::setSensorsOptions - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before updating the sensor options." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         sensorsGroupHolder_t::iterator sensorGroupIt;
         sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
+        if (returnCode == result_t::SUCCESS)
         {
-            std::cout << "Error - Model::setSensorsOptions - This type of sensor does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            if (sensorGroupIt == sensorsGroupHolder_.end())
+            {
+                std::cout << "Error - Model::setSensorsOptions - This type of sensor does not exist." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
         }
 
         for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
         {
-            configHolder_t::const_iterator it = sensorsOptions.find(sensor.first);
-            if (it != sensorsOptions.end())
+            if (returnCode == result_t::SUCCESS)
             {
-                sensor.second->setOptions(boost::get<configHolder_t>(it->second));
-            }
-            else
-            {
-                sensor.second->setOptionsAll(sensorsOptions);
-                break;
+                configHolder_t::const_iterator it = sensorsOptions.find(sensor.first);
+                if (it != sensorsOptions.end())
+                {
+                    returnCode = sensor.second->setOptions(boost::get<configHolder_t>(it->second));
+                }
+                else
+                {
+                    returnCode = sensor.second->setOptionsAll(sensorsOptions);
+                    break;
+                }
             }
         }
 
-        return result_t::SUCCESS;
+        return returnCode;
     }
 
     result_t Model::setSensorsOptions(configHolder_t const & sensorsOptions)
     {
+        result_t returnCode = result_t::SUCCESS;
+
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Model::setSensorsOptions - Model is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        if (!isInitialized_)
+        if (returnCode == result_t::SUCCESS)
         {
-            std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            if (!isInitialized_)
+            {
+                std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
         {
             for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
             {
-                sensor.second->setOptions(boost::get<configHolder_t>(
-                    boost::get<configHolder_t>(
-                        sensorsOptions.at(sensorGroup.first)).at(sensor.first))); // TODO: missing check for sensor type and name availability
+                if (returnCode == result_t::SUCCESS)
+                {
+                    // TODO: missing check for sensor type and name availability
+                    returnCode = sensor.second->setOptions(boost::get<configHolder_t>(
+                        boost::get<configHolder_t>(
+                            sensorsOptions.at(sensorGroup.first)).at(sensor.first)));
+                }
             }
         }
 
-        return result_t::SUCCESS;
+        return returnCode;
     }
 
     result_t Model::getTelemetryOptions(configHolder_t & telemetryOptions) const

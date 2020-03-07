@@ -8,7 +8,7 @@
 namespace jiminy
 {
     AbstractController::AbstractController(void) :
-    ctrlOptions_(nullptr),
+    baseControllerOptions_(nullptr),
     model_(nullptr),
     isInitialized_(false),
     isTelemetryConfigured_(false),
@@ -86,7 +86,7 @@ namespace jiminy
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        if (!isTelemetryConfigured_ && ctrlOptions_->telemetryEnable)
+        if (!isTelemetryConfigured_ && baseControllerOptions_->telemetryEnable)
         {
             if (telemetryData)
             {
@@ -209,7 +209,7 @@ namespace jiminy
     void AbstractController::setOptions(configHolder_t const & ctrlOptions)
     {
         ctrlOptionsHolder_ = ctrlOptions;
-        ctrlOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
+        baseControllerOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
     }
 
     bool_t AbstractController::getIsInitialized(void) const

@@ -33,6 +33,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractMotor.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractController.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicSensors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicMotors.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Model.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
 )

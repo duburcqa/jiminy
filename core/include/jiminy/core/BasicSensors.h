@@ -19,18 +19,18 @@ namespace jiminy
         result_t initialize(std::string const & frameName);
         virtual void reset(void) override;
 
-        std::string getFrameName(void) const;
+        std::string const & getFrameName(void) const;
 
     private:
-        result_t set(float64_t const & t,
-                     vectorN_t const & q,
-                     vectorN_t const & v,
-                     vectorN_t const & a,
-                     vectorN_t const & u) override;
+        virtual result_t set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & u) override;
 
     private:
         std::string frameName_;
-        int32_t     frameIdx_;
+        int32_t frameIdx_;
     };
 
     class ForceSensor : public AbstractSensorTpl<ForceSensor>
@@ -44,18 +44,18 @@ namespace jiminy
         result_t initialize(std::string const & frameName);
         virtual void reset(void) override;
 
-        std::string getFrameName(void) const;
+        std::string const & getFrameName(void) const;
 
     private:
-        result_t set(float64_t const & t,
-                     vectorN_t const & q,
-                     vectorN_t const & v,
-                     vectorN_t const & a,
-                     vectorN_t const & u);
+        virtual result_t set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & u);
 
     private:
         std::string frameName_;
-        int32_t     frameIdx_;
+        int32_t frameIdx_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
@@ -66,22 +66,22 @@ namespace jiminy
                       std::string const & name);
         ~EncoderSensor(void) = default;
 
-        result_t initialize(std::string const & motorName);
+        result_t initialize(std::string const & jointName);
         virtual void reset(void) override;
 
-        std::string getMotorName(void) const;
+        std::string const & getJointName(void) const;
 
     private:
-        result_t set(float64_t const & t,
-                     vectorN_t const & q,
-                     vectorN_t const & v,
-                     vectorN_t const & a,
-                     vectorN_t const & u);
+        virtual result_t set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & u);
 
     private:
-        std::string motorName_;
-        int32_t     motorPositionIdx_;
-        int32_t     motorVelocityIdx_;
+        std::string jointName_;
+        int32_t jointPositionIdx_;
+        int32_t jointVelocityIdx_;
     };
 }
 

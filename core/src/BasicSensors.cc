@@ -21,9 +21,9 @@ namespace jiminy
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
     ImuSensor::ImuSensor(Model       const & model,
-                         std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                         std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
                          std::string const & name) :
-    AbstractSensorTpl(model, dataHolder, name),
+    AbstractSensorTpl(model, sharedHolder, name),
     frameName_(),
     frameIdx_()
     {
@@ -51,7 +51,7 @@ namespace jiminy
         getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 
-    std::string ImuSensor::getFrameName(void) const
+    std::string const & ImuSensor::getFrameName(void) const
     {
         return frameName_;
     }
@@ -89,9 +89,9 @@ namespace jiminy
     std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
     ForceSensor::ForceSensor(Model       const & model,
-                             std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                             std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
                              std::string const & name) :
-    AbstractSensorTpl(model, dataHolder, name),
+    AbstractSensorTpl(model, sharedHolder, name),
     frameName_(),
     frameIdx_()
     {
@@ -119,7 +119,7 @@ namespace jiminy
         getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 
-    std::string ForceSensor::getFrameName(void) const
+    std::string const & ForceSensor::getFrameName(void) const
     {
         return frameName_;
     }
@@ -153,25 +153,25 @@ namespace jiminy
     std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 
     EncoderSensor::EncoderSensor(Model       const & model,
-                                 std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                                 std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
                                  std::string const & name) :
-    AbstractSensorTpl(model, dataHolder, name),
-    motorName_(),
-    motorPositionIdx_(),
-    motorVelocityIdx_()
+    AbstractSensorTpl(model, sharedHolder, name),
+    jointName_(),
+    jointPositionIdx_(),
+    jointVelocityIdx_()
     {
         // Empty.
     }
 
-    result_t EncoderSensor::initialize(std::string const & motorName)
+    result_t EncoderSensor::initialize(std::string const & jointName)
     {
         result_t returnCode = result_t::SUCCESS;
 
-        motorName_ = motorName;
-        returnCode = getJointPositionIdx(model_->pncModel_, motorName_, motorPositionIdx_);
+        jointName_ = jointName;
+        returnCode = getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = getJointVelocityIdx(model_->pncModel_, motorName_, motorVelocityIdx_);
+            returnCode = getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -185,13 +185,13 @@ namespace jiminy
     void EncoderSensor::reset(void)
     {
         AbstractSensorTpl<EncoderSensor>::reset();
-        getJointPositionIdx(model_->pncModel_, motorName_, motorPositionIdx_);
-        getJointVelocityIdx(model_->pncModel_, motorName_, motorVelocityIdx_);
+        getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
+        getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
     }
 
-    std::string EncoderSensor::getMotorName(void) const
+    std::string const & EncoderSensor::getJointName(void) const
     {
-        return motorName_;
+        return jointName_;
     }
 
     result_t EncoderSensor::set(float64_t const & t,
@@ -206,8 +206,8 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        data().head(1) = q.segment<1>(motorPositionIdx_);
-        data().tail(1) = v.segment<1>(motorVelocityIdx_);
+        data().head(1) = q.segment<1>(jointPositionIdx_);
+        data().tail(1) = v.segment<1>(jointVelocityIdx_);
 
         return result_t::SUCCESS;
     }

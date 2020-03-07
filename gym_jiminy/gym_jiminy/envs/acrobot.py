@@ -239,7 +239,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _get_info(self):
         """
-        @brief      Get the observation associated to the current state of the model,
+        @brief      Get the observation associated with the current state of the model,
                     along with some additional information.
 
         @remark     This is a hidden function that is not listed as part of the

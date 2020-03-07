@@ -275,7 +275,7 @@ namespace jiminy
         virtual void reset(bool_t const & resetDynamicTelemetry = false);
 
     public:
-        std::unique_ptr<controllerOptions_t const> ctrlOptions_;    ///< Structure with the parameters of the controller
+        std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
 
     protected:
         std::shared_ptr<Model const> model_;    ///< Model of the system for which to compute the command and internal dynamics must be computed

@@ -14,7 +14,7 @@ namespace jiminy
 
         if (sensor)
         {
-            std::cout << "Error - Model::addSensor - Shared pointer 'sensor' already associated to an existing sensor." << std::endl;
+            std::cout << "Error - Model::addSensor - Shared pointer 'sensor' already associated with an existing sensor." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 

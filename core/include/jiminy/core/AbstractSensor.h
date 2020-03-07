@@ -168,7 +168,7 @@ namespace jiminy
         /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void setOptions(configHolder_t const & sensorOptions);
+        virtual result_t setOptions(configHolder_t const & sensorOptions);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -178,7 +178,7 @@ namespace jiminy
         /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void setOptionsAll(configHolder_t const & sensorOptions) = 0;
+        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -210,7 +210,7 @@ namespace jiminy
         /// \details    It is the name of the sensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::string const & getName(void) const;
+        std::string const & getName(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -381,15 +381,15 @@ namespace jiminy
         std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; ///< Structure with the parameters of the sensor
 
     protected:
-        configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
-        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
-        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
-        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
-        Model const * model_;                   ///< Model of the system for which the command and internal dynamics
+        configHolder_t baseSensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
+        TelemetrySender telemetrySender_;           ///< Telemetry sender of the sensor used to register and update telemetry variables
+        bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
+        bool_t isTelemetryConfigured_;              ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        Model const * model_;                       ///< Model of the system for which the command and internal dynamics
 
     private:
-        std::string name_;                      ///< Name of the sensor
-        vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
+        std::string name_;                          ///< Name of the sensor
+        vectorN_t data_;                            ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
     };
 
     template<class T>
@@ -402,14 +402,14 @@ namespace jiminy
 
     public:
         AbstractSensorTpl(Model       const & model,
-                          std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                          std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
                           std::string const & name);
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
 
-        virtual void setOptions(configHolder_t const & sensorOptions) override;
-        virtual void setOptionsAll(configHolder_t const & sensorOptions) override final;
+        virtual result_t setOptions(configHolder_t const & sensorOptions) override;
+        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
         virtual uint8_t const & getId(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldNames(void) const final;

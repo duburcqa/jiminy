@@ -8,10 +8,10 @@ namespace jiminy
 
     template <typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(Model       const & model,
-                                            std::shared_ptr<SensorSharedDataHolder_t> const & dataHolder,
+                                            std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
                                             std::string const & name) :
     AbstractSensorBase(model, name),
-    sharedHolder_(dataHolder),
+    sharedHolder_(sharedHolder),
     sensorId_(sharedHolder_->num_)
     {
         // Add the sensor to the data holder
@@ -87,19 +87,27 @@ namespace jiminy
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
+    result_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
         AbstractSensorBase::setOptions(sensorOptions);
         sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, sensorOptions_->delay);
+        return result_t::SUCCESS;
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
+    result_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
+        result_t returnCode = result_t::SUCCESS;
+
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            sensor->setOptions(sensorOptions);
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = sensor->setOptions(sensorOptions);
+            }
         }
+
+        return returnCode;
     }
 
     template <typename T>

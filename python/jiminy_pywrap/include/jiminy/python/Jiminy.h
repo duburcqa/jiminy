@@ -1323,7 +1323,7 @@ namespace python
                 std::string const & header_i = header[i + (lastConstantId + 1) + 1];
                 // One must make copies with PyArray_FROM_OF instead of using raw pointer for floatDataMatrix
                 // and setting NPY_ARRAY_OWNDATA because otherwise Python is not able to free the memory
-                // associated to each columns independently.
+                // associated with each columns independently.
                 // Moreover, one must decrease manually the counter reference for some reason...
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
                 Py_XDECREF(valuePyInt);

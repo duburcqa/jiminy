@@ -399,7 +399,7 @@ namespace jiminy
         /// \details This function reset the engine, the model and the controller, and update internal data
         ///          to match the given initial state.
         /// \param[in] xInit Initial state.
-        /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
+        /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
@@ -429,7 +429,7 @@ namespace jiminy
         ///
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] xInit Initial state, i.e. state at t=0.
-        /// \param[in] isStateTheoretical Specify if the initial state is associated to the current or theoretical model
+        /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         result_t simulate(float64_t const & tEnd,
                           vectorN_t const & xInit,
                           bool_t    const & isStateTheoretical = false);
