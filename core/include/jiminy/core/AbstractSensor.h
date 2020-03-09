@@ -15,7 +15,6 @@
 
 #include <boost/circular_buffer.hpp>
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"
 
@@ -28,7 +27,6 @@ namespace jiminy
     class Model;
 
     class AbstractSensorBase;
-    template<typename> class AbstractSensorTpl;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -65,10 +63,6 @@ namespace jiminy
 
     class AbstractSensorBase
     {
-        friend class Model;
-
-        template<typename> friend class AbstractSensorTpl;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between sensors
@@ -123,12 +117,139 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief Reset the internal state of the sensor.
+        ///
+        /// \details  This method resets the internal state of the sensor and unset the configuration
+        ///           of the telemetry.
+        ///
+        /// \remark   This method is not intended to be called manually. The Model to which the
+        ///           sensor is added is taking care of it when its own `reset` method is called.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void reset(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Refresh the proxies.
+        ///
+        /// \remark   This method is not intended to be called manually. The Model to which the
+        ///           motor is added is taking care of it when its own `refresh` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t refreshProxies(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Configure the telemetry of the sensor.
+        ///
+        /// \details    This method connects the controller-specific telemetry sender to a given
+        ///             telemetry data (which is unique for a given exoskeleton model), so that it is
+        ///             later possible to register the variables that one want to monitor. Finally,
+        ///             the telemetry recoder logs every registered variables at each timestep in a
+        ///             memory buffer.
+        ///
+        /// \remark     This method is not intended to be called manually. The Model to which the
+        ///             sensor is added is taking care of it before flushing the telemetry data
+        ///             at the end of each simulation steps.
+        ///
+        /// \param[in]  telemetryData       Shared pointer to the model-wide telemetry data object
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Update the internal buffers of the telemetry associated with variables
+        ///             monitored by the sensor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        void updateTelemetry(void);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Update the internal buffers of the telemetry associated with variables
+        ///             monitored every sensors of the same type than the current one.
+        ///
+        /// \remark     This method is not intended to be called manually. The Model to which the
+        ///             sensor is added is taking care of it before flushing the telemetry data at
+        //              the end of each simulation steps.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void updateTelemetryAll(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Set the configuration options of the sensor.
+        ///
+        /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t setOptions(configHolder_t const & sensorOptions);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Set the same configuration options of any sensor of the same type than the
+        ///             current one.
+        ///
+        /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Get the configuration options of the sensor.
         ///
         /// \return     Dictionary with the parameters of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         configHolder_t getOptions(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Request the sensor to record data based of the input data.
+        ///
+        /// \details    It assumes that the internal state of the model is consistent with the
+        ///             input arguments.
+        ///
+        /// \param[in]  t       Current time
+        /// \param[in]  q       Current configuration vector
+        /// \param[in]  v       Current velocity vector
+        /// \param[in]  a       Current acceleration vector
+        /// \param[in]  u       Current torque vector
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & u) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Request every sensors of the same type than the current one to record data
+        ///             based of the input data.
+        ///
+        /// \details    It assumes that the internal state of the model is consistent with the
+        ///             input arguments.
+        ///
+        /// \remark     This method is not intended to be called manually. The Model to which the
+        ///             sensor is added is taking care of it while updating the state of the sensors.
+        ///
+        /// \param[in]  t       Current time
+        /// \param[in]  q       Current configuration vector
+        /// \param[in]  v       Current velocity vector
+        /// \param[in]  a       Current acceleration vector
+        /// \param[in]  u       Current torque vector
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t setAll(float64_t const & t,
+                                vectorN_t const & q,
+                                vectorN_t const & v,
+                                vectorN_t const & a,
+                                vectorN_t const & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -160,25 +281,6 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual matrixN_t getAll(void) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Set the configuration options of the sensor.
-        ///
-        /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setOptions(configHolder_t const & sensorOptions);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Set the same configuration options of any sensor of the same type than the
-        ///             current one.
-        ///
-        /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -247,85 +349,6 @@ namespace jiminy
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief Reset the internal state of the sensor.
-        ///
-        /// \details  This method resets the internal state of the sensor and unset the configuration
-        ///           of the telemetry.
-        ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
-        ///           sensor is added is taking care of it when its own `reset` method is called.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(void) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Configure the telemetry of the sensor.
-        ///
-        /// \details    This method connects the controller-specific telemetry sender to a given
-        ///             telemetry data (which is unique for a given exoskeleton model), so that it is
-        ///             later possible to register the variables that one want to monitor. Finally,
-        ///             the telemetry recoder logs every registered variables at each timestep in a
-        ///             memory buffer.
-        ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
-        ///             sensor is added is taking care of it before flushing the telemetry data
-        ///             at the end of each simulation steps.
-        ///
-        /// \param[in]  telemetryData       Shared pointer to the model-wide telemetry data object
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Update the internal buffers of the telemetry associated with variables
-        ///             monitored every sensors of the same type than the current one.
-        ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
-        ///             sensor is added is taking care of it before flushing the telemetry data at
-        //              the end of each simulation steps.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void updateTelemetryAll(void) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Request every sensors of the same type than the current one to record data
-        ///             based of the input data.
-        ///
-        /// \details    It assumes that the internal state of the model is consistent with the
-        ///             input arguments.
-        ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
-        ///             sensor is added is taking care of it while updating the state of the sensors.
-        ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setAll(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & u) = 0;
-
-    private:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Update the internal buffers of the telemetry associated with variables
-        ///             monitored by the sensor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        void updateTelemetry(void);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
         /// \brief      Get a Eigen Reference to a Eigen Vector corresponding to the last data
         ///             recorded (or being recorded) by the sensor.
         ///
@@ -337,28 +360,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual Eigen::Ref<vectorN_t> data(void) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Request the sensor to record data based of the input data.
-        ///
-        /// \details    It assumes that the internal state of the model is consistent with the
-        ///             input arguments.
-        ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & u) = 0;
+        static Eigen::Ref<vectorN_t> data(AbstractSensorBase* base) { return base->data(); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -376,24 +378,23 @@ namespace jiminy
         /// \brief      Update the measurement buffer.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual result_t updateDataBuffer(void) = 0;
+        static result_t updateDataBuffer(AbstractSensorBase* base) { return base->updateDataBuffer(); }
 
     public:
-        std::unique_ptr<abstractSensorOptions_t const> sensorOptions_; ///< Structure with the parameters of the sensor
+        std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;    ///< Structure with the parameters of the sensor
 
     protected:
-        configHolder_t baseSensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
-        TelemetrySender telemetrySender_;           ///< Telemetry sender of the sensor used to register and update telemetry variables
-        bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
-        bool_t isTelemetryConfigured_;              ///< Flag to determine whether the telemetry of the controller has been initialized or not
-        Model const * model_;                       ///< Model of the system for which the command and internal dynamics
-
-    private:
-        std::string name_;                          ///< Name of the sensor
-        vectorN_t data_;                            ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
+        configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
+        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
+        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
+        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        Model const * model_;                   ///< Model of the system for which the command and internal dynamics
+        std::string name_;                      ///< Name of the sensor
+        vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
     };
 
     template<class T>
-    class AbstractSensorTpl : public AbstractSensorBase
+    class AbstractSensorTpl : private AbstractSensorBase
     {
     public:
         // Disable the copy of the class
@@ -407,6 +408,9 @@ namespace jiminy
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
+        using AbstractSensorBase::refreshProxies;
+        using AbstractSensorBase::updateTelemetry;
+        void updateTelemetryAll(void) override final;
 
         virtual result_t setOptions(configHolder_t const & sensorOptions) override;
         virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
@@ -422,15 +426,16 @@ namespace jiminy
                                 vectorN_t const & v,
                                 vectorN_t const & a,
                                 vectorN_t const & u) override final;
-        void updateTelemetryAll(void) override final;
 
     protected:
-        virtual std::string getTelemetryName(void) const override final;
-
+        using AbstractSensorBase::data;
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
+        virtual std::string getTelemetryName(void) const override final;
+        using AbstractSensorBase::updateDataBuffer;
         virtual result_t updateDataBuffer(void) override final;
+        void clearDataBuffer(void);
 
     public:
         /* Be careful, the variable must be const if static since the 'static'
@@ -439,6 +444,15 @@ namespace jiminy
         static std::string const type_;
         static bool_t const areFieldNamesGrouped_;
         static std::vector<std::string> const fieldNames_;
+
+    protected:
+        using AbstractSensorBase::sensorOptionsHolder_;
+        using AbstractSensorBase::telemetrySender_;
+        using AbstractSensorBase::isInitialized_;
+        using AbstractSensorBase::isTelemetryConfigured_;
+        using AbstractSensorBase::model_;
+        using AbstractSensorBase::name_;
+        using AbstractSensorBase::data_;
 
     private:
         std::shared_ptr<SensorSharedDataHolder_t> sharedHolder_;

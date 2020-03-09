@@ -645,8 +645,7 @@ namespace python
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
                                     bp::return_value_policy<bp::reference_existing_object>())
 
-                .add_property("sensors_data", bp::make_function(&PyModelVisitor::getSensorsData,
-                                              bp::return_value_policy<bp::manage_new_object>()))
+                .add_property("sensors_data", &Model::getSensorsData)
 
                 .def("get_model_options", &PyModelVisitor::getModelOptions,
                                           bp::return_value_policy<bp::return_by_value>())
@@ -660,9 +659,9 @@ namespace python
                 .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
                                                 bp::return_internal_reference<>()))
                 .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
-                                                 bp::return_internal_reference<>()))
+                                                    bp::return_internal_reference<>()))
                 .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
-                                                bp::return_internal_reference<>()))
+                                                   bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
@@ -684,10 +683,10 @@ namespace python
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_position_idx", bp::make_function(&Model::getMotorsPositionIdx,
-                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_velocity_idx", bp::make_function(&Model::getMotorsVelocityIdx,
                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("sensors_names", bp::make_function(&Model::getSensorsNames,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
@@ -773,20 +772,26 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static sensorsDataMap_t * getSensorsData(Model & model)
-        {
-            sensorsDataMap_t * data = new sensorsDataMap_t();
-            model.getSensorsData(*data);
-            return data;
-        }
-
         static AbstractSensorBase * getSensor(Model             & self,
                                               std::string const & sensorType,
                                               std::string const & sensorName)
         {
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
-            return sensor.get();
+            return *sensor;
+        }
+
+        static bp::dict getSensorsNames(Model & self)
+        {
+            bp::dict sensorsNamesPy;
+            auto sensorsNames = self.getSensorsNames();
+            for (auto const & sensorTypeNames : sensorsNames)
+            {
+                bp::object dataPy;
+                convertToPy(sensorTypeNames.second, dataPy);
+                configPyDict[sensorTypeNames.first] = dataPy;
+            }
+            return sensorsNamesPy;
         }
 
         static bool_t isFlexibleModelEnable(Model & self)

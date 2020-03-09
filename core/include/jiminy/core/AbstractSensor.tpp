@@ -1,5 +1,6 @@
-#include "jiminy/core/Model.h"
 #include "jiminy/core/Engine.h" // MIN_TIME_STEP and MAX_TIME_STEP
+#include "jiminy/core/Model.h"
+#include "jiminy/core/Utilities.h"
 
 namespace jiminy
 {
@@ -14,12 +15,15 @@ namespace jiminy
     sharedHolder_(sharedHolder),
     sensorId_(sharedHolder_->num_)
     {
+        // Initialize the options
+        setOptions(getDefaultOptions());
+
         // Add the sensor to the data holder
         ++sharedHolder_->num_;
         sharedHolder_->sensors_.push_back(this);
 
-        // Reset the sensors' internal state
-        AbstractSensorTpl<T>::reset();
+        // Generate a new data buffer taking into account the new sensor
+        clearDataBuffer();
     }
 
     template <typename T>
@@ -55,32 +59,28 @@ namespace jiminy
         --sharedHolder_->num_;
 
         // Update delayMax_ proxy if necessary
-        if (sharedHolder_->delayMax_ < sensorOptions_->delay + EPS)
+        if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
         {
             sharedHolder_->delayMax_ = 0.0;
             for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
             {
                 sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
-                                                    sensor->sensorOptions_->delay);
+                                                    sensor->baseSensorOptions_->delay);
             }
         }
 
-        // Reset the sensors' internal state
-        reset();
+        // Generate a new data buffer taking into account the new sensor
+        clearDataBuffer();
     }
 
     template <typename T>
     void AbstractSensorTpl<T>::reset(void)
     {
-        sharedHolder_->time_.resize(2);
-        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
-        sharedHolder_->time_.back() = 0;
-        sharedHolder_->data_.resize(2);
-        for (matrixN_t & data : sharedHolder_->data_)
-        {
-            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size is ill-defined
-        }
-        data_ = vectorN_t::Zero(getSize());
+        // Clear the data buffer
+        clearDataBuffer();
+
+        // Refresh proxies that are model-dependent
+        refreshProxies();
 
         // Reset the telemetry state
         isTelemetryConfigured_ = false;
@@ -90,7 +90,7 @@ namespace jiminy
     result_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
         AbstractSensorBase::setOptions(sensorOptions);
-        sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, sensorOptions_->delay);
+        sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
         return result_t::SUCCESS;
     }
 
@@ -174,7 +174,7 @@ namespace jiminy
     result_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
         // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
-        float64_t const timeDesired = sharedHolder_->time_.back() - sensorOptions_->delay + 1e-9;
+        float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + 1e-9;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
@@ -230,11 +230,11 @@ namespace jiminy
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
                 return result_t::ERROR_GENERIC;
             }
-            else if (sensorOptions_->delayInterpolationOrder == 0)
+            else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
                 data_ = sharedHolder_->data_[inputIndexLeft].col(sensorId_);
             }
-            else if (sensorOptions_->delayInterpolationOrder == 1)
+            else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
                 data_ = 1 / (sharedHolder_->time_[inputIndexLeft + 1] - sharedHolder_->time_[inputIndexLeft]) *
                     ((timeDesired - sharedHolder_->time_[inputIndexLeft]) * sharedHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
@@ -249,7 +249,7 @@ namespace jiminy
         else
         {
             if (sharedHolder_->time_[0] >= 0.0
-            || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
+            || baseSensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
             {
                 // Return the most recent value
                 data_ = sharedHolder_->data_.back().col(sensorId_);
@@ -264,6 +264,19 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    template <typename T>
+    void AbstractSensorTpl<T>::clearDataBuffer(void)
+    {
+        sharedHolder_->time_.resize(2);
+        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
+        sharedHolder_->time_.back() = 0;
+        sharedHolder_->data_.resize(2);
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size is ill-defined
+        }
+        data_ = vectorN_t::Zero(getSize());
+    }
 
     template <typename T>
     result_t AbstractSensorTpl<T>::setAll(float64_t const & t,
@@ -341,20 +354,20 @@ namespace jiminy
             if (returnCode == result_t::SUCCESS)
             {
                 // Add white noise
-                if (sensorOptions_->noiseStd.size())
+                if (baseSensorOptions_->noiseStd.size())
                 {
-                    sensor->data() += randVectorNormal(sensor->sensorOptions_->noiseStd);
+                    data(sensor) += randVectorNormal(sensor->baseSensorOptions_->noiseStd);
                 }
-                if (sensor->sensorOptions_->bias.size())
+                if (sensor->baseSensorOptions_->bias.size())
                 {
-                    sensor->data() += sensor->sensorOptions_->bias;
+                    data(sensor) += sensor->baseSensorOptions_->bias;
                 }
             }
 
             if (returnCode == result_t::SUCCESS)
             {
                 // Update data buffer
-                returnCode = sensor->updateDataBuffer();
+                returnCode = updateDataBuffer(sensor);
             }
         }
 

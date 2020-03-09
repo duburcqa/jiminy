@@ -17,8 +17,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/Engine.h" // Required to get access to MIN_TIME_STEP and MAX_TIME_STEP
-#include "jiminy/core/TelemetrySender.h"
+#include "jiminy/core/Engine.h"     // MIN_TIME_STEP and MAX_TIME_STEP
 
 
 namespace jiminy
@@ -26,7 +25,7 @@ namespace jiminy
     extern float64_t const MIN_TIME_STEP;
     extern float64_t const MAX_TIME_STEP;
 
-    // *************** Local Mutex /Lock mechanism ******************
+    // *************** Local Mutex/Lock mechanism ******************
 
     MutexLocal::MutexLocal(void) :
     isLocked_(new bool_t{false})
@@ -44,15 +43,15 @@ namespace jiminy
         return *isLocked_;
     }
 
-    LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
-    ownerFlag_(mutexLocal.isLocked_)
+    MutexLocal::LockGuardLocal::LockGuardLocal(MutexLocal & mutexLocal) :
+    mutexFlag_(mutexLocal.isLocked_)
     {
-        *ownerFlag_ = true;
+        *mutexFlag_ = true;
     }
 
-    LockGuardLocal::~LockGuardLocal(void)
+    MutexLocal::LockGuardLocal::~LockGuardLocal(void)
     {
-        *ownerFlag_ = false;
+        *mutexFlag_ = false;
     }
 
     // ************************* Timer **************************

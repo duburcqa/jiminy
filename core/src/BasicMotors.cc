@@ -10,44 +10,15 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(Model       const & model,
+    SimpleMotor::SimpleMotor(Model             & model,
                              std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
                              std::string const & name) :
     AbstractMotor(model, sharedHolder, name),
-    motorOptions_(nullptr),
-    jointName_(),
-    motorPositionIdx_(),
-    motorVelocityIdx_()
+    motorOptions_(nullptr)
     {
         /* AbstractMotor constructor calls the base implementations of the virtual methods since the derived
            class is not available at this point. Thus it must be called explicitly in the constructor. */
         setOptions(getDefaultOptions());
-    }
-
-    result_t SimpleMotor::initialize(std::string const & jointName)
-    {
-        result_t returnCode = result_t::SUCCESS;
-
-        jointName_ = jointName;
-        returnCode = getJointPositionIdx(model_->pncModel_, jointName_, motorPositionIdx_);
-        if (returnCode == result_t::SUCCESS)
-        {
-            returnCode = getJointVelocityIdx(model_->pncModel_, jointName_, motorVelocityIdx_);
-        }
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            isInitialized_ = true;
-        }
-
-        return returnCode;
-    }
-
-    void SimpleMotor::reset(void)
-    {
-        AbstractMotor::reset();
-        getJointPositionIdx(model_->pncModel_, jointName_, motorPositionIdx_);
-        getJointVelocityIdx(model_->pncModel_, jointName_, motorVelocityIdx_);
     }
 
     result_t SimpleMotor::setOptions(configHolder_t motorOptions)
@@ -95,11 +66,6 @@ namespace jiminy
         return returnCode;
     }
 
-    std::string const & SimpleMotor::getJointName(void) const
-    {
-        return jointName_;
-    }
-
     result_t SimpleMotor::computeEffort(float64_t const & t,
                                         vectorN_t const & q,
                                         vectorN_t const & v,
@@ -113,12 +79,18 @@ namespace jiminy
         }
 
         // Bypass
-        data() = u[motorVelocityIdx_];
+        data() = u[getJointVelocityIdx()];
+
+        // Enforce the torque limits
+        if (motorOptions_->enableTorqueLimit)
+        {
+            data() = clamp(data(), -getTorqueLimit(), getTorqueLimit());
+        }
 
         // Add friction to the joints associated with the motor if enable
         if (motorOptions_->enableFriction)
         {
-            float64_t const & vMotor = v[motorVelocityIdx_];
+            float64_t const & vMotor = v[getJointVelocityIdx()];
             if (vMotor > 0)
             {
                 data() += motorOptions_->frictionViscousPositive * vMotor

@@ -3,8 +3,8 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Model.h"
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/BasicSensors.h"
 
 
@@ -35,7 +35,7 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
 
         frameName_ = frameName;
-        returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        returnCode = refreshProxies();
 
         if (returnCode == result_t::SUCCESS)
         {
@@ -45,10 +45,22 @@ namespace jiminy
         return returnCode;
     }
 
-    void ImuSensor::reset(void)
+    result_t ImuSensor::refreshProxies(void)
     {
-        AbstractSensorTpl<ImuSensor>::reset();
-        getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        result_t returnCode = result_t::SUCCESS;
+
+        if (model_->getIsInitialized())
+        {
+            std::cout << "Error - ImuSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        }
+
+        return returnCode;
     }
 
     std::string const & ImuSensor::getFrameName(void) const
@@ -103,7 +115,7 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
 
         frameName_ = frameName;
-        returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        returnCode = refreshProxies();
 
         if (returnCode == result_t::SUCCESS)
         {
@@ -113,10 +125,22 @@ namespace jiminy
         return returnCode;
     }
 
-    void ForceSensor::reset(void)
+    result_t ForceSensor::refreshProxies(void)
     {
-        AbstractSensorTpl<ForceSensor>::reset();
-        getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        result_t returnCode = result_t::SUCCESS;
+
+        if (model_->getIsInitialized())
+        {
+            std::cout << "Error - ForceSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        }
+
+        return returnCode;
     }
 
     std::string const & ForceSensor::getFrameName(void) const
@@ -168,11 +192,7 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
 
         jointName_ = jointName;
-        returnCode = getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
-        if (returnCode == result_t::SUCCESS)
-        {
-            returnCode = getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
-        }
+        returnCode = refreshProxies();
 
         if (returnCode == result_t::SUCCESS)
         {
@@ -182,11 +202,27 @@ namespace jiminy
         return returnCode;
     }
 
-    void EncoderSensor::reset(void)
+    result_t EncoderSensor::refreshProxies(void)
     {
-        AbstractSensorTpl<EncoderSensor>::reset();
-        getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
-        getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
+        result_t returnCode = result_t::SUCCESS;
+
+        if (model_->getIsInitialized())
+        {
+            std::cout << "Error - EncoderSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
+        }
+
+        return returnCode;
     }
 
     std::string const & EncoderSensor::getJointName(void) const

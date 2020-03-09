@@ -27,8 +27,6 @@ namespace jiminy
     //////////////////////////////////////////////////////////////////////////////////////////////
     class AbstractController
     {
-        friend Engine;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between controllers
@@ -55,12 +53,11 @@ namespace jiminy
         };
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        // Forbid the copy of the class
         AbstractController(AbstractController const & controller) = delete;
         AbstractController & operator = (AbstractController const & controller) = delete;
 
+    public:
         AbstractController(void);
         virtual ~AbstractController(void) = default;
 
@@ -196,30 +193,6 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Get isInitialized_.
-        ///
-        /// \details    It is a flag used to determine if the controller has been initialized.
-        ///
-        /// \remark     Note that a controller can be considered initialized even if its telemetry is
-        ///             not properly configured. If not, it is the only to do before being ready to
-        ///             use.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t getIsInitialized(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get isTelemetryConfigured_.
-        ///
-        /// \details    It is a flag used to determine if the telemetry of the controller has been
-        ///             initialized.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t getIsTelemetryConfigured(void) const;
-
-    protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
         /// \brief      Configure the telemetry of the controller.
         ///
         /// \details    This method connects the controller-specific telemetry sender to a given
@@ -273,6 +246,29 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void reset(bool_t const & resetDynamicTelemetry = false);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Get isInitialized_.
+        ///
+        /// \details    It is a flag used to determine if the controller has been initialized.
+        ///
+        /// \remark     Note that a controller can be considered initialized even if its telemetry is
+        ///             not properly configured. If not, it is the only to do before being ready to
+        ///             use.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        bool_t getIsInitialized(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Get isTelemetryConfigured_.
+        ///
+        /// \details    It is a flag used to determine if the telemetry of the controller has been
+        ///             initialized.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        bool_t getIsTelemetryConfigured(void) const;
 
     public:
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller

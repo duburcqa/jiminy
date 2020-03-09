@@ -30,7 +30,7 @@ namespace jiminy
     template<typename F1, typename F2>
     result_t ControllerFunctor<F1, F2>::initialize(std::shared_ptr<Model const> const & model)
     {
-        model->getSensorsData(sensorsData_);
+        sensorsData_ = model->getSensorsData(); // Only one copy is needed thanks to C++11 Copy Elision paradigm
         return AbstractController::initialize(model);
     }
 

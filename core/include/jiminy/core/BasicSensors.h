@@ -17,7 +17,8 @@ namespace jiminy
         ~ImuSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
-        virtual void reset(void) override;
+
+        virtual result_t refreshProxies(void) override;
 
         std::string const & getFrameName(void) const;
 
@@ -42,7 +43,8 @@ namespace jiminy
         ~ForceSensor(void) = default;
 
         result_t initialize(std::string const & frameName);
-        virtual void reset(void) override;
+
+        virtual result_t refreshProxies(void) override;
 
         std::string const & getFrameName(void) const;
 
@@ -67,7 +69,8 @@ namespace jiminy
         ~EncoderSensor(void) = default;
 
         result_t initialize(std::string const & jointName);
-        virtual void reset(void) override;
+
+        virtual result_t refreshProxies(void) override;
 
         std::string const & getJointName(void) const;
 

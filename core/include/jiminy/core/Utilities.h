@@ -12,21 +12,33 @@
 
 namespace jiminy
 {
-    class TelemetrySender;
-
-    // *************** Local Mutex /Lock mechanism ******************
-
-    class LockGuardLocal;
+    // *************** Local Mutex/Lock mechanism ******************
 
     class MutexLocal
     {
-        friend LockGuardLocal;
+    public:
+        class LockGuardLocal
+        {
+        public:
+            // Disable the copy of the class
+            LockGuardLocal(LockGuardLocal const & lockGuardLocalIn) = delete;
+            LockGuardLocal & operator = (LockGuardLocal const & other) = delete;
+
+            LockGuardLocal(MutexLocal & mutexLocal);
+            LockGuardLocal(LockGuardLocal && other) = default;
+
+            ~LockGuardLocal(void);
+
+        private:
+            std::shared_ptr<bool_t> mutexFlag_;
+        };
 
     public:
         // Disable the copy of the class
         MutexLocal(MutexLocal const & mutexLocalIn) = delete;
         MutexLocal & operator = (MutexLocal const & other) = delete;
 
+    public:
         MutexLocal(void);
         MutexLocal(MutexLocal && other) = default;
 
@@ -36,22 +48,6 @@ namespace jiminy
 
     private:
         std::shared_ptr<bool_t> isLocked_;
-    };
-
-    class LockGuardLocal
-    {
-    public:
-        // Disable the copy of the class
-        LockGuardLocal(LockGuardLocal const & lockGuardLocalIn) = delete;
-        LockGuardLocal & operator = (LockGuardLocal const & other) = delete;
-
-        LockGuardLocal(MutexLocal & mutexLocal);
-        LockGuardLocal(LockGuardLocal && other) = default;
-
-        ~LockGuardLocal(void);
-
-    private:
-        std::shared_ptr<bool_t> ownerFlag_;
     };
 
     // ************************ Timer *******************************
@@ -225,6 +221,9 @@ namespace jiminy
 
     template<class F, class dF=std::decay_t<F> >
     auto notF(F&& f);
+
+    template<template <typename...> class MapType, typename KeyType, typename ValueType>
+    std::vector<KeyType> getMapKeys(MapType<KeyType, ValueType> const & m);
 
     template<typename type>
     void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1>       & vector,

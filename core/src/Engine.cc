@@ -825,19 +825,6 @@ namespace jiminy
 
         // Command the command
         controller_->computeCommand(t, q, v, u);
-
-        // Enforce the torque limits
-        if (model_->mdlOptions_->joints.enableTorqueLimit)
-        {
-            // The torque is in motor space at this point
-            vectorN_t const & torqueLimitMax = model_->getTorqueLimit();
-            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
-            {
-                float64_t const & torque_max = torqueLimitMax[i];
-                u[i] = clamp(u[i], -torque_max, torque_max);
-            }
-        }
     }
 
     result_t Engine::registerForceImpulse(std::string const & frameName,

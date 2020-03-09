@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/AbstractMotor.h"
 #include "jiminy/core/AbstractSensor.h"
 #include "jiminy/core/Model.h"
 
@@ -33,7 +34,6 @@ namespace jiminy
     contactFramesIdx_(),
     motorsNames_(),
     motorsModelIdx_(),
-    motorsPositionIdx_(),
     motorsVelocityIdx_(),
     rigidJointsNames_(),
     rigidJointsModelIdx_(),
@@ -44,14 +44,13 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
-    torqueLimit_(),
     positionFieldNames_(),
     velocityFieldNames_(),
     accelerationFieldNames_(),
     motorTorqueFieldNames_(),
     mutexLocal_(),
     pncModelFlexibleOrig_(),
-    motorsSharedHolder_(),
+    motorsSharedHolder_(nullptr),
     sensorsSharedHolder_(),
     nq_(0),
     nv_(0),
@@ -66,6 +65,8 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
 
         // Remove all sensors, if any
+        motorsHolder_.clear();
+        motorsSharedHolder_ = std::make_shared<MotorSharedDataHolder_t>();
         sensorsGroupHolder_.clear();
         sensorsSharedHolder_.clear();
         sensorTelemetryOptions_.clear();
@@ -127,6 +128,12 @@ namespace jiminy
             {
                 sensor.second->reset();
             }
+        }
+
+        // Reset the motors
+        for (motorsHolder_t::value_type & motor : motorsHolder_)
+        {
+            motor.second->reset();
         }
 
         // Reset the telemetry state
@@ -191,41 +198,45 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        // Make sure that no frame in the list are duplicates
+        // Make sure that the frame list is not empty
+        if (frameNames.empty())
+        {
+            std::cout << "Error - Model::addContactPoints - The list of frames must not be empty." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - Some frames in the list are duplicates." << std::endl;
+            std::cout << "Error - Model::addContactPoints - Some frames are duplicates." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no motor is associated with any of the joint in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - At least one of the frame in the list is already been associated with a contact point." << std::endl;
+            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact point." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure that all the frames in the list exist
+        // Make sure that all the frames exist
         for (std::string const & frame : frameNames)
         {
             if (!pncModel_.existFrame(frame))
             {
-                std::cout << "Error - Model::addContactPoints - At least one of the frame in the list does not exist." << std::endl;
+                std::cout << "Error - Model::addContactPoints - At least one of the frame does not exist." << std::endl;
                 return result_t::ERROR_BAD_INPUT;
             }
         }
 
-        if (!frameNames.empty())
-        {
-            // Add the list of frames to the set of contact points
-            contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
+        // Add the list of frames to the set of contact points
+        contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
 
-            // Reset the contact force internal buffer
-            contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
+        // Reset the contact force internal buffer
+        contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
 
-            // Refresh the attributes of the model
-            refreshModelProxies();
-        }
+        // Refresh proxies associated with the contact points only
+        refreshContactProxies();
 
         return result_t::SUCCESS;
     }
@@ -245,17 +256,17 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        // Make sure that no frame in the list are duplicates
+        // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - Some frames in the list are duplicates." << std::endl;
+            std::cout << "Error - Model::removeContactPoints - Some frames are duplicates." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no motor is associated with any of the joint in jointNames
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - At least one of the frame in the list is not associated with any contact point." << std::endl;
+            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact point." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
@@ -272,76 +283,44 @@ namespace jiminy
         // Reset the contact force internal buffer
         contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
 
-        // Refresh the attributes of the model
-        refreshModelProxies();
+        // Refresh proxies associated with the contact points only
+        refreshContactProxies();
 
         return result_t::SUCCESS;
     }
 
-    result_t Model::addMotors(std::vector<std::string> const & jointNames)
+    result_t Model::removeMotor(std::string const & motorName)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::addMotors - Model is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before adding motors." << std::endl;
+            std::cout << "Error - Model::removeMotor - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before removing motors." << std::endl;
             return result_t::ERROR_GENERIC;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::addMotors - Model not initialized." << std::endl;
+            std::cout << "Error - Model::removeMotor - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
-        // Make sure that no joint in the list are duplicates
-        if (checkDuplicates(jointNames))
+        auto motorIt = motorsHolder_.find(motorName);
+        if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Model::addMotors - Some joints in the list are duplicates." << std::endl;
+            std::cout << "Error - Model::removeMotor - No motor with this name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure that no motor is associated with any of the joint in jointNames
-        if (checkIntersection(motorsNames_, jointNames))
-        {
-            std::cout << "Error - Model::addMotors - At least one of the joint in the list is already associated with a motor." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
+        // Remove the motor
+        motorsHolder_.erase(motorIt);
 
-        // Make sure that all the joints in the list exist
-        for (std::string const & joint : jointNames)
-        {
-            if (!pncModel_.existJointName(joint))
-            {
-                std::cout << "Error - Model::addContactPoints - At least one of the joint in the list does not exist." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        if (!jointNames.empty())
-        {
-            // Add the list of joints to the set of motors
-            motorsNames_.insert(motorsNames_.end(), jointNames.begin(), jointNames.end());
-
-            /* Make sure that no user-specified torque limits or motor inertias are used,
-                since it does not make sense to add motors otherwise */
-            if (!mdlOptions_->joints.torqueLimitFromUrdf || mdlOptions_->joints.enableMotorInertia)
-            {
-                std::cout << "Warning - Model::addMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
-                configHolder_t mdlOptions = getOptions();
-                configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
-                boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
-                boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")) = false;
-                setOptions(mdlOptions);
-            }
-
-            // Refresh the attributes of the model
-            refreshModelProxies();
-        }
+        // Refresh proxies associated with the motors only
+        refreshMotorProxies();
 
         return result_t::SUCCESS;
     }
 
-    result_t Model::removeMotors(std::vector<std::string> const & jointNames)
+    result_t Model::removeMotors(std::vector<std::string> const & motorNames)
     {
         if (getIsLocked())
         {
@@ -356,44 +335,34 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        // Make sure that no joint in the list are duplicates
-        if (checkDuplicates(jointNames))
+        // Make sure that no motor names are duplicates
+        if (checkDuplicates(motorNames))
         {
-            std::cout << "Error - Model::removeMotors - Some joints in the list are duplicates." << std::endl;
+            std::cout << "Error - Model::removeMotors - Some motor names are duplicates." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure that no motor is associated with any of the joint in jointNames
-        if (!checkInclusion(motorsNames_, jointNames))
+        // Make sure that every motor name exist
+        if (!checkInclusion(motorsNames_, motorNames))
         {
-            std::cout << "Error - Model::removeMotors - At least one of the joint in the list is not associated with any motor." << std::endl;
+            std::cout << "Error - Model::removeMotors - At least one of the motor names does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Remove the list of joints from the set of motors
-        if (!jointNames.empty())
+        if (!motorNames.empty())
         {
-            eraseVector(motorsNames_, jointNames);
+            for (std::string const & name : motorNames)
+            {
+                motorsHolder_.erase(name);
+            }
         }
         else
         {
-            motorsNames_.clear();
+            motorsHolder_.clear();
         }
 
-        /* Make sure that no user-specified torque limits or motor inertias are used,
-            since it does not make sense to add motors otherwise */
-        if (!mdlOptions_->joints.torqueLimitFromUrdf || mdlOptions_->joints.enableMotorInertia)
-        {
-            std::cout << "Warning - Model::removeMotors - Be careful, adding motors disable user-specified torque limits and motor inertia to prevent dimensional mismatch." << std::endl;
-            configHolder_t mdlOptions = getOptions();
-            configHolder_t & jointOptionsHolder = boost::get<configHolder_t>(mdlOptions.at("joints"));
-            boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")) = true;
-            boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")) = false;
-            setOptions(mdlOptions);
-        }
-
-        // Refresh the attributes of the model
-        refreshModelProxies();
+        // Refresh proxies associated with the motors only
+        refreshMotorProxies();
 
         return result_t::SUCCESS;
     }
@@ -414,16 +383,14 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsGroupHolder_t::iterator sensorGroupIt;
-        sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
             std::cout << "Error - Model::removeSensor - This type of sensor does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        sensorsHolder_t::iterator sensorIt;
-        sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = sensorGroupIt->second.find(sensorName);
         if (sensorIt == sensorGroupIt->second.end())
         {
             std::cout << "Error - Model::removeSensors - No sensor with this type and name exists." << std::endl;
@@ -461,8 +428,7 @@ namespace jiminy
 
         if (!sensorType.empty())
         {
-            sensorsGroupHolder_t::iterator sensorGroupIt;
-            sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+            auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
                 std::cout << "Error - Model::removeSensors - No sensor with this type exists." << std::endl;
@@ -587,21 +553,47 @@ namespace jiminy
                                          vectorN_t::Zero(pncModel_.nq),
                                          vectorN_t::Zero(pncModel_.nv));
             pinocchio::updateFramePlacements(pncModel_, pncData_);
+        }
 
-            // Initialize the internal proxies
-            returnCode = refreshModelProxies();
+        /* Initialize the internal proxies.
+           Be careful, the internal proxies of the sensors and motors are
+           not up-to-date at the point, so one cannot use them. */
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = refreshProxies();
+        }
+
+        // Refresh the motors
+        for (motorsHolder_t::value_type & motor : motorsHolder_)
+        {
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = motor.second->refreshProxies();
+            }
+        }
+
+        // Refresh the sensors
+        for (sensorsGroupHolder_t::value_type & sensorGroup : sensorsGroupHolder_)
+        {
+            for (sensorsHolder_t::value_type & sensor : sensorGroup.second)
+            {
+                if (returnCode == result_t::SUCCESS)
+                {
+                    returnCode = sensor.second->refreshProxies();
+                }
+            }
         }
 
         return returnCode;
     }
 
-    result_t Model::refreshModelProxies(void)
+    result_t Model::refreshProxies(void)
     {
         result_t returnCode = result_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::updateFieldnames - Model not initialized." << std::endl;
+            std::cout << "Error - Model::refreshProxies - Model not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
@@ -616,14 +608,6 @@ namespace jiminy
             getJointsModelIdx(pncModel_, rigidJointsNames_, rigidJointsModelIdx_);
             getJointsPositionIdx(pncModel_, rigidJointsNames_, rigidJointsPositionIdx_, false);
             getJointsVelocityIdx(pncModel_, rigidJointsNames_, rigidJointsVelocityIdx_, false);
-
-            // Extract the contact frames indices in the model
-            getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
-
-            // Extract some motor indices in the model
-            getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
-            getJointsPositionIdx(pncModel_, motorsNames_, motorsPositionIdx_, true);
-            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
 
             /* Generate the fieldnames associated with the configuration,
                velocity, and acceleration vectors. */
@@ -722,6 +706,55 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
+            returnCode = refreshContactProxies();
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = refreshMotorProxies();
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::refreshContactProxies(void)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::refreshContactProxies - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Extract the contact frames indices in the model
+            getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::refreshMotorProxies(void)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::refreshMotorProxies - Model not initialized." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            // Extract the motor names
+            motorsNames_ = getMapKeys(motorsHolder_);
+
+            // Extract some motor indices in the model
+            getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
+            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
+
             // Generate the fieldnames associated with the motor torques
             motorTorqueFieldNames_.clear();
             for (std::string const & jointName : removeFieldnamesSuffix(motorsNames_, "Joint"))
@@ -729,59 +762,138 @@ namespace jiminy
                 motorTorqueFieldNames_.emplace_back(JOINT_PREFIX_BASE + "Torque" + jointName);
             }
 
-            // Get the joint position limits from the URDF or the user options
-            if (mdlOptions_->joints.positionLimitFromUrdf)
-            {
-                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
-                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
-                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
-                {
-                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
-                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
-                }
-            }
-            else
-            {
-                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
-                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
-            }
-
-            // Get the joint velocity limits from the URDF or the user options
-            if (mdlOptions_->joints.velocityLimitFromUrdf)
-            {
-                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
-                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
-                {
-                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
-                }
-            }
-            else
-            {
-                velocityLimit_ = mdlOptions_->joints.velocityLimit;
-            }
-
-            // Get the motor torque limits from the URDF or the user options
-            if (mdlOptions_->joints.torqueLimitFromUrdf)
-            {
-                // effortLimit is given in the velocity vector space
-                torqueLimit_.resize(motorsVelocityIdx_.size());
-                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
-                {
-                    torqueLimit_[i] = pncModel_.effortLimit[motorsVelocityIdx_[i]];
-                }
-            }
-            else
-            {
-                torqueLimit_ = mdlOptions_->joints.torqueLimit;
-            }
-
             // Get the motor inertia from the URDF or the user options
             pncModel_.rotorInertia.setConstant(0.0);
-            if (mdlOptions_->joints.enableMotorInertia)
+            for (auto const & motor : motorsHolder_)
             {
-                for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+                auto const & motorOptions = motor.second->baseMotorOptions_;
+                int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
+                if (motorOptions->enableMotorInertia)
                 {
-                    pncModel_.rotorInertia[motorsVelocityIdx_[i]] = mdlOptions_->joints.motorInertia[i];
+                    pncModel_.rotorInertia[motorsVelocityIdx] = motorOptions->motorInertia;
+                }
+            }
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::getMotorsOptions(configHolder_t & motorsOptions) const
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getMotorsOptions - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        motorsOptions.clear();
+        for (motorsHolder_t::value_type const & motor : motorsHolder_)
+        {
+            motorsOptions[motor.first] = motor.second->getOptions();
+        }
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Model::getMotorOptions(std::string    const & motorName,
+                                    configHolder_t       & motorOptions) const
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getMotorOptions - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        auto motorIt = motorsHolder_.find(motorName);
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (motorIt == motorsHolder_.end())
+            {
+                std::cout << "Error - Model::getMotorOptions - No motor with this name exists." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        motorOptions = motorIt->second->getOptions();
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Model::setMotorOptions(std::string    const & motorName,
+                                    configHolder_t const & motorOptions)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (getIsLocked())
+        {
+            std::cout << "Error - Model::setMotorOptions - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before updating the motor options." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - Model::setMotorOptions - Model not initialized." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
+        }
+
+        auto motorIt = motorsHolder_.find(motorName);
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (motorIt == motorsHolder_.end())
+            {
+                std::cout << "Error - Model::setMotorOptions - No motor with this name exists." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = motorIt->second->setOptions(motorOptions);
+        }
+
+        return returnCode;
+    }
+
+    result_t Model::setMotorsOptions(configHolder_t const & motorsOptions)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (getIsLocked())
+        {
+            std::cout << "Error - Model::setMotorsOptions - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before updating the motor options." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - Model::setMotorsOptions - Model not initialized." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
+        }
+
+        for (motorsHolder_t::value_type const & motor : motorsHolder_)
+        {
+            if (returnCode == result_t::SUCCESS)
+            {
+                auto motorOptionIt = motorsOptions.find(motor.first);
+                if (motorOptionIt != motorsOptions.end())
+                {
+                    returnCode = motor.second->setOptions(
+                        boost::get<configHolder_t>(motorOptionIt->second));
+                }
+                else
+                {
+                    returnCode = motor.second->setOptionsAll(motorsOptions);
+                    break;
                 }
             }
         }
@@ -798,14 +910,13 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsGroupHolder_t::const_iterator sensorGroupIt;
-        sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
             std::cout << "Error - Model::getSensorsOptions - This type of sensor does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
-        sensorsOptions = configHolder_t();
+        sensorsOptions.clear();
         for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
         {
             sensorsOptions[sensor.first] = sensor.second->getOptions();
@@ -822,7 +933,7 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsOptions = configHolder_t();
+        sensorsOptions.clear();
         for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
         {
             configHolder_t sensorsGroupOptions;
@@ -846,16 +957,14 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsGroupHolder_t::const_iterator sensorGroupIt;
-        sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
             std::cout << "Error - Model::getSensorOptions - This type of sensor does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        sensorsHolder_t::const_iterator sensorIt;
-        sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = sensorGroupIt->second.find(sensorName);
         if (sensorIt == sensorGroupIt->second.end())
         {
             std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
@@ -889,8 +998,7 @@ namespace jiminy
             }
         }
 
-        sensorsGroupHolder_t::iterator sensorGroupIt;
-        sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (returnCode == result_t::SUCCESS)
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
@@ -900,8 +1008,7 @@ namespace jiminy
             }
         }
 
-        sensorsHolder_t::iterator sensorIt;
-        sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = sensorGroupIt->second.find(sensorName);
         if (returnCode == result_t::SUCCESS)
         {
             if (sensorIt == sensorGroupIt->second.end())
@@ -940,8 +1047,7 @@ namespace jiminy
             }
         }
 
-        sensorsGroupHolder_t::iterator sensorGroupIt;
-        sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (returnCode == result_t::SUCCESS)
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
@@ -955,10 +1061,11 @@ namespace jiminy
         {
             if (returnCode == result_t::SUCCESS)
             {
-                configHolder_t::const_iterator it = sensorsOptions.find(sensor.first);
-                if (it != sensorsOptions.end())
+                auto sensorOptionIt = sensorsOptions.find(sensor.first);
+                if (sensorOptionIt != sensorsOptions.end())
                 {
-                    returnCode = sensor.second->setOptions(boost::get<configHolder_t>(it->second));
+                    returnCode = sensor.second->setOptions(
+                        boost::get<configHolder_t>(sensorOptionIt->second));
                 }
                 else
                 {
@@ -1044,8 +1151,7 @@ namespace jiminy
         for (auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
         {
             std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
-            configHolder_t::const_iterator sensorTelemetryOptionIt =
-                telemetryOptions.find(optionTelemetryName);
+            auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
                 std::cout << "Error - Model::setTelemetryOptions - Missing field." << std::endl;
@@ -1088,14 +1194,16 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     return result_t::ERROR_BAD_INPUT;
                 }
-                internalBuffersMustBeUpdated |= positionLimitMin != mdlOptions_->joints.positionLimitMin;
+                vectorN_t positionLimitMinDiff = positionLimitMin - mdlOptions_->joints.positionLimitMin;
+                internalBuffersMustBeUpdated |= (positionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     return result_t::ERROR_BAD_INPUT;
                 }
-                internalBuffersMustBeUpdated |= (positionLimitMax != mdlOptions_->joints.positionLimitMax);
+                vectorN_t positionLimitMaxDiff = positionLimitMax - mdlOptions_->joints.positionLimitMax;
+                internalBuffersMustBeUpdated |= (positionLimitMaxDiff.array().abs() >= EPS).all();
             }
             if (!boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
@@ -1105,32 +1213,8 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     return result_t::ERROR_BAD_INPUT;
                 }
-                internalBuffersMustBeUpdated |= velocityLimit != mdlOptions_->joints.velocityLimit;
-            }
-            if (!boost::get<bool_t>(jointOptionsHolder.at("torqueLimitFromUrdf")))
-            {
-                vectorN_t & torqueLimit = boost::get<vectorN_t>(jointOptionsHolder.at("torqueLimit"));
-                if((int32_t) motorsVelocityIdx_.size() != torqueLimit.size())
-                {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for 'torqueLimit'." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
-                }
-                internalBuffersMustBeUpdated |= (torqueLimit != mdlOptions_->joints.torqueLimit);
-            }
-            if (boost::get<bool_t>(jointOptionsHolder.at("enableMotorInertia")))
-            {
-                vectorN_t & motorInertia = boost::get<vectorN_t>(jointOptionsHolder.at("motorInertia"));
-                if((int32_t) motorsVelocityIdx_.size() != motorInertia.size())
-                {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for 'motorInertia'." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
-                }
-                if(!(motorInertia.array() >= 0.0).all())
-                {
-                    std::cout << "Error - Model::setOptions - Every values in 'motorInertia' must be positive." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
-                }
-                internalBuffersMustBeUpdated |= (motorInertia != mdlOptions_->joints.motorInertia);
+                vectorN_t velocityLimitDiff = velocityLimit - mdlOptions_->joints.velocityLimit;
+                internalBuffersMustBeUpdated |= (velocityLimitDiff.array().abs() >= EPS).all();
             }
 
             // Check if the flexible model and its associated proxies must be regenerated
@@ -1174,7 +1258,7 @@ namespace jiminy
         else if (internalBuffersMustBeUpdated)
         {
             // Update the info extracted from the model
-            refreshModelProxies();
+            refreshProxies();
         }
 
         return result_t::SUCCESS;
@@ -1198,19 +1282,6 @@ namespace jiminy
     bool_t const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
-    }
-
-    std::unordered_map<std::string, std::vector<std::string> > Model::getSensorsNames(void) const
-    {
-        std::unordered_map<std::string, std::vector<std::string> > sensorNames;
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
-        {
-            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
-            {
-                sensorNames[sensorGroup.first].push_back(sensor.first);
-            }
-        }
-        return sensorNames;
     }
 
     result_t Model::loadUrdfModel(std::string const & urdfPath,
@@ -1249,9 +1320,9 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    void Model::getSensorsData(sensorsDataMap_t & data) const
+    sensorsDataMap_t Model::getSensorsData(void) const
     {
-        data.clear();
+        sensorsDataMap_t data;
         for (auto & sensorGroupIt : sensorsGroupHolder_)
         {
             sensorDataTypeMap_t dataType;
@@ -1266,16 +1337,19 @@ namespace jiminy
                          std::forward_as_tuple(sensorGroupIt.first),
                          std::forward_as_tuple(std::move(dataType)));
         }
+        return data;
     }
 
     matrixN_t Model::getSensorsData(std::string const & sensorType) const
     {
+        // Return by value to make sure the value does not get updated
         return sensorsGroupHolder_.at(sensorType).begin()->second->getAll();
     }
 
-    vectorN_t const & Model::getSensorData(std::string const & sensorType,
-                                           std::string const & sensorName) const
+    vectorN_t Model::getSensorData(std::string const & sensorType,
+                                   std::string const & sensorName) const
     {
+        // Return by value to make sure the value does not get updated
         return *sensorsGroupHolder_.at(sensorType).at(sensorName)->get();
     }
 
@@ -1305,7 +1379,7 @@ namespace jiminy
         }
     }
 
-    result_t Model::getLock(std::unique_ptr<LockGuardLocal> & lock)
+    result_t Model::getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock)
     {
         if (mutexLocal_.isLocked())
         {
@@ -1313,7 +1387,7 @@ namespace jiminy
             return result_t::ERROR_GENERIC;
         }
 
-        lock = std::move(std::make_unique<LockGuardLocal>(mutexLocal_));
+        lock = std::move(std::make_unique<MutexLocal::LockGuardLocal>(mutexLocal_));
 
         return result_t::SUCCESS;
     }
@@ -1343,14 +1417,22 @@ namespace jiminy
         return motorsModelIdx_;
     }
 
-    std::vector<int32_t> const & Model::getMotorsPositionIdx(void) const
-    {
-        return motorsPositionIdx_;
-    }
-
     std::vector<int32_t> const & Model::getMotorsVelocityIdx(void) const
     {
         return motorsVelocityIdx_;
+    }
+
+    std::unordered_map<std::string, std::vector<std::string> > Model::getSensorsNames(void) const
+    {
+        std::unordered_map<std::string, std::vector<std::string> > sensorNames;
+        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        {
+            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+            {
+                sensorNames[sensorGroup.first].push_back(sensor.first);
+            }
+        }
+        return sensorNames;
     }
 
     std::vector<std::string> const & Model::getPositionFieldNames(void) const
@@ -1376,11 +1458,6 @@ namespace jiminy
     vectorN_t const & Model::getVelocityLimit(void) const
     {
         return velocityLimit_;
-    }
-
-    vectorN_t const & Model::getTorqueLimit(void) const
-    {
-        return torqueLimit_;
     }
 
     vectorN_t Model::getMotorInertia(void) const

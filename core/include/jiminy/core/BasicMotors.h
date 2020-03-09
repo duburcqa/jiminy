@@ -50,17 +50,12 @@ namespace jiminy
         };
 
     public:
-        SimpleMotor(Model       const & model,
+        SimpleMotor(Model             & model,
                     std::shared_ptr<MotorSharedDataHolder_t> const & dataHolder,
                     std::string const & name);
         ~SimpleMotor(void) = default;
 
-        result_t initialize(std::string const & jointName);
-        virtual void reset(void) override;
-
         virtual result_t setOptions(configHolder_t motorOptions);
-
-        std::string const & getJointName(void) const;
 
     private:
         virtual result_t computeEffort(float64_t const & t,
@@ -71,10 +66,6 @@ namespace jiminy
 
     private:
         std::unique_ptr<motorOptions_t const> motorOptions_;
-
-        std::string jointName_;
-        int32_t motorPositionIdx_;
-        int32_t motorVelocityIdx_;
     };
 }
 

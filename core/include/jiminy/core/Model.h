@@ -29,8 +29,6 @@ namespace jiminy
 
     class Model
     {
-        friend Engine;
-
     public:
         // Disable the copy of the class
         Model(Model const & model) = delete;
@@ -40,8 +38,6 @@ namespace jiminy
         virtual configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;
-            config["enableMotorInertia"] = false;
-            config["motorInertia"] = vectorN_t();
             config["enablePositionLimit"] = true;
             config["positionLimitFromUrdf"] = true;
             config["positionLimitMin"] = vectorN_t();
@@ -49,17 +45,12 @@ namespace jiminy
             config["enableVelocityLimit"] = true;
             config["velocityLimitFromUrdf"] = true;
             config["velocityLimit"] = vectorN_t();
-            config["enableTorqueLimit"] = true;
-            config["torqueLimitFromUrdf"] = true;
-            config["torqueLimit"] = vectorN_t();
 
             return config;
         };
 
         struct jointOptions_t
         {
-            bool_t    const enableMotorInertia;
-            vectorN_t const motorInertia;
             bool_t    const enablePositionLimit;
             bool_t    const positionLimitFromUrdf;
             vectorN_t const positionLimitMin;         ///< Min position limit of all the actual joints, namely without freeflyer and flexible joints if any
@@ -67,23 +58,15 @@ namespace jiminy
             bool_t    const enableVelocityLimit;
             bool_t    const velocityLimitFromUrdf;
             vectorN_t const velocityLimit;
-            bool_t    const enableTorqueLimit;
-            bool_t    const torqueLimitFromUrdf;
-            vectorN_t const torqueLimit;
 
             jointOptions_t(configHolder_t const & options) :
-            enableMotorInertia(boost::get<bool_t>(options.at("enableMotorInertia"))),
-            motorInertia(boost::get<vectorN_t>(options.at("motorInertia"))),
             enablePositionLimit(boost::get<bool_t>(options.at("enablePositionLimit"))),
             positionLimitFromUrdf(boost::get<bool_t>(options.at("positionLimitFromUrdf"))),
             positionLimitMin(boost::get<vectorN_t>(options.at("positionLimitMin"))),
             positionLimitMax(boost::get<vectorN_t>(options.at("positionLimitMax"))),
             enableVelocityLimit(boost::get<bool_t>(options.at("enableVelocityLimit"))),
             velocityLimitFromUrdf(boost::get<bool_t>(options.at("velocityLimitFromUrdf"))),
-            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit"))),
-            enableTorqueLimit(boost::get<bool_t>(options.at("enableTorqueLimit"))),
-            torqueLimitFromUrdf(boost::get<bool_t>(options.at("torqueLimitFromUrdf"))),
-            torqueLimit(boost::get<vectorN_t>(options.at("torqueLimit")))
+            velocityLimit(boost::get<vectorN_t>(options.at("velocityLimit")))
             {
                 // Empty.
             }
@@ -160,50 +143,68 @@ namespace jiminy
 
         result_t addContactPoints(std::vector<std::string> const & frameNames);
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
-        result_t addMotors(std::vector<std::string> const & jointNames);
-        result_t removeMotors(std::vector<std::string> const & jointNames = {});
+        template<typename TMotor>
+        result_t addMotor(std::string             const & motorName,
+                          std::shared_ptr<TMotor>       & motor);
+        template<typename TMotor>
+        result_t getMotor(std::string              const & motorName,
+                          std::shared_ptr<TMotor>        & motor);
+        result_t removeMotor(std::string const & motorName);
+        result_t removeMotors(std::vector<std::string> const & motorNames = {});
         template<typename TSensor>
         result_t addSensor(std::string              const & sensorName,
                            std::shared_ptr<TSensor>       & sensor);
-        result_t removeSensor(std::string const & sensorType,
-                              std::string const & sensorName);
-        result_t removeSensors(std::string const & sensorType);
-
-        std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
         template<typename TSensor>
         result_t getSensor(std::string              const & sensorType,
                            std::string              const & sensorName,
                            std::shared_ptr<TSensor>       & sensor);
-        void getSensorsData(sensorsDataMap_t & data) const;
-        matrixN_t getSensorsData(std::string const & sensorType) const;
-        vectorN_t const & getSensorData(std::string const & sensorType,
-                                        std::string const & sensorName) const;
+        result_t removeSensor(std::string const & sensorType,
+                              std::string const & sensorName);
+        result_t removeSensors(std::string const & sensorType = {});
 
-        configHolder_t getOptions(void) const;
+        sensorsDataMap_t getSensorsData(void) const;
+        matrixN_t getSensorsData(std::string const & sensorType) const;
+        vectorN_t getSensorData(std::string const & sensorType,
+                                std::string const & motorName) const;
+
         result_t setOptions(configHolder_t mdlOptions); // Make a copy !
-        result_t getSensorOptions(std::string    const & sensorType,
-                                  std::string    const & sensorName,
-                                  configHolder_t       & sensorOptions) const;
-        result_t getSensorsOptions(std::string    const & sensorType,
-                                   configHolder_t       & sensorsOptions) const;
-        result_t getSensorsOptions(configHolder_t & sensorsOptions) const;
+        configHolder_t getOptions(void) const;
+        result_t setMotorOptions(std::string    const & motorName,
+                                 configHolder_t const & motorOptions);
+        result_t setMotorsOptions(configHolder_t const & motorsOptions);
+        result_t getMotorOptions(std::string    const & motorName,
+                                 configHolder_t       & motorOptions) const;
+        result_t getMotorsOptions(configHolder_t & motorsOptions) const;
         result_t setSensorOptions(std::string    const & sensorType,
                                   std::string    const & sensorName,
                                   configHolder_t const & sensorOptions);
         result_t setSensorsOptions(std::string    const & sensorType,
                                    configHolder_t const & sensorsOptions);
         result_t setSensorsOptions(configHolder_t const & sensorsOptions);
-        result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
+        result_t getSensorOptions(std::string    const & sensorType,
+                                  std::string    const & sensorName,
+                                  configHolder_t       & sensorOptions) const;
+        result_t getSensorsOptions(std::string    const & sensorType,
+                                   configHolder_t       & sensorsOptions) const;
+        result_t getSensorsOptions(configHolder_t & sensorsOptions) const;
         result_t setTelemetryOptions(configHolder_t const & telemetryOptions);
+        result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
+
+        // Those methods are not intended to be called manually. The Engine is taking care of it.
+        virtual void reset(void);
+        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        void updateTelemetry(void);
+        bool_t const & getIsTelemetryConfigured(void) const;
+        void setSensorsData(float64_t const & t,
+                            vectorN_t const & q,
+                            vectorN_t const & v,
+                            vectorN_t const & a,
+                            vectorN_t const & u);
 
         bool_t const & getIsInitialized(void) const;
-        /// \brief Get status of telementry object.
-        /// \details The engine needs to know this to setup the global telemetry ;
-        ///          this function is not meant to be called manually.
-        bool_t const & getIsTelemetryConfigured(void) const;
         std::string const & getUrdfPath(void) const;
         bool_t const & getHasFreeflyer(void) const;
-        // Getter without keywords for consistency with pinocchio C++ API
+        // Getters without 'get' prefix for consistency with pinocchio C++ API
         uint32_t const & nq(void) const;
         uint32_t const & nv(void) const;
         uint32_t const & nx(void) const;
@@ -212,8 +213,8 @@ namespace jiminy
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> const & getMotorsModelIdx(void) const;
-        std::vector<int32_t> const & getMotorsPositionIdx(void) const;
         std::vector<int32_t> const & getMotorsVelocityIdx(void) const;
+        std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
         std::vector<int32_t> const & getRigidJointsPositionIdx(void) const;
@@ -232,26 +233,19 @@ namespace jiminy
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
-        result_t getLock(std::unique_ptr<LockGuardLocal> & lock);
+        result_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
 
+        result_t refreshSensorProxies(void);
+        result_t refreshMotorProxies(void);
+
     protected:
-        virtual void reset(void);
-
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
-        void updateTelemetry(void);
-
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & u);
-
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool_t      const & hasFreeflyer);
         result_t generateModelFlexible(void);
         result_t generateModelBiased(void);
-        result_t refreshModelProxies(void);
+        result_t refreshContactProxies(void);
+        result_t refreshProxies(void);
 
     public:
         pinocchio::Model pncModel_;
@@ -277,7 +271,6 @@ namespace jiminy
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the model
         std::vector<std::string> motorsNames_;              ///< Joint name of the motors of the model
         std::vector<int32_t> motorsModelIdx_;               ///< Index of the motors in the pinocchio model
-        std::vector<int32_t> motorsPositionIdx_;            ///< First indices of the motors in the configuration vector of the model
         std::vector<int32_t> motorsVelocityIdx_;            ///< First indices of the motors in the velocity vector of the model
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the model, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio model
@@ -289,7 +282,6 @@ namespace jiminy
         vectorN_t positionLimitMin_;
         vectorN_t positionLimitMax_;
         vectorN_t velocityLimit_;
-        vectorN_t torqueLimit_;
 
         std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid model
         std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid model

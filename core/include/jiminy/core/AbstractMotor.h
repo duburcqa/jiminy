@@ -46,8 +46,6 @@ namespace jiminy
 
     class AbstractMotor
     {
-        friend class Model;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
@@ -96,11 +94,34 @@ namespace jiminy
         /// \param[in]  model   Model of the system
         /// \param[in]  name    Name of the motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotor(Model       const & model,
+        AbstractMotor(Model             & model,
                       std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
                       std::string const & name);
 
         virtual ~AbstractMotor(void);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Plug the motor on a given joint of the model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        result_t initialize(std::string const & jointName);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Refresh the proxies.
+        ///
+        /// \remark   This method is not intended to be called manually. The Model to which the
+        ///           motor is added is taking care of it when its own `refresh` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t refreshProxies(void);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Reset the internal state of the motor.
+        ///
+        /// \details  This method resets the internal state of the motor.
+        ///
+        /// \remark   This method is not intended to be called manually. The Model to which the
+        ///           motor is added is taking care of it when its own `reset` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void reset(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get the configuration options of the motor.
@@ -154,16 +175,45 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         uint8_t const & getId(void) const;
 
-    protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief Reset the internal state of the motor.
+        /// \brief      Get jointName_.
         ///
-        /// \details  This method resets the internal state of the motor.
-        ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
-        ///           motor is added is taking care of it when its own `reset` method is called.
+        /// \details    It is the name of the joint associated with the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(void);
+        std::string const & getJointName(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get jointVelocityIdx_.
+        ///
+        /// \details    It is the index of the joint associated with the motor in the velocity vector.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        int32_t const & getJointVelocityIdx(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get torqueLimit_.
+        ///
+        /// \details    It is the maximum torque of the motor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        float64_t const & getTorqueLimit(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Request the motor to update its actual torque based of the input data.
+        ///
+        /// \details    It assumes that the internal state of the model is consistent with the
+        ///             input arguments.
+        ///
+        /// \param[in]  t       Current time
+        /// \param[in]  q       Current configuration vector
+        /// \param[in]  v       Current velocity vector
+        /// \param[in]  a       Current acceleration vector
+        /// \param[in]  u       Current torque vector
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t computeEffort(float64_t const & t,
+                                       vectorN_t const & q,
+                                       vectorN_t const & v,
+                                       vectorN_t const & a,
+                                       vectorN_t const & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual torque based of the input data.
@@ -188,44 +238,27 @@ namespace jiminy
                                    vectorN_t const & a,
                                    vectorN_t const & u);
 
+        void clearDataBuffer(void);
+
     protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get a reference to the actual torque of the motor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t & data(void);
 
-    private:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Request the motor to update its actual torque based of the input data.
-        ///
-        /// \details    It assumes that the internal state of the model is consistent with the
-        ///             input arguments.
-        ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t computeEffort(float64_t const & t,
-                                       vectorN_t const & q,
-                                       vectorN_t const & v,
-                                       vectorN_t const & a,
-                                       vectorN_t const & u) = 0;
-
     public:
-        std::unique_ptr<abstractMotorOptions_t const> motorOptions_; ///< Structure with the parameters of the motor
+        std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_; ///< Structure with the parameters of the motor
 
     protected:
-        configHolder_t baseMotorOptionsHolder_;     ///< Dictionary with the parameters of the motor
+        configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
         bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
-        Model const * model_;                       ///< Model of the system for which the command and internal dynamics
+        Model * model_;                             ///< Model of the system for which the command and internal dynamics
 
     private:
         std::shared_ptr<MotorSharedDataHolder_t> sharedHolder_;    ///< Shared data between every motors associated with the model
         std::string name_;                          ///< Name of the motor
         uint8_t motorId_;                           ///< Index of the motor in the measurement buffer
+
+        std::string jointName_;
+        int32_t jointVelocityIdx_;
+        float64_t torqueLimit_;
     };
 }
 
