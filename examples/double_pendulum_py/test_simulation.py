@@ -19,7 +19,8 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double
 motors = ["SecondPendulumJoint"]
 model = jiminy.Model()
 model.initialize(urdf_path, False)
-model.add_motors(motors)
+for motor in motors:
+    model.add_simple_motor(joint_name=motor)
 
 # Instantiate the controller
 def computeCommand(t, q, v, sensor_data, u):
@@ -46,7 +47,7 @@ model_options["telemetry"]["enableImuSensors"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
-engine_options["telemetry"]["enableCommand"] = True
+engine_options["telemetry"]["enableTorque"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]

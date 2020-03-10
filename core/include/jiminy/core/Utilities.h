@@ -222,9 +222,6 @@ namespace jiminy
     template<class F, class dF=std::decay_t<F> >
     auto notF(F&& f);
 
-    template<template <typename...> class MapType, typename KeyType, typename ValueType>
-    std::vector<KeyType> getMapKeys(MapType<KeyType, ValueType> const & m);
-
     template<typename type>
     void swapVectorBlocks(Eigen::Matrix<type, Eigen::Dynamic, 1>       & vector,
                           uint32_t                               const & firstBlockStart,

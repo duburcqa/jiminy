@@ -74,6 +74,7 @@ namespace jiminy
         dxdt(),
         u(),
         uCommand(),
+        uMotor(),
         uInternal(),
         fExternal(),
         energy(0.0),
@@ -112,6 +113,7 @@ namespace jiminy
                                       pinocchio::Force::Zero());
             uInternal = vectorN_t::Zero(nv_);
             uCommand = vectorN_t::Zero(model.getMotorsNames().size());
+            uMotor = vectorN_t::Zero(model.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
             energy = 0.0;
 
@@ -152,6 +154,7 @@ namespace jiminy
         vectorN_t dxdt;
         vectorN_t u;
         vectorN_t uCommand;
+        vectorN_t uMotor;
         vectorN_t uInternal;
         forceVector_t fExternal;
         float64_t energy;           ///< Energy of the system (kinetic + potential)
@@ -320,7 +323,7 @@ namespace jiminy
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
-            config["enableCommand"] = true;
+            config["enableTorque"] = true;
             config["enableEnergy"] = true;
             return config;
         };
@@ -330,14 +333,14 @@ namespace jiminy
             bool_t const enableConfiguration;
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
-            bool_t const enableCommand;
+            bool_t const enableTorque;
             bool_t const enableEnergy;
 
             telemetryOptions_t(configHolder_t const & options) :
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
-            enableCommand(boost::get<bool_t>(options.at("enableCommand"))),
+            enableTorque(boost::get<bool_t>(options.at("enableTorque"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
                 // Empty.

@@ -109,7 +109,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         engine_options["telemetry"]["enableConfiguration"] = False
         engine_options["telemetry"]["enableVelocity"] = False
         engine_options["telemetry"]["enableAcceleration"] = False
-        engine_options["telemetry"]["enableCommand"] = False
+        engine_options["telemetry"]["enableTorque"] = False
         engine_options["telemetry"]["enableEnergy"] = False
 
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]

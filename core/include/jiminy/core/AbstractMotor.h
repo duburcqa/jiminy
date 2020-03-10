@@ -5,7 +5,7 @@
 /// \details    Any motor must inherit from this base class and implement its virtual methods.
 ///
 /// \remarks    Each motor added to a Jiminy Model is downcasted as an instance of
-///             AbstractMotor and polymorphism is used to call the actual implementations.
+///             AbstractMotorBase and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -19,7 +19,7 @@ namespace jiminy
 {
     class Model;
 
-    class AbstractMotor;
+    class AbstractMotorBase;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     /// \brief      Structure holding the data for every motor.
@@ -39,12 +39,12 @@ namespace jiminy
 
         ~MotorSharedDataHolder_t(void) = default;
 
-        vectorN_t data_;                          ///< Buffer with current actual motor torque
-        std::vector<AbstractMotor *> motors_; ///< Vector of pointers to the motors
-        uint8_t num_;                             ///< Number of motors
+        vectorN_t data_;                            ///< Buffer with current actual motor torque
+        std::vector<AbstractMotorBase *> motors_;   ///< Vector of pointers to the motors
+        uint8_t num_;                               ///< Number of motors
     };
 
-    class AbstractMotor
+    class AbstractMotorBase
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,8 +85,8 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotor(AbstractMotor const & abstractMotor) = delete;
-        AbstractMotor & operator = (AbstractMotor const & other) = delete;
+        AbstractMotorBase(AbstractMotorBase const & abstractMotor) = delete;
+        AbstractMotorBase & operator = (AbstractMotorBase const & other) = delete;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
@@ -94,11 +94,11 @@ namespace jiminy
         /// \param[in]  model   Model of the system
         /// \param[in]  name    Name of the motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotor(Model             & model,
-                      std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
-                      std::string const & name);
+        AbstractMotorBase(Model       const & model,
+                          std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
+                          std::string const & name);
 
-        virtual ~AbstractMotor(void);
+        virtual ~AbstractMotorBase(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Plug the motor on a given joint of the model.
@@ -183,6 +183,20 @@ namespace jiminy
         std::string const & getJointName(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get jointModelIdx_.
+        ///
+        /// \details    It is the index of the joint associated with the motor in the kinematic tree.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        int32_t const & getJointModelIdx(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get jointPositionIdx_.
+        ///
+        /// \details    It is the index of the joint associated with the motor in the configuration vector.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        int32_t const & getJointPositionIdx(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointVelocityIdx_.
         ///
         /// \details    It is the index of the joint associated with the motor in the velocity vector.
@@ -203,17 +217,17 @@ namespace jiminy
         ///             input arguments.
         ///
         /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  q       Current configuration of the motor
+        /// \param[in]  v       Current velocity of the motor
+        /// \param[in]  a       Current acceleration of the motor
+        /// \param[in]  u       Current command torque of the motor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual result_t computeEffort(float64_t const & t,
-                                       vectorN_t const & q,
-                                       vectorN_t const & v,
-                                       vectorN_t const & a,
-                                       vectorN_t const & u) = 0;
+                                       float64_t const & q,
+                                       float64_t const & v,
+                                       float64_t const & a,
+                                       float64_t const & uCommand) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual torque based of the input data.
@@ -228,15 +242,15 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  u       Current command torque vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t computeAllEfforts(float64_t const & t,
-                                   vectorN_t const & q,
-                                   vectorN_t const & v,
-                                   vectorN_t const & a,
-                                   vectorN_t const & u);
+        result_t computeAllEffort(float64_t const & t,
+                                  vectorN_t const & q,
+                                  vectorN_t const & v,
+                                  vectorN_t const & a,
+                                  vectorN_t const & uCommand);
 
         void clearDataBuffer(void);
 
@@ -249,7 +263,7 @@ namespace jiminy
     protected:
         configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
         bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
-        Model * model_;                             ///< Model of the system for which the command and internal dynamics
+        Model const * model_;                       ///< Model of the system for which the command and internal dynamics
 
     private:
         std::shared_ptr<MotorSharedDataHolder_t> sharedHolder_;    ///< Shared data between every motors associated with the model
@@ -257,6 +271,8 @@ namespace jiminy
         uint8_t motorId_;                           ///< Index of the motor in the measurement buffer
 
         std::string jointName_;
+        int32_t jointModelIdx_;
+        int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
         float64_t torqueLimit_;
     };

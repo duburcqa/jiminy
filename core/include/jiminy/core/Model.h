@@ -21,7 +21,7 @@ namespace jiminy
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
     struct MotorSharedDataHolder_t;
-    class AbstractMotor;
+    class AbstractMotorBase;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -130,7 +130,7 @@ namespace jiminy
         };
 
     public:
-        using motorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractMotor> >;
+        using motorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractMotorBase> >;
         using sensorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
@@ -149,6 +149,7 @@ namespace jiminy
         template<typename TMotor>
         result_t getMotor(std::string              const & motorName,
                           std::shared_ptr<TMotor>        & motor);
+        motorsHolder_t const & getMotors(void);
         result_t removeMotor(std::string const & motorName);
         result_t removeMotors(std::vector<std::string> const & motorNames = {});
         template<typename TSensor>
@@ -158,10 +159,23 @@ namespace jiminy
         result_t getSensor(std::string              const & sensorType,
                            std::string              const & sensorName,
                            std::shared_ptr<TSensor>       & sensor);
+        sensorsGroupHolder_t const & getSensors(void);
         result_t removeSensor(std::string const & sensorType,
                               std::string const & sensorName);
         result_t removeSensors(std::string const & sensorType = {});
 
+        void computeMotorsTorques(float64_t const & t,
+                                  vectorN_t const & q,
+                                  vectorN_t const & v,
+                                  vectorN_t const & a,
+                                  vectorN_t const & u);
+        vectorN_t const & getMotorsTorques(void) const;
+        float64_t const & getMotorTorque(std::string const & motorName) const;
+        void setSensorsData(float64_t const & t,
+                            vectorN_t const & q,
+                            vectorN_t const & v,
+                            vectorN_t const & a,
+                            vectorN_t const & u);
         sensorsDataMap_t getSensorsData(void) const;
         matrixN_t getSensorsData(std::string const & sensorType) const;
         vectorN_t getSensorData(std::string const & sensorType,
@@ -195,11 +209,6 @@ namespace jiminy
         virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
         void updateTelemetry(void);
         bool_t const & getIsTelemetryConfigured(void) const;
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & u);
 
         bool_t const & getIsInitialized(void) const;
         std::string const & getUrdfPath(void) const;
@@ -212,8 +221,9 @@ namespace jiminy
         std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getMotorsNames(void) const;
-        std::vector<int32_t> const & getMotorsModelIdx(void) const;
-        std::vector<int32_t> const & getMotorsVelocityIdx(void) const;
+        std::vector<int32_t> getMotorsModelIdx(void) const;
+        std::vector<int32_t> getMotorsPositionIdx(void) const;
+        std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
@@ -225,7 +235,7 @@ namespace jiminy
         vectorN_t const & getPositionLimitMin(void) const;
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
-        vectorN_t const & getTorqueLimit(void) const;
+        vectorN_t getTorqueLimit(void) const;
         vectorN_t getMotorInertia(void) const;
 
         std::vector<std::string> const & getPositionFieldNames(void) const;
@@ -236,15 +246,13 @@ namespace jiminy
         result_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
 
-        result_t refreshSensorProxies(void);
-        result_t refreshMotorProxies(void);
-
     protected:
         result_t loadUrdfModel(std::string const & urdfPath,
                                bool_t      const & hasFreeflyer);
         result_t generateModelFlexible(void);
         result_t generateModelBiased(void);
         result_t refreshContactProxies(void);
+        result_t refreshMotorProxies(void);
         result_t refreshProxies(void);
 
     public:
@@ -270,8 +278,6 @@ namespace jiminy
         std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the model
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the model
         std::vector<std::string> motorsNames_;              ///< Joint name of the motors of the model
-        std::vector<int32_t> motorsModelIdx_;               ///< Index of the motors in the pinocchio model
-        std::vector<int32_t> motorsVelocityIdx_;            ///< First indices of the motors in the velocity vector of the model
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the model, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio model
         std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the model

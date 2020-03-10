@@ -10,13 +10,13 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(Model             & model,
+    SimpleMotor::SimpleMotor(Model       const & model,
                              std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
                              std::string const & name) :
-    AbstractMotor(model, sharedHolder, name),
+    AbstractMotorBase(model, sharedHolder, name),
     motorOptions_(nullptr)
     {
-        /* AbstractMotor constructor calls the base implementations of the virtual methods since the derived
+        /* AbstractMotorBase constructor calls the base implementations of the virtual methods since the derived
            class is not available at this point. Thus it must be called explicitly in the constructor. */
         setOptions(getDefaultOptions());
     }
@@ -25,7 +25,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        returnCode = AbstractMotor::setOptions(motorOptions);
+        returnCode = AbstractMotorBase::setOptions(motorOptions);
 
         // Check if the friction parameters make sense
         if (returnCode == result_t::SUCCESS)
@@ -67,10 +67,10 @@ namespace jiminy
     }
 
     result_t SimpleMotor::computeEffort(float64_t const & t,
-                                        vectorN_t const & q,
-                                        vectorN_t const & v,
-                                        vectorN_t const & a,
-                                        vectorN_t const & u)
+                                        float64_t const & q,
+                                        float64_t const & v,
+                                        float64_t const & a,
+                                        float64_t const & uCommand)
     {
         if (!isInitialized_)
         {
@@ -79,7 +79,7 @@ namespace jiminy
         }
 
         // Bypass
-        data() = u[getJointVelocityIdx()];
+        data() = uCommand;
 
         // Enforce the torque limits
         if (motorOptions_->enableTorqueLimit)
@@ -90,7 +90,7 @@ namespace jiminy
         // Add friction to the joints associated with the motor if enable
         if (motorOptions_->enableFriction)
         {
-            float64_t const & vMotor = v[getJointVelocityIdx()];
+            float64_t const & vMotor = v;
             if (vMotor > 0)
             {
                 data() += motorOptions_->frictionViscousPositive * vMotor

@@ -8,7 +8,7 @@ namespace jiminy
 {
     class Model;
 
-    class SimpleMotor : public AbstractMotor
+    class SimpleMotor : public AbstractMotorBase
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,7 @@ namespace jiminy
         };
 
     public:
-        SimpleMotor(Model             & model,
+        SimpleMotor(Model       const & model,
                     std::shared_ptr<MotorSharedDataHolder_t> const & dataHolder,
                     std::string const & name);
         ~SimpleMotor(void) = default;
@@ -59,10 +59,10 @@ namespace jiminy
 
     private:
         virtual result_t computeEffort(float64_t const & t,
-                                       vectorN_t const & q,
-                                       vectorN_t const & v,
-                                       vectorN_t const & a,
-                                       vectorN_t const & u) override;
+                                       float64_t const & q,
+                                       float64_t const & v,
+                                       float64_t const & a,
+                                       float64_t const & uCommand) override;
 
     private:
         std::unique_ptr<motorOptions_t const> motorOptions_;

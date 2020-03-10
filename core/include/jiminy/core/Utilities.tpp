@@ -92,19 +92,6 @@ namespace jiminy
                };
     }
 
-    template<template <typename...> class MapType, typename KeyType, typename ValueType>
-    std::vector<KeyType> getMapKeys(MapType<KeyType, ValueType> const & m)
-    {
-        std::vector<KeyType> v;
-        v.reserve(m.size());
-        std::transform(m.begin(), m.end(), std::back_inserter(v),
-                       [](std::pair<KeyType const, ValueType> & pair) -> KeyType
-                       {
-                           return pair.first;
-                       });
-        return v;
-    }
-
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///
     /// \brief Swap two blocks of data in a vector.

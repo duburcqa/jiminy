@@ -9,6 +9,7 @@
 
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/ControllerFunctor.h"
 #include "jiminy/core/Types.h"
 
@@ -61,7 +62,7 @@ int main(int argc, char_t * argv[])
     timer.tic();
 
     // Instantiate and configuration the model
-    std::vector<std::string> motorNames = {std::string("SecondPendulumJoint")};
+    std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
     auto model = std::make_shared<Model>();
     configHolder_t mdlOptions = model->getOptions();
@@ -69,7 +70,12 @@ int main(int argc, char_t * argv[])
     boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
     model->setOptions(mdlOptions);
     model->initialize(urdfPath, false);
-    model->addMotors(motorNames);
+    for (std::string const & jointName : motorJointNames)
+    {
+        std::shared_ptr<SimpleMotor> motor;
+        model->addMotor(jointName, motor);
+        motor->initialize(jointName);
+    }
 
     // Instantiate and configuration the controller
 
@@ -83,7 +89,7 @@ int main(int argc, char_t * argv[])
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
-    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableCommand")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableTorque")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;
     boost::get<vectorN_t>(boost::get<configHolder_t>(simuOptions.at("world")).at("gravity"))(2) = -9.81;
     boost::get<std::string>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("odeSolver")) = std::string("runge_kutta_dopri5");

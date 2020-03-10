@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #include "jiminy/core/Engine.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/ControllerFunctor.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
@@ -55,9 +56,7 @@ TEST(EngineSanity, EnergyConservation)
     // Load double pendulum model.
     std::string urdfPath = "data/double_pendulum_rigid.urdf";
     // All joints actuated.
-    std::vector<std::string> jointNames;
-    jointNames.push_back("PendulumJoint");
-    jointNames.push_back("SecondPendulumJoint");
+    std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
     std::shared_ptr<Model> model = std::make_shared<Model>();
     // Disable velocity and position limits.
@@ -68,7 +67,12 @@ TEST(EngineSanity, EnergyConservation)
     model->setOptions(mdlOptions);
 
     model->initialize(urdfPath, false);
-    model->addMotors(jointNames);
+    for (std::string const & jointName : motorJointNames)
+    {
+        std::shared_ptr<SimpleMotor> motor;
+        model->addMotor(jointName, motor);
+        motor->initialize(jointName);
+    }
 
     auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
                                                          decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);

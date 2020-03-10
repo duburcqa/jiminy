@@ -16,6 +16,7 @@
 #include "jiminy/core/TelemetryRecorder.h"
 #include "jiminy/core/AbstractController.h"
 #include "jiminy/core/Model.h"
+#include "jiminy/core/AbstractMotor.h"
 #include "jiminy/core/Engine.h"
 
 #include <boost/numeric/odeint/iterator/n_step_iterator.hpp>
@@ -145,7 +146,7 @@ namespace jiminy
             }
             if (returnCode == result_t::SUCCESS)
             {
-                if (engineOptions_->telemetry.enableCommand)
+                if (engineOptions_->telemetry.enableTorque)
                 {
                     returnCode = telemetrySender_.registerVariable(
                         model_->getMotorTorqueFieldNames(),
@@ -210,10 +211,10 @@ namespace jiminy
             telemetrySender_.updateValue(model_->getAccelerationFieldNames(),
                                          stepperStateLast_.a());
         }
-        if (engineOptions_->telemetry.enableCommand)
+        if (engineOptions_->telemetry.enableTorque)
         {
             telemetrySender_.updateValue(model_->getMotorTorqueFieldNames(),
-                                         stepperStateLast_.uCommand);
+                                         stepperStateLast_.uMotor);
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
@@ -283,8 +284,11 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            // Propagate the gravity value at Pinocchio model level
+            // Propagate the user-defined gravity at Pinocchio model level
             model_->pncModel_.gravity = engineOptions_->world.gravity;
+
+            // Propage the user-defined motor inertia at Pinocchio model level
+            model_->pncModel_.rotorInertia = model_->getMotorInertia();
 
             vectorN_t x0 = vectorN_t::Zero(model_->nx());
             if (isStateTheoretical && model_->mdlOptions_->dynamics.enableFlexibleModel)
@@ -366,6 +370,7 @@ namespace jiminy
             Eigen::Ref<vectorN_t> a = stepperState_.a();
             vectorN_t & u = stepperState_.u;
             vectorN_t & uCommand = stepperState_.uCommand;
+            vectorN_t & uMotor = stepperState_.uMotor;
             vectorN_t & uInternal = stepperState_.uInternal;
             forceVector_t & fext = stepperState_.fExternal;
 
@@ -378,19 +383,23 @@ namespace jiminy
             // Initialize the sensor data
             model_->setSensorsData(t, q, v, a, u);
 
-            // Initialize the controller's dynamically registered variables
+            // Compute the actual motor torque
             computeCommand(t, q, v, uCommand);
+
+            // Compute the actual motor torque
+            model_->computeMotorsTorques(t, q, v, a, uCommand);
+            uMotor = model_->getMotorsTorques();
 
             // Compute the internal dynamics
             computeInternalDynamics(t, q, v, uInternal);
 
             // Compute the total torque vector
-            u = stepperState_.uInternal;
-            std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-            for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+            u = uInternal;
+            for (auto const & motor : model_->getMotors())
             {
-                uint32_t const & jointIdx = motorsVelocityIdx[i];
-                u[jointIdx] += stepperState_.uCommand[i];
+                int32_t const & motorId = motor.second->getId();
+                int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+                u[motorVelocityIdx] += uMotor[motorId];
             }
 
             // Compute dynamics
@@ -559,6 +568,7 @@ namespace jiminy
             vectorN_t & dxdt = stepperState_.dxdt;
             Eigen::Ref<vectorN_t> a = stepperState_.a();
             vectorN_t & u = stepperState_.u;
+            vectorN_t & uCommand = stepperState_.uCommand;
 
             // Define the stepper iterators.
             auto system =
@@ -599,7 +609,7 @@ namespace jiminy
                         if (dtNextControllerUpdatePeriod < MIN_TIME_STEP
                         || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_TIME_STEP)
                         {
-                            computeCommand(t, q, v, stepperState_.uCommand);
+                            computeCommand(t, q, v, uCommand);
 
                             /* Update the internal stepper state dxdt since the dynamics has changed.
                                 Make sure the next impulse force iterator has NOT been updated at this point ! */
@@ -655,14 +665,14 @@ namespace jiminy
                         // Note that in this case, the sensors have already been updated in
                         // anticipation in previous loop.
                         tNext += min(dtNextUpdatePeriod + stepperUpdatePeriod_,
-                                    tEnd - t,
-                                    tForceImpulseNext - t);
+                                     tEnd - t,
+                                     tForceImpulseNext - t);
                     }
                     else
                     {
                         tNext += min(dtNextUpdatePeriod,
-                                    tEnd - t,
-                                    tForceImpulseNext - t);
+                                     tEnd - t,
+                                     tForceImpulseNext - t);
                     }
 
                     // Compute the next step using adaptive step method
@@ -1208,6 +1218,7 @@ namespace jiminy
         Eigen::Ref<vectorN_t const> v = x.tail(model_->nv());
         vectorN_t & u = stepperState_.u;
         vectorN_t & uCommand = stepperState_.uCommand;
+        vectorN_t & uMotor = stepperState_.uMotor;
         vectorN_t & uInternal = stepperState_.uInternal;
         forceVector_t & fext = stepperState_.fExternal;
 
@@ -1220,8 +1231,8 @@ namespace jiminy
         computeExternalForces(t, x, fext);
 
         /* Update the sensor data if necessary (only for infinite update frequency).
-           Note that it is impossible to have access to the torques
-           since they depend on the sensor values themselves. */
+           Note that it is impossible to have access to the current accelerations
+           and torques since they depend on the sensor values themselves. */
         if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_TIME_STEP)
         {
             model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.u);
@@ -1234,6 +1245,11 @@ namespace jiminy
             computeCommand(t, q, v, uCommand);
         }
 
+        /* Compute the actual motor torque.
+           Note that it is impossible to have access to the current accelerations. */
+        model_->computeMotorsTorques(t, q, v, stepperStateLast_.a(), uCommand);
+        uMotor = model_->getMotorsTorques();
+
         /* Compute the internal dynamics.
            Make sure that the sensor state has been updated beforehand since
            the user-defined internal dynamics may rely on it. */
@@ -1241,11 +1257,11 @@ namespace jiminy
 
         // Compute the total torque vector
         u = uInternal;
-        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-        for (uint32_t i=0; i < motorsVelocityIdx.size(); i++)
+        for (auto const & motor : model_->getMotors())
         {
-            uint32_t const & jointIdx = motorsVelocityIdx[i];
-            u[jointIdx] += uCommand[i];
+            int32_t const & motorId = motor.second->getId();
+            int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+            u[motorVelocityIdx] += uMotor[motorId];
         }
 
         // Compute the dynamics
@@ -1500,10 +1516,11 @@ namespace jiminy
                           bool_t                                                 const & update_kinematics)
     {
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
-        std::vector<int32_t> const & motorsVelocityIdx = model_->getMotorsVelocityIdx();
-        for (uint32_t const & motorIdx : motorsVelocityIdx)
+        for (auto const & motor : model_->getMotors())
         {
-            data.kinetic_energy += 0.5 * model.rotorInertia[motorIdx] * std::pow(v[motorIdx], 2);
+            int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+            data.kinetic_energy += 0.5 * model.rotorInertia[motorVelocityIdx]
+                                       * std::pow(v[motorVelocityIdx], 2);
         }
         return data.kinetic_energy;
     }

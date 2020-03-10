@@ -33,8 +33,6 @@ namespace jiminy
     contactFramesNames_(),
     contactFramesIdx_(),
     motorsNames_(),
-    motorsModelIdx_(),
-    motorsVelocityIdx_(),
     rigidJointsNames_(),
     rigidJointsModelIdx_(),
     rigidJointsPositionIdx_(),
@@ -749,11 +747,13 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             // Extract the motor names
-            motorsNames_ = getMapKeys(motorsHolder_);
-
-            // Extract some motor indices in the model
-            getJointsModelIdx(pncModel_, motorsNames_, motorsModelIdx_);
-            getJointsVelocityIdx(pncModel_, motorsNames_, motorsVelocityIdx_, true);
+            motorsNames_.reserve(motorsHolder_.size());
+            std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                           std::back_inserter(motorsNames_),
+                           [](motorsHolder_t::value_type const & pair) -> std::string
+                           {
+                               return pair.first;
+                           });
 
             // Generate the fieldnames associated with the motor torques
             motorTorqueFieldNames_.clear();
@@ -761,64 +761,9 @@ namespace jiminy
             {
                 motorTorqueFieldNames_.emplace_back(JOINT_PREFIX_BASE + "Torque" + jointName);
             }
-
-            // Get the motor inertia from the URDF or the user options
-            pncModel_.rotorInertia.setConstant(0.0);
-            for (auto const & motor : motorsHolder_)
-            {
-                auto const & motorOptions = motor.second->baseMotorOptions_;
-                int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
-                if (motorOptions->enableMotorInertia)
-                {
-                    pncModel_.rotorInertia[motorsVelocityIdx] = motorOptions->motorInertia;
-                }
-            }
         }
 
         return returnCode;
-    }
-
-    result_t Model::getMotorsOptions(configHolder_t & motorsOptions) const
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::getMotorsOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        motorsOptions.clear();
-        for (motorsHolder_t::value_type const & motor : motorsHolder_)
-        {
-            motorsOptions[motor.first] = motor.second->getOptions();
-        }
-
-        return result_t::SUCCESS;
-    }
-
-    result_t Model::getMotorOptions(std::string    const & motorName,
-                                    configHolder_t       & motorOptions) const
-    {
-        result_t returnCode = result_t::SUCCESS;
-
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::getMotorOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        auto motorIt = motorsHolder_.find(motorName);
-        if (returnCode == result_t::SUCCESS)
-        {
-            if (motorIt == motorsHolder_.end())
-            {
-                std::cout << "Error - Model::getMotorOptions - No motor with this name exists." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        motorOptions = motorIt->second->getOptions();
-
-        return result_t::SUCCESS;
     }
 
     result_t Model::setMotorOptions(std::string    const & motorName,
@@ -901,79 +846,57 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Model::getSensorsOptions(std::string    const & sensorType,
-                                      configHolder_t       & sensorsOptions) const
+    result_t Model::getMotorsOptions(configHolder_t & motorsOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Model::getMotorsOptions - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
+        motorsOptions.clear();
+        for (motorsHolder_t::value_type const & motor : motorsHolder_)
         {
-            std::cout << "Error - Model::getSensorsOptions - This type of sensor does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-        sensorsOptions.clear();
-        for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
-        {
-            sensorsOptions[sensor.first] = sensor.second->getOptions();
+            motorsOptions[motor.first] = motor.second->getOptions();
         }
 
         return result_t::SUCCESS;
     }
 
-    result_t Model::getSensorsOptions(configHolder_t & sensorsOptions) const
+    result_t Model::getMotorOptions(std::string    const & motorName,
+                                    configHolder_t       & motorOptions) const
     {
+        result_t returnCode = result_t::SUCCESS;
+
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Model::getMotorOptions - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
-        sensorsOptions.clear();
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        auto motorIt = motorsHolder_.find(motorName);
+        if (returnCode == result_t::SUCCESS)
         {
-            configHolder_t sensorsGroupOptions;
-            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+            if (motorIt == motorsHolder_.end())
             {
-                sensorsGroupOptions[sensor.first] = sensor.second->getOptions();
+                std::cout << "Error - Model::getMotorOptions - No motor with this name exists." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
             }
-            sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
         }
+
+        motorOptions = motorIt->second->getOptions();
 
         return result_t::SUCCESS;
     }
 
-    result_t Model::getSensorOptions(std::string    const & sensorType,
-                                     std::string    const & sensorName,
-                                     configHolder_t       & sensorOptions) const
+    Model::motorsHolder_t const & Model::getMotors(void)
     {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::getSensorOptions - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
+        return motorsHolder_;
+    }
 
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
-        {
-            std::cout << "Error - Model::getSensorOptions - This type of sensor does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        auto sensorIt = sensorGroupIt->second.find(sensorName);
-        if (sensorIt == sensorGroupIt->second.end())
-        {
-            std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        sensorOptions = sensorIt->second->getOptions();
-
-        return result_t::SUCCESS;
+    Model::sensorsGroupHolder_t const & Model::getSensors(void)
+    {
+        return sensorsGroupHolder_;
     }
 
     result_t Model::setSensorOptions(std::string    const & sensorType,
@@ -1115,20 +1038,78 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Model::getTelemetryOptions(configHolder_t & telemetryOptions) const
+
+    result_t Model::getSensorsOptions(std::string    const & sensorType,
+                                      configHolder_t       & sensorsOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
-        telemetryOptions.clear();
-        for (auto const & sensorGroupTelemetryOption : sensorTelemetryOptions_)
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
-            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption.second;
+            std::cout << "Error - Model::getSensorsOptions - This type of sensor does not exist." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
         }
+        sensorsOptions.clear();
+        for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
+        {
+            sensorsOptions[sensor.first] = sensor.second->getOptions();
+        }
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Model::getSensorsOptions(configHolder_t & sensorsOptions) const
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        sensorsOptions.clear();
+        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        {
+            configHolder_t sensorsGroupOptions;
+            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+            {
+                sensorsGroupOptions[sensor.first] = sensor.second->getOptions();
+            }
+            sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
+        }
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Model::getSensorOptions(std::string    const & sensorType,
+                                     std::string    const & sensorName,
+                                     configHolder_t       & sensorOptions) const
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getSensorOptions - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            std::cout << "Error - Model::getSensorOptions - This type of sensor does not exist." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        auto sensorIt = sensorGroupIt->second.find(sensorName);
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        sensorOptions = sensorIt->second->getOptions();
 
         return result_t::SUCCESS;
     }
@@ -1163,9 +1144,22 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    configHolder_t Model::getOptions(void) const
+    result_t Model::getTelemetryOptions(configHolder_t & telemetryOptions) const
     {
-        return mdlOptionsHolder_;
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        telemetryOptions.clear();
+        for (auto const & sensorGroupTelemetryOption : sensorTelemetryOptions_)
+        {
+            std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
+            telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption.second;
+        }
+
+        return result_t::SUCCESS;
     }
 
     result_t Model::setOptions(configHolder_t mdlOptions)
@@ -1264,6 +1258,11 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    configHolder_t Model::getOptions(void) const
+    {
+        return mdlOptionsHolder_;
+    }
+
     bool_t const & Model::getIsInitialized(void) const
     {
         return isInitialized_;
@@ -1320,6 +1319,40 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    void Model::computeMotorsTorques(float64_t const & t,
+                                     vectorN_t const & q,
+                                     vectorN_t const & v,
+                                     vectorN_t const & a,
+                                     vectorN_t const & u)
+    {
+        motorsHolder_.begin()->second->computeAllEffort(t, q, v, a, u);
+    }
+
+    vectorN_t const & Model::getMotorsTorques(void) const
+    {
+        return motorsHolder_.begin()->second->getAll();
+    }
+
+    float64_t const & Model::getMotorTorque(std::string const & motorName) const
+    {
+        return motorsHolder_.at(motorName)->get();
+    }
+
+    void Model::setSensorsData(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & u)
+    {
+        for (auto const & sensorGroup : sensorsGroupHolder_)
+        {
+            if (!sensorGroup.second.empty())
+            {
+                sensorGroup.second.begin()->second->setAll(t, q, v, a, u);
+            }
+        }
+    }
+
     sensorsDataMap_t Model::getSensorsData(void) const
     {
         sensorsDataMap_t data;
@@ -1342,39 +1375,22 @@ namespace jiminy
 
     matrixN_t Model::getSensorsData(std::string const & sensorType) const
     {
-        // Return by value to make sure the value does not get updated
         return sensorsGroupHolder_.at(sensorType).begin()->second->getAll();
     }
 
     vectorN_t Model::getSensorData(std::string const & sensorType,
                                    std::string const & sensorName) const
     {
-        // Return by value to make sure the value does not get updated
-        return *sensorsGroupHolder_.at(sensorType).at(sensorName)->get();
-    }
-
-    void Model::setSensorsData(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & u)
-    {
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
-        {
-            if (!sensorGroup.second.empty())
-            {
-                sensorGroup.second.begin()->second->setAll(t, q, v, a, u); // Access static member of the sensor Group through the first instance
-            }
-        }
+        return *(sensorsGroupHolder_.at(sensorType).at(sensorName)->get());
     }
 
     void Model::updateTelemetry(void)
     {
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        for (auto const & sensorGroup : sensorsGroupHolder_)
         {
             if (!sensorGroup.second.empty())
             {
-                sensorGroup.second.begin()->second->updateTelemetryAll(); // Access static member of the sensor Group through the first instance
+                sensorGroup.second.begin()->second->updateTelemetryAll();
             }
         }
     }
@@ -1412,14 +1428,43 @@ namespace jiminy
         return motorsNames_;
     }
 
-    std::vector<int32_t> const & Model::getMotorsModelIdx(void) const
+    std::vector<int32_t> Model::getMotorsModelIdx(void) const
     {
-        return motorsModelIdx_;
+        std::vector<int32_t> motorsModelIdx;
+        motorsModelIdx.reserve(motorsHolder_.size());
+        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                       std::back_inserter(motorsModelIdx),
+                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       {
+                           return pair.second->getJointModelIdx();
+                       });
+        return motorsModelIdx;
     }
 
-    std::vector<int32_t> const & Model::getMotorsVelocityIdx(void) const
+    std::vector<int32_t> Model::getMotorsPositionIdx(void) const
     {
-        return motorsVelocityIdx_;
+        std::vector<int32_t> motorsPositionIdx;
+        motorsPositionIdx.reserve(motorsHolder_.size());
+        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                       std::back_inserter(motorsPositionIdx),
+                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       {
+                           return pair.second->getJointPositionIdx();
+                       });
+        return motorsPositionIdx;
+    }
+
+    std::vector<int32_t> Model::getMotorsVelocityIdx(void) const
+    {
+        std::vector<int32_t> motorsVelocityIdx;
+        motorsVelocityIdx.reserve(motorsHolder_.size());
+        std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                       std::back_inserter(motorsVelocityIdx),
+                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       {
+                           return pair.second->getJointVelocityIdx();
+                       });
+        return motorsVelocityIdx;
     }
 
     std::unordered_map<std::string, std::vector<std::string> > Model::getSensorsNames(void) const
@@ -1460,12 +1505,32 @@ namespace jiminy
         return velocityLimit_;
     }
 
+    vectorN_t Model::getTorqueLimit(void) const
+    {
+        vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
+        for (auto const & motor : motorsHolder_)
+        {
+            auto const & motorOptions = motor.second->baseMotorOptions_;
+            int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
+            if (motorOptions->enableMotorInertia)
+            {
+                motorInertia[motorsVelocityIdx] = motor.second->getTorqueLimit();
+            }
+        }
+        return motorInertia;
+    }
+
     vectorN_t Model::getMotorInertia(void) const
     {
-        vectorN_t motorInertia(motorsVelocityIdx_.size());
-        for (uint32_t i=0; i < motorsVelocityIdx_.size(); ++i)
+        vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
+        for (auto const & motor : motorsHolder_)
         {
-            motorInertia[i] = pncModel_.rotorInertia[motorsVelocityIdx_[i]];
+            auto const & motorOptions = motor.second->baseMotorOptions_;
+            int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
+            if (motorOptions->enableMotorInertia)
+            {
+                motorInertia[motorsVelocityIdx] = motorOptions->motorInertia;
+            }
         }
         return motorInertia;
     }

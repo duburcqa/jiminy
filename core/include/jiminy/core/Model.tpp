@@ -49,7 +49,7 @@ namespace jiminy
         );
 
         // Get a pointer to the motor
-        getMotor<TMotor>(motorName, motor);
+        getMotor(motorName, motor);
 
         // Refresh the attributes of the model
         refreshMotorProxies();
@@ -132,7 +132,7 @@ namespace jiminy
         );
 
         // Get a pointer to the sensor
-        getSensor<TSensor>(sensorType, sensorName, sensor);
+        getSensor(sensorType, sensorName, sensor);
 
         return result_t::SUCCESS;
     }

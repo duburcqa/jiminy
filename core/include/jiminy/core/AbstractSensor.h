@@ -394,7 +394,7 @@ namespace jiminy
     };
 
     template<class T>
-    class AbstractSensorTpl : private AbstractSensorBase
+    class AbstractSensorTpl : public AbstractSensorBase
     {
     public:
         // Disable the copy of the class
@@ -408,8 +408,6 @@ namespace jiminy
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
-        using AbstractSensorBase::refreshProxies;
-        using AbstractSensorBase::updateTelemetry;
         void updateTelemetryAll(void) override final;
 
         virtual result_t setOptions(configHolder_t const & sensorOptions) override;

@@ -11,7 +11,7 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf
 
 model = jiminy.Model()
 model.initialize(urdf_path, False)
-model.add_motors(["slider_to_cart"])
+model.add_motor("slider_to_cart")
 model.add_encoder_sensor("slider", "slider_to_cart")
 model.add_encoder_sensor("pole", "cart_to_pole")
 engine_py = EngineAsynchronous(model)
@@ -25,7 +25,7 @@ model_options["telemetry"]["enableImuSensors"] = False
 engine_options["telemetry"]["enableConfiguration"] = False
 engine_options["telemetry"]["enableVelocity"] = False
 engine_options["telemetry"]["enableAcceleration"] = False
-engine_options["telemetry"]["enableCommand"] = False
+engine_options["telemetry"]["enableTorque"] = False
 engine_options["telemetry"]["enableEnergy"] = False
 
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5"

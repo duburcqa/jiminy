@@ -8,7 +8,7 @@
 #include <cassert>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/AbstractSensor.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/BasicSensors.h"
 #include "jiminy/core/Model.h"
 #include "jiminy/core/AbstractController.h"
@@ -462,6 +462,114 @@ namespace python
         bp::object funcPyPtr_;
     };
 
+    // ***************************** PyMotorVisitor ***********************************
+
+    struct PyMotorVisitor
+        : public bp::def_visitor<PyMotorVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+
+        template<class PyClass>
+        class PyMotorVisit
+        {
+        public:
+            using TMotor = typename PyClass::wrapped_type;
+
+            static void visitAbstract(PyClass& cl)
+            {
+                cl
+                    .def("get_options", &PyMotorVisitor::getOptions<TMotor>,
+                                        bp::return_value_policy<bp::return_by_value>())
+                    .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
+
+                    .add_property("name", bp::make_function(&AbstractMotorBase::getName,
+                                          bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
+                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("id", bp::make_function(&AbstractMotorBase::getId,
+                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_position_idx", bp::make_function(&AbstractMotorBase::getJointPositionIdx,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("torque_limit", bp::make_function(&AbstractMotorBase::getTorqueLimit,
+                                                  bp::return_value_policy<bp::copy_const_reference>()))
+                    ;
+            }
+
+            template<class Q = TMotor>
+            static typename std::enable_if<!std::is_same<Q, AbstractMotorBase>::value, void>::type
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+
+                cl
+                    .def("initialize", &TMotor::initialize)
+                    ;
+            }
+
+            template<class Q = TMotor>
+            static typename std::enable_if<std::is_same<Q, AbstractMotorBase>::value, void>::type
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+            }
+        };
+
+    public:
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            PyMotorVisit<PyClass>::visit(cl);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief      Getters and Setters
+        ///////////////////////////////////////////////////////////////////////////////
+
+        template<typename TMotor>
+        static bp::dict getOptions(TMotor & self)
+        {
+            bp::dict configPy;
+            convertToPy(self.getOptions(), configPy);
+            return configPy;
+        }
+
+        template<typename TMotor>
+        static void setOptions(TMotor         & self,
+                               bp::dict const & configPy)
+        {
+            configHolder_t config = self.getOptions();
+            convertToC(configPy, config);
+            self.setOptions(config);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<AbstractMotorBase,
+                       boost::shared_ptr<AbstractMotorBase>,
+                       boost::noncopyable>("AbstractMotor", bp::no_init)
+                .def(PyMotorVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<AbstractMotorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
+
+            bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
+                       boost::shared_ptr<SimpleMotor>,
+                       boost::noncopyable>("SimpleMotor", bp::no_init)
+                .def(PyMotorVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<SimpleMotor> >();
+        }
+    };
+
     // ***************************** PySensorVisitor ***********************************
 
     struct PySensorVisitor
@@ -526,12 +634,6 @@ namespace python
         void visit(PyClass& cl) const
         {
             PySensorVisit<PyClass>::visit(cl);
-        }
-
-        template<typename TSensor>
-        static std::shared_ptr<TSensor> pySensorFactory(void)
-        {
-            return {nullptr};
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -614,16 +716,21 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false))
 
-                .def("add_motors", &PyModelVisitor::addMotors,
-                                   (bp::arg("self"), "joint_names"))
-                .def("remove_motors", &PyModelVisitor::removeMotors,
-                                      (bp::arg("self"),
-                                       bp::arg("joint_names") = std::vector<std::string>()))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
+                .def("add_simple_motor", &PyModelVisitor::createAndAddMotor<SimpleMotor>,
+                                         (bp::arg("self"),
+                                          bp::arg("sensor_name") = std::string(),
+                                          "joint_name"))
+                .def("get_motor", &PyModelVisitor::getMotor,
+                                  (bp::arg("self"), "motor_name"),
+                                   bp::return_value_policy<bp::reference_existing_object>())
+                .def("remove_motors", &PyModelVisitor::removeMotors,
+                                      (bp::arg("self"),
+                                       bp::arg("joint_names") = std::vector<std::string>()))
                 .def("add_imu_sensor", &PyModelVisitor::createAndAddSensor<ImuSensor>,
                                        (bp::arg("self"),
                                         bp::arg("sensor_name") = std::string(),
@@ -645,7 +752,11 @@ namespace python
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
                                     bp::return_value_policy<bp::reference_existing_object>())
 
-                .add_property("sensors_data", &Model::getSensorsData)
+                .add_property("sensors_data",
+                              static_cast<sensorsDataMap_t (Model::*)(void) const>(
+                              &Model::getSensorsData))
+                .add_property("motors_torques", bp::make_function(&Model::getMotorsTorques,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
 
                 .def("get_model_options", &PyModelVisitor::getModelOptions,
                                           bp::return_value_policy<bp::return_by_value>())
@@ -683,10 +794,9 @@ namespace python
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_velocity_idx", bp::make_function(&Model::getMotorsVelocityIdx,
-                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("sensors_names", bp::make_function(&Model::getSensorsNames,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("motors_position_idx", &Model::getMotorsPositionIdx)
+                .add_property("motors_velocity_idx", &Model::getMotorsVelocityIdx)
+                .add_property("sensors_names", &PyModelVisitor::getSensorsNames)
                 .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
@@ -702,26 +812,18 @@ namespace python
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motor_torque_limit", bp::make_function(&Model::getTorqueLimit,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("torque_limit", &Model::getTorqueLimit)
                 .add_property("motor_inertia", &Model::getMotorInertia)
 
                 .add_property("logfile_position_headers", bp::make_function(&Model::getPositionFieldNames,
-                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                                                          bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("logfile_velocity_headers", bp::make_function(&Model::getVelocityFieldNames,
-                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                                                          bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldNames,
-                                                         bp::return_value_policy<bp::copy_const_reference>()))
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("logfile_motor_torque_headers", bp::make_function(&Model::getMotorTorqueFieldNames,
-                                                         bp::return_value_policy<bp::copy_const_reference>()))
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
                 ;
-        }
-
-        static result_t addMotors(Model          & self,
-                                  bp::list const & jointNamesPy)
-        {
-            std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
-            return self.addMotors(jointNames);
         }
 
         static result_t removeMotors(Model          & self,
@@ -745,16 +847,39 @@ namespace python
             return self.removeContactPoints(frameNames);
         }
 
+        template<typename TMotor>
+        static result_t createAndAddMotor(Model             & self,
+                                          std::string         motorName,
+                                          std::string const & jointName)
+        {
+            result_t returnCode = result_t::SUCCESS;
+
+            if (motorName.empty())
+            {
+                motorName = jointName;
+            }
+
+            std::shared_ptr<TMotor> motor;
+            returnCode = self.addMotor(motorName, motor);
+
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = motor->initialize(jointName);
+            }
+
+            return returnCode;
+        }
+
         template<typename TSensor>
         static result_t createAndAddSensor(Model             & self,
                                            std::string         sensorName,
-                                           std::string const & name)
+                                           std::string const & robotElementName)
         {
             result_t returnCode = result_t::SUCCESS;
 
             if (sensorName.empty())
             {
-                sensorName = name;
+                sensorName = robotElementName;
             }
 
             std::shared_ptr<TSensor> sensor;
@@ -762,7 +887,7 @@ namespace python
 
             if (returnCode == result_t::SUCCESS)
             {
-                returnCode = sensor->initialize(name);
+                returnCode = sensor->initialize(robotElementName);
             }
 
             return returnCode;
@@ -772,13 +897,21 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
+        static AbstractMotorBase * getMotor(Model             & self,
+                                            std::string const & motorName)
+        {
+            std::shared_ptr<AbstractMotorBase> motor;
+            self.getMotor(motorName, motor);
+            return motor.get();
+        }
+
         static AbstractSensorBase * getSensor(Model             & self,
                                               std::string const & sensorType,
                                               std::string const & sensorName)
         {
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
-            return *sensor;
+            return sensor.get();
         }
 
         static bp::dict getSensorsNames(Model & self)
@@ -789,7 +922,7 @@ namespace python
             {
                 bp::object dataPy;
                 convertToPy(sensorTypeNames.second, dataPy);
-                configPyDict[sensorTypeNames.first] = dataPy;
+                sensorsNamesPy[sensorTypeNames.first] = dataPy;
             }
             return sensorsNamesPy;
         }
