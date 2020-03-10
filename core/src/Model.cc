@@ -889,6 +889,27 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
+    result_t Model::getMotor(std::string const & motorName,
+                             std::shared_ptr<AbstractMotorBase> & motor)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getMotor - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        auto motorIt = motorsHolder_.find(motorName);
+        if (motorIt == motorsHolder_.end())
+        {
+            std::cout << "Error - Model::getMotor - No motor with this name exists." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        motor = motorIt->second;
+
+        return result_t::SUCCESS;
+    }
+
     Model::motorsHolder_t const & Model::getMotors(void)
     {
         return motorsHolder_;
@@ -897,6 +918,35 @@ namespace jiminy
     Model::sensorsGroupHolder_t const & Model::getSensors(void)
     {
         return sensorsGroupHolder_;
+    }
+
+    result_t Model::getSensor(std::string const & sensorType,
+                              std::string const & sensorName,
+                              std::shared_ptr<AbstractSensorBase> & sensor)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::getSensor - Model not initialized." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            std::cout << "Error - Model::getSensor - This type of sensor does not exist." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        auto sensorIt = sensorGroupIt->second.find(sensorName);
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            std::cout << "Error - Model::getSensor - No sensor with this type and name exists." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        sensor = sensorIt->second;
+
+        return result_t::SUCCESS;
     }
 
     result_t Model::setSensorOptions(std::string    const & sensorType,

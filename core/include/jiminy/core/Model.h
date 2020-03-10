@@ -144,21 +144,19 @@ namespace jiminy
         result_t addContactPoints(std::vector<std::string> const & frameNames);
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
         template<typename TMotor>
-        result_t addMotor(std::string             const & motorName,
-                          std::shared_ptr<TMotor>       & motor);
-        template<typename TMotor>
-        result_t getMotor(std::string              const & motorName,
-                          std::shared_ptr<TMotor>        & motor);
+        result_t addMotor(std::string const & motorName,
+                          std::shared_ptr<AbstractMotorBase> & motor);
+        result_t getMotor(std::string const & motorName,
+                          std::shared_ptr<AbstractMotorBase> & motor);
         motorsHolder_t const & getMotors(void);
         result_t removeMotor(std::string const & motorName);
         result_t removeMotors(std::vector<std::string> const & motorNames = {});
         template<typename TSensor>
-        result_t addSensor(std::string              const & sensorName,
-                           std::shared_ptr<TSensor>       & sensor);
-        template<typename TSensor>
-        result_t getSensor(std::string              const & sensorType,
-                           std::string              const & sensorName,
-                           std::shared_ptr<TSensor>       & sensor);
+        result_t addSensor(std::string const & sensorName,
+                           std::shared_ptr<AbstractSensorBase> & sensor);
+        result_t getSensor(std::string const & sensorType,
+                           std::string const & sensorName,
+                           std::shared_ptr<AbstractSensorBase> & sensor);
         sensorsGroupHolder_t const & getSensors(void);
         result_t removeSensor(std::string const & sensorType,
                               std::string const & sensorName);

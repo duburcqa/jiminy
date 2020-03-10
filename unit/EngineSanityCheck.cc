@@ -62,8 +62,9 @@ TEST(EngineSanity, EnergyConservation)
     model->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
-        std::shared_ptr<SimpleMotor> motor;
-        model->addMotor(jointName, motor);
+        std::shared_ptr<AbstractMotorBase> motorAbstract;
+        model->addMotor<SimpleMotor>(jointName, motorAbstract);
+        auto motor = std::static_pointer_cast<SimpleMotor>(motorAbstract);
         motor->initialize(jointName);
     }
 

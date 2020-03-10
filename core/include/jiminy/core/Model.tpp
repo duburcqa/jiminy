@@ -11,8 +11,8 @@ namespace jiminy
 {
 
     template<typename TMotor>
-    result_t Model::addMotor(std::string             const & motorName,
-                             std::shared_ptr<TMotor>       & motor)
+    result_t Model::addMotor(std::string const & motorName,
+                             std::shared_ptr<AbstractMotorBase> & motor)
     {
         if (getIsLocked())
         {
@@ -48,7 +48,7 @@ namespace jiminy
                 new TMotor(*this, motorsSharedHolder_, motorName))
         );
 
-        // Get a pointer to the motor
+        // Get a shared pointer to the motor
         getMotor(motorName, motor);
 
         // Refresh the attributes of the model
@@ -57,31 +57,9 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    template<typename TMotor>
-    result_t Model::getMotor(std::string              const & motorName,
-                             std::shared_ptr<TMotor>        & motor)
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::getMotor - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        auto motorIt = motorsHolder_.find(motorName);
-        if (motorIt == motorsHolder_.end())
-        {
-            std::cout << "Error - Model::getMotor - No motor with this name exists." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        motor = std::static_pointer_cast<TMotor>(motorIt->second);
-
-        return result_t::SUCCESS;
-    }
-
     template<typename TSensor>
-    result_t Model::addSensor(std::string              const & sensorName,
-                              std::shared_ptr<TSensor>       & sensor)
+    result_t Model::addSensor(std::string const & sensorName,
+                              std::shared_ptr<AbstractSensorBase> & sensor)
     {
         // The sensors' names must be unique, even if their type is different.
 
@@ -131,38 +109,8 @@ namespace jiminy
                 new TSensor(*this, sensorsSharedHolder_.at(sensorType), sensorName))
         );
 
-        // Get a pointer to the sensor
+        // Get a shared pointer to the sensor
         getSensor(sensorType, sensorName, sensor);
-
-        return result_t::SUCCESS;
-    }
-
-    template<typename TSensor>
-    result_t Model::getSensor(std::string              const & sensorType,
-                              std::string              const & sensorName,
-                              std::shared_ptr<TSensor>       & sensor)
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::getSensor - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
-        {
-            std::cout << "Error - Model::getSensor - This type of sensor does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        auto sensorIt = sensorGroupIt->second.find(sensorName);
-        if (sensorIt == sensorGroupIt->second.end())
-        {
-            std::cout << "Error - Model::getSensor - No sensor with this type and name exists." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        sensor = std::static_pointer_cast<TSensor>(sensorIt->second);
 
         return result_t::SUCCESS;
     }

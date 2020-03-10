@@ -859,8 +859,8 @@ namespace python
                 motorName = jointName;
             }
 
-            std::shared_ptr<TMotor> motor;
-            returnCode = self.addMotor(motorName, motor);
+            std::shared_ptr<AbstractMotorBase> motor;
+            returnCode = self.addMotor<TMotor>(motorName, motor);
 
             if (returnCode == result_t::SUCCESS)
             {
@@ -882,8 +882,9 @@ namespace python
                 sensorName = robotElementName;
             }
 
-            std::shared_ptr<TSensor> sensor;
-            returnCode = self.addSensor(sensorName, sensor);
+            std::shared_ptr<AbstractSensorBase> sensorAbstract;
+            returnCode = self.addSensor<TSensor>(sensorName, sensorAbstract);
+            auto sensor = std::static_pointer_cast<TSensor>(sensorAbstract);
 
             if (returnCode == result_t::SUCCESS)
             {
