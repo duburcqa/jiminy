@@ -64,18 +64,18 @@ namespace jiminy
 
         struct abstractMotorOptions_t
         {
-            bool_t    const enableMotorInertia;
-            float64_t const motorInertia;
             bool_t    const enableTorqueLimit;
             bool_t    const torqueLimitFromUrdf;
             float64_t const torqueLimit;
+            bool_t    const enableMotorInertia;
+            float64_t const motorInertia;
 
             abstractMotorOptions_t(configHolder_t const & options) :
-            enableMotorInertia(boost::get<bool_t>(options.at("enableMotorInertia"))),
-            motorInertia(boost::get<float64_t>(options.at("motorInertia"))),
             enableTorqueLimit(boost::get<bool_t>(options.at("enableTorqueLimit"))),
             torqueLimitFromUrdf(boost::get<bool_t>(options.at("torqueLimitFromUrdf"))),
-            torqueLimit(boost::get<float64_t>(options.at("torqueLimit")))
+            torqueLimit(boost::get<float64_t>(options.at("torqueLimit"))),
+            enableMotorInertia(boost::get<bool_t>(options.at("enableMotorInertia"))),
+            motorInertia(boost::get<float64_t>(options.at("motorInertia")))
             {
                 // Empty.
             }

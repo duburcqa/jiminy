@@ -49,7 +49,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (model_->getIsInitialized())
+        if (!model_->getIsInitialized())
         {
             std::cout << "Error - ImuSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
@@ -129,7 +129,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (model_->getIsInitialized())
+        if (!model_->getIsInitialized())
         {
             std::cout << "Error - ForceSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
@@ -206,7 +206,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (model_->getIsInitialized())
+        if (!model_->getIsInitialized())
         {
             std::cout << "Error - EncoderSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;

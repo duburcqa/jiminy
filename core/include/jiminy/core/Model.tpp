@@ -144,21 +144,21 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Model::getSensor - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Model::getSensorOptions - This type of sensor does not exist." << std::endl;
+            std::cout << "Error - Model::getSensor - This type of sensor does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
         auto sensorIt = sensorGroupIt->second.find(sensorName);
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
+            std::cout << "Error - Model::getSensor - No sensor with this type and name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 

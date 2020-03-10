@@ -59,13 +59,6 @@ TEST(EngineSanity, EnergyConservation)
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
     std::shared_ptr<Model> model = std::make_shared<Model>();
-    // Disable velocity and position limits.
-    configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
-    model->setOptions(mdlOptions);
-
     model->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
@@ -73,6 +66,22 @@ TEST(EngineSanity, EnergyConservation)
         model->addMotor(jointName, motor);
         motor->initialize(jointName);
     }
+
+    // Disable velocity and position limits.
+    configHolder_t mdlOptions = model->getOptions();
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
+    model->setOptions(mdlOptions);
+
+    // Disable torque limits.
+    configHolder_t motorsOptions;
+    model->getMotorsOptions(motorsOptions);
+    for (auto & options : motorsOptions)
+    {
+        configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
+        boost::get<bool_t>(motorOptions.at("enableTorqueLimit")) = false;
+    }
+    model->setMotorsOptions(motorsOptions);
 
     auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
                                                          decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);

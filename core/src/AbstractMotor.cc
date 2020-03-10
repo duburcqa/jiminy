@@ -95,7 +95,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (model_->getIsInitialized())
+        if (!model_->getIsInitialized())
         {
             std::cout << "Error - AbstractMotorBase::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode =  result_t::ERROR_INIT_FAILED;
@@ -148,29 +148,17 @@ namespace jiminy
 
     result_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
     {
-
         // Check if the internal buffers must be updated
         bool_t internalBuffersMustBeUpdated = false;
-        bool_t const & torqueLimitFromUrdf = boost::get<bool_t>(motorOptions.at("torqueLimitFromUrdf"));
-        if (!torqueLimitFromUrdf)
+        if (isInitialized_)
         {
-            float64_t const & torqueLimit = boost::get<float64_t>(motorOptions.at("torqueLimit"));
-            internalBuffersMustBeUpdated |= std::abs(torqueLimit - baseMotorOptions_->torqueLimit) > EPS;
-        }
-        internalBuffersMustBeUpdated |= (baseMotorOptions_->torqueLimitFromUrdf != torqueLimitFromUrdf);
-
-        /* Check that the user-defined motor intertia is positive,
-           then check if the internal model's buffers to must be updated. */
-        bool_t modelBuffersMustBeUpdated = false;
-        if (boost::get<bool_t>(motorOptions.at("enableMotorInertia")))
-        {
-            float64_t const & motorInertia = boost::get<float64_t>(motorOptions.at("motorInertia"));
-            if(motorInertia < 0.0)
+            bool_t const & torqueLimitFromUrdf = boost::get<bool_t>(motorOptions.at("torqueLimitFromUrdf"));
+            if (!torqueLimitFromUrdf)
             {
-                std::cout << "Error - Model::setOptions - Every values in 'motorInertia' must be positive." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                float64_t const & torqueLimit = boost::get<float64_t>(motorOptions.at("torqueLimit"));
+                internalBuffersMustBeUpdated |= std::abs(torqueLimit - baseMotorOptions_->torqueLimit) > EPS;
             }
-            modelBuffersMustBeUpdated |= std::abs(motorInertia - baseMotorOptions_->motorInertia) > EPS;
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->torqueLimitFromUrdf != torqueLimitFromUrdf);
         }
 
         // Update the motor's options

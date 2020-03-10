@@ -11,7 +11,7 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf
 
 model = jiminy.Model()
 model.initialize(urdf_path, False)
-model.add_motor("slider_to_cart")
+model.add_simple_motor(joint_name="slider_to_cart")
 model.add_encoder_sensor("slider", "slider_to_cart")
 model.add_encoder_sensor("pole", "cart_to_pole")
 engine_py = EngineAsynchronous(model)

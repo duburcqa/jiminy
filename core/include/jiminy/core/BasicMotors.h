@@ -16,7 +16,9 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual configHolder_t getDefaultOptions(void) override
         {
-            configHolder_t config;
+            // Add extra options or update default values
+            configHolder_t config = AbstractMotorBase::getDefaultOptions();
+
             config["enableFriction"] = false;
             config["frictionViscousPositive"] = 0.0;
             config["frictionViscousNegative"] = 0.0;
