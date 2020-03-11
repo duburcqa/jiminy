@@ -481,9 +481,9 @@ namespace python
             static void visitAbstract(PyClass& cl)
             {
                 cl
+                    .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
                     .def("get_options", &PyMotorVisitor::getOptions<TMotor>,
                                         bp::return_value_policy<bp::return_by_value>())
-                    .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
 
                     .add_property("name", bp::make_function(&AbstractMotorBase::getName,
                                           bp::return_value_policy<bp::copy_const_reference>()))
@@ -542,20 +542,20 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
 
         template<typename TMotor>
-        static bp::dict getOptions(TMotor & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
-        }
-
-        template<typename TMotor>
         static void setOptions(TMotor         & self,
                                bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
             convertToC(configPy, config);
             self.setOptions(config);
+        }
+
+        template<typename TMotor>
+        static bp::dict getOptions(TMotor & self)
+        {
+            bp::dict configPy;
+            convertToPy(self.getOptions(), configPy);
+            return configPy;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -599,9 +599,9 @@ namespace python
             static void visitAbstract(PyClass& cl)
             {
                 cl
+                    .def("set_options", &PySensorVisitor::setOptions<TSensor>)
                     .def("get_options", &PySensorVisitor::getOptions<TSensor>,
                                         bp::return_value_policy<bp::return_by_value>())
-                    .def("set_options", &PySensorVisitor::setOptions<TSensor>)
 
                     .add_property("name", bp::make_function(&AbstractSensorBase::getName,
                                           bp::return_value_policy<bp::copy_const_reference>()))
@@ -657,20 +657,20 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
 
         template<typename TSensor>
-        static bp::dict getOptions(TSensor & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
-        }
-
-        template<typename TSensor>
         static void setOptions(TSensor        & self,
                                bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
             convertToC(configPy, config);
             self.setOptions(config);
+        }
+
+        template<typename TSensor>
+        static bp::dict getOptions(TSensor & self)
+        {
+            bp::dict configPy;
+            convertToPy(self.getOptions(), configPy);
+            return configPy;
         }
 
         template<typename TSensor>
@@ -774,9 +774,12 @@ namespace python
                 .def("get_model_options", &PyModelVisitor::getModelOptions,
                                           bp::return_value_policy<bp::return_by_value>())
                 .def("set_model_options", &PyModelVisitor::setModelOptions)
-                .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
+                .def("set_motors_options", &PyModelVisitor::setMotorsOptions)
+                .def("get_motors_options", &PyModelVisitor::getMotorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
                 .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
+                .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
+                                            bp::return_value_policy<bp::return_by_value>())
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
@@ -942,13 +945,21 @@ namespace python
             self.setTelemetryOptions(configTelemetry);
         }
 
-        static bp::dict getSensorsOptions(Model & self)
+        static void setMotorsOptions(Model          & self,
+                                     bp::dict const & configPy)
+        {
+            configHolder_t config;
+            self.getMotorsOptions(config);
+            convertToC(configPy, config);
+            self.setMotorsOptions(config);
+        }
+
+        static bp::dict getMotorsOptions(Model & self)
         {
             configHolder_t config;
             bp::dict configPy;
-            self.getSensorsOptions(config);
+            self.getMotorsOptions(config);
             convertToPy(config, configPy);
-
             return configPy;
         }
 
@@ -959,6 +970,15 @@ namespace python
             self.getSensorsOptions(config);
             convertToC(configPy, config);
             self.setSensorsOptions(config);
+        }
+
+        static bp::dict getSensorsOptions(Model & self)
+        {
+            configHolder_t config;
+            bp::dict configPy;
+            self.getSensorsOptions(config);
+            convertToPy(config, configPy);
+            return configPy;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
