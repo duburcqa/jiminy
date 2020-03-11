@@ -105,9 +105,9 @@ class EngineAsynchronous(object):
         """
         engine_options = self._engine.get_options()
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
-        self._engine.reset(reset_random_generator=True)
-        self._is_running = False
         self._engine.set_options(engine_options)
+        self._engine.reset()
+        self._is_running = False
 
     def reset(self, x0, is_state_theoretical=False):
         """

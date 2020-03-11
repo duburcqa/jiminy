@@ -1692,17 +1692,21 @@ namespace jiminy
 
     vectorN_t Model::getTorqueLimit(void) const
     {
-        vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
+        vectorN_t torqueLimit = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor.second->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
-            if (motorOptions->enableMotorInertia)
+            if (motorOptions->enableTorqueLimit)
             {
-                motorInertia[motorsVelocityIdx] = motor.second->getTorqueLimit();
+                torqueLimit[motorsVelocityIdx] = motor.second->getTorqueLimit();
+            }
+            else
+            {
+                torqueLimit[motorsVelocityIdx] = -1;
             }
         }
-        return motorInertia;
+        return torqueLimit;
     }
 
     vectorN_t Model::getMotorInertia(void) const
@@ -1710,12 +1714,8 @@ namespace jiminy
         vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
-            auto const & motorOptions = motor.second->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
-            if (motorOptions->enableMotorInertia)
-            {
-                motorInertia[motorsVelocityIdx] = motorOptions->motorInertia;
-            }
+            motorInertia[motorsVelocityIdx] = motor.second->getRotorInertia();
         }
         return motorInertia;
     }

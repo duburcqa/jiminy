@@ -501,6 +501,8 @@ namespace python
                                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("torque_limit", bp::make_function(&AbstractMotorBase::getTorqueLimit,
                                                   bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("rotor_inertia", bp::make_function(&AbstractMotorBase::getRotorInertia,
+                                                   bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
@@ -1285,9 +1287,8 @@ namespace python
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
                                    (bp::arg("self"), "model", "controller", "callback_handle"))
 
-                .def("reset", &Engine::reset,
+                .def("reset", static_cast<void (Engine::*)(bool_t const &)>(&Engine::reset),
                               (bp::arg("self"),
-                               bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("start", &Engine::start,
                               (bp::arg("self"), "x_init",

@@ -390,17 +390,18 @@ namespace jiminy
         ///
         /// \details This function resets the engine, the model and the controller.
         ///          This method is made to be called in between simulations, to allow
-        ///          registering of new variables to log.
-        /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
+        ///          registering of new variables to log, and reset the random number
+        ///          generator.
+        ///
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        void reset(bool_t const & resetRandomNumbers = false,
-                   bool_t const & resetDynamicForceRegister = false);
+        void reset(bool_t const & resetDynamicForceRegister = false);
 
         /// \brief Reset the engine and compute initial state.
         ///
         /// \details This function reset the engine, the model and the controller, and update internal data
         ///          to match the given initial state.
+        ///
         /// \param[in] xInit Initial state.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
@@ -417,6 +418,7 @@ namespace jiminy
         ///          the endpoint is added to the log. The integrator object is allowed to perform
         ///          multiple steps inside of this interval.
         ///          One may specify a negative timestep to use the default update value.
+        ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
         result_t step(float64_t const & stepSize = -1);
 
@@ -514,6 +516,9 @@ namespace jiminy
                                    vectorN_t       & dxdtIn);
 
     private:
+        void reset(bool_t const & resetRandomNumbers,
+                   bool_t const & resetDynamicForceRegister);
+
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType>
         inline Scalar

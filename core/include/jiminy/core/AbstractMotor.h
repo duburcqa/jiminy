@@ -59,8 +59,8 @@ namespace jiminy
             config["enableTorqueLimit"] = true;
             config["torqueLimitFromUrdf"] = true;
             config["torqueLimit"] = 0.0;
-            config["enableMotorInertia"] = false;
-            config["motorInertia"] = 0.0;
+            config["enableRotorInertia"] = false;
+            config["rotorInertia"] = 0.0;
 
             return config;
         };
@@ -70,15 +70,15 @@ namespace jiminy
             bool_t    const enableTorqueLimit;
             bool_t    const torqueLimitFromUrdf;
             float64_t const torqueLimit;
-            bool_t    const enableMotorInertia;
-            float64_t const motorInertia;
+            bool_t    const enableRotorInertia;
+            float64_t const rotorInertia;
 
             abstractMotorOptions_t(configHolder_t const & options) :
             enableTorqueLimit(boost::get<bool_t>(options.at("enableTorqueLimit"))),
             torqueLimitFromUrdf(boost::get<bool_t>(options.at("torqueLimitFromUrdf"))),
             torqueLimit(boost::get<float64_t>(options.at("torqueLimit"))),
-            enableMotorInertia(boost::get<bool_t>(options.at("enableMotorInertia"))),
-            motorInertia(boost::get<float64_t>(options.at("motorInertia")))
+            enableRotorInertia(boost::get<bool_t>(options.at("enableRotorInertia"))),
+            rotorInertia(boost::get<float64_t>(options.at("rotorInertia")))
             {
                 // Empty.
             }
@@ -206,6 +206,13 @@ namespace jiminy
         float64_t const & getTorqueLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get rotorInertia_.
+        ///
+        /// \details    It is the rotor inertia of the motor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        float64_t const & getRotorInertia(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the motor to update its actual torque based of the input data.
         ///
         /// \details    It assumes that the internal state of the model is consistent with the
@@ -285,6 +292,7 @@ namespace jiminy
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
         float64_t torqueLimit_;
+        float64_t rotorInertia_;
 
     private:
         MotorSharedDataHolder_t * sharedHolder_;    ///< Shared data between every motors associated with the model

@@ -252,6 +252,11 @@ namespace jiminy
         stop();
     }
 
+    void Engine::reset(bool_t const & resetDynamicForceRegister)
+    {
+        reset(true, resetDynamicForceRegister);
+    }
+
     result_t Engine::start(vectorN_t const & xInit,
                            bool_t    const & isStateTheoretical,
                            bool_t    const & resetRandomNumbers,

@@ -91,11 +91,21 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
-        motors = ["slider_to_cart"]
-        self._model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected
-        self._model.initialize(urdf_path, motors=motors)
-        self._model.add_encoder_sensor("Slider", "slider_to_cart")
-        self._model.add_encoder_sensor("Pole", "cart_to_pole")
+
+        self._model = jiminy.Model()
+        self._model.initialize(urdf_path)
+
+        motor_joint_names = ("slider_to_cart",)
+        encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
+        for joint_name in motor_joint_names:
+            motor = jiminy.SimpleMotor(joint_name)
+            self._model.attach_motor(motor)
+            motor.initialize(joint_name)
+        for sensor_name, joint_name in encoder_sensors_def.items():
+            encoder = jiminy.EncoderSensor(sensor_name)
+            self._model.attach_sensor(encoder)
+            encoder.initialize(joint_name)
+
         engine_py = EngineAsynchronous(self._model)
 
         # ############################### Configure Jiminy #####################################

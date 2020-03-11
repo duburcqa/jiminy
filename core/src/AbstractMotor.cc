@@ -14,10 +14,11 @@ namespace jiminy
     name_(name),
     motorId_(-1),
     jointName_(),
-    jointModelIdx_(),
-    jointPositionIdx_(),
-    jointVelocityIdx_(),
-    torqueLimit_(),
+    jointModelIdx_(-1),
+    jointPositionIdx_(-1),
+    jointVelocityIdx_(-1),
+    torqueLimit_(0.0),
+    rotorInertia_(0.0),
     sharedHolder_(nullptr)
     {
         // Initialize the options
@@ -181,6 +182,16 @@ namespace jiminy
             {
                 torqueLimit_ = baseMotorOptions_->torqueLimit;
             }
+
+            // Get the rotor inertia
+            if (baseMotorOptions_->enableRotorInertia)
+            {
+                rotorInertia_ = baseMotorOptions_->rotorInertia;
+            }
+            else
+            {
+                rotorInertia_ = 0.0;
+            }
         }
 
         return returnCode;
@@ -254,6 +265,11 @@ namespace jiminy
     float64_t const & AbstractMotorBase::getTorqueLimit(void) const
     {
         return torqueLimit_;
+    }
+
+    float64_t const & AbstractMotorBase::getRotorInertia(void) const
+    {
+        return rotorInertia_;
     }
 
     void AbstractMotorBase::clearDataBuffer(void)
