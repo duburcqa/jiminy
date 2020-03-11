@@ -57,7 +57,7 @@ namespace jiminy
         boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
         boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
-        uint8_t num_;                                               ///< Number of sensors of that type
+        int32_t num_;                                               ///< Number of sensors of that type
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
     };
 
@@ -336,7 +336,7 @@ namespace jiminy
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual uint8_t const & getId(void) const = 0;
+        virtual int32_t const & getId(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -445,7 +445,7 @@ namespace jiminy
 
         virtual result_t setOptions(configHolder_t const & sensorOptions) override;
         virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
-        virtual uint8_t const & getId(void) const override final;
+        virtual int32_t const & getId(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldNames(void) const final;
         virtual uint32_t getSize(void) const override final;
@@ -480,7 +480,7 @@ namespace jiminy
         static bool_t const areFieldNamesGrouped_;
 
     protected:
-        uint8_t sensorId_;
+        int32_t sensorId_;
 
     private:
         using AbstractSensorBase::data_;

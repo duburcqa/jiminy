@@ -275,9 +275,12 @@ namespace jiminy
     std::string removeFieldnameSuffix(std::string         fieldname,
                                       std::string const & suffix)
     {
-        if (!fieldname.compare(fieldname.size() - suffix.size(), suffix.size(), suffix))
+        if (fieldname.size() > suffix.size())
         {
-            fieldname.erase(fieldname.size() - suffix.size(), fieldname.size());
+            if (!fieldname.compare(fieldname.size() - suffix.size(), suffix.size(), suffix))
+            {
+                fieldname.erase(fieldname.size() - suffix.size(), fieldname.size());
+            }
         }
         return fieldname;
     }

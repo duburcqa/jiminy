@@ -10,7 +10,7 @@ namespace jiminy
     template <typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
     AbstractSensorBase(name),
-    sensorId_(0),
+    sensorId_(-1),
     sharedHolder_(nullptr)
     {
         // Empty
@@ -51,6 +51,9 @@ namespace jiminy
         sharedHolder_->sensors_.push_back(this);
         ++sharedHolder_->num_;
 
+        // Initialized the measurement buffer
+        data_ = vectorN_t::Zero(getSize());
+
         // Update the flag
         isAttached_ = true;
 
@@ -71,7 +74,7 @@ namespace jiminy
         // Remove associated col in the global data buffer
         if(sensorId_ < sharedHolder_->num_ - 1)
         {
-            int8_t sensorShift = sharedHolder_->num_ - sensorId_ - 1;
+            int32_t sensorShift = sharedHolder_->num_ - sensorId_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
             {
                 data.middleCols(sensorId_, sensorShift) =
@@ -84,7 +87,7 @@ namespace jiminy
         }
 
         // Shift the sensor ids
-        for (uint8_t i = sensorId_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = sensorId_ + 1; i < sharedHolder_->num_; i++)
         {
             AbstractSensorTpl<T> * sensor =
                 static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
@@ -111,6 +114,9 @@ namespace jiminy
         // Clear the references to the model and shared data
         model_ = nullptr;
         sharedHolder_ = nullptr;
+
+        // Unset the Id
+        sensorId_ = -1;
 
         // Update the flag
         isAttached_ = false;
@@ -156,7 +162,7 @@ namespace jiminy
     }
 
     template <typename T>
-    uint8_t const & AbstractSensorTpl<T>::getId(void) const
+    int32_t const & AbstractSensorTpl<T>::getId(void) const
     {
         return sensorId_;
     }
@@ -203,7 +209,7 @@ namespace jiminy
         matrixN_t data(getSize(), sharedHolder_->num_);
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            uint8_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
+            int32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
             data.col(sensorId) = *sensor->get();
         }
         return data;
@@ -267,7 +273,7 @@ namespace jiminy
             };
 
         int32_t const inputIndexLeft = bisectLeft();
-        data_ = vectorN_t::Zero(getSize());
+        data_.setZero();
         if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < sharedHolder_->time_.size())
         {
             if (inputIndexLeft < 0)
@@ -320,7 +326,7 @@ namespace jiminy
         {
             data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size may be ill-defined
         }
-        data_ = vectorN_t::Zero(getSize());
+        data_.setZero();
     }
 
     template <typename T>

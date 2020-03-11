@@ -33,12 +33,12 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             jointName_ = jointName;
-            returnCode = refreshProxies();
+            isInitialized_ = true;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
-            isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
         return returnCode;

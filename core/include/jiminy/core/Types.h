@@ -120,7 +120,7 @@ namespace jiminy
         sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
 
         sensorDataTypePair_t(std::string const & nameIn,
-                             uint32_t    const & idIn,
+                             int32_t     const & idIn,
                              vectorN_t   const * valueIn) :
         name(nameIn),
         id(idIn),
@@ -140,7 +140,7 @@ namespace jiminy
         };
 
         std::string name;
-        uint32_t id;
+        int32_t id;
         vectorN_t const * value;
     };
 
@@ -152,8 +152,8 @@ namespace jiminy
         indexed_by<
             ordered_unique<
                 tag<IndexById>,
-                member<sensorDataTypePair_t, uint32_t, &sensorDataTypePair_t::id>,
-                std::less<uint32_t> // Ordering by ascending order
+                member<sensorDataTypePair_t, int32_t, &sensorDataTypePair_t::id>,
+                std::less<int32_t> // Ordering by ascending order
             >,
             hashed_unique<
                 tag<IndexByName>,

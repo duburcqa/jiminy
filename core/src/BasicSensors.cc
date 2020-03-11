@@ -41,12 +41,12 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             frameName_ = frameName;
-            returnCode = refreshProxies();
+            isInitialized_ = true;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
-            isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
         return returnCode;
@@ -60,6 +60,15 @@ namespace jiminy
         {
             std::cout << "Error - ImuSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - ImuSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -128,12 +137,12 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             frameName_ = frameName;
-            returnCode = refreshProxies();
+            isInitialized_ = true;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
-            isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
         return returnCode;
@@ -147,6 +156,15 @@ namespace jiminy
         {
             std::cout << "Error - ForceSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - ForceSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -212,12 +230,12 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             jointName_ = jointName;
-            returnCode = refreshProxies();
+            isInitialized_ = true;
         }
 
         if (returnCode == result_t::SUCCESS)
         {
-            isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
         return returnCode;
@@ -230,6 +248,12 @@ namespace jiminy
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - EncoderSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - EncoderSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 

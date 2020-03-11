@@ -9,11 +9,20 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
+motor_joint_names = ("slider_to_cart",)
+encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
+
 model = jiminy.Model()
 model.initialize(urdf_path, False)
-model.add_simple_motor(joint_name="slider_to_cart")
-model.add_encoder_sensor("slider", "slider_to_cart")
-model.add_encoder_sensor("pole", "cart_to_pole")
+for joint_name in motor_joint_names:
+    motor = jiminy.SimpleMotor(joint_name)
+    model.attach_motor(motor)
+    motor.initialize(joint_name)
+for sensor_name, joint_name in encoder_sensors_def.items():
+    encoder = jiminy.EncoderSensor(sensor_name)
+    model.attach_sensor(encoder)
+    encoder.initialize(joint_name)
+
 engine_py = EngineAsynchronous(model)
 
 model_options = model.get_model_options()

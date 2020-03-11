@@ -41,7 +41,7 @@ namespace jiminy
 
         vectorN_t data_;                            ///< Buffer with current actual motor torque
         std::vector<AbstractMotorBase *> motors_;   ///< Vector of pointers to the motors
-        uint8_t num_;                               ///< Number of motors
+        int32_t num_;                               ///< Number of motors
     };
 
     class AbstractMotorBase
@@ -168,7 +168,7 @@ namespace jiminy
         ///
         /// \details    It is the index of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        uint8_t const & getId(void) const;
+        int32_t const & getId(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get jointName_.
@@ -279,7 +279,7 @@ namespace jiminy
         bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a model
         Model const * model_;                       ///< Model of the system for which the command and internal dynamics
         std::string name_;                          ///< Name of the motor
-        uint8_t motorId_;                           ///< Index of the motor in the measurement buffer
+        int32_t motorId_;                           ///< Index of the motor in the measurement buffer
         std::string jointName_;
         int32_t jointModelIdx_;
         int32_t jointPositionIdx_;

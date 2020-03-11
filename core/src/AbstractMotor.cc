@@ -12,7 +12,7 @@ namespace jiminy
     isAttached_(false),
     model_(nullptr),
     name_(name),
-    motorId_(sharedHolder_->num_),
+    motorId_(-1),
     jointName_(),
     jointModelIdx_(),
     jointPositionIdx_(),
@@ -73,14 +73,14 @@ namespace jiminy
         // Remove associated col in the global data buffer
         if(motorId_ < sharedHolder_->num_ - 1)
         {
-            int8_t motorShift = sharedHolder_->num_ - motorId_ - 1;
+            int32_t motorShift = sharedHolder_->num_ - motorId_ - 1;
             sharedHolder_->data_.segment(motorId_, motorShift) =
                 sharedHolder_->data_.segment(motorId_ + 1, motorShift).eval(); // eval to avoid aliasing
         }
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (uint8_t i = motorId_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = motorId_ + 1; i < sharedHolder_->num_; i++)
         {
             --sharedHolder_->motors_[i]->motorId_;
         }
@@ -155,8 +155,16 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = ::jiminy::getJointModelIdx(model_->pncModel_, jointName_, jointModelIdx_);
+            if (!isInitialized_)
+            {
+                std::cout << "Error - AbstractMotorBase::refreshProxies - Motor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
+        }
 
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = ::jiminy::getJointModelIdx(model_->pncModel_, jointName_, jointModelIdx_);
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -218,7 +226,7 @@ namespace jiminy
         return name_;
     }
 
-    uint8_t const & AbstractMotorBase::getId(void) const
+    int32_t const & AbstractMotorBase::getId(void) const
     {
         return motorId_;
     }

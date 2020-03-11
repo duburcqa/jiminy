@@ -744,28 +744,28 @@ namespace python
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
-                .def("add_motor", &Model::attachMotor,
-                                  (bp::arg("self"), "motor"))
+                .def("attach_motor", &Model::attachMotor,
+                                     (bp::arg("self"), "motor"))
                 .def("get_motor", &PyModelVisitor::getMotor,
                                   (bp::arg("self"), "motor_name"),
                                    bp::return_value_policy<bp::reference_existing_object>())
-                .def("remove_motors", &PyModelVisitor::detachMotors,
+                .def("detach_motor", &Model::detachMotor,
+                                     (bp::arg("self"), "joint_name"))
+                .def("detach_motors", &PyModelVisitor::detachMotors,
                                       (bp::arg("self"),
-                                       bp::arg("joint_names") = std::vector<std::string>()))
-                .def("add_sensor", &Model::attachSensor,
-                                   (bp::arg("self"), "sensor"))
-                .def("remove_sensor", &Model::detachSensor,
+                                       bp::arg("joints_names") = std::vector<std::string>()))
+                .def("attach_sensor", &Model::attachSensor,
+                                      (bp::arg("self"), "sensor"))
+                .def("detach_sensor", &Model::detachSensor,
                                       (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("remove_sensors", &Model::detachSensors,
+                .def("detach_sensors", &Model::detachSensors,
                                        (bp::arg("self"),
-                                        bp::arg("sensorType") = std::string()))
+                                        bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyModelVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
                                     bp::return_value_policy<bp::reference_existing_object>())
 
-                .add_property("sensors_data",
-                              static_cast<sensorsDataMap_t (Model::*)(void) const>(
-                              &Model::getSensorsData))
+                .add_property("sensors_data", &PyModelVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Model::getMotorsTorques,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
@@ -861,6 +861,11 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
+
+        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Model & self)
+        {
+            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
+        }
 
         static AbstractMotorBase * getMotor(Model             & self,
                                             std::string const & motorName)
