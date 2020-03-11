@@ -41,14 +41,26 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple
 # ########################### Initialize the simulation #################################
 
 # Instantiate the model
-contacts = ["Corner1", "Corner2", "Corner3", "Corner4"]
-motors = ["PendulumJoint"]
+contact_points = ["Corner1", "Corner2", "Corner3", "Corner4"]
+motor_joint_names = ("PendulumJoint",)
+force_sensor_def = {"F1": "Corner1",
+                    "F2": "Corner2",
+                    "F3": "Corner3",
+                    "F4": "Corner4"}
+
 model = jiminy.Model()
-model.initialize(urdf_path, contacts, motors, True)
-model.add_force_sensor("F1", "Corner1")
-model.add_force_sensor("F2", "Corner2")
-model.add_force_sensor("F3", "Corner3")
-model.add_force_sensor("F4", "Corner4")
+model.initialize(urdf_path, True)
+for joint_name in motor_joint_names:
+    motor = jiminy.SimpleMotor(joint_name)
+    model.attach_motor(motor)
+    motor.initialize(joint_name)
+for sensor_name, frame_name in force_sensor_def.items():
+    force_sensor = jiminy.ForceSensor(sensor_name)
+    model.attach_sensor(force_sensor)
+    force_sensor.initialize(frame_name)
+model.add_contact_points(contact_points)
+
+# Extract some constant
 iPos = model.motors_position_idx[0]
 iVel = model.motors_velocity_idx[0]
 axisCom = 0
@@ -158,7 +170,7 @@ def updateState(model, q, v, sensor_data):
     # Create zmp from forces
     forces = np.asarray(sensor_data[ForceSensor.type])
     newWrench = pnc.Force.Zero()
-    for i,name in enumerate(contacts):
+    for i,name in enumerate(contact_points):
         update_frame(model.pinocchio_model_th, model.pinocchio_data_th, name)
         placement = get_frame_placement(model.pinocchio_model_th, model.pinocchio_data_th, name)
         wrench = pnc.Force(np.concatenate([[0.0, 0.0, forces[2, i]], np.zeros(3)]).T)
@@ -253,22 +265,22 @@ def internalDynamics(t, q, v, sensor_data, u):
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(model)
-controller.register_entry(["targetPositionPendulum", "targetVelocityPendulum"], state_target_log)
-controller.register_entry(["zmpCmdX"], zmp_cmd_log)
-controller.register_entry(["zmp" + axis for axis in ["X", "Y"]], zmp_log)
-controller.register_entry(["dcm" + axis for axis in SPATIAL_COORDS], dcm_log)
-controller.register_entry(["com" + axis for axis in SPATIAL_COORDS], com_log)
-controller.register_entry(["vcom" + axis for axis in SPATIAL_COORDS], vcom_log)
-controller.register_entry(["zmpTarget" + axis for axis in ["X", "Y"]], zmpTarget_log)
-controller.register_entry(["dcmTarget" + axis for axis in SPATIAL_COORDS], dcmTarget_log)
-controller.register_entry(["comTarget" + axis for axis in SPATIAL_COORDS], comTarget_log)
-controller.register_entry(["vcomTarget" + axis for axis in SPATIAL_COORDS], vcomTarget_log)
-controller.register_entry(["wrenchTorque" + axis for axis in SPATIAL_COORDS], totalWrench_angular_log)
-controller.register_entry(["wrenchForce" + axis for axis in SPATIAL_COORDS], totalWrench_linear_log)
-controller.register_entry(["dcmReference" + axis for axis in SPATIAL_COORDS], dcmRef_log)
-controller.register_entry(["comReference" + axis for axis in SPATIAL_COORDS], comRef_log)
-controller.register_entry(["vcomReference" + axis for axis in SPATIAL_COORDS], vcomRef_log)
-controller.register_entry(["zmpReference" + axis for axis in ["X", "Y"]], zmpRef_log)
+controller.register_variable(["targetPositionPendulum", "targetVelocityPendulum"], state_target_log)
+controller.register_variable(["zmpCmdX"], zmp_cmd_log)
+controller.register_variable(["zmp" + axis for axis in ["X", "Y"]], zmp_log)
+controller.register_variable(["dcm" + axis for axis in SPATIAL_COORDS], dcm_log)
+controller.register_variable(["com" + axis for axis in SPATIAL_COORDS], com_log)
+controller.register_variable(["vcom" + axis for axis in SPATIAL_COORDS], vcom_log)
+controller.register_variable(["zmpTarget" + axis for axis in ["X", "Y"]], zmpTarget_log)
+controller.register_variable(["dcmTarget" + axis for axis in SPATIAL_COORDS], dcmTarget_log)
+controller.register_variable(["comTarget" + axis for axis in SPATIAL_COORDS], comTarget_log)
+controller.register_variable(["vcomTarget" + axis for axis in SPATIAL_COORDS], vcomTarget_log)
+controller.register_variable(["wrenchTorque" + axis for axis in SPATIAL_COORDS], totalWrench_angular_log)
+controller.register_variable(["wrenchForce" + axis for axis in SPATIAL_COORDS], totalWrench_linear_log)
+controller.register_variable(["dcmReference" + axis for axis in SPATIAL_COORDS], dcmRef_log)
+controller.register_variable(["comReference" + axis for axis in SPATIAL_COORDS], comRef_log)
+controller.register_variable(["vcomReference" + axis for axis in SPATIAL_COORDS], vcomRef_log)
+controller.register_variable(["zmpReference" + axis for axis in ["X", "Y"]], zmpRef_log)
 
 # Instantiate the engine
 engine = jiminy.Engine()
@@ -287,7 +299,7 @@ model_options["telemetry"]["enableForceSensors"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
-engine_options["telemetry"]["enableCommand"] = True
+engine_options["telemetry"]["enableTorque"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
 engine_options['world']['groundProfile'] = HeatMapFunctor(0.0, heatMapType_t.CONSTANT) # Force sensor frame offset.
@@ -336,7 +348,7 @@ controller.set_options(ctrl_options)
 # ############################## Run the simulation #####################################
 
 start = time.time()
-engine.simulate(x0, tf)
+engine.simulate(tf, x0)
 end = time.time()
 print("Simulation time: %03.0fms" % ((end - start) * 1.0e3))
 

@@ -86,11 +86,21 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
-        motors = ["SecondPendulumJoint"]
-        self._model = jiminy.Model() # Model has to be an attribute of the class to avoid it being garbage collected
-        self._model.initialize(urdf_path, motors=motors)
-        self._model.add_encoder_sensor(joint_name="PendulumJoint")
-        self._model.add_encoder_sensor(joint_name="SecondPendulumJoint")
+
+        self._model = jiminy.Model() # Model has to be an attribute of the class to avoid being garbage collected
+        self._model.initialize(urdf_path)
+
+        motor_joint_names = ("SecondPendulumJoint",)
+        encoder_joint_names = ("PendulumJoint", "SecondPendulumJoint")
+        for joint_name in motor_joint_names:
+            motor = jiminy.SimpleMotor(joint_name)
+            self._model.attach_motor(motor)
+            motor.initialize(joint_name)
+        for joint_name in encoder_joint_names:
+            encoder = jiminy.EncoderSensor(joint_name)
+            self._model.attach_sensor(encoder)
+            encoder.initialize(joint_name)
+
         engine_py = EngineAsynchronous(self._model)
 
         # ############################### Configure Jiminy #####################################
@@ -104,7 +114,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         engine_options["telemetry"]["enableConfiguration"] = False
         engine_options["telemetry"]["enableVelocity"] = False
         engine_options["telemetry"]["enableAcceleration"] = False
-        engine_options["telemetry"]["enableCommand"] = False
+        engine_options["telemetry"]["enableTorque"] = False
         engine_options["telemetry"]["enableEnergy"] = False
 
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
@@ -239,7 +249,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _get_info(self):
         """
-        @brief      Get the observation associated to the current state of the model,
+        @brief      Get the observation associated with the current state of the model,
                     along with some additional information.
 
         @remark     This is a hidden function that is not listed as part of the

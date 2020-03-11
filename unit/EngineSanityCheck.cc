@@ -14,10 +14,11 @@
 #include <string>
 #include <gtest/gtest.h>
 
-#include "jiminy/core/Types.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/ControllerFunctor.h"
+#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Types.h"
 
 using namespace jiminy;
 
@@ -41,8 +42,8 @@ void internalDynamics(float64_t const & t,
     u.setZero();
 }
 
-bool callback(float64_t const & t,
-              vectorN_t const & x)
+bool_t callback(float64_t const & t,
+                vectorN_t const & x)
 {
     return true;
 }
@@ -54,22 +55,33 @@ TEST(EngineSanity, EnergyConservation)
 
     // Load double pendulum model.
     std::string urdfPath = "data/double_pendulum_rigid.urdf";
-    // No contact point.
-    std::vector<std::string> contacts;
     // All joints actuated.
-    std::vector<std::string> jointNames;
-    jointNames.push_back("PendulumJoint");
-    jointNames.push_back("SecondPendulumJoint");
+    std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
     std::shared_ptr<Model> model = std::make_shared<Model>();
+    model->initialize(urdfPath, false);
+    for (std::string const & jointName : motorJointNames)
+    {
+        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        model->attachMotor(motor);
+        motor->initialize(jointName);
+    }
+
     // Disable velocity and position limits.
     configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableTorqueLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
     model->setOptions(mdlOptions);
 
-    model->initialize(urdfPath, contacts, jointNames, false);
+    // Disable torque limits.
+    configHolder_t motorsOptions;
+    model->getMotorsOptions(motorsOptions);
+    for (auto & options : motorsOptions)
+    {
+        configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
+        boost::get<bool_t>(motorOptions.at("enableTorqueLimit")) = false;
+    }
+    model->setMotorsOptions(motorsOptions);
 
     auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
                                                          decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);
@@ -85,7 +97,7 @@ TEST(EngineSanity, EnergyConservation)
     float64_t tf = 10.0;
 
     // Run simulation
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
 
     // Get system energy.
     std::vector<std::string> header;
@@ -105,8 +117,7 @@ TEST(EngineSanity, EnergyConservation)
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
     engine.setOptions(simuOptions);
-    engine.setState(x0);
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
 
     engine.getLogData(header, data);
     energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);

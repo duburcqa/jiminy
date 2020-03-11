@@ -130,7 +130,7 @@ class BasicSimulator(object):
             self._pbar = tqdm(total=tf, bar_format="{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]")
         else:
             self._pbar = None
-        self.engine.simulate(x0, tf)
+        self.engine.simulate(tf, x0)
         if show_progress_bar:
             self._pbar.update(tf - self._t_pbar)
             self._pbar.close()

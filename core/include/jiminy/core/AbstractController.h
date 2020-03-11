@@ -1,5 +1,5 @@
-#ifndef SIMU_ABSTRACT_CONTROLLER_H
-#define SIMU_ABSTRACT_CONTROLLER_H
+#ifndef JIMINY_ABSTRACT_CONTROLLER_H
+#define JIMINY_ABSTRACT_CONTROLLER_H
 
 #include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"
@@ -27,8 +27,6 @@ namespace jiminy
     //////////////////////////////////////////////////////////////////////////////////////////////
     class AbstractController
     {
-        friend Engine;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between controllers
@@ -45,31 +43,23 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         struct controllerOptions_t
         {
-            bool const telemetryEnable;     ///< Flag used to enable the telemetry of the controller
+            bool_t const telemetryEnable;     ///< Flag used to enable the telemetry of the controller
 
             controllerOptions_t(configHolder_t const & options) :
-            telemetryEnable(boost::get<bool>(options.at("telemetryEnable")))
+            telemetryEnable(boost::get<bool_t>(options.at("telemetryEnable")))
             {
                 // Empty.
             }
         };
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Forbid the copy of the class
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+        // Forbid the copy of the class
         AbstractController(AbstractController const & controller) = delete;
         AbstractController & operator = (AbstractController const & controller) = delete;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
+    public:
         AbstractController(void);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Destructor.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual ~AbstractController(void);
+        virtual ~AbstractController(void) = default;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -203,30 +193,6 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Get isInitialized_.
-        ///
-        /// \details    It is a flag used to determine if the controller has been initialized.
-        ///
-        /// \remark     Note that a controller can be considered initialized even if its telemetry is
-        ///             not properly configured. If not, it is the only to do before being ready to
-        ///             use.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool getIsInitialized(void) const;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get isTelemetryConfigured_.
-        ///
-        /// \details    It is a flag used to determine if the telemetry of the controller has been
-        ///             initialized.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool getIsTelemetryConfigured(void) const;
-
-    protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
         /// \brief      Configure the telemetry of the controller.
         ///
         /// \details    This method connects the controller-specific telemetry sender to a given
@@ -279,24 +245,47 @@ namespace jiminy
         ///                                     Optional: False by default
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(bool const & resetDynamicTelemetry = false);
+        virtual void reset(bool_t const & resetDynamicTelemetry = false);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Get isInitialized_.
+        ///
+        /// \details    It is a flag used to determine if the controller has been initialized.
+        ///
+        /// \remark     Note that a controller can be considered initialized even if its telemetry is
+        ///             not properly configured. If not, it is the only to do before being ready to
+        ///             use.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        bool_t getIsInitialized(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief      Get isTelemetryConfigured_.
+        ///
+        /// \details    It is a flag used to determine if the telemetry of the controller has been
+        ///             initialized.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        bool_t getIsTelemetryConfigured(void) const;
 
     public:
-        std::unique_ptr<controllerOptions_t const> ctrlOptions_;    ///< Structure with the parameters of the controller
+        std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
 
     protected:
         std::shared_ptr<Model const> model_;    ///< Model of the system for which to compute the command and internal dynamics must be computed
-        bool isInitialized_;                    ///< Flag to determine whether the controller has been initialized or not
-        bool isTelemetryConfigured_;            ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
+        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
 
     private:
         std::vector<std::pair<std::string, float64_t const *> > registeredVariables_;    ///< Vector of dynamically registered telemetry variables
-        std::vector<std::pair<std::string, std::string> > registeredConstants_;            ///< Vector of dynamically registered telemetry constants
+        std::vector<std::pair<std::string, std::string> > registeredConstants_;          ///< Vector of dynamically registered telemetry constants
     };
 }
 
 #include "AbstractController.tpp"
 
-#endif //end of SIMU_ABSTRACT_CONTROLLER_H
+#endif //end of JIMINY_ABSTRACT_CONTROLLER_H

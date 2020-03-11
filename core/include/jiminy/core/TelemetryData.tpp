@@ -4,8 +4,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_DATA_TPP
-#define SIMU_TELEMETRY_DATA_TPP
+#ifndef JIMINY_TELEMETRY_DATA_TPP
+#define JIMINY_TELEMETRY_DATA_TPP
 
 #include <iostream>
 #include <string>
@@ -64,4 +64,4 @@ namespace jiminy
     }
 } // namespace jiminy
 
-#endif // SIMU_TELEMETRY_DATA_TPP
+#endif // JIMINY_TELEMETRY_DATA_TPP

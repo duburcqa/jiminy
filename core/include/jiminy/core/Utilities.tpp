@@ -25,11 +25,10 @@ namespace jiminy
         }
     }
 
-
     // ********************* Std::vector helpers **********************
 
     template<typename T>
-    bool checkDuplicates(std::vector<T> const & vect)
+    bool_t checkDuplicates(std::vector<T> const & vect)
     {
         for (auto it = vect.begin(); it != vect.end(); ++it)
         {
@@ -42,8 +41,8 @@ namespace jiminy
     }
 
     template<typename T>
-    bool checkIntersection(std::vector<T> const & vect1,
-                           std::vector<T> const & vect2)
+    bool_t checkIntersection(std::vector<T> const & vect1,
+                             std::vector<T> const & vect2)
     {
         auto vect2It = std::find_if(vect2.begin(), vect2.end(),
         [&vect1](auto const & elem2)
@@ -55,8 +54,8 @@ namespace jiminy
     }
 
     template<typename T>
-    bool checkInclusion(std::vector<T> const & vect1,
-                        std::vector<T> const & vect2)
+    bool_t checkInclusion(std::vector<T> const & vect1,
+                          std::vector<T> const & vect2)
     {
         for (auto const & elem2 : vect2)
         {

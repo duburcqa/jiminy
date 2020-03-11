@@ -1,5 +1,5 @@
-#ifndef SIMU_PYTHON_UTILITIES_H
-#define SIMU_PYTHON_UTILITIES_H
+#ifndef JIMINY_PYTHON_UTILITIES_H
+#define JIMINY_PYTHON_UTILITIES_H
 
 // Make sure that the Python C API does not get redefined separately
 #define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
@@ -24,7 +24,7 @@ namespace python
         matrixRow
     };
 
-    inline int getPyType(bool const & data)
+    inline int getPyType(bool_t const & data)
     {
         return NPY_BOOL;
     }
@@ -341,7 +341,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(bp::extract<T>(listPy[i]));
+            v.emplace_back(bp::extract<T>(listPy[i]));
         }
 
         return v;
@@ -354,7 +354,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(bp::extract<T>(listPy[i]));
+            v.emplace_back(bp::extract<T>(listPy[i]));
         }
 
         return v;
@@ -370,7 +370,7 @@ namespace python
         v.reserve(len(listPy));
         for (int32_t i = 0; i < len(listPy); i++)
         {
-            v.push_back(listPyToStdVector<T>(bp::extract<bp::list>(listPy[i])));
+            v.emplace_back(listPyToStdVector<T>(bp::extract<bp::list>(listPy[i])));
         }
 
         return v;
@@ -599,4 +599,4 @@ namespace python
 }  // end of namespace python.
 }  // end of namespace jiminy.
 
-#endif  // SIMU_PYTHON_UTILITIES_H
+#endif  // JIMINY_PYTHON_UTILITIES_H

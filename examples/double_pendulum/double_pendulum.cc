@@ -9,6 +9,7 @@
 
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/ControllerFunctor.h"
 #include "jiminy/core/Types.h"
 
@@ -34,13 +35,13 @@ void internalDynamics(float64_t      const & t,
     u.setZero();
 }
 
-bool callback(float64_t const & t,
+bool_t callback(float64_t const & t,
               vectorN_t const & x)
 {
     return true;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char_t * argv[])
 {
     // =====================================================================
     // ==================== Extract the user paramaters ====================
@@ -61,15 +62,20 @@ int main(int argc, char *argv[])
     timer.tic();
 
     // Instantiate and configuration the model
-    std::vector<std::string> contacts;
-    std::vector<std::string> motorNames = {std::string("SecondPendulumJoint")};
+    std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
     auto model = std::make_shared<Model>();
     configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("positionLimitFromUrdf")) = true;
-    boost::get<bool>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("positionLimitFromUrdf")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
     model->setOptions(mdlOptions);
-    model->initialize(urdfPath, contacts, motorNames, false);
+    model->initialize(urdfPath, false);
+    for (std::string const & jointName : motorJointNames)
+    {
+        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        model->attachMotor(motor);
+        motor->initialize(jointName);
+    }
 
     // Instantiate and configuration the controller
 
@@ -80,11 +86,11 @@ int main(int argc, char *argv[])
     // Instantiate and configuration the engine
     Engine engine;
     configHolder_t simuOptions = engine.getDefaultOptions();
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableCommand")) = true;
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableTorque")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;
     boost::get<vectorN_t>(boost::get<configHolder_t>(simuOptions.at("world")).at("gravity"))(2) = -9.81;
     boost::get<std::string>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("odeSolver")) = std::string("runge_kutta_dopri5");
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-5;
@@ -93,7 +99,7 @@ int main(int argc, char *argv[])
     boost::get<int32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("iterMax")) = 100000U; // -1 for infinity
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
-    boost::get<bool>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("logInternalStepperSteps")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("logInternalStepperSteps")) = false;
     boost::get<uint32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("randomSeed")) = 0U; // Use time(nullptr) for random seed.
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("stiffness")) = 1e6;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("damping")) = 2000.0;
@@ -117,7 +123,7 @@ int main(int argc, char *argv[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(x0, tf);
+    engine.simulate(tf, x0);
     timer.toc();
     std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 

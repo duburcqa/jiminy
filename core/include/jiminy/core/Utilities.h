@@ -1,5 +1,5 @@
-#ifndef SIMU_UTILITIES_H
-#define SIMU_UTILITIES_H
+#ifndef JIMINY_UTILITIES_H
+#define JIMINY_UTILITIES_H
 
 #include <chrono>
 #include <vector>
@@ -12,13 +12,49 @@
 
 namespace jiminy
 {
-    class TelemetrySender;
+    // *************** Local Mutex/Lock mechanism ******************
 
-    // ************************ Timer *****************************
+    class MutexLocal
+    {
+    public:
+        class LockGuardLocal
+        {
+        public:
+            // Disable the copy of the class
+            LockGuardLocal(LockGuardLocal const & lockGuardLocalIn) = delete;
+            LockGuardLocal & operator = (LockGuardLocal const & other) = delete;
+
+            LockGuardLocal(MutexLocal & mutexLocal);
+            LockGuardLocal(LockGuardLocal && other) = default;
+
+            ~LockGuardLocal(void);
+
+        private:
+            std::shared_ptr<bool_t> mutexFlag_;
+        };
+
+    public:
+        // Disable the copy of the class
+        MutexLocal(MutexLocal const & mutexLocalIn) = delete;
+        MutexLocal & operator = (MutexLocal const & other) = delete;
+
+    public:
+        MutexLocal(void);
+        MutexLocal(MutexLocal && other) = default;
+
+        ~MutexLocal(void);
+
+        bool_t const & isLocked(void) const;
+
+    private:
+        std::shared_ptr<bool_t> isLocked_;
+    };
+
+    // ************************ Timer *******************************
 
     class Timer
     {
-        typedef std::chrono::high_resolution_clock Time;
+        using Time = std::chrono::high_resolution_clock;
 
     public:
         Timer(void);
@@ -31,11 +67,11 @@ namespace jiminy
         float64_t dt;
     };
 
-    // ************ IO file and Directory utilities **************
+    // ************ IO file and Directory utilities *****************
 
     std::string getUserDirectory(void);
 
-    // ************ Random number generator utilities **************
+    // ************ Random number generator utilities ***************
 
     void resetRandGenerators(uint32_t seed);
 
@@ -129,7 +165,7 @@ namespace jiminy
     result_t getJointsPositionIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsPositionIdx,
-                                  bool                     const & firstJointIdxOnly = false);
+                                  bool_t                   const & firstJointIdxOnly = false);
 
     result_t getJointVelocityIdx(pinocchio::Model     const & model,
                                  std::string          const & jointName,
@@ -140,7 +176,7 @@ namespace jiminy
     result_t getJointsVelocityIdx(pinocchio::Model         const & model,
                                   std::vector<std::string> const & jointsNames,
                                   std::vector<int32_t>           & jointsVelocityIdx,
-                                  bool                     const & firstJointIdxOnly = false);
+                                  bool_t                   const & firstJointIdxOnly = false);
 
     result_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
                                       std::string      const & childJointNameIn,
@@ -167,15 +203,15 @@ namespace jiminy
     // ********************* Std::vector helpers **********************
 
     template<typename T>
-    bool checkDuplicates(std::vector<T> const & vect);
+    bool_t checkDuplicates(std::vector<T> const & vect);
 
     template<typename T>
-    bool checkIntersection(std::vector<T> const & vect1,
-                           std::vector<T> const & vect2);
+    bool_t checkIntersection(std::vector<T> const & vect1,
+                             std::vector<T> const & vect2);
 
     template<typename T>
-    bool checkInclusion(std::vector<T> const & vect1,
-                        std::vector<T> const & vect2);
+    bool_t checkInclusion(std::vector<T> const & vect1,
+                          std::vector<T> const & vect2);
 
     template<typename T>
     void eraseVector(std::vector<T>       & vect1,
@@ -196,4 +232,4 @@ namespace jiminy
 
 #include "jiminy/core/Utilities.tpp"
 
-#endif  // SIMU_UTILITIES_H
+#endif  // JIMINY_UTILITIES_H

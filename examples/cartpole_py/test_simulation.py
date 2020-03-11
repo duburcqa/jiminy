@@ -9,12 +9,20 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
-contacts = []
-motors = ["slider_to_cart"]
+motor_joint_names = ("slider_to_cart",)
+encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
+
 model = jiminy.Model()
-model.initialize(urdf_path, contacts, motors, False)
-model.add_encoder_sensor("slider", "slider_to_cart")
-model.add_encoder_sensor("pole", "cart_to_pole")
+model.initialize(urdf_path, False)
+for joint_name in motor_joint_names:
+    motor = jiminy.SimpleMotor(joint_name)
+    model.attach_motor(motor)
+    motor.initialize(joint_name)
+for sensor_name, joint_name in encoder_sensors_def.items():
+    encoder = jiminy.EncoderSensor(sensor_name)
+    model.attach_sensor(encoder)
+    encoder.initialize(joint_name)
+
 engine_py = EngineAsynchronous(model)
 
 model_options = model.get_model_options()
@@ -26,7 +34,7 @@ model_options["telemetry"]["enableImuSensors"] = False
 engine_options["telemetry"]["enableConfiguration"] = False
 engine_options["telemetry"]["enableVelocity"] = False
 engine_options["telemetry"]["enableAcceleration"] = False
-engine_options["telemetry"]["enableCommand"] = False
+engine_options["telemetry"]["enableTorque"] = False
 engine_options["telemetry"]["enableEnergy"] = False
 
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
@@ -41,7 +49,7 @@ engine_py.set_controller_options(ctrl_options)
 
 time_start = time.time()
 engine_py.seed(0)
-engine_py.reset()
+engine_py.reset(np.zeros(model.nx))
 for i in range(10000):
     engine_py.step(np.array([0.001]))
     engine_py.render()

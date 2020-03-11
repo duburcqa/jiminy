@@ -4,13 +4,8 @@ cmake_minimum_required(VERSION 3.10)
 # Project name
 project(${LIBRARY_NAME}_double_pendulum VERSION ${BUILD_VERSION})
 
-# Add sources
-set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/double_pendulum.cc"
-)
-
 # Make executables
-add_executable(${PROJECT_NAME} ${SRC})
+add_executable(${PROJECT_NAME} "${CMAKE_CURRENT_SOURCE_DIR}/double_pendulum.cc")
 
 # Set include directory
 target_include_directories(${PROJECT_NAME} PUBLIC

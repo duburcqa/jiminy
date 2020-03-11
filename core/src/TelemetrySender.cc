@@ -21,11 +21,6 @@ namespace jiminy
         // Empty.
     }
 
-    TelemetrySender::~TelemetrySender(void)
-    {
-        // Empty.
-    }
-
     template <>
     void TelemetrySender::updateValue<int32_t>(std::string const & fieldNameIn,
                                                int32_t     const & value)
@@ -48,7 +43,7 @@ namespace jiminy
         auto it = floatBufferPosition_.find(fieldNameIn);
         if (floatBufferPosition_.end() == it)
         {
-            std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as an float64_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
+            std::cout << "Error - TelemetrySender::updateValue - Cannot log the variable: it was never registered as a float64_t before! |" << fieldNameIn.c_str() << "|" << std::endl;
             return;
         }
 
@@ -76,7 +71,6 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             intBufferPosition_[fieldNameIn] = positionInBuffer;
-
             updateValue(fieldNameIn, initialValue);
         }
 
@@ -94,7 +88,6 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             floatBufferPosition_[fieldNameIn] = positionInBuffer;
-
             updateValue(fieldNameIn, initialValue);
         }
 
@@ -107,10 +100,9 @@ namespace jiminy
         result_t returnCode = result_t::SUCCESS;
         for (uint32_t i=0; i < initialValues.size(); ++i)
         {
-            returnCode = registerVariable(fieldNames[i], initialValues[i]);
-            if (returnCode != result_t::SUCCESS)
+            if (returnCode == result_t::SUCCESS)
             {
-                break;
+                returnCode = registerVariable(fieldNames[i], initialValues[i]);
             }
         }
         return returnCode;

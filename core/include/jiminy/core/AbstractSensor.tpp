@@ -1,5 +1,6 @@
+#include "jiminy/core/Engine.h" // MIN_TIME_STEP and MAX_TIME_STEP
 #include "jiminy/core/Model.h"
-#include "jiminy/core/Engine.h" // Required to get access to MIN_TIME_STEP and MAX_TIME_STEP
+#include "jiminy/core/Utilities.h"
 
 namespace jiminy
 {
@@ -7,93 +8,161 @@ namespace jiminy
     extern float64_t const MAX_TIME_STEP;
 
     template <typename T>
-    float64_t AbstractSensorTpl<T>::delayMax_(0);
-
-    template <typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(Model                               const & model,
-                                            std::shared_ptr<SensorDataHolder_t> const & dataHolder,
-                                            std::string                         const & name) :
-    AbstractSensorBase(model, name),
-    dataHolder_(dataHolder),
-    sensorId_(dataHolder_->num_)
+    AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
+    AbstractSensorBase(name),
+    sensorId_(-1),
+    sharedHolder_(nullptr)
     {
-        // Add the sensor to the data holder
-        ++dataHolder_->num_;
-        dataHolder_->sensors_.push_back(this);
-
-        // Reset the sensors' internal state
-        AbstractSensorTpl<T>::reset();
+        // Empty
     }
 
     template <typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
-        // Remove associated col in the global data buffer
-        if(sensorId_ < dataHolder_->num_ - 1)
+        // Detach the sensor before deleting it if necessary
+        if (isAttached_)
         {
-            for (matrixN_t & data : dataHolder_->data_)
+            detach();
+        }
+    }
+
+    template <typename T>
+    result_t AbstractSensorTpl<T>::attach(Model const * model,
+                                          std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
+    {
+        if (isAttached_)
+        {
+            std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a model. Please 'detach' method before attaching it." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        // Copy references to the model and shared data
+        model_ = model;
+        sharedHolder_ = sharedHolder.get();
+
+        // Get an Id
+        sensorId_ = sharedHolder_->num_;
+
+        // Add the sensor to the shared data
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
+        }
+        sharedHolder_->sensors_.push_back(this);
+        ++sharedHolder_->num_;
+
+        // Initialized the measurement buffer
+        data_ = vectorN_t::Zero(getSize());
+
+        // Update the flag
+        isAttached_ = true;
+
+        return result_t::SUCCESS;
+    }
+
+    template <typename T>
+    result_t AbstractSensorTpl<T>::detach(void)
+    {
+        // Delete the part of the shared memory associated with the sensor
+
+        if (!isAttached_)
+        {
+            std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any model." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        // Remove associated col in the global data buffer
+        if(sensorId_ < sharedHolder_->num_ - 1)
+        {
+            int32_t sensorShift = sharedHolder_->num_ - sensorId_ - 1;
+            for (matrixN_t & data : sharedHolder_->data_)
             {
-                data.block(0, sensorId_, getSize(), dataHolder_->num_ - sensorId_ - 1) =
-                    data.block(0, sensorId_ + 1, getSize(), dataHolder_->num_ - sensorId_ - 1).eval(); // eval to avoid aliasing
+                data.middleCols(sensorId_, sensorShift) =
+                    data.middleCols(sensorId_ + 1, sensorShift).eval();
             }
         }
-        for (matrixN_t & data : dataHolder_->data_)
+        for (matrixN_t & data : sharedHolder_->data_)
         {
-            data.resize(Eigen::NoChange, dataHolder_->num_ - 1);
+            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
 
         // Shift the sensor ids
-        for (uint32_t i=sensorId_ + 1; i < dataHolder_->num_; i++)
+        for (int32_t i = sensorId_ + 1; i < sharedHolder_->num_; i++)
         {
-            AbstractSensorTpl<T> * sensor = static_cast<AbstractSensorTpl<T> *>(dataHolder_->sensors_[i]);
+            AbstractSensorTpl<T> * sensor =
+                static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
             --sensor->sensorId_;
         }
 
         // Remove the deprecated elements of the global containers
-        dataHolder_->sensors_.erase(dataHolder_->sensors_.begin() + sensorId_);
+        sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorId_);
 
         // Update the total number of sensors left
-        --dataHolder_->num_;
+        --sharedHolder_->num_;
 
-        // Reset the sensors' internal state
-        reset();
+        // Update delayMax_ proxy if necessary
+        if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
+        {
+            sharedHolder_->delayMax_ = 0.0;
+            for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+            {
+                sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
+                                                    sensor->baseSensorOptions_->delay);
+            }
+        }
+
+        // Clear the references to the model and shared data
+        model_ = nullptr;
+        sharedHolder_ = nullptr;
+
+        // Unset the Id
+        sensorId_ = -1;
+
+        // Update the flag
+        isAttached_ = false;
+
+        return result_t::SUCCESS;
     }
 
     template <typename T>
     void AbstractSensorTpl<T>::reset(void)
     {
-        dataHolder_->time_.resize(2);
-        std::fill(dataHolder_->time_.begin(), dataHolder_->time_.end(), -1);
-        dataHolder_->time_.back() = 0;
-        dataHolder_->data_.resize(2);
-        for (matrixN_t & data : dataHolder_->data_)
-        {
-            data = matrixN_t::Zero(getSize(), dataHolder_->num_); // Do not use setZero since the size is ill-defined
-        }
-        data_ = vectorN_t::Zero(getSize());
+        // Clear the data buffer
+        clearDataBuffer();
+
+        // Refresh proxies that are model-dependent
+        refreshProxies();
 
         // Reset the telemetry state
         isTelemetryConfigured_ = false;
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
+    result_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
         AbstractSensorBase::setOptions(sensorOptions);
-        delayMax_ = std::max(delayMax_, sensorOptions_->delay); // No need to loop over all sensors
+        sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
+        return result_t::SUCCESS;
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
+    result_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        result_t returnCode = result_t::SUCCESS;
+
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            sensor->setOptions(sensorOptions);
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = sensor->setOptions(sensorOptions);
+            }
         }
+
+        return returnCode;
     }
 
     template <typename T>
-    uint32_t const & AbstractSensorTpl<T>::getId(void) const
+    int32_t const & AbstractSensorTpl<T>::getId(void) const
     {
         return sensorId_;
     }
@@ -137,10 +206,10 @@ namespace jiminy
     template <typename T>
     matrixN_t AbstractSensorTpl<T>::getAll(void)
     {
-        matrixN_t data(getSize(), dataHolder_->num_);
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        matrixN_t data(getSize(), sharedHolder_->num_);
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            uint32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
+            int32_t const & sensorId = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorId_;
             data.col(sensorId) = *sensor->get();
         }
         return data;
@@ -149,16 +218,14 @@ namespace jiminy
     template <typename T>
     Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
-        return dataHolder_->data_.back().col(sensorId_);
+        return sharedHolder_->data_.back().col(sensorId_);
     }
 
     template <typename T>
     result_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
-        float64_t const timeDesired = dataHolder_->time_.back() - sensorOptions_->delay + 1e-9;
+        float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + 1e-9;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
@@ -166,14 +233,14 @@ namespace jiminy
             [&](void) -> int32_t
             {
                 int32_t left = 0;
-                int32_t right = dataHolder_->time_.size() - 1;
+                int32_t right = sharedHolder_->time_.size() - 1;
                 int32_t mid = 0;
 
-                if (timeDesired >= dataHolder_->time_.back())
+                if (timeDesired >= sharedHolder_->time_.back())
                 {
                     return right;
                 }
-                else if (timeDesired < dataHolder_->time_.front())
+                else if (timeDesired < sharedHolder_->time_.front())
                 {
                     return -1;
                 }
@@ -181,11 +248,11 @@ namespace jiminy
                 while(left < right)
                 {
                     mid = (left + right) / 2;
-                    if (timeDesired < dataHolder_->time_[mid])
+                    if (timeDesired < sharedHolder_->time_[mid])
                     {
                         right = mid;
                     }
-                    else if (timeDesired > dataHolder_->time_[mid])
+                    else if (timeDesired > sharedHolder_->time_[mid])
                     {
                         left = mid + 1;
                     }
@@ -195,7 +262,7 @@ namespace jiminy
                     }
                 }
 
-                if (timeDesired < dataHolder_->time_[mid])
+                if (timeDesired < sharedHolder_->time_[mid])
                 {
                     return mid - 1;
                 }
@@ -206,51 +273,61 @@ namespace jiminy
             };
 
         int32_t const inputIndexLeft = bisectLeft();
-        if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < dataHolder_->time_.size())
+        data_.setZero();
+        if (timeDesired >= 0.0 && uint32_t(inputIndexLeft + 1) < sharedHolder_->time_.size())
         {
             if (inputIndexLeft < 0)
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
-                returnCode = result_t::ERROR_GENERIC;
+                return result_t::ERROR_GENERIC;
             }
-            else if (sensorOptions_->delayInterpolationOrder == 0)
+            else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
-                data_ = dataHolder_->data_[inputIndexLeft].col(sensorId_);
+                data_ = sharedHolder_->data_[inputIndexLeft].col(sensorId_);
             }
-            else if (sensorOptions_->delayInterpolationOrder == 1)
+            else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
-                data_ = 1 / (dataHolder_->time_[inputIndexLeft + 1] - dataHolder_->time_[inputIndexLeft]) *
-                    ((timeDesired - dataHolder_->time_[inputIndexLeft]) * dataHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
-                    (dataHolder_->time_[inputIndexLeft + 1] - timeDesired) * dataHolder_->data_[inputIndexLeft].col(sensorId_));
+                data_ = 1 / (sharedHolder_->time_[inputIndexLeft + 1] - sharedHolder_->time_[inputIndexLeft]) *
+                    ((timeDesired - sharedHolder_->time_[inputIndexLeft]) * sharedHolder_->data_[inputIndexLeft + 1].col(sensorId_) +
+                    (sharedHolder_->time_[inputIndexLeft + 1] - timeDesired) * sharedHolder_->data_[inputIndexLeft].col(sensorId_));
             }
             else
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                return result_t::ERROR_BAD_INPUT;
             }
         }
         else
         {
-            if (dataHolder_->time_[0] >= 0.0 || sensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
+            if (sharedHolder_->time_[0] >= 0.0
+            || baseSensorOptions_->delay < std::numeric_limits<float64_t>::epsilon())
             {
                 // Return the most recent value
-                data_ = dataHolder_->data_.back().col(sensorId_);
+                data_ = sharedHolder_->data_.back().col(sensorId_);
             }
             else
             {
                 // Return Zero since the sensor is not fully initialized yet
-                data_ = dataHolder_->data_.front().col(sensorId_);
+                data_ = sharedHolder_->data_.front().col(sensorId_);
             }
         }
 
-        if (returnCode != result_t::SUCCESS)
-        {
-            data_ = vectorN_t::Zero(getSize());
-        }
-
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
+    template <typename T>
+    void AbstractSensorTpl<T>::clearDataBuffer(void)
+    {
+        sharedHolder_->time_.resize(2);
+        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
+        sharedHolder_->time_.back() = 0;
+        sharedHolder_->data_.resize(2);
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size may be ill-defined
+        }
+        data_.setZero();
+    }
 
     template <typename T>
     result_t AbstractSensorTpl<T>::setAll(float64_t const & t,
@@ -263,84 +340,85 @@ namespace jiminy
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time */
-        float64_t const timeMin = t - delayMax_ - MAX_TIME_STEP;
+        float64_t const timeMin = t - sharedHolder_->delayMax_ - MAX_TIME_STEP;
 
         // Internal buffer memory management
-        if (t + std::numeric_limits<float64_t>::epsilon() > dataHolder_->time_.back())
+        if (t + std::numeric_limits<float64_t>::epsilon() > sharedHolder_->time_.back())
         {
-            if (dataHolder_->time_[0] < 0 || timeMin > dataHolder_->time_[1])
+            if (sharedHolder_->time_[0] < 0 || timeMin > sharedHolder_->time_[1])
             {
                 // Remove some unecessary extra elements if appropriate
-                if (dataHolder_->time_.size() > 2 + MAX_DELAY_BUFFER_EXCEED
-                && timeMin > dataHolder_->time_[2 + MAX_DELAY_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 2 + MAX_DELAY_BUFFER_EXCEED
+                && timeMin > sharedHolder_->time_[2 + MAX_DELAY_BUFFER_EXCEED])
                 {
                     for (uint8_t i=0; i < 1 + MAX_DELAY_BUFFER_EXCEED; i ++)
                     {
-                        dataHolder_->time_.pop_front();
-                        dataHolder_->data_.pop_front();
+                        sharedHolder_->time_.pop_front();
+                        sharedHolder_->data_.pop_front();
                     }
 
-                    dataHolder_->time_.rset_capacity(dataHolder_->time_.size() + MIN_DELAY_BUFFER_RESERVE);
-                    dataHolder_->data_.rset_capacity(dataHolder_->data_.size() + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + MIN_DELAY_BUFFER_RESERVE);
                 }
 
                 // Rotate the internal buffer
-                dataHolder_->time_.rotate(dataHolder_->time_.begin() + 1);
-                dataHolder_->data_.rotate(dataHolder_->data_.begin() + 1);
+                sharedHolder_->time_.rotate(sharedHolder_->time_.begin() + 1);
+                sharedHolder_->data_.rotate(sharedHolder_->data_.begin() + 1);
             }
             else
             {
                 // Increase capacity if required
-                if(dataHolder_->time_.full())
+                if(sharedHolder_->time_.full())
                 {
-                    dataHolder_->time_.rset_capacity(dataHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
-                    dataHolder_->data_.rset_capacity(dataHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
                 }
 
                 // Push back new empty buffer (Do NOT initialize it for efficiency)
-                dataHolder_->time_.push_back();
-                dataHolder_->data_.push_back();
-                dataHolder_->data_.back().resize(getSize(), dataHolder_->num_);
+                sharedHolder_->time_.push_back();
+                sharedHolder_->data_.push_back();
+                sharedHolder_->data_.back().resize(getSize(), sharedHolder_->num_);
             }
         }
         else
         {
             /* Remove the extra last elements if for some reason the solver went back in time.
                 It happens when an iteration fails using ode solvers relying on try_step mechanism. */
-            while(t + std::numeric_limits<float64_t>::epsilon() < dataHolder_->time_.back() && dataHolder_->time_.size() > 2)
+            while(t + std::numeric_limits<float64_t>::epsilon() < sharedHolder_->time_.back()
+            && sharedHolder_->time_.size() > 2)
             {
-                dataHolder_->time_.pop_back();
-                dataHolder_->data_.pop_back();
+                sharedHolder_->time_.pop_back();
+                sharedHolder_->data_.pop_back();
             }
         }
-        dataHolder_->time_.back() = t;
+        sharedHolder_->time_.back() = t;
 
         // Compute the sensors' output
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            // Compute the true value
             if (returnCode == result_t::SUCCESS)
             {
+                // Compute the true value
                 returnCode = sensor->set(t, q, v, a, u);
             }
 
-            // Add white noise
             if (returnCode == result_t::SUCCESS)
             {
-                if (sensorOptions_->noiseStd.size())
+                // Add white noise
+                if (baseSensorOptions_->noiseStd.size())
                 {
-                    sensor->data() += randVectorNormal(sensor->sensorOptions_->noiseStd);
+                    data(sensor) += randVectorNormal(sensor->baseSensorOptions_->noiseStd);
                 }
-                if (sensor->sensorOptions_->bias.size())
+                if (sensor->baseSensorOptions_->bias.size())
                 {
-                    sensor->data() += sensor->sensorOptions_->bias;
+                    data(sensor) += sensor->baseSensorOptions_->bias;
                 }
             }
 
-            // Update data buffer
             if (returnCode == result_t::SUCCESS)
             {
-                returnCode = sensor->updateDataBuffer();
+                // Update data buffer
+                returnCode = updateDataBuffer(sensor);
             }
         }
 
@@ -350,7 +428,7 @@ namespace jiminy
     template <typename T>
     void AbstractSensorTpl<T>::updateTelemetryAll(void)
     {
-        for (AbstractSensorBase * sensor : dataHolder_->sensors_)
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             sensor->updateTelemetry();
         }

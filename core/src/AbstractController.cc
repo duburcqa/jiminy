@@ -8,7 +8,7 @@
 namespace jiminy
 {
     AbstractController::AbstractController(void) :
-    ctrlOptions_(nullptr),
+    baseControllerOptions_(nullptr),
     model_(nullptr),
     isInitialized_(false),
     isTelemetryConfigured_(false),
@@ -20,71 +20,52 @@ namespace jiminy
         AbstractController::setOptions(getDefaultOptions()); // Clarify that the base implementation is called
     }
 
-    AbstractController::~AbstractController(void)
-    {
-        // Empty.
-    }
-
-
     result_t AbstractController::initialize(std::shared_ptr<Model const> const & model)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!model->getIsInitialized())
         {
             std::cout << "Error - AbstractController::initialize - The model is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            model_ = model;
+        model_ = model;
 
-            try
-            {
-                // isInitialized_ must be true to execute the 'computeCommand' and 'internalDynamics' methods
-                isInitialized_ = true;
-                float64_t t = 0;
-                vectorN_t q = vectorN_t::Zero(model_->nq());
-                vectorN_t v = vectorN_t::Zero(model_->nv());
-                vectorN_t uCommand = vectorN_t::Zero(model_->getMotorsNames().size());
-                vectorN_t uInternal = vectorN_t::Zero(model_->nv());
-                returnCode = computeCommand(t, q, v, uCommand);
-                if (returnCode == result_t::SUCCESS)
-                {
-                    if(uCommand.size() != (int32_t) model_->getMotorsNames().size())
-                    {
-                        std::cout << "Error - AbstractController::initialize - 'computeCommand' returns command with wrong size." << std::endl;
-                        returnCode = result_t::ERROR_BAD_INPUT;
-                    }
-                }
-                internalDynamics(t, q, v, uInternal); // It cannot fail at this point
-                if (returnCode == result_t::SUCCESS)
-                {
-                    if(uInternal.size() != model_->nv())
-                    {
-                        std::cout << "Error - AbstractController::initialize - 'internalDynamics' returns command with wrong size." << std::endl;
-                        returnCode = result_t::ERROR_BAD_INPUT;
-                    }
-                }
-            }
-            catch (std::exception& e)
-            {
-                std::cout << "Error - AbstractController::initialize - Something is wrong, probably because of 'commandFct'." << std::endl;
-                returnCode = result_t::ERROR_GENERIC;
-            }
-            isInitialized_ = false;
-        }
-
-        if (returnCode == result_t::SUCCESS)
+        try
         {
+            // isInitialized_ must be true to execute the 'computeCommand' and 'internalDynamics' methods
             isInitialized_ = true;
-        }
+            float64_t t = 0;
+            vectorN_t q = vectorN_t::Zero(model_->nq());
+            vectorN_t v = vectorN_t::Zero(model_->nv());
+            vectorN_t uCommand = vectorN_t::Zero(model_->getMotorsNames().size());
+            vectorN_t uInternal = vectorN_t::Zero(model_->nv());
+            result_t returnCode = computeCommand(t, q, v, uCommand);
+            if (returnCode == result_t::SUCCESS)
+            {
+                if(uCommand.size() != (int32_t) model_->getMotorsNames().size())
+                {
+                    std::cout << "Error - AbstractController::initialize - 'computeCommand' returns command with wrong size." << std::endl;
+                    return result_t::ERROR_BAD_INPUT;
+                }
 
-        return returnCode;
+                internalDynamics(t, q, v, uInternal);
+                if(uInternal.size() != model_->nv())
+                {
+                    std::cout << "Error - AbstractController::initialize - 'internalDynamics' returns command with wrong size." << std::endl;
+                    return result_t::ERROR_BAD_INPUT;
+                }
+            }
+            return returnCode;
+        }
+        catch (std::exception& e)
+        {
+            isInitialized_ = false;
+            std::cout << "Error - AbstractController::initialize - Something is wrong, probably because of 'commandFct'." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
     }
 
-    void AbstractController::reset(bool const & resetDynamicTelemetry)
+    void AbstractController::reset(bool_t const & resetDynamicTelemetry)
     {
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
@@ -99,42 +80,43 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (!getIsInitialized())
+        if (!isInitialized_)
         {
             std::cout << "Error - AbstractController::configureTelemetry - The controller is not initialized." << std::endl;
             returnCode = result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (!isTelemetryConfigured_ && baseControllerOptions_->telemetryEnable)
         {
-            if (!isTelemetryConfigured_ && ctrlOptions_->telemetryEnable)
+            if (telemetryData)
             {
-                if (telemetryData)
+                telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
+                for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                 {
-                    telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
-                    for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
+                    if (returnCode == result_t::SUCCESS)
                     {
                         returnCode = telemetrySender_.registerVariable(registeredVariable.first,
                                                                        *registeredVariable.second);
                     }
-                    for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
+                }
+                for (std::pair<std::string, std::string> const & registeredConstant : registeredConstants_)
+                {
+                    if (returnCode == result_t::SUCCESS)
                     {
                         returnCode = telemetrySender_.registerConstant(registeredConstant.first,
                                                                        registeredConstant.second);
                     }
+                }
+                if (returnCode == result_t::SUCCESS)
+                {
                     isTelemetryConfigured_ = true;
                 }
-                else
-                {
-                    std::cout << "Error - AbstractController::configureTelemetry - Telemetry not initialized. Impossible to log controller data." << std::endl;
-                    returnCode = result_t::ERROR_INIT_FAILED;
-                }
             }
-        }
-
-        if (returnCode != result_t::SUCCESS)
-        {
-            isTelemetryConfigured_ = false;
+            else
+            {
+                std::cout << "Error - AbstractController::configureTelemetry - Telemetry not initialized. Impossible to log controller data." << std::endl;
+                returnCode = result_t::ERROR_INIT_FAILED;
+            }
         }
 
         return returnCode;
@@ -145,36 +127,31 @@ namespace jiminy
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
-        result_t returnCode = result_t::SUCCESS;
-
         if (isTelemetryConfigured_)
         {
             std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        std::vector<std::string>::const_iterator fieldIt = fieldNames.begin();
+        for (uint32_t i=0; fieldIt != fieldNames.end(); ++fieldIt, ++i)
         {
-            std::vector<std::string>::const_iterator fieldIt = fieldNames.begin();
-            for (uint32_t i=0; fieldIt != fieldNames.end(); ++fieldIt, ++i)
+            // Check in local cache before.
+            auto variableIt = std::find_if(registeredVariables_.begin(),
+                                            registeredVariables_.end(),
+                                            [&fieldIt](auto const & element)
+                                            {
+                                                return element.first == *fieldIt;
+                                            });
+            if (variableIt != registeredVariables_.end())
             {
-                // Check in local cache before.
-                auto variableIt = std::find_if(registeredVariables_.begin(),
-                                               registeredVariables_.end(),
-                                               [&fieldIt](auto const & element)
-                                               {
-                                                   return element.first == *fieldIt;
-                                               });
-                if (variableIt != registeredVariables_.end())
-                {
-                    std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
-                }
-                registeredVariables_.emplace_back(*fieldIt, values.data() + i);
+                std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
             }
+            registeredVariables_.emplace_back(*fieldIt, values.data() + i);
         }
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
     result_t AbstractController::registerVariable(std::string const & fieldName,
@@ -182,32 +159,27 @@ namespace jiminy
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
-        result_t returnCode = result_t::SUCCESS;
-
         if (isTelemetryConfigured_)
         {
             std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        // Check in local cache before.
+        auto variableIt = std::find_if(registeredVariables_.begin(),
+                                        registeredVariables_.end(),
+                                        [&fieldName](auto const & element)
+                                        {
+                                            return element.first == fieldName;
+                                        });
+        if (variableIt != registeredVariables_.end())
         {
-            // Check in local cache before.
-            auto variableIt = std::find_if(registeredVariables_.begin(),
-                                           registeredVariables_.end(),
-                                           [&fieldName](auto const & element)
-                                           {
-                                               return element.first == fieldName;
-                                           });
-            if (variableIt != registeredVariables_.end())
-            {
-                std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
-            }
-            registeredVariables_.emplace_back(fieldName, &value);
+            std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
         }
+        registeredVariables_.emplace_back(fieldName, &value);
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
     void AbstractController::removeEntries(void)
@@ -237,15 +209,15 @@ namespace jiminy
     void AbstractController::setOptions(configHolder_t const & ctrlOptions)
     {
         ctrlOptionsHolder_ = ctrlOptions;
-        ctrlOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
+        baseControllerOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
     }
 
-    bool AbstractController::getIsInitialized(void) const
+    bool_t AbstractController::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool AbstractController::getIsTelemetryConfigured(void) const
+    bool_t AbstractController::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }

@@ -28,15 +28,9 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    ControllerFunctor<F1, F2>::~ControllerFunctor(void)
-    {
-        // Empty.
-    }
-
-    template<typename F1, typename F2>
     result_t ControllerFunctor<F1, F2>::initialize(std::shared_ptr<Model const> const & model)
     {
-        model->getSensorsData(sensorsData_);
+        sensorsData_ = model->getSensorsData(); // Only one copy is needed thanks to C++11 Copy Elision paradigm
         return AbstractController::initialize(model);
     }
 
@@ -46,20 +40,15 @@ namespace jiminy
                                                        vectorN_t const & v,
                                                        vectorN_t       & u)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!getIsInitialized())
         {
             std::cout << "Error - ControllerFunctor::computeCommand - The model is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            commandFct_(t, q, v, sensorsData_, u);
-        }
+        commandFct_(t, q, v, sensorsData_, u);
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 
     template<typename F1, typename F2>
@@ -68,19 +57,14 @@ namespace jiminy
                                                          vectorN_t const & v,
                                                          vectorN_t       & u)
     {
-        result_t returnCode = result_t::SUCCESS;
-
         if (!getIsInitialized())
         {
             std::cout << "Error - ControllerFunctor::internalDynamics - The model is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            internalDynamicsFct_(t, q, v, sensorsData_, u); // The sensor data are already up-to-date
-        }
+        internalDynamicsFct_(t, q, v, sensorsData_, u); // The sensor data are already up-to-date
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 }

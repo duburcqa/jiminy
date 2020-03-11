@@ -5,8 +5,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_RECORDER_H
-#define SIMU_TELEMETRY_RECORDER_H
+#ifndef JIMINY_TELEMETRY_RECORDER_H
+#define JIMINY_TELEMETRY_RECORDER_H
 
 #include "jiminy/core/MemoryDevice.h"
 #include "jiminy/core/TelemetryData.h"
@@ -27,14 +27,7 @@ namespace jiminy
         TelemetryRecorder(TelemetryRecorder const &) = delete;
         TelemetryRecorder & operator=(TelemetryRecorder const &) = delete;
     public:
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief Constructor.
-        ////////////////////////////////////////////////////////////////////////
         TelemetryRecorder(std::shared_ptr<TelemetryData const> const & telemetryDataInstance);
-
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief Destructor.
-        ////////////////////////////////////////////////////////////////////////
         ~TelemetryRecorder(void);
 
         ////////////////////////////////////////////////////////////////////////
@@ -42,7 +35,7 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         result_t initialize(void);
 
-        bool const & getIsInitialized(void);
+        bool_t const & getIsInitialized(void);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -57,7 +50,7 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         /// \brief Get access to the memory device holding the data
         ////////////////////////////////////////////////////////////////////////
-        void writeDataBinary(std::string const & filename);
+        result_t writeDataBinary(std::string const & filename);
         static void getData(std::vector<std::string>                   & header,
                             std::vector<float32_t>                     & timestamps,
                             std::vector<std::vector<int32_t> >         & intData,
@@ -88,7 +81,7 @@ namespace jiminy
         std::shared_ptr<TelemetryData const> telemetryData_;
         std::vector<MemoryDevice> flows_;
 
-        bool isInitialized_;
+        bool_t isInitialized_;
 
         int64_t recordedBytesLimits_;
         int64_t recordedBytesDataLine_;
@@ -103,4 +96,4 @@ namespace jiminy
     };
 }
 
-#endif // SIMU_TELEMETRY_RECORDER_H
+#endif // JIMINY_TELEMETRY_RECORDER_H

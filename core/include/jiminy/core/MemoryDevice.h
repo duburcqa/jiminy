@@ -1,5 +1,5 @@
-#ifndef SIMU_CORE_MEMORY_DEVICE_H
-#define SIMU_CORE_MEMORY_DEVICE_H
+#ifndef JIMINY_CORE_MEMORY_DEVICE_H
+#define JIMINY_CORE_MEMORY_DEVICE_H
 
 #include "jiminy/core/AbstractIODevice.h"
 
@@ -64,4 +64,4 @@ namespace jiminy
     };
 }
 
-#endif // SIMU_CORE_MEMORY_DEVICE_H
+#endif // JIMINY_CORE_MEMORY_DEVICE_H

@@ -295,7 +295,7 @@ class Viewer:
 
     def _getViewerNodeName(self, geometry_object, geometry_type):
         """
-        @brief      Get the full path of a node associated to a given geometry
+        @brief      Get the full path of a node associated with a given geometry
                     object and geometry type.
 
         @remark     This is a hidden function that is not automatically imported

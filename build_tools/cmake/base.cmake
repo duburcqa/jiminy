@@ -95,7 +95,7 @@ if(BUILD_PYTHON_INTERFACE)
                             "import sysconfig; print(sysconfig.get_paths()['purelib'])"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE PYTHON_SITELIB)
-    set(PYTHON_INSTALL_FLAGS "--upgrade --no-deps --force-reinstall ")
+    set(PYTHON_INSTALL_FLAGS "--upgrade ")
 
     # Check permissions on Python site-package to determine whether to use user site
     execute_process(COMMAND bash -c
@@ -149,7 +149,7 @@ if(BUILD_PYTHON_INTERFACE)
     endfunction()
 
     function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "EXECUTE_PROCESS (COMMAND pip install -e . -q
+        install (CODE "EXECUTE_PROCESS (COMMAND pip install ${PYTHON_INSTALL_FLAGS} -e .
                                         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endfunction()
 endif()

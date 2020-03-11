@@ -7,8 +7,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_CLIENT_CLASS_H
-#define SIMU_TELEMETRY_CLIENT_CLASS_H
+#ifndef JIMINY_TELEMETRY_CLIENT_CLASS_H
+#define JIMINY_TELEMETRY_CLIENT_CLASS_H
 
 #include <string>
 #include <unordered_map>
@@ -29,15 +29,8 @@ namespace jiminy
     class TelemetrySender
     {
     public:
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief      Constructor with arguments.
-        ////////////////////////////////////////////////////////////////////////
         explicit TelemetrySender(void);
-
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief      Destructor.
-        ////////////////////////////////////////////////////////////////////////
-        virtual ~TelemetrySender(void);
+        virtual ~TelemetrySender(void) = default;
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief      Update specified registered variable in the telemetry buffer.
@@ -119,4 +112,4 @@ namespace jiminy
     };
 } // End of jiminy namespace
 
-#endif  //  SIMU_TELEMETRY_CLIENT_CLASS_H
+#endif  //  JIMINY_TELEMETRY_CLIENT_CLASS_H

@@ -1,12 +1,11 @@
-
 ///////////////////////////////////////////////////////////////////////////////
 ///
 /// \brief Contains templated function implementation of the AbstractController class.
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_ABSTRACT_CONTROLLER_TPP
-#define SIMU_ABSTRACT_CONTROLLER_TPP
+#ifndef JIMINY_ABSTRACT_CONTROLLER_TPP
+#define JIMINY_ABSTRACT_CONTROLLER_TPP
 
 #include <string>
 #include <vector>
@@ -16,11 +15,13 @@ namespace jiminy
 {
     using std::to_string;
 
-    inline std::string to_string(char const * var) {
+    inline std::string to_string(char_t const * var)
+    {
         return {var};
     }
 
-    inline std::string to_string(Eigen::Ref<matrixN_t const> var) {
+    inline std::string to_string(Eigen::Ref<matrixN_t const> var)
+    {
         Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
         std::stringstream matrixStream;
         matrixStream << var.format(HeavyFmt);
@@ -43,35 +44,30 @@ namespace jiminy
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
-        result_t returnCode = result_t::SUCCESS;
-
         if (isTelemetryConfigured_)
         {
             std::cout << "Error - AbstractController::registerConstant - Telemetry already initialized. Impossible to register new variables." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            return result_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        // Check in local cache before.
+        auto constantIt = std::find_if(registeredConstants_.begin(),
+                                        registeredConstants_.end(),
+                                        [&fieldName](auto const & element)
+                                        {
+                                            return element.first == fieldName;
+                                        });
+        if (constantIt != registeredConstants_.end())
         {
-            // Check in local cache before.
-            auto constantIt = std::find_if(registeredConstants_.begin(),
-                                           registeredConstants_.end(),
-                                           [&fieldName](auto const & element)
-                                           {
-                                               return element.first == fieldName;
-                                           });
-            if (constantIt != registeredConstants_.end())
-            {
-                std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
-            }
-            registeredConstants_.emplace_back(fieldName, to_string(value));
+            std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
         }
+        registeredConstants_.emplace_back(fieldName, to_string(value));
 
-        return returnCode;
+        return result_t::SUCCESS;
     }
 }
 
-#endif // SIMU_ABSTRACT_CONTROLLER_TPP
+#endif // JIMINY_ABSTRACT_CONTROLLER_TPP
 
 

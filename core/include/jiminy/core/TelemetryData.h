@@ -4,8 +4,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef SIMU_TELEMETRY_DATA_H
-#define SIMU_TELEMETRY_DATA_H
+#ifndef JIMINY_TELEMETRY_DATA_H
+#define JIMINY_TELEMETRY_DATA_H
 
 #include <iostream>
 #include <string>
@@ -130,15 +130,8 @@ namespace jiminy
         TelemetryData & operator=(TelemetryData const &) = delete;
 
     public:
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief Constructor.
-        ////////////////////////////////////////////////////////////////////////
         TelemetryData(void);
-
-        ////////////////////////////////////////////////////////////////////////
-        /// \brief Destructor.
-        ////////////////////////////////////////////////////////////////////////
-        ~TelemetryData(void);
+        ~TelemetryData(void) = default;
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the telemetry before starting to use the telemetry.
@@ -232,4 +225,4 @@ namespace jiminy
 
 #include "TelemetryData.tpp"
 
-#endif // SIMU_TELEMETRY_DATA_H
+#endif // JIMINY_TELEMETRY_DATA_H

@@ -16,10 +16,13 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double
 # ########################### Initialize the simulation #################################
 
 # Instantiate the model
-contacts = []
-motors = ["SecondPendulumJoint"]
+motor_joint_names = ("SecondPendulumJoint",)
 model = jiminy.Model()
-model.initialize(urdf_path, contacts, motors, False)
+model.initialize(urdf_path, False)
+for joint_name in motor_joint_names:
+    motor = jiminy.SimpleMotor(joint_name)
+    model.attach_motor(motor)
+    motor.initialize(joint_name)
 
 # Instantiate the controller
 def computeCommand(t, q, v, sensor_data, u):
@@ -46,7 +49,7 @@ model_options["telemetry"]["enableImuSensors"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
-engine_options["telemetry"]["enableCommand"] = True
+engine_options["telemetry"]["enableTorque"] = True
 engine_options["telemetry"]["enableEnergy"] = True
 engine_options["world"]["gravity"][2] = -9.81
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
@@ -77,7 +80,7 @@ x0[1] = 0.1
 tf = 3.0
 
 start = time.time()
-engine.simulate(x0, tf)
+engine.simulate(tf, x0)
 end = time.time()
 print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 
@@ -89,7 +92,7 @@ print(log_constants)
 trajectory_data_log = extract_state_from_simulation_log(log_data, model)
 
 # Save the log in CSV
-engine.write_log("/tmp/log.data", False)
+engine.write_log("/tmp/log.csv", False)
 
 # ############################ Display the results ######################################
 

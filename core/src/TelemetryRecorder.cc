@@ -49,8 +49,8 @@ namespace jiminy
         std::vector<char_t> header;
         if (returnCode == result_t::SUCCESS)
         {
-            // Reset the internal state
-            reset();
+            // Clear the MemoryDevice buffer
+            flows_.clear();
 
             // Get telemetry data infos.
             telemetryData_->getData(integersAddress_,
@@ -83,7 +83,7 @@ namespace jiminy
         return returnCode;
     }
 
-    bool const & TelemetryRecorder::getIsInitialized(void)
+    bool_t const & TelemetryRecorder::getIsInitialized(void)
     {
         return isInitialized_;
     }
@@ -95,9 +95,6 @@ namespace jiminy
         {
             flows_.back().close();
         }
-
-        // Clear the MemoryDevice buffer
-        flows_.clear();
 
         isInitialized_ = false;
     }
@@ -122,11 +119,6 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             recordedBytes_ = 0;
-        }
-        else
-        {
-            std::cout << "Error - TelemetryRecorder::createNewChunk - Impossible to create a new chunk of memory buffer." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
         }
 
         return returnCode;
@@ -162,30 +154,38 @@ namespace jiminy
         return returnCode;
     }
 
-    void TelemetryRecorder::writeDataBinary(std::string const & filename)
+    result_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
-        std::ofstream myfile = std::ofstream(filename,
+        std::ofstream myFile = std::ofstream(filename,
                                              std::ios::out |
                                              std::ios::binary |
                                              std::ofstream::trunc);
-
-        for (uint32_t i=0; i<flows_.size(); i++)
+        if (myFile.is_open())
         {
-            int64_t pos_old = flows_[i].pos();
-            flows_[i].seek(0);
-
-            std::vector<uint8_t> bufferChunk;
-            bufferChunk.resize(pos_old);
-            flows_[i].readData(bufferChunk.data(), pos_old);
-            myfile.write(reinterpret_cast<char*>(bufferChunk.data()), pos_old);
-
-            if (i == flows_.size() - 1)
+            for (uint32_t i=0; i<flows_.size(); i++)
             {
-                flows_[i].seek(pos_old);
-            }
-        }
+                int64_t pos_old = flows_[i].pos();
+                flows_[i].seek(0);
 
-        myfile.close();
+                std::vector<uint8_t> bufferChunk;
+                bufferChunk.resize(pos_old);
+                flows_[i].readData(bufferChunk.data(), pos_old);
+                myFile.write(reinterpret_cast<char_t *>(bufferChunk.data()), pos_old);
+
+                if (i == flows_.size() - 1)
+                {
+                    flows_[i].seek(pos_old);
+                }
+            }
+
+            myFile.close();
+        }
+        else
+        {
+            std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+        return result_t::SUCCESS;
     }
 
     void TelemetryRecorder::getData(std::vector<std::string>                   & header,
@@ -203,77 +203,80 @@ namespace jiminy
         intData.clear();
         floatData.clear();
 
-        int32_t timestamp;
-        std::vector<int32_t> intDataLine;
-        intDataLine.resize(integerSectionSize / sizeof(int32_t));
-        std::vector<float32_t> floatDataLine;
-        floatDataLine.resize(floatSectionSize / sizeof(float32_t));
-
-        for (uint32_t i=0; i<flows.size(); i++)
+        if (!flows.empty())
         {
-            int64_t pos_old = flows[i]->pos();
-            flows[i]->seek(0);
+            int32_t timestamp;
+            std::vector<int32_t> intDataLine;
+            intDataLine.resize(integerSectionSize / sizeof(int32_t));
+            std::vector<float32_t> floatDataLine;
+            floatDataLine.resize(floatSectionSize / sizeof(float32_t));
 
-            /* Dealing with version flag, constants, header, and descriptor.
-               It makes the reasonable assumption that it does not overlap on several chunks. */
-            if (i == 0)
+            for (uint32_t i=0; i<flows.size(); i++)
             {
-                int64_t header_version_length = sizeof(int32_t);
-                flows[i]->seek(header_version_length); // Skip the version flag
-                std::vector<char_t> headerCharBuffer;
-                headerCharBuffer.resize(headerSize - header_version_length);
-                flows[i]->readData(headerCharBuffer.data(), headerSize - header_version_length);
-                char_t const * pHeader = &headerCharBuffer[0];
-                uint32_t posHeader = 0;
-                std::string fieldHeader(pHeader);
-                while (true)
+                int64_t pos_old = flows[i]->pos();
+                flows[i]->seek(0);
+
+                /* Dealing with version flag, constants, header, and descriptor.
+                It makes the reasonable assumption that it does not overlap on several chunks. */
+                if (i == 0)
                 {
-                    header.emplace_back(std::move(fieldHeader));
-                    posHeader += header.back().size() + 1;
-                    fieldHeader = std::string(pHeader + posHeader);
-                    if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
+                    int64_t header_version_length = sizeof(int32_t);
+                    flows[i]->seek(header_version_length); // Skip the version flag
+                    std::vector<char_t> headerCharBuffer;
+                    headerCharBuffer.resize(headerSize - header_version_length);
+                    flows[i]->readData(headerCharBuffer.data(), headerSize - header_version_length);
+                    char_t const * pHeader = &headerCharBuffer[0];
+                    uint32_t posHeader = 0;
+                    std::string fieldHeader(pHeader);
+                    while (true)
                     {
-                        break;
-                    }
-                    if (posHeader + fieldHeader.size() > headerCharBuffer.size())
-                    {
-                        fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
                         header.emplace_back(std::move(fieldHeader));
-                        break;
+                        posHeader += header.back().size() + 1;
+                        fieldHeader = std::string(pHeader + posHeader);
+                        if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
+                        {
+                            break;
+                        }
+                        if (posHeader + fieldHeader.size() > headerCharBuffer.size())
+                        {
+                            fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
+                            header.emplace_back(std::move(fieldHeader));
+                            break;
+                        }
                     }
                 }
-            }
 
-            /* Dealing with data lines, starting with new line flag, time, integers, and ultimately floats. */
-            if (recordedBytesDataLine > 0)
-            {
-                uint32_t numberLines = (flows[i]->size() - flows[i]->pos()) / recordedBytesDataLine;
-                timestamps.reserve(timestamps.size() + numberLines);
-                intData.reserve(intData.size() + numberLines);
-                floatData.reserve(floatData.size() + numberLines);
-            }
-
-            while (flows[i]->bytesAvailable() > 0)
-            {
-                flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
-                flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
-                flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
-                flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
-
-                if (!timestamps.empty() && timestamp == 0)
+                /* Dealing with data lines, starting with new line flag, time, integers, and ultimately floats. */
+                if (recordedBytesDataLine > 0)
                 {
-                    // The buffer is not full, must stop reading !
-                    break;
+                    uint32_t numberLines = (flows[i]->size() - flows[i]->pos()) / recordedBytesDataLine;
+                    timestamps.reserve(timestamps.size() + numberLines);
+                    intData.reserve(intData.size() + numberLines);
+                    floatData.reserve(floatData.size() + numberLines);
                 }
 
-                timestamps.emplace_back(static_cast<float32_t>(timestamp * 1e-6));
-                intData.emplace_back(intDataLine);
-                floatData.emplace_back(floatDataLine);
-            }
+                while (flows[i]->bytesAvailable() > 0)
+                {
+                    flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
+                    flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
+                    flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
+                    flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
 
-            if (i == flows.size() - 1)
-            {
-                flows[i]->seek(pos_old);
+                    if (!timestamps.empty() && timestamp == 0)
+                    {
+                        // The buffer is not full, must stop reading !
+                        break;
+                    }
+
+                    timestamps.emplace_back(static_cast<float32_t>(timestamp * 1e-6));
+                    intData.emplace_back(intDataLine);
+                    floatData.emplace_back(floatDataLine);
+                }
+
+                if (i == flows.size() - 1)
+                {
+                    flows[i]->seek(pos_old);
+                }
             }
         }
     }
