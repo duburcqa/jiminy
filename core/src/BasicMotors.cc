@@ -24,7 +24,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (isAttached_)
+        if (!isAttached_)
         {
             std::cout << "Error - SimpleMotor::initialize - Motor not attached to any model. Impossible to initialize it." << std::endl;
             returnCode = result_t::ERROR_GENERIC;

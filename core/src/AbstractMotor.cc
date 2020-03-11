@@ -26,8 +26,11 @@ namespace jiminy
 
     AbstractMotorBase::~AbstractMotorBase(void)
     {
-        // Detach the sensor before deleting it
-        detach();
+        // Detach the sensor before deleting it if necessary
+        if (isAttached_)
+        {
+            detach();
+        }
     }
 
     result_t AbstractMotorBase::attach(Model const * model,
@@ -42,6 +45,9 @@ namespace jiminy
         // Copy references to the model and shared data
         model_ = model;
         sharedHolder_ = sharedHolder.get();
+
+        // Get an Id
+        motorId_ = sharedHolder_->num_;
 
         // Add the motor to the shared data
         sharedHolder_->data_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
@@ -124,12 +130,9 @@ namespace jiminy
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
         // Refresh the proxies if the model is initialized
-        if (model_->getIsInitialized())
+        if (isAttached_ && internalBuffersMustBeUpdated && model_->getIsInitialized())
         {
-            if (internalBuffersMustBeUpdated)
-            {
-                refreshProxies();
-            }
+            refreshProxies();
         }
 
         return result_t::SUCCESS;

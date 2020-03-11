@@ -19,8 +19,11 @@ namespace jiminy
     template <typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
-        // Detach the sensor before deleting it
-        detach();
+        // Detach the sensor before deleting it if necessary
+        if (isAttached_)
+        {
+            detach();
+        }
     }
 
     template <typename T>
@@ -36,6 +39,9 @@ namespace jiminy
         // Copy references to the model and shared data
         model_ = model;
         sharedHolder_ = sharedHolder.get();
+
+        // Get an Id
+        sensorId_ = sharedHolder_->num_;
 
         // Add the sensor to the shared data
         for (matrixN_t & data : sharedHolder_->data_)

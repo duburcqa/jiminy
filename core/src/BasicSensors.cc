@@ -32,7 +32,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (isAttached_)
+        if (!isAttached_)
         {
             std::cout << "Error - ImuSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
             returnCode = result_t::ERROR_GENERIC;
@@ -119,7 +119,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (isAttached_)
+        if (!isAttached_)
         {
             std::cout << "Error - ForceSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
             returnCode = result_t::ERROR_GENERIC;
@@ -203,7 +203,7 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        if (isAttached_)
+        if (!isAttached_)
         {
             std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
             returnCode = result_t::ERROR_GENERIC;

@@ -53,7 +53,7 @@ namespace jiminy
 
     public:
         SimpleMotor(std::string const & name);
-        ~SimpleMotor(void) = default;
+        virtual ~SimpleMotor(void) = default;
 
         result_t initialize(std::string const & jointName);
 

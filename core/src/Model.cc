@@ -57,6 +57,15 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
+    Model::~Model(void)
+    {
+        // Detach the motors
+        detachMotors();
+
+        // Detach the sensors
+        detachSensors();
+    }
+
     result_t Model::initialize(std::string const & urdfPath,
                                bool_t      const & hasFreeflyer)
     {
@@ -781,6 +790,40 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
+            // Get the joint position limits from the URDF or the user options
+            if (mdlOptions_->joints.positionLimitFromUrdf)
+            {
+                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
+                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
+                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                {
+                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
+                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
+                }
+            }
+            else
+            {
+                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
+                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
+            }
+
+            // Get the joint velocity limits from the URDF or the user options
+            if (mdlOptions_->joints.velocityLimitFromUrdf)
+            {
+                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
+                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                {
+                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
+                }
+            }
+            else
+            {
+                velocityLimit_ = mdlOptions_->joints.velocityLimit;
+            }
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
             returnCode = refreshContactProxies();
         }
 
@@ -824,6 +867,7 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             // Extract the motor names
+            motorsNames_.clear();
             motorsNames_.reserve(motorsHolder_.size());
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                            std::back_inserter(motorsNames_),
