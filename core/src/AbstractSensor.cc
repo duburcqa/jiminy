@@ -4,17 +4,18 @@
 
 namespace jiminy
 {
-    AbstractSensorBase::AbstractSensorBase(Model       const & model,
-                                           std::string const & name) :
+    AbstractSensorBase::AbstractSensorBase(std::string const & name) :
     baseSensorOptions_(nullptr),
     sensorOptionsHolder_(),
-    telemetrySender_(),
     isInitialized_(false),
+    isAttached_(false),
     isTelemetryConfigured_(false),
-    model_(&model),
+    model_(nullptr),
     name_(name),
-    data_()
+    data_(),
+    telemetrySender_()
     {
+        // Initialize the options
         setOptions(getDefaultOptions());
     }
 

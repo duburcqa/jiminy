@@ -10,15 +10,38 @@
 
 namespace jiminy
 {
-    SimpleMotor::SimpleMotor(Model       const & model,
-                             std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
-                             std::string const & name) :
-    AbstractMotorBase(model, sharedHolder, name),
+    SimpleMotor::SimpleMotor(std::string const & name) :
+    AbstractMotorBase(name),
     motorOptions_(nullptr)
     {
-        /* AbstractMotorBase constructor calls the base implementations of the virtual methods since the derived
-           class is not available at this point. Thus it must be called explicitly in the constructor. */
+        /* AbstractMotorBase constructor calls the base implementations of
+           the virtual methods since the derived class is not available at
+           this point. Thus it must be called explicitly in the constructor. */
         setOptions(getDefaultOptions());
+    }
+
+    result_t SimpleMotor::initialize(std::string const & jointName)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (isAttached_)
+        {
+            std::cout << "Error - SimpleMotor::initialize - Motor not attached to any model. Impossible to initialize it." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            jointName_ = jointName;
+            returnCode = refreshProxies();
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            isInitialized_ = true;
+        }
+
+        return returnCode;
     }
 
     result_t SimpleMotor::setOptions(configHolder_t motorOptions)

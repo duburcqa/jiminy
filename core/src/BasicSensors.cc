@@ -20,10 +20,8 @@ namespace jiminy
     std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
 
-    ImuSensor::ImuSensor(Model       const & model,
-                         std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
-                         std::string const & name) :
-    AbstractSensorTpl(model, sharedHolder, name),
+    ImuSensor::ImuSensor(std::string const & name) :
+    AbstractSensorTpl(name),
     frameName_(),
     frameIdx_()
     {
@@ -34,8 +32,17 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        frameName_ = frameName;
-        returnCode = refreshProxies();
+        if (isAttached_)
+        {
+            std::cout << "Error - ImuSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            frameName_ = frameName;
+            returnCode = refreshProxies();
+        }
 
         if (returnCode == result_t::SUCCESS)
         {
@@ -100,10 +107,8 @@ namespace jiminy
     template<>
     std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
-    ForceSensor::ForceSensor(Model       const & model,
-                             std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
-                             std::string const & name) :
-    AbstractSensorTpl(model, sharedHolder, name),
+    ForceSensor::ForceSensor(std::string const & name) :
+    AbstractSensorTpl(name),
     frameName_(),
     frameIdx_()
     {
@@ -114,8 +119,17 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        frameName_ = frameName;
-        returnCode = refreshProxies();
+        if (isAttached_)
+        {
+            std::cout << "Error - ForceSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            frameName_ = frameName;
+            returnCode = refreshProxies();
+        }
 
         if (returnCode == result_t::SUCCESS)
         {
@@ -176,10 +190,8 @@ namespace jiminy
     template<>
     std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 
-    EncoderSensor::EncoderSensor(Model       const & model,
-                                 std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
-                                 std::string const & name) :
-    AbstractSensorTpl(model, sharedHolder, name),
+    EncoderSensor::EncoderSensor(std::string const & name) :
+    AbstractSensorTpl(name),
     jointName_(),
     jointPositionIdx_(),
     jointVelocityIdx_()
@@ -191,8 +203,17 @@ namespace jiminy
     {
         result_t returnCode = result_t::SUCCESS;
 
-        jointName_ = jointName;
-        returnCode = refreshProxies();
+        if (isAttached_)
+        {
+            std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            jointName_ = jointName;
+            returnCode = refreshProxies();
+        }
 
         if (returnCode == result_t::SUCCESS)
         {

@@ -52,10 +52,10 @@ namespace jiminy
         };
 
     public:
-        SimpleMotor(Model       const & model,
-                    std::shared_ptr<MotorSharedDataHolder_t> const & dataHolder,
-                    std::string const & name);
+        SimpleMotor(std::string const & name);
         ~SimpleMotor(void) = default;
+
+        result_t initialize(std::string const & jointName);
 
         virtual result_t setOptions(configHolder_t motorOptions);
 

@@ -32,8 +32,6 @@ namespace jiminy
     using float32_t = float;
     using float64_t = double;
 
-    using const_cstr_t = char_t const * const;
-
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;

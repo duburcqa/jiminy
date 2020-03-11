@@ -63,6 +63,14 @@ namespace jiminy
 
     class AbstractSensorBase
     {
+        /* Using friend to avoid double delegation, which would make public
+           the attach whereas only model is able to call it.
+           TODO: remove friend declaration and use pluggin mechanism instead.
+           It consist in populating a factory method in Model at runtime with
+           lambda function able to create each type of sensors. These lambda
+           functions are registered by each sensor using static method. */
+        friend Model;
+
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between sensors
@@ -110,8 +118,7 @@ namespace jiminy
         /// \param[in]  name    Name of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractSensorBase(Model       const & model,
-                           std::string const & name);
+        AbstractSensorBase(std::string const & name);
 
         virtual ~AbstractSensorBase(void) = default;
 
@@ -297,6 +304,15 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Get isAttached_.
+        ///
+        /// \details    It is a flag used to determine if the sensor has been attached to a model.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        bool_t const & getIsAttached(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Get isTelemetryConfigured_.
         ///
         /// \details    It is a flag used to determine if the telemetry of the controller has been
@@ -349,6 +365,23 @@ namespace jiminy
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief    Attach the sensor to a model
+        ///
+        /// \details  This method must be called before initializing the sensor.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t attach(Model const * model,
+                                std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
+        /// \brief    Detach the sensor from the model
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual result_t detach(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief      Get a Eigen Reference to a Eigen Vector corresponding to the last data
         ///             recorded (or being recorded) by the sensor.
         ///
@@ -360,7 +393,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual Eigen::Ref<vectorN_t> data(void) = 0;
-        static Eigen::Ref<vectorN_t> data(AbstractSensorBase* base) { return base->data(); }
+        static Eigen::Ref<vectorN_t> data(AbstractSensorBase * base) { return base->data(); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -378,19 +411,22 @@ namespace jiminy
         /// \brief      Update the measurement buffer.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual result_t updateDataBuffer(void) = 0;
-        static result_t updateDataBuffer(AbstractSensorBase* base) { return base->updateDataBuffer(); }
+        static result_t updateDataBuffer(AbstractSensorBase * base) { return base->updateDataBuffer(); }
 
     public:
         std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;    ///< Structure with the parameters of the sensor
 
     protected:
         configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
-        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
-        bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
-        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
+        bool_t isInitialized_;                  ///< Flag to determine whether the sensor has been initialized or not
+        bool_t isAttached_;                     ///< Flag to determine whether the sensor is attached to a model
+        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the sensor has been initialized or not
         Model const * model_;                   ///< Model of the system for which the command and internal dynamics
         std::string name_;                      ///< Name of the sensor
         vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
+
+    private:
+        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
     };
 
     template<class T>
@@ -402,9 +438,7 @@ namespace jiminy
         AbstractSensorTpl & operator = (AbstractSensorTpl const & other) = delete;
 
     public:
-        AbstractSensorTpl(Model       const & model,
-                          std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
-                          std::string const & name);
+        AbstractSensorTpl(std::string const & name);
         virtual ~AbstractSensorTpl(void);
 
         virtual void reset(void) override;
@@ -430,31 +464,28 @@ namespace jiminy
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
+        virtual result_t attach(Model const * model,
+                                std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) override final;
+        virtual result_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
         using AbstractSensorBase::updateDataBuffer;
         virtual result_t updateDataBuffer(void) override final;
         void clearDataBuffer(void);
 
     public:
-        /* Be careful, the variable must be const if static since the 'static'
+        /* Be careful, the static variables must be const since the 'static'
            keyword binds all the sensors together, even if they are associated
-           to complete separated models! */
+           to complete separated models. */
         static std::string const type_;
-        static bool_t const areFieldNamesGrouped_;
         static std::vector<std::string> const fieldNames_;
+        static bool_t const areFieldNamesGrouped_;
 
     protected:
-        using AbstractSensorBase::sensorOptionsHolder_;
-        using AbstractSensorBase::telemetrySender_;
-        using AbstractSensorBase::isInitialized_;
-        using AbstractSensorBase::isTelemetryConfigured_;
-        using AbstractSensorBase::model_;
-        using AbstractSensorBase::name_;
-        using AbstractSensorBase::data_;
+        uint8_t sensorId_;
 
     private:
-        std::shared_ptr<SensorSharedDataHolder_t> sharedHolder_;
-        uint8_t sensorId_;
+        using AbstractSensorBase::data_;
+        SensorSharedDataHolder_t * sharedHolder_;
     };
 }
 

@@ -72,9 +72,8 @@ int main(int argc, char_t * argv[])
     model->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
-        std::shared_ptr<AbstractMotorBase> motorAbstract;
-        model->addMotor<SimpleMotor>(jointName, motorAbstract);
-        auto motor = std::static_pointer_cast<SimpleMotor>(motorAbstract);
+        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        model->attachMotor(motor);
         motor->initialize(jointName);
     }
 

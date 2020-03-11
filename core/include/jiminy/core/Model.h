@@ -143,24 +143,20 @@ namespace jiminy
 
         result_t addContactPoints(std::vector<std::string> const & frameNames);
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
-        template<typename TMotor>
-        result_t addMotor(std::string const & motorName,
-                          std::shared_ptr<AbstractMotorBase> & motor);
+        result_t attachMotor(std::shared_ptr<AbstractMotorBase> const & motor);
         result_t getMotor(std::string const & motorName,
                           std::shared_ptr<AbstractMotorBase> & motor);
         motorsHolder_t const & getMotors(void);
-        result_t removeMotor(std::string const & motorName);
-        result_t removeMotors(std::vector<std::string> const & motorNames = {});
-        template<typename TSensor>
-        result_t addSensor(std::string const & sensorName,
-                           std::shared_ptr<AbstractSensorBase> & sensor);
+        result_t detachMotor(std::string const & motorName);
+        result_t detachMotors(std::vector<std::string> const & motorsNames = {});
+        result_t attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor);
         result_t getSensor(std::string const & sensorType,
                            std::string const & sensorName,
                            std::shared_ptr<AbstractSensorBase> & sensor);
         sensorsGroupHolder_t const & getSensors(void);
-        result_t removeSensor(std::string const & sensorType,
+        result_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
-        result_t removeSensors(std::string const & sensorType = {});
+        result_t detachSensors(std::string const & sensorType = {});
 
         void computeMotorsTorques(float64_t const & t,
                                   vectorN_t const & q,
@@ -223,6 +219,7 @@ namespace jiminy
         std::vector<int32_t> getMotorsPositionIdx(void) const;
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > getSensorsNames(void) const;
+        std::vector<std::string> getSensorsNames(std::string const & sensorType) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
         std::vector<int32_t> const & getRigidJointsPositionIdx(void) const;
@@ -302,7 +299,5 @@ namespace jiminy
         uint32_t nx_;
     };
 }
-
-#include "jiminy/core/Model.tpp"
 
 #endif //end of JIMINY_MODEL_H

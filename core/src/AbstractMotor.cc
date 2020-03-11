@@ -5,35 +5,65 @@
 
 namespace jiminy
 {
-    AbstractMotorBase::AbstractMotorBase(Model       const & model,
-                                         std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
-                                         std::string const & name) :
+    AbstractMotorBase::AbstractMotorBase(std::string const & name) :
     baseMotorOptions_(nullptr),
     motorOptionsHolder_(),
     isInitialized_(false),
-    model_(&model),
-    sharedHolder_(sharedHolder),
+    isAttached_(false),
+    model_(nullptr),
     name_(name),
     motorId_(sharedHolder_->num_),
     jointName_(),
     jointModelIdx_(),
     jointPositionIdx_(),
     jointVelocityIdx_(),
-    torqueLimit_()
+    torqueLimit_(),
+    sharedHolder_(nullptr)
     {
         // Initialize the options
         setOptions(getDefaultOptions());
-
-        // Add the motor to the data holder
-        ++sharedHolder_->num_;
-        sharedHolder_->motors_.push_back(this);
-
-        // Generate a new data buffer taking into account the new motor
-        clearDataBuffer();
     }
 
     AbstractMotorBase::~AbstractMotorBase(void)
     {
+        // Detach the sensor before deleting it
+        detach();
+    }
+
+    result_t AbstractMotorBase::attach(Model const * model,
+                                       std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
+    {
+        if (isAttached_)
+        {
+            std::cout << "Error - AbstractMotorBase::attach - Motor already attached to a model. Please 'detach' method before attaching it." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        // Copy references to the model and shared data
+        model_ = model;
+        sharedHolder_ = sharedHolder.get();
+
+        // Add the motor to the shared data
+        sharedHolder_->data_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
+        sharedHolder_->motors_.push_back(this);
+        ++sharedHolder_->num_;
+
+        // Update the flag
+        isAttached_ = true;
+
+        return result_t::SUCCESS;
+    }
+
+    result_t AbstractMotorBase::detach(void)
+    {
+        // Delete the part of the shared memory associated with the motor
+
+        if (!isAttached_)
+        {
+            std::cout << "Error - AbstractMotorBase::detach - Motor not attached to any model." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
         // Remove associated col in the global data buffer
         if(motorId_ < sharedHolder_->num_ - 1)
         {
@@ -55,31 +85,14 @@ namespace jiminy
         // Update the total number of motors left
         --sharedHolder_->num_;
 
-        // Generate a new data buffer taking into account the new motor
-        clearDataBuffer();
-    }
+        // Clear the references to the model and shared data
+        model_ = nullptr;
+        sharedHolder_ = nullptr;
 
-    result_t AbstractMotorBase::initialize(std::string const & jointName)
-    {
-        result_t returnCode = result_t::SUCCESS;
+        // Update the flag
+        isAttached_ = false;
 
-        if (returnCode == result_t::SUCCESS)
-        {
-            jointName_ = jointName;
-            returnCode = refreshProxies();
-        }
-
-        if (returnCode == result_t::SUCCESS)
-        {
-            isInitialized_ = true;
-        }
-
-        return returnCode;
-    }
-
-    void AbstractMotorBase::clearDataBuffer(void)
-    {
-        sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
+        return result_t::SUCCESS;
     }
 
     void AbstractMotorBase::reset(void)
@@ -89,6 +102,42 @@ namespace jiminy
 
         // Refresh proxies that are model-dependent
         refreshProxies();
+    }
+
+    result_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
+    {
+        // Check if the internal buffers must be updated
+        bool_t internalBuffersMustBeUpdated = false;
+        if (isInitialized_)
+        {
+            bool_t const & torqueLimitFromUrdf = boost::get<bool_t>(motorOptions.at("torqueLimitFromUrdf"));
+            if (!torqueLimitFromUrdf)
+            {
+                float64_t const & torqueLimit = boost::get<float64_t>(motorOptions.at("torqueLimit"));
+                internalBuffersMustBeUpdated |= std::abs(torqueLimit - baseMotorOptions_->torqueLimit) > EPS;
+            }
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->torqueLimitFromUrdf != torqueLimitFromUrdf);
+        }
+
+        // Update the motor's options
+        motorOptionsHolder_ = motorOptions;
+        baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
+
+        // Refresh the proxies if the model is initialized
+        if (model_->getIsInitialized())
+        {
+            if (internalBuffersMustBeUpdated)
+            {
+                refreshProxies();
+            }
+        }
+
+        return result_t::SUCCESS;
+    }
+
+    configHolder_t AbstractMotorBase::getOptions(void) const
+    {
+        return motorOptionsHolder_;
     }
 
     result_t AbstractMotorBase::refreshProxies(void)
@@ -139,42 +188,6 @@ namespace jiminy
     vectorN_t const & AbstractMotorBase::getAll(void) const
     {
         return sharedHolder_->data_;
-    }
-
-    configHolder_t AbstractMotorBase::getOptions(void) const
-    {
-        return motorOptionsHolder_;
-    }
-
-    result_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
-    {
-        // Check if the internal buffers must be updated
-        bool_t internalBuffersMustBeUpdated = false;
-        if (isInitialized_)
-        {
-            bool_t const & torqueLimitFromUrdf = boost::get<bool_t>(motorOptions.at("torqueLimitFromUrdf"));
-            if (!torqueLimitFromUrdf)
-            {
-                float64_t const & torqueLimit = boost::get<float64_t>(motorOptions.at("torqueLimit"));
-                internalBuffersMustBeUpdated |= std::abs(torqueLimit - baseMotorOptions_->torqueLimit) > EPS;
-            }
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->torqueLimitFromUrdf != torqueLimitFromUrdf);
-        }
-
-        // Update the motor's options
-        motorOptionsHolder_ = motorOptions;
-        baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
-
-        // Refresh the proxies if the model is initialized
-        if (model_->getIsInitialized())
-        {
-            if (internalBuffersMustBeUpdated)
-            {
-                refreshProxies();
-            }
-        }
-
-        return result_t::SUCCESS;
     }
 
     result_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
@@ -230,6 +243,11 @@ namespace jiminy
     float64_t const & AbstractMotorBase::getTorqueLimit(void) const
     {
         return torqueLimit_;
+    }
+
+    void AbstractMotorBase::clearDataBuffer(void)
+    {
+        sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
     }
 
     result_t AbstractMotorBase::computeAllEffort(float64_t const & t,

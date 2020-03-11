@@ -46,6 +46,9 @@ namespace jiminy
 
     class AbstractMotorBase
     {
+        /* AKA AbstractSensorBase */
+        friend Model;
+
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
@@ -94,16 +97,8 @@ namespace jiminy
         /// \param[in]  model   Model of the system
         /// \param[in]  name    Name of the motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        AbstractMotorBase(Model       const & model,
-                          std::shared_ptr<MotorSharedDataHolder_t> const & sharedHolder,
-                          std::string const & name);
-
+        AbstractMotorBase(std::string const & name);
         virtual ~AbstractMotorBase(void);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Plug the motor on a given joint of the model.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t initialize(std::string const & jointName);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
@@ -255,7 +250,25 @@ namespace jiminy
         void clearDataBuffer(void);
 
     protected:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Get a reference to the last data buffer corresponding to the actual torque
+        ///             of the motor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t & data(void);
+
+    private:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Attach the sensor to a model
+        ///
+        /// \details  This method must be called before initializing the sensor.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        result_t attach(Model const * model,
+                        std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Detach the sensor from the model
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        result_t detach(void);
 
     public:
         std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_; ///< Structure with the parameters of the motor
@@ -263,18 +276,18 @@ namespace jiminy
     protected:
         configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
         bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
+        bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a model
         Model const * model_;                       ///< Model of the system for which the command and internal dynamics
-
-    private:
-        std::shared_ptr<MotorSharedDataHolder_t> sharedHolder_;    ///< Shared data between every motors associated with the model
         std::string name_;                          ///< Name of the motor
         uint8_t motorId_;                           ///< Index of the motor in the measurement buffer
-
         std::string jointName_;
         int32_t jointModelIdx_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
         float64_t torqueLimit_;
+
+    private:
+        MotorSharedDataHolder_t * sharedHolder_;    ///< Shared data between every motors associated with the model
     };
 }
 

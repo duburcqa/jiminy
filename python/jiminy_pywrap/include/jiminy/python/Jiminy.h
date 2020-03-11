@@ -276,10 +276,10 @@ namespace python
         {
             bp::class_<heatMapFunctor_t,
                        boost::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
+                .def(HeatMapFunctorVisitor())
                 .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
                                  bp::default_call_policies(),
-                                (bp::args("heatmap_handle", "heatmap_type"))))
-                .def(HeatMapFunctorVisitor());
+                                (bp::args("heatmap_handle", "heatmap_type"))));
         }
     };
 
@@ -530,6 +530,11 @@ namespace python
             PyMotorVisit<PyClass>::visit(cl);
         }
 
+        static boost::shared_ptr<SimpleMotor> MotorPyFactory(std::string const & motorName)
+        {
+            return boost::make_shared<SimpleMotor>(motorName);
+        }
+
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -565,7 +570,10 @@ namespace python
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        boost::shared_ptr<SimpleMotor>,
                        boost::noncopyable>("SimpleMotor", bp::no_init)
-                .def(PyMotorVisitor());
+                .def(PyMotorVisitor())
+                .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
+                                 bp::default_call_policies(),
+                                 (bp::arg("motor_name"))));
             bp::register_ptr_to_python<std::shared_ptr<SimpleMotor> >();
         }
     };
@@ -636,6 +644,12 @@ namespace python
             PySensorVisit<PyClass>::visit(cl);
         }
 
+        template<class TSensor>
+        static boost::shared_ptr<TSensor> SensorPyFactory(std::string const & sensorName)
+        {
+            return boost::make_shared<TSensor>(sensorName);
+        }
+
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -682,19 +696,28 @@ namespace python
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ImuSensor>,
                        boost::noncopyable>("ImuSensor", bp::no_init)
-                .def(PySensorVisitor());
+                .def(PySensorVisitor())
+                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
+                                 bp::default_call_policies(),
+                                 (bp::arg("motor_name"))));
             bp::register_ptr_to_python<std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor", bp::no_init)
-                .def(PySensorVisitor());
+                .def(PySensorVisitor())
+                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
+                                 bp::default_call_policies(),
+                                 (bp::arg("motor_name"))));
             bp::register_ptr_to_python<std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        boost::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor", bp::no_init)
-                .def(PySensorVisitor());
+                .def(PySensorVisitor())
+                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
+                                 bp::default_call_policies(),
+                                 (bp::arg("motor_name"))));
             bp::register_ptr_to_python<std::shared_ptr<EncoderSensor> >();
         }
     };
@@ -721,31 +744,19 @@ namespace python
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
-                .def("add_simple_motor", &PyModelVisitor::createAndAddMotor<SimpleMotor>,
-                                         (bp::arg("self"),
-                                          bp::arg("sensor_name") = std::string(),
-                                          "joint_name"))
+                .def("add_motor", &Model::attachMotor,
+                                  (bp::arg("self"), "motor"))
                 .def("get_motor", &PyModelVisitor::getMotor,
                                   (bp::arg("self"), "motor_name"),
                                    bp::return_value_policy<bp::reference_existing_object>())
-                .def("remove_motors", &PyModelVisitor::removeMotors,
+                .def("remove_motors", &PyModelVisitor::detachMotors,
                                       (bp::arg("self"),
                                        bp::arg("joint_names") = std::vector<std::string>()))
-                .def("add_imu_sensor", &PyModelVisitor::createAndAddSensor<ImuSensor>,
-                                       (bp::arg("self"),
-                                        bp::arg("sensor_name") = std::string(),
-                                        "frame_name"))
-                .def("add_force_sensor", &PyModelVisitor::createAndAddSensor<ForceSensor>,
-                                         (bp::arg("self"),
-                                          bp::arg("sensor_name") = std::string(),
-                                          "frame_name"))
-                .def("add_encoder_sensor", &PyModelVisitor::createAndAddSensor<EncoderSensor>,
-                                           (bp::arg("self"),
-                                            bp::arg("sensor_name") = std::string(),
-                                            "joint_name"))
-                .def("remove_sensor", &Model::removeSensor,
+                .def("add_sensor", &Model::attachSensor,
+                                   (bp::arg("self"), "sensor"))
+                .def("remove_sensor", &Model::detachSensor,
                                       (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("remove_sensors", &Model::removeSensors,
+                .def("remove_sensors", &Model::detachSensors,
                                        (bp::arg("self"),
                                         bp::arg("sensorType") = std::string()))
                 .def("get_sensor", &PyModelVisitor::getSensor,
@@ -826,11 +837,11 @@ namespace python
                 ;
         }
 
-        static result_t removeMotors(Model          & self,
+        static result_t detachMotors(Model          & self,
                                      bp::list const & jointNamesPy)
         {
             std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
-            return self.removeMotors(jointNames);
+            return self.detachMotors(jointNames);
         }
 
         static result_t addContactPoints(Model          & self,
@@ -845,53 +856,6 @@ namespace python
         {
             std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
             return self.removeContactPoints(frameNames);
-        }
-
-        template<typename TMotor>
-        static result_t createAndAddMotor(Model             & self,
-                                          std::string         motorName,
-                                          std::string const & jointName)
-        {
-            result_t returnCode = result_t::SUCCESS;
-
-            if (motorName.empty())
-            {
-                motorName = jointName;
-            }
-
-            std::shared_ptr<AbstractMotorBase> motor;
-            returnCode = self.addMotor<TMotor>(motorName, motor);
-
-            if (returnCode == result_t::SUCCESS)
-            {
-                returnCode = motor->initialize(jointName);
-            }
-
-            return returnCode;
-        }
-
-        template<typename TSensor>
-        static result_t createAndAddSensor(Model             & self,
-                                           std::string         sensorName,
-                                           std::string const & robotElementName)
-        {
-            result_t returnCode = result_t::SUCCESS;
-
-            if (sensorName.empty())
-            {
-                sensorName = robotElementName;
-            }
-
-            std::shared_ptr<AbstractSensorBase> sensorAbstract;
-            returnCode = self.addSensor<TSensor>(sensorName, sensorAbstract);
-            auto sensor = std::static_pointer_cast<TSensor>(sensorAbstract);
-
-            if (returnCode == result_t::SUCCESS)
-            {
-                returnCode = sensor->initialize(robotElementName);
-            }
-
-            return returnCode;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1038,7 +1002,7 @@ namespace python
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            const_cstr_t & p = Py_TYPE(dataPy)->tp_name;
+            char const * p = Py_TYPE(dataPy)->tp_name;
             if (p == std::string("numpy.ndarray"))
             {
                 float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));

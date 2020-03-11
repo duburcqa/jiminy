@@ -287,29 +287,63 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    result_t Model::removeMotor(std::string const & motorName)
+    result_t Model::attachMotor(std::shared_ptr<AbstractMotorBase> const & motor)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::removeMotor - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Model::addMotors - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before adding motors." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        std::string const & motorName = motor->getName();
+        auto motorIt = motorsHolder_.find(motorName);
+        if (motorIt != motorsHolder_.end())
+        {
+            std::cout << "Error - Model::attachMotor - A motor with the same name already exists." << std::endl;
+            return result_t::ERROR_BAD_INPUT;
+        }
+
+        // Add the motor to the holder
+        motorsHolder_.emplace(std::piecewise_construct,
+                              std::forward_as_tuple(motorName),
+                              std::forward_as_tuple(motor));
+
+        // Attach the motor
+        motor->attach(this, motorsSharedHolder_);
+
+        // Refresh the attributes of the model
+        refreshMotorProxies();
+
+        return result_t::SUCCESS;
+    }
+
+    result_t Model::detachMotor(std::string const & motorName)
+    {
+        if (getIsLocked())
+        {
+            std::cout << "Error - Model::detachMotor - Model is locked, probably because a simulation is running.";
             std::cout << " Please stop it before removing motors." << std::endl;
             return result_t::ERROR_GENERIC;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::removeMotor - Model not initialized." << std::endl;
+            std::cout << "Error - Model::detachMotor - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
         auto motorIt = motorsHolder_.find(motorName);
         if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Model::removeMotor - No motor with this name exists." << std::endl;
+            std::cout << "Error - Model::detachMotor - No motor with this name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        // Remove the motor
+        // Detach the motor
+        motorIt->second->detach();
+
+        // Remove the motor from the holder
         motorsHolder_.erase(motorIt);
 
         // Refresh proxies associated with the motors only
@@ -318,82 +352,119 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    result_t Model::removeMotors(std::vector<std::string> const & motorNames)
+    result_t Model::detachMotors(std::vector<std::string> const & motorsNames)
     {
-        if (getIsLocked())
-        {
-            std::cout << "Error - Model::removeMotors - Model is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before removing motors." << std::endl;
-            return result_t::ERROR_GENERIC;
-        }
+        result_t returnCode = result_t::SUCCESS;
 
-        if (!isInitialized_)
+        if (!motorsNames.empty())
         {
-            std::cout << "Error - Model::removeMotors - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
-
-        // Make sure that no motor names are duplicates
-        if (checkDuplicates(motorNames))
-        {
-            std::cout << "Error - Model::removeMotors - Some motor names are duplicates." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        // Make sure that every motor name exist
-        if (!checkInclusion(motorsNames_, motorNames))
-        {
-            std::cout << "Error - Model::removeMotors - At least one of the motor names does not exist." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
-        }
-
-        if (!motorNames.empty())
-        {
-            for (std::string const & name : motorNames)
+            // Make sure that no motor names are duplicates
+            if (checkDuplicates(motorsNames))
             {
-                motorsHolder_.erase(name);
+                std::cout << "Error - Model::detachMotors - Duplicated motor names." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+
+            // Make sure that every motor name exist
+            if (!checkInclusion(motorsNames_, motorsNames))
+            {
+                std::cout << "Error - Model::detachMotors - At least one of the motor names does not exist." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
+            }
+
+            for (std::string const & name : motorsNames)
+            {
+                if (returnCode == result_t::SUCCESS)
+                {
+                    returnCode = detachMotor(name);
+                }
             }
         }
         else
         {
-            motorsHolder_.clear();
+            if (returnCode == result_t::SUCCESS)
+            {
+                returnCode = detachMotors(motorsNames_);
+            }
         }
 
-        // Refresh proxies associated with the motors only
-        refreshMotorProxies();
+        return returnCode;
+    }
+
+    result_t Model::attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor)
+    {
+        // The sensors' names must be unique, even if their type is different.
+
+        if (getIsLocked())
+        {
+            std::cout << "Error - Model::attachSensor - Model is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before adding sensors." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        std::string const & sensorName = sensor->getName();
+        std::string const & sensorType = sensor->getType();
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt != sensorsGroupHolder_.end())
+        {
+            auto sensorIt = sensorGroupIt->second.find(sensorName);
+            if (sensorIt != sensorGroupIt->second.end())
+            {
+                std::cout << "Error - Model::attachSensor - A sensor with the same type and name already exists." << std::endl;
+                return result_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Create a new sensor data holder if necessary
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            sensorsSharedHolder_[sensorType] = std::make_shared<SensorSharedDataHolder_t>();
+            sensorTelemetryOptions_[sensorType] = false;
+        }
+
+        // Create the sensor and add it to its group
+        sensorsGroupHolder_[sensorType].emplace(std::piecewise_construct,
+                                                std::forward_as_tuple(sensorName),
+                                                std::forward_as_tuple(sensor));
+
+        // Attach the sensor
+        sensor->attach(this, sensorsSharedHolder_.at(sensorType));
 
         return result_t::SUCCESS;
     }
 
-    result_t Model::removeSensor(std::string const & sensorType,
+    result_t Model::detachSensor(std::string const & sensorType,
                                  std::string const & sensorName)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::removeSensor - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Model::detachSensor - Model is locked, probably because a simulation is running.";
             std::cout << " Please stop it before removing sensors." << std::endl;
             return result_t::ERROR_GENERIC;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::removeSensor - Model not initialized." << std::endl;
+            std::cout << "Error - Model::detachSensor - Model not initialized." << std::endl;
             return result_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Model::removeSensor - This type of sensor does not exist." << std::endl;
+            std::cout << "Error - Model::detachSensor - This type of sensor does not exist." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
         auto sensorIt = sensorGroupIt->second.find(sensorName);
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Model::removeSensors - No sensor with this type and name exists." << std::endl;
+            std::cout << "Error - Model::detachSensors - No sensor with this type and name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
+
+        // Detach the motor
+        sensorIt->second->detach();
 
         // Remove the sensor from its group
         sensorGroupIt->second.erase(sensorIt);
@@ -409,42 +480,48 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    result_t Model::removeSensors(std::string const & sensorType)
+    result_t Model::detachSensors(std::string const & sensorType)
     {
-        if (getIsLocked())
-        {
-            std::cout << "Error - Model::removeSensors - Model is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before removing sensors." << std::endl;
-            return result_t::ERROR_GENERIC;
-        }
-
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Model::removeSensors - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
-        }
+        result_t returnCode = result_t::SUCCESS;
 
         if (!sensorType.empty())
         {
             auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Model::removeSensors - No sensor with this type exists." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                std::cout << "Error - Model::detachSensors - No sensor with this type exists." << std::endl;
+                returnCode = result_t::ERROR_BAD_INPUT;
             }
 
-            sensorsGroupHolder_.erase(sensorGroupIt);
-            sensorsSharedHolder_.erase(sensorType);
-            sensorTelemetryOptions_.erase(sensorType);
+            for (std::string const & sensorName : getSensorsNames(sensorType))
+            {
+                if (returnCode == result_t::SUCCESS)
+                {
+                    returnCode = detachSensor(sensorType, sensorName);
+                }
+            }
         }
         else
         {
-            sensorsGroupHolder_.clear();
-            sensorsSharedHolder_.clear();
-            sensorTelemetryOptions_.clear();
+            std::vector<std::string> sensorsTypesNames;
+            sensorsTypesNames.reserve(sensorsGroupHolder_.size());
+            std::transform(sensorsGroupHolder_.begin(), sensorsGroupHolder_.end(),
+                        std::back_inserter(sensorsTypesNames),
+                        [](sensorsGroupHolder_t::value_type const & pair) -> std::string
+                        {
+                            return pair.first;
+                        });
+
+            for (std::string const & sensorTypeName : sensorsTypesNames)
+            {
+                if (returnCode == result_t::SUCCESS)
+                {
+                    returnCode = detachSensors(sensorTypeName);
+                }
+            }
         }
 
-        return result_t::SUCCESS;
+        return returnCode;
     }
 
     result_t Model::generateModelFlexible(void)
@@ -1406,10 +1483,10 @@ namespace jiminy
     sensorsDataMap_t Model::getSensorsData(void) const
     {
         sensorsDataMap_t data;
-        for (auto & sensorGroupIt : sensorsGroupHolder_)
+        for (auto & sensorGroup : sensorsGroupHolder_)
         {
             sensorDataTypeMap_t dataType;
-            for (auto & sensorIt : sensorGroupIt.second)
+            for (auto & sensorIt : sensorGroup.second)
             {
                 dataType.emplace(sensorIt.first,
                                  sensorIt.second->getId(),
@@ -1417,7 +1494,7 @@ namespace jiminy
             }
 
             data.emplace(std::piecewise_construct,
-                         std::forward_as_tuple(sensorGroupIt.first),
+                         std::forward_as_tuple(sensorGroup.first),
                          std::forward_as_tuple(std::move(dataType)));
         }
         return data;
@@ -1522,12 +1599,26 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > sensorNames;
         for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
         {
-            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
-            {
-                sensorNames[sensorGroup.first].push_back(sensor.first);
-            }
+            sensorNames.insert({sensorGroup.first, getSensorsNames(sensorGroup.first)});
         }
         return sensorNames;
+    }
+
+    std::vector<std::string> Model::getSensorsNames(std::string const & sensorType) const
+    {
+        std::vector<std::string> sensorsNames;
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt != sensorsGroupHolder_.end())
+        {
+            sensorsNames.reserve(sensorGroupIt->second.size());
+            std::transform(sensorGroupIt->second.begin(), sensorGroupIt->second.end(),
+                           std::back_inserter(sensorsNames),
+                           [](sensorsHolder_t::value_type const & pair) -> std::string
+                           {
+                               return pair.first;
+                           });
+        }
+        return sensorsNames;
     }
 
     std::vector<std::string> const & Model::getPositionFieldNames(void) const

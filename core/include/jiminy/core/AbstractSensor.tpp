@@ -8,27 +8,60 @@ namespace jiminy
     extern float64_t const MAX_TIME_STEP;
 
     template <typename T>
-    AbstractSensorTpl<T>::AbstractSensorTpl(Model       const & model,
-                                            std::shared_ptr<SensorSharedDataHolder_t> const & sharedHolder,
-                                            std::string const & name) :
-    AbstractSensorBase(model, name),
-    sharedHolder_(sharedHolder),
-    sensorId_(sharedHolder_->num_)
+    AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
+    AbstractSensorBase(name),
+    sensorId_(0),
+    sharedHolder_(nullptr)
     {
-        // Initialize the options
-        setOptions(getDefaultOptions());
-
-        // Add the sensor to the data holder
-        ++sharedHolder_->num_;
-        sharedHolder_->sensors_.push_back(this);
-
-        // Generate a new data buffer taking into account the new sensor
-        clearDataBuffer();
+        // Empty
     }
 
     template <typename T>
     AbstractSensorTpl<T>::~AbstractSensorTpl(void)
     {
+        // Detach the sensor before deleting it
+        detach();
+    }
+
+    template <typename T>
+    result_t AbstractSensorTpl<T>::attach(Model const * model,
+                                          std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
+    {
+        if (isAttached_)
+        {
+            std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a model. Please 'detach' method before attaching it." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
+        // Copy references to the model and shared data
+        model_ = model;
+        sharedHolder_ = sharedHolder.get();
+
+        // Add the sensor to the shared data
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
+        }
+        sharedHolder_->sensors_.push_back(this);
+        ++sharedHolder_->num_;
+
+        // Update the flag
+        isAttached_ = true;
+
+        return result_t::SUCCESS;
+    }
+
+    template <typename T>
+    result_t AbstractSensorTpl<T>::detach(void)
+    {
+        // Delete the part of the shared memory associated with the sensor
+
+        if (!isAttached_)
+        {
+            std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any model." << std::endl;
+            return result_t::ERROR_GENERIC;
+        }
+
         // Remove associated col in the global data buffer
         if(sensorId_ < sharedHolder_->num_ - 1)
         {
@@ -69,8 +102,14 @@ namespace jiminy
             }
         }
 
-        // Generate a new data buffer taking into account the new sensor
-        clearDataBuffer();
+        // Clear the references to the model and shared data
+        model_ = nullptr;
+        sharedHolder_ = nullptr;
+
+        // Update the flag
+        isAttached_ = false;
+
+        return result_t::SUCCESS;
     }
 
     template <typename T>
@@ -273,7 +312,7 @@ namespace jiminy
         sharedHolder_->data_.resize(2);
         for (matrixN_t & data : sharedHolder_->data_)
         {
-            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size is ill-defined
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size may be ill-defined
         }
         data_ = vectorN_t::Zero(getSize());
     }
