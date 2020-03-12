@@ -130,8 +130,8 @@ namespace jiminy
         };
 
     public:
-        using motorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractMotorBase> >;
-        using sensorsHolder_t = std::unordered_map<std::string, std::shared_ptr<AbstractSensorBase> >;
+        using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase> >;
+        using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
     public:

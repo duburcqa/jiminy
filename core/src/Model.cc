@@ -129,18 +129,18 @@ namespace jiminy
         }
 
         // Reset the sensors
-        for (sensorsGroupHolder_t::value_type & sensorGroup : sensorsGroupHolder_)
+        for (auto & sensorGroup : sensorsGroupHolder_)
         {
-            for (sensorsHolder_t::value_type & sensor : sensorGroup.second)
+            for (auto & sensor : sensorGroup.second)
             {
-                sensor.second->reset();
+                sensor->reset();
             }
         }
 
         // Reset the motors
-        for (motorsHolder_t::value_type & motor : motorsHolder_)
+        for (auto & motor : motorsHolder_)
         {
-            motor.second->reset();
+            motor->reset();
         }
 
         // Reset the telemetry state
@@ -166,15 +166,15 @@ namespace jiminy
         {
             if (!isTelemetryConfigured_)
             {
-                for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+                for (auto const & sensorGroup : sensorsGroupHolder_)
                 {
-                    for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+                    for (auto const & sensor : sensorGroup.second)
                     {
                         if (returnCode == result_t::SUCCESS)
                         {
                             if (sensorTelemetryOptions_.at(sensorGroup.first))
                             {
-                                returnCode = sensor.second->configureTelemetry(telemetryData_);
+                                returnCode = sensor->configureTelemetry(telemetryData_);
                             }
                         }
                     }
@@ -308,7 +308,11 @@ namespace jiminy
         }
 
         std::string const & motorName = motor->getName();
-        auto motorIt = motorsHolder_.find(motorName);
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
         if (returnCode == result_t::SUCCESS)
         {
             if (motorIt != motorsHolder_.end())
@@ -320,17 +324,15 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            // Add the motor to the holder
-            motorsHolder_.emplace(std::piecewise_construct,
-                                  std::forward_as_tuple(motorName),
-                                  std::forward_as_tuple(motor));
-
             // Attach the motor
             returnCode = motor->attach(this, motorsSharedHolder_);
         }
 
         if (returnCode == result_t::SUCCESS)
         {
+            // Add the motor to the holder
+            motorsHolder_.emplace_back(motor);
+
             // Refresh the attributes of the model
             refreshMotorProxies();
         }
@@ -358,7 +360,11 @@ namespace jiminy
             }
         }
 
-        auto motorIt = motorsHolder_.find(motorName);
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
         if (returnCode == result_t::SUCCESS)
         {
             if (motorIt == motorsHolder_.end())
@@ -371,7 +377,7 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             // Detach the motor
-            returnCode = motorIt->second->detach();
+            returnCode = (*motorIt)->detach();
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -424,7 +430,10 @@ namespace jiminy
         {
             if (returnCode == result_t::SUCCESS)
             {
-                returnCode = detachMotors(std::vector<std::string>(motorsNames_));
+                if (!motorsNames_.empty())
+                {
+                    returnCode = detachMotors(std::vector<std::string>(motorsNames_));
+                }
             }
         }
 
@@ -451,7 +460,12 @@ namespace jiminy
         {
             if (sensorGroupIt != sensorsGroupHolder_.end())
             {
-                auto sensorIt = sensorGroupIt->second.find(sensorName);
+                auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                             sensorGroupIt->second.end(),
+                                             [&sensorName](auto const & elem)
+                                             {
+                                                 return (elem->getName() == sensorName);
+                                             });
                 if (sensorIt != sensorGroupIt->second.end())
                 {
                     std::cout << "Error - Model::attachSensor - A sensor with the same type and name already exists." << std::endl;
@@ -470,9 +484,7 @@ namespace jiminy
             }
 
             // Create the sensor and add it to its group
-            sensorsGroupHolder_[sensorType].emplace(std::piecewise_construct,
-                                                    std::forward_as_tuple(sensorName),
-                                                    std::forward_as_tuple(sensor));
+            sensorsGroupHolder_[sensorType].emplace_back(sensor);
 
             // Attach the sensor
             returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType));
@@ -515,7 +527,12 @@ namespace jiminy
         sensorsHolder_t::iterator sensorIt;
         if (returnCode == result_t::SUCCESS)
         {
-            sensorIt = sensorGroupIt->second.find(sensorName);
+            sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                    sensorGroupIt->second.end(),
+                                    [&sensorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == sensorName);
+                                    });
             if (sensorIt == sensorGroupIt->second.end())
             {
                 std::cout << "Error - Model::detachSensors - No sensor with this type and name exists." << std::endl;
@@ -526,7 +543,7 @@ namespace jiminy
         if (returnCode == result_t::SUCCESS)
         {
             // Detach the motor
-            returnCode = sensorIt->second->detach();
+            returnCode = (*sensorIt)->detach();
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -572,11 +589,11 @@ namespace jiminy
             std::vector<std::string> sensorsTypesNames;
             sensorsTypesNames.reserve(sensorsGroupHolder_.size());
             std::transform(sensorsGroupHolder_.begin(), sensorsGroupHolder_.end(),
-                        std::back_inserter(sensorsTypesNames),
-                        [](sensorsGroupHolder_t::value_type const & pair) -> std::string
-                        {
-                            return pair.first;
-                        });
+                           std::back_inserter(sensorsTypesNames),
+                           [](auto const & pair) -> std::string
+                           {
+                               return pair.first;
+                           });
 
             for (std::string const & sensorTypeName : sensorsTypesNames)
             {
@@ -705,22 +722,22 @@ namespace jiminy
         }
 
         // Refresh the motors
-        for (motorsHolder_t::value_type & motor : motorsHolder_)
+        for (auto & motor : motorsHolder_)
         {
             if (returnCode == result_t::SUCCESS)
             {
-                returnCode = motor.second->refreshProxies();
+                returnCode = motor->refreshProxies();
             }
         }
 
         // Refresh the sensors
-        for (sensorsGroupHolder_t::value_type & sensorGroup : sensorsGroupHolder_)
+        for (auto & sensorGroup : sensorsGroupHolder_)
         {
-            for (sensorsHolder_t::value_type & sensor : sensorGroup.second)
+            for (auto & sensor : sensorGroup.second)
             {
                 if (returnCode == result_t::SUCCESS)
                 {
-                    returnCode = sensor.second->refreshProxies();
+                    returnCode = sensor->refreshProxies();
                 }
             }
         }
@@ -928,9 +945,9 @@ namespace jiminy
             motorsNames_.reserve(motorsHolder_.size());
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                            std::back_inserter(motorsNames_),
-                           [](motorsHolder_t::value_type const & pair) -> std::string
+                           [](auto const & elem) -> std::string
                            {
-                               return pair.first;
+                               return elem->getName();
                            });
 
             // Generate the fieldnames associated with the motor torques
@@ -965,7 +982,11 @@ namespace jiminy
             }
         }
 
-        auto motorIt = motorsHolder_.find(motorName);
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
         if (returnCode == result_t::SUCCESS)
         {
             if (motorIt == motorsHolder_.end())
@@ -977,7 +998,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = motorIt->second->setOptions(motorOptions);
+            returnCode = (*motorIt)->setOptions(motorOptions);
         }
 
         return returnCode;
@@ -1003,19 +1024,19 @@ namespace jiminy
             }
         }
 
-        for (motorsHolder_t::value_type const & motor : motorsHolder_)
+        for (auto const & motor : motorsHolder_)
         {
             if (returnCode == result_t::SUCCESS)
             {
-                auto motorOptionIt = motorsOptions.find(motor.first);
+                auto motorOptionIt = motorsOptions.find(motor->getName());
                 if (motorOptionIt != motorsOptions.end())
                 {
-                    returnCode = motor.second->setOptions(
+                    returnCode = motor->setOptions(
                         boost::get<configHolder_t>(motorOptionIt->second));
                 }
                 else
                 {
-                    returnCode = motor.second->setOptionsAll(motorsOptions);
+                    returnCode = motor->setOptionsAll(motorsOptions);
                     break;
                 }
             }
@@ -1035,7 +1056,7 @@ namespace jiminy
         motorsOptions.clear();
         for (motorsHolder_t::value_type const & motor : motorsHolder_)
         {
-            motorsOptions[motor.first] = motor.second->getOptions();
+            motorsOptions[motor->getName()] = motor->getOptions();
         }
 
         return result_t::SUCCESS;
@@ -1052,7 +1073,11 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        auto motorIt = motorsHolder_.find(motorName);
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
         if (returnCode == result_t::SUCCESS)
         {
             if (motorIt == motorsHolder_.end())
@@ -1062,7 +1087,7 @@ namespace jiminy
             }
         }
 
-        motorOptions = motorIt->second->getOptions();
+        motorOptions = (*motorIt)->getOptions();
 
         return result_t::SUCCESS;
     }
@@ -1076,14 +1101,18 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        auto motorIt = motorsHolder_.find(motorName);
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
         if (motorIt == motorsHolder_.end())
         {
             std::cout << "Error - Model::getMotor - No motor with this name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        motor = motorIt->second;
+        motor = (*motorIt);
 
         return result_t::SUCCESS;
     }
@@ -1110,14 +1139,19 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
 
-        auto sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
         if (sensorIt == sensorGroupIt->second.end())
         {
             std::cout << "Error - Model::getSensor - No sensor with this type and name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        sensor = sensorIt->second;
+        sensor = (*sensorIt);
 
         return result_t::SUCCESS;
     }
@@ -1159,7 +1193,12 @@ namespace jiminy
             }
         }
 
-        auto sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
         if (returnCode == result_t::SUCCESS)
         {
             if (sensorIt == sensorGroupIt->second.end())
@@ -1171,7 +1210,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            returnCode = sensorIt->second->setOptions(sensorOptions);
+            returnCode = (*sensorIt)->setOptions(sensorOptions);
         }
 
         return returnCode;
@@ -1208,19 +1247,19 @@ namespace jiminy
             }
         }
 
-        for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
+        for (auto const & sensor : sensorGroupIt->second)
         {
             if (returnCode == result_t::SUCCESS)
             {
-                auto sensorOptionIt = sensorsOptions.find(sensor.first);
+                auto sensorOptionIt = sensorsOptions.find(sensor->getName());
                 if (sensorOptionIt != sensorsOptions.end())
                 {
-                    returnCode = sensor.second->setOptions(
+                    returnCode = sensor->setOptions(
                         boost::get<configHolder_t>(sensorOptionIt->second));
                 }
                 else
                 {
-                    returnCode = sensor.second->setOptionsAll(sensorsOptions);
+                    returnCode = sensor->setOptionsAll(sensorsOptions);
                     break;
                 }
             }
@@ -1249,16 +1288,16 @@ namespace jiminy
             }
         }
 
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        for (auto const & sensorGroup : sensorsGroupHolder_)
         {
-            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+            for (auto const & sensor : sensorGroup.second)
             {
                 if (returnCode == result_t::SUCCESS)
                 {
                     // TODO: missing check for sensor type and name availability
-                    returnCode = sensor.second->setOptions(boost::get<configHolder_t>(
+                    returnCode = sensor->setOptions(boost::get<configHolder_t>(
                         boost::get<configHolder_t>(
-                            sensorsOptions.at(sensorGroup.first)).at(sensor.first)));
+                            sensorsOptions.at(sensorGroup.first)).at(sensor->getName())));
                 }
             }
         }
@@ -1283,9 +1322,9 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
         sensorsOptions.clear();
-        for (sensorsHolder_t::value_type const & sensor : sensorGroupIt->second)
+        for (auto const & sensor : sensorGroupIt->second)
         {
-            sensorsOptions[sensor.first] = sensor.second->getOptions();
+            sensorsOptions[sensor->getName()] = sensor->getOptions();
         }
 
         return result_t::SUCCESS;
@@ -1300,12 +1339,12 @@ namespace jiminy
         }
 
         sensorsOptions.clear();
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        for (auto const & sensorGroup : sensorsGroupHolder_)
         {
             configHolder_t sensorsGroupOptions;
-            for (sensorsHolder_t::value_type const & sensor : sensorGroup.second)
+            for (auto const & sensor : sensorGroup.second)
             {
-                sensorsGroupOptions[sensor.first] = sensor.second->getOptions();
+                sensorsGroupOptions[sensor->getName()] = sensor->getOptions();
             }
             sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
         }
@@ -1330,14 +1369,19 @@ namespace jiminy
             return result_t::ERROR_BAD_INPUT;
         }
 
-        auto sensorIt = sensorGroupIt->second.find(sensorName);
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
         if (sensorIt == sensorGroupIt->second.end())
         {
             std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
 
-        sensorOptions = sensorIt->second->getOptions();
+        sensorOptions = (*sensorIt)->getOptions();
 
         return result_t::SUCCESS;
     }
@@ -1553,17 +1597,23 @@ namespace jiminy
                                      vectorN_t const & a,
                                      vectorN_t const & u)
     {
-        motorsHolder_.begin()->second->computeAllEffort(t, q, v, a, u);
+        (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
     }
 
     vectorN_t const & Model::getMotorsTorques(void) const
     {
-        return motorsHolder_.begin()->second->getAll();
+        return (*motorsHolder_.begin())->getAll();
     }
 
     float64_t const & Model::getMotorTorque(std::string const & motorName) const
     {
-        return motorsHolder_.at(motorName)->get();
+        // TODO : it should handle the case where motorName is not found
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
+        return (*motorIt)->get();
     }
 
     void Model::setSensorsData(float64_t const & t,
@@ -1576,7 +1626,7 @@ namespace jiminy
         {
             if (!sensorGroup.second.empty())
             {
-                sensorGroup.second.begin()->second->setAll(t, q, v, a, u);
+                (*sensorGroup.second.begin())->setAll(t, q, v, a, u);
             }
         }
     }
@@ -1587,11 +1637,11 @@ namespace jiminy
         for (auto & sensorGroup : sensorsGroupHolder_)
         {
             sensorDataTypeMap_t dataType;
-            for (auto & sensorIt : sensorGroup.second)
+            for (auto & sensor : sensorGroup.second)
             {
-                dataType.emplace(sensorIt.first,
-                                 sensorIt.second->getIdx(),
-                                 sensorIt.second->get());
+                dataType.emplace(sensor->getName(),
+                                 sensor->getIdx(),
+                                 sensor->get());
             }
 
             data.emplace(std::piecewise_construct,
@@ -1603,13 +1653,21 @@ namespace jiminy
 
     matrixN_t Model::getSensorsData(std::string const & sensorType) const
     {
-        return sensorsGroupHolder_.at(sensorType).begin()->second->getAll();
+        return (*sensorsGroupHolder_.at(sensorType).begin())->getAll();
     }
 
     vectorN_t Model::getSensorData(std::string const & sensorType,
                                    std::string const & sensorName) const
     {
-        return *(sensorsGroupHolder_.at(sensorType).at(sensorName)->get());
+        // TODO : it should handle the case where sensorType/sensorName is not found
+        auto & sensorGroup = sensorsGroupHolder_.at(sensorType);
+        auto sensorIt = std::find_if(sensorGroup.begin(),
+                                     sensorGroup.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
+        return *(*sensorIt)->get();
     }
 
     void Model::updateTelemetry(void)
@@ -1618,7 +1676,7 @@ namespace jiminy
         {
             if (!sensorGroup.second.empty())
             {
-                sensorGroup.second.begin()->second->updateTelemetryAll();
+                (*sensorGroup.second.begin())->updateTelemetryAll();
             }
         }
     }
@@ -1662,9 +1720,9 @@ namespace jiminy
         motorsModelIdx.reserve(motorsHolder_.size());
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       [](auto const & elem) -> int32_t
                        {
-                           return pair.second->getJointModelIdx();
+                           return elem->getJointModelIdx();
                        });
         return motorsModelIdx;
     }
@@ -1675,9 +1733,9 @@ namespace jiminy
         motorsPositionIdx.reserve(motorsHolder_.size());
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsPositionIdx),
-                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       [](auto const & elem) -> int32_t
                        {
-                           return pair.second->getJointPositionIdx();
+                           return elem->getJointPositionIdx();
                        });
         return motorsPositionIdx;
     }
@@ -1688,9 +1746,9 @@ namespace jiminy
         motorsVelocityIdx.reserve(motorsHolder_.size());
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsVelocityIdx),
-                       [](motorsHolder_t::value_type const & pair) -> int32_t
+                       [](auto const & elem) -> int32_t
                        {
-                           return pair.second->getJointVelocityIdx();
+                           return elem->getJointVelocityIdx();
                        });
         return motorsVelocityIdx;
     }
@@ -1698,7 +1756,7 @@ namespace jiminy
     std::unordered_map<std::string, std::vector<std::string> > Model::getSensorsNames(void) const
     {
         std::unordered_map<std::string, std::vector<std::string> > sensorNames;
-        for (sensorsGroupHolder_t::value_type const & sensorGroup : sensorsGroupHolder_)
+        for (auto const & sensorGroup : sensorsGroupHolder_)
         {
             sensorNames.insert({sensorGroup.first, getSensorsNames(sensorGroup.first)});
         }
@@ -1714,9 +1772,9 @@ namespace jiminy
             sensorsNames.reserve(sensorGroupIt->second.size());
             std::transform(sensorGroupIt->second.begin(), sensorGroupIt->second.end(),
                            std::back_inserter(sensorsNames),
-                           [](sensorsHolder_t::value_type const & pair) -> std::string
+                           [](auto const & elem) -> std::string
                            {
-                               return pair.first;
+                               return elem->getName();
                            });
         }
         return sensorsNames;
@@ -1752,11 +1810,11 @@ namespace jiminy
         vectorN_t torqueLimit = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
-            auto const & motorOptions = motor.second->baseMotorOptions_;
-            int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
+            auto const & motorOptions = motor->baseMotorOptions_;
+            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
             if (motorOptions->enableTorqueLimit)
             {
-                torqueLimit[motorsVelocityIdx] = motor.second->getTorqueLimit();
+                torqueLimit[motorsVelocityIdx] = motor->getTorqueLimit();
             }
             else
             {
@@ -1771,8 +1829,8 @@ namespace jiminy
         vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
-            int32_t const & motorsVelocityIdx = motor.second->getJointVelocityIdx();
-            motorInertia[motorsVelocityIdx] = motor.second->getRotorInertia();
+            int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
+            motorInertia[motorsVelocityIdx] = motor->getRotorInertia();
         }
         return motorInertia;
     }

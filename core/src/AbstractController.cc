@@ -138,11 +138,11 @@ namespace jiminy
         {
             // Check in local cache before.
             auto variableIt = std::find_if(registeredVariables_.begin(),
-                                            registeredVariables_.end(),
-                                            [&fieldIt](auto const & element)
-                                            {
-                                                return element.first == *fieldIt;
-                                            });
+                                           registeredVariables_.end(),
+                                           [&fieldIt](auto const & element)
+                                           {
+                                               return element.first == *fieldIt;
+                                           });
             if (variableIt != registeredVariables_.end())
             {
                 std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;

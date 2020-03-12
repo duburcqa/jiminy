@@ -402,8 +402,8 @@ namespace jiminy
             u = uInternal;
             for (auto const & motor : model_->getMotors())
             {
-                int32_t const & motorId = motor.second->getIdx();
-                int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+                int32_t const & motorId = motor->getIdx();
+                int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorId];
             }
 
@@ -1267,8 +1267,8 @@ namespace jiminy
         u = uInternal;
         for (auto const & motor : model_->getMotors())
         {
-            int32_t const & motorId = motor.second->getIdx();
-            int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+            int32_t const & motorId = motor->getIdx();
+            int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
             u[motorVelocityIdx] += uMotor[motorId];
         }
 
@@ -1526,7 +1526,7 @@ namespace jiminy
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
         for (auto const & motor : model_->getMotors())
         {
-            int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
+            int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
             data.kinetic_energy += 0.5 * model.rotorInertia[motorVelocityIdx]
                                        * std::pow(v[motorVelocityIdx], 2);
         }

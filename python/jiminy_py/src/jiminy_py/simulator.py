@@ -113,7 +113,7 @@ class BasicSimulator(object):
         '''
         return self.engine.get_log()
 
-    def run(self, x0, tf, log_path=None, show_progress_bar=True):
+    def run(self, tf, x0, is_state_theoretical=True, log_path=None, show_progress_bar=True):
         '''
         @brief Run a simulation, starting from x0 at t=0 up to tf. Optionally, log results in a logfile.
 
@@ -130,7 +130,7 @@ class BasicSimulator(object):
             self._pbar = tqdm(total=tf, bar_format="{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} [{elapsed}<{remaining}]")
         else:
             self._pbar = None
-        self.engine.simulate(tf, x0)
+        self.engine.simulate(tf, x0, is_state_theoretical)
         if show_progress_bar:
             self._pbar.update(tf - self._t_pbar)
             self._pbar.close()
