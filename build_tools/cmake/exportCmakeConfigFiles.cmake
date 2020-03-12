@@ -12,11 +12,19 @@ function(exportCmakeConfigFiles)
             ${PROJECT_NAME}Config
             DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"
     )
+
+    if(${CMAKE_VERSION} VERSION_GREATER "3.11.0")
+        set(COMPATIBILITY_VERSION SameMinorVersion)
+    else(${CMAKE_VERSION} VERSION_GREATER "3.11.0")
+        set(COMPATIBILITY_VERSION AnyNewerVersion)
+    endif()
+
     write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
         VERSION ${BUILD_VERSION}
-        COMPATIBILITY ExactVersion
+        COMPATIBILITY ${COMPATIBILITY_VERSION}
     )
+
     install(FILES
             "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
             DESTINATION "${CMAKE_INSTALL_DATADIR}/${LIBRARY_NAME}/cmake"

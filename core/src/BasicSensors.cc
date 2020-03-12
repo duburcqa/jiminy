@@ -4,8 +4,9 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/Model.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/BasicMotors.h"
 #include "jiminy/core/BasicSensors.h"
+#include "jiminy/core/Utilities.h"
 
 
 namespace jiminy
@@ -23,7 +24,7 @@ namespace jiminy
     ImuSensor::ImuSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
-    frameIdx_()
+    frameIdx_(0)
     {
         // Empty.
     }
@@ -88,7 +89,7 @@ namespace jiminy
                             vectorN_t const & q,
                             vectorN_t const & v,
                             vectorN_t const & a,
-                            vectorN_t const & u)
+                            vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -98,11 +99,11 @@ namespace jiminy
 
         matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
         quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
-        data().head(4) = quat.coeffs(); // (x,y,z,w)
+        data().head<4>() = quat.coeffs(); // (x,y,z,w)
         pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
         data().segment<3>(4) = gyroIMU.angular();
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
-        data().tail(3) = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
+        data().tail<3>() = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
 
         return result_t::SUCCESS;
     }
@@ -119,7 +120,7 @@ namespace jiminy
     ForceSensor::ForceSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
-    frameIdx_()
+    frameIdx_(0)
     {
         // Empty.
     }
@@ -184,7 +185,7 @@ namespace jiminy
                               vectorN_t const & q,
                               vectorN_t const & v,
                               vectorN_t const & a,
-                              vectorN_t const & u)
+                              vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -211,8 +212,8 @@ namespace jiminy
     EncoderSensor::EncoderSensor(std::string const & name) :
     AbstractSensorTpl(name),
     jointName_(),
-    jointPositionIdx_(),
-    jointVelocityIdx_()
+    jointPositionIdx_(0),
+    jointVelocityIdx_(0)
     {
         // Empty.
     }
@@ -279,7 +280,7 @@ namespace jiminy
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u)
+                                vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -287,8 +288,101 @@ namespace jiminy
             return result_t::ERROR_INIT_FAILED;
         }
 
-        data().head(1) = q.segment<1>(jointPositionIdx_);
-        data().tail(1) = v.segment<1>(jointVelocityIdx_);
+        data()[0] = q[jointPositionIdx_];
+        data()[1] = v[jointVelocityIdx_];
+
+        return result_t::SUCCESS;
+    }
+
+    // ===================== TorqueSensor =========================
+
+    template<>
+    std::string const AbstractSensorTpl<TorqueSensor>::type_("TorqueSensor");
+    template<>
+    bool_t const AbstractSensorTpl<TorqueSensor>::areFieldNamesGrouped_(true);
+    template<>
+    std::vector<std::string> const AbstractSensorTpl<TorqueSensor>::fieldNames_({"U"});
+
+    TorqueSensor::TorqueSensor(std::string const & name) :
+    AbstractSensorTpl(name),
+    motorName_(),
+    motorIdx_(0)
+    {
+        // Empty.
+    }
+
+    result_t TorqueSensor::initialize(std::string const & motorName)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!isAttached_)
+        {
+            std::cout << "Error - TorqueSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            returnCode = result_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            motorName_ = motorName;
+            isInitialized_ = true;
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = refreshProxies();
+        }
+
+        return returnCode;
+    }
+
+    result_t TorqueSensor::refreshProxies(void)
+    {
+        result_t returnCode = result_t::SUCCESS;
+
+        if (!model_->getIsInitialized())
+        {
+            std::cout << "Error - TorqueSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        if (!isInitialized_)
+        {
+            std::cout << "Error - TorqueSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = result_t::ERROR_INIT_FAILED;
+        }
+
+        std::shared_ptr<AbstractMotorBase const> motor;
+        if (returnCode == result_t::SUCCESS)
+        {
+            returnCode = model_->getMotor(motorName_, motor);
+        }
+
+        if (returnCode == result_t::SUCCESS)
+        {
+            motorIdx_ = motor->getIdx();
+        }
+
+        return returnCode;
+    }
+
+    std::string const & TorqueSensor::getMotorName(void) const
+    {
+        return motorName_;
+    }
+
+    result_t TorqueSensor::set(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & uMotor)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - TorqueSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            return result_t::ERROR_INIT_FAILED;
+        }
+
+        data()[0] = uMotor[motorIdx_];
 
         return result_t::SUCCESS;
     }

@@ -162,7 +162,7 @@ namespace jiminy
     }
 
     template <typename T>
-    int32_t const & AbstractSensorTpl<T>::getId(void) const
+    int32_t const & AbstractSensorTpl<T>::getIdx(void) const
     {
         return sensorId_;
     }

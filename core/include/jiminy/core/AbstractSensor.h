@@ -220,7 +220,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  uMotor  Current motor torque vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -229,7 +229,7 @@ namespace jiminy
                              vectorN_t const & q,
                              vectorN_t const & v,
                              vectorN_t const & a,
-                             vectorN_t const & u) = 0;
+                             vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -246,7 +246,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  u       Current motor torque vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -255,7 +255,7 @@ namespace jiminy
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u) = 0;
+                                vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -336,7 +336,7 @@ namespace jiminy
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int32_t const & getId(void) const = 0;
+        virtual int32_t const & getIdx(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -445,7 +445,7 @@ namespace jiminy
 
         virtual result_t setOptions(configHolder_t const & sensorOptions) override;
         virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
-        virtual int32_t const & getId(void) const override final;
+        virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldNames(void) const final;
         virtual uint32_t getSize(void) const override final;
@@ -456,7 +456,7 @@ namespace jiminy
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u) override final;
+                                vectorN_t const & uMotor) override final;
 
     protected:
         using AbstractSensorBase::data;

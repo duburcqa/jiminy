@@ -25,7 +25,7 @@ namespace jiminy
                              vectorN_t const & q,
                              vectorN_t const & v,
                              vectorN_t const & a,
-                             vectorN_t const & u) override;
+                             vectorN_t const & uMotor) override;
 
     private:
         std::string frameName_;
@@ -49,7 +49,7 @@ namespace jiminy
                              vectorN_t const & q,
                              vectorN_t const & v,
                              vectorN_t const & a,
-                             vectorN_t const & u);
+                             vectorN_t const & uMotor);
 
     private:
         std::string frameName_;
@@ -73,12 +73,36 @@ namespace jiminy
                              vectorN_t const & q,
                              vectorN_t const & v,
                              vectorN_t const & a,
-                             vectorN_t const & u);
+                             vectorN_t const & uMotor);
 
     private:
         std::string jointName_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
+    };
+
+    class TorqueSensor : public AbstractSensorTpl<TorqueSensor>
+    {
+    public:
+        TorqueSensor(std::string const & name);
+        ~TorqueSensor(void) = default;
+
+        result_t initialize(std::string const & motorName);
+
+        virtual result_t refreshProxies(void) override;
+
+        std::string const & getMotorName(void) const;
+
+    private:
+        virtual result_t set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & uMotor);
+
+    private:
+        std::string motorName_;
+        int32_t motorIdx_;
     };
 }
 

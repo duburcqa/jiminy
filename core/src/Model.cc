@@ -1011,7 +1011,7 @@ namespace jiminy
     }
 
     result_t Model::getMotor(std::string const & motorName,
-                             std::shared_ptr<AbstractMotorBase> & motor)
+                             std::shared_ptr<AbstractMotorBase const> & motor) const
     {
         if (!isInitialized_)
         {
@@ -1031,19 +1031,14 @@ namespace jiminy
         return result_t::SUCCESS;
     }
 
-    Model::motorsHolder_t const & Model::getMotors(void)
+    Model::motorsHolder_t const & Model::getMotors(void) const
     {
         return motorsHolder_;
     }
 
-    Model::sensorsGroupHolder_t const & Model::getSensors(void)
-    {
-        return sensorsGroupHolder_;
-    }
-
     result_t Model::getSensor(std::string const & sensorType,
                               std::string const & sensorName,
-                              std::shared_ptr<AbstractSensorBase> & sensor)
+                              std::shared_ptr<AbstractSensorBase const> & sensor) const
     {
         if (!isInitialized_)
         {
@@ -1068,6 +1063,11 @@ namespace jiminy
         sensor = sensorIt->second;
 
         return result_t::SUCCESS;
+    }
+
+    Model::sensorsGroupHolder_t const & Model::getSensors(void) const
+    {
+        return sensorsGroupHolder_;
     }
 
     result_t Model::setSensorOptions(std::string    const & sensorType,
@@ -1533,7 +1533,7 @@ namespace jiminy
             for (auto & sensorIt : sensorGroup.second)
             {
                 dataType.emplace(sensorIt.first,
-                                 sensorIt.second->getId(),
+                                 sensorIt.second->getIdx(),
                                  sensorIt.second->get());
             }
 

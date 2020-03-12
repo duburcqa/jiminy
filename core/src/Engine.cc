@@ -386,7 +386,7 @@ namespace jiminy
             computeExternalForces(t, x, fext);
 
             // Initialize the sensor data
-            model_->setSensorsData(t, q, v, a, u);
+            model_->setSensorsData(t, q, v, a, uMotor);
 
             // Compute the actual motor torque
             computeCommand(t, q, v, uCommand);
@@ -402,13 +402,16 @@ namespace jiminy
             u = uInternal;
             for (auto const & motor : model_->getMotors())
             {
-                int32_t const & motorId = motor.second->getId();
+                int32_t const & motorId = motor.second->getIdx();
                 int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorId];
             }
 
             // Compute dynamics
             a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
+
+            // Update the sensor data with the updated torque and acceleration
+            model_->setSensorsData(t, q, v, a, uMotor);
         }
 
         if (returnCode == result_t::SUCCESS)
@@ -572,8 +575,8 @@ namespace jiminy
             Eigen::Ref<vectorN_t> v = stepperState_.v();
             vectorN_t & dxdt = stepperState_.dxdt;
             Eigen::Ref<vectorN_t> a = stepperState_.a();
-            vectorN_t & u = stepperState_.u;
             vectorN_t & uCommand = stepperState_.uCommand;
+            vectorN_t & uMotor = stepperState_.uMotor;
 
             // Define the stepper iterators.
             auto system =
@@ -602,7 +605,7 @@ namespace jiminy
                         if (dtNextSensorsUpdatePeriod < MIN_TIME_STEP
                         || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_TIME_STEP)
                         {
-                            model_->setSensorsData(t, q, v, a, u);
+                            model_->setSensorsData(t, q, v, a, uMotor);
                         }
                     }
 
@@ -1240,7 +1243,7 @@ namespace jiminy
            and torques since they depend on the sensor values themselves. */
         if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_TIME_STEP)
         {
-            model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.u);
+            model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.uMotor);
         }
 
         /* Update the controller command if necessary (only for infinite update frequency).
@@ -1264,7 +1267,7 @@ namespace jiminy
         u = uInternal;
         for (auto const & motor : model_->getMotors())
         {
-            int32_t const & motorId = motor.second->getId();
+            int32_t const & motorId = motor.second->getIdx();
             int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
             u[motorVelocityIdx] += uMotor[motorId];
         }

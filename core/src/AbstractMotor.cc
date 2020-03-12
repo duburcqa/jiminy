@@ -237,7 +237,7 @@ namespace jiminy
         return name_;
     }
 
-    int32_t const & AbstractMotorBase::getId(void) const
+    int32_t const & AbstractMotorBase::getIdx(void) const
     {
         return motorId_;
     }
@@ -295,7 +295,7 @@ namespace jiminy
                                                   q[motor->getJointPositionIdx()],
                                                   v[motor->getJointVelocityIdx()],
                                                   a[motor->getJointVelocityIdx()],
-                                                  uCommand[motor->getId()]);
+                                                  uCommand[motor->getIdx()]);
             }
         }
 

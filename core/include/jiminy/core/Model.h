@@ -145,15 +145,15 @@ namespace jiminy
         result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
         result_t attachMotor(std::shared_ptr<AbstractMotorBase> const & motor);
         result_t getMotor(std::string const & motorName,
-                          std::shared_ptr<AbstractMotorBase> & motor);
-        motorsHolder_t const & getMotors(void);
+                          std::shared_ptr<AbstractMotorBase const> & motor) const;
+        motorsHolder_t const & getMotors(void) const;
         result_t detachMotor(std::string const & motorName);
         result_t detachMotors(std::vector<std::string> const & motorsNames = {});
         result_t attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor);
         result_t getSensor(std::string const & sensorType,
                            std::string const & sensorName,
-                           std::shared_ptr<AbstractSensorBase> & sensor);
-        sensorsGroupHolder_t const & getSensors(void);
+                           std::shared_ptr<AbstractSensorBase const> & sensor) const;
+        sensorsGroupHolder_t const & getSensors(void) const;
         result_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
         result_t detachSensors(std::string const & sensorType = {});
@@ -248,7 +248,7 @@ namespace jiminy
         result_t generateModelBiased(void);
         result_t refreshContactProxies(void);
         result_t refreshMotorProxies(void);
-        result_t refreshProxies(void);
+        virtual result_t refreshProxies(void);
 
     public:
         pinocchio::Model pncModel_;
