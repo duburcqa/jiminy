@@ -489,7 +489,7 @@ namespace python
                                           bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("id", bp::make_function(&AbstractMotorBase::getId,
+                    .add_property("id", bp::make_function(&AbstractMotorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))

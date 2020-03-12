@@ -1533,7 +1533,7 @@ namespace jiminy
             for (auto & sensorIt : sensorGroup.second)
             {
                 dataType.emplace(sensorIt.first,
-                                 sensorIt.second->getId(),
+                                 sensorIt.second->getIdx(),
                                  sensorIt.second->get());
             }
 

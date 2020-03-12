@@ -336,7 +336,7 @@ namespace jiminy
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual int32_t const & getId(void) const = 0;
+        virtual int32_t const & getIdx(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -445,7 +445,7 @@ namespace jiminy
 
         virtual result_t setOptions(configHolder_t const & sensorOptions) override;
         virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
-        virtual int32_t const & getId(void) const override final;
+        virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldNames(void) const final;
         virtual uint32_t getSize(void) const override final;

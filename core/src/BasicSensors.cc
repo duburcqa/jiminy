@@ -359,7 +359,7 @@ namespace jiminy
 
         if (returnCode == result_t::SUCCESS)
         {
-            motorIdx_ = motor->getId();
+            motorIdx_ = motor->getIdx();
         }
 
         return returnCode;

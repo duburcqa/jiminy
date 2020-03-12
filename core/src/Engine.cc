@@ -402,7 +402,7 @@ namespace jiminy
             u = uInternal;
             for (auto const & motor : model_->getMotors())
             {
-                int32_t const & motorId = motor.second->getId();
+                int32_t const & motorId = motor.second->getIdx();
                 int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
                 u[motorVelocityIdx] += uMotor[motorId];
             }
@@ -1267,7 +1267,7 @@ namespace jiminy
         u = uInternal;
         for (auto const & motor : model_->getMotors())
         {
-            int32_t const & motorId = motor.second->getId();
+            int32_t const & motorId = motor.second->getIdx();
             int32_t const & motorVelocityIdx = motor.second->getJointVelocityIdx();
             u[motorVelocityIdx] += uMotor[motorId];
         }
