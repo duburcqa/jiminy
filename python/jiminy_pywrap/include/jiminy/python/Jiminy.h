@@ -485,11 +485,11 @@ namespace python
                     .def("get_options", &PyMotorVisitor::getOptions<TMotor>,
                                         bp::return_value_policy<bp::return_by_value>())
 
-                    .add_property("name", bp::make_function(&AbstractMotorBase::getName,
-                                          bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("id", bp::make_function(&AbstractMotorBase::getIdx,
+                    .add_property("name", bp::make_function(&AbstractMotorBase::getName,
+                                          bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("idx", bp::make_function(&AbstractMotorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
@@ -603,10 +603,12 @@ namespace python
                     .def("get_options", &PySensorVisitor::getOptions<TSensor>,
                                         bp::return_value_policy<bp::return_by_value>())
 
-                    .add_property("name", bp::make_function(&AbstractSensorBase::getName,
-                                          bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("name", bp::make_function(&AbstractSensorBase::getName,
+                                          bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
+                                        bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
