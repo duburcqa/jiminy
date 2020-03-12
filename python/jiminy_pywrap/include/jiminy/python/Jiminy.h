@@ -872,19 +872,23 @@ namespace python
             return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
         }
 
-        static AbstractMotorBase * getMotor(Model             & self,
-                                            std::string const & motorName)
+        static AbstractMotorBase const * getMotor(Model             & self,
+                                                  std::string const & motorName)
         {
-            std::shared_ptr<AbstractMotorBase> motor;
+            /* Be careful, boost python remove the const qualifier, so that the
+               returned object can be modified ! */
+            std::shared_ptr<AbstractMotorBase const> motor;
             self.getMotor(motorName, motor);
             return motor.get();
         }
 
-        static AbstractSensorBase * getSensor(Model             & self,
-                                              std::string const & sensorType,
-                                              std::string const & sensorName)
+        static AbstractSensorBase const * getSensor(Model             & self,
+                                                    std::string const & sensorType,
+                                                    std::string const & sensorName)
         {
-            std::shared_ptr<AbstractSensorBase> sensor;
+            /* Be careful, boost python remove the const qualifier, so that the
+               returned object can be modified ! */
+            std::shared_ptr<AbstractSensorBase const> sensor;
             self.getSensor(sensorType, sensorName, sensor);
             return sensor.get();
         }

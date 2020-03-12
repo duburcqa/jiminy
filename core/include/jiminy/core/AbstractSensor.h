@@ -220,7 +220,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  uMotor  Current motor torque vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -229,7 +229,7 @@ namespace jiminy
                              vectorN_t const & q,
                              vectorN_t const & v,
                              vectorN_t const & a,
-                             vectorN_t const & u) = 0;
+                             vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -246,7 +246,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current torque vector
+        /// \param[in]  u       Current motor torque vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -255,7 +255,7 @@ namespace jiminy
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u) = 0;
+                                vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -456,7 +456,7 @@ namespace jiminy
                                 vectorN_t const & q,
                                 vectorN_t const & v,
                                 vectorN_t const & a,
-                                vectorN_t const & u) override final;
+                                vectorN_t const & uMotor) override final;
 
     protected:
         using AbstractSensorBase::data;
