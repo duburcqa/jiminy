@@ -24,8 +24,8 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
-    extern float64_t const MIN_TIME_STEP;
-    extern float64_t const MAX_TIME_STEP;
+    extern float64_t const MIN_SIMULATION_TIMESTEP;
+    extern float64_t const MAX_SIMULATION_TIMESTEP;
 
     using namespace boost::numeric::odeint;
 
@@ -70,6 +70,7 @@ namespace jiminy
         iter(0),
         t(0.0),
         dt(0.0),
+        t_err(0.0),
         x(),
         dxdt(),
         u(),
@@ -88,7 +89,7 @@ namespace jiminy
 
         void initialize(Model & model)
         {
-            initialize(model, vectorN_t::Zero(model.nx()), MIN_TIME_STEP);
+            initialize(model, vectorN_t::Zero(model.nx()), MIN_SIMULATION_TIMESTEP);
         }
 
         void initialize(Model           & model,
@@ -150,6 +151,7 @@ namespace jiminy
         uint32_t iter;
         float64_t t;
         float64_t dt;
+        float64_t t_err;            ///< Sum of error internal buffer used for Kahan algorithm
         vectorN_t x;
         vectorN_t dxdt;
         vectorN_t u;
@@ -420,7 +422,7 @@ namespace jiminy
         ///          One may specify a negative timestep to use the default update value.
         ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
-        result_t step(float64_t const & stepSize = -1);
+        result_t step(float64_t stepSize = -1);
 
         /// \brief Stop the simulation.
         ///

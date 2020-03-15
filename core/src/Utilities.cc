@@ -17,13 +17,13 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/Engine.h"     // MIN_TIME_STEP and MAX_TIME_STEP
+#include "jiminy/core/Engine.h"     // MIN_SIMULATION_TIMESTEP and MAX_SIMULATION_TIMESTEP
 
 
 namespace jiminy
 {
-    extern float64_t const MIN_TIME_STEP;
-    extern float64_t const MAX_TIME_STEP;
+    extern float64_t const MIN_SIMULATION_TIMESTEP;
+    extern float64_t const MAX_SIMULATION_TIMESTEP;
 
     // *************** Local Mutex/Lock mechanism ******************
 
@@ -308,7 +308,7 @@ namespace jiminy
            quaternions on SO3 automatically. Note that the time difference must
            not be too small to avoid failure. */
 
-        dt = std::max(MIN_TIME_STEP, dt);
+        dt = std::max(MIN_SIMULATION_TIMESTEP, dt);
         vectorN_t qNext(q.size());
         pinocchio::integrate(model, q, v*dt, qNext);
         qDot = (qNext - q) / dt;
