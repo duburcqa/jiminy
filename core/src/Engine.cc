@@ -186,45 +186,39 @@ namespace jiminy
            the system energy since they were already done in RNEA. */
         Eigen::Ref<vectorN_t const> q = stepperState_.q();
         Eigen::Ref<vectorN_t const> v = stepperState_.v();
-        Eigen::Ref<vectorN_t const> a = stepperState_.a();
-        forceVector_t const & fext = stepperState_.fExternal;
-        stepperState_.u = Engine::rnea(model_->pncModel_, model_->pncData_, q, v, a, fext);
         stepperState_.energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
             + pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
-
-        // Backup the state of the stepper
-        stepperStateLast_ = stepperState_;
 
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
             telemetrySender_.updateValue(model_->getPositionFieldNames(),
-                                         stepperStateLast_.q());
+                                         stepperState_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
             telemetrySender_.updateValue(model_->getVelocityFieldNames(),
-                                         stepperStateLast_.v());
+                                         stepperState_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
             telemetrySender_.updateValue(model_->getAccelerationFieldNames(),
-                                         stepperStateLast_.a());
+                                         stepperState_.a());
         }
         if (engineOptions_->telemetry.enableTorque)
         {
             telemetrySender_.updateValue(model_->getMotorTorqueFieldNames(),
-                                         stepperStateLast_.uMotor);
+                                         stepperState_.uMotor);
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
-            telemetrySender_.updateValue("energy", stepperStateLast_.energy);
+            telemetrySender_.updateValue("energy", stepperState_.energy);
         }
-        controller_->updateTelemetry(stepperState_.t, q, v);
+        controller_->updateTelemetry();
         model_->updateTelemetry();
 
         // Flush the telemetry internal state
-        telemetryRecorder_->flushDataSnapshot(stepperStateLast_.t);
+        telemetryRecorder_->flushDataSnapshot(stepperState_.t);
     }
 
     void Engine::reset(bool_t const & resetRandomNumbers,
@@ -424,6 +418,9 @@ namespace jiminy
 
             // Log current buffer content as first point of the log data.
             updateTelemetry();
+
+            // Initialize the last stepper state
+            stepperStateLast_ = stepperState_;
         }
 
         return returnCode;
@@ -581,8 +578,8 @@ namespace jiminy
             // Define the stepper iterators.
             auto system =
                 [this](vectorN_t const & xIn,
-                    vectorN_t       & dxdtIn,
-                    float64_t const & tIn)
+                       vectorN_t       & dxdtIn,
+                       float64_t const & tIn)
                 {
                     this->computeSystemDynamics(tIn, xIn, dxdtIn);
                 };
@@ -696,10 +693,24 @@ namespace jiminy
                             }, stepper_))
                         {
                             fail_checker.reset(); // reset the fail counter
+
+                            /* Validate Runge-Kutta time on success only. One cannot pass
+                               a reference to stepperState_.t directly since the stepper
+                               update it even for unsuccessful step, and t at last successful
+                               iteration is used to compute dt, which is approximate the
+                               accelation in the state space instead of SO3^2. */
+                            stepperState_.t = t;
+                            ++stepperState_.iter;
+                            // Log every stepper state only if the user asked for
                             if (engineOptions_->stepper.logInternalStepperSteps)
                             {
                                 updateTelemetry();
                             }
+
+                            /* Backup the stepperState. It will be used in computeDynamics
+                               to approximate the acceleration and torque at the current
+                               time, since they are not accessible directly. */
+                            stepperStateLast_ = stepperState_;
                         }
                         else
                         {
@@ -729,11 +740,14 @@ namespace jiminy
                             }, stepper_);
                         if (res == success)
                         {
-                            fail_checker.reset(); // reset the fail counter
+                            fail_checker.reset();
+                            stepperState_.t = t;
+                            ++stepperState_.iter;
                             if (engineOptions_->stepper.logInternalStepperSteps)
                             {
                                 updateTelemetry();
                             }
+                            stepperStateLast_ = stepperState_;
                         }
                         else
                         {
@@ -742,10 +756,6 @@ namespace jiminy
                     }
                 }
             }
-
-            // Update the iteration counter
-            stepperState_.t = t;
-            ++stepperState_.iter;
 
             /* Monitor current iteration number, and log the current time,
             state, command, and sensors data. */
