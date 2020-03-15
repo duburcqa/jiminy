@@ -26,6 +26,7 @@ namespace jiminy
 {
     float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
     float64_t const MIN_SIMULATION_TIMESTEP = 1e-6;
+    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
     float64_t const MAX_SIMULATION_TIMESTEP = 5e-3;
 
     Engine::Engine(void):
@@ -661,7 +662,7 @@ namespace jiminy
 
                 /* Increase back the timestep dt if it has been decreased
                    to a ridiculously small value because of a breakpoint. */
-                dt = std::max(dt, MIN_SIMULATION_TIMESTEP);
+                dt = std::max(dt, DEFAULT_SIMULATION_TIMESTEP);
 
                 if (stepperUpdatePeriod_ > EPS)
                 {
@@ -698,8 +699,7 @@ namespace jiminy
                     {
                         // Adjust stepsize to end up exactly at the next breakpoint
                         // and prevent steps larger than dtMax
-                        float64_t dt_tmp = tNext - t;
-                        dt = std::min(std::min(dt, dt_tmp), engineOptions_->stepper.dtMax);
+                        dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < MIN_STEPPER_TIMESTEP)
                         {
                             dt = tNext - t;
@@ -720,6 +720,7 @@ namespace jiminy
                                accelation in the state space instead of SO3^2. */
                             stepperState_.t = t;
                             ++stepperState_.iter;
+
                             // Log every stepper state only if the user asked for
                             if (engineOptions_->stepper.logInternalStepperSteps)
                             {

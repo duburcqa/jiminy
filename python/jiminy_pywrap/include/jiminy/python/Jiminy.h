@@ -1245,13 +1245,14 @@ namespace python
                                    bp::return_value_policy<bp::return_by_value>()))
                 .add_property("u", bp::make_getter(&stepperState_t::u,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_motor", bp::make_getter(&stepperState_t::uMotor,
+                                           bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u_command", bp::make_getter(&stepperState_t::uCommand,
                                            bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u_internal", bp::make_getter(&stepperState_t::uInternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("f_external", bp::make_getter(&stepperState_t::fExternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
-                .def_readonly("energy", &stepperState_t::energy)
                 ;
         }
 
