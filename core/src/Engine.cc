@@ -1398,9 +1398,6 @@ namespace jiminy
             float64_t fextTangential = frictionCoeff * fextNormal;
             fextInWorld += -fextTangential * vTangential;
 
-            // Make sure that the force never exceeds 1e5 N for the sake of numerical stability
-            fextInWorld = clamp(fextInWorld, -1e5, 1e5);
-
             // Add blending factor
             if (contactOptions_->transitionEps > EPS)
             {
