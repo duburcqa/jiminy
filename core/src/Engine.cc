@@ -657,6 +657,10 @@ namespace jiminy
                     }
                 }
 
+                /* Increase back the timestep dt if it has been decreased
+                   to a ridiculously small value because of a breakpoint. */
+                dt = std::max(dt, MIN_TIME_STEP);
+
                 if (stepperUpdatePeriod_ > EPS)
                 {
                     // Get the time of the next breakpoint for the ODE solver:
