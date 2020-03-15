@@ -189,7 +189,7 @@ namespace jiminy
     }
 
     void TelemetryRecorder::getData(std::vector<std::string>                   & header,
-                                    std::vector<float32_t>                     & timestamps,
+                                    std::vector<float64_t>                     & timestamps,
                                     std::vector<std::vector<int32_t> >         & intData,
                                     std::vector<std::vector<float32_t> >       & floatData,
                                     std::vector<AbstractIODevice *>            & flows,
@@ -268,7 +268,7 @@ namespace jiminy
                         break;
                     }
 
-                    timestamps.emplace_back(static_cast<float32_t>(timestamp * 1e-6));
+                    timestamps.emplace_back(static_cast<float64_t>(timestamp * 1e-6));
                     intData.emplace_back(intDataLine);
                     floatData.emplace_back(floatDataLine);
                 }
@@ -282,7 +282,7 @@ namespace jiminy
     }
 
     void TelemetryRecorder::getData(std::vector<std::string>             & header,
-                                    std::vector<float32_t>               & timestamps,
+                                    std::vector<float64_t>               & timestamps,
                                     std::vector<std::vector<int32_t> >   & intData,
                                     std::vector<std::vector<float32_t> > & floatData)
     {

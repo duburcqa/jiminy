@@ -1415,7 +1415,7 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
 
         static bp::tuple formatLog(std::vector<std::string>             const & header,
-                                   std::vector<float32_t>               const & timestamps,
+                                   std::vector<float64_t>               const & timestamps,
                                    std::vector<std::vector<int32_t> >         & intData,
                                    std::vector<std::vector<float32_t> >       & floatData,
                                    bool_t                               const & clear_memory = true)
@@ -1432,8 +1432,8 @@ namespace python
             }
 
             // Get Global.Time
-            Eigen::Ref<Eigen::Matrix<float32_t, Eigen::Dynamic, 1> const> timeBuffer =
-                Eigen::Matrix<float32_t, Eigen::Dynamic, 1>::Map(
+            Eigen::Ref<Eigen::Matrix<float64_t, Eigen::Dynamic, 1> const> timeBuffer =
+                Eigen::Matrix<float64_t, Eigen::Dynamic, 1>::Map(
                     timestamps.data(), timestamps.size());
             PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
@@ -1491,7 +1491,7 @@ namespace python
         static bp::tuple getLog(Engine & self)
         {
             std::vector<std::string> header;
-            std::vector<float32_t> timestamps;
+            std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
             self.getLogDataRaw(header, timestamps, intData, floatData);
@@ -1501,7 +1501,7 @@ namespace python
         static bp::tuple parseLogBinary(std::string const & filename)
         {
             std::vector<std::string> header;
-            std::vector<float32_t> timestamps;
+            std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
             result_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);

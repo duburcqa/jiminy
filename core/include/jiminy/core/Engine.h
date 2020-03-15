@@ -456,7 +456,7 @@ namespace jiminy
         std::vector<vectorN_t> const & getContactForces(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
-                           std::vector<float32_t>               & timestamps,
+                           std::vector<float64_t>               & timestamps,
                            std::vector<std::vector<int32_t> >   & intData,
                            std::vector<std::vector<float32_t> > & floatData);
 
@@ -483,7 +483,7 @@ namespace jiminy
 
         static result_t parseLogBinaryRaw(std::string                          const & filename,
                                           std::vector<std::string>                   & header,
-                                          std::vector<float32_t>                     & timestamps,
+                                          std::vector<float64_t>                     & timestamps,
                                           std::vector<std::vector<int32_t> >         & intData,
                                           std::vector<std::vector<float32_t> >       & floatData);
         static result_t parseLogBinary(std::string              const & filename,

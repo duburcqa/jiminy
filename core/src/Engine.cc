@@ -1024,15 +1024,15 @@ namespace jiminy
         return stepperState_;
     }
 
-    void logDataRawToEigenMatrix(std::vector<float32_t>               const & timestamps,
+    void logDataRawToEigenMatrix(std::vector<float64_t>               const & timestamps,
                                  std::vector<std::vector<int32_t> >   const & intData,
                                  std::vector<std::vector<float32_t> > const & floatData,
                                  matrixN_t                                  & logData)
     {
         // Never empty since it contains at least the initial state
         logData.resize(timestamps.size(), 1 + intData[0].size() + floatData[0].size());
-        logData.col(0) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
-            timestamps.data(), timestamps.size()).cast<float64_t>();
+        logData.col(0) = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
+            timestamps.data(), timestamps.size());
         for (uint32_t i=0; i<intData.size(); i++)
         {
             logData.block(i, 1, 1, intData[i].size()) =
@@ -1048,7 +1048,7 @@ namespace jiminy
     }
 
     void Engine::getLogDataRaw(std::vector<std::string>             & header,
-                               std::vector<float32_t>               & timestamps,
+                               std::vector<float64_t>               & timestamps,
                                std::vector<std::vector<int32_t> >   & intData,
                                std::vector<std::vector<float32_t> > & floatData)
     {
@@ -1058,7 +1058,7 @@ namespace jiminy
     void Engine::getLogData(std::vector<std::string> & header,
                             matrixN_t                & logData)
     {
-        std::vector<float32_t> timestamps;
+        std::vector<float64_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
         getLogDataRaw(header, timestamps, intData, floatData);
@@ -1127,7 +1127,7 @@ namespace jiminy
 
     result_t Engine::parseLogBinaryRaw(std::string                          const & filename,
                                        std::vector<std::string>                   & header,
-                                       std::vector<float32_t>                     & timestamps,
+                                       std::vector<float64_t>                     & timestamps,
                                        std::vector<std::vector<int32_t> >         & intData,
                                        std::vector<std::vector<float32_t> >       & floatData)
     {
@@ -1212,7 +1212,7 @@ namespace jiminy
                                     std::vector<std::string>       & header,
                                     matrixN_t                      & logData)
     {
-        std::vector<float32_t> timestamps;
+        std::vector<float64_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
         result_t returnCode = parseLogBinaryRaw(
