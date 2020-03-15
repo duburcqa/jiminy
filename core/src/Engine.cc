@@ -181,13 +181,11 @@ namespace jiminy
 
     void Engine::updateTelemetry(void)
     {
-        /* Update internal state of the stepper.
-           Note that explicit kinematic computation is not needed to get
-           the system energy since they were already done in RNEA. */
+        // Compute the total energy of the system
         Eigen::Ref<vectorN_t const> q = stepperState_.q();
         Eigen::Ref<vectorN_t const> v = stepperState_.v();
-        stepperState_.energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
-            + pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
+        float64_t energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, true);
+        energy += pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
 
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
@@ -212,7 +210,7 @@ namespace jiminy
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
-            telemetrySender_.updateValue("energy", stepperState_.energy);
+            telemetrySender_.updateValue("energy", energy);
         }
         controller_->updateTelemetry();
         model_->updateTelemetry();

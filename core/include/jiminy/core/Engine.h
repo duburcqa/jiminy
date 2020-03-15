@@ -78,7 +78,6 @@ namespace jiminy
         uMotor(),
         uInternal(),
         fExternal(),
-        energy(0.0),
         nx_(0),
         nq_(0),
         nv_(0),
@@ -116,7 +115,6 @@ namespace jiminy
             uCommand = vectorN_t::Zero(model.getMotorsNames().size());
             uMotor = vectorN_t::Zero(model.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
-            energy = 0.0;
 
             // Set the initialization flag
             isInitialized_ = true;
@@ -159,7 +157,6 @@ namespace jiminy
         vectorN_t uMotor;
         vectorN_t uInternal;
         forceVector_t fExternal;
-        float64_t energy;           ///< Energy of the system (kinetic + potential)
 
     private:
         uint32_t nx_;
