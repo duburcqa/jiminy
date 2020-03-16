@@ -1,11 +1,11 @@
-#include "jiminy/core/Engine.h" // MIN_TIME_STEP and MAX_TIME_STEP
+#include "jiminy/core/Engine.h" // MIN_SIMULATION_TIMESTEP and MAX_SIMULATION_TIMESTEP
 #include "jiminy/core/Model.h"
 #include "jiminy/core/Utilities.h"
 
 namespace jiminy
 {
-    extern float64_t const MIN_TIME_STEP;
-    extern float64_t const MAX_TIME_STEP;
+    extern float64_t const MIN_SIMULATION_TIMESTEP;
+    extern float64_t const MAX_SIMULATION_TIMESTEP;
 
     template <typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
@@ -340,7 +340,7 @@ namespace jiminy
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time */
-        float64_t const timeMin = t - sharedHolder_->delayMax_ - MAX_TIME_STEP;
+        float64_t const timeMin = t - sharedHolder_->delayMax_ - MAX_SIMULATION_TIMESTEP;
 
         // Internal buffer memory management
         if (t + std::numeric_limits<float64_t>::epsilon() > sharedHolder_->time_.back())

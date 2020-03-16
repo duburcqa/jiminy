@@ -24,9 +24,10 @@
 
 namespace jiminy
 {
-    float64_t const MIN_TIME_STEP = 1e-6;
-    float64_t const MAX_TIME_STEP = 5e-3;
-
+    float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
+    float64_t const MIN_SIMULATION_TIMESTEP = 1e-6;
+    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
+    float64_t const MAX_SIMULATION_TIMESTEP = 5e-3;
 
     Engine::Engine(void):
     engineOptions_(nullptr),
@@ -181,50 +182,42 @@ namespace jiminy
 
     void Engine::updateTelemetry(void)
     {
-        /* Update internal state of the stepper.
-           Note that explicit kinematic computation is not needed to get
-           the system energy since they were already done in RNEA. */
+        // Compute the total energy of the system
         Eigen::Ref<vectorN_t const> q = stepperState_.q();
         Eigen::Ref<vectorN_t const> v = stepperState_.v();
-        Eigen::Ref<vectorN_t const> a = stepperState_.a();
-        forceVector_t const & fext = stepperState_.fExternal;
-        stepperState_.u = Engine::rnea(model_->pncModel_, model_->pncData_, q, v, a, fext);
-        stepperState_.energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, false)
-            + pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
-
-        // Backup the state of the stepper
-        stepperStateLast_ = stepperState_;
+        float64_t energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, true);
+        energy += pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
 
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
             telemetrySender_.updateValue(model_->getPositionFieldNames(),
-                                         stepperStateLast_.q());
+                                         stepperState_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
             telemetrySender_.updateValue(model_->getVelocityFieldNames(),
-                                         stepperStateLast_.v());
+                                         stepperState_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
             telemetrySender_.updateValue(model_->getAccelerationFieldNames(),
-                                         stepperStateLast_.a());
+                                         stepperState_.a());
         }
         if (engineOptions_->telemetry.enableTorque)
         {
             telemetrySender_.updateValue(model_->getMotorTorqueFieldNames(),
-                                         stepperStateLast_.uMotor);
+                                         stepperState_.uMotor);
         }
         if (engineOptions_->telemetry.enableEnergy)
         {
-            telemetrySender_.updateValue("energy", stepperStateLast_.energy);
+            telemetrySender_.updateValue("energy", energy);
         }
-        controller_->updateTelemetry(stepperState_.t, q, v);
+        controller_->updateTelemetry();
         model_->updateTelemetry();
 
         // Flush the telemetry internal state
-        telemetryRecorder_->flushDataSnapshot(stepperStateLast_.t);
+        telemetryRecorder_->flushDataSnapshot(stepperState_.t);
     }
 
     void Engine::reset(bool_t const & resetRandomNumbers,
@@ -356,7 +349,7 @@ namespace jiminy
 
             // Compute the initial time step
             float64_t dt;
-            if (stepperUpdatePeriod_ > MIN_TIME_STEP)
+            if (stepperUpdatePeriod_ > MIN_SIMULATION_TIMESTEP)
             {
                 dt = stepperUpdatePeriod_; // The initial time step is the update period
             }
@@ -424,6 +417,9 @@ namespace jiminy
 
             // Log current buffer content as first point of the log data.
             updateTelemetry();
+
+            // Initialize the last stepper state
+            stepperStateLast_ = stepperState_;
         }
 
         return returnCode;
@@ -459,7 +455,7 @@ namespace jiminy
             /* Stop the simulation if the end time has been reached, if
                the callback returns false, or if the max number of
                integration steps is exceeded. */
-            if (tEnd - stepperState_.t < MIN_TIME_STEP)
+            if (tEnd - stepperState_.t < MIN_SIMULATION_TIMESTEP)
             {
                 if (engineOptions_->stepper.verbose)
                 {
@@ -504,7 +500,7 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Engine::step(float64_t const& stepSize)
+    result_t Engine::step(float64_t stepSize)
     {
         result_t returnCode = result_t::SUCCESS;
 
@@ -532,7 +528,7 @@ namespace jiminy
             }
 
             // Check if the desired step size is suitable
-            if (stepSize > EPS && stepSize < MIN_TIME_STEP)
+            if (stepSize > EPS && stepSize < MIN_SIMULATION_TIMESTEP)
             {
                 std::cout << "Error - Engine::step - The step size 'stepSize' is out of bounds." << std::endl;
                 return result_t::ERROR_BAD_INPUT;
@@ -542,30 +538,34 @@ namespace jiminy
             discrete-time, otherwise it uses the sensor update period if discrete-time,
             otherwise it uses the user-defined parameter dtMax. */
             float64_t tEnd;
-            if (stepSize > EPS)
-            {
-                tEnd = stepperState_.t + stepSize;
-            }
-            else
+            if (stepSize < EPS)
             {
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                 if (controllerUpdatePeriod > EPS)
                 {
-                    tEnd = stepperState_.t + controllerUpdatePeriod;
+                    stepSize = controllerUpdatePeriod;
                 }
                 else
                 {
                     float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
                     if (sensorsUpdatePeriod > EPS)
                     {
-                        tEnd = stepperState_.t + sensorsUpdatePeriod;
+                        stepSize = sensorsUpdatePeriod;
                     }
                     else
                     {
-                        tEnd = stepperState_.t + engineOptions_->stepper.dtMax;
+                        stepSize = engineOptions_->stepper.dtMax;
                     }
                 }
             }
+
+            /* Avoid compounding of error using Kahan algorithm. It
+               consists in keeping track of the cumulative rounding error
+               to add it back to the sum when it gets larger than the
+               numerical precision, thus avoiding it to grows unbounded. */
+            float64_t stepSize_true = stepSize - stepperState_.t_err;
+            tEnd = stepperState_.t + stepSize_true;
+            stepperState_.t_err = (tEnd - stepperState_.t) - stepSize_true;
 
             // Get references/copies of some internal stepper buffers
             float64_t t = stepperState_.t;
@@ -581,8 +581,8 @@ namespace jiminy
             // Define the stepper iterators.
             auto system =
                 [this](vectorN_t const & xIn,
-                    vectorN_t       & dxdtIn,
-                    float64_t const & tIn)
+                       vectorN_t       & dxdtIn,
+                       float64_t const & tIn)
                 {
                     this->computeSystemDynamics(tIn, xIn, dxdtIn);
                 };
@@ -594,16 +594,16 @@ namespace jiminy
             while(tEnd - t > EPS)
             {
                 float64_t tNext = t;
-                // Solver cannot simulate a timestep smaller than MIN_TIME_STEP
-                if (stepperUpdatePeriod_ > MIN_TIME_STEP)
+                // Solver cannot simulate a timestep smaller than MIN_SIMULATION_TIMESTEP
+                if (stepperUpdatePeriod_ > MIN_SIMULATION_TIMESTEP)
                 {
                     // Update the sensor data if necessary (only for finite update frequency)
                     if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
                     {
                         float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
                         float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                        if (dtNextSensorsUpdatePeriod < MIN_TIME_STEP
-                        || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_TIME_STEP)
+                        if (dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP
+                        || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
                         {
                             model_->setSensorsData(t, q, v, a, uMotor);
                         }
@@ -614,8 +614,8 @@ namespace jiminy
                     {
                         float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                         float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                        if (dtNextControllerUpdatePeriod < MIN_TIME_STEP
-                        || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_TIME_STEP)
+                        if (dtNextControllerUpdatePeriod < MIN_SIMULATION_TIMESTEP
+                        || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
                         {
                             computeCommand(t, q, v, uCommand);
 
@@ -660,35 +660,51 @@ namespace jiminy
                     }
                 }
 
+                /* Increase back the timestep dt if it has been decreased
+                   to a ridiculously small value because of a breakpoint. */
+                dt = std::max(dt, DEFAULT_SIMULATION_TIMESTEP);
+
                 if (stepperUpdatePeriod_ > EPS)
                 {
                     // Get the time of the next breakpoint for the ODE solver:
                     // a breakpoint occurs if we reached tEnd, if an external force is applied, or if we
                     // need to update the sensors / controller.
+                    float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
                     float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
-                    if (dtNextUpdatePeriod < MIN_TIME_STEP)
+                    if (dtNextUpdatePeriod < MIN_SIMULATION_TIMESTEP)
                     {
                         // Step to reach next sensors / controller update is too short: skip one
                         // controller update and jump to the next one.
                         // Note that in this case, the sensors have already been updated in
                         // anticipation in previous loop.
-                        tNext += min(dtNextUpdatePeriod + stepperUpdatePeriod_,
-                                     tEnd - t,
-                                     tForceImpulseNext - t);
+                        dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
+                                           tForceImpulseNext - t);
                     }
                     else
                     {
-                        tNext += min(dtNextUpdatePeriod,
-                                     tEnd - t,
-                                     tForceImpulseNext - t);
+                        dtNextGlobal = min(dtNextUpdatePeriod, tForceImpulseNext - t);
                     }
 
+                    /* Check if the next dt to about equal to the time difference
+                       between the current time (it can only be smaller) and
+                       enforce next dt to exactly match this value in such a case. */
+                    if (tEnd - t - EPS < dtNextGlobal)
+                    {
+                        dtNextGlobal = tEnd - t;
+                    }
+                    tNext += dtNextGlobal;
+
                     // Compute the next step using adaptive step method
-                    while (t < tNext)
+                    while (tNext - t > EPS)
                     {
                         // Adjust stepsize to end up exactly at the next breakpoint
                         // and prevent steps larger than dtMax
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
+                        if (tNext - (t + dt) < MIN_STEPPER_TIMESTEP)
+                        {
+                            dt = tNext - t;
+                        }
+
                         if (success == boost::apply_visitor(
                             [&](auto && one)
                             {
@@ -696,27 +712,39 @@ namespace jiminy
                             }, stepper_))
                         {
                             fail_checker.reset(); // reset the fail counter
+
+                            /* Validate Runge-Kutta time on success only. One cannot pass
+                               a reference to stepperState_.t directly since the stepper
+                               update it even for unsuccessful step, and t at last successful
+                               iteration is used to compute dt, which is approximate the
+                               accelation in the state space instead of SO3^2. */
+                            stepperState_.t = t;
+                            ++stepperState_.iter;
+
+                            // Log every stepper state only if the user asked for
                             if (engineOptions_->stepper.logInternalStepperSteps)
                             {
                                 updateTelemetry();
                             }
+
+                            /* Backup the stepperState. It will be used in computeDynamics
+                               to approximate the acceleration and torque at the current
+                               time, since they are not accessible directly. */
+                            stepperStateLast_ = stepperState_;
                         }
                         else
                         {
                             fail_checker();  // check for possible overflow of failed steps in step size adjustment
                         }
                     }
-
-                    // Update the current time
-                    t = tNext;
                 }
                 else
                 {
                     // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
                     dt = min(dt,
-                            engineOptions_->stepper.dtMax,
-                            tEnd - t,
-                            tForceImpulseNext - t);
+                             engineOptions_->stepper.dtMax,
+                             tEnd - t,
+                             tForceImpulseNext - t);
 
                     // Compute the next step using adaptive step method
                     controlled_step_result res = fail;
@@ -729,11 +757,14 @@ namespace jiminy
                             }, stepper_);
                         if (res == success)
                         {
-                            fail_checker.reset(); // reset the fail counter
+                            fail_checker.reset();
+                            stepperState_.t = t;
+                            ++stepperState_.iter;
                             if (engineOptions_->stepper.logInternalStepperSteps)
                             {
                                 updateTelemetry();
                             }
+                            stepperStateLast_ = stepperState_;
                         }
                         else
                         {
@@ -743,9 +774,11 @@ namespace jiminy
                 }
             }
 
-            // Update the iteration counter
-            stepperState_.t = t;
-            ++stepperState_.iter;
+            /* Update the final time to make sure it corresponds
+            to the desired tEnd and avoid compounding of error.
+            Anyway the user asked for a step of exactly stepSize,
+            so he is expecting this value to be reached. */
+            stepperState_.t = tEnd;
 
             /* Monitor current iteration number, and log the current time,
             state, command, and sensors data. */
@@ -895,7 +928,7 @@ namespace jiminy
         // Make sure the dtMax is not out of bounds
         configHolder_t stepperOptions = boost::get<configHolder_t>(engineOptions.at("stepper"));
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
-        if (MAX_TIME_STEP < dtMax || dtMax < MIN_TIME_STEP)
+        if (MAX_SIMULATION_TIMESTEP < dtMax || dtMax < MIN_SIMULATION_TIMESTEP)
         {
             std::cout << "Error - Engine::setOptions - 'dtMax' option is out of bounds." << std::endl;
             return result_t::ERROR_BAD_INPUT;
@@ -914,11 +947,11 @@ namespace jiminy
             boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
         float64_t const & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
-        if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_TIME_STEP)
-        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_TIME_STEP))
+        if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP))
         {
             std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than";
-            std::cout << MIN_TIME_STEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
+            std::cout << MIN_SIMULATION_TIMESTEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
             return result_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
@@ -963,11 +996,11 @@ namespace jiminy
         }
 
         // Compute the breakpoints' period (for command or observation) during the integration loop
-        if (sensorsUpdatePeriod < MIN_TIME_STEP)
+        if (sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
         {
             stepperUpdatePeriod_ = controllerUpdatePeriod;
         }
-        else if (controllerUpdatePeriod < MIN_TIME_STEP)
+        else if (controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
         {
             stepperUpdatePeriod_ = sensorsUpdatePeriod;
         }
@@ -1014,15 +1047,15 @@ namespace jiminy
         return stepperState_;
     }
 
-    void logDataRawToEigenMatrix(std::vector<float32_t>               const & timestamps,
+    void logDataRawToEigenMatrix(std::vector<float64_t>               const & timestamps,
                                  std::vector<std::vector<int32_t> >   const & intData,
                                  std::vector<std::vector<float32_t> > const & floatData,
                                  matrixN_t                                  & logData)
     {
         // Never empty since it contains at least the initial state
         logData.resize(timestamps.size(), 1 + intData[0].size() + floatData[0].size());
-        logData.col(0) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
-            timestamps.data(), timestamps.size()).cast<float64_t>();
+        logData.col(0) = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
+            timestamps.data(), timestamps.size());
         for (uint32_t i=0; i<intData.size(); i++)
         {
             logData.block(i, 1, 1, intData[i].size()) =
@@ -1038,7 +1071,7 @@ namespace jiminy
     }
 
     void Engine::getLogDataRaw(std::vector<std::string>             & header,
-                               std::vector<float32_t>               & timestamps,
+                               std::vector<float64_t>               & timestamps,
                                std::vector<std::vector<int32_t> >   & intData,
                                std::vector<std::vector<float32_t> > & floatData)
     {
@@ -1048,7 +1081,7 @@ namespace jiminy
     void Engine::getLogData(std::vector<std::string> & header,
                             matrixN_t                & logData)
     {
-        std::vector<float32_t> timestamps;
+        std::vector<float64_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
         getLogDataRaw(header, timestamps, intData, floatData);
@@ -1117,7 +1150,7 @@ namespace jiminy
 
     result_t Engine::parseLogBinaryRaw(std::string                          const & filename,
                                        std::vector<std::string>                   & header,
-                                       std::vector<float32_t>                     & timestamps,
+                                       std::vector<float64_t>                     & timestamps,
                                        std::vector<std::vector<int32_t> >         & intData,
                                        std::vector<std::vector<float32_t> >       & floatData)
     {
@@ -1202,7 +1235,7 @@ namespace jiminy
                                     std::vector<std::string>       & header,
                                     matrixN_t                      & logData)
     {
-        std::vector<float32_t> timestamps;
+        std::vector<float64_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
         result_t returnCode = parseLogBinaryRaw(
@@ -1241,14 +1274,14 @@ namespace jiminy
         /* Update the sensor data if necessary (only for infinite update frequency).
            Note that it is impossible to have access to the current accelerations
            and torques since they depend on the sensor values themselves. */
-        if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_TIME_STEP)
+        if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
         {
             model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.uMotor);
         }
 
         /* Update the controller command if necessary (only for infinite update frequency).
            Make sure that the sensor state has been updated beforehand. */
-        if (engineOptions_->stepper.controllerUpdatePeriod < MIN_TIME_STEP)
+        if (engineOptions_->stepper.controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
         {
             computeCommand(t, q, v, uCommand);
         }
@@ -1363,9 +1396,6 @@ namespace jiminy
             }
             float64_t fextTangential = frictionCoeff * fextNormal;
             fextInWorld += -fextTangential * vTangential;
-
-            // Make sure that the force never exceeds 1e5 N for the sake of numerical stability
-            fextInWorld = clamp(fextInWorld, -1e5, 1e5);
 
             // Add blending factor
             if (contactOptions_->transitionEps > EPS)

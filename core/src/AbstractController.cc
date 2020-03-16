@@ -188,9 +188,7 @@ namespace jiminy
         registeredConstants_.clear();
     }
 
-    void AbstractController::updateTelemetry(float64_t const& t,
-                                             vectorN_t const& q,
-                                             vectorN_t const& v)
+    void AbstractController::updateTelemetry(void)
     {
         if (isTelemetryConfigured_)
         {

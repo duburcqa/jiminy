@@ -1245,13 +1245,14 @@ namespace python
                                    bp::return_value_policy<bp::return_by_value>()))
                 .add_property("u", bp::make_getter(&stepperState_t::u,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_motor", bp::make_getter(&stepperState_t::uMotor,
+                                           bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u_command", bp::make_getter(&stepperState_t::uCommand,
                                            bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u_internal", bp::make_getter(&stepperState_t::uInternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("f_external", bp::make_getter(&stepperState_t::fExternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
-                .def_readonly("energy", &stepperState_t::energy)
                 ;
         }
 
@@ -1415,7 +1416,7 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
 
         static bp::tuple formatLog(std::vector<std::string>             const & header,
-                                   std::vector<float32_t>               const & timestamps,
+                                   std::vector<float64_t>               const & timestamps,
                                    std::vector<std::vector<int32_t> >         & intData,
                                    std::vector<std::vector<float32_t> >       & floatData,
                                    bool_t                               const & clear_memory = true)
@@ -1432,8 +1433,8 @@ namespace python
             }
 
             // Get Global.Time
-            Eigen::Ref<Eigen::Matrix<float32_t, Eigen::Dynamic, 1> const> timeBuffer =
-                Eigen::Matrix<float32_t, Eigen::Dynamic, 1>::Map(
+            Eigen::Ref<Eigen::Matrix<float64_t, Eigen::Dynamic, 1> const> timeBuffer =
+                Eigen::Matrix<float64_t, Eigen::Dynamic, 1>::Map(
                     timestamps.data(), timestamps.size());
             PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
@@ -1491,7 +1492,7 @@ namespace python
         static bp::tuple getLog(Engine & self)
         {
             std::vector<std::string> header;
-            std::vector<float32_t> timestamps;
+            std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
             self.getLogDataRaw(header, timestamps, intData, floatData);
@@ -1501,7 +1502,7 @@ namespace python
         static bp::tuple parseLogBinary(std::string const & filename)
         {
             std::vector<std::string> header;
-            std::vector<float32_t> timestamps;
+            std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
             result_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);

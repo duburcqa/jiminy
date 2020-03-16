@@ -227,9 +227,7 @@ namespace jiminy
         ///             of it before flushing the telemetry data at the end of each simulation steps.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void updateTelemetry(float64_t const& t,
-                                     vectorN_t const& q,
-                                     vectorN_t const& v);
+        virtual void updateTelemetry(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

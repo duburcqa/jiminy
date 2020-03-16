@@ -52,7 +52,7 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         result_t writeDataBinary(std::string const & filename);
         static void getData(std::vector<std::string>                   & header,
-                            std::vector<float32_t>                     & timestamps,
+                            std::vector<float64_t>                     & timestamps,
                             std::vector<std::vector<int32_t> >         & intData,
                             std::vector<std::vector<float32_t> >       & floatData,
                             std::vector<AbstractIODevice *>            & flows,
@@ -61,7 +61,7 @@ namespace jiminy
                             int64_t                              const & headerSize,
                             int64_t                                      recordedBytesDataLine = -1);
         void getData(std::vector<std::string>             & header,
-                     std::vector<float32_t>               & timestamps,
+                     std::vector<float64_t>               & timestamps,
                      std::vector<std::vector<int32_t> >   & intData,
                      std::vector<std::vector<float32_t> > & floatData);
     private:

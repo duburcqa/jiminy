@@ -24,6 +24,7 @@ class Viewer:
     backend = None
     port_forwarding = None
     _backend_obj = None
+    _backend_exception = None
     _backend_proc = None
     ## Unique threading.Lock for every simulation.
     # It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
@@ -66,10 +67,13 @@ class Viewer:
             if Viewer._backend_proc.poll() is not None:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
+                Viewer._backend_exception = None
 
         # Access the current backend or create one if none is available
         try:
             if (Viewer.backend == 'gepetto-gui'):
+                import omniORB
+                Viewer._backend_exception = omniORB.CORBA.COMM_FAILURE
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_gepetto_client(True)
@@ -183,9 +187,11 @@ class Viewer:
     @staticmethod
     def close():
         if Viewer._backend_proc is not None:
-            Viewer._backend_proc.terminate()
+            if Viewer._backend_proc.poll() is not None:
+                Viewer._backend_proc.terminate()
             Viewer._backend_proc = None
         Viewer._backend_obj = None
+        Viewer._backend_exception = None
 
     @staticmethod
     def _is_notebook():
@@ -414,8 +420,11 @@ class Viewer:
                 q[:3] += xyz_offset
             else:
                 q = s.q
-            with Viewer._lock: # It is necessary to use Lock since corbaserver does not support multiple connection simultaneously.
-                self._rb.display(q)
+            with Viewer._lock: # It is necessary to use Lock since corbaserver does not support multiple connection simultaneously.omniORB
+                try:
+                    self._rb.display(q)
+                except Viewer._backend_exception:
+                    break
             t_simu = (time.time() - init_time) * speed_ratio
             i = bisect_right(t, t_simu)
             if t_simu < s.t:
@@ -463,8 +472,10 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q
-        robot._rb.display(q)
-
+        try:
+            robot._rb.display(q)
+        except Viewer._backend_exception:
+            break
         robots.append(robot)
 
     if (xyz_offset is None):

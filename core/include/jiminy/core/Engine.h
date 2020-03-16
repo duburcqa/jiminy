@@ -24,8 +24,8 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
-    extern float64_t const MIN_TIME_STEP;
-    extern float64_t const MAX_TIME_STEP;
+    extern float64_t const MIN_SIMULATION_TIMESTEP;
+    extern float64_t const MAX_SIMULATION_TIMESTEP;
 
     using namespace boost::numeric::odeint;
 
@@ -70,6 +70,7 @@ namespace jiminy
         iter(0),
         t(0.0),
         dt(0.0),
+        t_err(0.0),
         x(),
         dxdt(),
         u(),
@@ -77,7 +78,6 @@ namespace jiminy
         uMotor(),
         uInternal(),
         fExternal(),
-        energy(0.0),
         nx_(0),
         nq_(0),
         nv_(0),
@@ -88,7 +88,7 @@ namespace jiminy
 
         void initialize(Model & model)
         {
-            initialize(model, vectorN_t::Zero(model.nx()), MIN_TIME_STEP);
+            initialize(model, vectorN_t::Zero(model.nx()), MIN_SIMULATION_TIMESTEP);
         }
 
         void initialize(Model           & model,
@@ -115,7 +115,6 @@ namespace jiminy
             uCommand = vectorN_t::Zero(model.getMotorsNames().size());
             uMotor = vectorN_t::Zero(model.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
-            energy = 0.0;
 
             // Set the initialization flag
             isInitialized_ = true;
@@ -150,6 +149,7 @@ namespace jiminy
         uint32_t iter;
         float64_t t;
         float64_t dt;
+        float64_t t_err;            ///< Sum of error internal buffer used for Kahan algorithm
         vectorN_t x;
         vectorN_t dxdt;
         vectorN_t u;
@@ -157,7 +157,6 @@ namespace jiminy
         vectorN_t uMotor;
         vectorN_t uInternal;
         forceVector_t fExternal;
-        float64_t energy;           ///< Energy of the system (kinetic + potential)
 
     private:
         uint32_t nx_;
@@ -420,7 +419,7 @@ namespace jiminy
         ///          One may specify a negative timestep to use the default update value.
         ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
-        result_t step(float64_t const & stepSize = -1);
+        result_t step(float64_t stepSize = -1);
 
         /// \brief Stop the simulation.
         ///
@@ -456,7 +455,7 @@ namespace jiminy
         std::vector<vectorN_t> const & getContactForces(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
-                           std::vector<float32_t>               & timestamps,
+                           std::vector<float64_t>               & timestamps,
                            std::vector<std::vector<int32_t> >   & intData,
                            std::vector<std::vector<float32_t> > & floatData);
 
@@ -483,7 +482,7 @@ namespace jiminy
 
         static result_t parseLogBinaryRaw(std::string                          const & filename,
                                           std::vector<std::string>                   & header,
-                                          std::vector<float32_t>                     & timestamps,
+                                          std::vector<float64_t>                     & timestamps,
                                           std::vector<std::vector<int32_t> >         & intData,
                                           std::vector<std::vector<float32_t> >       & floatData);
         static result_t parseLogBinary(std::string              const & filename,
