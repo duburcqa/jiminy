@@ -52,9 +52,9 @@ namespace jiminy
         ///
         /// \param mode Mode to apply for opening the device.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        result_t open(enum OpenMode mode);
+        hresult_t open(enum OpenMode mode);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.
@@ -63,9 +63,9 @@ namespace jiminy
         ///
         /// \param Value to write into the device.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        void close(void);
+        hresult_t close(void);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return The current opening modes.
@@ -110,14 +110,19 @@ namespace jiminy
         ///
         /// \param pos  Desired new position of the cursor.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t seek(int64_t pos);
+        virtual hresult_t seek(int64_t pos);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \return The current cursor position (0 if there is not concept of position cursor).
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         virtual int64_t pos(void);
+
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief resize the device to provided size.
+        /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t resize(int64_t size);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Returns the number of bytes that are available for reading. Commonly used with sequential device.
@@ -133,10 +138,10 @@ namespace jiminy
         ///
         /// \param Value to write into the device.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t write(T const& valueIn);
+        hresult_t write(T const& valueIn);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.
@@ -144,10 +149,10 @@ namespace jiminy
         /// \param data      Buffer of data to write.
         /// \param dataSize  Number of bytes to write.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t write(void    const * data,
-                               int64_t         dataSize);
+        virtual hresult_t write(void    const * data,
+                                int64_t         dataSize);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.
@@ -155,7 +160,7 @@ namespace jiminy
         /// \param data      Buffer of data to write.
         /// \param dataSize  Number of bytes to write.
         ///
-        /// \return the number of bytes written, -1 in case of error (error value can be retrieved with getLastError().
+        /// \return the number of bytes written, -1 in case of error
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         virtual int64_t writeData(void    const * data,
                                   int64_t         dataSize) = 0;
@@ -167,10 +172,10 @@ namespace jiminy
         ///
         /// \param Value to store read data.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t read(T & valueIn);
+        hresult_t read(T & valueIn);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Read data from the device.
@@ -178,10 +183,10 @@ namespace jiminy
         /// \param data      Buffer to store read data.
         /// \param dataSize  Number of bytes to read.
         ///
-        /// \return result_t::SUCCESS if successful, another result_t value otherwise.
+        /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t read(void    * data,
-                              int64_t   dataSize);
+        virtual hresult_t read(void    * data,
+                               int64_t   dataSize);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Read data in the device.
@@ -189,7 +194,7 @@ namespace jiminy
         /// \param data      Buffer of data to read.
         /// \param dataSize  Number of bytes to read.
         ///
-        /// \return the number of bytes read, -1 in case of error (error value can be retrieved with getLastError().
+        /// \return the number of bytes read, -1 in case of error
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         virtual int64_t readData(void    * data,
                                  int64_t   dataSize) = 0;
@@ -199,14 +204,14 @@ namespace jiminy
         ///
         /// \return The latest generated error.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        result_t getLastError(void) const;
+        hresult_t getLastError(void) const;
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Set the device blocking fashion.
         ///
         /// \return The latest generated error.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setBlockingMode(bool_t shouldBlock);
+        virtual hresult_t setBlockingMode(bool_t shouldBlock);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Set the device backend (reset the old one if any).
@@ -224,12 +229,12 @@ namespace jiminy
         virtual void removeBackend(void);
 
     protected:
-        virtual result_t doOpen(enum OpenMode mode) = 0;
-        virtual void doClose(void) = 0;
+        virtual hresult_t doOpen(enum OpenMode mode) = 0;
+        virtual hresult_t doClose(void) = 0;
 
         enum OpenMode modes_{OpenMode::NOT_OPEN};           ///< Current opening mode.
         enum OpenMode supportedModes_{OpenMode::NOT_OPEN};  ///< Supported modes of the device.
-        result_t lastError_{result_t::ERROR_GENERIC};       ///< Latest generated error.
+        hresult_t lastError_{hresult_t::SUCCESS};           ///< Latest generated error.
         std::unique_ptr<AbstractIODevice> io_{nullptr};     ///< Backend to use if any
     };
 }

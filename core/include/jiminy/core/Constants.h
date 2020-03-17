@@ -9,8 +9,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef UTIL_CONSTANTS_H
-#define UTIL_CONSTANTS_H
+#ifndef JIMINY_CONSTANTS_H
+#define JIMINY_CONSTANTS_H
 
 #include <math.h>
 
@@ -23,4 +23,4 @@ namespace jiminy
     float64_t const MAX_SIMULATION_TIMESTEP = 5e-3;
 }
 
-#endif  // WDC_UTIL_CONSTANTS_H
+#endif  // JIMINY_CONSTANTS_H

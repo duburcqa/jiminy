@@ -4,8 +4,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef WDC_SYSTEM_FILE_DEVICE_H
-#define WDC_SYSTEM_FILE_DEVICE_H
+#ifndef SYSTEM_FILE_DEVICE_H
+#define SYSTEM_FILE_DEVICE_H
 
 #include <string>
 
@@ -24,7 +24,8 @@ namespace jiminy
         virtual ~FileDevice(void);
 
         int64_t size(void) override;
-        result_t seek(int64_t pos) override;
+        hresult_t resize(int64_t sizeIn) override;
+        hresult_t seek(int64_t pos) override;
         int64_t pos(void) override;
         int64_t bytesAvailable(void) override;
 
@@ -36,12 +37,12 @@ namespace jiminy
         std::string const& name(void) const;
 
     protected:
-        result_t doOpen(enum OpenMode mode) override;
-        void doClose(void) override;
+        hresult_t doOpen(enum OpenMode mode) override;
+        hresult_t doClose(void) override;
 
         std::string filename_;
         int32_t fileDescriptor_;  ///< File descriptor.
     };
 }
 
-#endif // WDC_FILESYSTEM_FILE_H
+#endif // FILESYSTEM_FILE_H

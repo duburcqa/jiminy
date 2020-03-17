@@ -39,15 +39,15 @@ namespace jiminy
     ///
     ///////////////////////////////////////////////////////////////////////////////////////////////
     template<typename T>
-    result_t AbstractController::registerConstant(std::string const & fieldName,
-                                                  T           const & value)
+    hresult_t AbstractController::registerConstant(std::string const & fieldName,
+                                                   T           const & value)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
 
         if (isTelemetryConfigured_)
         {
             std::cout << "Error - AbstractController::registerConstant - Telemetry already initialized. Impossible to register new variables." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Check in local cache before.
@@ -60,11 +60,11 @@ namespace jiminy
         if (constantIt != registeredConstants_.end())
         {
             std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
         registeredConstants_.emplace_back(fieldName, to_string(value));
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 }
 

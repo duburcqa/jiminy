@@ -54,11 +54,11 @@ namespace jiminy
         /// \param[in]  initialValue  Initial value of the newly recored field.
         ////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t registerVariable(std::string const & fieldNameIn,
-                                  T           const & initialValue);
+        hresult_t registerVariable(std::string const & fieldNameIn,
+                                   T           const & initialValue);
 
-        result_t registerVariable(std::vector<std::string> const & fieldNames,
-                                  vectorN_t                const & initialValues);
+        hresult_t registerVariable(std::vector<std::string> const & fieldNames,
+                                   vectorN_t                const & initialValues);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Configure the object.
@@ -97,8 +97,8 @@ namespace jiminy
         /// \retval E_REGISTERING_NOT_AVAILABLE if the registering is closed (the telemetry is already started).
         /// \retval E_ALREADY_REGISTERED        if the constant was already registered.
         ///////////////////////////////////////////////////////////////////////
-        result_t registerConstant(std::string const & invariantNameIn,
-                                  std::string const & valueIn);
+        hresult_t registerConstant(std::string const & invariantNameIn,
+                                   std::string const & valueIn);
 
     protected:
         std::string objectName_;  ///< Name of the logged object.

@@ -26,6 +26,8 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/AbstractIODevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/MemoryDevice.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/io/FileDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonLoader.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonWriter.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryData.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetrySender.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryRecorder.cc"
@@ -38,9 +40,8 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
 )
 
-# Make library
+# Create the library
 add_library(${PROJECT_NAME} STATIC ${SRC})
-add_dependencies(${PROJECT_NAME} jsoncpp)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${BUILD_VERSION}
 )
@@ -57,6 +58,18 @@ target_link_libraries(${PROJECT_NAME} urdfdom_model "${Boost_LIBRARIES}")
 if(WIN32)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 endif()
+
+# Configure jsoncpp dependency.
+# Note that using BUILD_INTERFACE will prevent the source files to be exported,
+# thus not making them accessible by a side-project depending on Jiminy.
+# So here, we are assuming those side-projects do not need to include jsoncpp.
+add_dependencies(${PROJECT_NAME} jsoncpp)
+EXTERNALPROJECT_GET_PROPERTY(jsoncpp SOURCE_DIR)
+EXTERNALPROJECT_GET_PROPERTY(jsoncpp BINARY_DIR)
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+    $<BUILD_INTERFACE:${SOURCE_DIR}/include>
+)
+target_link_libraries(${PROJECT_NAME} "-L${BINARY_DIR}/lib -ljsoncpp")
 
 # Activate C++14
 if(NOT WIN32)

@@ -138,25 +138,25 @@ namespace jiminy
         Model(void);
         virtual ~Model(void);
 
-        result_t initialize(std::string const & urdfPath,
-                            bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string const & urdfPath,
+                             bool_t      const & hasFreeflyer = true);
 
-        result_t addContactPoints(std::vector<std::string> const & frameNames);
-        result_t removeContactPoints(std::vector<std::string> const & frameNames = {});
-        result_t attachMotor(std::shared_ptr<AbstractMotorBase> const & motor);
-        result_t getMotor(std::string const & motorName,
-                          std::shared_ptr<AbstractMotorBase const> & motor) const;
+        hresult_t addContactPoints(std::vector<std::string> const & frameNames);
+        hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
+        hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> const & motor);
+        hresult_t getMotor(std::string const & motorName,
+                           std::shared_ptr<AbstractMotorBase const> & motor) const;
         motorsHolder_t const & getMotors(void) const;
-        result_t detachMotor(std::string const & motorName);
-        result_t detachMotors(std::vector<std::string> const & motorsNames = {});
-        result_t attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor);
-        result_t getSensor(std::string const & sensorType,
-                           std::string const & sensorName,
-                           std::shared_ptr<AbstractSensorBase const> & sensor) const;
+        hresult_t detachMotor(std::string const & motorName);
+        hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
+        hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor);
+        hresult_t getSensor(std::string const & sensorType,
+                            std::string const & sensorName,
+                            std::shared_ptr<AbstractSensorBase const> & sensor) const;
         sensorsGroupHolder_t const & getSensors(void) const;
-        result_t detachSensor(std::string const & sensorType,
+        hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
-        result_t detachSensors(std::string const & sensorType = {});
+        hresult_t detachSensors(std::string const & sensorType = {});
 
         void computeMotorsTorques(float64_t const & t,
                                   vectorN_t const & q,
@@ -175,32 +175,32 @@ namespace jiminy
         vectorN_t getSensorData(std::string const & sensorType,
                                 std::string const & motorName) const;
 
-        result_t setOptions(configHolder_t mdlOptions); // Make a copy !
+        hresult_t setOptions(configHolder_t mdlOptions); // Make a copy !
         configHolder_t getOptions(void) const;
-        result_t setMotorOptions(std::string    const & motorName,
-                                 configHolder_t const & motorOptions);
-        result_t setMotorsOptions(configHolder_t const & motorsOptions);
-        result_t getMotorOptions(std::string    const & motorName,
-                                 configHolder_t       & motorOptions) const;
-        result_t getMotorsOptions(configHolder_t & motorsOptions) const;
-        result_t setSensorOptions(std::string    const & sensorType,
-                                  std::string    const & sensorName,
-                                  configHolder_t const & sensorOptions);
-        result_t setSensorsOptions(std::string    const & sensorType,
-                                   configHolder_t const & sensorsOptions);
-        result_t setSensorsOptions(configHolder_t const & sensorsOptions);
-        result_t getSensorOptions(std::string    const & sensorType,
-                                  std::string    const & sensorName,
-                                  configHolder_t       & sensorOptions) const;
-        result_t getSensorsOptions(std::string    const & sensorType,
-                                   configHolder_t       & sensorsOptions) const;
-        result_t getSensorsOptions(configHolder_t & sensorsOptions) const;
-        result_t setTelemetryOptions(configHolder_t const & telemetryOptions);
-        result_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
+        hresult_t setMotorOptions(std::string    const & motorName,
+                                  configHolder_t const & motorOptions);
+        hresult_t setMotorsOptions(configHolder_t const & motorsOptions);
+        hresult_t getMotorOptions(std::string    const & motorName,
+                                  configHolder_t       & motorOptions) const;
+        hresult_t getMotorsOptions(configHolder_t & motorsOptions) const;
+        hresult_t setSensorOptions(std::string    const & sensorType,
+                                   std::string    const & sensorName,
+                                   configHolder_t const & sensorOptions);
+        hresult_t setSensorsOptions(std::string    const & sensorType,
+                                    configHolder_t const & sensorsOptions);
+        hresult_t setSensorsOptions(configHolder_t const & sensorsOptions);
+        hresult_t getSensorOptions(std::string    const & sensorType,
+                                   std::string    const & sensorName,
+                                   configHolder_t       & sensorOptions) const;
+        hresult_t getSensorsOptions(std::string    const & sensorType,
+                                    configHolder_t       & sensorsOptions) const;
+        hresult_t getSensorsOptions(configHolder_t & sensorsOptions) const;
+        hresult_t setTelemetryOptions(configHolder_t const & telemetryOptions);
+        hresult_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
 
         // Those methods are not intended to be called manually. The Engine is taking care of it.
         virtual void reset(void);
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
         void updateTelemetry(void);
         bool_t const & getIsTelemetryConfigured(void) const;
 
@@ -238,17 +238,17 @@ namespace jiminy
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
         std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
 
-        result_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
+        hresult_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
 
     protected:
-        result_t loadUrdfModel(std::string const & urdfPath,
-                               bool_t      const & hasFreeflyer);
-        result_t generateModelFlexible(void);
-        result_t generateModelBiased(void);
-        result_t refreshContactProxies(void);
-        result_t refreshMotorProxies(void);
-        virtual result_t refreshProxies(void);
+        hresult_t loadUrdfModel(std::string const & urdfPath,
+                                bool_t      const & hasFreeflyer);
+        hresult_t generateModelFlexible(void);
+        hresult_t generateModelBiased(void);
+        hresult_t refreshContactProxies(void);
+        hresult_t refreshMotorProxies(void);
+        virtual hresult_t refreshProxies(void);
 
     public:
         pinocchio::Model pncModel_;

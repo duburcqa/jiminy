@@ -70,7 +70,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t initialize(std::shared_ptr<Model const> const & model);
+        virtual hresult_t initialize(std::shared_ptr<Model const> const & model);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -87,8 +87,8 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t registerVariable(std::vector<std::string> const & fieldNames,
-                                  Eigen::Ref<vectorN_t>            values);
+        hresult_t registerVariable(std::vector<std::string> const & fieldNames,
+                                   Eigen::Ref<vectorN_t>            values);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -105,8 +105,8 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t registerVariable(std::string const & fieldName,
-                                  float64_t   const & value);
+        hresult_t registerVariable(std::string const & fieldName,
+                                   float64_t   const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -119,8 +119,8 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        result_t registerConstant(std::string const & fieldName,
-                                  T           const & value);
+        hresult_t registerConstant(std::string const & fieldName,
+                                   T           const & value);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -146,10 +146,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t computeCommand(float64_t const & t,
-                                        vectorN_t const & q,
-                                        vectorN_t const & v,
-                                        vectorN_t       & u) = 0;
+        virtual hresult_t computeCommand(float64_t const & t,
+                                         vectorN_t const & q,
+                                         vectorN_t const & v,
+                                         vectorN_t       & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -164,10 +164,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t internalDynamics(float64_t const & t,
-                                          vectorN_t const & q,
-                                          vectorN_t const & v,
-                                          vectorN_t       & u) = 0;
+        virtual hresult_t internalDynamics(float64_t const & t,
+                                           vectorN_t const & q,
+                                           vectorN_t const & v,
+                                           vectorN_t       & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -209,7 +209,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

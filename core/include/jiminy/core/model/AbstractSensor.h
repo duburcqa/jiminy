@@ -141,7 +141,7 @@ namespace jiminy
         /// \remark   This method is not intended to be called manually. The Model to which the
         ///           motor is added is taking care of it when its own `refresh` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t refreshProxies(void) = 0;
+        virtual hresult_t refreshProxies(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -162,7 +162,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Update the internal buffers of the telemetry associated with variables
@@ -189,7 +189,7 @@ namespace jiminy
         /// \param[in]  sensorOptions   Dictionary with the parameters of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setOptions(configHolder_t const & sensorOptions);
+        virtual hresult_t setOptions(configHolder_t const & sensorOptions);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -199,7 +199,7 @@ namespace jiminy
         /// \param[in]  sensorOptions   Dictionary with the parameters used for any sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
+        virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -226,11 +226,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor) = 0;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -252,11 +252,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setAll(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & uMotor) = 0;
+        virtual hresult_t setAll(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -370,15 +370,15 @@ namespace jiminy
         /// \details  This method must be called before initializing the sensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t attach(Model const * model,
-                                std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) = 0;
+        virtual hresult_t attach(Model const * model,
+                                 std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief    Detach the sensor from the model
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t detach(void) = 0;
+        virtual hresult_t detach(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -410,8 +410,8 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Update the measurement buffer.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t updateDataBuffer(void) = 0;
-        static result_t updateDataBuffer(AbstractSensorBase * base) { return base->updateDataBuffer(); }
+        virtual hresult_t updateDataBuffer(void) = 0;
+        static hresult_t updateDataBuffer(AbstractSensorBase * base) { return base->updateDataBuffer(); }
 
     public:
         std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;    ///< Structure with the parameters of the sensor
@@ -444,8 +444,8 @@ namespace jiminy
         virtual void reset(void) override;
         void updateTelemetryAll(void) override final;
 
-        virtual result_t setOptions(configHolder_t const & sensorOptions) override;
-        virtual result_t setOptionsAll(configHolder_t const & sensorOptions) override final;
+        virtual hresult_t setOptions(configHolder_t const & sensorOptions) override;
+        virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) override final;
         virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
         virtual std::vector<std::string> const & getFieldNames(void) const final;
@@ -453,23 +453,23 @@ namespace jiminy
 
         virtual vectorN_t const * get(void) override final;
         virtual matrixN_t getAll(void) override final;
-        virtual result_t setAll(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & uMotor) override final;
+        virtual hresult_t setAll(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor) override final;
 
     protected:
         using AbstractSensorBase::data;
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
-        virtual result_t attach(Model const * model,
-                                std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) override final;
-        virtual result_t detach(void) override final;
+        virtual hresult_t attach(Model const * model,
+                                 std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) override final;
+        virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
         using AbstractSensorBase::updateDataBuffer;
-        virtual result_t updateDataBuffer(void) override final;
+        virtual hresult_t updateDataBuffer(void) override final;
         void clearDataBuffer(void);
 
     public:

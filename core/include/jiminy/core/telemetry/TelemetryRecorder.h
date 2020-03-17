@@ -33,7 +33,7 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
         ////////////////////////////////////////////////////////////////////////
-        result_t initialize(void);
+        hresult_t initialize(void);
 
         bool_t const & getIsInitialized(void);
 
@@ -45,12 +45,12 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         /// \brief Create a new line in the record with the current telemetry data.
         ////////////////////////////////////////////////////////////////////////
-        result_t flushDataSnapshot(float64_t const & timestamp);
+        hresult_t flushDataSnapshot(float64_t const & timestamp);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Get access to the memory device holding the data
         ////////////////////////////////////////////////////////////////////////
-        result_t writeDataBinary(std::string const & filename);
+        hresult_t writeDataBinary(std::string const & filename);
         static void getData(std::vector<std::string>                   & header,
                             std::vector<float64_t>                     & timestamps,
                             std::vector<std::vector<int32_t> >         & intData,
@@ -72,7 +72,7 @@ namespace jiminy
         ///
         /// \return  SUCCESS if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
-        result_t createNewChunk();
+        hresult_t createNewChunk();
 
     private:
         ///////////////////////////////////////////////////////////////////////

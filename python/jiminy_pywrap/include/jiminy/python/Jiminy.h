@@ -843,22 +843,22 @@ namespace python
                 ;
         }
 
-        static result_t detachMotors(Model          & self,
-                                     bp::list const & jointNamesPy)
+        static hresult_t detachMotors(Model          & self,
+                                      bp::list const & jointNamesPy)
         {
             std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
             return self.detachMotors(jointNames);
         }
 
-        static result_t addContactPoints(Model          & self,
-                                         bp::list const & frameNamesPy)
+        static hresult_t addContactPoints(Model          & self,
+                                          bp::list const & frameNamesPy)
         {
             std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
             return self.addContactPoints(frameNames);
         }
 
-        static result_t removeContactPoints(Model          & self,
-                                            bp::list const & frameNamesPy)
+        static hresult_t removeContactPoints(Model          & self,
+                                             bp::list const & frameNamesPy)
         {
             std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
             return self.removeContactPoints(frameNames);
@@ -1028,9 +1028,9 @@ namespace python
                 ;
         }
 
-        static result_t registerVariable(AbstractController       & self,
-                                         std::string        const & fieldName,
-                                         PyObject                 * dataPy)
+        static hresult_t registerVariable(AbstractController       & self,
+                                          std::string        const & fieldName,
+                                          PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
@@ -1043,13 +1043,13 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerVariable - 'value' input must have type 'numpy.ndarray'." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        static result_t registerVariableVector(AbstractController       & self,
-                                               bp::list           const & fieldNamesPy,
-                                               PyObject                 * dataPy)
+        static hresult_t registerVariableVector(AbstractController       & self,
+                                                bp::list           const & fieldNamesPy,
+                                                PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
@@ -1063,13 +1063,13 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - 'values' input must have type 'numpy.ndarray'." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        static result_t registerConstant(AbstractController       & self,
-                                         std::string        const & fieldName,
-                                         PyObject                 * dataPy)
+        static hresult_t registerConstant(AbstractController       & self,
+                                          std::string        const & fieldName,
+                                          PyObject                 * dataPy)
         {
             if (PyArray_Check(dataPy))
             {
@@ -1079,7 +1079,7 @@ namespace python
                 if (dataPyArrayDtype != NPY_FLOAT64)
                 {
                     std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The only dtype supported for 'numpy.ndarray' is float." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
                 float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
                 int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
@@ -1101,7 +1101,7 @@ namespace python
                 else
                 {
                     std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The max number of dims supported for 'numpy.ndarray' is 2." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else if (PyFloat_Check(dataPy))
@@ -1130,7 +1130,7 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
@@ -1355,9 +1355,9 @@ namespace python
                 ;
         }
 
-        static result_t initialize(Engine                                    & self,
-                                   std::shared_ptr<Model>              const & model,
-                                   std::shared_ptr<AbstractController> const & controller)
+        static hresult_t initialize(Engine                                    & self,
+                                    std::shared_ptr<Model>              const & model,
+                                    std::shared_ptr<AbstractController> const & controller)
         {
             Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
                                                        vectorN_t const & x) -> bool_t
@@ -1367,17 +1367,17 @@ namespace python
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
-        static result_t initializeWithCallback(Engine                                    & self,
-                                               std::shared_ptr<Model>              const & model,
-                                               std::shared_ptr<AbstractController> const & controller,
-                                               bp::object                          const & callbackPy)
+        static hresult_t initializeWithCallback(Engine                                    & self,
+                                                std::shared_ptr<Model>              const & model,
+                                                std::shared_ptr<AbstractController> const & controller,
+                                                bp::object                          const & callbackPy)
         {
             TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
             return self.initialize(model, controller, std::move(callbackFct));
         }
 
-        static result_t step(Engine          & self,
-                             float64_t const & dtDesired)
+        static hresult_t step(Engine          & self,
+                              float64_t const & dtDesired)
         {
             // Only way to handle C++ default values that are not accessible in Python
             return self.step(dtDesired);
@@ -1504,8 +1504,8 @@ namespace python
             std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
-            result_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
-            if (returnCode == result_t::SUCCESS)
+            hresult_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
+            if (returnCode == hresult_t::SUCCESS)
             {
                 return formatLog(header, timestamps, intData, floatData);
             }
@@ -1522,8 +1522,8 @@ namespace python
             return configPy;
         }
 
-        static result_t setOptions(Engine         & self,
-                                   bp::dict const & configPy)
+        static hresult_t setOptions(Engine         & self,
+                                    bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
             convertToC(configPy, config);

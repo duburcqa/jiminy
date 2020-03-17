@@ -83,12 +83,12 @@ namespace jiminy
         /// \retval definition::S_OK if successful.
         /// \retval the corresponding errno otherwise.
         ///////////////////////////////////////////////////////////////////////
-        result_t create(void)
+        hresult_t create(void)
         {
             if (memAddress_ != nullptr)
             {
                 // The shared memory has already been created
-                return result_t::SUCCESS;
+                return hresult_t::SUCCESS;
             }
 
             // Create the shared memory, set its mode to R/W and get the R/W access rights.
@@ -97,10 +97,10 @@ namespace jiminy
             if (memAddress_ == nullptr)
             {
                 std::cout << "Error - MemoryBuffer::create - Memory allocation for the shared memory '" << name_ << "' failed." << std::endl;
-                return result_t::ERROR_GENERIC;
+                return hresult_t::ERROR_GENERIC;
             }
 
-            return result_t::SUCCESS;
+            return hresult_t::SUCCESS;
         };
 
         ///////////////////////////////////////////////////////////////////////
@@ -148,8 +148,8 @@ namespace jiminy
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
         template <typename T>
-        result_t registerVariable(std::string const   & variableNameIn,
-                                  T                 * & positionInBufferOut);
+        hresult_t registerVariable(std::string const   & variableNameIn,
+                                   T                 * & positionInBufferOut);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Register a constant for the telemetry.
@@ -159,8 +159,8 @@ namespace jiminy
         ///
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
-        result_t registerConstant(std::string const & invariantNameIn,
-                                  std::string const & valueIn);
+        hresult_t registerConstant(std::string const & invariantNameIn,
+                                   std::string const & valueIn);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Format the telemetry header with the current recorded informations.
@@ -194,9 +194,9 @@ namespace jiminy
         /// \return S_OK if successful, the corresponding telemetry error otherwise.
         ////////////////////////////////////////////////////////////////////////
         template <typename T>
-        result_t internalRegisterVariable(struct memHeader       *   header,
-                                          std::string      const   & variableNameIn,
-                                          T                      * & positionInBufferOut);
+        hresult_t internalRegisterVariable(struct memHeader       *   header,
+                                           std::string      const   & variableNameIn,
+                                           T                      * & positionInBufferOut);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Search for an already registered entry into the shared memory.

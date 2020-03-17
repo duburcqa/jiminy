@@ -64,7 +64,7 @@ namespace jiminy
         #endif
     }
 
-    result_t FileDevice::doOpen(enum OpenMode mode)
+    hresult_t FileDevice::doOpen(enum OpenMode mode)
     {
         int32_t posixFLags = 0;
         if (mode & OpenMode::READ_ONLY)
@@ -113,53 +113,53 @@ namespace jiminy
         int32_t const rc = ::open(filename_.c_str(), posixFLags, S_IRUSR | S_IWUSR);
         if (rc < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::doOpen - Impossible to open the file using the desired mode." << std::endl;
             return lastError_;
         }
 
         fileDescriptor_ = rc;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    void FileDevice::doClose(void)
+    hresult_t FileDevice::doClose(void)
     {
         int32_t const rc = ::close(fileDescriptor_);
         if (rc < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::doClose - Impossible to close the file." << std::endl;
+            return lastError_;
         }
         else
         {
             fileDescriptor_ = -1;
         }
+        return hresult_t::SUCCESS;
     }
 
-    result_t FileDevice::seek(int64_t pos)
+    hresult_t FileDevice::seek(int64_t pos)
     {
         ssize_t const rc = ::lseek(fileDescriptor_, pos, SEEK_SET);
         if (rc < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::seek - The file is not open, or the requested position '" << pos << "' is out of scope." << std::endl;
             return lastError_;
         }
-
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     int64_t FileDevice::pos(void)
     {
-        ssize_t const rc = ::lseek(fileDescriptor_, 0, SEEK_CUR);
-        if (rc < 0)
+        ssize_t const pos_cur = ::lseek(fileDescriptor_, 0, SEEK_CUR);
+        if (pos_cur < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::pos - The file is not open, or the position would be negative or beyond the end." << std::endl;
         }
-
-        return rc;
+        return pos_cur;
     }
 
     int64_t FileDevice::size(void)
@@ -168,11 +168,9 @@ namespace jiminy
         int32_t rc = ::fstat(fileDescriptor_, &st);
         if (rc < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::size - Impossible to access the file." << std::endl;
-            return rc;
         }
-
         return st.st_size;
     }
 
@@ -182,36 +180,45 @@ namespace jiminy
         {
             return 0;
         }
-
         return size() - pos();
     }
 
     int64_t FileDevice::readData(void* data, int64_t dataSize)
     {
-        ssize_t const rc = ::read(fileDescriptor_, data, static_cast<size_t>(dataSize));
-        if (rc < 0)
+        ssize_t const readBytes = ::read(fileDescriptor_, data, static_cast<size_t>(dataSize));
+        if (readBytes < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::readData - The file is not open, or data buffer is outside accessible address space." << std::endl;
         }
-
-        return rc;
+        return readBytes;
     }
 
     int64_t FileDevice::writeData(void const* data, int64_t dataSize)
     {
-        ssize_t const rc = ::write(fileDescriptor_, data, static_cast<size_t>(dataSize));
-        if (rc < 0)
+        ssize_t const writtenBytes = ::write(fileDescriptor_, data, static_cast<size_t>(dataSize));
+        if (writtenBytes < 0)
         {
-            lastError_ = result_t::ERROR_GENERIC;
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::writeData - The file is not open, or data buffer is outside accessible address space." << std::endl;
         }
-
-        return rc;
+        return writtenBytes;
     }
 
     std::string const& FileDevice::name(void) const
     {
         return filename_;
+    }
+
+    hresult_t FileDevice::resize(int64_t sizeIn)
+    {
+        int32_t const rc = ::ftruncate(fileDescriptor_, sizeIn);
+        if (rc < 0)
+        {
+            lastError_ = hresult_t::ERROR_GENERIC;
+            std::cout << "Error - MemoryDevice::resize - The file is not open." << std::endl;
+            return lastError_;
+        }
+        return hresult_t::SUCCESS;
     }
 }

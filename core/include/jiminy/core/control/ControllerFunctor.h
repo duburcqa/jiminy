@@ -16,8 +16,8 @@
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef WDC_CONTROLLER_FUNCTOR_H
-#define WDC_CONTROLLER_FUNCTOR_H
+#ifndef CONTROLLER_FUNCTOR_H
+#define CONTROLLER_FUNCTOR_H
 
 #include "jiminy/core/model/Model.h"
 #include "jiminy/core/control/AbstractController.h"
@@ -67,7 +67,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t initialize(std::shared_ptr<Model const> const & model) override;
+        virtual hresult_t initialize(std::shared_ptr<Model const> const & model) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -84,10 +84,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t computeCommand(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t       & u) override;
+        hresult_t computeCommand(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t       & u) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -102,10 +102,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t internalDynamics(float64_t const & t,
-                                  vectorN_t const & q,
-                                  vectorN_t const & v,
-                                  vectorN_t       & u) override;
+        hresult_t internalDynamics(float64_t const & t,
+                                   vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   vectorN_t       & u) override;
 
     private:
         // std::conditional_t enables to use both functors and lambdas
@@ -119,4 +119,4 @@ namespace jiminy
 
 #include "jiminy/core/control/ControllerFunctor.tpp"
 
-#endif //end of WDC_CONTROLLER_FUNCTOR_H
+#endif //end of CONTROLLER_FUNCTOR_H

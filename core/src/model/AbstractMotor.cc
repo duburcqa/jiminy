@@ -35,13 +35,13 @@ namespace jiminy
         }
     }
 
-    result_t AbstractMotorBase::attach(Model const * model,
-                                       std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
+    hresult_t AbstractMotorBase::attach(Model const * model,
+                                        std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
         {
             std::cout << "Error - AbstractMotorBase::attach - Motor already attached to a model. Please 'detach' method before attaching it." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Copy references to the model and shared data
@@ -59,17 +59,17 @@ namespace jiminy
         // Update the flag
         isAttached_ = true;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t AbstractMotorBase::detach(void)
+    hresult_t AbstractMotorBase::detach(void)
     {
         // Delete the part of the shared memory associated with the motor
 
         if (!isAttached_)
         {
             std::cout << "Error - AbstractMotorBase::detach - Motor not attached to any model." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Remove associated col in the global data buffer
@@ -100,7 +100,7 @@ namespace jiminy
         // Update the flag
         isAttached_ = false;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     void AbstractMotorBase::reset(void)
@@ -112,7 +112,7 @@ namespace jiminy
         refreshProxies();
     }
 
-    result_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
+    hresult_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
     {
         // Check if the internal buffers must be updated
         bool_t internalBuffersMustBeUpdated = false;
@@ -137,7 +137,7 @@ namespace jiminy
             refreshProxies();
         }
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     configHolder_t AbstractMotorBase::getOptions(void) const
@@ -145,31 +145,31 @@ namespace jiminy
         return motorOptionsHolder_;
     }
 
-    result_t AbstractMotorBase::refreshProxies(void)
+    hresult_t AbstractMotorBase::refreshProxies(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - AbstractMotorBase::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode =  result_t::ERROR_INIT_FAILED;
+            returnCode =  hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             if (!isInitialized_)
             {
                 std::cout << "Error - AbstractMotorBase::refreshProxies - Motor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-                returnCode = result_t::ERROR_INIT_FAILED;
+                returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = ::jiminy::getJointModelIdx(model_->pncModel_, jointName_, jointModelIdx_);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             ::jiminy::getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
             ::jiminy::getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
@@ -213,13 +213,13 @@ namespace jiminy
         return sharedHolder_->data_;
     }
 
-    result_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
+    hresult_t AbstractMotorBase::setOptionsAll(configHolder_t const & motorOptions)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = motor->setOptions(motorOptions);
             }
@@ -278,18 +278,18 @@ namespace jiminy
         sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
     }
 
-    result_t AbstractMotorBase::computeAllEffort(float64_t const & t,
-                                                 vectorN_t const & q,
-                                                 vectorN_t const & v,
-                                                 vectorN_t const & a,
-                                                 vectorN_t const & uCommand)
+    hresult_t AbstractMotorBase::computeAllEffort(float64_t const & t,
+                                                  vectorN_t const & q,
+                                                  vectorN_t const & v,
+                                                  vectorN_t const & a,
+                                                  vectorN_t const & uCommand)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         // Compute the motors' output
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 // Compute the actual torque
                 returnCode = motor->computeEffort(t,

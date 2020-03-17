@@ -382,9 +382,9 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        result_t initialize(std::shared_ptr<Model>              const & model,
-                            std::shared_ptr<AbstractController> const & controller,
-                            callbackFunctor_t    callbackFct);
+        hresult_t initialize(std::shared_ptr<Model>              const & model,
+                             std::shared_ptr<AbstractController> const & controller,
+                             callbackFunctor_t    callbackFct);
 
         /// \brief Reset engine.
         ///
@@ -407,10 +407,10 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        result_t start(vectorN_t const & xInit,
-                       bool_t    const & isStateTheoretical = false,
-                       bool_t    const & resetRandomNumbers = false,
-                       bool_t    const & resetDynamicForceRegister = false);
+        hresult_t start(vectorN_t const & xInit,
+                        bool_t    const & isStateTheoretical = false,
+                        bool_t    const & resetRandomNumbers = false,
+                        bool_t    const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -420,7 +420,7 @@ namespace jiminy
         ///          One may specify a negative timestep to use the default update value.
         ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
-        result_t step(float64_t stepSize = -1);
+        hresult_t step(float64_t stepSize = -1);
 
         /// \brief Stop the simulation.
         ///
@@ -435,19 +435,19 @@ namespace jiminy
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] xInit Initial state, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
-        result_t simulate(float64_t const & tEnd,
-                          vectorN_t const & xInit,
-                          bool_t    const & isStateTheoretical = false);
+        hresult_t simulate(float64_t const & tEnd,
+                           vectorN_t const & xInit,
+                           bool_t    const & isStateTheoretical = false);
 
-        result_t registerForceImpulse(std::string const & frameName,
-                                      float64_t   const & t,
-                                      float64_t   const & dt,
-                                      vector3_t   const & F);
-        result_t registerForceProfile(std::string      const & frameName,
-                                      forceFunctor_t           forceFct);
+        hresult_t registerForceImpulse(std::string const & frameName,
+                                       float64_t   const & t,
+                                       float64_t   const & dt,
+                                       vector3_t   const & F);
+        hresult_t registerForceProfile(std::string      const & frameName,
+                                       forceFunctor_t           forceFct);
 
         configHolder_t const & getOptions(void) const;
-        result_t setOptions(configHolder_t const & engineOptions);
+        hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsInitialized(void) const;
         bool_t getIsTelemetryConfigured(void) const;
         Model & getModel(void) const;
@@ -478,20 +478,20 @@ namespace jiminy
                                           std::vector<std::string>       & header,
                                           matrixN_t                      & logData);
 
-        result_t writeLogTxt(std::string const & filename);
-        result_t writeLogBinary(std::string const & filename);
+        hresult_t writeLogTxt(std::string const & filename);
+        hresult_t writeLogBinary(std::string const & filename);
 
-        static result_t parseLogBinaryRaw(std::string                          const & filename,
-                                          std::vector<std::string>                   & header,
-                                          std::vector<float64_t>                     & timestamps,
-                                          std::vector<std::vector<int32_t> >         & intData,
-                                          std::vector<std::vector<float32_t> >       & floatData);
-        static result_t parseLogBinary(std::string              const & filename,
-                                       std::vector<std::string>       & header,
-                                       matrixN_t                      & logData);
+        static hresult_t parseLogBinaryRaw(std::string                          const & filename,
+                                           std::vector<std::string>                   & header,
+                                           std::vector<float64_t>                     & timestamps,
+                                           std::vector<std::vector<int32_t> >         & intData,
+                                           std::vector<std::vector<float32_t> >       & floatData);
+        static hresult_t parseLogBinary(std::string              const & filename,
+                                        std::vector<std::string>       & header,
+                                        matrixN_t                      & logData);
 
     protected:
-        result_t configureTelemetry(void);
+        hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,

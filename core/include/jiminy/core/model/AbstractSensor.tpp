@@ -25,13 +25,13 @@ namespace jiminy
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::attach(Model const * model,
-                                          std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
+    hresult_t AbstractSensorTpl<T>::attach(Model const * model,
+                                           std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
         {
             std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a model. Please 'detach' method before attaching it." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Copy references to the model and shared data
@@ -55,18 +55,18 @@ namespace jiminy
         // Update the flag
         isAttached_ = true;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::detach(void)
+    hresult_t AbstractSensorTpl<T>::detach(void)
     {
         // Delete the part of the shared memory associated with the sensor
 
         if (!isAttached_)
         {
             std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any model." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Remove associated col in the global data buffer
@@ -119,7 +119,7 @@ namespace jiminy
         // Update the flag
         isAttached_ = false;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     template <typename T>
@@ -136,21 +136,21 @@ namespace jiminy
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
+    hresult_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
         AbstractSensorBase::setOptions(sensorOptions);
         sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
+    hresult_t AbstractSensorTpl<T>::setOptionsAll(configHolder_t const & sensorOptions)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = sensor->setOptions(sensorOptions);
             }
@@ -220,7 +220,7 @@ namespace jiminy
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::updateDataBuffer(void)
+    hresult_t AbstractSensorTpl<T>::updateDataBuffer(void)
     {
         // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
         float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + 1e-9;
@@ -277,7 +277,7 @@ namespace jiminy
             if (inputIndexLeft < 0)
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
-                return result_t::ERROR_GENERIC;
+                return hresult_t::ERROR_GENERIC;
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
@@ -292,7 +292,7 @@ namespace jiminy
             else
             {
                 std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
         else
@@ -310,7 +310,7 @@ namespace jiminy
             }
         }
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     template <typename T>
@@ -328,13 +328,13 @@ namespace jiminy
     }
 
     template <typename T>
-    result_t AbstractSensorTpl<T>::setAll(float64_t const & t,
-                                          vectorN_t const & q,
-                                          vectorN_t const & v,
-                                          vectorN_t const & a,
-                                          vectorN_t const & u)
+    hresult_t AbstractSensorTpl<T>::setAll(float64_t const & t,
+                                           vectorN_t const & q,
+                                           vectorN_t const & v,
+                                           vectorN_t const & a,
+                                           vectorN_t const & u)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time */
@@ -394,13 +394,13 @@ namespace jiminy
         // Compute the sensors' output
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 // Compute the true value
                 returnCode = sensor->set(t, q, v, a, u);
             }
 
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 // Add white noise
                 if (baseSensorOptions_->noiseStd.size())
@@ -413,7 +413,7 @@ namespace jiminy
                 }
             }
 
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 // Update data buffer
                 returnCode = updateDataBuffer(sensor);

@@ -62,16 +62,17 @@ namespace jiminy
         return *this;
     }
 
-    result_t MemoryDevice::seek(int64_t pos)
+    hresult_t MemoryDevice::seek(int64_t pos)
     {
         if ((pos < 0) || (pos >= (int64_t) buffer_.size()))
         {
+            lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::seek - The requested position '" << pos << "' is out of scope." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return lastError_;
         }
 
         currentPos_ = pos;
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     int64_t MemoryDevice::readData(void    * data,
@@ -105,30 +106,31 @@ namespace jiminy
         return toWrite;
     }
 
-    result_t MemoryDevice::setBlockingMode(bool_t)
+    hresult_t MemoryDevice::setBlockingMode(bool_t)
     {
         // Since this is a memory device, it can't block when doing its job,
         // thus we don't care about blocking mode and answer 'OK no problem'.
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t MemoryDevice::doOpen(enum OpenMode modes)
+    hresult_t MemoryDevice::doOpen(enum OpenMode modes)
     {
         if (!(modes & OpenMode::APPEND))
         {
             currentPos_ = 0;
         }
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    void MemoryDevice::doClose(void)
+    hresult_t MemoryDevice::doClose(void)
     {
-        // Nothing to do.
+        return hresult_t::SUCCESS;
     }
 
-    void MemoryDevice::resize(int64_t size)
+    hresult_t MemoryDevice::resize(int64_t size)
     {
         buffer_.resize(size);
+        return hresult_t::SUCCESS;
     }
 }

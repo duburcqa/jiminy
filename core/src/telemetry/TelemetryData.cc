@@ -58,21 +58,21 @@ namespace jiminy
     }
 
     template<>
-    result_t TelemetryData::registerVariable<int32_t>(std::string const   & variableName,
-                                                      int32_t           * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<int32_t>(std::string const   & variableName,
+                                                       int32_t           * & positionInBufferOut)
     {
         return internalRegisterVariable(integersHeader_, variableName, positionInBufferOut);
     }
 
     template<>
-    result_t TelemetryData::registerVariable<float32_t>(std::string const   & variableName,
-                                                        float32_t         * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<float32_t>(std::string const   & variableName,
+                                                         float32_t         * & positionInBufferOut)
     {
         return internalRegisterVariable(floatsHeader_, variableName, positionInBufferOut);
     }
 
-    result_t TelemetryData::registerConstant(std::string const & variableNameIn,
-                                             std::string const & constantValueIn)
+    hresult_t TelemetryData::registerConstant(std::string const & variableNameIn,
+                                              std::string const & constantValueIn)
     {
         // Targeted shared memory.
         struct memHeader * const header = constantsHeader_;
@@ -80,21 +80,21 @@ namespace jiminy
 
         if (!header->isRegisteringAvailable)
         {
-            std::cout << "result_t - TelemetryData::registerConstant - Registration is locked." << std::endl;
-            return result_t::ERROR_GENERIC;
+            std::cout << "hresult_t - TelemetryData::registerConstant - Registration is locked." << std::endl;
+            return hresult_t::ERROR_GENERIC;
         }
 
         std::string const fullConstant = variableNameIn + "=" + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
-            std::cout << "result_t - TelemetryData::registerConstant - Maximum number of registration exceeded." << std::endl;
-            return result_t::ERROR_GENERIC;
+            std::cout << "hresult_t - TelemetryData::registerConstant - Maximum number of registration exceeded." << std::endl;
+            return hresult_t::ERROR_GENERIC;
         }
 
         if (findEntry(header, fullConstant) != -1)
         {
-            std::cout << "result_t - TelemetryData::registerConstant - A constant with this name was already registered." << std::endl;
-            return result_t::ERROR_GENERIC;
+            std::cout << "hresult_t - TelemetryData::registerConstant - A constant with this name was already registered." << std::endl;
+            return hresult_t::ERROR_GENERIC;
         }
 
         char_t * const namePos = memAddress + header->nextFreeNameOffset; // Compute record address
@@ -102,7 +102,7 @@ namespace jiminy
         header->nextFreeNameOffset += fullConstant.size();
         header->nextFreeNameOffset += 1U; // Null-terminated.
 
-        return result_t::SUCCESS;;
+        return hresult_t::SUCCESS;;
     }
 
     int32_t TelemetryData::findEntry(struct memHeader        * header,

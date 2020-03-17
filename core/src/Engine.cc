@@ -71,14 +71,14 @@ namespace jiminy
 
     Engine::~Engine(void) = default; // Cannot be default in the header since some types are incomplete at this point
 
-    result_t Engine::initialize(std::shared_ptr<Model>              const & model,
-                                std::shared_ptr<AbstractController> const & controller,
-                                callbackFunctor_t                           callbackFct)
+    hresult_t Engine::initialize(std::shared_ptr<Model>              const & model,
+                                 std::shared_ptr<AbstractController> const & controller,
+                                 callbackFunctor_t                           callbackFct)
     {
         if (!model->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Model not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
         model_ = model;
 
@@ -87,7 +87,7 @@ namespace jiminy
         if (!controller->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Controller not initialized." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         controller_ = controller;
@@ -100,23 +100,23 @@ namespace jiminy
 
         isInitialized_ = true;
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t Engine::configureTelemetry(void)
+    hresult_t Engine::configureTelemetry(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
             std::cout << "Error - Engine::configureTelemetry - The engine is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isTelemetryConfigured_)
         {
             // Register variables to the telemetry senders
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 if (engineOptions_->telemetry.enableConfiguration)
                 {
@@ -125,7 +125,7 @@ namespace jiminy
                         vectorN_t::Zero(model_->nq()));
                 }
             }
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 if (engineOptions_->telemetry.enableVelocity)
                 {
@@ -134,7 +134,7 @@ namespace jiminy
                         vectorN_t::Zero(model_->nv()));
                 }
             }
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 if (engineOptions_->telemetry.enableAcceleration)
                 {
@@ -143,7 +143,7 @@ namespace jiminy
                         vectorN_t::Zero(model_->nv()));
                 }
             }
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 if (engineOptions_->telemetry.enableTorque)
                 {
@@ -152,7 +152,7 @@ namespace jiminy
                         vectorN_t::Zero(model_->getMotorsNames().size()));
                 }
             }
-            if (returnCode == result_t::SUCCESS)
+            if (returnCode == hresult_t::SUCCESS)
             {
                 if (engineOptions_->telemetry.enableEnergy)
                 {
@@ -161,16 +161,16 @@ namespace jiminy
             }
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = controller_->configureTelemetry(telemetryData_);
         }
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = model_->configureTelemetry(telemetryData_);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             isTelemetryConfigured_ = true;
         }
@@ -248,17 +248,17 @@ namespace jiminy
         reset(true, resetDynamicForceRegister);
     }
 
-    result_t Engine::start(vectorN_t const & xInit,
-                           bool_t    const & isStateTheoretical,
-                           bool_t    const & resetRandomNumbers,
-                           bool_t    const & resetDynamicForceRegister)
+    hresult_t Engine::start(vectorN_t const & xInit,
+                            bool_t    const & isStateTheoretical,
+                            bool_t    const & resetRandomNumbers,
+                            bool_t    const & resetDynamicForceRegister)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
             std::cout << "Error - Engine::reset - The engine is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         // Check the dimension of the state
@@ -266,10 +266,10 @@ namespace jiminy
         || (!isStateTheoretical && (xInit.rows() != model_->nx())))
         {
             std::cout << "Error - Engine::reset - Size of xInit inconsistent with model size." << std::endl;
-            returnCode = result_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Reset the model, controller, engine, and registered impulse forces if requested
             reset(resetRandomNumbers, resetDynamicForceRegister);
@@ -278,7 +278,7 @@ namespace jiminy
             returnCode = model_->getLock(lockModel_);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Propagate the user-defined gravity at Pinocchio model level
             model_->pncModel_.gravity = engineOptions_->world.gravity;
@@ -405,7 +405,7 @@ namespace jiminy
             model_->setSensorsData(t, q, v, a, uMotor);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Lock the telemetry. At this point it is no longer possible to register new variables.
             configureTelemetry();
@@ -423,32 +423,32 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Engine::simulate(float64_t const & tEnd,
-                              vectorN_t const & xInit,
-                              bool_t    const & isStateTheoretical)
+    hresult_t Engine::simulate(float64_t const & tEnd,
+                               vectorN_t const & xInit,
+                               bool_t    const & isStateTheoretical)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if(!isInitialized_)
         {
             std::cout << "Error - Engine::simulate - Engine not initialized. Impossible to run the simulation." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if(tEnd < 5e-3)
         {
             std::cout << "Error - Engine::simulate - The duration of the simulation cannot be shorter than 5ms." << std::endl;
-            returnCode = result_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Reset the model, controller, and engine
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = start(xInit, isStateTheoretical, false, false);
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
-        while (returnCode == result_t::SUCCESS)
+        while (returnCode == hresult_t::SUCCESS)
         {
             /* Stop the simulation if the end time has been reached, if
                the callback returns false, or if the max number of
@@ -498,38 +498,38 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t Engine::step(float64_t stepSize)
+    hresult_t Engine::step(float64_t stepSize)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check if the simulation has started
         if (!lockModel_)
         {
             std::cout << "Error - Engine::step - No simulation running. Please start it before using step method." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
         // Check if the engine is initialized
         if (!isInitialized_)
         {
             std::cout << "Error - Engine::step - Engine not initialized. Impossible to perform a simulation step." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Check if there is something wrong with the integration
             if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
             {
                 std::cout << "Error - Engine::step - The low-level ode solver failed. Consider increasing accuracy." << std::endl;
-                return result_t::ERROR_GENERIC;
+                return hresult_t::ERROR_GENERIC;
             }
 
             // Check if the desired step size is suitable
             if (stepSize > EPS && stepSize < MIN_SIMULATION_TIMESTEP)
             {
                 std::cout << "Error - Engine::step - The step size 'stepSize' is out of bounds." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
 
             /* Set end time: The default step size is equal to the controller update period if
@@ -876,38 +876,38 @@ namespace jiminy
         controller_->computeCommand(t, q, v, u);
     }
 
-    result_t Engine::registerForceImpulse(std::string const & frameName,
-                                          float64_t   const & t,
-                                          float64_t   const & dt,
-                                          vector3_t   const & F)
+    hresult_t Engine::registerForceImpulse(std::string const & frameName,
+                                           float64_t   const & t,
+                                           float64_t   const & dt,
+                                           vector3_t   const & F)
     {
         // Make sure that the forces do NOT overlap while taking into account dt.
 
         if (lockModel_)
         {
             std::cout << "Error - Engine::registerForceImpulse - A simulation is running. Please stop it before registering new forces." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         forcesImpulse_[t] = std::make_tuple(frameName, dt, F);
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t Engine::registerForceProfile(std::string      const & frameName,
-                                          forceFunctor_t           forceFct)
+    hresult_t Engine::registerForceProfile(std::string      const & frameName,
+                                           forceFunctor_t           forceFct)
     {
         if (lockModel_)
         {
             std::cout << "Error - Engine::registerForceProfile - A simulation is running. Please stop it before registering new forces." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         forcesProfile_.emplace_back(std::piecewise_construct,
                                     std::forward_as_tuple(frameName),
                                     std::forward_as_tuple(std::make_tuple(0.0, std::move(forceFct))));
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     configHolder_t const & Engine::getOptions(void) const
@@ -915,12 +915,12 @@ namespace jiminy
         return engineOptionsHolder_;
     }
 
-    result_t Engine::setOptions(configHolder_t const & engineOptions)
+    hresult_t Engine::setOptions(configHolder_t const & engineOptions)
     {
         if (lockModel_)
         {
             std::cout << "Error - Engine::setOptions - A simulation is running. Please stop it before updating the options." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         // Make sure the dtMax is not out of bounds
@@ -929,7 +929,7 @@ namespace jiminy
         if (MAX_SIMULATION_TIMESTEP < dtMax || dtMax < MIN_SIMULATION_TIMESTEP)
         {
             std::cout << "Error - Engine::setOptions - 'dtMax' option is out of bounds." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure the selected ode solver is available and instantiate it
@@ -937,7 +937,7 @@ namespace jiminy
         if (odeSolver != "runge_kutta_dopri5" && odeSolver != "explicit_euler")
         {
             std::cout << "Error - Engine::setOptions - The requested 'odeSolver' is not available." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure the controller and sensor update periods are multiple of each other
@@ -950,7 +950,7 @@ namespace jiminy
         {
             std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than";
             std::cout << MIN_SIMULATION_TIMESTEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
         // to verify that b devides a with a tolerance EPS, we need to verify that a % b \in [-EPS, EPS] -
@@ -963,7 +963,7 @@ namespace jiminy
         {
             std::cout << "Error - Engine::setOptions - In discrete mode, the controller and sensor update periods "\
                             "must be multiple of each other." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure the contacts options are fine
@@ -975,12 +975,12 @@ namespace jiminy
         if (dryFrictionVelEps < 0.0)
         {
             std::cout << "Error - Engine::setOptions - The contacts option 'dryFrictionVelEps' must be positive." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
         else if (transitionEps < 0.0)
         {
             std::cout << "Error - Engine::setOptions - The contacts option 'transitionEps' must be positive." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure the joints options are fine
@@ -990,7 +990,7 @@ namespace jiminy
         if (boundTransitionEps < 0.0)
         {
             std::cout << "Error - Engine::setOptions - The joints option 'boundTransitionEps' must be positive." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Compute the breakpoints' period (for command or observation) during the integration loop
@@ -1013,7 +1013,7 @@ namespace jiminy
         if (gravity.size() != 6)
         {
             std::cout << "Error - Engine::setOptions - The size of the gravity force vector must be 6." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Update the internal options
@@ -1022,7 +1022,7 @@ namespace jiminy
         // Create a fast struct accessor
         engineOptions_ = std::make_unique<engineOptions_t const>(engineOptionsHolder_);
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     bool_t Engine::getIsInitialized(void) const
@@ -1102,7 +1102,7 @@ namespace jiminy
         return fieldData;
     }
 
-    result_t Engine::writeLogTxt(std::string const & filename)
+    hresult_t Engine::writeLogTxt(std::string const & filename)
     {
         std::vector<std::string> header;
         matrixN_t log;
@@ -1136,21 +1136,21 @@ namespace jiminy
         else
         {
             std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t Engine::writeLogBinary(std::string const & filename)
+    hresult_t Engine::writeLogBinary(std::string const & filename)
     {
         return telemetryRecorder_->writeDataBinary(filename);
     }
 
-    result_t Engine::parseLogBinaryRaw(std::string                          const & filename,
-                                       std::vector<std::string>                   & header,
-                                       std::vector<float64_t>                     & timestamps,
-                                       std::vector<std::vector<int32_t> >         & intData,
-                                       std::vector<std::vector<float32_t> >       & floatData)
+    hresult_t Engine::parseLogBinaryRaw(std::string                          const & filename,
+                                        std::vector<std::string>                   & header,
+                                        std::vector<float64_t>                     & timestamps,
+                                        std::vector<std::vector<int32_t> >         & intData,
+                                        std::vector<std::vector<float32_t> >       & floatData)
     {
         int64_t integerSectionSize;
         int64_t floatSectionSize;
@@ -1187,7 +1187,7 @@ namespace jiminy
             if (!myFile.good())
             {
                 std::cout << "Error - Engine::parseLogBinary - Corrupted log file." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
 
             // Extract the number of intergers and floats from the list of logged constants
@@ -1209,7 +1209,7 @@ namespace jiminy
         else
         {
             std::cout << "Error - Engine::parseLogBinary - Impossible to open the log file. Check that the file exists and that you have reading permissions." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         FileDevice device(filename);
@@ -1226,19 +1226,19 @@ namespace jiminy
                                    floatSectionSize,
                                    headerSize);
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
-    result_t Engine::parseLogBinary(std::string              const & filename,
-                                    std::vector<std::string>       & header,
-                                    matrixN_t                      & logData)
+    hresult_t Engine::parseLogBinary(std::string              const & filename,
+                                     std::vector<std::string>       & header,
+                                     matrixN_t                      & logData)
     {
         std::vector<float64_t> timestamps;
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
-        result_t returnCode = parseLogBinaryRaw(
+        hresult_t returnCode = parseLogBinaryRaw(
             filename, header, timestamps, intData, floatData);
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
         }

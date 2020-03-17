@@ -36,18 +36,18 @@ namespace jiminy
         }
     }
 
-    result_t TelemetryRecorder::initialize(void)
+    hresult_t TelemetryRecorder::initialize(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (isInitialized_)
         {
             std::cout << "Error - TelemetryRecorder::initialize - TelemetryRecorder already initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         std::vector<char_t> header;
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Clear the MemoryDevice buffer
             flows_.clear();
@@ -69,12 +69,12 @@ namespace jiminy
         }
 
         // Write the Header
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = flows_[0].write(header);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             recordedBytes_ = headerSize_;
             isInitialized_ = true;
@@ -99,9 +99,9 @@ namespace jiminy
         isInitialized_ = false;
     }
 
-    result_t TelemetryRecorder::createNewChunk()
+    hresult_t TelemetryRecorder::createNewChunk()
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         // Close the current MemoryDevice, if any and if it was opened.
         if (!flows_.empty())
@@ -116,7 +116,7 @@ namespace jiminy
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(OpenMode::READ_WRITE);
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             recordedBytes_ = 0;
         }
@@ -124,16 +124,16 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t TelemetryRecorder::flushDataSnapshot(float64_t const & timestamp)
+    hresult_t TelemetryRecorder::flushDataSnapshot(float64_t const & timestamp)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (recordedBytes_ == recordedBytesLimits_)
         {
             returnCode = createNewChunk();
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Write new line token
             flows_.back().write(START_LINE_TOKEN);
@@ -154,7 +154,7 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t TelemetryRecorder::writeDataBinary(std::string const & filename)
+    hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
         std::ofstream myFile = std::ofstream(filename,
                                              std::ios::out |
@@ -183,9 +183,9 @@ namespace jiminy
         else
         {
             std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
-            return result_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     void TelemetryRecorder::getData(std::vector<std::string>                   & header,

@@ -20,17 +20,17 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
-    result_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
+    hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
             std::cout << "Error - AbstractSensorBase::configureTelemetry - The sensor is not initialized." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             if (!isTelemetryConfigured_)
             {
@@ -38,7 +38,7 @@ namespace jiminy
                 {
                     telemetrySender_.configureObject(telemetryData, getTelemetryName());
                     returnCode = telemetrySender_.registerVariable(getFieldNames(), data_);
-                    if (returnCode == result_t::SUCCESS)
+                    if (returnCode == hresult_t::SUCCESS)
                     {
                         isTelemetryConfigured_ = true;
                     }
@@ -46,7 +46,7 @@ namespace jiminy
                 else
                 {
                     std::cout << "Error - AbstractSensorBase::configureTelemetry - Telemetry not initialized. Impossible to log sensor data." << std::endl;
-                    returnCode = result_t::ERROR_INIT_FAILED;
+                    returnCode = hresult_t::ERROR_INIT_FAILED;
                 }
             }
         }
@@ -63,11 +63,11 @@ namespace jiminy
         }
     }
 
-    result_t AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
+    hresult_t AbstractSensorBase::setOptions(configHolder_t const & sensorOptions)
     {
         sensorOptionsHolder_ = sensorOptions;
         baseSensorOptions_ = std::make_unique<abstractSensorOptions_t const>(sensorOptionsHolder_);
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     configHolder_t AbstractSensorBase::getOptions(void) const

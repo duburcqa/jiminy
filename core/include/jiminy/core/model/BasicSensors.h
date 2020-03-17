@@ -16,18 +16,18 @@ namespace jiminy
         ImuSensor(std::string const & name);
         ~ImuSensor(void) = default;
 
-        result_t initialize(std::string const & frameName);
+        hresult_t initialize(std::string const & frameName);
 
-        virtual result_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) override;
 
         std::string const & getFrameName(void) const;
 
     private:
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor) override;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) override;
 
     private:
         std::string frameName_;
@@ -40,18 +40,18 @@ namespace jiminy
         ForceSensor(std::string const & name);
         ~ForceSensor(void) = default;
 
-        result_t initialize(std::string const & frameName);
+        hresult_t initialize(std::string const & frameName);
 
-        virtual result_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) override;
 
         std::string const & getFrameName(void) const;
 
     private:
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor);
 
     private:
         std::string frameName_;
@@ -64,18 +64,18 @@ namespace jiminy
         EncoderSensor(std::string const & name);
         ~EncoderSensor(void) = default;
 
-        result_t initialize(std::string const & jointName);
+        hresult_t initialize(std::string const & jointName);
 
-        virtual result_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) override;
 
         std::string const & getJointName(void) const;
 
     private:
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor);
 
     private:
         std::string jointName_;
@@ -89,18 +89,18 @@ namespace jiminy
         TorqueSensor(std::string const & name);
         ~TorqueSensor(void) = default;
 
-        result_t initialize(std::string const & motorName);
+        hresult_t initialize(std::string const & motorName);
 
-        virtual result_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) override;
 
         std::string const & getMotorName(void) const;
 
     private:
-        virtual result_t set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor);
 
     private:
         std::string motorName_;

@@ -136,7 +136,7 @@ class EngineAsynchronous(object):
         """
         if (not self._is_running):
             flag = self._engine.start(self._state, self._is_state_theoretical)
-            if (flag != jiminy.result_t.SUCCESS):
+            if (flag != jiminy.hresult_t.SUCCESS):
                 raise ValueError("Failed to start the simulation")
             self._is_running = True
 

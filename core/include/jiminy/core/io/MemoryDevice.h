@@ -43,20 +43,20 @@ namespace jiminy
             return (buffer_.size() - currentPos_);
         }
 
-        result_t seek(int64_t pos) override;
+        hresult_t seek(int64_t pos) override;
 
         int64_t readData(void    * data,
                          int64_t   dataSize) override;
         int64_t writeData(void    const * data,
                           int64_t         dataSize) override;
 
-        result_t setBlockingMode(bool_t) override;
+        hresult_t setBlockingMode(bool_t) override;
 
-        void resize(int64_t size);
+        hresult_t resize(int64_t size) override;
 
     protected:
-        result_t doOpen(enum OpenMode modes) override;
-        void doClose(void) override;
+        hresult_t doOpen(enum OpenMode modes) override;
+        hresult_t doClose(void) override;
 
     private:
         std::vector<uint8_t> buffer_;

@@ -36,12 +36,12 @@ namespace python
         // Required and create PyArrays<->Eigen automatic converters.
         eigenpy::enableEigenPy();
 
-        // Interfaces for result_t enum
-        bp::enum_<result_t>("result_t")
-        .value("SUCCESS", result_t::SUCCESS)
-        .value("ERROR_GENERIC", result_t::ERROR_GENERIC)
-        .value("ERROR_BAD_INPUT", result_t::ERROR_BAD_INPUT)
-        .value("ERROR_INIT_FAILED", result_t::ERROR_INIT_FAILED);
+        // Interfaces for hresult_t enum
+        bp::enum_<hresult_t>("hresult_t")
+        .value("SUCCESS", hresult_t::SUCCESS)
+        .value("ERROR_GENERIC", hresult_t::ERROR_GENERIC)
+        .value("ERROR_BAD_INPUT", hresult_t::ERROR_BAD_INPUT)
+        .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
 
         // Interfaces for heatMapType_t enum
         bp::enum_<heatMapType_t>("heatMapType_t")

@@ -29,23 +29,23 @@ namespace jiminy
         // Empty.
     }
 
-    result_t ImuSensor::initialize(std::string const & frameName)
+    hresult_t ImuSensor::initialize(std::string const & frameName)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
             std::cout << "Error - ImuSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             frameName_ = frameName;
             isInitialized_ = true;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshProxies();
         }
@@ -53,26 +53,26 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t ImuSensor::refreshProxies(void)
+    hresult_t ImuSensor::refreshProxies(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - ImuSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             if (!isInitialized_)
             {
                 std::cout << "Error - ImuSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-                returnCode = result_t::ERROR_INIT_FAILED;
+                returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
         }
@@ -85,16 +85,16 @@ namespace jiminy
         return frameName_;
     }
 
-    result_t ImuSensor::set(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & uMotor)
+    hresult_t ImuSensor::set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
             std::cout << "Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
@@ -105,7 +105,7 @@ namespace jiminy
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
         data().tail<3>() = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     // ===================== ForceSensor =========================
@@ -125,23 +125,23 @@ namespace jiminy
         // Empty.
     }
 
-    result_t ForceSensor::initialize(std::string const & frameName)
+    hresult_t ForceSensor::initialize(std::string const & frameName)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
             std::cout << "Error - ForceSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             frameName_ = frameName;
             isInitialized_ = true;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshProxies();
         }
@@ -149,26 +149,26 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t ForceSensor::refreshProxies(void)
+    hresult_t ForceSensor::refreshProxies(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - ForceSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             if (!isInitialized_)
             {
                 std::cout << "Error - ForceSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-                returnCode = result_t::ERROR_INIT_FAILED;
+                returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
         }
@@ -181,23 +181,23 @@ namespace jiminy
         return frameName_;
     }
 
-    result_t ForceSensor::set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor)
+    hresult_t ForceSensor::set(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
             std::cout << "Error - ForceSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
         std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
         data() = model_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     // ===================== EncoderSensor =========================
@@ -218,23 +218,23 @@ namespace jiminy
         // Empty.
     }
 
-    result_t EncoderSensor::initialize(std::string const & jointName)
+    hresult_t EncoderSensor::initialize(std::string const & jointName)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
             std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             jointName_ = jointName;
             isInitialized_ = true;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshProxies();
         }
@@ -242,28 +242,28 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t EncoderSensor::refreshProxies(void)
+    hresult_t EncoderSensor::refreshProxies(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - EncoderSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
             std::cout << "Error - EncoderSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
         }
@@ -276,22 +276,22 @@ namespace jiminy
         return jointName_;
     }
 
-    result_t EncoderSensor::set(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & uMotor)
+    hresult_t EncoderSensor::set(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
             std::cout << "Error - EncoderSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         data()[0] = q[jointPositionIdx_];
         data()[1] = v[jointVelocityIdx_];
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 
     // ===================== TorqueSensor =========================
@@ -311,23 +311,23 @@ namespace jiminy
         // Empty.
     }
 
-    result_t TorqueSensor::initialize(std::string const & motorName)
+    hresult_t TorqueSensor::initialize(std::string const & motorName)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
             std::cout << "Error - TorqueSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             motorName_ = motorName;
             isInitialized_ = true;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshProxies();
         }
@@ -335,29 +335,29 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t TorqueSensor::refreshProxies(void)
+    hresult_t TorqueSensor::refreshProxies(void)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!model_->getIsInitialized())
         {
             std::cout << "Error - TorqueSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
             std::cout << "Error - TorqueSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
-            returnCode = result_t::ERROR_INIT_FAILED;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         std::shared_ptr<AbstractMotorBase const> motor;
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = model_->getMotor(motorName_, motor);
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             motorIdx_ = motor->getIdx();
         }
@@ -370,20 +370,20 @@ namespace jiminy
         return motorName_;
     }
 
-    result_t TorqueSensor::set(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & uMotor)
+    hresult_t TorqueSensor::set(float64_t const & t,
+                                vectorN_t const & q,
+                                vectorN_t const & v,
+                                vectorN_t const & a,
+                                vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
             std::cout << "Error - TorqueSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         data()[0] = uMotor[motorIdx_];
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 }

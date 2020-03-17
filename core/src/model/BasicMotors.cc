@@ -21,23 +21,23 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
-    result_t SimpleMotor::initialize(std::string const & jointName)
+    hresult_t SimpleMotor::initialize(std::string const & jointName)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
             std::cout << "Error - SimpleMotor::initialize - Motor not attached to any model. Impossible to initialize it." << std::endl;
-            returnCode = result_t::ERROR_GENERIC;
+            returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             jointName_ = jointName;
             isInitialized_ = true;
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshProxies();
         }
@@ -45,44 +45,44 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t SimpleMotor::setOptions(configHolder_t motorOptions)
+    hresult_t SimpleMotor::setOptions(configHolder_t motorOptions)
     {
-        result_t returnCode = result_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
         returnCode = AbstractMotorBase::setOptions(motorOptions);
 
         // Check if the friction parameters make sense
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             // Make sure the user-defined position limit has the right dimension
             if(boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousPositive' must be negative." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if(boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousNegative' must be negative." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if(boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDryPositive' must be negative." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if(boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDryNegative' must be negative." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if(boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDrySlope' must be positive." << std::endl;
-                returnCode = result_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        if (returnCode == result_t::SUCCESS)
+        if (returnCode == hresult_t::SUCCESS)
         {
             motorOptions_ = std::make_unique<motorOptions_t const>(motorOptions);
         }
@@ -90,16 +90,16 @@ namespace jiminy
         return returnCode;
     }
 
-    result_t SimpleMotor::computeEffort(float64_t const & t,
-                                        float64_t const & q,
-                                        float64_t const & v,
-                                        float64_t const & a,
-                                        float64_t const & uCommand)
+    hresult_t SimpleMotor::computeEffort(float64_t const & t,
+                                         float64_t const & q,
+                                         float64_t const & v,
+                                         float64_t const & a,
+                                         float64_t const & uCommand)
     {
         if (!isInitialized_)
         {
             std::cout << "Error - SimpleMotor::computeEffort - Motor not initialized. Impossible to compute actual motor torque." << std::endl;
-            return result_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Bypass
@@ -127,6 +127,6 @@ namespace jiminy
             }
         }
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 }

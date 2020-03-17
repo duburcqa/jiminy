@@ -55,16 +55,16 @@ namespace jiminy
         SimpleMotor(std::string const & name);
         virtual ~SimpleMotor(void) = default;
 
-        result_t initialize(std::string const & jointName);
+        hresult_t initialize(std::string const & jointName);
 
-        virtual result_t setOptions(configHolder_t motorOptions);
+        virtual hresult_t setOptions(configHolder_t motorOptions);
 
     private:
-        virtual result_t computeEffort(float64_t const & t,
-                                       float64_t const & q,
-                                       float64_t const & v,
-                                       float64_t const & a,
-                                       float64_t const & uCommand) override;
+        virtual hresult_t computeEffort(float64_t const & t,
+                                        float64_t const & q,
+                                        float64_t const & v,
+                                        float64_t const & a,
+                                        float64_t const & uCommand) override;
 
     private:
         std::unique_ptr<motorOptions_t const> motorOptions_;

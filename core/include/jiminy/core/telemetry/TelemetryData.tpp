@@ -14,9 +14,9 @@
 namespace jiminy
 {
     template <typename T>
-    result_t TelemetryData::internalRegisterVariable(struct memHeader       *   header,
-                                                     std::string      const   & variableName,
-                                                     T                      * & positionInBufferOut)
+    hresult_t TelemetryData::internalRegisterVariable(struct memHeader       *   header,
+                                                      std::string      const   & variableName,
+                                                      T                      * & positionInBufferOut)
     {
         char_t * const memAddress = reinterpret_cast<char_t*>(header);
 
@@ -25,7 +25,7 @@ namespace jiminy
         if (entry != entriesMap_.end())
         {
             positionInBufferOut = static_cast<T*>(entry->second);
-            return result_t::SUCCESS;
+            return hresult_t::SUCCESS;
         }
 
         // Check in shared memory.
@@ -35,19 +35,19 @@ namespace jiminy
             char_t * address = memAddress + header->startDataSection + sizeof(T) * static_cast<uint32_t>(positionInBuffer);
             entriesMap_[variableName] = static_cast<void*>(address);
             positionInBufferOut = static_cast<T*>(entriesMap_[variableName]);
-            return result_t::SUCCESS;
+            return hresult_t::SUCCESS;
         }
 
         if (!header->isRegisteringAvailable)
         {
             std::cout << "Error - TelemetryData::updateValue - Entry not found: register it if possible." << std::endl;
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         if ((header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1) >= header->startDataSection)
         {
             std::cout << "Error - TelemetryData::updateValue - TODO" << std::endl; //TODO: write appropriate error message
-            return result_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
         char_t * const namePos = memAddress + header->nextFreeNameOffset; // Compute record address
@@ -60,7 +60,7 @@ namespace jiminy
         positionInBufferOut = static_cast<T*>(entriesMap_[variableName]);
         header->nextFreeDataOffset += sizeof(T);
 
-        return result_t::SUCCESS;
+        return hresult_t::SUCCESS;
     }
 } // namespace jiminy
 

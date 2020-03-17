@@ -2,8 +2,8 @@
 /// \brief    Contains types used in the optimal module.
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef WDC_OPTIMAL_TYPES_H
-#define WDC_OPTIMAL_TYPES_H
+#ifndef OPTIMAL_TYPES_H
+#define OPTIMAL_TYPES_H
 
 #include <unordered_map>
 #include <vector>
@@ -58,7 +58,7 @@ namespace jiminy
     // *************** Jiminy-specific definitions ***************
 
     // Error codes
-    enum class result_t : int32_t
+    enum class hresult_t : int32_t
     {
         SUCCESS = 1,
         ERROR_GENERIC = -1,
@@ -166,4 +166,4 @@ namespace jiminy
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 }
 
-#endif  // WDC_OPTIMAL_TYPES_H
+#endif  // OPTIMAL_TYPES_H

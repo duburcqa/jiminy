@@ -106,7 +106,7 @@ namespace jiminy
         /// \remark   This method is not intended to be called manually. The Model to which the
         ///           motor is added is taking care of it when its own `refresh` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t refreshProxies(void);
+        virtual hresult_t refreshProxies(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Reset the internal state of the motor.
@@ -140,14 +140,14 @@ namespace jiminy
         ///
         /// \param[in]  motorOptions   Dictionary with the parameters of the motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t setOptions(configHolder_t const & motorOptions);
+        virtual hresult_t setOptions(configHolder_t const & motorOptions);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Set the same configuration options for every motors.
         ///
         /// \param[in]  motorOptions   Dictionary with the parameters used for any motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t setOptionsAll(configHolder_t const & motorOptions);
+        hresult_t setOptionsAll(configHolder_t const & motorOptions);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get isInitialized_.
@@ -225,11 +225,11 @@ namespace jiminy
         /// \param[in]  u       Current command torque of the motor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual result_t computeEffort(float64_t const & t,
-                                       float64_t const & q,
-                                       float64_t const & v,
-                                       float64_t const & a,
-                                       float64_t const & uCommand) = 0;
+        virtual hresult_t computeEffort(float64_t const & t,
+                                        float64_t const & q,
+                                        float64_t const & v,
+                                        float64_t const & a,
+                                        float64_t const & uCommand) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual torque based of the input data.
@@ -248,11 +248,11 @@ namespace jiminy
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t computeAllEffort(float64_t const & t,
-                                  vectorN_t const & q,
-                                  vectorN_t const & v,
-                                  vectorN_t const & a,
-                                  vectorN_t const & uCommand);
+        hresult_t computeAllEffort(float64_t const & t,
+                                   vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   vectorN_t const & a,
+                                   vectorN_t const & uCommand);
 
         void clearDataBuffer(void);
 
@@ -269,13 +269,13 @@ namespace jiminy
         ///
         /// \details  This method must be called before initializing the sensor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t attach(Model const * model,
-                        std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder);
+        hresult_t attach(Model const * model,
+                         std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Detach the sensor from the model
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        result_t detach(void);
+        hresult_t detach(void);
 
     public:
         std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_; ///< Structure with the parameters of the motor
