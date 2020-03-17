@@ -28,6 +28,7 @@ else(NOT WIN32)
 endif(NOT WIN32)
 
 # Sub-projects
+add_subdirectory(soup)
 add_subdirectory(core)
 if(BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)

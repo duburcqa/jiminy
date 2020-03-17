@@ -898,7 +898,7 @@ namespace python
         static bp::dict getSensorsNames(Model & self)
         {
             bp::dict sensorsNamesPy;
-            auto sensorsNames = self.getSensorsNames();
+            auto const & sensorsNames = self.getSensorsNames();
             for (auto const & sensorTypeNames : sensorsNames)
             {
                 bp::object dataPy;

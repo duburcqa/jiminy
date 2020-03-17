@@ -37,6 +37,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Define GNU standard installation directories
 include(GNUInstallDirs)
 
+# Define external project utilities
+include(ExternalProject)
+
+# Add utils to define package version
+include(CMakePackageConfigHelpers)
+
 # Custom cmake module path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 
@@ -156,9 +162,6 @@ endif()
 
 # Due to license considerations, we will only use the MPL2 parts of Eigen.
 set(EIGEN_MPL2_ONLY 1)
-
-# Add utils to define package version
-include(CMakePackageConfigHelpers)
 
 # Add a helper to link target libraries as system dependencies to avoid generating warnings
 function(target_link_libraries_system target)

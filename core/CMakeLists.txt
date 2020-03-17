@@ -40,6 +40,7 @@ set(SRC
 
 # Make library
 add_library(${PROJECT_NAME} STATIC ${SRC})
+add_dependencies(${PROJECT_NAME} jsoncpp)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${BUILD_VERSION}
 )
