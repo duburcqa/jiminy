@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "jiminy/core/MemoryDevice.h"
+#include "jiminy/core/io/MemoryDevice.h"
 
 
 namespace jiminy

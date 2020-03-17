@@ -1,7 +1,7 @@
 #ifndef JIMINY_CORE_MEMORY_DEVICE_H
 #define JIMINY_CORE_MEMORY_DEVICE_H
 
-#include "jiminy/core/AbstractIODevice.h"
+#include "jiminy/core/io/AbstractIODevice.h"
 
 
 namespace jiminy

@@ -10,6 +10,7 @@
 
 #include "jiminy/core/Types.h"
 
+
 namespace jiminy
 {
     // *************** Local Mutex/Lock mechanism ******************

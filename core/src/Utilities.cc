@@ -17,14 +17,11 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/Engine.h"     // MIN_SIMULATION_TIMESTEP and MAX_SIMULATION_TIMESTEP
+#include "jiminy/core/Constants.h"
 
 
 namespace jiminy
 {
-    extern float64_t const MIN_SIMULATION_TIMESTEP;
-    extern float64_t const MAX_SIMULATION_TIMESTEP;
-
     // *************** Local Mutex/Lock mechanism ******************
 
     MutexLocal::MutexLocal(void) :

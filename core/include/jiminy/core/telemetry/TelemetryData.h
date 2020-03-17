@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "jiminy/core/TelemetrySender.h"
+#include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Types.h"
 
 

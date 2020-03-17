@@ -1,6 +1,7 @@
-#include "jiminy/core/AbstractMotor.h"
-#include "jiminy/core/Model.h"
+#include "jiminy/core/model/Model.h"
 #include "jiminy/core/Utilities.h"
+
+#include "jiminy/core/model/AbstractMotor.h"
 
 
 namespace jiminy

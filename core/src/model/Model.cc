@@ -6,10 +6,11 @@
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include "jiminy/core/TelemetryData.h"
-#include "jiminy/core/AbstractMotor.h"
-#include "jiminy/core/AbstractSensor.h"
-#include "jiminy/core/Model.h"
+#include "jiminy/core/model/AbstractMotor.h"
+#include "jiminy/core/model/AbstractSensor.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
+
+#include "jiminy/core/model/Model.h"
 
 
 namespace jiminy

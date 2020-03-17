@@ -7,10 +7,9 @@
 #include <iostream>
 #include <string>
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/ControllerFunctor.h"
+#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/Types.h"
 
 

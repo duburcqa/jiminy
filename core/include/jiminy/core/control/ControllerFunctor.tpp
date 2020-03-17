@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "jiminy/core/Model.h"
+#include "jiminy/core/model/Model.h"
 
 
 namespace jiminy

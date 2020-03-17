@@ -13,6 +13,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/multi_index_container.hpp>

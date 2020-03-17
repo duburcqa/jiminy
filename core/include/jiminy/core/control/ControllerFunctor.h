@@ -19,8 +19,8 @@
 #ifndef WDC_CONTROLLER_FUNCTOR_H
 #define WDC_CONTROLLER_FUNCTOR_H
 
-#include "jiminy/core/Model.h"
-#include "jiminy/core/AbstractController.h"
+#include "jiminy/core/model/Model.h"
+#include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/Types.h"
 
 namespace jiminy
@@ -117,6 +117,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/ControllerFunctor.tpp"
+#include "jiminy/core/control/ControllerFunctor.tpp"
 
 #endif //end of WDC_CONTROLLER_FUNCTOR_H

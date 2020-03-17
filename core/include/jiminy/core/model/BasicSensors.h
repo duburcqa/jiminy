@@ -1,7 +1,9 @@
 #ifndef JIMINY_BASIC_SENSORS_H
 #define JIMINY_BASIC_SENSORS_H
 
-#include "jiminy/core/AbstractSensor.h"
+#include "jiminy/core/model/AbstractMotor.h"
+
+#include "jiminy/core/model/AbstractSensor.h"
 
 
 namespace jiminy

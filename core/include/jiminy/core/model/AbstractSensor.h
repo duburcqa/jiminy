@@ -13,10 +13,11 @@
 #ifndef JIMINY_ABSTRACT_SENSOR_H
 #define JIMINY_ABSTRACT_SENSOR_H
 
+#include "jiminy/core/telemetry/TelemetrySender.h"
+#include "jiminy/core/Types.h"
+
 #include <boost/circular_buffer.hpp>
 
-#include "jiminy/core/TelemetrySender.h"
-#include "jiminy/core/Types.h"
 
 namespace jiminy
 {
@@ -488,6 +489,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/AbstractSensor.tpp"
+#include "jiminy/core/model/AbstractSensor.tpp"
 
 #endif //end of JIMINY_ABSTRACT_SENSOR_H

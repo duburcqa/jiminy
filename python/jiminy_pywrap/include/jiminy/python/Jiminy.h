@@ -8,12 +8,11 @@
 #include <cassert>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/BasicSensors.h"
-#include "jiminy/core/Model.h"
-#include "jiminy/core/AbstractController.h"
-#include "jiminy/core/ControllerFunctor.h"
-#include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/model/Model.h"
+#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/model/BasicSensors.h"
+#include "jiminy/core/control/ControllerFunctor.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"

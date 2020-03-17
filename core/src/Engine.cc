@@ -10,13 +10,16 @@
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
+#include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
+#include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/model/AbstractMotor.h"
+#include "jiminy/core/model/AbstractSensor.h"
+#include "jiminy/core/model/Model.h"
+#include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/FileDevice.h"
-#include "jiminy/core/TelemetryData.h"
-#include "jiminy/core/TelemetryRecorder.h"
-#include "jiminy/core/AbstractController.h"
-#include "jiminy/core/Model.h"
-#include "jiminy/core/AbstractMotor.h"
+#include "jiminy/core/Constants.h"
+
 #include "jiminy/core/Engine.h"
 
 #include <boost/numeric/odeint/iterator/n_step_iterator.hpp>
@@ -24,11 +27,6 @@
 
 namespace jiminy
 {
-    float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
-    float64_t const MIN_SIMULATION_TIMESTEP = 1e-6;
-    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
-    float64_t const MAX_SIMULATION_TIMESTEP = 5e-3;
-
     Engine::Engine(void):
     engineOptions_(nullptr),
     isInitialized_(false),

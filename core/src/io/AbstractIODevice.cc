@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "jiminy/core/AbstractIODevice.h"
+#include "jiminy/core/io/AbstractIODevice.h"
 
 
 namespace jiminy

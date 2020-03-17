@@ -11,10 +11,11 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
+#include "jiminy/core/telemetry/TelemetrySender.h"
+#include "jiminy/core/model/Model.h"
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/Model.h"
-#include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"
+#include "jiminy/core/Constants.h"
 
 #include <boost/numeric/odeint.hpp>
 #include <boost/numeric/odeint/external/eigen/eigen_algebra.hpp>
@@ -22,10 +23,10 @@
 
 namespace jiminy
 {
-    std::string const ENGINE_OBJECT_NAME("HighLevelController");
+    float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
+    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
 
-    extern float64_t const MIN_SIMULATION_TIMESTEP;
-    extern float64_t const MAX_SIMULATION_TIMESTEP;
+    std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
     using namespace boost::numeric::odeint;
 

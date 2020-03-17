@@ -15,12 +15,13 @@
 #include <gtest/gtest.h>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/ControllerFunctor.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/Types.h"
 
+
 using namespace jiminy;
+
 
 // Controller sending zero torque to the motors.
 void controllerZeroTorque(float64_t const & t,

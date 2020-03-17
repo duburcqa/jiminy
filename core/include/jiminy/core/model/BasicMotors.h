@@ -1,7 +1,7 @@
 #ifndef JIMINY_BASIC_MOTORS_H
 #define JIMINY_BASIC_MOTORS_H
 
-#include "jiminy/core/AbstractMotor.h"
+#include "jiminy/core/model/AbstractMotor.h"
 
 
 namespace jiminy

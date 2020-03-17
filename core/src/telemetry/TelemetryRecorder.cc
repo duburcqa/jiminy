@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <fstream>
 
-#include "jiminy/core/TelemetryRecorder.h"
+#include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 
 namespace jiminy

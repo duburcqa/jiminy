@@ -37,12 +37,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Define GNU standard installation directories
 include(GNUInstallDirs)
 
-# Define external project utilities
-include(ExternalProject)
-
-# Add utils to define package version
-include(CMakePackageConfigHelpers)
-
 # Custom cmake module path
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 

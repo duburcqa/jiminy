@@ -8,8 +8,8 @@
 #ifndef JIMINY_TELEMETRY_RECORDER_H
 #define JIMINY_TELEMETRY_RECORDER_H
 
-#include "jiminy/core/MemoryDevice.h"
-#include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/io/MemoryDevice.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 
 
 namespace jiminy

@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "jiminy/core/FileDevice.h"
+#include "jiminy/core/io/FileDevice.h"
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -36,6 +36,7 @@
 #define ssize_t long
 #endif
 #endif
+
 
 namespace jiminy
 {

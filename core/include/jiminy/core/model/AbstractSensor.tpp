@@ -1,12 +1,10 @@
 #include "jiminy/core/Engine.h" // MIN_SIMULATION_TIMESTEP and MAX_SIMULATION_TIMESTEP
-#include "jiminy/core/Model.h"
+#include "jiminy/core/model/Model.h"
 #include "jiminy/core/Utilities.h"
+#include "jiminy/core/Constants.h"
 
 namespace jiminy
 {
-    extern float64_t const MIN_SIMULATION_TIMESTEP;
-    extern float64_t const MAX_SIMULATION_TIMESTEP;
-
     template <typename T>
     AbstractSensorTpl<T>::AbstractSensorTpl(std::string const & name) :
     AbstractSensorBase(name),

@@ -1,7 +1,7 @@
 #ifndef JIMINY_ABSTRACT_CONTROLLER_H
 #define JIMINY_ABSTRACT_CONTROLLER_H
 
-#include "jiminy/core/TelemetrySender.h"
+#include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Types.h"
 
 

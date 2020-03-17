@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 
 
 namespace jiminy

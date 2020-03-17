@@ -7,10 +7,9 @@
 #ifndef WDC_SYSTEM_FILE_DEVICE_H
 #define WDC_SYSTEM_FILE_DEVICE_H
 
-// C++ STD
 #include <string>
 
-#include "jiminy/core/AbstractIODevice.h"
+#include "jiminy/core/io/AbstractIODevice.h"
 
 
 namespace jiminy

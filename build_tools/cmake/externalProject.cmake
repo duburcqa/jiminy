@@ -1,3 +1,6 @@
+# Import external project utilities
+include(ExternalProject)
+
 # SUBDIRSLIST
 # -----------
 #

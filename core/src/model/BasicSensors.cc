@@ -3,10 +3,10 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include "jiminy/core/Model.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/BasicSensors.h"
+#include "jiminy/core/model/Model.h"
 #include "jiminy/core/Utilities.h"
+
+#include "jiminy/core/model/BasicSensors.h"
 
 
 namespace jiminy

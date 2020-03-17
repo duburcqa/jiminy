@@ -1,5 +1,6 @@
-#include "jiminy/core/AbstractSensor.h"
-#include "jiminy/core/Model.h"
+#include "jiminy/core/model/Model.h"
+
+#include "jiminy/core/model/AbstractSensor.h"
 
 
 namespace jiminy

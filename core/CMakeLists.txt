@@ -22,19 +22,19 @@ add_definitions(${COMPILE_FLAGS})
 
 # Add sources
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractIODevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/MemoryDevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/FileDevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryData.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetrySender.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryRecorder.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Utilities.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractSensor.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractMotor.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractController.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicSensors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicMotors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Model.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/AbstractIODevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/MemoryDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/FileDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryData.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetrySender.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryRecorder.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/AbstractMotor.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/BasicMotors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/AbstractSensor.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/BasicSensors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/model/Model.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
 )
 
