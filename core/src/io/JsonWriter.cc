@@ -15,7 +15,7 @@ namespace jiminy
         // Empty on purpose
     }
 
-    hresult_t JsonWriter::dump(Json::Value& input)
+    hresult_t JsonWriter::dump(Json::Value const & input)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -25,9 +25,12 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             Json::StreamWriterBuilder builder;
-            builder["indentation"] = "    ";
-            builder["precision"] = 3;
-            builder["precisionType"] = "decimal";
+            builder["commentStyle"] = "None";
+            builder["indentation"] = "  ";
+            builder["enableYAMLCompatibility"] = false;
+            builder["dropNullPlaceholders"] = false;
+            builder["useSpecialFloats"] = false;
+            builder["precision"] = 9;
             std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
             std::ostream output(&buffer);
             writer->write(input, &output);

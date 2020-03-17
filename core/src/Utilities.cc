@@ -16,6 +16,8 @@
 
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
+#include "jiminy/core/io/MemoryDevice.h"
+#include "jiminy/core/io/JsonWriter.h"
 #include "jiminy/core/Constants.h"
 
 #include "jiminy/core/Utilities.h"
@@ -88,6 +90,72 @@ namespace jiminy
         return {getenv("USERPROFILE")};
     }
     #endif
+
+
+    Json::Value configToJson(configHolder_t const & config)
+    {
+        // class appendToJson : public boost::static_visitor<>
+        // {
+        // public:
+        //     template <typename T>
+        //     void operator()(Json::Value & root,
+        //                     std::string const & field,
+        //                     T const & value) const
+        //     {
+        //         root[field] = value;
+        //     }
+
+        //     template <>
+        //     void operator()(Json::Value & root,
+        //                     std::string const & field,
+        //                     std::unordered_map<std::string, configField_t> const & value) const
+        //     {
+        //         for (auto const & pair : value)
+        //         {
+        //             root[field][pair.first] = ()(root, pair.first, pair.second);
+        //         }
+        //     }
+        // };
+
+        Json::Value root;
+
+        root["hello"] = "world";
+        root["t"] = true;
+        root["f"] = false;
+        root["n"];
+        root["i"] = 123;
+        root["pi"] = 3.1416;
+
+        Json::Value arrayWrite(Json::arrayValue);
+        for (int32_t i=0; i < 4; i++)
+        {
+            arrayWrite.append(i);
+        }
+        root["a"] = arrayWrite;
+
+        return root;
+    }
+
+    hresult_t jsonDump(configHolder_t                    const & config,
+                       std::shared_ptr<AbstractIODevice>       & device)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Create the memory device if necessary (the device is nullptr)
+        if (!device)
+        {
+            uint32_t const buffer_size = (512U * 1024U); // 512Ko
+            device = std::make_shared<MemoryDevice>(buffer_size);
+        }
+
+        // Wrapper the memory device in a JsonWriter
+        JsonWriter ioWrite(device);
+
+        // Convert the configuration in Json and write it in the device
+        returnCode = ioWrite.dump(configToJson(config));
+
+        return returnCode;
+    }
 
     // ***************** Random number generator *****************
     // Based on Ziggurat generator by Marsaglia and Tsang (JSS, 2000)

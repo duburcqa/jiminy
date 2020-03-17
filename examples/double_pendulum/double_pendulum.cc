@@ -10,6 +10,8 @@
 #include "jiminy/core/Engine.h"
 #include "jiminy/core/model/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
+#include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
 
@@ -49,7 +51,7 @@ int main(int argc, char_t * argv[])
     // Set URDF and log output.
     std::string homedir = getUserDirectory();
     std::string urdfPath = homedir + std::string("/wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf");
-    std::string outputDirPath("/tmp/blackbox/");
+    std::string outputDirPath("/tmp/");
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============
@@ -111,6 +113,11 @@ int main(int argc, char_t * argv[])
 
     timer.toc();
 
+    // Dump the configuration
+    std::shared_ptr<AbstractIODevice> device =
+        std::make_shared<FileDevice>(outputDirPath + std::string("simuOptions.json"));
+    jsonDump(simuOptions, device);
+
     // =====================================================================
     // ======================= Run the simulation ==========================
     // =====================================================================
@@ -131,8 +138,8 @@ int main(int argc, char_t * argv[])
     matrixN_t log;
     engine.getLogData(header, log);
     std::cout << log.rows() << " log points" << std::endl;
-    engine.writeLogTxt(outputDirPath + std::string("/log.txt"));
-    engine.writeLogBinary(outputDirPath + std::string("/log.data"));
+    engine.writeLogTxt(outputDirPath + std::string("log.txt"));
+    engine.writeLogBinary(outputDirPath + std::string("log.data"));
 
     return 0;
 }

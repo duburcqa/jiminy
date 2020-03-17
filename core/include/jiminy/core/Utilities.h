@@ -8,6 +8,8 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
+#include "json/json.h"
+
 #include "jiminy/core/Types.h"
 
 
@@ -70,7 +72,14 @@ namespace jiminy
 
     // ************ IO file and Directory utilities *****************
 
+    class AbstractIODevice; // Forward declaration
+
     std::string getUserDirectory(void);
+
+    Json::Value configToJson(configHolder_t const & config);
+
+    hresult_t jsonDump(configHolder_t                    const & config,
+                       std::shared_ptr<AbstractIODevice>       & device);
 
     // ************ Random number generator utilities ***************
 
