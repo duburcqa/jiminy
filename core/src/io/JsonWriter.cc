@@ -9,11 +9,11 @@
 
 namespace jiminy
 {
-    JsonWriter::JsonWriter(std::shared_ptr<AbstractIODevice> device)
-        : device_(device)
+    JsonWriter::JsonWriter(std::shared_ptr<AbstractIODevice> device) :
+    device_(device)
     {
+        // Empty on purpose
     }
-
 
     hresult_t JsonWriter::dump(Json::Value& input)
     {

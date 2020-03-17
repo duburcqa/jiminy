@@ -16,8 +16,9 @@
 
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
+
+#include "jiminy/core/Utilities.h"
 
 
 namespace jiminy

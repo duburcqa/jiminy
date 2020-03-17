@@ -69,7 +69,7 @@ EXTERNALPROJECT_GET_PROPERTY(jsoncpp BINARY_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     $<BUILD_INTERFACE:${SOURCE_DIR}/include>
 )
-target_link_libraries(${PROJECT_NAME} "-L${BINARY_DIR}/lib -ljsoncpp")
+target_link_libraries(${PROJECT_NAME} "-L${BINARY_DIR}/src/lib_json -ljsoncpp")
 
 # Activate C++14
 if(NOT WIN32)
