@@ -43,14 +43,14 @@ namespace jiminy
             hresult_t returnCode = computeCommand(t, q, v, uCommand);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if(uCommand.size() != (int32_t) model_->getMotorsNames().size())
+                if (uCommand.size() != (int32_t) model_->getMotorsNames().size())
                 {
                     std::cout << "Error - AbstractController::initialize - 'computeCommand' returns command with wrong size." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 internalDynamics(t, q, v, uInternal);
-                if(uInternal.size() != model_->nv())
+                if (uInternal.size() != model_->nv())
                 {
                     std::cout << "Error - AbstractController::initialize - 'internalDynamics' returns command with wrong size." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;

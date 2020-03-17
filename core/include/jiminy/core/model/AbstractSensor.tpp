@@ -1,4 +1,3 @@
-#include "jiminy/core/Engine.h" // MIN_SIMULATION_TIMESTEP and MAX_SIMULATION_TIMESTEP
 #include "jiminy/core/model/Model.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
@@ -70,7 +69,7 @@ namespace jiminy
         }
 
         // Remove associated col in the global data buffer
-        if(sensorId_ < sharedHolder_->num_ - 1)
+        if (sensorId_ < sharedHolder_->num_ - 1)
         {
             int32_t sensorShift = sharedHolder_->num_ - sensorId_ - 1;
             for (matrixN_t & data : sharedHolder_->data_)
@@ -366,7 +365,7 @@ namespace jiminy
             else
             {
                 // Increase capacity if required
-                if(sharedHolder_->time_.full())
+                if (sharedHolder_->time_.full())
                 {
                     sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
                     sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);

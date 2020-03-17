@@ -429,13 +429,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if(!isInitialized_)
+        if (!isInitialized_)
         {
             std::cout << "Error - Engine::simulate - Engine not initialized. Impossible to run the simulation." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if(tEnd < 5e-3)
+        if (tEnd < 5e-3)
         {
             std::cout << "Error - Engine::simulate - The duration of the simulation cannot be shorter than 5ms." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -589,7 +589,7 @@ namespace jiminy
             failed_step_checker fail_checker;
 
             // Perform the integration
-            while(tEnd - t > EPS)
+            while (tEnd - t > EPS)
             {
                 float64_t tNext = t;
                 // Solver cannot simulate a timestep smaller than MIN_SIMULATION_TIMESTEP
@@ -826,7 +826,7 @@ namespace jiminy
 
         // Compute the contact forces
         std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
-        for(uint32_t i=0; i < contactFramesIdx.size(); i++)
+        for (uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
             // Compute force in the contact frame.
             int32_t const & contactFrameIdx = contactFramesIdx[i];
@@ -1351,7 +1351,7 @@ namespace jiminy
         nGround.normalize();
         float64_t depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
-        if(depth < 0.0)
+        if (depth < 0.0)
         {
             // Get frame motion in the motion frame.
             vector3_t motionFrame = pinocchio::getFrameVelocity(model_->pncModel_,
@@ -1362,7 +1362,7 @@ namespace jiminy
 
             // Compute normal force
             float64_t fextNormal = 0.0;
-            if(vDepth < 0.0)
+            if (vDepth < 0.0)
             {
                 fextNormal -= contactOptions_->damping * vDepth;
             }
@@ -1374,9 +1374,9 @@ namespace jiminy
             float64_t vNorm = vTangential.norm();
 
             float64_t frictionCoeff = 0.0;
-            if(vNorm >= contactOptions_->dryFrictionVelEps)
+            if (vNorm >= contactOptions_->dryFrictionVelEps)
             {
-                if(vNorm < 1.5 * contactOptions_->dryFrictionVelEps)
+                if (vNorm < 1.5 * contactOptions_->dryFrictionVelEps)
                 {
                     frictionCoeff = -2.0 * (contactOptions_->frictionDry -
                         contactOptions_->frictionViscous) * (vNorm / contactOptions_->dryFrictionVelEps)
@@ -1686,7 +1686,7 @@ namespace jiminy
 
         typedef pinocchio::AbaForwardStep1<Scalar, Options, JointCollectionTpl,
                                            ConfigVectorType, TangentVectorType1> Pass1;
-        for(JointIndex i=1; i<(JointIndex)model.njoints; ++i)
+        for (JointIndex i=1; i<(JointIndex)model.njoints; ++i)
         {
             Pass1::run(model.joints[i],data.joints[i],
                        typename Pass1::ArgsType(model,data,q.derived(),v.derived()));
@@ -1694,14 +1694,14 @@ namespace jiminy
         }
 
         typedef AbaBackwardStep<Scalar,Options,JointCollectionTpl> Pass2;
-        for(JointIndex i=(JointIndex)model.njoints-1; i>0; --i)
+        for (JointIndex i=(JointIndex)model.njoints-1; i>0; --i)
         {
             Pass2::run(model.joints[i],data.joints[i],
                        typename Pass2::ArgsType(model,data));
         }
 
         typedef pinocchio::AbaForwardStep2<Scalar,Options,JointCollectionTpl> Pass3;
-        for(JointIndex i=1; i<(JointIndex)model.njoints; ++i)
+        for (JointIndex i=1; i<(JointIndex)model.njoints; ++i)
         {
             Pass3::run(model.joints[i],data.joints[i],
                        typename Pass3::ArgsType(model,data));

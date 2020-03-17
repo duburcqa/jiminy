@@ -287,7 +287,7 @@ namespace jiminy
                                     std::vector<std::vector<float32_t> > & floatData)
     {
         std::vector<AbstractIODevice *> abstractFlows_;
-        for(MemoryDevice & device: flows_)
+        for (MemoryDevice & device: flows_)
         {
             abstractFlows_.push_back(&device);
         }

@@ -628,14 +628,14 @@ namespace jiminy
                 std::string const & jointName = flexibleJoint.jointName;
 
                 // Look if given joint exists in the joint list.
-                if(returnCode == hresult_t::SUCCESS)
+                if (returnCode == hresult_t::SUCCESS)
                 {
                     int32_t jointIdx;
                     returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
                 }
 
                 // Add joints to model.
-                if(returnCode == hresult_t::SUCCESS)
+                if (returnCode == hresult_t::SUCCESS)
                 {
                     std::string newName =
                         removeFieldnameSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
@@ -1456,7 +1456,7 @@ namespace jiminy
             if (!boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf")))
             {
                 vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
-                if((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
+                if ((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1464,7 +1464,7 @@ namespace jiminy
                 vectorN_t positionLimitMinDiff = positionLimitMin - mdlOptions_->joints.positionLimitMin;
                 internalBuffersMustBeUpdated |= (positionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
-                if((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
+                if ((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1475,7 +1475,7 @@ namespace jiminy
             if (!boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
                 vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
-                if((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
+                if ((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
@@ -1491,7 +1491,7 @@ namespace jiminy
             flexibilityConfig_t const & flexibilityConfig =
                 boost::get<flexibilityConfig_t>(dynOptionsHolder.at("flexibilityConfig"));
 
-            if(mdlOptions_
+            if (mdlOptions_
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
                                 flexibilityConfig.end(),

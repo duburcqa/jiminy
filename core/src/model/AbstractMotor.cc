@@ -73,7 +73,7 @@ namespace jiminy
         }
 
         // Remove associated col in the global data buffer
-        if(motorId_ < sharedHolder_->num_ - 1)
+        if (motorId_ < sharedHolder_->num_ - 1)
         {
             int32_t motorShift = sharedHolder_->num_ - motorId_ - 1;
             sharedHolder_->data_.segment(motorId_, motorShift) =

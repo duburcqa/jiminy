@@ -70,16 +70,55 @@ namespace jiminy
         float64_t dt;
     };
 
-    // ************ IO file and Directory utilities *****************
+    // ************* IO file and Directory utilities ****************
 
     class AbstractIODevice; // Forward declaration
 
     std::string getUserDirectory(void);
 
-    Json::Value configToJson(configHolder_t const & config);
+    // **************** Generic template utilities ******************
+
+    template< bool B, class T = void >
+    using enable_if_t = typename std::enable_if<B,T>::type;
+
+	template<typename T>
+	struct is_vector
+	{
+		static constexpr bool value = false;
+	};
+
+	template<template<typename...> class C, typename U>
+	struct is_vector<C<U> >
+	{
+		static constexpr bool value =
+			std::is_same<C<U>, std::vector<U> >::value;
+	};
+
+    // *************** Convertion to JSON utilities *****************
+
+    template<typename T>
+    enable_if_t<!is_vector<T>::value, Json::Value>
+    convertToJson(T const & value);
+
+    template<typename T>
+    enable_if_t<is_vector<T>::value, Json::Value>
+    convertToJson(T const & value);
 
     hresult_t jsonDump(configHolder_t                    const & config,
                        std::shared_ptr<AbstractIODevice>       & device);
+
+    // ************* Convertion from JSON utilities *****************
+
+    template<typename T>
+    enable_if_t<!is_vector<T>::value, T>
+    convertFromJson(Json::Value const & value);
+
+    template<typename T>
+    enable_if_t<is_vector<T>::value, T>
+    convertFromJson(Json::Value const & value);
+
+    hresult_t jsonLoad(configHolder_t                    & config,
+                       std::shared_ptr<AbstractIODevice> & device);
 
     // ************ Random number generator utilities ***************
 

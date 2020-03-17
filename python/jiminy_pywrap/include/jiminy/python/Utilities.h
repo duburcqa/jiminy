@@ -62,7 +62,7 @@ namespace python
         static PyObject* convert(std::vector<T> const & vec)
         {
             boost::python::list * l = new boost::python::list();
-            for(size_t i = 0; i < vec.size(); i++)
+            for (size_t i = 0; i < vec.size(); i++)
             {
                 l->append(vec[i]);
             }
@@ -464,7 +464,7 @@ namespace python
             dataNumpy = dataNumpy.astype(bp::numpy::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
             Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if(std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<CType, vectorN_t>::value)
             {
                 data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
             }
@@ -479,7 +479,7 @@ namespace python
             bp::numpy::ndarray dataNumpy = dataMatrix.astype(bp::numpy::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
             Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if(std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<CType, vectorN_t>::value)
             {
                 data = Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
             }
@@ -490,7 +490,7 @@ namespace python
         }
         else
         {
-            if(std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<CType, vectorN_t>::value)
             {
                 data = listPyToEigenVector(bp::extract<bp::list>(dataPy));
             }

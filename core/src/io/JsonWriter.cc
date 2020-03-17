@@ -27,9 +27,9 @@ namespace jiminy
             Json::StreamWriterBuilder builder;
             builder["commentStyle"] = "None";
             builder["indentation"] = "  ";
-            builder["enableYAMLCompatibility"] = false;
+            builder["enableYAMLCompatibility"] = true;
             builder["dropNullPlaceholders"] = false;
-            builder["useSpecialFloats"] = false;
+            builder["useSpecialFloats"] = true;
             builder["precision"] = 9;
             std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
             std::ostream output(&buffer);

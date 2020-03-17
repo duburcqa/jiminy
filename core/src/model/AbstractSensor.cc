@@ -56,7 +56,7 @@ namespace jiminy
 
     void AbstractSensorBase::updateTelemetry(void)
     {
-        if(isTelemetryConfigured_)
+        if (isTelemetryConfigured_)
         {
             updateDataBuffer(); // Force update the internal measurement buffer if necessary
             telemetrySender_.updateValue(getFieldNames(), data_);

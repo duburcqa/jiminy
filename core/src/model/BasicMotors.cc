@@ -55,27 +55,27 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Make sure the user-defined position limit has the right dimension
-            if(boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
+            if (boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousPositive' must be negative." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if(boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
+            if (boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousNegative' must be negative." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if(boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
+            if (boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDryPositive' must be negative." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if(boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
+            if (boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDryNegative' must be negative." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
-            if(boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
+            if (boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
             {
                 std::cout << "Error - SimpleMotor::setOptions - 'frictionDrySlope' must be positive." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
