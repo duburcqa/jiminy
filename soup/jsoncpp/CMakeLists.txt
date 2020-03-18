@@ -9,10 +9,10 @@ EXTERNALPROJECT_APPLY_PATCH(${CMAKE_CURRENT_SOURCE_DIR}/patch PATCH_ARGS)
 
 # Download and install jsoncpp.
 EXTERNALPROJECT_ADD(${PROJECT_NAME}
-     GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp
+     GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
      GIT_TAG           1.9.2
      GIT_SHALLOW       TRUE
-     GIT_CONFIG        advice.detachedHead=false
+     GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
      CMAKE_ARGS
      -DJSONCPP_WITH_TESTS=OFF
      -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF
@@ -22,7 +22,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-     -DCMAKE_CXX_FLAGS="-w" # Disable all warnings
+     -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
      ${PATCH_ARGS}
      INSTALL_COMMAND ""
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
