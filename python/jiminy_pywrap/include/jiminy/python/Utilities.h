@@ -85,10 +85,10 @@ namespace python
     /// \brief  Convert scalar to Numpy array by reference.
     ///////////////////////////////////////////////////////////////////////////////
     template<typename T>
-    PyObject * getNumpyReferenceFromScalar(T & data)
+    PyObject * getNumpyReferenceFromScalar(T & value)
     {
         npy_intp dims[1] = {npy_intp(1)};
-        return PyArray_SimpleNewFromData(1, dims, getPyType(data), &data);
+        return PyArray_SimpleNewFromData(1, dims, getPyType(value), &value);
     }
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -96,18 +96,18 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     #define MAKE_FUNC(T) \
-    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> const> data, /* Must use Ref to support fixed size array without copy */ \
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> const> value, /* Must use Ref to support fixed size array without copy */ \
                                                 pyVector_t type = pyVector_t::vector) \
     { \
         if (type == pyVector_t::vector) \
         { \
-            npy_intp dims[1] = {npy_intp(data.size())}; \
-            return PyArray_SimpleNewFromData(1, dims, getPyType(*data.data()), const_cast<T *>(data.data())); \
+            npy_intp dims[1] = {npy_intp(value.size())}; \
+            return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data())); \
         } \
         else \
         { \
-            npy_intp dims[2] = {npy_intp(1), npy_intp(data.size())}; \
-            PyObject * pyData = PyArray_SimpleNewFromData(2, dims, getPyType(*data.data()), const_cast<T *>(data.data())); \
+            npy_intp dims[2] = {npy_intp(1), npy_intp(value.size())}; \
+            PyObject * pyData = PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), const_cast<T*>(value.data())); \
             if (type == pyVector_t::matrixCol) \
             { \
                 return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(pyData), NULL); \
@@ -128,11 +128,11 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert Eigen matrix to Numpy array by reference.
     ///////////////////////////////////////////////////////////////////////////////
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<matrixN_t const> data)
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<matrixN_t const> value)
     {
-        npy_intp dims[2] = {npy_intp(data.cols()), npy_intp(data.rows())};
-        return  PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, NPY_FLOAT64, const_cast<float64_t *>(data.data()))), NULL);
+        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
+        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
+            PyArray_SimpleNewFromData(2, dims, NPY_FLOAT64, const_cast<float64_t *>(value.data()))), NULL);
     }
 
 
@@ -186,145 +186,73 @@ namespace python
     /// \brief  Convert most C++ objects into Python objects by value.
     ///////////////////////////////////////////////////////////////////////////////
     template<typename CType>
-    void convertToPy(CType const & data, bp::object & dataPy)
+    bp::object convertToPy(CType const & data)
     {
-        dataPy = bp::object(data);
+        return bp::object(data);
     }
 
     template<>
-    void convertToPy(flexibleJointData_t const & flexibleJointData, bp::object & dataPy)
+    bp::object convertToPy<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["jointName"] = flexibleJointData.jointName;
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
-        dataPy = flexibilityJointDataPy;
+        return flexibilityJointDataPy;
     }
 
     template<>
-    void convertToPy(flexibilityConfig_t const & flexibilityConfig, bp::object & dataPy)
+    bp::object convertToPy<flexibilityConfig_t>(flexibilityConfig_t const & flexibilityConfig)
     {
         bp::list flexibilityConfigPy;
         for (auto const & flexibleJoint : flexibilityConfig)
         {
-            bp::dict flexibilityJointDataPy;
-            convertToPy(flexibleJoint, flexibilityJointDataPy);
-            flexibilityConfigPy.append(flexibilityJointDataPy);
+            flexibilityConfigPy.append(convertToPy(flexibleJoint));
         }
-        dataPy = flexibilityConfigPy;
+        return flexibilityConfigPy;
     }
 
     template<>
-    void convertToPy(vectorN_t const & data, bp::object & dataPy)
+    bp::object convertToPy<vectorN_t>(vectorN_t const & data)
     {
-        dataPy = eigenVectorTolistPy(data);
+        std::cout << "vectorN_t : " << data << std::endl;
+        return bp::object(bp::handle<>(getNumpyReferenceFromEigenVector(data)));
     }
 
     template<>
-    void convertToPy(matrixN_t const & data, bp::object & dataPy)
+    bp::object convertToPy<matrixN_t>(matrixN_t const & data)
     {
-        dataPy = eigenMatrixTolistPy(data);
+        std::cout << "matrixN_t : " << data << std::endl;
+        return bp::object(bp::handle<>(getNumpyReferenceFromEigenMatrix(data)));
     }
 
     template<>
-    void convertToPy(std::vector<std::string> const & data, bp::object & dataPy)
+    bp::object convertToPy<std::vector<std::string> >(std::vector<std::string> const & data)
     {
-        dataPy = stdVectorToListPy(data);
+        return stdVectorToListPy(data);
     }
 
+    class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
+    {
+    public:
+        template <typename T>
+        bp::object operator()(T const & value) const
+        {
+            return convertToPy<T>(value);
+        }
+    };
+
     template<>
-    void convertToPy(configHolder_t const & config, bp::object & configPy)
+    bp::object convertToPy(configHolder_t const & config)
     {
         bp::dict configPyDict;
+        AppendBoostVariantToPython visitor;
         for (auto const & configField : config)
         {
             std::string const & name = configField.first;
-            const std::type_info & optionType = configField.second.type();
-
-            if (optionType == typeid(bool_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<bool_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(int32_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<int32_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(uint32_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<uint32_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(float64_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<float64_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(std::string))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<std::string>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(heatMapFunctor_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<heatMapFunctor_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(flexibilityConfig_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<flexibilityConfig_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(vectorN_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<vectorN_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(matrixN_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<matrixN_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(std::vector<std::string>))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<std::vector<std::string> >(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(std::vector<vectorN_t>))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<std::vector<vectorN_t> >(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(std::vector<matrixN_t>))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<std::vector<matrixN_t> >(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else if (optionType == typeid(configHolder_t))
-            {
-                bp::object dataPy;
-                convertToPy(boost::get<configHolder_t>(configField.second), dataPy);
-                configPyDict[name] = dataPy;
-            }
-            else
-            {
-                assert(false && "Unsupported type");
-            }
+            configPyDict[name] = boost::apply_visitor(visitor, configField.second);
         }
-        configPy = configPyDict;
+        return configPyDict;
     }
 
     // ****************************************************************************

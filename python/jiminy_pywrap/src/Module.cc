@@ -38,32 +38,33 @@ namespace python
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
-        .value("SUCCESS", hresult_t::SUCCESS)
-        .value("ERROR_GENERIC", hresult_t::ERROR_GENERIC)
-        .value("ERROR_BAD_INPUT", hresult_t::ERROR_BAD_INPUT)
+        .value("SUCCESS",           hresult_t::SUCCESS)
+        .value("ERROR_GENERIC",     hresult_t::ERROR_GENERIC)
+        .value("ERROR_BAD_INPUT",   hresult_t::ERROR_BAD_INPUT)
         .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
 
         // Interfaces for heatMapType_t enum
         bp::enum_<heatMapType_t>("heatMapType_t")
         .value("CONSTANT", heatMapType_t::CONSTANT)
-        .value("STAIRS", heatMapType_t::STAIRS)
-        .value("GENERIC", heatMapType_t::GENERIC);
+        .value("STAIRS",   heatMapType_t::STAIRS)
+        .value("GENERIC",  heatMapType_t::GENERIC);
 
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, stdVectorToListPyConverter<std::string> >();
-        bp::to_python_converter<std::vector<int32_t>, stdVectorToListPyConverter<int32_t> >();
-        bp::to_python_converter<std::vector<vectorN_t>, stdVectorToListPyConverter<vectorN_t> >();
-        bp::to_python_converter<std::vector<matrixN_t>, stdVectorToListPyConverter<matrixN_t> >();
-        bp::to_python_converter<std::vector<matrixN_t>, stdVectorToListPyConverter<matrixN_t> >();
+        bp::to_python_converter<std::vector<int32_t>,     stdVectorToListPyConverter<int32_t> >();
+        bp::to_python_converter<std::vector<vectorN_t>,   stdVectorToListPyConverter<vectorN_t> >();
+        bp::to_python_converter<std::vector<matrixN_t>,   stdVectorToListPyConverter<matrixN_t> >();
+        bp::to_python_converter<std::vector<matrixN_t>,   stdVectorToListPyConverter<matrixN_t> >();
 
         // Expose classes
+        jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::SensorsDataMapVisitor::expose();
+        jiminy::python::PyUtilitiesVisitor::expose();
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PyMotorVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
         jiminy::python::PyControllerFunctorVisitor::expose();
-        jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::PyStepperVisitor::expose();
         jiminy::python::PyEngineVisitor::expose();
     }

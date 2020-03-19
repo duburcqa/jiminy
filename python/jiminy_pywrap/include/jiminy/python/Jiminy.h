@@ -13,6 +13,7 @@
 #include "jiminy/core/model/BasicSensors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
+#include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"
@@ -236,7 +237,6 @@ namespace python
         PyObject * out2PyPtr_;
     };
 
-
     // **************************** HeatMapFunctorVisitor *****************************
 
     struct HeatMapFunctorVisitor
@@ -283,7 +283,6 @@ namespace python
     };
 
     // ******************************* sensorsDataMap_t ********************************
-
 
     struct SensorsDataMapVisitor
         : public bp::def_visitor<SensorsDataMapVisitor>
@@ -439,6 +438,41 @@ namespace python
         }
     };
 
+    // ***************************** PyUtilitiesVisitor ***********************************
+
+    struct PyUtilitiesVisitor
+        : public bp::def_visitor<PyUtilitiesVisitor>
+    {
+    public:
+        static void dumpOptions(bp::dict    const & configPy,
+                                std::string const & filepath)
+        {
+            std::shared_ptr<AbstractIODevice> device =
+                std::make_shared<FileDevice>(filepath);
+            configHolder_t config;
+            convertToC(configPy, config);
+            jsonDump(config, device);
+        }
+
+        static bp::object loadOptions(std::string const & filepath)
+        {
+            std::shared_ptr<AbstractIODevice> device =
+                std::make_shared<FileDevice>(filepath);
+            configHolder_t config;
+            jsonLoad(config, device);
+            return convertToPy(config);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::def("dump_options", &dumpOptions, (bp::arg("options"), "path"));
+            bp::def("load_options", &loadOptions, (bp::arg("path")));
+        }
+    };
+
     // **************************** ControllerFctWrapper *******************************
 
     struct ControllerFctWrapper
@@ -550,11 +584,9 @@ namespace python
         }
 
         template<typename TMotor>
-        static bp::dict getOptions(TMotor & self)
+        static bp::object getOptions(TMotor & self)
         {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
+            return convertToPy(self.getOptions());
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -667,11 +699,9 @@ namespace python
         }
 
         template<typename TSensor>
-        static bp::dict getOptions(TSensor & self)
+        static bp::object getOptions(TSensor & self)
         {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
+            return convertToPy(self.getOptions());
         }
 
         template<typename TSensor>
@@ -900,9 +930,8 @@ namespace python
             auto const & sensorsNames = self.getSensorsNames();
             for (auto const & sensorTypeNames : sensorsNames)
             {
-                bp::object dataPy;
-                convertToPy(sensorTypeNames.second, dataPy);
-                sensorsNamesPy[sensorTypeNames.first] = dataPy;
+                sensorsNamesPy[sensorTypeNames.first] =
+                    convertToPy(sensorTypeNames.second);
             }
             return sensorsNamesPy;
         }
@@ -925,15 +954,12 @@ namespace python
 
         static bp::dict getModelOptions(Model & self)
         {
-            bp::dict configModelPy;
-            convertToPy(self.getOptions(), configModelPy);
-
-            bp::dict configTelemetryPy;
+            bp::dict configModelPy =
+                bp::extract<bp::dict>(convertToPy(self.getOptions()));
             configHolder_t configTelemetry;
             self.getTelemetryOptions(configTelemetry);
-            convertToPy(configTelemetry, configTelemetryPy);
-            configModelPy["telemetry"] = configTelemetryPy;
-
+            configModelPy["telemetry"] = \
+                convertToPy(self.getTelemetryOptions(configTelemetry));
             return configModelPy;
         }
 
@@ -959,13 +985,11 @@ namespace python
             self.setMotorsOptions(config);
         }
 
-        static bp::dict getMotorsOptions(Model & self)
+        static bp::object getMotorsOptions(Model & self)
         {
             configHolder_t config;
-            bp::dict configPy;
             self.getMotorsOptions(config);
-            convertToPy(config, configPy);
-            return configPy;
+            return convertToPy(config);
         }
 
         static void setSensorsOptions(Model          & self,
@@ -977,13 +1001,11 @@ namespace python
             self.setSensorsOptions(config);
         }
 
-        static bp::dict getSensorsOptions(Model & self)
+        static bp::object getSensorsOptions(Model & self)
         {
             configHolder_t config;
-            bp::dict configPy;
             self.getSensorsOptions(config);
-            convertToPy(config, configPy);
-            return configPy;
+            return convertToPy(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1134,11 +1156,9 @@ namespace python
             }
         }
 
-        static bp::dict getOptions(AbstractController & self)
+        static bp::object getOptions(AbstractController & self)
         {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
+            return convertToPy(self.getOptions());
         }
 
         static void setOptions(AbstractController       & self,
@@ -1515,11 +1535,9 @@ namespace python
             }
         }
 
-        static bp::dict getOptions(Engine & self)
+        static bp::object getOptions(Engine & self)
         {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
+            return convertToPy(self.getOptions());
         }
 
         static hresult_t setOptions(Engine         & self,

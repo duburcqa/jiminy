@@ -26,6 +26,7 @@
 #define close _close
 #define write _write
 #define read _read
+#define ftruncate _chsize
 
 #define S_IRUSR _S_IREAD
 #define S_IWUSR _S_IWRITE
