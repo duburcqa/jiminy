@@ -44,19 +44,16 @@ namespace jiminy
         using TVal = typename T::value_type;
         if (std::is_same<TVal, std::string>::value)
         {
-            root["type"] = "string";
+            root["type"] = "list(string)";
         }
-        else if (std::is_same<TVal, vectorN_t>::value)
+        else if (std::is_same<TVal, vectorN_t>::value
+              || std::is_same<TVal, matrixN_t>::value)
         {
-            root["type"] = "vector";
-        }
-        else if (std::is_same<TVal, matrixN_t>::value)
-        {
-            root["type"] = "matrix";
+            root["type"] = "list(array)";
         }
         else if (std::is_same<TVal, flexibleJointData_t>::value)
         {
-            root["type"] = "flexibility";
+            root["type"] = "list(flexibility)";
         }
         else
         {

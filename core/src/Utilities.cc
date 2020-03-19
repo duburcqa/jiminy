@@ -308,21 +308,25 @@ namespace jiminy
                 if (keys == stdVectorAttrib)
                 {
                     std::string type = (*root)["type"].asString();
-                    if (type == "string")
+                    Json::Value data = (*root)["value"];
+                    if (type == "list(string)")
                     {
-                        field = convertFromJson<std::vector<std::string> >((*root)["value"]);
+                        field = convertFromJson<std::vector<std::string> >(data);
                     }
-                    else if (type == "vector")
+                    else if (type == "list(array)")
                     {
-                        field = convertFromJson<std::vector<vectorN_t> >((*root)["value"]);
+                        if (data.size() == 0 || data.begin()->type() == Json::realValue)
+                        {
+                            field = convertFromJson<std::vector<vectorN_t> >(data);
+                        }
+                        else
+                        {
+                            field = convertFromJson<std::vector<matrixN_t> >(data);
+                        }
                     }
-                    else if (type == "matrix")
+                    else if (type == "list(flexibility)")
                     {
-                        field = convertFromJson<std::vector<matrixN_t> >((*root)["value"]);
-                    }
-                    else if (type == "flexibility")
-                    {
-                        field = convertFromJson<flexibilityConfig_t>((*root)["value"]);
+                        field = convertFromJson<flexibilityConfig_t>(data);
                     }
                     else
                     {
