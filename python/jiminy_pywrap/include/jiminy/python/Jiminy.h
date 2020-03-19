@@ -18,12 +18,11 @@
 
 #include "jiminy/python/Utilities.h"
 
+#include <boost/preprocessor.hpp>
+
 #include <boost/python.hpp>
 #include <boost/python/def.hpp>
 #include <boost/python/dict.hpp>
-
-#include <boost/weak_ptr.hpp>
-#include <boost/preprocessor.hpp>
 
 
 namespace jiminy
@@ -325,8 +324,8 @@ namespace python
         static bp::object getItem(sensorsDataMap_t        & self,
                                   bp::tuple         const & sensorInfo)
         {
-            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
-            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
             return SensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
         }
 
@@ -369,8 +368,8 @@ namespace python
         static bool_t contains(sensorsDataMap_t       & self,
                                bp::tuple        const & sensorInfo)
         {
-            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
-            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
             auto const & sensorDataType = self.find(sensorType);
             if (sensorDataType != self.end())
             {
@@ -449,18 +448,16 @@ namespace python
         {
             std::shared_ptr<AbstractIODevice> device =
                 std::make_shared<FileDevice>(filepath);
-            configHolder_t config;
-            convertToC(configPy, config);
-            jsonDump(config, device);
+            jsonDump(convertFromPython<configHolder_t>(configPy), device);
         }
 
-        static bp::object loadOptions(std::string const & filepath)
+        static configHolder_t loadOptions(std::string const & filepath)
         {
             std::shared_ptr<AbstractIODevice> device =
                 std::make_shared<FileDevice>(filepath);
             configHolder_t config;
             jsonLoad(config, device);
-            return convertToPy(config);
+            return config;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -515,7 +512,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
-                    .def("get_options", &PyMotorVisitor::getOptions<TMotor>,
+                    .def("get_options", &AbstractMotorBase::getOptions,
                                         bp::return_value_policy<bp::return_by_value>())
 
                     .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
@@ -540,7 +537,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static typename std::enable_if<!std::is_same<Q, AbstractMotorBase>::value, void>::type
+            static enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -551,7 +548,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static typename std::enable_if<std::is_same<Q, AbstractMotorBase>::value, void>::type
+            static enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -578,15 +575,7 @@ namespace python
         static void setOptions(TMotor         & self,
                                bp::dict const & configPy)
         {
-            configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
-            self.setOptions(config);
-        }
-
-        template<typename TMotor>
-        static bp::object getOptions(TMotor & self)
-        {
-            return convertToPy(self.getOptions());
+            self.setOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -631,7 +620,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PySensorVisitor::setOptions<TSensor>)
-                    .def("get_options", &PySensorVisitor::getOptions<TSensor>,
+                    .def("get_options", &AbstractSensorBase::getOptions,
                                         bp::return_value_policy<bp::return_by_value>())
 
                     .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
@@ -644,7 +633,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static typename std::enable_if<!std::is_same<Q, AbstractSensorBase>::value, void>::type
+            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -652,13 +641,13 @@ namespace python
                 cl
                     .def("initialize", &TSensor::initialize)
                     .def_readonly("type", &TSensor::type_)
-                    .add_static_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNamesStatic<TSensor>,
+                    .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldNames_,
                                                        bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
             template<class Q = TSensor>
-            static typename std::enable_if<std::is_same<Q, AbstractSensorBase>::value, void>::type
+            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -666,7 +655,7 @@ namespace python
                 cl
                     .add_property("type", bp::make_function(&AbstractSensorBase::getType,
                                           bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNames,
+                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldNames,
                                                 bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
@@ -693,26 +682,7 @@ namespace python
         static void setOptions(TSensor        & self,
                                bp::dict const & configPy)
         {
-            configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
-            self.setOptions(config);
-        }
-
-        template<typename TSensor>
-        static bp::object getOptions(TSensor & self)
-        {
-            return convertToPy(self.getOptions());
-        }
-
-        template<typename TSensor>
-        static bp::list getFieldNamesStatic(void)
-        {
-            return stdVectorToListPy(TSensor::fieldNames_);
-        }
-
-        static bp::list getFieldNames(AbstractSensorBase & self)
-        {
-            return stdVectorToListPy(self.getFieldNames());
+            self.setOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -802,8 +772,7 @@ namespace python
                 .add_property("motors_torques", bp::make_function(&Model::getMotorsTorques,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
-                .def("get_model_options", &PyModelVisitor::getModelOptions,
-                                          bp::return_value_policy<bp::return_by_value>())
+                .def("get_model_options", &PyModelVisitor::getModelOptions)
                 .def("set_model_options", &PyModelVisitor::setModelOptions)
                 .def("set_motors_options", &PyModelVisitor::setMotorsOptions)
                 .def("get_motors_options", &PyModelVisitor::getMotorsOptions,
@@ -876,21 +845,21 @@ namespace python
         static hresult_t detachMotors(Model          & self,
                                       bp::list const & jointNamesPy)
         {
-            std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
+            auto jointNames = convertFromPython<std::vector<std::string> >(jointNamesPy);
             return self.detachMotors(jointNames);
         }
 
         static hresult_t addContactPoints(Model          & self,
                                           bp::list const & frameNamesPy)
         {
-            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.addContactPoints(frameNames);
         }
 
         static hresult_t removeContactPoints(Model          & self,
                                              bp::list const & frameNamesPy)
         {
-            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.removeContactPoints(frameNames);
         }
 
@@ -931,7 +900,7 @@ namespace python
             for (auto const & sensorTypeNames : sensorsNames)
             {
                 sensorsNamesPy[sensorTypeNames.first] =
-                    convertToPy(sensorTypeNames.second);
+                    convertToPython(sensorTypeNames.second);
             }
             return sensorsNamesPy;
         }
@@ -952,60 +921,49 @@ namespace python
             return flexibleJointNames;
         }
 
-        static bp::dict getModelOptions(Model & self)
+        static configHolder_t getModelOptions(Model & self)
         {
-            bp::dict configModelPy =
-                bp::extract<bp::dict>(convertToPy(self.getOptions()));
+            configHolder_t configModel = self.getOptions();
             configHolder_t configTelemetry;
             self.getTelemetryOptions(configTelemetry);
-            configModelPy["telemetry"] = \
-                convertToPy(self.getTelemetryOptions(configTelemetry));
-            return configModelPy;
+            configModel.emplace("telemetry", std::move(configTelemetry));
+            return configModel;
         }
 
         static void setModelOptions(Model          & self,
                                     bp::dict const & configPy)
         {
-            configHolder_t configModel = self.getOptions();
-            convertToC(configPy, configModel);
-            self.setOptions(configModel);
-
-            configHolder_t configTelemetry;
-            self.getTelemetryOptions(configTelemetry);
-            convertToC(bp::extract<bp::dict>(configPy["telemetry"]), configTelemetry);
-            self.setTelemetryOptions(configTelemetry);
+            bp::dict const & configModelPy = configPy;
+            self.setOptions(convertFromPython<configHolder_t>(configModelPy));
+            bp::dict const configTelemetryPy =
+                bp::extract<bp::dict>(configPy["telemetry"]);
+            self.setTelemetryOptions(convertFromPython<configHolder_t>(configTelemetryPy));
         }
 
         static void setMotorsOptions(Model          & self,
                                      bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getMotorsOptions(config);
-            convertToC(configPy, config);
-            self.setMotorsOptions(config);
+            self.setMotorsOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         static bp::object getMotorsOptions(Model & self)
         {
             configHolder_t config;
             self.getMotorsOptions(config);
-            return convertToPy(config);
+            return convertToPython(config);
         }
 
         static void setSensorsOptions(Model          & self,
                                       bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getSensorsOptions(config);
-            convertToC(configPy, config);
-            self.setSensorsOptions(config);
+            self.setSensorsOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         static bp::object getSensorsOptions(Model & self)
         {
             configHolder_t config;
             self.getSensorsOptions(config);
-            return convertToPy(config);
+            return convertToPython(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1044,7 +1002,7 @@ namespace python
                 .def("register_constant", &PyAbstractControllerVisitor::registerConstant,
                                           (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
-                .def("get_options", &PyAbstractControllerVisitor::getOptions,
+                .def("get_options", &AbstractController::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 ;
@@ -1056,8 +1014,7 @@ namespace python
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            char const * p = Py_TYPE(dataPy)->tp_name;
-            if (p == std::string("numpy.ndarray"))
+            if (PyArray_Check(dataPy))
             {
                 float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
                 return self.registerVariable(fieldName, *data);
@@ -1077,7 +1034,7 @@ namespace python
 
             if (PyArray_Check(dataPy))
             {
-                std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
+                auto fieldNames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
                 Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
                 return self.registerVariable(fieldNames, data);
@@ -1156,17 +1113,10 @@ namespace python
             }
         }
 
-        static bp::object getOptions(AbstractController & self)
-        {
-            return convertToPy(self.getOptions());
-        }
-
         static void setOptions(AbstractController       & self,
                                bp::dict           const & configPy)
         {
-            configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
-            self.setOptions(config);
+            self.setOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1362,7 +1312,7 @@ namespace python
                                                (bp::arg("self"), "frame_name", "force_handle"))
                 .def("remove_forces", &PyEngineVisitor::removeForces)
 
-                .def("get_options", &PyEngineVisitor::getOptions,
+                .def("get_options", &Engine::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyEngineVisitor::setOptions)
 
@@ -1535,17 +1485,10 @@ namespace python
             }
         }
 
-        static bp::object getOptions(Engine & self)
-        {
-            return convertToPy(self.getOptions());
-        }
-
         static hresult_t setOptions(Engine         & self,
                                     bp::dict const & configPy)
         {
-            configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
-            return self.setOptions(config);
+            return self.setOptions(convertFromPython<configHolder_t>(configPy));
         }
 
         ///////////////////////////////////////////////////////////////////////////////

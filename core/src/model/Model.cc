@@ -1421,7 +1421,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Model::getTelemetryOptions - Model not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
