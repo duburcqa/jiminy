@@ -338,148 +338,48 @@ namespace python
         return vec;
     }
 
-    template<>
-    configHolder_t convertFromPython<configHolder_t>(bp::object const & dataPy)
+    void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration
+
+    class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
-        configHolder_t config;
-        bp::dict const configPy = bp::extract<bp::dict>(dataPy);
-        bp::list const configItemsPy = configPy.items();
-        for (int i = 0; i < bp::len(configItemsPy); i++)
+    public:
+        AppendPythonToBoostVariant(void) :
+        objPy_(nullptr)
         {
-            std::string const name = bp::extract<std::string>(configItemsPy[i][0]);
-            bp::object const & valuePy = configItemsPy[i][1];
-            PyObject* valuePyPtr = valuePy.ptr();
-
-            if (PyBool_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<bool_t>(valuePy);
-            }
-            else if (PyLong_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<int32_t>(valuePy);
-            }
-            else if (PyFloat_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<float64_t>(valuePy);
-            }
-            #if PY_VERSION_HEX >= 0x03000000
-            else if (PyBytes_Check(valuePyPtr)
-                  || PyUnicode_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<std::string>(valuePy);
-            }
-            #else
-            else if (PyString_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<std::string>(valuePy);
-            }
-            #endif
-            else if (PyArray_Check(valuePyPtr))
-            {
-                PyArrayObject * valuePyArrayPtr = reinterpret_cast<PyArrayObject *>(valuePyPtr);
-                int valuePyArrayNdims = PyArray_NDIM(valuePyArrayPtr);
-
-                if (valuePyArrayNdims == 1)
-                {
-                    config[name] = convertFromPython<vectorN_t>(valuePy);
-                }
-                else if (valuePyArrayNdims == 2)
-                {
-                    config[name] = convertFromPython<matrixN_t>(valuePy);
-                }
-                else
-                {
-                    std::cout << "Error - Python::Utilities::convertFromPython - The number of dims supported for 'numpy.ndarray' is 1 or 2." << std::endl;
-                }
-            }
-            else if (PyList_Check(valuePyPtr))
-            {
-                bp::list const valuePyList = bp::extract<bp::list>(valuePy);
-
-                if (bp::len(valuePyList) > 0)
-                {
-                    bp::object const valuePyFirst = valuePyList[0];
-                    PyObject* valuePyFirstPtr = valuePyFirst.ptr();
-
-                    #if PY_VERSION_HEX >= 0x03000000
-                    if (PyBytes_Check(valuePyFirstPtr)
-                    || PyUnicode_Check(valuePyFirstPtr))
-                    {
-                        config[name] = convertFromPython<std::vector<std::string> >(valuePy);
-                    }
-                    #else
-                    if (PyString_Check(valuePyFirstPtr))
-                    {
-                        config[name] = convertFromPython<std::vector<std::string> >(valuePy);
-                    }
-                    #endif
-                    else if (PyArray_Check(valuePyFirstPtr))
-                    {
-                        PyArrayObject * valuePyArrayPtr = reinterpret_cast<PyArrayObject *>(valuePyFirstPtr);
-                        int valuePyArrayNdims = PyArray_NDIM(valuePyArrayPtr);
-
-                        if (valuePyArrayNdims == 1)
-                        {
-                            config[name] = convertFromPython<std::vector<vectorN_t> >(valuePy);
-                        }
-                        else if (valuePyArrayNdims == 2)
-                        {
-                            config[name] = convertFromPython<std::vector<matrixN_t> >(valuePy);
-                        }
-                        else
-                        {
-                            std::cout << "Error - Python::Utilities::convertFromPython - The number of dims supported for list of 'numpy.ndarray' is 1 or 2." << std::endl;
-                        }
-                    }
-                    else
-                    {
-                        bp::dict const valuePyDict = bp::extract<bp::dict>(valuePyFirst);
-                        bp::list valuePyKeys = valuePyDict.keys();
-                        bool_t isFlexibilityData = false;
-                        if (bp::len(valuePyKeys) == 3)
-                        {
-                            valuePyKeys.sort();
-                            std::vector<std::string> valueKeys =
-                                convertFromPython<std::vector<std::string> >(valuePyKeys);
-                            std::vector<std::string> flexiblityAttrib{"damping",
-                                                                      "jointName",
-                                                                      "stiffness"};
-                            isFlexibilityData = (valueKeys == flexiblityAttrib);
-                        }
-
-                        if (isFlexibilityData)
-                        {
-                            config[name] = convertFromPython<flexibilityConfig_t>(valuePy);
-                        }
-                        else
-                        {
-                            assert(false && "Unsupported type in list.");
-                        }
-                    }
-                }
-                else
-                {
-                    std::cout << "PB!! The actual type is undetermined :/" << std::endl;
-                }
-            }
-            else if (PyDict_Check(valuePyPtr))
-            {
-                config[name] = convertFromPython<configHolder_t>(valuePy);
-            }
-            else
-            {
-                std::string type(Py_TYPE(valuePyPtr)->tp_name);
-                if (type == std::string("HeatMapFunctor"))
-                {
-                    config[name] = convertFromPython<heatMapFunctor_t>(valuePy);
-                }
-                else
-                {
-                    assert(false && "Unsupported type");
-                }
-            }
+            // Empty on purpose
         }
-        return config;
+
+        ~AppendPythonToBoostVariant(void) = default;
+
+        template <typename T>
+        enable_if_t<!std::is_same<T, configHolder_t>::value, void>
+        operator()(T & value)
+        {
+            value = convertFromPython<T>(*objPy_);
+        }
+
+        template <typename T>
+        enable_if_t<std::is_same<T, configHolder_t>::value, void>
+        operator()(T & value)
+        {
+            convertFromPython(*objPy_, value);
+        }
+
+    public:
+        bp::object * objPy_;
+    };
+
+    void convertFromPython(bp::object const & configPy, configHolder_t & config)
+    {
+        bp::dict configPyDict = bp::extract<bp::dict>(configPy);
+        AppendPythonToBoostVariant visitor;
+        for (auto & configField : config)
+        {
+            std::string const & name = configField.first;
+            bp::object value = configPyDict[name];
+            visitor.objPy_ = &value;
+            boost::apply_visitor(visitor, configField.second);
+        }
     }
 }  // end of namespace python.
 }  // end of namespace jiminy.

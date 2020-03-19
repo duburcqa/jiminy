@@ -437,39 +437,6 @@ namespace python
         }
     };
 
-    // ***************************** PyUtilitiesVisitor ***********************************
-
-    struct PyUtilitiesVisitor
-        : public bp::def_visitor<PyUtilitiesVisitor>
-    {
-    public:
-        static void dumpOptions(bp::dict    const & configPy,
-                                std::string const & filepath)
-        {
-            std::shared_ptr<AbstractIODevice> device =
-                std::make_shared<FileDevice>(filepath);
-            jsonDump(convertFromPython<configHolder_t>(configPy), device);
-        }
-
-        static configHolder_t loadOptions(std::string const & filepath)
-        {
-            std::shared_ptr<AbstractIODevice> device =
-                std::make_shared<FileDevice>(filepath);
-            configHolder_t config;
-            jsonLoad(config, device);
-            return config;
-        }
-
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose.
-        ///////////////////////////////////////////////////////////////////////////////
-        static void expose()
-        {
-            bp::def("dump_options", &dumpOptions, (bp::arg("options"), "path"));
-            bp::def("load_options", &loadOptions, (bp::arg("path")));
-        }
-    };
-
     // **************************** ControllerFctWrapper *******************************
 
     struct ControllerFctWrapper
@@ -575,7 +542,9 @@ namespace python
         static void setOptions(TMotor         & self,
                                bp::dict const & configPy)
         {
-            self.setOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            self.setOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -682,7 +651,9 @@ namespace python
         static void setOptions(TSensor        & self,
                                bp::dict const & configPy)
         {
-            self.setOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            self.setOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -933,17 +904,24 @@ namespace python
         static void setModelOptions(Model          & self,
                                     bp::dict const & configPy)
         {
-            bp::dict const & configModelPy = configPy;
-            self.setOptions(convertFromPython<configHolder_t>(configModelPy));
-            bp::dict const configTelemetryPy =
-                bp::extract<bp::dict>(configPy["telemetry"]);
-            self.setTelemetryOptions(convertFromPython<configHolder_t>(configTelemetryPy));
+            configHolder_t configModel = self.getOptions();
+            convertFromPython(configPy, configModel);
+            self.setOptions(configModel);
+
+            bp::dict configTelemetryPy = bp::extract<bp::dict>(configPy["telemetry"]);
+            configHolder_t configTelemetry;
+            self.getTelemetryOptions(configTelemetry);
+            convertFromPython(configTelemetryPy, configTelemetry);
+            self.setTelemetryOptions(configTelemetry);
         }
 
         static void setMotorsOptions(Model          & self,
                                      bp::dict const & configPy)
         {
-            self.setMotorsOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config;
+            self.getMotorsOptions(config);
+            convertFromPython(configPy, config);
+            self.setMotorsOptions(config);
         }
 
         static bp::object getMotorsOptions(Model & self)
@@ -956,7 +934,10 @@ namespace python
         static void setSensorsOptions(Model          & self,
                                       bp::dict const & configPy)
         {
-            self.setSensorsOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config;
+            self.getSensorsOptions(config);
+            convertFromPython(configPy, config);
+            self.setSensorsOptions(config);
         }
 
         static bp::object getSensorsOptions(Model & self)
@@ -1116,7 +1097,9 @@ namespace python
         static void setOptions(AbstractController       & self,
                                bp::dict           const & configPy)
         {
-            self.setOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            self.setOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1488,7 +1471,9 @@ namespace python
         static hresult_t setOptions(Engine         & self,
                                     bp::dict const & configPy)
         {
-            return self.setOptions(convertFromPython<configHolder_t>(configPy));
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            return self.setOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////

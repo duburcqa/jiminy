@@ -36,42 +36,6 @@ namespace python
         }
     };
 
-    template<typename T>
-    struct converterFromPython
-    {
-        converterFromPython(void)
-        {
-            bp::converter::registry::push_back(
-                &convertible,
-                &construct,
-                bp::type_id<T>()
-            );
-        }
-
-        static void * convertible(PyObject * objPyPtr)
-        {
-            if (!PyDict_Check(objPyPtr))
-            {
-                return nullptr;
-            }
-            return objPyPtr;
-        }
-
-        static void construct(
-            PyObject * configPyPtr,
-            bp::converter::rvalue_from_python_stage1_data * data)
-        {
-            bp::object configPy = bp::object(bp::handle<>(configPyPtr));
-            T config = convertFromPython<T>(configPy);
-
-            void* storage = (
-                (boost::python::converter::rvalue_from_python_storage<T> *) data
-            )->storage.bytes;
-            new (storage) T(std::move(config));
-            data->convertible = storage;
-        }
-    };
-
     BOOST_PYTHON_MODULE(libjiminy_pywrap)
     {
         // Required to initialized Python C API
@@ -102,13 +66,9 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
         bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
 
-        // Enable some automatic C++ from Python converters
-        converterFromPython<configHolder_t>();
-
         // Expose classes
         jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::SensorsDataMapVisitor::expose();
-        jiminy::python::PyUtilitiesVisitor::expose();
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PyMotorVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
