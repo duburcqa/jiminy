@@ -35,6 +35,21 @@ namespace jiminy
         return {value};
     }
 
+    template<>
+    Json::Value convertToJson<vectorN_t>(vectorN_t const & value);
+
+    template<>
+    Json::Value convertToJson<matrixN_t>(matrixN_t const & value);
+
+    template<>
+    Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value);
+
+    template<>
+    Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value);
+
+    template<>
+    Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
+
     template<typename T>
     enable_if_t<is_vector<T>::value, Json::Value>
     convertToJson(T const & value)
@@ -71,44 +86,29 @@ namespace jiminy
         return root;
     }
 
-    template<>
-    Json::Value convertToJson<vectorN_t>(vectorN_t const & value);
-
-    template<>
-    Json::Value convertToJson<matrixN_t>(matrixN_t const & value);
-
-    template<>
-    Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value);
-
-    template<>
-    Json::Value convertToJson<heatMapFunctor_t>(heatMapFunctor_t const & value);
-
-    template<>
-    Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
-
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
     enable_if_t<!is_vector<T>::value, T>
     convertFromJson(Json::Value const & value)
     {
+        #ifndef _WIN32
         T::undefined_template_specialization_for_this_type;
-    }
-
-    template<typename T>
-    enable_if_t<is_vector<T>::value, T>
-    convertFromJson(Json::Value const & value)
-    {
-        T vec;
-        if (value.size() > 0)
+        #else
+        // MSVC does not support SFINAE properly...
+        if (!std::is_same<T, heatMapFunctor_t>::value)
         {
-            vec.resize(value.size());
-            for (auto itr = value.begin() ; itr != value.end() ; itr++)
-            {
-                vec[itr.index()] = convertFromJson<typename T::value_type>((*itr));
-            }
+            return {};
         }
-        return vec;
+        else
+        {
+            return {[](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                    {
+                        return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
+                    }
+            };
+        }
+        #endif
     }
 
     template<>
@@ -140,6 +140,22 @@ namespace jiminy
 
     template<>
     configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
+
+    template<typename T>
+    enable_if_t<is_vector<T>::value, T>
+    convertFromJson(Json::Value const & value)
+    {
+        T vec;
+        if (value.size() > 0)
+        {
+            vec.resize(value.size());
+            for (auto itr = value.begin() ; itr != value.end() ; itr++)
+            {
+                vec[itr.index()] = convertFromJson<typename T::value_type>((*itr));
+            }
+        }
+        return vec;
+    }
 
     // ******************** Std::vector helpers *********************
 

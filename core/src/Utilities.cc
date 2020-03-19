@@ -1,7 +1,8 @@
 #include <math.h>
 #include <climits>
-#include <stdlib.h>     /* srand, rand */
+#include <numeric>     /* iota */
 #include <type_traits>
+#include <stdlib.h>     /* srand, rand */
 
 #ifndef _WIN32
 #include <pwd.h>
@@ -315,7 +316,8 @@ namespace jiminy
                     }
                     else if (type == "list(array)")
                     {
-                        if (data.size() == 0 || data.begin()->type() == Json::realValue)
+                        if (data.begin()->size() == 0
+                         || data.begin()->begin()->type() == Json::realValue)
                         {
                             field = convertFromJson<std::vector<vectorN_t> >(data);
                         }

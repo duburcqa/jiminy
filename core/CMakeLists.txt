@@ -72,13 +72,11 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 target_link_libraries(${PROJECT_NAME} "-L${BINARY_DIR}/src/lib_json -ljsoncpp")
 
 # Activate C++14
-if(NOT WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        CXX_STANDARD 14
-        CXX_STANDARD_REQUIRED YES
-        CXX_EXTENSIONS NO
-    )
-endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

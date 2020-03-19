@@ -13,7 +13,6 @@
 #include "jiminy/core/model/BasicSensors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
-#include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"
