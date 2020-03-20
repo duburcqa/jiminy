@@ -5,7 +5,7 @@ import gym
 
 from stable_baselines.her import GoalSelectionStrategy
 from stable_baselines.sac.policies import FeedForwardPolicy
-from stable_baselines import HER, DQN, SAC, DDPG, TD3
+from stable_baselines import HER, DQN, SAC, TD3, #DDPG
 
 import jiminy_py
 
@@ -14,7 +14,7 @@ model_class = SAC
 
 # Create a single-process environment
 env = gym.make("gym_jiminy:jiminy-acrobot-v0",
-               continuous=model_class in [DDPG, SAC, TD3],
+               continuous=model_class in [SAC, TD3],#, DDPG],
                enableGoalEnv=True)
 
 ### Create the model or load one

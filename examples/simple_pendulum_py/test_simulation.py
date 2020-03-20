@@ -75,7 +75,7 @@ omega = np.sqrt(g/l)
 q0 = 0.0
 dq0 = -0.0
 x0 = np.zeros((robot.nq + robot.nv, ))
-x0[:robot.nq] = robot.pinocchio_model_th.neutralConfiguration
+x0[:robot.nq] = pnc.neutral(robot.pinocchio_model_th)
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
@@ -288,21 +288,46 @@ engine.initialize(robot, controller)
 
 # ######################### Configuration the simulation ################################
 
-model_options = robot.get_model_options()
-sensor_options = robot.get_sensors_options()
+robot_options = robot.get_options()
 engine_options = engine.get_options()
 ctrl_options = controller.get_options()
 
-model_options["dynamics"]["enableFlexibleModel"] = False
-model_options["telemetry"]["enableImuSensors"] = True
-model_options["telemetry"]["enableForceSensors"] = True
+robot_options["model"]["dynamics"]["enableFlexibleModel"] = False
+
+robot_options["telemetry"]["enableImuSensors"] = True
+robot_options["telemetry"]["enableForceSensors"] = True
+
+robot_options["sensors"]['ForceSensor'] = {}
+robot_options["sensors"]['ForceSensor']['F1'] = {}
+robot_options["sensors"]['ForceSensor']['F1']["noiseStd"] = []
+robot_options["sensors"]['ForceSensor']['F1']["bias"] = []
+robot_options["sensors"]['ForceSensor']['F1']["delay"] = 0.0
+robot_options["sensors"]['ForceSensor']['F1']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ForceSensor']['F2'] = {}
+robot_options["sensors"]['ForceSensor']['F2']["noiseStd"] = []
+robot_options["sensors"]['ForceSensor']['F2']["bias"] = []
+robot_options["sensors"]['ForceSensor']['F2']["delay"] = 0.0
+robot_options["sensors"]['ForceSensor']['F2']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ForceSensor']['F3'] = {}
+robot_options["sensors"]['ForceSensor']['F3']["noiseStd"] = []
+robot_options["sensors"]['ForceSensor']['F3']["bias"] = []
+robot_options["sensors"]['ForceSensor']['F3']["delay"] = 0.0
+robot_options["sensors"]['ForceSensor']['F3']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ForceSensor']['F4'] = {}
+robot_options["sensors"]['ForceSensor']['F4']["noiseStd"] = []
+robot_options["sensors"]['ForceSensor']['F4']["bias"] = []
+robot_options["sensors"]['ForceSensor']['F4']["delay"] = 0.0
+robot_options["sensors"]['ForceSensor']['F4']["delayInterpolationOrder"] = 0
+
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
 engine_options["telemetry"]["enableTorque"] = True
 engine_options["telemetry"]["enableEnergy"] = True
+
 engine_options["world"]["gravity"][2] = -9.81
 engine_options['world']['groundProfile'] = HeatMapFunctor(0.0, heatMapType_t.CONSTANT) # Force sensor frame offset.
+
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5"  # ["runge_kutta_dopri5", "explicit_euler"]
 engine_options["stepper"]["tolRel"] = 1.0e-5
 engine_options["stepper"]["tolAbs"] = 1.0e-4
@@ -312,36 +337,15 @@ engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["logInternalStepperSteps"] = False
 engine_options["stepper"]["randomSeed"] = 0
+
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0*2.0
 engine_options['contacts']['dryFrictionVelEps'] = 0.01
 engine_options['contacts']['frictionDry'] = 5.0
 engine_options['contacts']['frictionViscous'] = 5.0
 engine_options['contacts']['transitionEps'] = 0.001
-sensor_options['ForceSensor'] = {}
-sensor_options['ForceSensor']['F1'] = {}
-sensor_options['ForceSensor']['F1']["noiseStd"] = []
-sensor_options['ForceSensor']['F1']["bias"] = []
-sensor_options['ForceSensor']['F1']["delay"] = 0.0
-sensor_options['ForceSensor']['F1']["delayInterpolationOrder"] = 0
-sensor_options['ForceSensor']['F2'] = {}
-sensor_options['ForceSensor']['F2']["noiseStd"] = []
-sensor_options['ForceSensor']['F2']["bias"] = []
-sensor_options['ForceSensor']['F2']["delay"] = 0.0
-sensor_options['ForceSensor']['F2']["delayInterpolationOrder"] = 0
-sensor_options['ForceSensor']['F3'] = {}
-sensor_options['ForceSensor']['F3']["noiseStd"] = []
-sensor_options['ForceSensor']['F3']["bias"] = []
-sensor_options['ForceSensor']['F3']["delay"] = 0.0
-sensor_options['ForceSensor']['F3']["delayInterpolationOrder"] = 0
-sensor_options['ForceSensor']['F4'] = {}
-sensor_options['ForceSensor']['F4']["noiseStd"] = []
-sensor_options['ForceSensor']['F4']["bias"] = []
-sensor_options['ForceSensor']['F4']["delay"] = 0.0
-sensor_options['ForceSensor']['F4']["delayInterpolationOrder"] = 0
 
-robot.set_model_options(model_options)
-robot.set_sensors_options(sensor_options)
+robot.set_options(robot_options)
 engine.set_options(engine_options)
 controller.set_options(ctrl_options)
 

@@ -62,18 +62,18 @@ if(WIN32)
 endif()
 
 # Configure jsoncpp dependency.
-# Note that using BUILD_INTERFACE will prevent the source files to be exported,
-# thus not making them accessible by a side-project depending on Jiminy.
-# So here, we are assuming those side-projects do not need to include jsoncpp.
-add_dependencies(${PROJECT_NAME} jsoncpp)
-EXTERNALPROJECT_GET_PROPERTY(jsoncpp SOURCE_DIR)
-EXTERNALPROJECT_GET_PROPERTY(jsoncpp BINARY_DIR)
+# Note that defining only BUILD_INTERFACE will prevent the header files to be exported,
+# thus not making them available by a side-project depending on Jiminy. However, since
+# jsoncpp is installed on the system as an external project, those side-projects must
+# simply call find_package(jsoncpp) and it will be included automatically.
+add_dependencies(${PROJECT_NAME} jsoncpp_external)
+EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external SOURCE_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     $<BUILD_INTERFACE:${SOURCE_DIR}/include>
 )
-target_link_libraries(${PROJECT_NAME} "-L${BINARY_DIR}/src/lib_json -ljsoncpp")
+target_link_libraries(${PROJECT_NAME} jsoncpp_lib)
 
-# Activate C++14
+# Activate C++14 on Linux (not properly supported by MSVC 2015)
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES

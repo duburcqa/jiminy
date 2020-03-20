@@ -40,12 +40,11 @@ engine.initialize(robot, controller)
 
 # ######################### Configuration the simulation ################################
 
-model_options = robot.get_model_options()
-sensors_options = robot.get_sensors_options()
+robot_options = robot.get_options()
 engine_options = engine.get_options()
 ctrl_options = controller.get_options()
 
-model_options["telemetry"]["enableImuSensors"] = True
+robot_options["telemetry"]["enableImuSensors"] = True
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True
 engine_options["telemetry"]["enableAcceleration"] = True
@@ -68,8 +67,7 @@ engine_options['contacts']['frictionDry'] = 5.0
 engine_options['contacts']['frictionViscous'] = 5.0
 engine_options['contacts']['transitionEps'] = 0.001
 
-robot.set_model_options(model_options)
-robot.set_sensors_options(sensors_options)
+robot.set_options(robot_options)
 engine.set_options(engine_options)
 controller.set_options(ctrl_options)
 

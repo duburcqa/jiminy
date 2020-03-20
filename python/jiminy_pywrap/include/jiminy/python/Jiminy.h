@@ -695,7 +695,112 @@ namespace python
         }
     };
 
-    // ***************************** PyRobotVisitor ***********************************
+    // ***************************** PyModelVisitor ***********************************
+
+    struct PyModelVisitor
+        : public bp::def_visitor<PyModelVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("add_contact_points", &PyModelVisitor::addContactPoints,
+                                           (bp::arg("self"),
+                                            bp::arg("frame_names") = std::vector<std::string>()))
+                .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
+                                              (bp::arg("self"), "frame_names"))
+
+                .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("pinocchio_data", bp::make_getter(&Robot::pncData_,
+                                                bp::return_internal_reference<>()))
+                .add_property("pinocchio_model_th", bp::make_getter(&Robot::pncModelRigidOrig_,
+                                                    bp::return_internal_reference<>()))
+                .add_property("pinocchio_data_th", bp::make_getter(&Robot::pncDataRigidOrig_,
+                                                   bp::return_internal_reference<>()))
+
+                .add_property("is_initialized", bp::make_function(&Robot::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("urdf_path", bp::make_function(&Robot::getUrdfPath,
+                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("has_freeflyer", bp::make_function(&Robot::getHasFreeflyer,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
+                .add_property("nq", bp::make_function(&Robot::nq,
+                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("nv", bp::make_function(&Robot::nv,
+                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("nx", bp::make_function(&Robot::nx,
+                                    bp::return_value_policy<bp::copy_const_reference>()))
+
+                .add_property("contact_frames_names", bp::make_function(&Robot::getContactFramesNames,
+                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("contact_frames_idx", bp::make_function(&Robot::getContactFramesIdx,
+                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_names", bp::make_function(&Robot::getRigidJointsNames,
+                                                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_position_idx", bp::make_function(&Robot::getRigidJointsPositionIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_velocity_idx", bp::make_function(&Robot::getRigidJointsVelocityIdx,
+                                                           bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("flexible_joints_names", bp::make_function(&Robot::getFlexibleJointsNames,
+                                                       bp::return_value_policy<bp::copy_const_reference>()))
+
+                .add_property("position_limit_upper", bp::make_function(&Robot::getPositionLimitMin,
+                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("position_limit_lower", bp::make_function(&Robot::getPositionLimitMax,
+                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+
+                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
+                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
+                                                          bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
+                ;
+        }
+
+        static hresult_t addContactPoints(Robot          & self,
+                                          bp::list const & frameNamesPy)
+        {
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
+            return self.addContactPoints(frameNames);
+        }
+
+        static hresult_t removeContactPoints(Robot          & self,
+                                             bp::list const & frameNamesPy)
+        {
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
+            return self.removeContactPoints(frameNames);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief      Getters and Setters
+        ///////////////////////////////////////////////////////////////////////////////
+
+        static bool_t isFlexibleModelEnable(Robot & self)
+        {
+            return self.mdlOptions_->dynamics.enableFlexibleModel;
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<Model,
+                       boost::shared_ptr<Model>,
+                       boost::noncopyable>("Model", bp::no_init)
+                .def(PyModelVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<Model> >();
+        }
+    };
 
     struct PyRobotVisitor
         : public bp::def_visitor<PyRobotVisitor>
@@ -712,11 +817,6 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false))
 
-                .def("add_contact_points", &PyRobotVisitor::addContactPoints,
-                                           (bp::arg("self"),
-                                            bp::arg("frame_names") = std::vector<std::string>()))
-                .def("remove_contact_points", &PyRobotVisitor::removeContactPoints,
-                                              (bp::arg("self"), "frame_names"))
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
                 .def("get_motor", &PyRobotVisitor::getMotor,
@@ -759,33 +859,6 @@ namespace python
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
-                .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
-                                                 bp::return_internal_reference<>()))
-                .add_property("pinocchio_data", bp::make_getter(&Robot::pncData_,
-                                                bp::return_internal_reference<>()))
-                .add_property("pinocchio_model_th", bp::make_getter(&Robot::pncModelRigidOrig_,
-                                                    bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Robot::pncDataRigidOrig_,
-                                                   bp::return_internal_reference<>()))
-
-                .add_property("is_initialized", bp::make_function(&Robot::getIsInitialized,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("urdf_path", bp::make_function(&Robot::getUrdfPath,
-                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Robot::getHasFreeflyer,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_flexible", &PyRobotVisitor::isFlexibleModelEnable)
-                .add_property("nq", bp::make_function(&Robot::nq,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nv", bp::make_function(&Robot::nv,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nx", bp::make_function(&Robot::nx,
-                                    bp::return_value_policy<bp::copy_const_reference>()))
-
-                .add_property("contact_frames_names", bp::make_function(&Robot::getContactFramesNames,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("contact_frames_idx", bp::make_function(&Robot::getContactFramesIdx,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
@@ -795,30 +868,10 @@ namespace python
                         std::unordered_map<std::string, std::vector<std::string> > const & (Robot::*)(void) const
                     >(&Robot::getSensorsNames),
                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_names", bp::make_function(&Robot::getRigidJointsNames,
-                                                    bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_position_idx", bp::make_function(&Robot::getRigidJointsPositionIdx,
-                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_velocity_idx", bp::make_function(&Robot::getRigidJointsVelocityIdx,
-                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("flexible_joints_names", bp::make_function(&Robot::getFlexibleJointsNames,
-                                                       bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("position_limit_upper", bp::make_function(&Robot::getPositionLimitMin,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("position_limit_lower", bp::make_function(&Robot::getPositionLimitMax,
-                                                      bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("torque_limit", &Robot::getTorqueLimit)
                 .add_property("motor_inertia", &Robot::getMotorInertia)
 
-                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
-                                                          bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
-                                                          bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
-                                                              bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldNames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
@@ -831,28 +884,9 @@ namespace python
             return self.detachMotors(jointNames);
         }
 
-        static hresult_t addContactPoints(Robot          & self,
-                                          bp::list const & frameNamesPy)
-        {
-            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
-            return self.addContactPoints(frameNames);
-        }
-
-        static hresult_t removeContactPoints(Robot          & self,
-                                             bp::list const & frameNamesPy)
-        {
-            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
-            return self.removeContactPoints(frameNames);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
-
-        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
-        {
-            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
-        }
 
         static AbstractMotorBase const * getMotor(Robot             & self,
                                                   std::string const & motorName)
@@ -875,6 +909,11 @@ namespace python
             return sensor.get();
         }
 
+        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
+        {
+            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
+        }
+
         static bp::dict getSensorsNames(Robot & self)
         {
             bp::dict sensorsNamesPy;
@@ -885,22 +924,6 @@ namespace python
                     convertToPython(sensorTypeNames.second);
             }
             return sensorsNamesPy;
-        }
-
-        static bool_t isFlexibleModelEnable(Robot & self)
-        {
-            return self.mdlOptions_->dynamics.enableFlexibleModel;
-        }
-
-        static std::vector<std::string> getFlexibleOnlyJointsNames(Robot & self)
-        {
-            flexibilityConfig_t const & flexibilityConfig = self.mdlOptions_->dynamics.flexibilityConfig;
-            std::vector<std::string> flexibleJointNames;
-            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
-            {
-                flexibleJointNames.emplace_back(flexibleJoint.jointName);
-            }
-            return flexibleJointNames;
         }
 
         static void setOptions(Robot          & self,
@@ -948,7 +971,7 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<Robot,
+            bp::class_<Robot, bp::bases<Model>,
                        boost::shared_ptr<Robot>,
                        boost::noncopyable>("Robot")
                 .def(PyRobotVisitor());

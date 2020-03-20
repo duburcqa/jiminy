@@ -18,9 +18,6 @@ namespace jiminy
     class Model
     {
     public:
-        // Disable the copy of the class
-        Model(Model const & robot) = delete;
-        Model & operator = (Model const & other) = delete;
 
     protected:
         virtual configHolder_t getDefaultJointOptions()
@@ -117,6 +114,11 @@ namespace jiminy
                 // Empty.
             }
         };
+
+    public:
+        // Disable the copy of the class
+        Model(Model const & robot) = delete;
+        Model & operator = (Model const & other) = delete;
 
     public:
         Model(void);

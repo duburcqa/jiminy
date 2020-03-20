@@ -168,22 +168,6 @@ namespace jiminy
 
     class Engine
     {
-    public:
-        // Impossible to use function pointer since it does not support functors
-        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
-                                                       vectorN_t const & /*x*/)>;
-        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
-                                                        vectorN_t const & /*x*/)>;
-
-    protected:
-        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
-        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
-
-    public:
-        // Disable the copy of the class
-        Engine(Engine const & engine) = delete;
-        Engine & operator = (Engine const & other) = delete;
-
     protected:
         configHolder_t getDefaultContactOptions()
         {
@@ -377,6 +361,22 @@ namespace jiminy
                 // Empty.
             }
         };
+
+    public:
+        // Impossible to use function pointer since it does not support functors
+        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
+                                                       vectorN_t const & /*x*/)>;
+        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
+                                                        vectorN_t const & /*x*/)>;
+
+    protected:
+        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
+        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
+
+    public:
+        // Disable the copy of the class
+        Engine(Engine const & engine) = delete;
+        Engine & operator = (Engine const & other) = delete;
 
     public:
         Engine(void);

@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
-/// \brief    Contains types used in the optimal module.
+/// \brief    Contains types used in Jiminy.
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef OPTIMAL_TYPES_H
-#define OPTIMAL_TYPES_H
+#ifndef JIMINY_TYPES_H
+#define JIMINY_TYPES_H
 
 #include <unordered_map>
 #include <vector>
@@ -166,4 +166,4 @@ namespace jiminy
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 }
 
-#endif  // OPTIMAL_TYPES_H
+#endif  // JIMINY_TYPES_H

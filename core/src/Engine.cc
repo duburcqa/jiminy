@@ -286,7 +286,8 @@ namespace jiminy
             // Propage the user-defined motor inertia at Pinocchio model level
             robot_->pncModel_.rotorInertia = robot_->getMotorInertia();
 
-            vectorN_t x0 = vectorN_t::Zero(robot_->nx());
+            vectorN_t x0(robot_->nx());
+            x0 << pinocchio::neutral(robot_->pncModel_), vectorN_t::Zero(robot_->nv());
             if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
                 // Compute the initial flexible state based on the initial rigid state
@@ -315,10 +316,6 @@ namespace jiminy
                     {
                         x0[rigidJointsVelocityIdx[i] + robot_->nq()] = xInit[i + rigidJointsPositionIdx.size()];
                     }
-                }
-                for (int32_t const & jointIdx : robot_->getFlexibleJointsModelIdx())
-                {
-                    x0[robot_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
                 }
             }
             else

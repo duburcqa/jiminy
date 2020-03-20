@@ -81,7 +81,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Add biases to the dynamics properties of the model
+            /* Add biases to the dynamics properties of the model.
+               Note that is also refresh all proxies automatically. */
             returnCode = generateModelBiased();
         }
 
@@ -611,18 +612,16 @@ namespace jiminy
 
         try
         {
-            pinocchio::Model pncModel;
             if (hasFreeflyer)
             {
                 pinocchio::urdf::buildModel(urdfPath,
                                             pinocchio::JointModelFreeFlyer(),
-                                            pncModel);
+                                            pncModel_);
             }
             else
             {
-                pinocchio::urdf::buildModel(urdfPath, pncModel);
+                pinocchio::urdf::buildModel(urdfPath, pncModel_);
             }
-            pncModel_ = pncModel;
         }
         catch (std::exception& e)
         {

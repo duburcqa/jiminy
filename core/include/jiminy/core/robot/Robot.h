@@ -26,14 +26,14 @@ namespace jiminy
     class Robot : public Model
     {
     public:
-        // Disable the copy of the class
-        Robot(Robot const & robot) = delete;
-        Robot & operator = (Robot const & other) = delete;
-
-    public:
         using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase> >;
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
+
+    public:
+        // Disable the copy of the class
+        Robot(Robot const & robot) = delete;
+        Robot & operator = (Robot const & other) = delete;
 
     public:
         Robot(void);

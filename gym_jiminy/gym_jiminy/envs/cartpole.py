@@ -110,12 +110,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ############################### Configure Jiminy #####################################
 
-        model_options = self._model.get_model_options()
-        sensors_options = self._model.get_sensors_options()
+        robot_options = self._model.get_options()
         engine_options = engine_py.get_engine_options()
         ctrl_options = engine_py.get_controller_options()
 
-        model_options["telemetry"]["enableEncoderSensors"] = False
+        robot_options["telemetry"]["enableEncoderSensors"] = False
         engine_options["telemetry"]["enableConfiguration"] = False
         engine_options["telemetry"]["enableVelocity"] = False
         engine_options["telemetry"]["enableAcceleration"] = False
@@ -124,8 +123,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
 
-        self._model.set_model_options(model_options)
-        self._model.set_sensors_options(sensors_options)
+        self._model.set_options(robot_options)
         engine_py.set_engine_options(engine_options)
         engine_py.set_controller_options(ctrl_options)
 

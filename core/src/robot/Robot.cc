@@ -44,23 +44,16 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Remove all the motors and sensors
+        motorsHolder_.clear();
+        motorsSharedHolder_ = std::make_shared<MotorSharedDataHolder_t>();
+        sensorsGroupHolder_.clear();
+        sensorsSharedHolder_.clear();
+        sensorTelemetryOptions_.clear();
+
+        /* Delete the current model and generate a new one.
+           Note that is also refresh all proxies automatically. */
         returnCode = Model::initialize(urdfPath, hasFreeflyer);
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Remove all the motors and sensors
-            motorsHolder_.clear();
-            motorsSharedHolder_ = std::make_shared<MotorSharedDataHolder_t>();
-            sensorsGroupHolder_.clear();
-            sensorsSharedHolder_.clear();
-            sensorTelemetryOptions_.clear();
-        }
-
-        // Clear motor proxies
-
-
-        // Refresh sensor proxies
-
 
         return returnCode;
     }
@@ -190,9 +183,8 @@ namespace jiminy
             // Add the motor to the holder
             motorsHolder_.emplace_back(motor);
 
-            // Refresh the motors and sensors proxies
+            // Refresh the motors proxies
             refreshMotorsProxies();
-            refreshSensorsProxies();
         }
 
         return returnCode;
@@ -246,9 +238,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Refresh the motors and sensors proxies
+            // Refresh the motors proxies
             refreshMotorsProxies();
-            refreshSensorsProxies();
         }
 
         return returnCode;
@@ -351,6 +342,12 @@ namespace jiminy
             returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType));
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Refresh the sensors proxies
+            refreshSensorsProxies();
+        }
+
         return returnCode;
     }
 
@@ -419,6 +416,12 @@ namespace jiminy
                 sensorsSharedHolder_.erase(sensorType);
                 sensorTelemetryOptions_.erase(sensorType);
             }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Refresh the sensors proxies
+            refreshSensorsProxies();
         }
 
         return returnCode;
@@ -1067,8 +1070,6 @@ namespace jiminy
         return telemetryOptions;
     }
 
-    }
-
     bool_t const & Robot::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
@@ -1085,18 +1086,31 @@ namespace jiminy
 
     vectorN_t const & Robot::getMotorsTorques(void) const
     {
-        return (*motorsHolder_.begin())->getAll();
+        static vectorN_t const motorsTorquesEmpty;
+
+        if (!motorsHolder_.empty())
+        {
+            return (*motorsHolder_.begin())->getAll();
+        }
+
+        return motorsTorquesEmpty;
     }
 
     float64_t const & Robot::getMotorTorque(std::string const & motorName) const
     {
-        // TODO : it should handle the case where motorName is not found
+        static float64_t const motorTorqueEmpty = -1;
+
         auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
                                     [&motorName](auto const & elem)
                                     {
                                         return (elem->getName() == motorName);
                                     });
-        return (*motorIt)->get();
+        if (motorIt != motorsHolder_.end())
+        {
+            return (*motorIt)->get();
+        }
+
+        return motorTorqueEmpty;
     }
 
     void Robot::setSensorsData(float64_t const & t,
@@ -1136,7 +1150,13 @@ namespace jiminy
 
     matrixN_t Robot::getSensorsData(std::string const & sensorType) const
     {
-        return (*sensorsGroupHolder_.at(sensorType).begin())->getAll();
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt != sensorsGroupHolder_.end())
+        {
+            return (*sensorGroupIt->second.begin())->getAll();
+        }
+
+        return {};
     }
 
     vectorN_t Robot::getSensorData(std::string const & sensorType,
@@ -1255,7 +1275,7 @@ namespace jiminy
 
     vectorN_t Robot::getTorqueLimit(void) const
     {
-        vectorN_t torqueLimit = vectorN_t::Zero(pncModel_.nv);
+        vectorN_t torqueLimit = vectorN_t::Constant(pncModel_.nv, -1);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
@@ -1263,10 +1283,6 @@ namespace jiminy
             if (motorOptions->enableTorqueLimit)
             {
                 torqueLimit[motorsVelocityIdx] = motor->getTorqueLimit();
-            }
-            else
-            {
-                torqueLimit[motorsVelocityIdx] = -1;
             }
         }
         return torqueLimit;

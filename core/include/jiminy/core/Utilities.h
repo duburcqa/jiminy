@@ -81,18 +81,17 @@ namespace jiminy
     template< bool B, class T = void >
     using enable_if_t = typename std::enable_if<B,T>::type;
 
-	template<typename T>
-	struct is_vector
-	{
-		static constexpr bool value = false;
-	};
+    template<typename T>
+    struct is_vector
+    {
+        static const bool value = false;
+    };
 
-	template<template<typename...> class C, typename U>
-	struct is_vector<C<U> >
-	{
-		static constexpr bool value =
-			std::is_same<C<U>, std::vector<U> >::value;
-	};
+    template<class T>
+    struct is_vector<std::vector<T> >
+    {
+        static const bool value = true;
+    };
 
     // *************** Convertion to JSON utilities *****************
 

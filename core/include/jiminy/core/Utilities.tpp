@@ -92,23 +92,7 @@ namespace jiminy
     enable_if_t<!is_vector<T>::value, T>
     convertFromJson(Json::Value const & value)
     {
-        #ifndef _WIN32
         T::undefined_template_specialization_for_this_type;
-        #else
-        // MSVC does not support SFINAE properly...
-        if (!std::is_same<T, heatMapFunctor_t>::value)
-        {
-            return {};
-        }
-        else
-        {
-            return {[](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
-                    {
-                        return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
-                    }
-            };
-        }
-        #endif
     }
 
     template<>
