@@ -561,6 +561,75 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t Robot::getMotor(std::string const & motorName,
+                              std::shared_ptr<AbstractMotorBase const> & motor) const
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Robot::getMotor - Robot not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
+        if (motorIt == motorsHolder_.end())
+        {
+            std::cout << "Error - Robot::getMotor - No motor with this name exists." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        motor = (*motorIt);
+
+        return hresult_t::SUCCESS;
+    }
+
+    Robot::motorsHolder_t const & Robot::getMotors(void) const
+    {
+        return motorsHolder_;
+    }
+
+    hresult_t Robot::getSensor(std::string const & sensorType,
+                               std::string const & sensorName,
+                               std::shared_ptr<AbstractSensorBase const> & sensor) const
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Robot::getSensor - Robot not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            std::cout << "Error - Robot::getSensor - This type of sensor does not exist." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            std::cout << "Error - Robot::getSensor - No sensor with this type and name exists." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        sensor = (*sensorIt);
+
+        return hresult_t::SUCCESS;
+    }
+
+    Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
+    {
+        return sensorsGroupHolder_;
+    }
+
     hresult_t Robot::setOptions(configHolder_t const & robotOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -640,16 +709,13 @@ namespace jiminy
     configHolder_t Robot::getOptions(void) const
     {
         configHolder_t robotOptions;
-        robotOptions["model"] = getOptions();
+        robotOptions["model"] = getModelOptions();
         configHolder_t motorsOptions;
-        getMotorsOptions(motorsOptions);
-        robotOptions.emplace("motors", std::move(motorsOptions));
+        robotOptions["motors"] = getMotorsOptions();
         configHolder_t sensorsOptions;
-        getSensorsOptions(sensorsOptions);
-        robotOptions.emplace("sensors", std::move(sensorsOptions));
+        robotOptions["sensors"] = getSensorsOptions();
         configHolder_t telemetryOptions;
-        getTelemetryOptions(telemetryOptions);
-        robotOptions.emplace("telemetry", std::move(telemetryOptions));
+        robotOptions["telemetry"] = getTelemetryOptions();
         return robotOptions;
     }
 
@@ -665,22 +731,14 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
+        motorsHolder_t::iterator motorIt;
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                std::cout << "Error - Robot::setMotorOptions - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
-                                    [&motorName](auto const & elem)
-                                    {
-                                        return (elem->getName() == motorName);
-                                    });
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                   [&motorName](auto const & elem)
+                                   {
+                                       return (elem->getName() == motorName);
+                                   });
             if (motorIt == motorsHolder_.end())
             {
                 std::cout << "Error - Robot::setMotorOptions - No motor with this name exists." << std::endl;
@@ -707,15 +765,6 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (!isInitialized_)
-            {
-                std::cout << "Error - Robot::setMotorsOptions - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
         for (auto const & motor : motorsHolder_)
         {
             if (returnCode == hresult_t::SUCCESS)
@@ -737,62 +786,9 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::getMotorsOptions(configHolder_t & motorsOptions) const
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getMotorsOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        motorsOptions.clear();
-        for (motorsHolder_t::value_type const & motor : motorsHolder_)
-        {
-            motorsOptions[motor->getName()] = motor->getOptions();
-        }
-
-        return hresult_t::SUCCESS;
-    }
-
     hresult_t Robot::getMotorOptions(std::string    const & motorName,
                                      configHolder_t       & motorOptions) const
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getMotorOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
-                                    [&motorName](auto const & elem)
-                                    {
-                                        return (elem->getName() == motorName);
-                                    });
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (motorIt == motorsHolder_.end())
-            {
-                std::cout << "Error - Robot::getMotorOptions - No motor with this name exists." << std::endl;
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
-        motorOptions = (*motorIt)->getOptions();
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t Robot::getMotor(std::string const & motorName,
-                              std::shared_ptr<AbstractMotorBase const> & motor) const
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getMotor - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
         auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
                                     [&motorName](auto const & elem)
                                     {
@@ -800,57 +796,23 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Robot::getMotor - No motor with this name exists." << std::endl;
+            std::cout << "Error - Robot::getMotorOptions - No motor with this name exists." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        motor = (*motorIt);
+        motorOptions = (*motorIt)->getOptions();
 
         return hresult_t::SUCCESS;
     }
 
-    Robot::motorsHolder_t const & Robot::getMotors(void) const
+    configHolder_t Robot::getMotorsOptions(void) const
     {
-        return motorsHolder_;
-    }
-
-    hresult_t Robot::getSensor(std::string const & sensorType,
-                               std::string const & sensorName,
-                               std::shared_ptr<AbstractSensorBase const> & sensor) const
-    {
-        if (!isInitialized_)
+        configHolder_t motorsOptions;
+        for (motorsHolder_t::value_type const & motor : motorsHolder_)
         {
-            std::cout << "Error - Robot::getSensor - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
+            motorsOptions[motor->getName()] = motor->getOptions();
         }
-
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
-        {
-            std::cout << "Error - Robot::getSensor - This type of sensor does not exist." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
-                                     sensorGroupIt->second.end(),
-                                     [&sensorName](auto const & elem)
-                                     {
-                                         return (elem->getName() == sensorName);
-                                     });
-        if (sensorIt == sensorGroupIt->second.end())
-        {
-            std::cout << "Error - Robot::getSensor - No sensor with this type and name exists." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        sensor = (*sensorIt);
-
-        return hresult_t::SUCCESS;
-    }
-
-    Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
-    {
-        return sensorsGroupHolder_;
+        return motorsOptions;
     }
 
     hresult_t Robot::setSensorOptions(std::string    const & sensorType,
@@ -864,15 +826,6 @@ namespace jiminy
             std::cout << "Error - Robot::setSensorOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (!isInitialized_)
-            {
-                std::cout << "Error - Robot::setSensorOptions - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
@@ -920,18 +873,10 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
+        sensorsGroupHolder_t::iterator sensorGroupIt;
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                std::cout << "Error - Robot::setSensorsOptions - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
                 std::cout << "Error - Robot::setSensorsOptions - This type of sensor does not exist." << std::endl;
@@ -969,15 +914,6 @@ namespace jiminy
             std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            if (!isInitialized_)
-            {
-                std::cout << "Error - Robot::setSensorsOptions - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
         }
 
         for (auto const & sensorGroup : sensorsGroupHolder_)
@@ -1025,63 +961,10 @@ namespace jiminy
         return returnCode;
     }
 
-
-    hresult_t Robot::getSensorsOptions(std::string    const & sensorType,
-                                       configHolder_t       & sensorsOptions) const
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getSensorsOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt == sensorsGroupHolder_.end())
-        {
-            std::cout << "Error - Robot::getSensorsOptions - This type of sensor does not exist." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        sensorsOptions.clear();
-        for (auto const & sensor : sensorGroupIt->second)
-        {
-            sensorsOptions[sensor->getName()] = sensor->getOptions();
-        }
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t Robot::getSensorsOptions(configHolder_t & sensorsOptions) const
-    {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getSensorsOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        sensorsOptions.clear();
-        for (auto const & sensorGroup : sensorsGroupHolder_)
-        {
-            configHolder_t sensorsGroupOptions;
-            for (auto const & sensor : sensorGroup.second)
-            {
-                sensorsGroupOptions[sensor->getName()] = sensor->getOptions();
-            }
-            sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
-        }
-
-        return hresult_t::SUCCESS;
-    }
-
     hresult_t Robot::getSensorOptions(std::string    const & sensorType,
                                       std::string    const & sensorName,
                                       configHolder_t       & sensorOptions) const
     {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getSensorOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
@@ -1106,6 +989,39 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    hresult_t Robot::getSensorsOptions(std::string    const & sensorType,
+                                       configHolder_t       & sensorsOptions) const
+    {
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            std::cout << "Error - Robot::getSensorsOptions - This type of sensor does not exist." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        sensorsOptions.clear();
+        for (auto const & sensor : sensorGroupIt->second)
+        {
+            sensorsOptions[sensor->getName()] = sensor->getOptions();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    configHolder_t Robot::getSensorsOptions(void) const
+    {
+        configHolder_t sensorsOptions;
+        for (auto const & sensorGroup : sensorsGroupHolder_)
+        {
+            configHolder_t sensorsGroupOptions;
+            for (auto const & sensor : sensorGroup.second)
+            {
+                sensorsGroupOptions[sensor->getName()] = sensor->getOptions();
+            }
+            sensorsOptions[sensorGroup.first] = sensorsGroupOptions;
+        }
+        return sensorsOptions;
+    }
+
     hresult_t Robot::setModelOptions(configHolder_t const & modelOptions)
     {
         return Model::setOptions(modelOptions);
@@ -1125,12 +1041,6 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::setTelemetryOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
         for (auto & sensorGroupTelemetryOption : sensorTelemetryOptions_)
         {
             std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
@@ -1146,22 +1056,17 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Robot::getTelemetryOptions(configHolder_t & telemetryOptions) const
+    configHolder_t Robot::getTelemetryOptions(void) const
     {
-        if (!isInitialized_)
-        {
-            std::cout << "Error - Robot::getTelemetryOptions - Robot not initialized." << std::endl;
-            return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        telemetryOptions.clear();
+        configHolder_t telemetryOptions;
         for (auto const & sensorGroupTelemetryOption : sensorTelemetryOptions_)
         {
             std::string optionTelemetryName = "enable" + sensorGroupTelemetryOption.first + "s";
             telemetryOptions[optionTelemetryName] = sensorGroupTelemetryOption.second;
         }
+        return telemetryOptions;
+    }
 
-        return hresult_t::SUCCESS;
     }
 
     bool_t const & Robot::getIsTelemetryConfigured(void) const

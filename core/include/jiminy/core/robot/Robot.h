@@ -81,7 +81,7 @@ namespace jiminy
         hresult_t setMotorsOptions(configHolder_t const & motorsOptions);
         hresult_t getMotorOptions(std::string    const & motorName,
                                   configHolder_t       & motorOptions) const;
-        hresult_t getMotorsOptions(configHolder_t & motorsOptions) const;
+        configHolder_t getMotorsOptions(void) const;
         hresult_t setSensorOptions(std::string    const & sensorType,
                                    std::string    const & sensorName,
                                    configHolder_t const & sensorOptions);
@@ -93,11 +93,11 @@ namespace jiminy
                                    configHolder_t       & sensorOptions) const;
         hresult_t getSensorsOptions(std::string    const & sensorType,
                                     configHolder_t       & sensorsOptions) const;
-        hresult_t getSensorsOptions(configHolder_t & sensorsOptions) const;
+        configHolder_t getSensorsOptions(void) const;
         hresult_t setModelOptions(configHolder_t const & modelOptions);
         configHolder_t getModelOptions(void) const;
         hresult_t setTelemetryOptions(configHolder_t const & telemetryOptions);
-        hresult_t getTelemetryOptions(configHolder_t & telemetryOptions) const;
+        configHolder_t getTelemetryOptions(void) const;
 
         // Those methods are not intended to be called manually. The Engine is taking care of it.
         virtual void reset(void) override;

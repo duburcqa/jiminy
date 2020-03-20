@@ -75,8 +75,7 @@ TEST(EngineSanity, EnergyConservation)
     robot->setModelOptions(modelOptions);
 
     // Disable torque limits.
-    configHolder_t motorsOptions;
-    robot->getMotorsOptions(motorsOptions);
+    configHolder_t motorsOptions = robot->getMotorsOptions();
     for (auto & options : motorsOptions)
     {
         configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
@@ -131,4 +130,3 @@ TEST(EngineSanity, EnergyConservation)
 
     // Don't try simulation with Euler integrator, this scheme is not precise enough to keep energy constant.
 }
-

@@ -695,10 +695,10 @@ namespace python
         }
     };
 
-    // ***************************** PyModelVisitor ***********************************
+    // ***************************** PyRobotVisitor ***********************************
 
-    struct PyModelVisitor
-        : public bp::def_visitor<PyModelVisitor>
+    struct PyRobotVisitor
+        : public bp::def_visitor<PyRobotVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -712,19 +712,19 @@ namespace python
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false))
 
-                .def("add_contact_points", &PyModelVisitor::addContactPoints,
+                .def("add_contact_points", &PyRobotVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
-                .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
+                .def("remove_contact_points", &PyRobotVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
-                .def("get_motor", &PyModelVisitor::getMotor,
+                .def("get_motor", &PyRobotVisitor::getMotor,
                                   (bp::arg("self"), "motor_name"),
                                    bp::return_value_policy<bp::reference_existing_object>())
                 .def("detach_motor", &Robot::detachMotor,
                                      (bp::arg("self"), "joint_name"))
-                .def("detach_motors", &PyModelVisitor::detachMotors,
+                .def("detach_motors", &PyRobotVisitor::detachMotors,
                                       (bp::arg("self"),
                                        bp::arg("joints_names") = std::vector<std::string>()))
                 .def("attach_sensor", &Robot::attachSensor,
@@ -734,22 +734,30 @@ namespace python
                 .def("detach_sensors", &Robot::detachSensors,
                                        (bp::arg("self"),
                                         bp::arg("sensor_type") = std::string()))
-                .def("get_sensor", &PyModelVisitor::getSensor,
+                .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
                                     bp::return_value_policy<bp::reference_existing_object>())
 
-                .add_property("sensors_data", &PyModelVisitor::getSensorsData)
+                .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
-                .def("get_model_options", &PyModelVisitor::getModelOptions)
-                .def("set_model_options", &PyModelVisitor::setModelOptions)
-                .def("set_motors_options", &PyModelVisitor::setMotorsOptions)
-                .def("get_motors_options", &PyModelVisitor::getMotorsOptions,
-                                            bp::return_value_policy<bp::return_by_value>())
-                .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
-                .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
-                                            bp::return_value_policy<bp::return_by_value>())
+                .def("set_options", &PyRobotVisitor::setOptions,
+                                    (bp::arg("self"), "robot_options"))
+                .def("get_options", &Robot::getOptions)
+                .def("set_model_options", &PyRobotVisitor::setModelOptions,
+                                          (bp::arg("self"), "model_options"))
+                .def("get_model_options", &Robot::getModelOptions)
+                .def("set_motors_options", &PyRobotVisitor::setMotorsOptions,
+                                           (bp::arg("self"), "motors_options"))
+                .def("get_motors_options", &Robot::getMotorsOptions)
+                .def("set_sensors_options", &PyRobotVisitor::setSensorsOptions,
+                                            (bp::arg("self"), "sensors_options"))
+                .def("get_sensors_options",
+                    static_cast<configHolder_t (Robot::*)(void) const>(&Robot::getSensorsOptions))
+                .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
+                                              (bp::arg("self"), "telemetry_options"))
+                .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
                 .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
                                                  bp::return_internal_reference<>()))
@@ -766,7 +774,7 @@ namespace python
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Robot::getHasFreeflyer,
                                                bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
+                .add_property("is_flexible", &PyRobotVisitor::isFlexibleModelEnable)
                 .add_property("nq", bp::make_function(&Robot::nq,
                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("nv", bp::make_function(&Robot::nv,
@@ -895,59 +903,44 @@ namespace python
             return flexibleJointNames;
         }
 
-        static configHolder_t getModelOptions(Robot & self)
+        static void setOptions(Robot          & self,
+                               bp::dict const & configPy)
         {
-            configHolder_t configModel = self.getOptions();
-            configHolder_t configTelemetry;
-            self.getTelemetryOptions(configTelemetry);
-            configModel.emplace("telemetry", std::move(configTelemetry));
-            return configModel;
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            self.setOptions(config);
         }
 
         static void setModelOptions(Robot          & self,
                                     bp::dict const & configPy)
         {
-            configHolder_t configModel = self.getOptions();
-            convertFromPython(configPy, configModel);
-            self.setOptions(configModel);
-
-            bp::dict configTelemetryPy = bp::extract<bp::dict>(configPy["telemetry"]);
-            configHolder_t configTelemetry;
-            self.getTelemetryOptions(configTelemetry);
-            convertFromPython(configTelemetryPy, configTelemetry);
-            self.setTelemetryOptions(configTelemetry);
+            configHolder_t config = self.getModelOptions();
+            convertFromPython(configPy, config);
+            self.setModelOptions(config);
         }
 
         static void setMotorsOptions(Robot          & self,
                                      bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getMotorsOptions(config);
+            configHolder_t config = self.getMotorsOptions();
             convertFromPython(configPy, config);
             self.setMotorsOptions(config);
-        }
-
-        static bp::object getMotorsOptions(Robot & self)
-        {
-            configHolder_t config;
-            self.getMotorsOptions(config);
-            return convertToPython(config);
         }
 
         static void setSensorsOptions(Robot          & self,
                                       bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getSensorsOptions(config);
+            configHolder_t config = self.getSensorsOptions();
             convertFromPython(configPy, config);
             self.setSensorsOptions(config);
         }
 
-        static bp::object getSensorsOptions(Robot & self)
+        static void setTelemetryOptions(Robot          & self,
+                                        bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getSensorsOptions(config);
-            return convertToPython(config);
+            configHolder_t config = self.getTelemetryOptions();
+            convertFromPython(configPy, config);
+            self.setTelemetryOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -958,7 +951,7 @@ namespace python
             bp::class_<Robot,
                        boost::shared_ptr<Robot>,
                        boost::noncopyable>("Robot")
-                .def(PyModelVisitor());
+                .def(PyRobotVisitor());
             bp::register_ptr_to_python<std::shared_ptr<Robot> >();
         }
     };
@@ -986,9 +979,9 @@ namespace python
                 .def("register_constant", &PyAbstractControllerVisitor::registerConstant,
                                           (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
+                .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
-                .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 ;
         }
 

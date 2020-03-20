@@ -69,7 +69,7 @@ namespace python
         // Expose classes
         jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::SensorsDataMapVisitor::expose();
-        jiminy::python::PyModelVisitor::expose();
+        jiminy::python::PyRobotVisitor::expose();
         jiminy::python::PyMotorVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
