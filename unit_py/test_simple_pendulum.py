@@ -3,28 +3,35 @@
 import unittest
 import os
 import numpy as np
-
+import scipy.linalg
+import scipy.integrate
 from jiminy_py import core as jiminy
+import pinocchio as pnc
 
+# Unit test precision threshold.
+# This 'high' tolerance is needed because we log time with a precision of 1us, whereas jiminy sometimes
+# takes steps that are slightly off the desired frequency, leading to inconsistant times
+# in the log (with an error bounded by 1us, so it's not important in practice but it does hinder matching here).
+TOLERANCE = 5e-4
 
 class SimulateSimplePendulum(unittest.TestCase):
     '''
     @brief Simulate the motion of a pendulum, comparing against python integration.
     '''
     def setUp(self):
-        # Load URDF, create robot
+        # Load URDF, create model.
         urdf_path = "data/simple_pendulum.urdf"
 
-        # Create the jiminy robot
+        # Create the jiminy model
 
-        # Instantiate robot and engine
-        self.robot = jiminy.Robot()
+        # Instanciate model and engine
+        self.robot = jiminy.Model()
         self.robot.initialize(urdf_path, has_freeflyer=False)
         motor = jiminy.SimpleMotor("PendulumJoint")
         self.robot.attach_motor(motor)
         motor.initialize("PendulumJoint")
 
-        # Configure robot
+        # Configure model.
         model_options = self.robot.get_model_options()
         motor_options = self.robot.get_motors_options()
         model_options["joints"]["enablePositionLimit"] = False
@@ -35,27 +42,24 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_model_options(model_options)
         self.robot.set_motors_options(motor_options)
 
-    def test_flexiblility_rotor_inertia(self):
+    def test_rotor_inertia(self):
         '''
-        @brief Test the addition of a flexibility in the model + rotor inertia to create a two-mass oscillating system.
-
-        @details By adding a rotor inertia J and a flexibility, and removing gravity, we should get a linear system of two
-                 masses of inertia (J, I) linked by a spring damper: this test verifies that jiminy matches the analytical system.
+        @brief Verify the dynamics of the system when adding  rotor inertia.
         '''
-        # No controller and no internal dynamics
+        # No controller
         def computeCommand(t, q, v, sensor_data, u):
             u[:] = 0.0
 
+        # Dynamics: simulate a spring of stifness k
+        k_spring = 500
         def internalDynamics(t, q, v, sensor_data, u):
-            u[:] = 0.0
+            u[:] = - k_spring * q[:]
 
         controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
         controller.initialize(self.robot)
 
-        # Parameters: rotor inertia, spring stiffness and damping.
+        # Set rotor inertia
         J = 0.1
-
-        # Enable rotor inertia
         motor_options = self.robot.get_motors_options()
         motor_options["PendulumJoint"]['enableRotorInertia'] = True
         motor_options["PendulumJoint"]['rotorInertia'] = J
@@ -67,7 +71,68 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
         engine.set_options(engine_options)
 
-        # TODO
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.array([log_data['HighLevelController.' + s] for s in self.robot.logfile_position_headers + self.robot.logfile_velocity_headers]).T
+
+        # Analytical solution: a simple mass on a spring.
+        I = self.robot.pinocchio_model_th.inertias[1].mass * self.robot.pinocchio_model_th.inertias[1].lever[2]**2
+
+        # Write system dynamics
+        I_eq = I + J
+        A = np.array([[0,                1],
+                      [-k_spring / I_eq, 0]])
+        x_analytical = np.array([scipy.linalg.expm(A * t) @ x0 for t in time])
+
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol = TOLERANCE))
+
+    def test_pendulum_integration(self):
+        '''
+        @brief Compare pendulum motion, as simulated by Jiminy, against an equivalent simulation done in python.
+
+        @details Since we don't have a simple analytical expression for the solution of a (nonlinear) pendulum motion,
+                 we perform the simulation in python, with the same integrator, and compare both results.
+        '''
+        # No controller and no internal dynamics
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.array([log_data['HighLevelController.' + s] for s in self.robot.logfile_position_headers + self.robot.logfile_velocity_headers]).T
+
+        # System dynamics: get length and inertia.
+        l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
+        g = 9.81
+        # Pendulum dynamics
+        def dynamics(t, x):
+            return np.array([x[1], - g / l * np.sin(x[0])])
+        # Integrate, using same Runge-Kutta integrator.
+        solver = scipy.integrate.ode(dynamics)
+        solver.set_initial_value(x0)
+        solver.set_integrator("dopri5")
+        x_rk_python = []
+        for t in time:
+            solver.integrate(t)
+            x_rk_python.append(solver.y)
+        x_rk_python = np.array(x_rk_python)
+        self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol = TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()
