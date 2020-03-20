@@ -65,7 +65,7 @@ TEST(EngineSanity, EnergyConservation)
     {
         std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
-        robot->initialize(jointName);
+        motor->initialize(jointName);
     }
 
     // Disable velocity and position limits.

@@ -345,8 +345,8 @@ namespace jiminy
             if (sharedHolder_->time_[0] < 0 || timeMin > sharedHolder_->time_[1])
             {
                 // Remove some unecessary extra elements if appropriate
-                if (sharedHolder_->time_.size() > 2 + MAX_DELAY_BUFFER_EXCEED
-                && timeMin > sharedHolder_->time_[2 + MAX_DELAY_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 2U + MAX_DELAY_BUFFER_EXCEED
+                && timeMin > sharedHolder_->time_[2U + MAX_DELAY_BUFFER_EXCEED])
                 {
                     for (uint8_t i=0; i < 1 + MAX_DELAY_BUFFER_EXCEED; i ++)
                     {
@@ -359,16 +359,16 @@ namespace jiminy
                 }
 
                 // Rotate the internal buffer
-                sharedHolder_->time_.rotate(sharedHolder_->time_.begin() + 1);
-                sharedHolder_->data_.rotate(sharedHolder_->data_.begin() + 1);
+                sharedHolder_->time_.rotate(sharedHolder_->time_.begin() + 1U);
+                sharedHolder_->data_.rotate(sharedHolder_->data_.begin() + 1U);
             }
             else
             {
                 // Increase capacity if required
                 if (sharedHolder_->time_.full())
                 {
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1 + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1U + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1U + MIN_DELAY_BUFFER_RESERVE);
                 }
 
                 // Push back new empty buffer (Do NOT initialize it for efficiency)

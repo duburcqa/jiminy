@@ -15,7 +15,6 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
-#include "jiminy/core/Constants.h"
 
 #include <boost/numeric/odeint.hpp>
 #include <boost/numeric/odeint/external/eigen/eigen_algebra.hpp>
@@ -89,7 +88,7 @@ namespace jiminy
 
         void initialize(Robot & robot)
         {
-            initialize(robot, vectorN_t::Zero(robot.nx()), MIN_SIMULATION_TIMESTEP);
+            initialize(robot, vectorN_t::Zero(robot.nx()), DEFAULT_SIMULATION_TIMESTEP);
         }
 
         void initialize(Robot           & robot,
