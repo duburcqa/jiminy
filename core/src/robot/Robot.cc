@@ -6,16 +6,17 @@
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include "jiminy/core/model/AbstractMotor.h"
-#include "jiminy/core/model/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractMotor.h"
+#include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
+#include "jiminy/core/io/FileDevice.h"
 
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 
 
 namespace jiminy
 {
-    Model::Model(void) :
+    Robot::Robot(void) :
     pncModel_(),
     pncData_(pncModel_),
     pncModelRigidOrig_(),
@@ -58,7 +59,7 @@ namespace jiminy
         setOptions(getDefaultOptions());
     }
 
-    Model::~Model(void)
+    Robot::~Robot(void)
     {
         // Detach the motors
         detachMotors();
@@ -67,7 +68,7 @@ namespace jiminy
         detachSensors();
     }
 
-    hresult_t Model::initialize(std::string const & urdfPath,
+    hresult_t Robot::initialize(std::string const & urdfPath,
                                 bool_t      const & hasFreeflyer)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -121,7 +122,7 @@ namespace jiminy
         return returnCode;
     }
 
-    void Model::reset(void)
+    void Robot::reset(void)
     {
         if (isInitialized_)
         {
@@ -148,13 +149,13 @@ namespace jiminy
         isTelemetryConfigured_ = false;
     }
 
-    hresult_t Model::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
+    hresult_t Robot::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::configureTelemetry - The model is not initialized." << std::endl;
+            std::cout << "Error - Robot::configureTelemetry - The robot is not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -191,39 +192,39 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::addContactPoints(std::vector<std::string> const & frameNames)
+    hresult_t Robot::addContactPoints(std::vector<std::string> const & frameNames)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::addContactPoints - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::addContactPoints - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before adding contact points." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::addContactPoints - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::addContactPoints - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that the frame list is not empty
         if (frameNames.empty())
         {
-            std::cout << "Error - Model::addContactPoints - The list of frames must not be empty." << std::endl;
+            std::cout << "Error - Robot::addContactPoints - The list of frames must not be empty." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - Some frames are duplicates." << std::endl;
+            std::cout << "Error - Robot::addContactPoints - Some frames are duplicates." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no motor is associated with any of the joint in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact point." << std::endl;
+            std::cout << "Error - Robot::addContactPoints - At least one of the frame is already been associated with a contact point." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -232,7 +233,7 @@ namespace jiminy
         {
             if (!pncModel_.existFrame(frame))
             {
-                std::cout << "Error - Model::addContactPoints - At least one of the frame does not exist." << std::endl;
+                std::cout << "Error - Robot::addContactPoints - At least one of the frame does not exist." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -249,32 +250,32 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::removeContactPoints(std::vector<std::string> const & frameNames)
+    hresult_t Robot::removeContactPoints(std::vector<std::string> const & frameNames)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::removeContactPoints - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::removeContactPoints - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before removing contact points." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::removeContactPoints - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::removeContactPoints - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - Some frames are duplicates." << std::endl;
+            std::cout << "Error - Robot::removeContactPoints - Some frames are duplicates." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no motor is associated with any of the joint in jointNames
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact point." << std::endl;
+            std::cout << "Error - Robot::removeContactPoints - At least one of the frame is not associated with any contact point." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -297,13 +298,13 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::attachMotor(std::shared_ptr<AbstractMotorBase> const & motor)
+    hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> const & motor)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::addMotors - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::addMotors - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before adding motors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
@@ -318,7 +319,7 @@ namespace jiminy
         {
             if (motorIt != motorsHolder_.end())
             {
-                std::cout << "Error - Model::attachMotor - A motor with the same name already exists." << std::endl;
+                std::cout << "Error - Robot::attachMotor - A motor with the same name already exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -334,20 +335,20 @@ namespace jiminy
             // Add the motor to the holder
             motorsHolder_.emplace_back(motor);
 
-            // Refresh the attributes of the model
+            // Refresh the attributes of the robot
             refreshMotorProxies();
         }
 
         return returnCode;
     }
 
-    hresult_t Model::detachMotor(std::string const & motorName)
+    hresult_t Robot::detachMotor(std::string const & motorName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::detachMotor - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::detachMotor - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before removing motors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
@@ -356,7 +357,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::detachMotor - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::detachMotor - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -370,7 +371,7 @@ namespace jiminy
         {
             if (motorIt == motorsHolder_.end())
             {
-                std::cout << "Error - Model::detachMotor - No motor with this name exists." << std::endl;
+                std::cout << "Error - Robot::detachMotor - No motor with this name exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -396,7 +397,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::detachMotors(std::vector<std::string> const & motorsNames)
+    hresult_t Robot::detachMotors(std::vector<std::string> const & motorsNames)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -405,7 +406,7 @@ namespace jiminy
             // Make sure that no motor names are duplicates
             if (checkDuplicates(motorsNames))
             {
-                std::cout << "Error - Model::detachMotors - Duplicated motor names." << std::endl;
+                std::cout << "Error - Robot::detachMotors - Duplicated motor names." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -414,7 +415,7 @@ namespace jiminy
                 // Make sure that every motor name exist
                 if (!checkInclusion(motorsNames_, motorsNames))
                 {
-                    std::cout << "Error - Model::detachMotors - At least one of the motor names does not exist." << std::endl;
+                    std::cout << "Error - Robot::detachMotors - At least one of the motor names does not exist." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -441,7 +442,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor)
+    hresult_t Robot::attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor)
     {
         // The sensors' names must be unique, even if their type is different.
 
@@ -449,7 +450,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::attachSensor - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::attachSensor - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before adding sensors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
@@ -469,7 +470,7 @@ namespace jiminy
                                              });
                 if (sensorIt != sensorGroupIt->second.end())
                 {
-                    std::cout << "Error - Model::attachSensor - A sensor with the same type and name already exists." << std::endl;
+                    std::cout << "Error - Robot::attachSensor - A sensor with the same type and name already exists." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -494,14 +495,14 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::detachSensor(std::string const & sensorType,
+    hresult_t Robot::detachSensor(std::string const & sensorType,
                                  std::string const & sensorName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::detachSensor - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::detachSensor - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before removing sensors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
@@ -510,7 +511,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::detachSensor - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::detachSensor - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -520,7 +521,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Model::detachSensor - This type of sensor does not exist." << std::endl;
+                std::cout << "Error - Robot::detachSensor - This type of sensor does not exist." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -536,7 +537,7 @@ namespace jiminy
                                     });
             if (sensorIt == sensorGroupIt->second.end())
             {
-                std::cout << "Error - Model::detachSensors - No sensor with this type and name exists." << std::endl;
+                std::cout << "Error - Robot::detachSensors - No sensor with this type and name exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -564,7 +565,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::detachSensors(std::string const & sensorType)
+    hresult_t Robot::detachSensors(std::string const & sensorType)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -573,7 +574,7 @@ namespace jiminy
             auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Model::detachSensors - No sensor with this type exists." << std::endl;
+                std::cout << "Error - Robot::detachSensors - No sensor with this type exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -608,13 +609,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::generateModelFlexible(void)
+    hresult_t Robot::generateModelFlexible(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::generateModelFlexible - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::generateModelFlexible - Robot not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -655,19 +656,19 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::generateModelBiased(void)
+    hresult_t Robot::generateModelBiased(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::generateModelBiased - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::generateModelBiased - Robot not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Reset the model either with the original rigid or flexible model
+            // Reset the robot either with the original rigid or flexible model
             if (mdlOptions_->dynamics.enableFlexibleModel)
             {
                 pncModel_ = pncModelFlexibleOrig_;
@@ -746,13 +747,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshProxies(void)
+    hresult_t Robot::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::refreshProxies - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::refreshProxies - Robot not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -910,13 +911,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshContactProxies(void)
+    hresult_t Robot::refreshContactProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::refreshContactProxies - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::refreshContactProxies - Robot not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -929,13 +930,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshMotorProxies(void)
+    hresult_t Robot::refreshMotorProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::refreshMotorProxies - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::refreshMotorProxies - Robot not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -962,14 +963,14 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::setMotorOptions(std::string    const & motorName,
+    hresult_t Robot::setMotorOptions(std::string    const & motorName,
                                      configHolder_t const & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setMotorOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setMotorOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the motor options." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
@@ -978,7 +979,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::setMotorOptions - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::setMotorOptions - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -992,7 +993,7 @@ namespace jiminy
         {
             if (motorIt == motorsHolder_.end())
             {
-                std::cout << "Error - Model::setMotorOptions - No motor with this name exists." << std::endl;
+                std::cout << "Error - Robot::setMotorOptions - No motor with this name exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1005,13 +1006,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::setMotorsOptions(configHolder_t const & motorsOptions)
+    hresult_t Robot::setMotorsOptions(configHolder_t const & motorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setMotorsOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setMotorsOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the motor options." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
@@ -1020,7 +1021,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::setMotorsOptions - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::setMotorsOptions - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -1046,11 +1047,11 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::getMotorsOptions(configHolder_t & motorsOptions) const
+    hresult_t Robot::getMotorsOptions(configHolder_t & motorsOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getMotorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getMotorsOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1063,14 +1064,14 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getMotorOptions(std::string    const & motorName,
+    hresult_t Robot::getMotorOptions(std::string    const & motorName,
                                      configHolder_t       & motorOptions) const
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getMotorOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getMotorOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1083,7 +1084,7 @@ namespace jiminy
         {
             if (motorIt == motorsHolder_.end())
             {
-                std::cout << "Error - Model::getMotorOptions - No motor with this name exists." << std::endl;
+                std::cout << "Error - Robot::getMotorOptions - No motor with this name exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1093,12 +1094,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getMotor(std::string const & motorName,
+    hresult_t Robot::getMotor(std::string const & motorName,
                               std::shared_ptr<AbstractMotorBase const> & motor) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getMotor - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getMotor - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1109,7 +1110,7 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Model::getMotor - No motor with this name exists." << std::endl;
+            std::cout << "Error - Robot::getMotor - No motor with this name exists." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1118,25 +1119,25 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    Model::motorsHolder_t const & Model::getMotors(void) const
+    Robot::motorsHolder_t const & Robot::getMotors(void) const
     {
         return motorsHolder_;
     }
 
-    hresult_t Model::getSensor(std::string const & sensorType,
+    hresult_t Robot::getSensor(std::string const & sensorType,
                                std::string const & sensorName,
                                std::shared_ptr<AbstractSensorBase const> & sensor) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensor - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getSensor - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Model::getSensor - This type of sensor does not exist." << std::endl;
+            std::cout << "Error - Robot::getSensor - This type of sensor does not exist." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1148,7 +1149,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Model::getSensor - No sensor with this type and name exists." << std::endl;
+            std::cout << "Error - Robot::getSensor - No sensor with this type and name exists." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1157,12 +1158,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    Model::sensorsGroupHolder_t const & Model::getSensors(void) const
+    Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
     {
         return sensorsGroupHolder_;
     }
 
-    hresult_t Model::setSensorOptions(std::string    const & sensorType,
+    hresult_t Robot::setSensorOptions(std::string    const & sensorType,
                                       std::string    const & sensorName,
                                       configHolder_t const & sensorOptions)
     {
@@ -1170,7 +1171,7 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setSensorOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setSensorOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
@@ -1179,7 +1180,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::setSensorOptions - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::setSensorOptions - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -1189,7 +1190,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Model::setSensorOptions - This type of sensor does not exist." << std::endl;
+                std::cout << "Error - Robot::setSensorOptions - This type of sensor does not exist." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1204,7 +1205,7 @@ namespace jiminy
         {
             if (sensorIt == sensorGroupIt->second.end())
             {
-                std::cout << "Error - Model::setSensorOptions - No sensor with this type and name exists." << std::endl;
+                std::cout << "Error - Robot::setSensorOptions - No sensor with this type and name exists." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1217,14 +1218,14 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::setSensorsOptions(std::string    const & sensorType,
+    hresult_t Robot::setSensorsOptions(std::string    const & sensorType,
                                        configHolder_t const & sensorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setSensorsOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
@@ -1233,7 +1234,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::setSensorsOptions - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -1243,7 +1244,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Model::setSensorsOptions - This type of sensor does not exist." << std::endl;
+                std::cout << "Error - Robot::setSensorsOptions - This type of sensor does not exist." << std::endl;
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1269,13 +1270,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::setSensorsOptions(configHolder_t const & sensorsOptions)
+    hresult_t Robot::setSensorsOptions(configHolder_t const & sensorsOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setSensorsOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
@@ -1284,7 +1285,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Model::setSensorsOptions - Model not initialized." << std::endl;
+                std::cout << "Error - Robot::setSensorsOptions - Robot not initialized." << std::endl;
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -1307,19 +1308,19 @@ namespace jiminy
     }
 
 
-    hresult_t Model::getSensorsOptions(std::string    const & sensorType,
+    hresult_t Robot::getSensorsOptions(std::string    const & sensorType,
                                        configHolder_t       & sensorsOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getSensorsOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Model::getSensorsOptions - This type of sensor does not exist." << std::endl;
+            std::cout << "Error - Robot::getSensorsOptions - This type of sensor does not exist." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
         sensorsOptions.clear();
@@ -1331,11 +1332,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getSensorsOptions(configHolder_t & sensorsOptions) const
+    hresult_t Robot::getSensorsOptions(configHolder_t & sensorsOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorsOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getSensorsOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1353,20 +1354,20 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getSensorOptions(std::string    const & sensorType,
+    hresult_t Robot::getSensorOptions(std::string    const & sensorType,
                                       std::string    const & sensorName,
                                       configHolder_t       & sensorOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getSensorOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getSensorOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Model::getSensorOptions - This type of sensor does not exist." << std::endl;
+            std::cout << "Error - Robot::getSensorOptions - This type of sensor does not exist." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1378,7 +1379,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Model::getSensorOptions - No sensor with this type and name exists." << std::endl;
+            std::cout << "Error - Robot::getSensorOptions - No sensor with this type and name exists." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1387,18 +1388,18 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::setTelemetryOptions(configHolder_t const & telemetryOptions)
+    hresult_t Robot::setTelemetryOptions(configHolder_t const & telemetryOptions)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setTelemetryOptions - Model is locked, probably because a simulation is running.";
+            std::cout << "Error - Robot::setTelemetryOptions - Robot is locked, probably because a simulation is running.";
             std::cout << " Please stop it before updating the telemetry options." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::setTelemetryOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::setTelemetryOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1408,7 +1409,7 @@ namespace jiminy
             auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
-                std::cout << "Error - Model::setTelemetryOptions - Missing field." << std::endl;
+                std::cout << "Error - Robot::setTelemetryOptions - Missing field." << std::endl;
                 return hresult_t::ERROR_GENERIC;
             }
             sensorGroupTelemetryOption.second = boost::get<bool_t>(sensorTelemetryOptionIt->second);
@@ -1417,11 +1418,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getTelemetryOptions(configHolder_t & telemetryOptions) const
+    hresult_t Robot::getTelemetryOptions(configHolder_t & telemetryOptions) const
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::getTelemetryOptions - Model not initialized." << std::endl;
+            std::cout << "Error - Robot::getTelemetryOptions - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1435,12 +1436,12 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::setOptions(configHolder_t mdlOptions)
+    hresult_t Robot::setOptions(configHolder_t mdlOptions)
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Model::setOptions - Model is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the model options." << std::endl;
+            std::cout << "Error - Robot::setOptions - Robot is locked, probably because a simulation is running.";
+            std::cout << " Please stop it before updating the robot options." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -1458,7 +1459,7 @@ namespace jiminy
                 vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
                 if ((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
+                    std::cout << "Error - Robot::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 vectorN_t positionLimitMinDiff = positionLimitMin - mdlOptions_->joints.positionLimitMin;
@@ -1466,7 +1467,7 @@ namespace jiminy
                 vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if ((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
+                    std::cout << "Error - Robot::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 vectorN_t positionLimitMaxDiff = positionLimitMax - mdlOptions_->joints.positionLimitMax;
@@ -1477,7 +1478,7 @@ namespace jiminy
                 vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
                 if ((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
                 {
-                    std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
+                    std::cout << "Error - Robot::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 vectorN_t velocityLimitDiff = velocityLimit - mdlOptions_->joints.velocityLimit;
@@ -1531,37 +1532,37 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t Model::getOptions(void) const
+    configHolder_t Robot::getOptions(void) const
     {
         return mdlOptionsHolder_;
     }
 
-    bool_t const & Model::getIsInitialized(void) const
+    bool_t const & Robot::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool_t const & Model::getIsTelemetryConfigured(void) const
+    bool_t const & Robot::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }
 
-    std::string const & Model::getUrdfPath(void) const
+    std::string const & Robot::getUrdfPath(void) const
     {
         return urdfPath_;
     }
 
-    bool_t const & Model::getHasFreeflyer(void) const
+    bool_t const & Robot::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
     }
 
-    hresult_t Model::loadUrdfModel(std::string const & urdfPath,
+    hresult_t Robot::loadUrdfModel(std::string const & urdfPath,
                                    bool_t      const & hasFreeflyer)
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
-            std::cout << "Error - Model::loadUrdfModel - The URDF file does not exist. Impossible to load it." << std::endl;
+            std::cout << "Error - Robot::loadUrdfModel - The URDF file does not exist. Impossible to load it." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1585,14 +1586,14 @@ namespace jiminy
         }
         catch (std::exception& e)
         {
-            std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
+            std::cout << "Error - Robot::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         return hresult_t::SUCCESS;
     }
 
-    void Model::computeMotorsTorques(float64_t const & t,
+    void Robot::computeMotorsTorques(float64_t const & t,
                                      vectorN_t const & q,
                                      vectorN_t const & v,
                                      vectorN_t const & a,
@@ -1601,12 +1602,12 @@ namespace jiminy
         (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
     }
 
-    vectorN_t const & Model::getMotorsTorques(void) const
+    vectorN_t const & Robot::getMotorsTorques(void) const
     {
         return (*motorsHolder_.begin())->getAll();
     }
 
-    float64_t const & Model::getMotorTorque(std::string const & motorName) const
+    float64_t const & Robot::getMotorTorque(std::string const & motorName) const
     {
         // TODO : it should handle the case where motorName is not found
         auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
@@ -1617,7 +1618,7 @@ namespace jiminy
         return (*motorIt)->get();
     }
 
-    void Model::setSensorsData(float64_t const & t,
+    void Robot::setSensorsData(float64_t const & t,
                                vectorN_t const & q,
                                vectorN_t const & v,
                                vectorN_t const & a,
@@ -1632,7 +1633,7 @@ namespace jiminy
         }
     }
 
-    sensorsDataMap_t Model::getSensorsData(void) const
+    sensorsDataMap_t Robot::getSensorsData(void) const
     {
         sensorsDataMap_t data;
         for (auto & sensorGroup : sensorsGroupHolder_)
@@ -1652,12 +1653,12 @@ namespace jiminy
         return data;
     }
 
-    matrixN_t Model::getSensorsData(std::string const & sensorType) const
+    matrixN_t Robot::getSensorsData(std::string const & sensorType) const
     {
         return (*sensorsGroupHolder_.at(sensorType).begin())->getAll();
     }
 
-    vectorN_t Model::getSensorData(std::string const & sensorType,
+    vectorN_t Robot::getSensorData(std::string const & sensorType,
                                    std::string const & sensorName) const
     {
         // TODO : it should handle the case where sensorType/sensorName is not found
@@ -1671,7 +1672,7 @@ namespace jiminy
         return *(*sensorIt)->get();
     }
 
-    void Model::updateTelemetry(void)
+    void Robot::updateTelemetry(void)
     {
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
@@ -1682,11 +1683,11 @@ namespace jiminy
         }
     }
 
-    hresult_t Model::getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock)
+    hresult_t Robot::getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock)
     {
         if (mutexLocal_.isLocked())
         {
-            std::cout << "Error - Model::getLock - Model already locked. Please release the current lock first." << std::endl;
+            std::cout << "Error - Robot::getLock - Robot already locked. Please release the current lock first." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1695,27 +1696,27 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    bool_t const & Model::getIsLocked(void) const
+    bool_t const & Robot::getIsLocked(void) const
     {
         return mutexLocal_.isLocked();
     }
 
-    std::vector<std::string> const & Model::getContactFramesNames(void) const
+    std::vector<std::string> const & Robot::getContactFramesNames(void) const
     {
         return contactFramesNames_;
     }
 
-    std::vector<int32_t> const & Model::getContactFramesIdx(void) const
+    std::vector<int32_t> const & Robot::getContactFramesIdx(void) const
     {
         return contactFramesIdx_;
     }
 
-    std::vector<std::string> const & Model::getMotorsNames(void) const
+    std::vector<std::string> const & Robot::getMotorsNames(void) const
     {
         return motorsNames_;
     }
 
-    std::vector<int32_t> Model::getMotorsModelIdx(void) const
+    std::vector<int32_t> Robot::getMotorsModelIdx(void) const
     {
         std::vector<int32_t> motorsModelIdx;
         motorsModelIdx.reserve(motorsHolder_.size());
@@ -1728,7 +1729,7 @@ namespace jiminy
         return motorsModelIdx;
     }
 
-    std::vector<int32_t> Model::getMotorsPositionIdx(void) const
+    std::vector<int32_t> Robot::getMotorsPositionIdx(void) const
     {
         std::vector<int32_t> motorsPositionIdx;
         motorsPositionIdx.reserve(motorsHolder_.size());
@@ -1741,7 +1742,7 @@ namespace jiminy
         return motorsPositionIdx;
     }
 
-    std::vector<int32_t> Model::getMotorsVelocityIdx(void) const
+    std::vector<int32_t> Robot::getMotorsVelocityIdx(void) const
     {
         std::vector<int32_t> motorsVelocityIdx;
         motorsVelocityIdx.reserve(motorsHolder_.size());
@@ -1754,7 +1755,7 @@ namespace jiminy
         return motorsVelocityIdx;
     }
 
-    std::unordered_map<std::string, std::vector<std::string> > Model::getSensorsNames(void) const
+    std::unordered_map<std::string, std::vector<std::string> > Robot::getSensorsNames(void) const
     {
         std::unordered_map<std::string, std::vector<std::string> > sensorNames;
         for (auto const & sensorGroup : sensorsGroupHolder_)
@@ -1764,7 +1765,7 @@ namespace jiminy
         return sensorNames;
     }
 
-    std::vector<std::string> Model::getSensorsNames(std::string const & sensorType) const
+    std::vector<std::string> Robot::getSensorsNames(std::string const & sensorType) const
     {
         std::vector<std::string> sensorsNames;
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
@@ -1781,32 +1782,32 @@ namespace jiminy
         return sensorsNames;
     }
 
-    std::vector<std::string> const & Model::getPositionFieldNames(void) const
+    std::vector<std::string> const & Robot::getPositionFieldNames(void) const
     {
         return positionFieldNames_;
     }
 
-    vectorN_t const & Model::getPositionLimitMin(void) const
+    vectorN_t const & Robot::getPositionLimitMin(void) const
     {
         return positionLimitMin_;
     }
 
-    vectorN_t const & Model::getPositionLimitMax(void) const
+    vectorN_t const & Robot::getPositionLimitMax(void) const
     {
         return positionLimitMax_;
     }
 
-    std::vector<std::string> const & Model::getVelocityFieldNames(void) const
+    std::vector<std::string> const & Robot::getVelocityFieldNames(void) const
     {
         return velocityFieldNames_;
     }
 
-    vectorN_t const & Model::getVelocityLimit(void) const
+    vectorN_t const & Robot::getVelocityLimit(void) const
     {
         return velocityLimit_;
     }
 
-    vectorN_t Model::getTorqueLimit(void) const
+    vectorN_t Robot::getTorqueLimit(void) const
     {
         vectorN_t torqueLimit = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
@@ -1825,7 +1826,7 @@ namespace jiminy
         return torqueLimit;
     }
 
-    vectorN_t Model::getMotorInertia(void) const
+    vectorN_t Robot::getMotorInertia(void) const
     {
         vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
@@ -1836,37 +1837,37 @@ namespace jiminy
         return motorInertia;
     }
 
-    std::vector<std::string> const & Model::getAccelerationFieldNames(void) const
+    std::vector<std::string> const & Robot::getAccelerationFieldNames(void) const
     {
         return accelerationFieldNames_;
     }
 
-    std::vector<std::string> const & Model::getMotorTorqueFieldNames(void) const
+    std::vector<std::string> const & Robot::getMotorTorqueFieldNames(void) const
     {
         return motorTorqueFieldNames_;
     }
 
-    std::vector<std::string> const & Model::getRigidJointsNames(void) const
+    std::vector<std::string> const & Robot::getRigidJointsNames(void) const
     {
         return rigidJointsNames_;
     }
 
-    std::vector<int32_t> const & Model::getRigidJointsModelIdx(void) const
+    std::vector<int32_t> const & Robot::getRigidJointsModelIdx(void) const
     {
         return rigidJointsModelIdx_;
     }
 
-    std::vector<int32_t> const & Model::getRigidJointsPositionIdx(void) const
+    std::vector<int32_t> const & Robot::getRigidJointsPositionIdx(void) const
     {
         return rigidJointsPositionIdx_;
     }
 
-    std::vector<int32_t> const & Model::getRigidJointsVelocityIdx(void) const
+    std::vector<int32_t> const & Robot::getRigidJointsVelocityIdx(void) const
     {
         return rigidJointsVelocityIdx_;
     }
 
-    std::vector<std::string> const & Model::getFlexibleJointsNames(void) const
+    std::vector<std::string> const & Robot::getFlexibleJointsNames(void) const
     {
         static std::vector<std::string> const flexibleJointsNamesEmpty {};
         if (mdlOptions_->dynamics.enableFlexibleModel)
@@ -1879,7 +1880,7 @@ namespace jiminy
         }
     }
 
-    std::vector<int32_t> const & Model::getFlexibleJointsModelIdx(void) const
+    std::vector<int32_t> const & Robot::getFlexibleJointsModelIdx(void) const
     {
         static std::vector<int32_t> const flexibleJointsModelIdxEmpty {};
         if (mdlOptions_->dynamics.enableFlexibleModel)
@@ -1892,17 +1893,17 @@ namespace jiminy
         }
     }
 
-    uint32_t const & Model::nq(void) const
+    uint32_t const & Robot::nq(void) const
     {
         return nq_;
     }
 
-    uint32_t const & Model::nv(void) const
+    uint32_t const & Robot::nv(void) const
     {
         return nv_;
     }
 
-    uint32_t const & Model::nx(void) const
+    uint32_t const & Robot::nx(void) const
     {
         return nx_;
     }

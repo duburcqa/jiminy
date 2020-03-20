@@ -1,6 +1,6 @@
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 
-#include "jiminy/core/model/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractSensor.h"
 
 
 namespace jiminy
@@ -11,7 +11,7 @@ namespace jiminy
     isInitialized_(false),
     isAttached_(false),
     isTelemetryConfigured_(false),
-    model_(nullptr),
+    robot_(nullptr),
     name_(name),
     data_(),
     telemetrySender_()

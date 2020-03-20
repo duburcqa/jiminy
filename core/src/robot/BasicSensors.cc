@@ -3,10 +3,10 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 
-#include "jiminy/core/model/BasicSensors.h"
+#include "jiminy/core/robot/BasicSensors.h"
 
 
 namespace jiminy
@@ -57,9 +57,9 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!model_->getIsInitialized())
+        if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - ImuSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - ImuSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -74,7 +74,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -97,13 +97,13 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        matrix3_t const & rot = model_->pncData_.oMf[frameIdx_].rotation();
+        matrix3_t const & rot = robot_->pncData_.oMf[frameIdx_].rotation();
         quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
         data().head<4>() = quat.coeffs(); // (x,y,z,w)
-        pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(model_->pncModel_, model_->pncData_, frameIdx_);
+        pinocchio::Motion const gyroIMU = pinocchio::getFrameVelocity(robot_->pncModel_, robot_->pncData_, frameIdx_);
         data().segment<3>(4) = gyroIMU.angular();
-        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(model_->pncModel_, model_->pncData_, frameIdx_);
-        data().tail<3>() = acceleration.linear() + quat.conjugate() * model_->pncModel_.gravity.linear();
+        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(robot_->pncModel_, robot_->pncData_, frameIdx_);
+        data().tail<3>() = acceleration.linear() + quat.conjugate() * robot_->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
@@ -153,9 +153,9 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!model_->getIsInitialized())
+        if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - ForceSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - ForceSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -170,7 +170,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -193,9 +193,9 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
+        std::vector<int32_t> const & contactFramesIdx = robot_->getContactFramesIdx();
         std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-        data() = model_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+        data() = robot_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
         return hresult_t::SUCCESS;
     }
@@ -246,9 +246,9 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!model_->getIsInitialized())
+        if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - EncoderSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - EncoderSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -260,12 +260,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
+            returnCode = getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
+            getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
         }
 
         return returnCode;
@@ -339,9 +339,9 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!model_->getIsInitialized())
+        if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - TorqueSensor::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - TorqueSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -354,7 +354,7 @@ namespace jiminy
         std::shared_ptr<AbstractMotorBase const> motor;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = model_->getMotor(motorName_, motor);
+            returnCode = robot_->getMotor(motorName_, motor);
         }
 
         if (returnCode == hresult_t::SUCCESS)

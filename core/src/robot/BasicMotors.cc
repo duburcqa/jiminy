@@ -4,9 +4,9 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 
-#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/robot/BasicMotors.h"
 
 
 namespace jiminy

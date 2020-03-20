@@ -1,7 +1,7 @@
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 
-#include "jiminy/core/model/AbstractMotor.h"
+#include "jiminy/core/robot/AbstractMotor.h"
 
 
 namespace jiminy
@@ -11,7 +11,7 @@ namespace jiminy
     motorOptionsHolder_(),
     isInitialized_(false),
     isAttached_(false),
-    model_(nullptr),
+    robot_(nullptr),
     name_(name),
     motorId_(-1),
     jointName_(),
@@ -35,7 +35,7 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractMotorBase::attach(Model const * model,
+    hresult_t AbstractMotorBase::attach(Robot const * model,
                                         std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
@@ -45,7 +45,7 @@ namespace jiminy
         }
 
         // Copy references to the model and shared data
-        model_ = model;
+        robot_ = model;
         sharedHolder_ = sharedHolder.get();
 
         // Get an Id
@@ -94,7 +94,7 @@ namespace jiminy
         --sharedHolder_->num_;
 
         // Clear the references to the model and shared data
-        model_ = nullptr;
+        robot_ = nullptr;
         sharedHolder_ = nullptr;
 
         // Update the flag
@@ -132,7 +132,7 @@ namespace jiminy
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
         // Refresh the proxies if the model is initialized
-        if (isAttached_ && internalBuffersMustBeUpdated && model_->getIsInitialized())
+        if (isAttached_ && internalBuffersMustBeUpdated && robot_->getIsInitialized())
         {
             refreshProxies();
         }
@@ -149,9 +149,9 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!model_->getIsInitialized())
+        if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - AbstractMotorBase::refreshProxies - Model not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - AbstractMotorBase::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode =  hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -166,18 +166,18 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getJointModelIdx(model_->pncModel_, jointName_, jointModelIdx_);
+            returnCode = ::jiminy::getJointModelIdx(robot_->pncModel_, jointName_, jointModelIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            ::jiminy::getJointPositionIdx(model_->pncModel_, jointName_, jointPositionIdx_);
-            ::jiminy::getJointVelocityIdx(model_->pncModel_, jointName_, jointVelocityIdx_);
+            ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
+            ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
 
             // Get the motor torque limits from the URDF or the user options.
             if (baseMotorOptions_->torqueLimitFromUrdf)
             {
-                torqueLimit_ = model_->pncModel_.effortLimit[jointVelocityIdx_];
+                torqueLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_];
             }
             else
             {

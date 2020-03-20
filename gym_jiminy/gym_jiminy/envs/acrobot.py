@@ -87,7 +87,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
 
-        self._model = jiminy.Model() # Model has to be an attribute of the class to avoid being garbage collected
+        self._model = jiminy.Robot() # Robot has to be an attribute of the class to avoid being garbage collected
         self._model.initialize(urdf_path)
 
         motor_joint_names = ("SecondPendulumJoint",)
@@ -147,8 +147,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         self.x_threshold = 0.75
 
         # Internal parameters to generate sample goals and compute the terminal condition
-        self._tipIdx = engine_py._engine.model.pinocchio_model.getFrameId("SecondPendulumMass")
-        self._tipPosZMax = engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[2]
+        self._tipIdx = engine_py._engine.robot.pinocchio_model.getFrameId("SecondPendulumMass")
+        self._tipPosZMax = engine_py._engine.robot.pinocchio_data.oMf[self._tipIdx].translation[2]
 
         # ####################### Configure the learning environment ###########################
 
@@ -159,7 +159,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # #################### Overwrite some problem-generic variables ########################
 
-        # Update the velocity bounds of the model
+        # Update the velocity bounds of the robot
         model_options = self._model.get_model_options()
         model_options["joints"]["velocityLimit"] = [self.MAX_VEL_1, self.MAX_VEL_2]
         model_options["joints"]["velocityLimitFromUrdf"] = False
@@ -249,7 +249,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _get_info(self):
         """
-        @brief      Get the observation associated with the current state of the model,
+        @brief      Get the observation associated with the current state of the robot,
                     along with some additional information.
 
         @remark     This is a hidden function that is not listed as part of the
@@ -298,7 +298,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _get_achieved_goal(self):
         """
-        @brief      Compute the achieved goal based on the current state of the model.
+        @brief      Compute the achieved goal based on the current state of the robot.
 
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called
@@ -306,7 +306,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         @return     The currently achieved goal
         """
-        return self.engine_py._engine.model.pinocchio_data.oMf[self._tipIdx].translation[[2]]
+        return self.engine_py._engine.robot.pinocchio_data.oMf[self._tipIdx].translation[[2]]
 
 
     def _is_success(self, achieved_goal, desired_goal):
@@ -324,7 +324,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _get_obs(self):
         """
-        @brief      Get the current observation based on the current state of the model.
+        @brief      Get the current observation based on the current state of the robot.
 
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called

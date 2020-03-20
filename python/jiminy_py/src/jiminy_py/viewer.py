@@ -30,22 +30,22 @@ class Viewer:
     # It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
     _lock = Lock()
 
-    def __init__(self, jiminy_model, use_theoretical_model=False,
+    def __init__(self, robot, use_theoretical_model=False,
                  urdf_rgba=None, robot_index=0,
                  backend=None, window_name='python-pinocchio', scene_name='world'):
         # Backup some user arguments
-        self.urdf_path = jiminy_model.urdf_path
+        self.urdf_path = robot.urdf_path
         self.scene_name = scene_name
         self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
 
         # Extract the right Pinocchio model
         if self.use_theoretical_model:
-            self.pinocchio_model = jiminy_model.pinocchio_model_th
-            self.pinocchio_data = jiminy_model.pinocchio_data_th
+            self.pinocchio_model = robot.pinocchio_model_th
+            self.pinocchio_data = robot.pinocchio_data_th
         else:
-            self.pinocchio_model = jiminy_model.pinocchio_model
-            self.pinocchio_data = jiminy_model.pinocchio_data
+            self.pinocchio_model = robot.pinocchio_model
+            self.pinocchio_data = robot.pinocchio_data
 
         # Select the desired backend
         if backend is None:
@@ -116,7 +116,7 @@ class Viewer:
                                 collision_model=collision_model,
                                 visual_model=visual_model)
         if not self.use_theoretical_model:
-            self._rb.data = jiminy_model.pinocchio_data
+            self._rb.data = robot.pinocchio_data
         self.pinocchio_data = self._rb.data
 
         # Load robot in the backend viewer
@@ -374,7 +374,7 @@ class Viewer:
 
     def refresh(self):
         """
-        @brief      Refresh the configuration of Model in the viewer.
+        @brief      Refresh the configuration of Robot in the viewer.
         """
 
         if self.use_theoretical_model:
@@ -442,7 +442,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
 
     @param[in]  trajectory_data     Trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time
-                                    'jiminy_model': Jiminy model (None if omitted)
+                                    'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model':  whether the theoretical or actual model must be used
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
@@ -461,9 +461,9 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     # Load robots in gepetto viewer
     robots = []
     for i in range(len(trajectory_data)):
-        jiminy_model = trajectory_data[i]['jiminy_model']
+        robot = trajectory_data[i]['robot']
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        robot = Viewer(jiminy_model, use_theoretical_model=use_theoretical_model,
+        robot = Viewer(robot, use_theoretical_model=use_theoretical_model,
                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
                        backend=backend, window_name=window_name, scene_name=scene_name)
 

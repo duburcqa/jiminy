@@ -10,7 +10,7 @@ namespace jiminy
     std::string const CONTROLLER_OBJECT_NAME("HighLevelController"); ///< Name of the telemetry object
 
     class TelemetryData;
-    class Model;
+    class Robot;
     class Engine;
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -65,12 +65,12 @@ namespace jiminy
         ///
         /// \brief      Set the parameters of the controller.
         ///
-        /// \param[in]  model   Model of the system
+        /// \param[in]  robot   Robot
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(std::shared_ptr<Model const> const & model);
+        virtual hresult_t initialize(std::shared_ptr<Robot const> const & robot);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -135,7 +135,7 @@ namespace jiminy
         ///
         /// \brief      Compute the command.
         ///
-        /// \details    It assumes that the model internal state (including sensors) is consistent
+        /// \details    It assumes that the robot internal state (including sensors) is consistent
         ///             with other input arguments. It fetches the sensor data automatically.
         ///
         /// \param[in]  t       Current time
@@ -196,7 +196,7 @@ namespace jiminy
         /// \brief      Configure the telemetry of the controller.
         ///
         /// \details    This method connects the controller-specific telemetry sender to a given
-        ///             telemetry data (which is unique for a given model), so that it is
+        ///             telemetry data (which is unique for a given robot), so that it is
         ///             later possible to register the variables that one want to monitor. Finally,
         ///             the telemetry recoder logs every registered variables at each timestep in a
         ///             memory buffer.
@@ -204,7 +204,7 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Engine is taking care
         ///             of it before flushing the telemetry data at the end of each simulation steps.
         ///
-        /// \param[in]  telemetryData       Shared pointer to the model-wide telemetry data object
+        /// \param[in]  telemetryData       Shared pointer to the robot-wide telemetry data object
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -272,7 +272,7 @@ namespace jiminy
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
 
     protected:
-        std::shared_ptr<Model const> model_;    ///< Model of the system for which to compute the command and internal dynamics must be computed
+        std::shared_ptr<Robot const> robot_;    ///< Robot for which to compute the command and internal dynamics must be computed
         bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller

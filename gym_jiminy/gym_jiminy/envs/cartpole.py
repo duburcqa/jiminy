@@ -92,7 +92,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
-        self._model = jiminy.Model()
+        self._model = jiminy.Robot()
         self._model.initialize(urdf_path)
 
         motor_joint_names = ("slider_to_cart",)
@@ -202,14 +202,14 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def _get_obs(self):
         """
-        @brief      Get the current observation based on the current state of the model.
+        @brief      Get the current observation based on the current state of the robot.
                     Mostly defined for compatibility with Gym OpenAI.
 
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called
                     manually.
 
-        @return     The current state of the model
+        @return     The current state of the robot
         """
         return self.state
 

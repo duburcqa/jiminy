@@ -5,7 +5,7 @@
 ///                 Any sensor must inherit from this base class and implement its virtual
 ///                 methods.
 ///
-///                 Each sensor added to a Jiminy Model is downcasted as an instance of
+///                 Each sensor added to a Jiminy Robot is downcasted as an instance of
 ///                 AbstractSensor and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +25,7 @@ namespace jiminy
     static uint8_t const MAX_DELAY_BUFFER_EXCEED(20);  ///< Maximum number of data stored allowed to be dated more than the desired delay
 
     class TelemetryData;
-    class Model;
+    class Robot;
 
     class AbstractSensorBase;
 
@@ -65,12 +65,12 @@ namespace jiminy
     class AbstractSensorBase
     {
         /* Using friend to avoid double delegation, which would make public
-           the attach whereas only model is able to call it.
+           the attach whereas only robot is able to call it.
            TODO: remove friend declaration and use pluggin mechanism instead.
-           It consist in populating a factory method in Model at runtime with
+           It consist in populating a factory method in Robot at runtime with
            lambda function able to create each type of sensors. These lambda
            functions are registered by each sensor using static method. */
-        friend Model;
+        friend Robot;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ namespace jiminy
         ///
         /// \brief      Constructor
         ///
-        /// \param[in]  model   Model of the system
+        /// \param[in]  robot   Robot
         /// \param[in]  name    Name of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -129,7 +129,7 @@ namespace jiminy
         /// \details  This method resets the internal state of the sensor and unset the configuration
         ///           of the telemetry.
         ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
+        /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           sensor is added is taking care of it when its own `reset` method is called.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,7 +138,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
         ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
+        /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           motor is added is taking care of it when its own `refresh` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t refreshProxies(void) = 0;
@@ -148,16 +148,16 @@ namespace jiminy
         /// \brief      Configure the telemetry of the sensor.
         ///
         /// \details    This method connects the controller-specific telemetry sender to a given
-        ///             telemetry data (which is unique for a given exoskeleton model), so that it is
+        ///             telemetry data (which is unique for a given exoskeleton robot), so that it is
         ///             later possible to register the variables that one want to monitor. Finally,
         ///             the telemetry recoder logs every registered variables at each timestep in a
         ///             memory buffer.
         ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
+        /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             sensor is added is taking care of it before flushing the telemetry data
         ///             at the end of each simulation steps.
         ///
-        /// \param[in]  telemetryData       Shared pointer to the model-wide telemetry data object
+        /// \param[in]  telemetryData       Shared pointer to the robot-wide telemetry data object
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -175,7 +175,7 @@ namespace jiminy
         /// \brief      Update the internal buffers of the telemetry associated with variables
         ///             monitored every sensors of the same type than the current one.
         ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
+        /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             sensor is added is taking care of it before flushing the telemetry data at
         //              the end of each simulation steps.
         ///
@@ -214,7 +214,7 @@ namespace jiminy
         ///
         /// \brief      Request the sensor to record data based of the input data.
         ///
-        /// \details    It assumes that the internal state of the model is consistent with the
+        /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
         /// \param[in]  t       Current time
@@ -237,10 +237,10 @@ namespace jiminy
         /// \brief      Request every sensors of the same type than the current one to record data
         ///             based of the input data.
         ///
-        /// \details    It assumes that the internal state of the model is consistent with the
+        /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
+        /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             sensor is added is taking care of it while updating the state of the sensors.
         ///
         /// \param[in]  t       Current time
@@ -306,7 +306,7 @@ namespace jiminy
         ///
         /// \brief      Get isAttached_.
         ///
-        /// \details    It is a flag used to determine if the sensor has been attached to a model.
+        /// \details    It is a flag used to determine if the sensor has been attached to a robot.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         bool_t const & getIsAttached(void) const;
@@ -365,17 +365,17 @@ namespace jiminy
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief    Attach the sensor to a model
+        /// \brief    Attach the sensor to a robot
         ///
         /// \details  This method must be called before initializing the sensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(Model const * model,
+        virtual hresult_t attach(Robot const * robot,
                                  std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief    Detach the sensor from the model
+        /// \brief    Detach the sensor from the robot
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t detach(void) = 0;
@@ -419,9 +419,9 @@ namespace jiminy
     protected:
         configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
         bool_t isInitialized_;                  ///< Flag to determine whether the sensor has been initialized or not
-        bool_t isAttached_;                     ///< Flag to determine whether the sensor is attached to a model
+        bool_t isAttached_;                     ///< Flag to determine whether the sensor is attached to a robot
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the sensor has been initialized or not
-        Model const * model_;                   ///< Model of the system for which the command and internal dynamics
+        Robot const * robot_;                   ///< Robot for which the command and internal dynamics
         std::string name_;                      ///< Name of the sensor
         vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
 
@@ -464,7 +464,7 @@ namespace jiminy
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
-        virtual hresult_t attach(Model const * model,
+        virtual hresult_t attach(Robot const * robot,
                                  std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) override final;
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
@@ -489,6 +489,6 @@ namespace jiminy
     };
 }
 
-#include "jiminy/core/model/AbstractSensor.tpp"
+#include "jiminy/core/robot/AbstractSensor.tpp"
 
 #endif //end of JIMINY_ABSTRACT_SENSOR_H

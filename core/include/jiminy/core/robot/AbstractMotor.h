@@ -4,7 +4,7 @@
 ///
 /// \details    Any motor must inherit from this base class and implement its virtual methods.
 ///
-/// \remarks    Each motor added to a Jiminy Model is downcasted as an instance of
+/// \remarks    Each motor added to a Jiminy Robot is downcasted as an instance of
 ///             AbstractMotorBase and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -17,7 +17,7 @@
 
 namespace jiminy
 {
-    class Model;
+    class Robot;
 
     class AbstractMotorBase;
 
@@ -47,7 +47,7 @@ namespace jiminy
     class AbstractMotorBase
     {
         /* AKA AbstractSensorBase */
-        friend Model;
+        friend Robot;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,7 +94,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///
-        /// \param[in]  model   Model of the system
+        /// \param[in]  robot   Robot
         /// \param[in]  name    Name of the motor
         ///////////////////////////////////////////////////////////////////////////////////////////////
         AbstractMotorBase(std::string const & name);
@@ -103,7 +103,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
         ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
+        /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           motor is added is taking care of it when its own `refresh` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t refreshProxies(void);
@@ -113,7 +113,7 @@ namespace jiminy
         ///
         /// \details  This method resets the internal state of the motor.
         ///
-        /// \remark   This method is not intended to be called manually. The Model to which the
+        /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           motor is added is taking care of it when its own `reset` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual void reset(void);
@@ -215,7 +215,7 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request the motor to update its actual torque based of the input data.
         ///
-        /// \details    It assumes that the internal state of the model is consistent with the
+        /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
         /// \param[in]  t       Current time
@@ -234,10 +234,10 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Request every motors to update their actual torque based of the input data.
         ///
-        /// \details    It assumes that the internal state of the model is consistent with the
+        /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \remark     This method is not intended to be called manually. The Model to which the
+        /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             motor is added is taking care of it while updating the state of the motors.
         ///
         /// \param[in]  t       Current time
@@ -265,15 +265,15 @@ namespace jiminy
 
     private:
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Attach the sensor to a model
+        /// \brief    Attach the sensor to a robot
         ///
         /// \details  This method must be called before initializing the sensor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(Model const * model,
+        hresult_t attach(Robot const * robot,
                          std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Detach the sensor from the model
+        /// \brief    Detach the sensor from the robot
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t detach(void);
 
@@ -283,8 +283,8 @@ namespace jiminy
     protected:
         configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
         bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
-        bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a model
-        Model const * model_;                       ///< Model of the system for which the command and internal dynamics
+        bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a robot
+        Robot const * robot_;                       ///< Robot for which the command and internal dynamics
         std::string name_;                          ///< Name of the motor
         int32_t motorId_;                           ///< Index of the motor in the measurement buffer
         std::string jointName_;
@@ -295,7 +295,7 @@ namespace jiminy
         float64_t rotorInertia_;
 
     private:
-        MotorSharedDataHolder_t * sharedHolder_;    ///< Shared data between every motors associated with the model
+        MotorSharedDataHolder_t * sharedHolder_;    ///< Shared data between every motors associated with the robot
     };
 }
 

@@ -1,6 +1,6 @@
 #include <cassert>
 
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 
 
 namespace jiminy
@@ -28,7 +28,7 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::initialize(std::shared_ptr<Model const> const & model)
+    hresult_t ControllerFunctor<F1, F2>::initialize(std::shared_ptr<Robot const> const & model)
     {
         sensorsData_ = model->getSensorsData(); // Only one copy is needed thanks to C++11 Copy Elision paradigm
         return AbstractController::initialize(model);

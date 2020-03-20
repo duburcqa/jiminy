@@ -8,9 +8,9 @@
 #include <cassert>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/model/Model.h"
-#include "jiminy/core/model/BasicMotors.h"
-#include "jiminy/core/model/BasicSensors.h"
+#include "jiminy/core/robot/Robot.h"
+#include "jiminy/core/robot/BasicMotors.h"
+#include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
@@ -708,7 +708,7 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("initialize", &Model::initialize,
+                .def("initialize", &Robot::initialize,
                                    (bp::arg("self"), "urdf_path",
                                     bp::arg("has_freeflyer") = false))
 
@@ -717,21 +717,21 @@ namespace python
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
-                .def("attach_motor", &Model::attachMotor,
+                .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
                 .def("get_motor", &PyModelVisitor::getMotor,
                                   (bp::arg("self"), "motor_name"),
                                    bp::return_value_policy<bp::reference_existing_object>())
-                .def("detach_motor", &Model::detachMotor,
+                .def("detach_motor", &Robot::detachMotor,
                                      (bp::arg("self"), "joint_name"))
                 .def("detach_motors", &PyModelVisitor::detachMotors,
                                       (bp::arg("self"),
                                        bp::arg("joints_names") = std::vector<std::string>()))
-                .def("attach_sensor", &Model::attachSensor,
+                .def("attach_sensor", &Robot::attachSensor,
                                       (bp::arg("self"), "sensor"))
-                .def("detach_sensor", &Model::detachSensor,
+                .def("detach_sensor", &Robot::detachSensor,
                                       (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("detach_sensors", &Model::detachSensors,
+                .def("detach_sensors", &Robot::detachSensors,
                                        (bp::arg("self"),
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyModelVisitor::getSensor,
@@ -739,7 +739,7 @@ namespace python
                                     bp::return_value_policy<bp::reference_existing_object>())
 
                 .add_property("sensors_data", &PyModelVisitor::getSensorsData)
-                .add_property("motors_torques", bp::make_function(&Model::getMotorsTorques,
+                .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
                 .def("get_model_options", &PyModelVisitor::getModelOptions)
@@ -751,82 +751,82 @@ namespace python
                 .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
                                             bp::return_value_policy<bp::return_by_value>())
 
-                .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
+                .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
                                                  bp::return_internal_reference<>()))
-                .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
+                .add_property("pinocchio_data", bp::make_getter(&Robot::pncData_,
                                                 bp::return_internal_reference<>()))
-                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
+                .add_property("pinocchio_model_th", bp::make_getter(&Robot::pncModelRigidOrig_,
                                                     bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
+                .add_property("pinocchio_data_th", bp::make_getter(&Robot::pncDataRigidOrig_,
                                                    bp::return_internal_reference<>()))
 
-                .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
+                .add_property("is_initialized", bp::make_function(&Robot::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
+                .add_property("urdf_path", bp::make_function(&Robot::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
+                .add_property("has_freeflyer", bp::make_function(&Robot::getHasFreeflyer,
                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
-                .add_property("nq", bp::make_function(&Model::nq,
+                .add_property("nq", bp::make_function(&Robot::nq,
                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nv", bp::make_function(&Model::nv,
+                .add_property("nv", bp::make_function(&Robot::nv,
                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nx", bp::make_function(&Model::nx,
+                .add_property("nx", bp::make_function(&Robot::nx,
                                     bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
+                .add_property("contact_frames_names", bp::make_function(&Robot::getContactFramesNames,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
+                .add_property("contact_frames_idx", bp::make_function(&Robot::getContactFramesIdx,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
+                .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_position_idx", &Model::getMotorsPositionIdx)
-                .add_property("motors_velocity_idx", &Model::getMotorsVelocityIdx)
+                .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
+                .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
                 .add_property("sensors_names", &PyModelVisitor::getSensorsNames)
-                .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
+                .add_property("rigid_joints_names", bp::make_function(&Robot::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
+                .add_property("rigid_joints_position_idx", bp::make_function(&Robot::getRigidJointsPositionIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
+                .add_property("rigid_joints_velocity_idx", bp::make_function(&Robot::getRigidJointsVelocityIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
+                .add_property("flexible_joints_names", bp::make_function(&Robot::getFlexibleJointsNames,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMin,
+                .add_property("position_limit_upper", bp::make_function(&Robot::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMax,
+                .add_property("position_limit_lower", bp::make_function(&Robot::getPositionLimitMax,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
+                .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("torque_limit", &Model::getTorqueLimit)
-                .add_property("motor_inertia", &Model::getMotorInertia)
+                .add_property("torque_limit", &Robot::getTorqueLimit)
+                .add_property("motor_inertia", &Robot::getMotorInertia)
 
-                .add_property("logfile_position_headers", bp::make_function(&Model::getPositionFieldNames,
+                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_velocity_headers", bp::make_function(&Model::getVelocityFieldNames,
+                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldNames,
+                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_motor_torque_headers", bp::make_function(&Model::getMotorTorqueFieldNames,
+                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldNames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 
-        static hresult_t detachMotors(Model          & self,
+        static hresult_t detachMotors(Robot          & self,
                                       bp::list const & jointNamesPy)
         {
             auto jointNames = convertFromPython<std::vector<std::string> >(jointNamesPy);
             return self.detachMotors(jointNames);
         }
 
-        static hresult_t addContactPoints(Model          & self,
+        static hresult_t addContactPoints(Robot          & self,
                                           bp::list const & frameNamesPy)
         {
             auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.addContactPoints(frameNames);
         }
 
-        static hresult_t removeContactPoints(Model          & self,
+        static hresult_t removeContactPoints(Robot          & self,
                                              bp::list const & frameNamesPy)
         {
             auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
@@ -837,12 +837,12 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Model & self)
+        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
         {
             return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
         }
 
-        static AbstractMotorBase const * getMotor(Model             & self,
+        static AbstractMotorBase const * getMotor(Robot             & self,
                                                   std::string const & motorName)
         {
             /* Be careful, boost python remove the const qualifier, so that the
@@ -852,7 +852,7 @@ namespace python
             return motor.get();
         }
 
-        static AbstractSensorBase const * getSensor(Model             & self,
+        static AbstractSensorBase const * getSensor(Robot             & self,
                                                     std::string const & sensorType,
                                                     std::string const & sensorName)
         {
@@ -863,7 +863,7 @@ namespace python
             return sensor.get();
         }
 
-        static bp::dict getSensorsNames(Model & self)
+        static bp::dict getSensorsNames(Robot & self)
         {
             bp::dict sensorsNamesPy;
             auto const & sensorsNames = self.getSensorsNames();
@@ -875,12 +875,12 @@ namespace python
             return sensorsNamesPy;
         }
 
-        static bool_t isFlexibleModelEnable(Model & self)
+        static bool_t isFlexibleModelEnable(Robot & self)
         {
             return self.mdlOptions_->dynamics.enableFlexibleModel;
         }
 
-        static std::vector<std::string> getFlexibleOnlyJointsNames(Model & self)
+        static std::vector<std::string> getFlexibleOnlyJointsNames(Robot & self)
         {
             flexibilityConfig_t const & flexibilityConfig = self.mdlOptions_->dynamics.flexibilityConfig;
             std::vector<std::string> flexibleJointNames;
@@ -891,7 +891,7 @@ namespace python
             return flexibleJointNames;
         }
 
-        static configHolder_t getModelOptions(Model & self)
+        static configHolder_t getModelOptions(Robot & self)
         {
             configHolder_t configModel = self.getOptions();
             configHolder_t configTelemetry;
@@ -900,7 +900,7 @@ namespace python
             return configModel;
         }
 
-        static void setModelOptions(Model          & self,
+        static void setModelOptions(Robot          & self,
                                     bp::dict const & configPy)
         {
             configHolder_t configModel = self.getOptions();
@@ -914,7 +914,7 @@ namespace python
             self.setTelemetryOptions(configTelemetry);
         }
 
-        static void setMotorsOptions(Model          & self,
+        static void setMotorsOptions(Robot          & self,
                                      bp::dict const & configPy)
         {
             configHolder_t config;
@@ -923,14 +923,14 @@ namespace python
             self.setMotorsOptions(config);
         }
 
-        static bp::object getMotorsOptions(Model & self)
+        static bp::object getMotorsOptions(Robot & self)
         {
             configHolder_t config;
             self.getMotorsOptions(config);
             return convertToPython(config);
         }
 
-        static void setSensorsOptions(Model          & self,
+        static void setSensorsOptions(Robot          & self,
                                       bp::dict const & configPy)
         {
             configHolder_t config;
@@ -939,7 +939,7 @@ namespace python
             self.setSensorsOptions(config);
         }
 
-        static bp::object getSensorsOptions(Model & self)
+        static bp::object getSensorsOptions(Robot & self)
         {
             configHolder_t config;
             self.getSensorsOptions(config);
@@ -951,11 +951,11 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<Model,
-                       boost::shared_ptr<Model>,
-                       boost::noncopyable>("Model")
+            bp::class_<Robot,
+                       boost::shared_ptr<Robot>,
+                       boost::noncopyable>("Robot")
                 .def(PyModelVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Model> >();
+            bp::register_ptr_to_python<std::shared_ptr<Robot> >();
         }
     };
 
@@ -973,7 +973,7 @@ namespace python
         {
             cl
                 .def("initialize", &AbstractController::initialize,
-                                   (bp::arg("self"), "model"))
+                                   (bp::arg("self"), "robot"))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -1130,7 +1130,7 @@ namespace python
         {
             cl
                 .def("initialize", &PyControllerFunctorVisitor::initialize,
-                                   (bp::arg("self"), "model"))
+                                   (bp::arg("self"), "robot"))
                 ;
         }
 
@@ -1144,11 +1144,11 @@ namespace python
         }
 
         static void initialize(CtrlFunctor                  & self,
-                               std::shared_ptr<Model> const & model)
+                               std::shared_ptr<Robot> const & robot)
         {
             // Cannot pass const shared_ptr from Python to C++ directly...
 
-            self.initialize(model);
+            self.initialize(robot);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1261,9 +1261,9 @@ namespace python
         {
             cl
                 .def("initialize", &PyEngineVisitor::initialize,
-                                   (bp::arg("self"), "model", "controller"))
+                                   (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
-                                   (bp::arg("self"), "model", "controller", "callback_handle"))
+                                   (bp::arg("self"), "robot", "controller", "callback_handle"))
 
                 .def("reset", static_cast<void (Engine::*)(bool_t const &)>(&Engine::reset),
                               (bp::arg("self"),
@@ -1300,7 +1300,7 @@ namespace python
 
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("model", bp::make_function(&Engine::getModel,
+                .add_property("robot", bp::make_function(&Engine::getRobot,
                                        bp::return_internal_reference<>()))
                 .add_property("controller", bp::make_function(&Engine::getController,
                                             bp::return_internal_reference<>()))
@@ -1308,7 +1308,7 @@ namespace python
         }
 
         static hresult_t initialize(Engine                                    & self,
-                                    std::shared_ptr<Model>              const & model,
+                                    std::shared_ptr<Robot>              const & robot,
                                     std::shared_ptr<AbstractController> const & controller)
         {
             Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
@@ -1316,16 +1316,16 @@ namespace python
                                                     {
                                                         return true;
                                                     };
-            return self.initialize(model, controller, std::move(callbackFct));
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
         static hresult_t initializeWithCallback(Engine                                    & self,
-                                                std::shared_ptr<Model>              const & model,
+                                                std::shared_ptr<Robot>              const & robot,
                                                 std::shared_ptr<AbstractController> const & controller,
                                                 bp::object                          const & callbackPy)
         {
             TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.initialize(model, controller, std::move(callbackFct));
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
         static hresult_t step(Engine          & self,

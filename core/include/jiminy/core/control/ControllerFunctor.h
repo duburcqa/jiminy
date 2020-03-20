@@ -19,7 +19,7 @@
 #ifndef CONTROLLER_FUNCTOR_H
 #define CONTROLLER_FUNCTOR_H
 
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/Types.h"
 
@@ -62,18 +62,18 @@ namespace jiminy
         ///
         /// \brief      Set the parameters of the controller.
         ///
-        /// \param[in]  model   Model of the system
+        /// \param[in]  robot   Robot
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(std::shared_ptr<Model const> const & model) override;
+        virtual hresult_t initialize(std::shared_ptr<Robot const> const & robot) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief      Compute the command.
         ///
-        /// \details    It assumes that the model internal state (including sensors) is consistent
+        /// \details    It assumes that the robot internal state (including sensors) is consistent
         ///             with other input arguments. It fetches the sensor data automatically.
         ///
         /// \param[in]  t       Current time

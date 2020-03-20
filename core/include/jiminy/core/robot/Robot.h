@@ -27,12 +27,12 @@ namespace jiminy
     class TelemetryData;
     class Engine;
 
-    class Model
+    class Robot
     {
     public:
         // Disable the copy of the class
-        Model(Model const & model) = delete;
-        Model & operator = (Model const & other) = delete;
+        Robot(Robot const & robot) = delete;
+        Robot & operator = (Robot const & other) = delete;
 
     public:
         virtual configHolder_t getDefaultJointOptions()
@@ -135,8 +135,8 @@ namespace jiminy
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
     public:
-        Model(void);
-        virtual ~Model(void);
+        Robot(void);
+        virtual ~Robot(void);
 
         hresult_t initialize(std::string const & urdfPath,
                              bool_t      const & hasFreeflyer = true);
@@ -270,23 +270,23 @@ namespace jiminy
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
 
-        std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the model
-        std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the model
-        std::vector<std::string> motorsNames_;              ///< Joint name of the motors of the model
-        std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the model, not taking into account the freeflyer
-        std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio model
-        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the model
-        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the model
-        std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the model regardless of whether the flexibilities are enable
-        std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio model regardless of whether the flexibilities are enable
+        std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the robot
+        std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
+        std::vector<std::string> motorsNames_;              ///< Joint name of the motors of the robot
+        std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
+        std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot
+        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the robot
+        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the robot
+        std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
+        std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
         vectorN_t positionLimitMin_;
         vectorN_t positionLimitMax_;
         vectorN_t velocityLimit_;
 
-        std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid model
-        std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid model
-        std::vector<std::string> accelerationFieldNames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid model
+        std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
+        std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot
+        std::vector<std::string> accelerationFieldNames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid robot
         std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
 
     private:

@@ -12,7 +12,7 @@
 #include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Constants.h"
@@ -87,19 +87,19 @@ namespace jiminy
             // Empty.
         }
 
-        void initialize(Model & model)
+        void initialize(Robot & robot)
         {
-            initialize(model, vectorN_t::Zero(model.nx()), MIN_SIMULATION_TIMESTEP);
+            initialize(robot, vectorN_t::Zero(robot.nx()), MIN_SIMULATION_TIMESTEP);
         }
 
-        void initialize(Model           & model,
+        void initialize(Robot           & robot,
                         vectorN_t const & xInit,
                         float64_t const & dt_init)
         {
-            // Extract some information from the model
-            nx_ = model.nx();
-            nq_ = model.nq();
-            nv_ = model.nv();
+            // Extract some information from the robot
+            nx_ = robot.nx();
+            nq_ = robot.nq();
+            nv_ = robot.nv();
 
             // Initialize the ode stepper state buffers
             iter = 0;
@@ -108,13 +108,13 @@ namespace jiminy
             x = xInit;
 
             dxdt = vectorN_t::Zero(nx_);
-            computePositionDerivative(model.pncModel_, q(), v(), qDot());
+            computePositionDerivative(robot.pncModel_, q(), v(), qDot());
 
-            fExternal = forceVector_t(model.pncModel_.joints.size(),
+            fExternal = forceVector_t(robot.pncModel_.joints.size(),
                                       pinocchio::Force::Zero());
             uInternal = vectorN_t::Zero(nv_);
-            uCommand = vectorN_t::Zero(model.getMotorsNames().size());
-            uMotor = vectorN_t::Zero(model.getMotorsNames().size());
+            uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
+            uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
 
             // Set the initialization flag
@@ -382,13 +382,13 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        hresult_t initialize(std::shared_ptr<Model>              const & model,
+        hresult_t initialize(std::shared_ptr<Robot>              const & robot,
                              std::shared_ptr<AbstractController> const & controller,
                              callbackFunctor_t    callbackFct);
 
         /// \brief Reset engine.
         ///
-        /// \details This function resets the engine, the model and the controller.
+        /// \details This function resets the engine, the robot and the controller.
         ///          This method is made to be called in between simulations, to allow
         ///          registering of new variables to log, and reset the random number
         ///          generator.
@@ -399,7 +399,7 @@ namespace jiminy
 
         /// \brief Reset the engine and compute initial state.
         ///
-        /// \details This function reset the engine, the model and the controller, and update internal data
+        /// \details This function reset the engine, the robot and the controller, and update internal data
         ///          to match the given initial state.
         ///
         /// \param[in] xInit Initial state.
@@ -424,8 +424,8 @@ namespace jiminy
 
         /// \brief Stop the simulation.
         ///
-        /// \details It releases the lock on the model and the telemetry, so that
-        ///          it is possible again to update the model (for example to update
+        /// \details It releases the lock on the robot and the telemetry, so that
+        ///          it is possible again to update the robot (for example to update
         ///          the options, add or remove sensors...) and to register new
         ///          variables or forces.
         void stop(void);
@@ -450,7 +450,7 @@ namespace jiminy
         hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsInitialized(void) const;
         bool_t getIsTelemetryConfigured(void) const;
-        Model & getModel(void) const;
+        Robot & getRobot(void) const;
         AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
@@ -554,7 +554,7 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         bool_t isTelemetryConfigured_;
-        std::shared_ptr<Model> model_;
+        std::shared_ptr<Robot> robot_;
         std::shared_ptr<AbstractController> controller_;
         configHolder_t engineOptionsHolder_;
         callbackFunctor_t callbackFct_;

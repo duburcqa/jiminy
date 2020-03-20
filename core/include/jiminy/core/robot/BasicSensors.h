@@ -1,14 +1,14 @@
 #ifndef JIMINY_BASIC_SENSORS_H
 #define JIMINY_BASIC_SENSORS_H
 
-#include "jiminy/core/model/AbstractMotor.h"
+#include "jiminy/core/robot/AbstractMotor.h"
 
-#include "jiminy/core/model/AbstractSensor.h"
+#include "jiminy/core/robot/AbstractSensor.h"
 
 
 namespace jiminy
 {
-    class Model;
+    class Robot;
 
     class ImuSensor : public AbstractSensorTpl<ImuSensor>
     {

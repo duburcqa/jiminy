@@ -1,4 +1,4 @@
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
@@ -24,7 +24,7 @@ namespace jiminy
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::attach(Model const * model,
+    hresult_t AbstractSensorTpl<T>::attach(Robot const * model,
                                            std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
@@ -34,7 +34,7 @@ namespace jiminy
         }
 
         // Copy references to the model and shared data
-        model_ = model;
+        robot_ = model;
         sharedHolder_ = sharedHolder.get();
 
         // Get an Id
@@ -109,7 +109,7 @@ namespace jiminy
         }
 
         // Clear the references to the model and shared data
-        model_ = nullptr;
+        robot_ = nullptr;
         sharedHolder_ = nullptr;
 
         // Unset the Id

@@ -1,12 +1,12 @@
 #ifndef JIMINY_BASIC_MOTORS_H
 #define JIMINY_BASIC_MOTORS_H
 
-#include "jiminy/core/model/AbstractMotor.h"
+#include "jiminy/core/robot/AbstractMotor.h"
 
 
 namespace jiminy
 {
-    class Model;
+    class Robot;
 
     class SimpleMotor : public AbstractMotorBase
     {

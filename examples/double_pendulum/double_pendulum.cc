@@ -8,7 +8,7 @@
 #include <string>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/Utilities.h"
@@ -62,19 +62,19 @@ int main(int argc, char_t * argv[])
 
     timer.tic();
 
-    // Instantiate and configuration the model
+    // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
-    auto model = std::make_shared<Model>();
-    configHolder_t mdlOptions = model->getOptions();
+    auto robot = std::make_shared<Robot>();
+    configHolder_t mdlOptions = robot->getOptions();
     boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("positionLimitFromUrdf")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
-    model->setOptions(mdlOptions);
-    model->initialize(urdfPath, false);
+    robot->setOptions(mdlOptions);
+    robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
         std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
-        model->attachMotor(motor);
+        robot->attachMotor(motor);
         motor->initialize(jointName);
     }
 
@@ -82,7 +82,7 @@ int main(int argc, char_t * argv[])
 
     auto controller = std::make_shared<ControllerFunctor<decltype(computeCommand),
                                                          decltype(internalDynamics)> >(computeCommand, internalDynamics);
-    controller->initialize(model);
+    controller->initialize(robot);
 
     // Instantiate and configuration the engine
     Engine engine;
@@ -109,7 +109,7 @@ int main(int argc, char_t * argv[])
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionViscous")) = 5.0;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionEps")) = 0.001;
     engine.setOptions(simuOptions);
-    engine.initialize(model, controller, callback);
+    engine.initialize(robot, controller, callback);
 
     timer.toc();
 

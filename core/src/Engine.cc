@@ -13,9 +13,9 @@
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
-#include "jiminy/core/model/AbstractMotor.h"
-#include "jiminy/core/model/AbstractSensor.h"
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/AbstractMotor.h"
+#include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
@@ -31,7 +31,7 @@ namespace jiminy
     engineOptions_(nullptr),
     isInitialized_(false),
     isTelemetryConfigured_(false),
-    model_(nullptr),
+    robot_(nullptr),
     controller_(nullptr),
     engineOptionsHolder_(),
     callbackFct_([](float64_t const & t,
@@ -71,18 +71,18 @@ namespace jiminy
 
     Engine::~Engine(void) = default; // Cannot be default in the header since some types are incomplete at this point
 
-    hresult_t Engine::initialize(std::shared_ptr<Model>              const & model,
+    hresult_t Engine::initialize(std::shared_ptr<Robot>              const & robot,
                                  std::shared_ptr<AbstractController> const & controller,
                                  callbackFunctor_t                           callbackFct)
     {
-        if (!model->getIsInitialized())
+        if (!robot->getIsInitialized())
         {
-            std::cout << "Error - Engine::initialize - Model not initialized." << std::endl;
+            std::cout << "Error - Engine::initialize - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
-        model_ = model;
+        robot_ = robot;
 
-        stepperState_.initialize(*model_);
+        stepperState_.initialize(*robot_);
 
         if (!controller->getIsInitialized())
         {
@@ -121,8 +121,8 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableConfiguration)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        model_->getPositionFieldNames(),
-                        vectorN_t::Zero(model_->nq()));
+                        robot_->getPositionFieldNames(),
+                        vectorN_t::Zero(robot_->nq()));
                 }
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -130,8 +130,8 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableVelocity)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        model_->getVelocityFieldNames(),
-                        vectorN_t::Zero(model_->nv()));
+                        robot_->getVelocityFieldNames(),
+                        vectorN_t::Zero(robot_->nv()));
                 }
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -139,8 +139,8 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableAcceleration)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        model_->getAccelerationFieldNames(),
-                        vectorN_t::Zero(model_->nv()));
+                        robot_->getAccelerationFieldNames(),
+                        vectorN_t::Zero(robot_->nv()));
                 }
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -148,8 +148,8 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableTorque)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        model_->getMotorTorqueFieldNames(),
-                        vectorN_t::Zero(model_->getMotorsNames().size()));
+                        robot_->getMotorTorqueFieldNames(),
+                        vectorN_t::Zero(robot_->getMotorsNames().size()));
                 }
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -167,7 +167,7 @@ namespace jiminy
         }
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = model_->configureTelemetry(telemetryData_);
+            returnCode = robot_->configureTelemetry(telemetryData_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -183,28 +183,28 @@ namespace jiminy
         // Compute the total energy of the system
         Eigen::Ref<vectorN_t const> q = stepperState_.q();
         Eigen::Ref<vectorN_t const> v = stepperState_.v();
-        float64_t energy = Engine::kineticEnergy(model_->pncModel_, model_->pncData_, q, v, true);
-        energy += pinocchio::potentialEnergy(model_->pncModel_, model_->pncData_, q, false);
+        float64_t energy = Engine::kineticEnergy(robot_->pncModel_, robot_->pncData_, q, v, true);
+        energy += pinocchio::potentialEnergy(robot_->pncModel_, robot_->pncData_, q, false);
 
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
-            telemetrySender_.updateValue(model_->getPositionFieldNames(),
+            telemetrySender_.updateValue(robot_->getPositionFieldNames(),
                                          stepperState_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
-            telemetrySender_.updateValue(model_->getVelocityFieldNames(),
+            telemetrySender_.updateValue(robot_->getVelocityFieldNames(),
                                          stepperState_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
-            telemetrySender_.updateValue(model_->getAccelerationFieldNames(),
+            telemetrySender_.updateValue(robot_->getAccelerationFieldNames(),
                                          stepperState_.a());
         }
         if (engineOptions_->telemetry.enableTorque)
         {
-            telemetrySender_.updateValue(model_->getMotorTorqueFieldNames(),
+            telemetrySender_.updateValue(robot_->getMotorTorqueFieldNames(),
                                          stepperState_.uMotor);
         }
         if (engineOptions_->telemetry.enableEnergy)
@@ -212,7 +212,7 @@ namespace jiminy
             telemetrySender_.updateValue("energy", energy);
         }
         controller_->updateTelemetry();
-        model_->updateTelemetry();
+        robot_->updateTelemetry();
 
         // Flush the telemetry internal state
         telemetryRecorder_->flushDataSnapshot(stepperState_.t);
@@ -235,8 +235,8 @@ namespace jiminy
             resetRandGenerators(engineOptions_->stepper.randomSeed);
         }
 
-        // Reset the internal state of the model and controller
-        model_->reset();
+        // Reset the internal state of the robot and controller
+        robot_->reset();
         controller_->reset();
 
         // Make sure the simulation is properly stopped
@@ -262,8 +262,8 @@ namespace jiminy
         }
 
         // Check the dimension of the state
-        if ((isStateTheoretical && (xInit.rows() != model_->pncModelRigidOrig_.nq + model_->pncModelRigidOrig_.nv))
-        || (!isStateTheoretical && (xInit.rows() != model_->nx())))
+        if ((isStateTheoretical && (xInit.rows() != robot_->pncModelRigidOrig_.nq + robot_->pncModelRigidOrig_.nv))
+        || (!isStateTheoretical && (xInit.rows() != robot_->nx())))
         {
             std::cout << "Error - Engine::reset - Size of xInit inconsistent with model size." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
@@ -271,38 +271,38 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Reset the model, controller, engine, and registered impulse forces if requested
+            // Reset the robot, controller, engine, and registered impulse forces if requested
             reset(resetRandomNumbers, resetDynamicForceRegister);
 
-            // Lock the model. At this point it is no longer possible to change the model.
-            returnCode = model_->getLock(lockModel_);
+            // Lock the robot. At this point it is no longer possible to change the robot.
+            returnCode = robot_->getLock(lockModel_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Propagate the user-defined gravity at Pinocchio model level
-            model_->pncModel_.gravity = engineOptions_->world.gravity;
+            robot_->pncModel_.gravity = engineOptions_->world.gravity;
 
             // Propage the user-defined motor inertia at Pinocchio model level
-            model_->pncModel_.rotorInertia = model_->getMotorInertia();
+            robot_->pncModel_.rotorInertia = robot_->getMotorInertia();
 
-            vectorN_t x0 = vectorN_t::Zero(model_->nx());
-            if (isStateTheoretical && model_->mdlOptions_->dynamics.enableFlexibleModel)
+            vectorN_t x0 = vectorN_t::Zero(robot_->nx());
+            if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
                 // Compute the initial flexible state based on the initial rigid state
-                std::vector<int32_t> const & rigidJointsPositionIdx = model_->getRigidJointsPositionIdx();
-                std::vector<int32_t> const & rigidJointsVelocityIdx = model_->getRigidJointsVelocityIdx();
-                if (model_->getHasFreeflyer())
+                std::vector<int32_t> const & rigidJointsPositionIdx = robot_->getRigidJointsPositionIdx();
+                std::vector<int32_t> const & rigidJointsVelocityIdx = robot_->getRigidJointsVelocityIdx();
+                if (robot_->getHasFreeflyer())
                 {
                     x0.head<7>() = xInit.head<7>();
                     for (uint32_t i=0; i<rigidJointsPositionIdx.size(); ++i)
                     {
                         x0[rigidJointsPositionIdx[i]] = xInit[i + 7];
                     }
-                    x0.segment<6>(model_->nq()) = xInit.segment<6>(7 + rigidJointsPositionIdx.size());
+                    x0.segment<6>(robot_->nq()) = xInit.segment<6>(7 + rigidJointsPositionIdx.size());
                     for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
                     {
-                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = xInit[i + 7 + rigidJointsPositionIdx.size() + 6];
+                        x0[rigidJointsVelocityIdx[i] + robot_->nq()] = xInit[i + 7 + rigidJointsPositionIdx.size() + 6];
                     }
                 }
                 else
@@ -313,12 +313,12 @@ namespace jiminy
                     }
                     for (uint32_t i=0; i<rigidJointsVelocityIdx.size(); ++i)
                     {
-                        x0[rigidJointsVelocityIdx[i] + model_->nq()] = xInit[i + rigidJointsPositionIdx.size()];
+                        x0[rigidJointsVelocityIdx[i] + robot_->nq()] = xInit[i + rigidJointsPositionIdx.size()];
                     }
                 }
-                for (int32_t const & jointIdx : model_->getFlexibleJointsModelIdx())
+                for (int32_t const & jointIdx : robot_->getFlexibleJointsModelIdx())
                 {
-                    x0[model_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
+                    x0[robot_->pncModel_.joints[jointIdx].idx_q() + 3] = 1.0;
                 }
             }
             else
@@ -330,7 +330,7 @@ namespace jiminy
             forceImpulseNextIt_ = forcesImpulse_.begin();
             for (auto & forceProfile : forcesProfile_)
             {
-                getFrameIdx(model_->pncModel_, forceProfile.first, std::get<0>(forceProfile.second));
+                getFrameIdx(robot_->pncModel_, forceProfile.first, std::get<0>(forceProfile.second));
             }
 
             // Initialize the ode solver
@@ -357,7 +357,7 @@ namespace jiminy
             }
 
             // Initialize the stepper internal state
-            stepperState_.initialize(*model_, x0, dt);
+            stepperState_.initialize(*robot_, x0, dt);
 
             float64_t & t = stepperState_.t;
             Eigen::Ref<vectorN_t> q = stepperState_.q();
@@ -377,21 +377,21 @@ namespace jiminy
             computeExternalForces(t, x, fext);
 
             // Initialize the sensor data
-            model_->setSensorsData(t, q, v, a, uMotor);
+            robot_->setSensorsData(t, q, v, a, uMotor);
 
             // Compute the actual motor torque
             computeCommand(t, q, v, uCommand);
 
             // Compute the actual motor torque
-            model_->computeMotorsTorques(t, q, v, a, uCommand);
-            uMotor = model_->getMotorsTorques();
+            robot_->computeMotorsTorques(t, q, v, a, uCommand);
+            uMotor = robot_->getMotorsTorques();
 
             // Compute the internal dynamics
             computeInternalDynamics(t, q, v, uInternal);
 
             // Compute the total torque vector
             u = uInternal;
-            for (auto const & motor : model_->getMotors())
+            for (auto const & motor : robot_->getMotors())
             {
                 int32_t const & motorId = motor->getIdx();
                 int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
@@ -399,10 +399,10 @@ namespace jiminy
             }
 
             // Compute dynamics
-            a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
+            a = Engine::aba(robot_->pncModel_, robot_->pncData_, q, v, u, fext);
 
             // Update the sensor data with the updated torque and acceleration
-            model_->setSensorsData(t, q, v, a, uMotor);
+            robot_->setSensorsData(t, q, v, a, uMotor);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -441,7 +441,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Reset the model, controller, and engine
+        // Reset the robot, controller, and engine
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = start(xInit, isStateTheoretical, false, false);
@@ -492,7 +492,7 @@ namespace jiminy
         }
 
         /* Stop the simulation. New variables can be registered again,
-           and the lock on the model is released. */
+           and the lock on the robot is released. */
         stop();
 
         return returnCode;
@@ -603,7 +603,7 @@ namespace jiminy
                         if (dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP
                         || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
                         {
-                            model_->setSensorsData(t, q, v, a, uMotor);
+                            robot_->setSensorsData(t, q, v, a, uMotor);
                         }
                     }
 
@@ -794,7 +794,7 @@ namespace jiminy
         // Make sure that a simulation running
         if (lockModel_)
         {
-            // Release the lock on the model
+            // Release the lock on the robot
             lockModel_.reset(nullptr);
 
             /* Reset the telemetry. Note that calling `reset` does NOT clear the
@@ -810,8 +810,8 @@ namespace jiminy
                                           Eigen::Ref<vectorN_t const> v,
                                           Eigen::Ref<vectorN_t const> a)
     {
-        pinocchio::forwardKinematics(model_->pncModel_, model_->pncData_, q, v, a);
-        pinocchio::updateFramePlacements(model_->pncModel_, model_->pncData_);
+        pinocchio::forwardKinematics(robot_->pncModel_, robot_->pncData_, q, v, a);
+        pinocchio::updateFramePlacements(robot_->pncModel_, robot_->pncData_);
     }
 
     void Engine::computeExternalForces(float64_t     const & t,
@@ -825,17 +825,17 @@ namespace jiminy
         }
 
         // Compute the contact forces
-        std::vector<int32_t> const & contactFramesIdx = model_->getContactFramesIdx();
+        std::vector<int32_t> const & contactFramesIdx = robot_->getContactFramesIdx();
         for (uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
             // Compute force in the contact frame.
             int32_t const & contactFrameIdx = contactFramesIdx[i];
             vector3_t const fextInFrame = computeContactDynamics(contactFrameIdx);
-            model_->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
+            robot_->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
 
             // Apply the force at the origin of the parent joint frame
             vector6_t const fextLocal = computeFrameForceOnParentJoint(contactFrameIdx, fextInFrame);
-            int32_t const & parentIdx = model_->pncModel_.frames[contactFrameIdx].parent;
+            int32_t const & parentIdx = robot_->pncModel_.frames[contactFrameIdx].parent;
             fext[parentIdx] += pinocchio::Force(fextLocal);
         }
 
@@ -849,8 +849,8 @@ namespace jiminy
                 int32_t frameIdx;
                 std::string const & frameName = std::get<0>(forceImpulseNextIt_->second);
                 vector3_t const & F = std::get<2>(forceImpulseNextIt_->second);
-                getFrameIdx(model_->pncModel_, frameName, frameIdx);
-                int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
+                getFrameIdx(robot_->pncModel_, frameName, frameIdx);
+                int32_t const & parentIdx = robot_->pncModel_.frames[frameIdx].parent;
                 fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, F));
             }
         }
@@ -858,7 +858,7 @@ namespace jiminy
         for (auto const & forceProfile : forcesProfile_)
         {
             int32_t const & frameIdx = std::get<0>(forceProfile.second);
-            int32_t const & parentIdx = model_->pncModel_.frames[frameIdx].parent;
+            int32_t const & parentIdx = robot_->pncModel_.frames[frameIdx].parent;
             forceFunctor_t const & forceFct = std::get<1>(forceProfile.second);
             fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(frameIdx, forceFct(t, x)));
         }
@@ -1030,9 +1030,9 @@ namespace jiminy
         return isInitialized_;
     }
 
-    Model & Engine::getModel(void) const
+    Robot & Engine::getRobot(void) const
     {
-        return *model_;
+        return *robot_;
     }
 
     AbstractController & Engine::getController(void) const
@@ -1253,8 +1253,8 @@ namespace jiminy
            velocities and accelerations are relative to the parent body frame. */
 
         // Get references to the internal stepper buffers
-        Eigen::Ref<vectorN_t const> q = x.head(model_->nq());
-        Eigen::Ref<vectorN_t const> v = x.tail(model_->nv());
+        Eigen::Ref<vectorN_t const> q = x.head(robot_->nq());
+        Eigen::Ref<vectorN_t const> v = x.tail(robot_->nv());
         vectorN_t & u = stepperState_.u;
         vectorN_t & uCommand = stepperState_.uCommand;
         vectorN_t & uMotor = stepperState_.uMotor;
@@ -1266,7 +1266,7 @@ namespace jiminy
 
         /* Compute the external contact forces.
            Note that one must call this method BEFORE updating the sensors since
-           the force sensor measurements rely on model_->contactForces_ */
+           the force sensor measurements rely on robot_->contactForces_ */
         computeExternalForces(t, x, fext);
 
         /* Update the sensor data if necessary (only for infinite update frequency).
@@ -1274,7 +1274,7 @@ namespace jiminy
            and torques since they depend on the sensor values themselves. */
         if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
         {
-            model_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.uMotor);
+            robot_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.uMotor);
         }
 
         /* Update the controller command if necessary (only for infinite update frequency).
@@ -1286,8 +1286,8 @@ namespace jiminy
 
         /* Compute the actual motor torque.
            Note that it is impossible to have access to the current accelerations. */
-        model_->computeMotorsTorques(t, q, v, stepperStateLast_.a(), uCommand);
-        uMotor = model_->getMotorsTorques();
+        robot_->computeMotorsTorques(t, q, v, stepperStateLast_.a(), uCommand);
+        uMotor = robot_->getMotorsTorques();
 
         /* Compute the internal dynamics.
            Make sure that the sensor state has been updated beforehand since
@@ -1296,7 +1296,7 @@ namespace jiminy
 
         // Compute the total torque vector
         u = uInternal;
-        for (auto const & motor : model_->getMotors())
+        for (auto const & motor : robot_->getMotors())
         {
             int32_t const & motorId = motor->getIdx();
             int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
@@ -1304,25 +1304,25 @@ namespace jiminy
         }
 
         // Compute the dynamics
-        vectorN_t a = Engine::aba(model_->pncModel_, model_->pncData_, q, v, u, fext);
+        vectorN_t a = Engine::aba(robot_->pncModel_, robot_->pncData_, q, v, u, fext);
 
         float64_t dt = t - stepperStateLast_.t;
-        vectorN_t qDot(model_->nq());
-        computePositionDerivative(model_->pncModel_, q, v, qDot, dt);
+        vectorN_t qDot(robot_->nq());
+        computePositionDerivative(robot_->pncModel_, q, v, qDot, dt);
 
         // Fill up dxdt
-        dxdt.resize(model_->nx());
-        dxdt.head(model_->nq()) = qDot;
-        dxdt.tail(model_->nv()) = a;
+        dxdt.resize(robot_->nx());
+        dxdt.head(robot_->nq()) = qDot;
+        dxdt.tail(robot_->nv()) = a;
     }
 
     vector6_t Engine::computeFrameForceOnParentJoint(int32_t   const & frameId,
                                                      vector3_t const & fextInWorld) const
     {
         // Get various transformations
-        matrix3_t const & tformFrameRot = model_->pncData_.oMf[frameId].rotation();
-        matrix3_t const & tformFrameJointRot = model_->pncModel_.frames[frameId].placement.rotation();
-        vector3_t const & posFrameJoint = model_->pncModel_.frames[frameId].placement.translation();
+        matrix3_t const & tformFrameRot = robot_->pncData_.oMf[frameId].rotation();
+        matrix3_t const & tformFrameJointRot = robot_->pncModel_.frames[frameId].placement.rotation();
+        vector3_t const & posFrameJoint = robot_->pncModel_.frames[frameId].placement.translation();
 
         // Compute the forces at the origin of the parent joint frame
         vector6_t fextLocal;
@@ -1340,8 +1340,8 @@ namespace jiminy
 
         contactOptions_t const * const contactOptions_ = &engineOptions_->contacts;
 
-        matrix3_t const & tformFrameRot = model_->pncData_.oMf[frameId].rotation();
-        vector3_t const & posFrame = model_->pncData_.oMf[frameId].translation();
+        matrix3_t const & tformFrameRot = robot_->pncData_.oMf[frameId].rotation();
+        vector3_t const & posFrame = robot_->pncData_.oMf[frameId].translation();
 
         // Initialize the contact force
         vector3_t fextInWorld;
@@ -1354,8 +1354,8 @@ namespace jiminy
         if (depth < 0.0)
         {
             // Get frame motion in the motion frame.
-            vector3_t motionFrame = pinocchio::getFrameVelocity(model_->pncModel_,
-                                                                model_->pncData_,
+            vector3_t motionFrame = pinocchio::getFrameVelocity(robot_->pncModel_,
+                                                                robot_->pncData_,
                                                                 frameId).linear();
             vector3_t vFrameInWorld = tformFrameRot * motionFrame;
             float64_t vDepth = vFrameInWorld.dot(nGround);
@@ -1423,19 +1423,19 @@ namespace jiminy
         controller_->internalDynamics(t, q, v, u);
 
         // Enforce the position limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.enablePositionLimit)
+        if (robot_->mdlOptions_->joints.enablePositionLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
-            std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
-            vectorN_t const & positionLimitMin = model_->getPositionLimitMin();
-            vectorN_t const & positionLimitMax = model_->getPositionLimitMax();
+            std::vector<int32_t> const & jointsModelIdx = robot_->getRigidJointsModelIdx();
+            vectorN_t const & positionLimitMin = robot_->getPositionLimitMin();
+            vectorN_t const & positionLimitMax = robot_->getPositionLimitMax();
             uint32_t jointIdxOffset = 0;
             for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
             {
-                uint32_t const & jointPositionIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_q();
-                uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
-                uint32_t const & jointDof = model_->pncModel_.joints[jointsModelIdx[i]].nq();
+                uint32_t const & jointPositionIdx = robot_->pncModel_.joints[jointsModelIdx[i]].idx_q();
+                uint32_t const & jointVelocityIdx = robot_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+                uint32_t const & jointDof = robot_->pncModel_.joints[jointsModelIdx[i]].nq();
 
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
@@ -1474,18 +1474,18 @@ namespace jiminy
         }
 
         // Enforce the velocity limit (do not support spherical joints)
-        if (model_->mdlOptions_->joints.enableVelocityLimit)
+        if (robot_->mdlOptions_->joints.enableVelocityLimit)
         {
             Engine::jointOptions_t const & engineJointOptions = engineOptions_->joints;
 
-            std::vector<int32_t> const & jointsModelIdx = model_->getRigidJointsModelIdx();
-            vectorN_t const & velocityLimitMax = model_->getVelocityLimit();
+            std::vector<int32_t> const & jointsModelIdx = robot_->getRigidJointsModelIdx();
+            vectorN_t const & velocityLimitMax = robot_->getVelocityLimit();
 
             uint32_t jointIdxOffset = 0;
             for (uint32_t i = 0; i < jointsModelIdx.size(); i++)
             {
-                uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
-                uint32_t const & jointDof = model_->pncModel_.joints[jointsModelIdx[i]].nq();
+                uint32_t const & jointVelocityIdx = robot_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+                uint32_t const & jointDof = robot_->pncModel_.joints[jointsModelIdx[i]].nq();
 
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
@@ -1521,12 +1521,12 @@ namespace jiminy
         }
 
         // Compute the flexibilities (only support joint_t::SPHERICAL so far)
-        Model::dynamicsOptions_t const & mdlDynOptions = model_->mdlOptions_->dynamics;
-        std::vector<int32_t> const & jointsModelIdx = model_->getFlexibleJointsModelIdx();
+        Robot::dynamicsOptions_t const & mdlDynOptions = robot_->mdlOptions_->dynamics;
+        std::vector<int32_t> const & jointsModelIdx = robot_->getFlexibleJointsModelIdx();
         for (uint32_t i=0; i<jointsModelIdx.size(); ++i)
         {
-            uint32_t const & jointPositionIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_q();
-            uint32_t const & jointVelocityIdx = model_->pncModel_.joints[jointsModelIdx[i]].idx_v();
+            uint32_t const & jointPositionIdx = robot_->pncModel_.joints[jointsModelIdx[i]].idx_q();
+            uint32_t const & jointVelocityIdx = robot_->pncModel_.joints[jointsModelIdx[i]].idx_v();
             vectorN_t const & jointStiffness = mdlDynOptions.flexibilityConfig[i].stiffness;
             vectorN_t const & jointDamping = mdlDynOptions.flexibilityConfig[i].damping;
 
@@ -1552,7 +1552,7 @@ namespace jiminy
                           bool_t                                                 const & update_kinematics)
     {
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
-        for (auto const & motor : model_->getMotors())
+        for (auto const & motor : robot_->getMotors())
         {
             int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
             data.kinetic_energy += 0.5 * model.rotorInertia[motorVelocityIdx]
@@ -1573,7 +1573,7 @@ namespace jiminy
                  pinocchio::container::aligned_vector<ForceDerived>     const & fext)
     {
         pinocchio::rnea(model, data, q, v, a, fext);
-        data.tau += model_->pncModel_.rotorInertia.asDiagonal() * a;
+        data.tau += robot_->pncModel_.rotorInertia.asDiagonal() * a;
         return data.tau;
     }
 

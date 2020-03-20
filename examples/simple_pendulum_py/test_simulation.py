@@ -40,7 +40,7 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple
 
 # ########################### Initialize the simulation #################################
 
-# Instantiate the model
+# Instantiate the robot
 contact_points = ["Corner1", "Corner2", "Corner3", "Corner4"]
 motor_joint_names = ("PendulumJoint",)
 force_sensor_def = {"F1": "Corner1",
@@ -48,21 +48,21 @@ force_sensor_def = {"F1": "Corner1",
                     "F3": "Corner3",
                     "F4": "Corner4"}
 
-model = jiminy.Model()
-model.initialize(urdf_path, True)
+robot = jiminy.Robot()
+robot.initialize(urdf_path, True)
 for joint_name in motor_joint_names:
     motor = jiminy.SimpleMotor(joint_name)
-    model.attach_motor(motor)
+    robot.attach_motor(motor)
     motor.initialize(joint_name)
 for sensor_name, frame_name in force_sensor_def.items():
     force_sensor = jiminy.ForceSensor(sensor_name)
-    model.attach_sensor(force_sensor)
+    robot.attach_sensor(force_sensor)
     force_sensor.initialize(frame_name)
-model.add_contact_points(contact_points)
+robot.add_contact_points(contact_points)
 
 # Extract some constant
-iPos = model.motors_position_idx[0]
-iVel = model.motors_velocity_idx[0]
+iPos = robot.motors_position_idx[0]
+iVel = robot.motors_velocity_idx[0]
 axisCom = 0
 
 # Constants
@@ -74,8 +74,8 @@ omega = np.sqrt(g/l)
 # Initial values
 q0 = 0.0
 dq0 = -0.0
-x0 = np.zeros((model.nq + model.nv, ))
-x0[:model.nq] = model.pinocchio_model_th.neutralConfiguration
+x0 = np.zeros((robot.nq + robot.nv, ))
+x0[:robot.nq] = robot.pinocchio_model_th.neutralConfiguration
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
@@ -129,17 +129,17 @@ paux = 0.02
 taux = 6.0
 
 # Utilities
-def update_frame(model, data, name):
-    frame_id = model.getFrameId(name)
-    pnc.updateFramePlacement(model, data, frame_id)
+def update_frame(robot, data, name):
+    frame_id = robot.getFrameId(name)
+    pnc.updateFramePlacement(robot, data, frame_id)
 
-def get_frame_placement(model, data, name):
-    frame_id = model.getFrameId(name)
+def get_frame_placement(robot, data, name):
+    frame_id = robot.getFrameId(name)
     return data.oMf[frame_id]
 
 # Logging: create global variables to make sure they never get deleted
-com = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, x0)
-vcom = model.pinocchio_data_th.vcom[0]
+com = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0)
+vcom = robot.pinocchio_data_th.vcom[0]
 dcm = com + vcom/omega
 totalWrench = pnc.Force.Zero()
 zmp = np.array([zmpRef[0], 0])
@@ -158,21 +158,21 @@ state_target_log = state_target.copy()
 # Instantiate the controller
 t_1 = 0.0
 u_1 = 0.0
-qi = np.zeros((model.nq, ))
-dqi = np.zeros((model.nv, ))
-ddqi = np.zeros((model.nv, ))
-def updateState(model, q, v, sensor_data):
+qi = np.zeros((robot.nq, ))
+dqi = np.zeros((robot.nv, ))
+ddqi = np.zeros((robot.nv, ))
+def updateState(robot, q, v, sensor_data):
     # Get dcm from current state
-    pnc.forwardKinematics(model.pinocchio_model_th, model.pinocchio_data_th, q, v)
-    comOut = pnc.centerOfMass(model.pinocchio_model_th, model.pinocchio_data_th, q, v)
-    vcomOut = model.pinocchio_data_th.vcom[0]
+    pnc.forwardKinematics(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
+    comOut = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
+    vcomOut = robot.pinocchio_data_th.vcom[0]
     dcmOut = comOut + vcomOut / omega
     # Create zmp from forces
     forces = np.asarray(sensor_data[ForceSensor.type])
     newWrench = pnc.Force.Zero()
     for i,name in enumerate(contact_points):
-        update_frame(model.pinocchio_model_th, model.pinocchio_data_th, name)
-        placement = get_frame_placement(model.pinocchio_model_th, model.pinocchio_data_th, name)
+        update_frame(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
+        placement = get_frame_placement(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
         wrench = pnc.Force(np.concatenate([[0.0, 0.0, forces[2, i]], np.zeros(3)]).T)
         newWrench += placement.act(wrench)
     totalWrenchOut = newWrench
@@ -198,8 +198,8 @@ def computeCommand(t, q, v, sensor_data, u):
     d = c + vc/omega
 
     # Update state
-    com, vcom, dcm, zmp, totalWrench = updateState(model, q, v, sensor_data)
-    comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = updateState(model, qi, dqi, sensor_data)
+    com, vcom, dcm, zmp, totalWrench = updateState(robot, q, v, sensor_data)
+    comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = updateState(robot, qi, dqi, sensor_data)
 
     # Update logs (only the value stored by the registered variables using [:])
     dcm_log[:] = dcm
@@ -264,7 +264,7 @@ def internalDynamics(t, q, v, sensor_data, u):
     u[:] = 0.0
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
-controller.initialize(model)
+controller.initialize(robot)
 controller.register_variable(["targetPositionPendulum", "targetVelocityPendulum"], state_target_log)
 controller.register_variable(["zmpCmdX"], zmp_cmd_log)
 controller.register_variable(["zmp" + axis for axis in ["X", "Y"]], zmp_log)
@@ -284,12 +284,12 @@ controller.register_variable(["zmpReference" + axis for axis in ["X", "Y"]], zmp
 
 # Instantiate the engine
 engine = jiminy.Engine()
-engine.initialize(model, controller)
+engine.initialize(robot, controller)
 
 # ######################### Configuration the simulation ################################
 
-model_options = model.get_model_options()
-sensor_options = model.get_sensors_options()
+model_options = robot.get_model_options()
+sensor_options = robot.get_sensors_options()
 engine_options = engine.get_options()
 ctrl_options = controller.get_options()
 
@@ -340,8 +340,8 @@ sensor_options['ForceSensor']['F4']["bias"] = []
 sensor_options['ForceSensor']['F4']["delay"] = 0.0
 sensor_options['ForceSensor']['F4']["delayInterpolationOrder"] = 0
 
-model.set_model_options(model_options)
-model.set_sensors_options(sensor_options)
+robot.set_model_options(model_options)
+robot.set_sensors_options(sensor_options)
 engine.set_options(engine_options)
 controller.set_options(ctrl_options)
 
@@ -356,7 +356,7 @@ print("Simulation time: %03.0fms" % ((end - start) * 1.0e3))
 
 log_data, log_constants = engine.get_log()
 
-trajectory_data_log = extract_state_from_simulation_log(log_data, model)
+trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
 
 # Save the log in CSV
 engine.write_log("/tmp/log.data", True)

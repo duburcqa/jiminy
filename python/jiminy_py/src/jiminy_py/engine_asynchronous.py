@@ -33,28 +33,28 @@ class EngineAsynchronous(object):
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, model, viewer_backend=None, viewer_use_theoretical_model=False):
+    def __init__(self, robot, viewer_backend=None, viewer_use_theoretical_model=False):
         """
         @brief      Constructor
 
-        @param[in]  model   Jiminy model properly setup (eg sensors already added)
+        @param[in]  robot   Jiminy robot properly setup (eg sensors already added)
 
         @return     Instance of the wrapper.
         """
 
-        # Make sure that the sensors have already been added to the model !
-        self._sensors_types = model.get_sensors_options().keys()
-        self._state = np.zeros((model.nx,))
+        # Make sure that the sensors have already been added to the robot !
+        self._sensors_types = robot.get_sensors_options().keys()
+        self._state = np.zeros((robot.nx,))
         self._observation = OrderedDict((sensor_type,[]) for sensor_type in self._sensors_types)
-        self._action = np.zeros((len(model.motors_names),))
+        self._action = np.zeros((len(robot.motors_names),))
 
         # Instantiate the Jiminy controller
         self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
-        self._controller.initialize(model)
+        self._controller.initialize(robot)
 
-        # Instantiate the Jiminy engine (model and controller are pass-by-reference)
+        # Instantiate the Jiminy engine (robot and controller are pass-by-reference)
         self._engine = jiminy.Engine()
-        self._engine.initialize(model, self._controller)
+        self._engine.initialize(robot, self._controller)
 
         ## Viewer management
         self.viewer_backend = viewer_backend
@@ -65,7 +65,7 @@ class EngineAsynchronous(object):
         self._is_running = False
         self._is_state_theoretical = False
 
-        self.reset(np.zeros(model.nx))
+        self.reset(np.zeros(robot.nx))
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -167,10 +167,10 @@ class EngineAsynchronous(object):
         if (lock is not None):
             lock.acquire()
         try:
-            # Instantiate the Gepetto model and viewer client if necessary
+            # Instantiate the robot and viewer client if necessary
             if (self._viewer is None):
                 scene_name = next(tempfile._get_candidate_names())
-                self._viewer = Viewer(self._engine.model,
+                self._viewer = Viewer(self._engine.robot,
                                       backend=self.viewer_backend,
                                       use_theoretical_model=self.viewer_use_theoretical_model,
                                       window_name='jiminy', scene_name=scene_name)

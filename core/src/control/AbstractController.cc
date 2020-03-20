@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "jiminy/core/model/Model.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 
 #include "jiminy/core/control/AbstractController.h"
@@ -10,7 +10,7 @@ namespace jiminy
 {
     AbstractController::AbstractController(void) :
     baseControllerOptions_(nullptr),
-    model_(nullptr),
+    robot_(nullptr),
     isInitialized_(false),
     isTelemetryConfigured_(false),
     ctrlOptionsHolder_(),
@@ -21,7 +21,7 @@ namespace jiminy
         AbstractController::setOptions(getDefaultOptions()); // Clarify that the base implementation is called
     }
 
-    hresult_t AbstractController::initialize(std::shared_ptr<Model const> const & model)
+    hresult_t AbstractController::initialize(std::shared_ptr<Robot const> const & model)
     {
         if (!model->getIsInitialized())
         {
@@ -29,28 +29,28 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        model_ = model;
+        robot_ = model;
 
         try
         {
             // isInitialized_ must be true to execute the 'computeCommand' and 'internalDynamics' methods
             isInitialized_ = true;
             float64_t t = 0;
-            vectorN_t q = vectorN_t::Zero(model_->nq());
-            vectorN_t v = vectorN_t::Zero(model_->nv());
-            vectorN_t uCommand = vectorN_t::Zero(model_->getMotorsNames().size());
-            vectorN_t uInternal = vectorN_t::Zero(model_->nv());
+            vectorN_t q = vectorN_t::Zero(robot_->nq());
+            vectorN_t v = vectorN_t::Zero(robot_->nv());
+            vectorN_t uCommand = vectorN_t::Zero(robot_->getMotorsNames().size());
+            vectorN_t uInternal = vectorN_t::Zero(robot_->nv());
             hresult_t returnCode = computeCommand(t, q, v, uCommand);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (uCommand.size() != (int32_t) model_->getMotorsNames().size())
+                if (uCommand.size() != (int32_t) robot_->getMotorsNames().size())
                 {
                     std::cout << "Error - AbstractController::initialize - 'computeCommand' returns command with wrong size." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 internalDynamics(t, q, v, uInternal);
-                if (uInternal.size() != model_->nv())
+                if (uInternal.size() != robot_->nv())
                 {
                     std::cout << "Error - AbstractController::initialize - 'internalDynamics' returns command with wrong size." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;

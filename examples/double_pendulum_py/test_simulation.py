@@ -15,13 +15,13 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double
 
 # ########################### Initialize the simulation #################################
 
-# Instantiate the model
+# Instantiate the robot
 motor_joint_names = ("SecondPendulumJoint",)
-model = jiminy.Model()
-model.initialize(urdf_path, False)
+robot = jiminy.Robot()
+robot.initialize(urdf_path, False)
 for joint_name in motor_joint_names:
     motor = jiminy.SimpleMotor(joint_name)
-    model.attach_motor(motor)
+    robot.attach_motor(motor)
     motor.initialize(joint_name)
 
 # Instantiate the controller
@@ -32,16 +32,16 @@ def internalDynamics(t, q, v, sensor_data, u):
     u[:] = 0.0
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
-controller.initialize(model)
+controller.initialize(robot)
 
 # Instantiate the engine
 engine = jiminy.Engine()
-engine.initialize(model, controller)
+engine.initialize(robot, controller)
 
 # ######################### Configuration the simulation ################################
 
-model_options = model.get_model_options()
-sensors_options = model.get_sensors_options()
+model_options = robot.get_model_options()
+sensors_options = robot.get_sensors_options()
 engine_options = engine.get_options()
 ctrl_options = controller.get_options()
 
@@ -68,8 +68,8 @@ engine_options['contacts']['frictionDry'] = 5.0
 engine_options['contacts']['frictionViscous'] = 5.0
 engine_options['contacts']['transitionEps'] = 0.001
 
-model.set_model_options(model_options)
-model.set_sensors_options(sensors_options)
+robot.set_model_options(model_options)
+robot.set_sensors_options(sensors_options)
 engine.set_options(engine_options)
 controller.set_options(ctrl_options)
 
@@ -89,7 +89,7 @@ print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 log_data, log_constants = engine.get_log()
 print('%i log points' % log_data['Global.Time'].shape)
 print(log_constants)
-trajectory_data_log = extract_state_from_simulation_log(log_data, model)
+trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
 
 # Save the log in CSV
 engine.write_log("/tmp/log.csv", False)

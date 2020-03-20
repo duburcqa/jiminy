@@ -15,7 +15,7 @@
 #include <gtest/gtest.h>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/model/BasicMotors.h"
+#include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/Types.h"
 
@@ -59,7 +59,7 @@ TEST(EngineSanity, EnergyConservation)
     // All joints actuated.
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
-    std::shared_ptr<Model> model = std::make_shared<Model>();
+    std::shared_ptr<Robot> model = std::make_shared<Robot>();
     model->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
