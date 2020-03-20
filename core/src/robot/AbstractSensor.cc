@@ -17,7 +17,7 @@ namespace jiminy
     telemetrySender_()
     {
         // Initialize the options
-        setOptions(getDefaultOptions());
+        setOptions(getDefaultSensorOptions());
     }
 
     hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)

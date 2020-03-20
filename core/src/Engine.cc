@@ -52,7 +52,7 @@ namespace jiminy
     forcesProfile_()
     {
         // Initialize the configuration options to the default.
-        setOptions(getDefaultOptions());
+        setOptions(getDefaultEngineOptions());
 
         // Initialize the global telemetry data holder
         telemetryData_ = std::make_shared<TelemetryData>();
@@ -910,7 +910,7 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    configHolder_t const & Engine::getOptions(void) const
+    configHolder_t Engine::getOptions(void) const
     {
         return engineOptionsHolder_;
     }

@@ -6,18 +6,16 @@
 
 namespace jiminy
 {
-    class Robot;
-
     class SimpleMotor : public AbstractMotorBase
     {
-    public:
+    protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual configHolder_t getDefaultOptions(void) override
+        virtual configHolder_t getDefaultMotorOptions(void) override
         {
             // Add extra options or update default values
-            configHolder_t config = AbstractMotorBase::getDefaultOptions();
+            configHolder_t config = AbstractMotorBase::getDefaultMotorOptions();
 
             config["enableFriction"] = false;
             config["frictionViscousPositive"] = 0.0;
@@ -29,6 +27,7 @@ namespace jiminy
             return config;
         };
 
+    public:
         struct motorOptions_t : public abstractMotorOptions_t
         {
             bool_t    const enableFriction;             ///< Flag to enable the joint friction. It is always negative.

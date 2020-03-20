@@ -4,7 +4,6 @@
 #include "pinocchio/algorithm/frames.hpp"
 
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/robot/Robot.h"
 
 #include "jiminy/core/robot/BasicMotors.h"
 
@@ -18,7 +17,7 @@ namespace jiminy
         /* AbstractMotorBase constructor calls the base implementations of
            the virtual methods since the derived class is not available at
            this point. Thus it must be called explicitly in the constructor. */
-        setOptions(getDefaultOptions());
+        setOptions(getDefaultMotorOptions());
     }
 
     hresult_t SimpleMotor::initialize(std::string const & jointName)
@@ -27,7 +26,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - SimpleMotor::initialize - Motor not attached to any model. Impossible to initialize it." << std::endl;
+            std::cout << "Error - SimpleMotor::initialize - Motor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -118,12 +117,12 @@ namespace jiminy
             if (vMotor > 0)
             {
                 data() += motorOptions_->frictionViscousPositive * vMotor
-                       + motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * vMotor);
+                        + motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * vMotor);
             }
             else
             {
                 data() += motorOptions_->frictionViscousNegative * vMotor
-                       + motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * vMotor);
+                        + motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * vMotor);
             }
         }
 

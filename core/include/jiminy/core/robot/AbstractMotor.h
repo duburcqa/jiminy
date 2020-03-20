@@ -49,11 +49,11 @@ namespace jiminy
         /* AKA AbstractSensorBase */
         friend Robot;
 
-    public:
+    protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual configHolder_t getDefaultOptions(void)
+        virtual configHolder_t getDefaultMotorOptions(void)
         {
             configHolder_t config;
             config["enableTorqueLimit"] = true;
@@ -65,6 +65,7 @@ namespace jiminy
             return config;
         };
 
+    public:
         struct abstractMotorOptions_t
         {
             bool_t    const enableTorqueLimit;

@@ -35,7 +35,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - ImuSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            std::cout << "Error - ImuSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -131,7 +131,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - ForceSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            std::cout << "Error - ForceSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -224,7 +224,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -317,7 +317,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - TorqueSensor::initialize - Sensor not attached to any model. Impossible to initialize it." << std::endl;
+            std::cout << "Error - TorqueSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 

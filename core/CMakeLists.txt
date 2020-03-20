@@ -31,6 +31,7 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryData.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetrySender.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryRecorder.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Model.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/AbstractMotor.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/BasicMotors.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/AbstractSensor.cc"

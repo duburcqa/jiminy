@@ -24,17 +24,17 @@ namespace jiminy
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::attach(Robot const * model,
+    hresult_t AbstractSensorTpl<T>::attach(Robot const * robot,
                                            std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
         {
-            std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a model. Please 'detach' method before attaching it." << std::endl;
+            std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a robot. Please 'detach' method before attaching it." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Copy references to the model and shared data
-        robot_ = model;
+        // Copy references to the robot and shared data
+        robot_ = robot;
         sharedHolder_ = sharedHolder.get();
 
         // Get an Id
@@ -64,7 +64,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any model." << std::endl;
+            std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any robot." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -108,7 +108,7 @@ namespace jiminy
             }
         }
 
-        // Clear the references to the model and shared data
+        // Clear the references to the robot and shared data
         robot_ = nullptr;
         sharedHolder_ = nullptr;
 
@@ -127,7 +127,7 @@ namespace jiminy
         // Clear the data buffer
         clearDataBuffer();
 
-        // Refresh proxies that are model-dependent
+        // Refresh proxies that are robot-dependent
         refreshProxies();
 
         // Reset the telemetry state

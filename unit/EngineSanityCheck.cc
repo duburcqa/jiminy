@@ -52,45 +52,47 @@ bool_t callback(float64_t const & t,
 
 TEST(EngineSanity, EnergyConservation)
 {
-    // Verify that when sending zero torque to a system, its energy remains constant.
+    // Verify that when sending zero torque to a system, its energy remains constant
 
-    // Load double pendulum model.
+    // Double pendulum model
     std::string urdfPath = "data/double_pendulum_rigid.urdf";
     // All joints actuated.
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
-    std::shared_ptr<Robot> model = std::make_shared<Robot>();
-    model->initialize(urdfPath, false);
+    auto robot = std::make_shared<Robot>();
+    robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
         std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
-        model->attachMotor(motor);
-        motor->initialize(jointName);
+        robot->attachMotor(motor);
+        robot->initialize(jointName);
     }
 
     // Disable velocity and position limits.
-    configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enablePositionLimit")) = false;
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("enableVelocityLimit")) = false;
-    model->setOptions(mdlOptions);
+    configHolder_t modelOptions = robot->getModelOptions();
+    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("enablePositionLimit")) = false;
+    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("enableVelocityLimit")) = false;
+    robot->setModelOptions(modelOptions);
 
     // Disable torque limits.
     configHolder_t motorsOptions;
-    model->getMotorsOptions(motorsOptions);
+    robot->getMotorsOptions(motorsOptions);
     for (auto & options : motorsOptions)
     {
         configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
         boost::get<bool_t>(motorOptions.at("enableTorqueLimit")) = false;
     }
-    model->setMotorsOptions(motorsOptions);
+    robot->setMotorsOptions(motorsOptions);
 
-    auto controller = std::make_shared<ControllerFunctor<decltype(controllerZeroTorque),
-                                                         decltype(internalDynamics)> >(controllerZeroTorque, internalDynamics);
-    controller->initialize(model);
+    auto controller = std::make_shared<
+        ControllerFunctor<decltype(controllerZeroTorque),
+                          decltype(internalDynamics)>
+    >(controllerZeroTorque, internalDynamics);
+    controller->initialize(robot);
 
     // Continuous simulation
-    Engine engine;
-    engine.initialize(model, controller, callback);
+    auto engine = std::make_shared<Engine>();
+    engine->initialize(robot, controller, callback);
 
     // Run simulation
     vectorN_t x0 = vectorN_t::Zero(4);
@@ -98,12 +100,12 @@ TEST(EngineSanity, EnergyConservation)
     float64_t tf = 10.0;
 
     // Run simulation
-    engine.simulate(tf, x0);
+    engine->simulate(tf, x0);
 
     // Get system energy.
     std::vector<std::string> header;
     matrixN_t data;
-    engine.getLogData(header, data);
+    engine->getLogData(header, data);
     vectorN_t energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energy.size(), 0);
 
@@ -114,13 +116,13 @@ TEST(EngineSanity, EnergyConservation)
     ASSERT_NEAR(0.0, std::abs(deltaEnergy), std::numeric_limits<float64_t>::epsilon());
 
     // Discrete-time simulation
-    configHolder_t simuOptions = engine.getDefaultOptions();
+    configHolder_t simuOptions = engine->getOptions();
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
-    engine.setOptions(simuOptions);
-    engine.simulate(tf, x0);
+    engine->setOptions(simuOptions);
+    engine->simulate(tf, x0);
 
-    engine.getLogData(header, data);
+    engine->getLogData(header, data);
     energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energy.size(), 0);
     energyCrop = energy.tail(energy.size() - 1);

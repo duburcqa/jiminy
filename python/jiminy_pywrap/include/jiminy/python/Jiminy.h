@@ -782,7 +782,11 @@ namespace python
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
-                .add_property("sensors_names", &PyModelVisitor::getSensorsNames)
+                .add_property("sensors_names", bp::make_function(
+                    static_cast<
+                        std::unordered_map<std::string, std::vector<std::string> > const & (Robot::*)(void) const
+                    >(&Robot::getSensorsNames),
+                    bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_names", bp::make_function(&Robot::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Robot::getRigidJointsPositionIdx,

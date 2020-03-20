@@ -21,9 +21,6 @@
 
 namespace jiminy
 {
-    static uint8_t const MIN_DELAY_BUFFER_RESERVE(20); ///< Minimum memory allocation is memory is full and the older data stored is dated less than the desired delay
-    static uint8_t const MAX_DELAY_BUFFER_EXCEED(20);  ///< Maximum number of data stored allowed to be dated more than the desired delay
-
     class TelemetryData;
     class Robot;
 
@@ -72,11 +69,11 @@ namespace jiminy
            functions are registered by each sensor using static method. */
         friend Robot;
 
-    public:
+    protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between sensors
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual configHolder_t getDefaultOptions(void)
+        virtual configHolder_t getDefaultSensorOptions(void)
         {
             configHolder_t config;
             config["noiseStd"] = vectorN_t();
@@ -87,6 +84,7 @@ namespace jiminy
             return config;
         };
 
+    public:
         struct abstractSensorOptions_t
         {
             vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
@@ -115,7 +113,6 @@ namespace jiminy
         ///
         /// \brief      Constructor
         ///
-        /// \param[in]  robot   Robot
         /// \param[in]  name    Name of the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -475,7 +472,7 @@ namespace jiminy
     public:
         /* Be careful, the static variables must be const since the 'static'
            keyword binds all the sensors together, even if they are associated
-           to complete separated models. */
+           to complete separated robots. */
         static std::string const type_;
         static std::vector<std::string> const fieldNames_;
         static bool_t const areFieldNamesGrouped_;

@@ -185,7 +185,7 @@ namespace jiminy
         Engine(Engine const & engine) = delete;
         Engine & operator = (Engine const & other) = delete;
 
-    public:
+    protected:
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
@@ -199,6 +199,70 @@ namespace jiminy
             return config;
         };
 
+        configHolder_t getDefaultJointOptions()
+        {
+            configHolder_t config;
+            config["boundStiffness"] = 1.0e5;
+            config["boundDamping"] = 1.0e4;
+            config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
+
+            return config;
+        };
+
+        configHolder_t getDefaultWorldOptions()
+        {
+            configHolder_t config;
+            config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
+            config["groundProfile"] = heatMapFunctor_t(
+                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                {
+                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
+                });
+
+            return config;
+        };
+
+        configHolder_t getDefaultStepperOptions()
+        {
+            configHolder_t config;
+            config["verbose"] = false;
+            config["randomSeed"] = 0U;
+            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
+            config["tolAbs"] = 1.0e-5;
+            config["tolRel"] = 1.0e-4;
+            config["dtMax"] = 1.0e-3;
+            config["iterMax"] = 1000000; // -1: infinity
+            config["sensorsUpdatePeriod"] = 0.0;
+            config["controllerUpdatePeriod"] = 0.0;
+            config["logInternalStepperSteps"] = false;
+
+            return config;
+        };
+
+        configHolder_t getDefaultTelemetryOptions()
+        {
+            configHolder_t config;
+            config["enableConfiguration"] = true;
+            config["enableVelocity"] = true;
+            config["enableAcceleration"] = true;
+            config["enableTorque"] = true;
+            config["enableEnergy"] = true;
+            return config;
+        };
+
+        configHolder_t getDefaultEngineOptions()
+        {
+            configHolder_t config;
+            config["telemetry"] = getDefaultTelemetryOptions();
+            config["stepper"] = getDefaultStepperOptions();
+            config["world"] = getDefaultWorldOptions();
+            config["joints"] = getDefaultJointOptions();
+            config["contacts"] = getDefaultContactOptions();
+
+            return config;
+        };
+
+    public:
         struct contactOptions_t
         {
             float64_t const frictionViscous;
@@ -220,16 +284,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultJointOptions()
-        {
-            configHolder_t config;
-            config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 1.0e4;
-            config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
-
-            return config;
-        };
-
         struct jointOptions_t
         {
             float64_t const boundStiffness;
@@ -245,19 +299,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultWorldOptions()
-        {
-            configHolder_t config;
-            config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = heatMapFunctor_t(
-                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
-                {
-                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
-                });
-
-            return config;
-        };
-
         struct worldOptions_t
         {
             vectorN_t const gravity;
@@ -269,23 +310,6 @@ namespace jiminy
             {
                 // Empty.
             }
-        };
-
-        configHolder_t getDefaultStepperOptions()
-        {
-            configHolder_t config;
-            config["verbose"] = false;
-            config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
-            config["tolAbs"] = 1.0e-5;
-            config["tolRel"] = 1.0e-4;
-            config["dtMax"] = 1.0e-3;
-            config["iterMax"] = 1000000; // -1: infinity
-            config["sensorsUpdatePeriod"] = 0.0;
-            config["controllerUpdatePeriod"] = 0.0;
-            config["logInternalStepperSteps"] = false;
-
-            return config;
         };
 
         struct stepperOptions_t
@@ -317,17 +341,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultTelemetryOptions()
-        {
-            configHolder_t config;
-            config["enableConfiguration"] = true;
-            config["enableVelocity"] = true;
-            config["enableAcceleration"] = true;
-            config["enableTorque"] = true;
-            config["enableEnergy"] = true;
-            return config;
-        };
-
         struct telemetryOptions_t
         {
             bool_t const enableConfiguration;
@@ -345,18 +358,6 @@ namespace jiminy
             {
                 // Empty.
             }
-        };
-
-        configHolder_t getDefaultOptions()
-        {
-            configHolder_t config;
-            config["telemetry"] = getDefaultTelemetryOptions();
-            config["stepper"] = getDefaultStepperOptions();
-            config["world"] = getDefaultWorldOptions();
-            config["joints"] = getDefaultJointOptions();
-            config["contacts"] = getDefaultContactOptions();
-
-            return config;
         };
 
         struct engineOptions_t
@@ -446,7 +447,7 @@ namespace jiminy
         hresult_t registerForceProfile(std::string      const & frameName,
                                        forceFunctor_t           forceFct);
 
-        configHolder_t const & getOptions(void) const;
+        configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsInitialized(void) const;
         bool_t getIsTelemetryConfigured(void) const;

@@ -23,7 +23,7 @@ namespace jiminy
     sharedHolder_(nullptr)
     {
         // Initialize the options
-        setOptions(getDefaultOptions());
+        setOptions(getDefaultMotorOptions());
     }
 
     AbstractMotorBase::~AbstractMotorBase(void)
@@ -35,17 +35,17 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractMotorBase::attach(Robot const * model,
+    hresult_t AbstractMotorBase::attach(Robot const * robot,
                                         std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
     {
         if (isAttached_)
         {
-            std::cout << "Error - AbstractMotorBase::attach - Motor already attached to a model. Please 'detach' method before attaching it." << std::endl;
+            std::cout << "Error - AbstractMotorBase::attach - Motor already attached to a robot. Please 'detach' method before attaching it." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Copy references to the model and shared data
-        robot_ = model;
+        // Copy references to the robot and shared data
+        robot_ = robot;
         sharedHolder_ = sharedHolder.get();
 
         // Get an Id
@@ -68,7 +68,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - AbstractMotorBase::detach - Motor not attached to any model." << std::endl;
+            std::cout << "Error - AbstractMotorBase::detach - Motor not attached to any robot." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -93,7 +93,7 @@ namespace jiminy
         // Update the total number of motors left
         --sharedHolder_->num_;
 
-        // Clear the references to the model and shared data
+        // Clear the references to the robot and shared data
         robot_ = nullptr;
         sharedHolder_ = nullptr;
 
@@ -108,7 +108,7 @@ namespace jiminy
         // Clear the data buffer
         clearDataBuffer();
 
-        // Refresh proxies that are model-dependent
+        // Refresh proxies that are robot-dependent
         refreshProxies();
     }
 
@@ -131,7 +131,7 @@ namespace jiminy
         motorOptionsHolder_ = motorOptions;
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
-        // Refresh the proxies if the model is initialized
+        // Refresh the proxies if the robot is initialized
         if (isAttached_ && internalBuffersMustBeUpdated && robot_->getIsInitialized())
         {
             refreshProxies();
