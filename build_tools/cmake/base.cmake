@@ -157,9 +157,6 @@ endif()
 # Due to license considerations, we will only use the MPL2 parts of Eigen.
 set(EIGEN_MPL2_ONLY 1)
 
-# Add utils to define package version
-include(CMakePackageConfigHelpers)
-
 # Add a helper to link target libraries as system dependencies to avoid generating warnings
 function(target_link_libraries_system target)
   set(libs ${ARGN})

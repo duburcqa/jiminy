@@ -22,23 +22,27 @@ add_definitions(${COMPILE_FLAGS})
 
 # Add sources
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractIODevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/MemoryDevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/FileDevice.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryData.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetrySender.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/TelemetryRecorder.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Constants.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Utilities.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractSensor.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractMotor.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/AbstractController.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicSensors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/BasicMotors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Model.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/AbstractIODevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/MemoryDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/FileDevice.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonLoader.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/io/JsonWriter.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryData.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetrySender.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/telemetry/TelemetryRecorder.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Model.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/AbstractMotor.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/BasicMotors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/AbstractSensor.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/BasicSensors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
 )
 
-# Make library
+# Create the library
 add_library(${PROJECT_NAME} STATIC ${SRC})
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${BUILD_VERSION}
@@ -57,14 +61,24 @@ if(WIN32)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 endif()
 
-# Activate C++14
-if(NOT WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        CXX_STANDARD 14
-        CXX_STANDARD_REQUIRED YES
-        CXX_EXTENSIONS NO
-    )
-endif()
+# Configure jsoncpp dependency.
+# Note that defining only BUILD_INTERFACE will prevent the header files to be exported,
+# thus not making them available by a side-project depending on Jiminy. However, since
+# jsoncpp is installed on the system as an external project, those side-projects must
+# simply call find_package(jsoncpp) and it will be included automatically.
+add_dependencies(${PROJECT_NAME} jsoncpp_external)
+EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external SOURCE_DIR)
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
+    $<BUILD_INTERFACE:${SOURCE_DIR}/include>
+)
+target_link_libraries(${PROJECT_NAME} jsoncpp_lib)
+
+# Activate C++14 on Linux (not properly supported by MSVC 2015)
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

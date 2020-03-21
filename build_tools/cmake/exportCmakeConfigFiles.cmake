@@ -1,3 +1,6 @@
+# Import utils to define package version
+include(CMakePackageConfigHelpers)
+
 function(exportCmakeConfigFiles)
     # \brief    Export and install Cmake target configuration files.
     #

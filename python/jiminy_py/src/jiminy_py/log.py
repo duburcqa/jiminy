@@ -7,7 +7,7 @@ import numpy as np
 from .state import State
 
 
-def extract_state_from_simulation_log(log_data, jiminy_model):
+def extract_state_from_simulation_log(log_data, robot):
     """
     @brief      Extract a trajectory object using from raw simulation data.
 
@@ -17,7 +17,7 @@ def extract_state_from_simulation_log(log_data, jiminy_model):
                 it body frame rather than world frame.
 
     @param[in]  log_data          Data from the log file, in a dictionnary.
-    @param[in]  jiminy_model        Jiminy model. Optional: None if omitted
+    @param[in]  robot             Jiminy robot. Optional: None if omitted
 
     @return     Trajectory dictionary. The actual trajectory corresponds to
                 the field "evolution_robot" and it is a list of State object.
@@ -37,5 +37,5 @@ def extract_state_from_simulation_log(log_data, jiminy_model):
         evolution_robot.append(State(qe[:, i], dqe[:, i], ddqe[:, i], t[i]))
 
     return {'evolution_robot': evolution_robot,
-            'jiminy_model': jiminy_model,
+            'robot': robot,
             'use_theoretical_model': False}

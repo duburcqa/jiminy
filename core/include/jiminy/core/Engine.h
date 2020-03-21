@@ -11,9 +11,9 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
+#include "jiminy/core/telemetry/TelemetrySender.h"
+#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
-#include "jiminy/core/Model.h"
-#include "jiminy/core/TelemetrySender.h"
 #include "jiminy/core/Types.h"
 
 #include <boost/numeric/odeint.hpp>
@@ -22,10 +22,10 @@
 
 namespace jiminy
 {
-    std::string const ENGINE_OBJECT_NAME("HighLevelController");
+    float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
+    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
 
-    extern float64_t const MIN_SIMULATION_TIMESTEP;
-    extern float64_t const MAX_SIMULATION_TIMESTEP;
+    std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
     using namespace boost::numeric::odeint;
 
@@ -86,19 +86,19 @@ namespace jiminy
             // Empty.
         }
 
-        void initialize(Model & model)
+        void initialize(Robot & robot)
         {
-            initialize(model, vectorN_t::Zero(model.nx()), MIN_SIMULATION_TIMESTEP);
+            initialize(robot, vectorN_t::Zero(robot.nx()), DEFAULT_SIMULATION_TIMESTEP);
         }
 
-        void initialize(Model           & model,
+        void initialize(Robot           & robot,
                         vectorN_t const & xInit,
                         float64_t const & dt_init)
         {
-            // Extract some information from the model
-            nx_ = model.nx();
-            nq_ = model.nq();
-            nv_ = model.nv();
+            // Extract some information from the robot
+            nx_ = robot.nx();
+            nq_ = robot.nq();
+            nv_ = robot.nv();
 
             // Initialize the ode stepper state buffers
             iter = 0;
@@ -107,13 +107,13 @@ namespace jiminy
             x = xInit;
 
             dxdt = vectorN_t::Zero(nx_);
-            computePositionDerivative(model.pncModel_, q(), v(), qDot());
+            computePositionDerivative(robot.pncModel_, q(), v(), qDot());
 
-            fExternal = forceVector_t(model.pncModel_.joints.size(),
+            fExternal = forceVector_t(robot.pncModel_.joints.size(),
                                       pinocchio::Force::Zero());
             uInternal = vectorN_t::Zero(nv_);
-            uCommand = vectorN_t::Zero(model.getMotorsNames().size());
-            uMotor = vectorN_t::Zero(model.getMotorsNames().size());
+            uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
+            uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
             u = vectorN_t::Zero(nv_);
 
             // Set the initialization flag
@@ -168,23 +168,7 @@ namespace jiminy
 
     class Engine
     {
-    public:
-        // Impossible to use function pointer since it does not support functors
-        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
-                                                       vectorN_t const & /*x*/)>;
-        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
-                                                        vectorN_t const & /*x*/)>;
-
     protected:
-        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
-        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
-
-    public:
-        // Disable the copy of the class
-        Engine(Engine const & engine) = delete;
-        Engine & operator = (Engine const & other) = delete;
-
-    public:
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
@@ -198,6 +182,70 @@ namespace jiminy
             return config;
         };
 
+        configHolder_t getDefaultJointOptions()
+        {
+            configHolder_t config;
+            config["boundStiffness"] = 1.0e5;
+            config["boundDamping"] = 1.0e4;
+            config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
+
+            return config;
+        };
+
+        configHolder_t getDefaultWorldOptions()
+        {
+            configHolder_t config;
+            config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
+            config["groundProfile"] = heatMapFunctor_t(
+                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
+                {
+                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
+                });
+
+            return config;
+        };
+
+        configHolder_t getDefaultStepperOptions()
+        {
+            configHolder_t config;
+            config["verbose"] = false;
+            config["randomSeed"] = 0U;
+            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
+            config["tolAbs"] = 1.0e-5;
+            config["tolRel"] = 1.0e-4;
+            config["dtMax"] = 1.0e-3;
+            config["iterMax"] = 1000000; // -1: infinity
+            config["sensorsUpdatePeriod"] = 0.0;
+            config["controllerUpdatePeriod"] = 0.0;
+            config["logInternalStepperSteps"] = false;
+
+            return config;
+        };
+
+        configHolder_t getDefaultTelemetryOptions()
+        {
+            configHolder_t config;
+            config["enableConfiguration"] = true;
+            config["enableVelocity"] = true;
+            config["enableAcceleration"] = true;
+            config["enableTorque"] = true;
+            config["enableEnergy"] = true;
+            return config;
+        };
+
+        configHolder_t getDefaultEngineOptions()
+        {
+            configHolder_t config;
+            config["telemetry"] = getDefaultTelemetryOptions();
+            config["stepper"] = getDefaultStepperOptions();
+            config["world"] = getDefaultWorldOptions();
+            config["joints"] = getDefaultJointOptions();
+            config["contacts"] = getDefaultContactOptions();
+
+            return config;
+        };
+
+    public:
         struct contactOptions_t
         {
             float64_t const frictionViscous;
@@ -219,16 +267,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultJointOptions()
-        {
-            configHolder_t config;
-            config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 1.0e4;
-            config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
-
-            return config;
-        };
-
         struct jointOptions_t
         {
             float64_t const boundStiffness;
@@ -244,19 +282,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultWorldOptions()
-        {
-            configHolder_t config;
-            config["gravity"] = (vectorN_t(6) << 0.0, 0.0, -9.81, 0.0, 0.0, 0.0).finished();
-            config["groundProfile"] = heatMapFunctor_t(
-                [](vector3_t const & pos) -> std::pair <float64_t, vector3_t>
-                {
-                    return {0.0, (vector3_t() << 0.0, 0.0, 1.0).finished()};
-                });
-
-            return config;
-        };
-
         struct worldOptions_t
         {
             vectorN_t const gravity;
@@ -268,23 +293,6 @@ namespace jiminy
             {
                 // Empty.
             }
-        };
-
-        configHolder_t getDefaultStepperOptions()
-        {
-            configHolder_t config;
-            config["verbose"] = false;
-            config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
-            config["tolAbs"] = 1.0e-5;
-            config["tolRel"] = 1.0e-4;
-            config["dtMax"] = 1.0e-3;
-            config["iterMax"] = 100000; // -1: infinity
-            config["sensorsUpdatePeriod"] = 0.0;
-            config["controllerUpdatePeriod"] = 0.0;
-            config["logInternalStepperSteps"] = false;
-
-            return config;
         };
 
         struct stepperOptions_t
@@ -316,17 +324,6 @@ namespace jiminy
             }
         };
 
-        configHolder_t getDefaultTelemetryOptions()
-        {
-            configHolder_t config;
-            config["enableConfiguration"] = true;
-            config["enableVelocity"] = true;
-            config["enableAcceleration"] = true;
-            config["enableTorque"] = true;
-            config["enableEnergy"] = true;
-            return config;
-        };
-
         struct telemetryOptions_t
         {
             bool_t const enableConfiguration;
@@ -344,18 +341,6 @@ namespace jiminy
             {
                 // Empty.
             }
-        };
-
-        configHolder_t getDefaultOptions()
-        {
-            configHolder_t config;
-            config["telemetry"] = getDefaultTelemetryOptions();
-            config["stepper"] = getDefaultStepperOptions();
-            config["world"] = getDefaultWorldOptions();
-            config["joints"] = getDefaultJointOptions();
-            config["contacts"] = getDefaultContactOptions();
-
-            return config;
         };
 
         struct engineOptions_t
@@ -378,16 +363,32 @@ namespace jiminy
         };
 
     public:
+        // Impossible to use function pointer since it does not support functors
+        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
+                                                       vectorN_t const & /*x*/)>;
+        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
+                                                        vectorN_t const & /*x*/)>;
+
+    protected:
+        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
+        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
+
+    public:
+        // Disable the copy of the class
+        Engine(Engine const & engine) = delete;
+        Engine & operator = (Engine const & other) = delete;
+
+    public:
         Engine(void);
         ~Engine(void);
 
-        result_t initialize(std::shared_ptr<Model>              const & model,
-                            std::shared_ptr<AbstractController> const & controller,
-                            callbackFunctor_t    callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot>              const & robot,
+                             std::shared_ptr<AbstractController> const & controller,
+                             callbackFunctor_t    callbackFct);
 
         /// \brief Reset engine.
         ///
-        /// \details This function resets the engine, the model and the controller.
+        /// \details This function resets the engine, the robot and the controller.
         ///          This method is made to be called in between simulations, to allow
         ///          registering of new variables to log, and reset the random number
         ///          generator.
@@ -398,7 +399,7 @@ namespace jiminy
 
         /// \brief Reset the engine and compute initial state.
         ///
-        /// \details This function reset the engine, the model and the controller, and update internal data
+        /// \details This function reset the engine, the robot and the controller, and update internal data
         ///          to match the given initial state.
         ///
         /// \param[in] xInit Initial state.
@@ -406,10 +407,10 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        result_t start(vectorN_t const & xInit,
-                       bool_t    const & isStateTheoretical = false,
-                       bool_t    const & resetRandomNumbers = false,
-                       bool_t    const & resetDynamicForceRegister = false);
+        hresult_t start(vectorN_t const & xInit,
+                        bool_t    const & isStateTheoretical = false,
+                        bool_t    const & resetRandomNumbers = false,
+                        bool_t    const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -419,12 +420,12 @@ namespace jiminy
         ///          One may specify a negative timestep to use the default update value.
         ///
         /// \param[in] stepSize Duration for which to integrate ; set to negative value to use default update value.
-        result_t step(float64_t stepSize = -1);
+        hresult_t step(float64_t stepSize = -1);
 
         /// \brief Stop the simulation.
         ///
-        /// \details It releases the lock on the model and the telemetry, so that
-        ///          it is possible again to update the model (for example to update
+        /// \details It releases the lock on the robot and the telemetry, so that
+        ///          it is possible again to update the robot (for example to update
         ///          the options, add or remove sensors...) and to register new
         ///          variables or forces.
         void stop(void);
@@ -434,22 +435,22 @@ namespace jiminy
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] xInit Initial state, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
-        result_t simulate(float64_t const & tEnd,
-                          vectorN_t const & xInit,
-                          bool_t    const & isStateTheoretical = false);
+        hresult_t simulate(float64_t const & tEnd,
+                           vectorN_t const & xInit,
+                           bool_t    const & isStateTheoretical = false);
 
-        result_t registerForceImpulse(std::string const & frameName,
-                                      float64_t   const & t,
-                                      float64_t   const & dt,
-                                      vector3_t   const & F);
-        result_t registerForceProfile(std::string      const & frameName,
-                                      forceFunctor_t           forceFct);
+        hresult_t registerForceImpulse(std::string const & frameName,
+                                       float64_t   const & t,
+                                       float64_t   const & dt,
+                                       vector3_t   const & F);
+        hresult_t registerForceProfile(std::string      const & frameName,
+                                       forceFunctor_t           forceFct);
 
-        configHolder_t const & getOptions(void) const;
-        result_t setOptions(configHolder_t const & engineOptions);
+        configHolder_t getOptions(void) const;
+        hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsInitialized(void) const;
         bool_t getIsTelemetryConfigured(void) const;
-        Model & getModel(void) const;
+        Robot & getRobot(void) const;
         AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
         std::vector<vectorN_t> const & getContactForces(void) const;
@@ -477,20 +478,20 @@ namespace jiminy
                                           std::vector<std::string>       & header,
                                           matrixN_t                      & logData);
 
-        result_t writeLogTxt(std::string const & filename);
-        result_t writeLogBinary(std::string const & filename);
+        hresult_t writeLogTxt(std::string const & filename);
+        hresult_t writeLogBinary(std::string const & filename);
 
-        static result_t parseLogBinaryRaw(std::string                          const & filename,
-                                          std::vector<std::string>                   & header,
-                                          std::vector<float64_t>                     & timestamps,
-                                          std::vector<std::vector<int32_t> >         & intData,
-                                          std::vector<std::vector<float32_t> >       & floatData);
-        static result_t parseLogBinary(std::string              const & filename,
-                                       std::vector<std::string>       & header,
-                                       matrixN_t                      & logData);
+        static hresult_t parseLogBinaryRaw(std::string                          const & filename,
+                                           std::vector<std::string>                   & header,
+                                           std::vector<float64_t>                     & timestamps,
+                                           std::vector<std::vector<int32_t> >         & intData,
+                                           std::vector<std::vector<float32_t> >       & floatData);
+        static hresult_t parseLogBinary(std::string              const & filename,
+                                        std::vector<std::string>       & header,
+                                        matrixN_t                      & logData);
 
     protected:
-        result_t configureTelemetry(void);
+        hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
         vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
@@ -553,7 +554,7 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         bool_t isTelemetryConfigured_;
-        std::shared_ptr<Model> model_;
+        std::shared_ptr<Robot> robot_;
         std::shared_ptr<AbstractController> controller_;
         configHolder_t engineOptionsHolder_;
         callbackFunctor_t callbackFct_;

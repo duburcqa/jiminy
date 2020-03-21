@@ -20,18 +20,18 @@ class BasicSimulator(object):
               While this class provides an already functional simulation environment, it is expect that the
               user will develop a child class to customize it to his needs.
     '''
-    def __init__(self, jiminy_model, jiminy_controller=None):
+    def __init__(self, robot, jiminy_controller=None):
         '''
         @brief Constructor
 
-        @param jiminy_model jiminy.Model to use
+        @param robot jiminy.Robot to use
         @param jiminy_controller Optional, a jiminy controller to use. If None, a ControllerFunctor is created.
         '''
-        assert issubclass(jiminy_model.__class__, jiminy.Model), \
-               "'jiminy_model' must inherit from jiminy.Model"
+        assert issubclass(robot.__class__, jiminy.Robot), \
+               "'robot' must inherit from jiminy.Robot"
         assert (jiminy_controller is None or issubclass(jiminy_controller.__class__, jiminy.AbstractController)), \
                 "'jiminy_controller' must inherit from jiminy.Controller"
-        assert jiminy_model.is_initialized, "'jiminy_model' must be initialized."
+        assert robot.is_initialized, "'robot' must be initialized."
 
         # Default arguments
 
@@ -39,8 +39,8 @@ class BasicSimulator(object):
         self._t_pbar = -1
         self._pbar = None
 
-        # Copy a reference to Jiminy Model
-        self.model = jiminy_model
+        # Copy a reference to Jiminy Robot
+        self.robot = robot
 
         # User-defined controller handle
         self.controller_handle = lambda *kargs, **kwargs: None
@@ -50,20 +50,20 @@ class BasicSimulator(object):
         # Instantiate the controller if necessary and initialize it
         if jiminy_controller is None:
             self.controller = jiminy.ControllerFunctor(self._compute_command_wrapper, self.internal_dynamics)
-            self.controller.initialize(self.model)
+            self.controller.initialize(self.robot)
         else:
             self.controller = jiminy_controller
-            self.controller.initialize(self.model, self._compute_command_wrapper)
+            self.controller.initialize(self.robot, self._compute_command_wrapper)
 
         # Instantiate and initialize the engine
         self.engine = jiminy.Engine()
-        self.engine.initialize(self.model, self.controller, self.callback)
+        self.engine.initialize(self.robot, self.controller, self.callback)
 
         # Configuration the simulation
         self.configure_simulation()
 
         # Extract some constant
-        self.n_motors = len(self.model.motors_names)
+        self.n_motors = len(self.robot.motors_names)
 
     def configure_simulation(self):
         '''
@@ -80,8 +80,8 @@ class BasicSimulator(object):
         '''
         try:
             t = 0.0
-            y, dy = np.zeros(self.model.nq), np.zeros(self.model.nv)
-            sensors_data = self.model.sensors_data
+            y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
+            sensors_data = self.robot.sensors_data
             u_command = np.zeros(self.n_motors)
             controller_handle(t, y, dy, sensors_data, u_command)
             self.controller_handle = controller_handle

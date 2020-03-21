@@ -7,10 +7,11 @@
 #include <iostream>
 #include <string>
 
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/ControllerFunctor.h"
+#include "jiminy/core/robot/BasicMotors.h"
+#include "jiminy/core/control/ControllerFunctor.h"
+#include "jiminy/core/io/FileDevice.h"
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
 
@@ -50,7 +51,7 @@ int main(int argc, char_t * argv[])
     // Set URDF and log output.
     std::string homedir = getUserDirectory();
     std::string urdfPath = homedir + std::string("/wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf");
-    std::string outputDirPath("/tmp/blackbox/");
+    std::string outputDirPath("/tmp/");
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============
@@ -61,19 +62,19 @@ int main(int argc, char_t * argv[])
 
     timer.tic();
 
-    // Instantiate and configuration the model
+    // Instantiate and configuration the robot
     std::vector<std::string> motorJointNames{"SecondPendulumJoint"};
 
-    auto model = std::make_shared<Model>();
-    configHolder_t mdlOptions = model->getOptions();
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("positionLimitFromUrdf")) = true;
-    boost::get<bool_t>(boost::get<configHolder_t>(mdlOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
-    model->setOptions(mdlOptions);
-    model->initialize(urdfPath, false);
+    auto robot = std::make_shared<Robot>();
+    configHolder_t modelOptions = robot->getModelOptions();
+    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("positionLimitFromUrdf")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
+    robot->setModelOptions(modelOptions);
+    robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
         std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
-        model->attachMotor(motor);
+        robot->attachMotor(motor);
         motor->initialize(jointName);
     }
 
@@ -81,11 +82,11 @@ int main(int argc, char_t * argv[])
 
     auto controller = std::make_shared<ControllerFunctor<decltype(computeCommand),
                                                          decltype(internalDynamics)> >(computeCommand, internalDynamics);
-    controller->initialize(model);
+    controller->initialize(robot);
 
     // Instantiate and configuration the engine
-    Engine engine;
-    configHolder_t simuOptions = engine.getDefaultOptions();
+    auto engine = std::make_shared<Engine>();
+    configHolder_t simuOptions = engine->getOptions();
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
@@ -107,8 +108,8 @@ int main(int argc, char_t * argv[])
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionDry")) = 5.0;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionViscous")) = 5.0;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionEps")) = 0.001;
-    engine.setOptions(simuOptions);
-    engine.initialize(model, controller, callback);
+    engine->setOptions(simuOptions);
+    engine->initialize(robot, controller, callback);
 
     timer.toc();
 
@@ -123,17 +124,17 @@ int main(int argc, char_t * argv[])
 
     // Run simulation
     timer.tic();
-    engine.simulate(tf, x0);
+    engine->simulate(tf, x0);
     timer.toc();
     std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 
     // Write the log file
     std::vector<std::string> header;
     matrixN_t log;
-    engine.getLogData(header, log);
+    engine->getLogData(header, log);
     std::cout << log.rows() << " log points" << std::endl;
-    engine.writeLogTxt(outputDirPath + std::string("/log.txt"));
-    engine.writeLogBinary(outputDirPath + std::string("/log.data"));
+    engine->writeLogTxt(outputDirPath + std::string("log.txt"));
+    engine->writeLogBinary(outputDirPath + std::string("log.data"));
 
     return 0;
 }

@@ -8,22 +8,20 @@
 #include <cassert>
 
 #include "jiminy/core/Engine.h"
-#include "jiminy/core/BasicMotors.h"
-#include "jiminy/core/BasicSensors.h"
-#include "jiminy/core/Model.h"
-#include "jiminy/core/AbstractController.h"
-#include "jiminy/core/ControllerFunctor.h"
-#include "jiminy/core/TelemetryData.h"
+#include "jiminy/core/robot/Robot.h"
+#include "jiminy/core/robot/BasicMotors.h"
+#include "jiminy/core/robot/BasicSensors.h"
+#include "jiminy/core/control/ControllerFunctor.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"
 
+#include <boost/preprocessor.hpp>
+
 #include <boost/python.hpp>
 #include <boost/python/def.hpp>
 #include <boost/python/dict.hpp>
-
-#include <boost/weak_ptr.hpp>
-#include <boost/preprocessor.hpp>
 
 
 namespace jiminy
@@ -237,7 +235,6 @@ namespace python
         PyObject * out2PyPtr_;
     };
 
-
     // **************************** HeatMapFunctorVisitor *****************************
 
     struct HeatMapFunctorVisitor
@@ -285,7 +282,6 @@ namespace python
 
     // ******************************* sensorsDataMap_t ********************************
 
-
     struct SensorsDataMapVisitor
         : public bp::def_visitor<SensorsDataMapVisitor>
     {
@@ -327,8 +323,8 @@ namespace python
         static bp::object getItem(sensorsDataMap_t        & self,
                                   bp::tuple         const & sensorInfo)
         {
-            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
-            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
             return SensorsDataMapVisitor::getItemSplit(self, sensorType, sensorName);
         }
 
@@ -371,8 +367,8 @@ namespace python
         static bool_t contains(sensorsDataMap_t       & self,
                                bp::tuple        const & sensorInfo)
         {
-            std::string sensorType = bp::extract<std::string>(sensorInfo[0]);
-            std::string sensorName = bp::extract<std::string>(sensorInfo[1]);
+            std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
+            std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
             auto const & sensorDataType = self.find(sensorType);
             if (sensorDataType != self.end())
             {
@@ -482,7 +478,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
-                    .def("get_options", &PyMotorVisitor::getOptions<TMotor>,
+                    .def("get_options", &AbstractMotorBase::getOptions,
                                         bp::return_value_policy<bp::return_by_value>())
 
                     .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
@@ -507,7 +503,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static typename std::enable_if<!std::is_same<Q, AbstractMotorBase>::value, void>::type
+            static enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -518,7 +514,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static typename std::enable_if<std::is_same<Q, AbstractMotorBase>::value, void>::type
+            static enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -546,16 +542,8 @@ namespace python
                                bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
+            convertFromPython(configPy, config);
             self.setOptions(config);
-        }
-
-        template<typename TMotor>
-        static bp::dict getOptions(TMotor & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -600,7 +588,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PySensorVisitor::setOptions<TSensor>)
-                    .def("get_options", &PySensorVisitor::getOptions<TSensor>,
+                    .def("get_options", &AbstractSensorBase::getOptions,
                                         bp::return_value_policy<bp::return_by_value>())
 
                     .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
@@ -613,7 +601,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static typename std::enable_if<!std::is_same<Q, AbstractSensorBase>::value, void>::type
+            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -621,13 +609,13 @@ namespace python
                 cl
                     .def("initialize", &TSensor::initialize)
                     .def_readonly("type", &TSensor::type_)
-                    .add_static_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNamesStatic<TSensor>,
+                    .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldNames_,
                                                        bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
             template<class Q = TSensor>
-            static typename std::enable_if<std::is_same<Q, AbstractSensorBase>::value, void>::type
+            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -635,7 +623,7 @@ namespace python
                 cl
                     .add_property("type", bp::make_function(&AbstractSensorBase::getType,
                                           bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&PySensorVisitor::getFieldNames,
+                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldNames,
                                                 bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
@@ -663,27 +651,8 @@ namespace python
                                bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
+            convertFromPython(configPy, config);
             self.setOptions(config);
-        }
-
-        template<typename TSensor>
-        static bp::dict getOptions(TSensor & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
-        }
-
-        template<typename TSensor>
-        static bp::list getFieldNamesStatic(void)
-        {
-            return stdVectorToListPy(TSensor::fieldNames_);
-        }
-
-        static bp::list getFieldNames(AbstractSensorBase & self)
-        {
-            return stdVectorToListPy(self.getFieldNames());
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -739,129 +708,75 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("initialize", &Model::initialize,
-                                   (bp::arg("self"), "urdf_path",
-                                    bp::arg("has_freeflyer") = false))
-
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
-                .def("attach_motor", &Model::attachMotor,
-                                     (bp::arg("self"), "motor"))
-                .def("get_motor", &PyModelVisitor::getMotor,
-                                  (bp::arg("self"), "motor_name"),
-                                   bp::return_value_policy<bp::reference_existing_object>())
-                .def("detach_motor", &Model::detachMotor,
-                                     (bp::arg("self"), "joint_name"))
-                .def("detach_motors", &PyModelVisitor::detachMotors,
-                                      (bp::arg("self"),
-                                       bp::arg("joints_names") = std::vector<std::string>()))
-                .def("attach_sensor", &Model::attachSensor,
-                                      (bp::arg("self"), "sensor"))
-                .def("detach_sensor", &Model::detachSensor,
-                                      (bp::arg("self"), "sensor_type", "sensor_name"))
-                .def("detach_sensors", &Model::detachSensors,
-                                       (bp::arg("self"),
-                                        bp::arg("sensor_type") = std::string()))
-                .def("get_sensor", &PyModelVisitor::getSensor,
-                                   (bp::arg("self"), "sensor_type", "sensor_name"),
-                                    bp::return_value_policy<bp::reference_existing_object>())
 
-                .add_property("sensors_data", &PyModelVisitor::getSensorsData)
-                .add_property("motors_torques", bp::make_function(&Model::getMotorsTorques,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
-
-                .def("get_model_options", &PyModelVisitor::getModelOptions,
-                                          bp::return_value_policy<bp::return_by_value>())
-                .def("set_model_options", &PyModelVisitor::setModelOptions)
-                .def("set_motors_options", &PyModelVisitor::setMotorsOptions)
-                .def("get_motors_options", &PyModelVisitor::getMotorsOptions,
-                                            bp::return_value_policy<bp::return_by_value>())
-                .def("set_sensors_options", &PyModelVisitor::setSensorsOptions)
-                .def("get_sensors_options", &PyModelVisitor::getSensorsOptions,
-                                            bp::return_value_policy<bp::return_by_value>())
-
-                .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
+                .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
                                                  bp::return_internal_reference<>()))
-                .add_property("pinocchio_data", bp::make_getter(&Model::pncData_,
+                .add_property("pinocchio_data", bp::make_getter(&Robot::pncData_,
                                                 bp::return_internal_reference<>()))
-                .add_property("pinocchio_model_th", bp::make_getter(&Model::pncModelRigidOrig_,
+                .add_property("pinocchio_model_th", bp::make_getter(&Robot::pncModelRigidOrig_,
                                                     bp::return_internal_reference<>()))
-                .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
+                .add_property("pinocchio_data_th", bp::make_getter(&Robot::pncDataRigidOrig_,
                                                    bp::return_internal_reference<>()))
 
-                .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
+                .add_property("is_initialized", bp::make_function(&Robot::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
+                .add_property("urdf_path", bp::make_function(&Robot::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
+                .add_property("has_freeflyer", bp::make_function(&Robot::getHasFreeflyer,
                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("is_flexible", &PyModelVisitor::isFlexibleModelEnable)
-                .add_property("nq", bp::make_function(&Model::nq,
+                .add_property("nq", bp::make_function(&Robot::nq,
                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nv", bp::make_function(&Model::nv,
+                .add_property("nv", bp::make_function(&Robot::nv,
                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("nx", bp::make_function(&Model::nx,
+                .add_property("nx", bp::make_function(&Robot::nx,
                                     bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
+                .add_property("contact_frames_names", bp::make_function(&Robot::getContactFramesNames,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
+                .add_property("contact_frames_idx", bp::make_function(&Robot::getContactFramesIdx,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_names", bp::make_function(&Model::getMotorsNames,
-                                              bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("motors_position_idx", &Model::getMotorsPositionIdx)
-                .add_property("motors_velocity_idx", &Model::getMotorsVelocityIdx)
-                .add_property("sensors_names", &PyModelVisitor::getSensorsNames)
-                .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
+                .add_property("rigid_joints_names", bp::make_function(&Robot::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
+                .add_property("rigid_joints_position_idx", bp::make_function(&Robot::getRigidJointsPositionIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
+                .add_property("rigid_joints_velocity_idx", bp::make_function(&Robot::getRigidJointsVelocityIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
+                .add_property("flexible_joints_names", bp::make_function(&Robot::getFlexibleJointsNames,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMin,
+                .add_property("position_limit_upper", bp::make_function(&Robot::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMax,
+                .add_property("position_limit_lower", bp::make_function(&Robot::getPositionLimitMax,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
+                .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("torque_limit", &Model::getTorqueLimit)
-                .add_property("motor_inertia", &Model::getMotorInertia)
 
-                .add_property("logfile_position_headers", bp::make_function(&Model::getPositionFieldNames,
+                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_velocity_headers", bp::make_function(&Model::getVelocityFieldNames,
+                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldNames,
-                                                              bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_motor_torque_headers", bp::make_function(&Model::getMotorTorqueFieldNames,
+                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 
-        static result_t detachMotors(Model          & self,
-                                     bp::list const & jointNamesPy)
+        static hresult_t addContactPoints(Robot          & self,
+                                          bp::list const & frameNamesPy)
         {
-            std::vector<std::string> jointNames = listPyToStdVector<std::string>(jointNamesPy);
-            return self.detachMotors(jointNames);
-        }
-
-        static result_t addContactPoints(Model          & self,
-                                         bp::list const & frameNamesPy)
-        {
-            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.addContactPoints(frameNames);
         }
 
-        static result_t removeContactPoints(Model          & self,
-                                            bp::list const & frameNamesPy)
+        static hresult_t removeContactPoints(Robot          & self,
+                                             bp::list const & frameNamesPy)
         {
-            std::vector<std::string> frameNames = listPyToStdVector<std::string>(frameNamesPy);
+            auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.removeContactPoints(frameNames);
         }
 
@@ -869,12 +784,111 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Model & self)
+        static bool_t isFlexibleModelEnable(Robot & self)
         {
-            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
+            return self.mdlOptions_->dynamics.enableFlexibleModel;
         }
 
-        static AbstractMotorBase const * getMotor(Model             & self,
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<Model,
+                       boost::shared_ptr<Model>,
+                       boost::noncopyable>("Model", bp::no_init)
+                .def(PyModelVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<Model> >();
+        }
+    };
+
+    struct PyRobotVisitor
+        : public bp::def_visitor<PyRobotVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("initialize", &Robot::initialize,
+                                   (bp::arg("self"), "urdf_path",
+                                    bp::arg("has_freeflyer") = false))
+
+                .def("attach_motor", &Robot::attachMotor,
+                                     (bp::arg("self"), "motor"))
+                .def("get_motor", &PyRobotVisitor::getMotor,
+                                  (bp::arg("self"), "motor_name"),
+                                   bp::return_value_policy<bp::reference_existing_object>())
+                .def("detach_motor", &Robot::detachMotor,
+                                     (bp::arg("self"), "joint_name"))
+                .def("detach_motors", &PyRobotVisitor::detachMotors,
+                                      (bp::arg("self"),
+                                       bp::arg("joints_names") = std::vector<std::string>()))
+                .def("attach_sensor", &Robot::attachSensor,
+                                      (bp::arg("self"), "sensor"))
+                .def("detach_sensor", &Robot::detachSensor,
+                                      (bp::arg("self"), "sensor_type", "sensor_name"))
+                .def("detach_sensors", &Robot::detachSensors,
+                                       (bp::arg("self"),
+                                        bp::arg("sensor_type") = std::string()))
+                .def("get_sensor", &PyRobotVisitor::getSensor,
+                                   (bp::arg("self"), "sensor_type", "sensor_name"),
+                                    bp::return_value_policy<bp::reference_existing_object>())
+
+                .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
+                .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+
+                .def("set_options", &PyRobotVisitor::setOptions,
+                                    (bp::arg("self"), "robot_options"))
+                .def("get_options", &Robot::getOptions)
+                .def("set_model_options", &PyRobotVisitor::setModelOptions,
+                                          (bp::arg("self"), "model_options"))
+                .def("get_model_options", &Robot::getModelOptions)
+                .def("set_motors_options", &PyRobotVisitor::setMotorsOptions,
+                                           (bp::arg("self"), "motors_options"))
+                .def("get_motors_options", &Robot::getMotorsOptions)
+                .def("set_sensors_options", &PyRobotVisitor::setSensorsOptions,
+                                            (bp::arg("self"), "sensors_options"))
+                .def("get_sensors_options",
+                    static_cast<configHolder_t (Robot::*)(void) const>(&Robot::getSensorsOptions))
+                .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
+                                              (bp::arg("self"), "telemetry_options"))
+                .def("get_telemetry_options", &Robot::getTelemetryOptions)
+
+                .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
+                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
+                .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
+                .add_property("sensors_names", bp::make_function(
+                    static_cast<
+                        std::unordered_map<std::string, std::vector<std::string> > const & (Robot::*)(void) const
+                    >(&Robot::getSensorsNames),
+                    bp::return_value_policy<bp::copy_const_reference>()))
+
+                .add_property("torque_limit", &Robot::getTorqueLimit)
+                .add_property("motor_inertia", &Robot::getMotorInertia)
+
+                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldNames,
+                                                              bp::return_value_policy<bp::copy_const_reference>()))
+                ;
+        }
+
+        static hresult_t detachMotors(Robot          & self,
+                                      bp::list const & jointNamesPy)
+        {
+            auto jointNames = convertFromPython<std::vector<std::string> >(jointNamesPy);
+            return self.detachMotors(jointNames);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief      Getters and Setters
+        ///////////////////////////////////////////////////////////////////////////////
+
+        static AbstractMotorBase const * getMotor(Robot             & self,
                                                   std::string const & motorName)
         {
             /* Be careful, boost python remove the const qualifier, so that the
@@ -884,7 +898,7 @@ namespace python
             return motor.get();
         }
 
-        static AbstractSensorBase const * getSensor(Model             & self,
+        static AbstractSensorBase const * getSensor(Robot             & self,
                                                     std::string const & sensorType,
                                                     std::string const & sensorName)
         {
@@ -895,96 +909,61 @@ namespace python
             return sensor.get();
         }
 
-        static bp::dict getSensorsNames(Model & self)
+        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
+        {
+            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
+        }
+
+        static bp::dict getSensorsNames(Robot & self)
         {
             bp::dict sensorsNamesPy;
-            auto sensorsNames = self.getSensorsNames();
+            auto const & sensorsNames = self.getSensorsNames();
             for (auto const & sensorTypeNames : sensorsNames)
             {
-                bp::object dataPy;
-                convertToPy(sensorTypeNames.second, dataPy);
-                sensorsNamesPy[sensorTypeNames.first] = dataPy;
+                sensorsNamesPy[sensorTypeNames.first] =
+                    convertToPython(sensorTypeNames.second);
             }
             return sensorsNamesPy;
         }
 
-        static bool_t isFlexibleModelEnable(Model & self)
+        static void setOptions(Robot          & self,
+                               bp::dict const & configPy)
         {
-            return self.mdlOptions_->dynamics.enableFlexibleModel;
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            self.setOptions(config);
         }
 
-        static std::vector<std::string> getFlexibleOnlyJointsNames(Model & self)
-        {
-            flexibilityConfig_t const & flexibilityConfig = self.mdlOptions_->dynamics.flexibilityConfig;
-            std::vector<std::string> flexibleJointNames;
-            for (flexibleJointData_t const & flexibleJoint : flexibilityConfig)
-            {
-                flexibleJointNames.emplace_back(flexibleJoint.jointName);
-            }
-            return flexibleJointNames;
-        }
-
-        static bp::dict getModelOptions(Model & self)
-        {
-            bp::dict configModelPy;
-            convertToPy(self.getOptions(), configModelPy);
-
-            bp::dict configTelemetryPy;
-            configHolder_t configTelemetry;
-            self.getTelemetryOptions(configTelemetry);
-            convertToPy(configTelemetry, configTelemetryPy);
-            configModelPy["telemetry"] = configTelemetryPy;
-
-            return configModelPy;
-        }
-
-        static void setModelOptions(Model          & self,
+        static void setModelOptions(Robot          & self,
                                     bp::dict const & configPy)
         {
-            configHolder_t configModel = self.getOptions();
-            convertToC(configPy, configModel);
-            self.setOptions(configModel);
-
-            configHolder_t configTelemetry;
-            self.getTelemetryOptions(configTelemetry);
-            convertToC(bp::extract<bp::dict>(configPy["telemetry"]), configTelemetry);
-            self.setTelemetryOptions(configTelemetry);
+            configHolder_t config = self.getModelOptions();
+            convertFromPython(configPy, config);
+            self.setModelOptions(config);
         }
 
-        static void setMotorsOptions(Model          & self,
+        static void setMotorsOptions(Robot          & self,
                                      bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getMotorsOptions(config);
-            convertToC(configPy, config);
+            configHolder_t config = self.getMotorsOptions();
+            convertFromPython(configPy, config);
             self.setMotorsOptions(config);
         }
 
-        static bp::dict getMotorsOptions(Model & self)
-        {
-            configHolder_t config;
-            bp::dict configPy;
-            self.getMotorsOptions(config);
-            convertToPy(config, configPy);
-            return configPy;
-        }
-
-        static void setSensorsOptions(Model          & self,
+        static void setSensorsOptions(Robot          & self,
                                       bp::dict const & configPy)
         {
-            configHolder_t config;
-            self.getSensorsOptions(config);
-            convertToC(configPy, config);
+            configHolder_t config = self.getSensorsOptions();
+            convertFromPython(configPy, config);
             self.setSensorsOptions(config);
         }
 
-        static bp::dict getSensorsOptions(Model & self)
+        static void setTelemetryOptions(Robot          & self,
+                                        bp::dict const & configPy)
         {
-            configHolder_t config;
-            bp::dict configPy;
-            self.getSensorsOptions(config);
-            convertToPy(config, configPy);
-            return configPy;
+            configHolder_t config = self.getTelemetryOptions();
+            convertFromPython(configPy, config);
+            self.setTelemetryOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -992,11 +971,11 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<Model,
-                       boost::shared_ptr<Model>,
-                       boost::noncopyable>("Model")
-                .def(PyModelVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Model> >();
+            bp::class_<Robot, bp::bases<Model>,
+                       boost::shared_ptr<Robot>,
+                       boost::noncopyable>("Robot")
+                .def(PyRobotVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<Robot> >();
         }
     };
 
@@ -1014,7 +993,7 @@ namespace python
         {
             cl
                 .def("initialize", &AbstractController::initialize,
-                                   (bp::arg("self"), "model"))
+                                   (bp::arg("self"), "robot"))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -1023,20 +1002,19 @@ namespace python
                 .def("register_constant", &PyAbstractControllerVisitor::registerConstant,
                                           (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
-                .def("get_options", &PyAbstractControllerVisitor::getOptions,
-                                    bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
+                .def("get_options", &AbstractController::getOptions,
+                                    bp::return_value_policy<bp::return_by_value>())
                 ;
         }
 
-        static result_t registerVariable(AbstractController       & self,
-                                         std::string        const & fieldName,
-                                         PyObject                 * dataPy)
+        static hresult_t registerVariable(AbstractController       & self,
+                                          std::string        const & fieldName,
+                                          PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
-            char const * p = Py_TYPE(dataPy)->tp_name;
-            if (p == std::string("numpy.ndarray"))
+            if (PyArray_Check(dataPy))
             {
                 float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
                 return self.registerVariable(fieldName, *data);
@@ -1044,19 +1022,19 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerVariable - 'value' input must have type 'numpy.ndarray'." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        static result_t registerVariableVector(AbstractController       & self,
-                                               bp::list           const & fieldNamesPy,
-                                               PyObject                 * dataPy)
+        static hresult_t registerVariableVector(AbstractController       & self,
+                                                bp::list           const & fieldNamesPy,
+                                                PyObject                 * dataPy)
         {
             // Note that const qualifier is not supported by PyArray_DATA
 
             if (PyArray_Check(dataPy))
             {
-                std::vector<std::string> fieldNames = listPyToStdVector<std::string>(fieldNamesPy);
+                auto fieldNames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
                 Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
                 return self.registerVariable(fieldNames, data);
@@ -1064,13 +1042,13 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - 'values' input must have type 'numpy.ndarray'." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        static result_t registerConstant(AbstractController       & self,
-                                         std::string        const & fieldName,
-                                         PyObject                 * dataPy)
+        static hresult_t registerConstant(AbstractController       & self,
+                                          std::string        const & fieldName,
+                                          PyObject                 * dataPy)
         {
             if (PyArray_Check(dataPy))
             {
@@ -1080,7 +1058,7 @@ namespace python
                 if (dataPyArrayDtype != NPY_FLOAT64)
                 {
                     std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The only dtype supported for 'numpy.ndarray' is float." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
                 float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
                 int dataPyArrayNdims = PyArray_NDIM(dataPyArray);
@@ -1102,7 +1080,7 @@ namespace python
                 else
                 {
                     std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The max number of dims supported for 'numpy.ndarray' is 2." << std::endl;
-                    return result_t::ERROR_BAD_INPUT;
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else if (PyFloat_Check(dataPy))
@@ -1131,22 +1109,15 @@ namespace python
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
-                return result_t::ERROR_BAD_INPUT;
+                return hresult_t::ERROR_BAD_INPUT;
             }
-        }
-
-        static bp::dict getOptions(AbstractController & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
         }
 
         static void setOptions(AbstractController       & self,
                                bp::dict           const & configPy)
         {
             configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
+            convertFromPython(configPy, config);
             self.setOptions(config);
         }
 
@@ -1179,7 +1150,7 @@ namespace python
         {
             cl
                 .def("initialize", &PyControllerFunctorVisitor::initialize,
-                                   (bp::arg("self"), "model"))
+                                   (bp::arg("self"), "robot"))
                 ;
         }
 
@@ -1193,11 +1164,11 @@ namespace python
         }
 
         static void initialize(CtrlFunctor                  & self,
-                               std::shared_ptr<Model> const & model)
+                               std::shared_ptr<Robot> const & robot)
         {
             // Cannot pass const shared_ptr from Python to C++ directly...
 
-            self.initialize(model);
+            self.initialize(robot);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1310,9 +1281,9 @@ namespace python
         {
             cl
                 .def("initialize", &PyEngineVisitor::initialize,
-                                   (bp::arg("self"), "model", "controller"))
+                                   (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
-                                   (bp::arg("self"), "model", "controller", "callback_handle"))
+                                   (bp::arg("self"), "robot", "controller", "callback_handle"))
 
                 .def("reset", static_cast<void (Engine::*)(bool_t const &)>(&Engine::reset),
                               (bp::arg("self"),
@@ -1343,42 +1314,42 @@ namespace python
                                                (bp::arg("self"), "frame_name", "force_handle"))
                 .def("remove_forces", &PyEngineVisitor::removeForces)
 
-                .def("get_options", &PyEngineVisitor::getOptions,
+                .def("get_options", &Engine::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 .def("set_options", &PyEngineVisitor::setOptions)
 
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("model", bp::make_function(&Engine::getModel,
+                .add_property("robot", bp::make_function(&Engine::getRobot,
                                        bp::return_internal_reference<>()))
                 .add_property("controller", bp::make_function(&Engine::getController,
                                             bp::return_internal_reference<>()))
                 ;
         }
 
-        static result_t initialize(Engine                                    & self,
-                                   std::shared_ptr<Model>              const & model,
-                                   std::shared_ptr<AbstractController> const & controller)
+        static hresult_t initialize(Engine                                    & self,
+                                    std::shared_ptr<Robot>              const & robot,
+                                    std::shared_ptr<AbstractController> const & controller)
         {
             Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
                                                        vectorN_t const & x) -> bool_t
                                                     {
                                                         return true;
                                                     };
-            return self.initialize(model, controller, std::move(callbackFct));
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
-        static result_t initializeWithCallback(Engine                                    & self,
-                                               std::shared_ptr<Model>              const & model,
-                                               std::shared_ptr<AbstractController> const & controller,
-                                               bp::object                          const & callbackPy)
+        static hresult_t initializeWithCallback(Engine                                    & self,
+                                                std::shared_ptr<Robot>              const & robot,
+                                                std::shared_ptr<AbstractController> const & controller,
+                                                bp::object                          const & callbackPy)
         {
             TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.initialize(model, controller, std::move(callbackFct));
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
-        static result_t step(Engine          & self,
-                             float64_t const & dtDesired)
+        static hresult_t step(Engine          & self,
+                              float64_t const & dtDesired)
         {
             // Only way to handle C++ default values that are not accessible in Python
             return self.step(dtDesired);
@@ -1505,8 +1476,8 @@ namespace python
             std::vector<float64_t> timestamps;
             std::vector<std::vector<int32_t> > intData;
             std::vector<std::vector<float32_t> > floatData;
-            result_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
-            if (returnCode == result_t::SUCCESS)
+            hresult_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
+            if (returnCode == hresult_t::SUCCESS)
             {
                 return formatLog(header, timestamps, intData, floatData);
             }
@@ -1516,18 +1487,11 @@ namespace python
             }
         }
 
-        static bp::dict getOptions(Engine & self)
-        {
-            bp::dict configPy;
-            convertToPy(self.getOptions(), configPy);
-            return configPy;
-        }
-
-        static result_t setOptions(Engine         & self,
-                                   bp::dict const & configPy)
+        static hresult_t setOptions(Engine         & self,
+                                    bp::dict const & configPy)
         {
             configHolder_t config = self.getOptions();
-            convertToC(configPy, config);
+            convertFromPython(configPy, config);
             return self.setOptions(config);
         }
 

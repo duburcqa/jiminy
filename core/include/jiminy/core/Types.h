@@ -1,9 +1,9 @@
 ///////////////////////////////////////////////////////////////////////////////
-/// \brief    Contains types used in the optimal module.
+/// \brief    Contains types used in Jiminy.
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef WDC_OPTIMAL_TYPES_H
-#define WDC_OPTIMAL_TYPES_H
+#ifndef JIMINY_TYPES_H
+#define JIMINY_TYPES_H
 
 #include <unordered_map>
 #include <vector>
@@ -13,6 +13,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/multi_index_container.hpp>
@@ -57,7 +58,7 @@ namespace jiminy
     // *************** Jiminy-specific definitions ***************
 
     // Error codes
-    enum class result_t : int32_t
+    enum class hresult_t : int32_t
     {
         SUCCESS = 1,
         ERROR_GENERIC = -1,
@@ -102,14 +103,14 @@ namespace jiminy
         };
     };
 
-    using flexibilityConfig_t =  std::vector<flexibleJointData_t>;
+    using flexibilityConfig_t = std::vector<flexibleJointData_t>;
 
     // Configuration/option holder
     using configField_t = boost::make_recursive_variant<
-        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t,
-        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>,
-        flexibilityConfig_t, heatMapFunctor_t,
-        std::unordered_map<std::string, boost::recursive_variant_> >::type;
+        bool_t, uint32_t, int32_t, float64_t, std::string, vectorN_t, matrixN_t, heatMapFunctor_t,
+        std::vector<std::string>, std::vector<vectorN_t>, std::vector<matrixN_t>, flexibilityConfig_t,
+        std::unordered_map<std::string, boost::recursive_variant_>
+    >::type;
 
     using configHolder_t = std::unordered_map<std::string, configField_t>;
 
@@ -165,4 +166,4 @@ namespace jiminy
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 }
 
-#endif  // WDC_OPTIMAL_TYPES_H
+#endif  // JIMINY_TYPES_H

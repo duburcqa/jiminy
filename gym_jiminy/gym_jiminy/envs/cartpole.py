@@ -92,7 +92,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
-        self._model = jiminy.Model()
+        self._model = jiminy.Robot()
         self._model.initialize(urdf_path)
 
         motor_joint_names = ("slider_to_cart",)
@@ -110,12 +110,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ############################### Configure Jiminy #####################################
 
-        model_options = self._model.get_model_options()
-        sensors_options = self._model.get_sensors_options()
+        robot_options = self._model.get_options()
         engine_options = engine_py.get_engine_options()
         ctrl_options = engine_py.get_controller_options()
 
-        model_options["telemetry"]["enableEncoderSensors"] = False
+        robot_options["telemetry"]["enableEncoderSensors"] = False
         engine_options["telemetry"]["enableConfiguration"] = False
         engine_options["telemetry"]["enableVelocity"] = False
         engine_options["telemetry"]["enableAcceleration"] = False
@@ -124,8 +123,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
 
-        self._model.set_model_options(model_options)
-        self._model.set_sensors_options(sensors_options)
+        self._model.set_options(robot_options)
         engine_py.set_engine_options(engine_options)
         engine_py.set_controller_options(ctrl_options)
 
@@ -202,14 +200,14 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def _get_obs(self):
         """
-        @brief      Get the current observation based on the current state of the model.
+        @brief      Get the current observation based on the current state of the robot.
                     Mostly defined for compatibility with Gym OpenAI.
 
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called
                     manually.
 
-        @return     The current state of the model
+        @return     The current state of the robot
         """
         return self.state
 

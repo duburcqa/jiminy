@@ -8,7 +8,10 @@
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
+#include "json/json.h"
+
 #include "jiminy/core/Types.h"
+
 
 namespace jiminy
 {
@@ -67,9 +70,54 @@ namespace jiminy
         float64_t dt;
     };
 
-    // ************ IO file and Directory utilities *****************
+    // ************* IO file and Directory utilities ****************
+
+    class AbstractIODevice; // Forward declaration
 
     std::string getUserDirectory(void);
+
+    // **************** Generic template utilities ******************
+
+    template< bool B, class T = void >
+    using enable_if_t = typename std::enable_if<B,T>::type;
+
+    template<typename T>
+    struct is_vector
+    {
+        static const bool value = false;
+    };
+
+    template<class T>
+    struct is_vector<std::vector<T> >
+    {
+        static const bool value = true;
+    };
+
+    // *************** Convertion to JSON utilities *****************
+
+    template<typename T>
+    enable_if_t<!is_vector<T>::value, Json::Value>
+    convertToJson(T const & value);
+
+    template<typename T>
+    enable_if_t<is_vector<T>::value, Json::Value>
+    convertToJson(T const & value);
+
+    hresult_t jsonDump(configHolder_t                    const & config,
+                       std::shared_ptr<AbstractIODevice>       & device);
+
+    // ************* Convertion from JSON utilities *****************
+
+    template<typename T>
+    enable_if_t<!is_vector<T>::value, T>
+    convertFromJson(Json::Value const & value);
+
+    template<typename T>
+    enable_if_t<is_vector<T>::value, T>
+    convertFromJson(Json::Value const & value);
+
+    hresult_t jsonLoad(configHolder_t                    & config,
+                       std::shared_ptr<AbstractIODevice> & device);
 
     // ************ Random number generator utilities ***************
 
@@ -124,63 +172,63 @@ namespace jiminy
         FREE = 5,
     };
 
-    result_t getJointNameFromPositionId(pinocchio::Model const & model,
-                                        int32_t          const & idIn,
-                                        std::string            & jointNameOut);
+    hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
+                                         int32_t          const & idIn,
+                                         std::string            & jointNameOut);
 
-    result_t getJointNameFromVelocityId(pinocchio::Model const & model,
-                                        int32_t          const & idIn,
-                                        std::string            & jointNameOut);
+    hresult_t getJointNameFromVelocityId(pinocchio::Model const & model,
+                                         int32_t          const & idIn,
+                                         std::string            & jointNameOut);
 
-    result_t getJointTypeFromId(pinocchio::Model const & model,
-                                int32_t          const & idIn,
-                                joint_t                & jointTypeOut);
+    hresult_t getJointTypeFromId(pinocchio::Model const & model,
+                                 int32_t          const & idIn,
+                                 joint_t                & jointTypeOut);
 
-    result_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
-                                          std::vector<std::string>       & jointTypeSuffixesOut);
+    hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
+                                           std::vector<std::string>       & jointTypeSuffixesOut);
 
-    result_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
-                                          std::vector<std::string>       & jointTypeSuffixesOut);
+    hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
+                                           std::vector<std::string>       & jointTypeSuffixesOut);
 
-    result_t getFrameIdx(pinocchio::Model const & model,
-                         std::string      const & frameName,
-                         int32_t                & frameIdx);
-    result_t getFramesIdx(pinocchio::Model         const & model,
-                          std::vector<std::string> const & framesNames,
-                          std::vector<int32_t>           & framesIdx);
+    hresult_t getFrameIdx(pinocchio::Model const & model,
+                          std::string      const & frameName,
+                          int32_t                & frameIdx);
+    hresult_t getFramesIdx(pinocchio::Model         const & model,
+                           std::vector<std::string> const & framesNames,
+                           std::vector<int32_t>           & framesIdx);
 
-    result_t getJointModelIdx(pinocchio::Model const & model,
-                              std::string      const & jointName,
-                              int32_t                & jointModelIdx);
-    result_t getJointsModelIdx(pinocchio::Model         const & model,
-                               std::vector<std::string> const & jointsNames,
-                               std::vector<int32_t>           & jointsModelIdx);
+    hresult_t getJointModelIdx(pinocchio::Model const & model,
+                               std::string      const & jointName,
+                               int32_t                & jointModelIdx);
+    hresult_t getJointsModelIdx(pinocchio::Model         const & model,
+                                std::vector<std::string> const & jointsNames,
+                                std::vector<int32_t>           & jointsModelIdx);
 
-    result_t getJointPositionIdx(pinocchio::Model     const & model,
-                                 std::string          const & jointName,
-                                 std::vector<int32_t>       & jointPositionIdx);
-    result_t getJointPositionIdx(pinocchio::Model const & model,
-                                 std::string      const & jointName,
-                                 int32_t                & jointPositionFirstIdx);
-    result_t getJointsPositionIdx(pinocchio::Model         const & model,
-                                  std::vector<std::string> const & jointsNames,
-                                  std::vector<int32_t>           & jointsPositionIdx,
-                                  bool_t                   const & firstJointIdxOnly = false);
+    hresult_t getJointPositionIdx(pinocchio::Model     const & model,
+                                  std::string          const & jointName,
+                                  std::vector<int32_t>       & jointPositionIdx);
+    hresult_t getJointPositionIdx(pinocchio::Model const & model,
+                                  std::string      const & jointName,
+                                  int32_t                & jointPositionFirstIdx);
+    hresult_t getJointsPositionIdx(pinocchio::Model         const & model,
+                                   std::vector<std::string> const & jointsNames,
+                                   std::vector<int32_t>           & jointsPositionIdx,
+                                   bool_t                   const & firstJointIdxOnly = false);
 
-    result_t getJointVelocityIdx(pinocchio::Model     const & model,
-                                 std::string          const & jointName,
-                                 std::vector<int32_t>       & jointVelocityIdx);
-    result_t getJointVelocityIdx(pinocchio::Model const & model,
-                                 std::string      const & jointName,
-                                 int32_t                & jointVelocityFirstIdx);
-    result_t getJointsVelocityIdx(pinocchio::Model         const & model,
-                                  std::vector<std::string> const & jointsNames,
-                                  std::vector<int32_t>           & jointsVelocityIdx,
-                                  bool_t                   const & firstJointIdxOnly = false);
+    hresult_t getJointVelocityIdx(pinocchio::Model     const & model,
+                                  std::string          const & jointName,
+                                  std::vector<int32_t>       & jointVelocityIdx);
+    hresult_t getJointVelocityIdx(pinocchio::Model const & model,
+                                  std::string      const & jointName,
+                                  int32_t                & jointVelocityFirstIdx);
+    hresult_t getJointsVelocityIdx(pinocchio::Model         const & model,
+                                   std::vector<std::string> const & jointsNames,
+                                   std::vector<int32_t>           & jointsVelocityIdx,
+                                   bool_t                   const & firstJointIdxOnly = false);
 
-    result_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
-                                      std::string      const & childJointNameIn,
-                                      std::string      const & newJointNameIn);
+    hresult_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
+                                       std::string      const & childJointNameIn,
+                                       std::string      const & newJointNameIn);
 
     // ********************** Math utilities *************************
 

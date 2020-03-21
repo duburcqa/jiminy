@@ -39,26 +39,25 @@ jobs:
         make install
 
     - name: Archive install artifacts
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
         name: install-artifacts-linux
         path: install
     # - name: Create Release
-    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.base_ref == 'refs/heads/master'
     #   uses: actions/create-release@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
     #   with:
-    #     tag_name: ${{ github.event.pull_request.head.ref }}
-    #     release_name: Release ${{ github.event.pull_request.head.ref }}
+    #     tag_name: ${{ github.head_ref }}
+    #     release_name: Release ${{ github.head_ref }}
     #     draft: false
     #     prerelease: false
     # - name: Archive install artifacts
     #   run: |
     #     zip -r install-linux ./install
     # - name: Upload Release Asset
-    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.ref == 'refs/heads/master'
+    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.base_ref == 'refs/heads/master'
     #   uses: actions/upload-release-asset@v1
     #   env:
     #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}

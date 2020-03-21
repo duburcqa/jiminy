@@ -27,7 +27,7 @@ class RobotJiminyEnv(core.Env):
                 like any other Gym environment.
 
     @details    The Python Jiminy engine must be completely initialized beforehand,
-                which means that the Jiminy Model and Controller are already setup.
+                which means that the Jiminy Robot and Controller are already setup.
                 For now, the only engine available is `EngineAsynchronous`.
     """
 
@@ -58,11 +58,11 @@ class RobotJiminyEnv(core.Env):
         ## Update period of the simulation
         self.dt = dt
 
-        ## Extract some information from the model
-        motors_position_idx = self.engine_py._engine.model.motors_position_idx
-        joint_position_limit_upper = self.engine_py._engine.model.position_limit_upper
-        joint_position_limit_lower = self.engine_py._engine.model.position_limit_lower
-        joint_velocity_limit = self.engine_py._engine.model.velocity_limit
+        ## Extract some information from the robot
+        motors_position_idx = self.engine_py._engine.robot.motors_position_idx
+        joint_position_limit_upper = self.engine_py._engine.robot.position_limit_upper
+        joint_position_limit_lower = self.engine_py._engine.robot.position_limit_lower
+        joint_velocity_limit = self.engine_py._engine.robot.velocity_limit
 
         ## Action space
         action_high = joint_position_limit_upper[motors_position_idx]
@@ -175,7 +175,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
                 like any other Gym goal-environment.
 
     @details    The Jiminy Engine must be completely initialized beforehand, which
-                means that the Jiminy Model and Controller are already setup.
+                means that the Jiminy Robot and Controller are already setup.
     """
     def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
         """

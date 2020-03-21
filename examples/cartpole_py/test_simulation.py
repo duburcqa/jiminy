@@ -12,25 +12,24 @@ urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf
 motor_joint_names = ("slider_to_cart",)
 encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
 
-model = jiminy.Model()
-model.initialize(urdf_path, False)
+robot = jiminy.Robot()
+robot.initialize(urdf_path, False)
 for joint_name in motor_joint_names:
     motor = jiminy.SimpleMotor(joint_name)
-    model.attach_motor(motor)
+    robot.attach_motor(motor)
     motor.initialize(joint_name)
 for sensor_name, joint_name in encoder_sensors_def.items():
     encoder = jiminy.EncoderSensor(sensor_name)
-    model.attach_sensor(encoder)
+    robot.attach_sensor(encoder)
     encoder.initialize(joint_name)
 
-engine_py = EngineAsynchronous(model)
+engine_py = EngineAsynchronous(robot)
 
-model_options = model.get_model_options()
-sensors_options = model.get_sensors_options()
+robot_options = robot.get_options()
 engine_options = engine_py.get_engine_options()
 ctrl_options = engine_py.get_controller_options()
 
-model_options["telemetry"]["enableImuSensors"] = False
+robot_options["telemetry"]["enableImuSensors"] = False
 engine_options["telemetry"]["enableConfiguration"] = False
 engine_options["telemetry"]["enableVelocity"] = False
 engine_options["telemetry"]["enableAcceleration"] = False
@@ -42,14 +41,13 @@ engine_options["stepper"]["iterMax"] = -1
 engine_options["stepper"]["sensorsUpdatePeriod"] = 1e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
 
-model.set_model_options(model_options)
-model.set_sensors_options(sensors_options)
+robot.set_options(robot_options)
 engine_py.set_engine_options(engine_options)
 engine_py.set_controller_options(ctrl_options)
 
 time_start = time.time()
 engine_py.seed(0)
-engine_py.reset(np.zeros(model.nx))
+engine_py.reset(np.zeros(robot.nx))
 for i in range(10000):
     engine_py.step(np.array([0.001]))
     engine_py.render()
