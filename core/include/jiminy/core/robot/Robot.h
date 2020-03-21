@@ -90,6 +90,9 @@ namespace jiminy
         hresult_t setTelemetryOptions(configHolder_t const & telemetryOptions);
         configHolder_t getTelemetryOptions(void) const;
 
+        hresult_t dumpOptions(std::string const & filepath) const;
+        hresult_t loadOptions(std::string const & filepath);
+
         // Those methods are not intended to be called manually. The Engine is taking care of it.
         virtual void reset(void) override;
         virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);

@@ -1070,6 +1070,30 @@ namespace jiminy
         return telemetryOptions;
     }
 
+    hresult_t Robot::dumpOptions(std::string const & filepath) const
+    {
+        std::shared_ptr<AbstractIODevice> device =
+            std::make_shared<FileDevice>(filepath);
+        return jsonDump(getOptions(), device);
+    }
+
+    hresult_t Robot::loadOptions(std::string const & filepath)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        std::shared_ptr<AbstractIODevice> device =
+            std::make_shared<FileDevice>(filepath);
+        configHolder_t robotOptions;
+        returnCode = jsonLoad(robotOptions, device);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = setOptions(robotOptions);
+        }
+
+        return returnCode;
+    }
+
     bool_t const & Robot::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;

@@ -111,6 +111,33 @@ int main(int argc, char_t * argv[])
 
     timer.toc();
 
+    // Dump and load the configuration options
+
+    matrixN_t m1 = matrixN_t::Random(3,3);
+    std::vector<vectorN_t> m2{vectorN_t::Zero(0)};
+    std::vector<matrixN_t> m3{matrixN_t::Zero(0,0)};
+    boost::get<configHolder_t>(simuOptions.at("contacts"))["tmp1"] = m1;
+    boost::get<configHolder_t>(simuOptions.at("contacts"))["tmp2"] = m2;
+    boost::get<configHolder_t>(simuOptions.at("contacts"))["tmp3"] = m3;
+
+    std::shared_ptr<AbstractIODevice> simuOptionsFile =
+        std::make_shared<FileDevice>(outputDirPath + std::string("simuOptions.json"));
+    jsonDump(simuOptions, simuOptionsFile);
+    configHolder_t simuOptionsLoaded;
+    jsonLoad(simuOptionsLoaded, simuOptionsFile);
+    std::shared_ptr<AbstractIODevice> simuOptionsFileLoaded =
+        std::make_shared<FileDevice>(outputDirPath + std::string("simuOptionsLoaded.json"));
+    jsonDump(simuOptionsLoaded, simuOptionsFileLoaded);
+
+    std::shared_ptr<AbstractIODevice> mdlOptionsFile =
+        std::make_shared<FileDevice>(outputDirPath + std::string("modelOptions.json"));
+    jsonDump(modelOptions, mdlOptionsFile);
+    configHolder_t mdlOptionsLoaded;
+    jsonLoad(mdlOptionsLoaded, mdlOptionsFile);
+    std::shared_ptr<AbstractIODevice> mdlOptionsFileLoaded =
+        std::make_shared<FileDevice>(outputDirPath + std::string("mdlOptionsLoaded.json"));
+    jsonDump(mdlOptionsLoaded, mdlOptionsFileLoaded);
+
     // =====================================================================
     // ======================= Run the simulation ==========================
     // =====================================================================
