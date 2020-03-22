@@ -5,9 +5,6 @@
 #include <string>
 #include <functional>
 
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
