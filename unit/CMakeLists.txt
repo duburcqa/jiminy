@@ -30,6 +30,7 @@ add_dependencies(${PROJECT_NAME} gtest_external)
 EXTERNALPROJECT_GET_PROPERTY(gtest_external SOURCE_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
      ${SOURCE_DIR}/googletest/include
+     ${SOURCE_DIR}/googlemock/include
 )
 target_link_libraries(${PROJECT_NAME} gtest gtest_main gmock pthread)
 include(CTest)
