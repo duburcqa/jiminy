@@ -5,14 +5,17 @@
 #ifndef JIMINY_TYPES_H
 #define JIMINY_TYPES_H
 
-#include <unordered_map>
+#include <string>
 #include <vector>
+#include <unordered_map>
 
+#include "pinocchio/fwd.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/spatial/force.hpp"
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>

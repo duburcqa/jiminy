@@ -13,9 +13,6 @@
 #include <stdio.h>
 #endif
 
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/io/MemoryDevice.h"

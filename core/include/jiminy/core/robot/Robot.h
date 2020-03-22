@@ -1,15 +1,6 @@
 #ifndef JIMINY_ROBOT_H
 #define JIMINY_ROBOT_H
 
-#include <string>
-#include <vector>
-
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/frames.hpp"
-
 #include "jiminy/core/robot/Model.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"

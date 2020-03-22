@@ -1,12 +1,6 @@
 #ifndef JIMINY_MODEL_H
 #define JIMINY_MODEL_H
 
-#include <string>
-#include <vector>
-
-#include <Eigen/Dense>
-#include <Eigen/Geometry>
-
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
