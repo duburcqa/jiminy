@@ -43,6 +43,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
      -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
      ${EXTERNALPROJECT_BUILD_TYPE_CMD}
+     -Dgtest_force_shared_crt=ON # This option is required on Github Windows CI for some reasons...
 
      INSTALL_COMMAND "" # Disable install of googletest on the system
 

@@ -64,7 +64,7 @@ namespace jiminy
 
     hresult_t MemoryDevice::seek(int64_t pos)
     {
-        if ((pos < 0) || (pos >= (int64_t) buffer_.size()))
+        if ((pos < 0) || (pos > (int64_t) buffer_.size()))
         {
             lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - MemoryDevice::seek - The requested position '" << pos << "' is out of scope." << std::endl;

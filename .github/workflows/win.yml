@@ -127,6 +127,11 @@ jobs:
         path: .\install
     - name: Running unit tests
       run: |
+        $ErrorActionPreference = "Stop"
+        Set-PSDebug -Trace 1
+
+        $RootDir = $Env:GITHUB_WORKSPACE
+
         Set-Location -Path $RootDir\jiminy\build\unit
         ./unit.exe
         Set-Location -Path $RootDir\jiminy\unit_py
