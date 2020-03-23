@@ -5,20 +5,30 @@
 # and compiling 3.2.10 from source does not generate the cmake configuration
 # fles required by `find_package`.
 
+export DEBIAN_FRONTEND=noninteractive && \
+
+\ # Install Python 3.6 tools
 apt update && \
-apt install -y python3-numpy python3-setuptools python3-tk && \
+apt install -y python3-setuptools python3-pip python3-numpy python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3.6 1 && \
+update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
 pip install wheel twine && \
 
-sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
-curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
-apt update && \
-apt install -y doxygen graphviz libboost-all-dev && \ # libeigen3-dev
-apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
-                    robotpkg-py36-eigenpy robotpkg-py36-pinocchio
+\ # Install standard linux utilities and boost tools suite
+apt install -y curl wget doxygen graphviz libboost-all-dev && \ # libeigen3-dev
 
+\ # Install Eigen
 wget https://github.com/eigenteam/eigen-git-mirror/archive/3.2.10.tar.gz && \
 tar xvzf 3.2.10.tar.gz --one-top-level=eigen-3.2.10 --strip-components 1 && \
 mkdir /usr/include/eigen3/ && \
 cp -r eigen-3.2.10/Eigen /usr/include/eigen3/ && \
-cp -r eigen-3.2.10/unsupported /usr/include/eigen3/
+cp -r eigen-3.2.10/unsupported /usr/include/eigen3/ && \
+
+\ # Install robotpkg tools suite
+sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
+curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
+apt update && \
+apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
+               robotpkg-py36-eigenpy robotpkg-py36-pinocchio && \
+mkdir -p $HOME/.local/lib/python3.6/site-packages && \
+echo "/opt/openrobots/lib/python3.6/site-packages/" > $HOME/.local/lib/python3.6/site-packages/openrobots.pth
