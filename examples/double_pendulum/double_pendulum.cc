@@ -3,9 +3,7 @@
 // This simulation checks the overall simulator sanity (i.e. conservation of energy) and genericity (working
 // with something that is not an exoskeleton).
 
-#include <sys/types.h>
 #include <iostream>
-#include <string>
 
 #include "jiminy/core/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"

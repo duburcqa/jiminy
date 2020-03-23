@@ -2,16 +2,6 @@
 // The tests in this file verify that the behavior of a simulated system matches
 // real-world physics.
 // The test system is a double inverted pendulum.
-#include <pinocchio/fwd.hpp>
-#include <sys/types.h>
-#include <pwd.h>
-#include <iostream>
-#include <iomanip>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <string>
 #include <gtest/gtest.h>
 
 #include "jiminy/core/Engine.h"

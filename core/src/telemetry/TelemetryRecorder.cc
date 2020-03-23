@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <fstream>
 
+#include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 
@@ -156,26 +157,21 @@ namespace jiminy
 
     hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
-        std::ofstream myFile = std::ofstream(filename,
-                                             std::ios::out |
-                                             std::ios::binary |
-                                             std::ofstream::trunc);
-        if (myFile.is_open())
+        FileDevice myFile(filename);
+        myFile.open(OpenMode::WRITE_ONLY);
+        if (myFile.isOpen())
         {
             for (uint32_t i=0; i<flows_.size(); i++)
             {
-                int64_t pos_old = flows_[i].pos();
+                int64_t const pos_old = flows_[i].pos();
                 flows_[i].seek(0);
 
                 std::vector<uint8_t> bufferChunk;
                 bufferChunk.resize(pos_old);
-                flows_[i].readData(bufferChunk.data(), pos_old);
-                myFile.write(reinterpret_cast<char_t *>(bufferChunk.data()), pos_old);
+                flows_[i].read(bufferChunk);
+                myFile.write(bufferChunk);
 
-                if (i == flows_.size() - 1)
-                {
-                    flows_[i].seek(pos_old);
-                }
+                flows_[i].seek(pos_old);
             }
 
             myFile.close();
@@ -224,7 +220,7 @@ namespace jiminy
                     flows[i]->seek(header_version_length); // Skip the version flag
                     std::vector<char_t> headerCharBuffer;
                     headerCharBuffer.resize(headerSize - header_version_length);
-                    flows[i]->readData(headerCharBuffer.data(), headerSize - header_version_length);
+                    flows[i]->read(headerCharBuffer);
                     char_t const * pHeader = &headerCharBuffer[0];
                     uint32_t posHeader = 0;
                     std::string fieldHeader(pHeader);
@@ -258,9 +254,9 @@ namespace jiminy
                 while (flows[i]->bytesAvailable() > 0)
                 {
                     flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
+                    flows[i]->readData(&timestamp, sizeof(int32_t));
+                    flows[i]->readData(intDataLine.data(), integerSectionSize);
+                    flows[i]->readData(floatDataLine.data(), floatSectionSize);
 
                     if (!timestamps.empty() && timestamp == 0)
                     {
