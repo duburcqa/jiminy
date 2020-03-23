@@ -22,5 +22,10 @@ setup(name = 'jiminy_py',
       package_data = {'jiminy_py.core': ['libjiminy_pywrap.*']},
       include_package_data = True, # make sure the shared library is included
       distclass = BinaryDistribution,
-      install_requires = ['meshcat']
+      install_requires = [
+          'meshcat',
+          'scipy',
+          'matplotlib',
+          'tqdm'
+      ]
 )

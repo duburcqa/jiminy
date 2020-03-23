@@ -16,5 +16,5 @@ setup(name = 'gym_jiminy',
             'gym',
             'stable_baselines',
             'jiminy-py~=1.2'
-            ]
+      ]
 )

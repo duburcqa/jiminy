@@ -30,5 +30,6 @@ curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add -
 apt update && \
 apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
                robotpkg-py36-eigenpy robotpkg-py36-pinocchio && \
-mkdir -p $HOME/.local/lib/python3.6/site-packages && \
+sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
+sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \
 echo "/opt/openrobots/lib/python3.6/site-packages/" > $HOME/.local/lib/python3.6/site-packages/openrobots.pth
