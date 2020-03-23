@@ -4,9 +4,11 @@
 ///
 //////////////////////////////////////////////////////////////////////////////
 
+#include <math.h>
 #include <iomanip>
 #include <fstream>
 
+#include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 
@@ -109,9 +111,15 @@ namespace jiminy
             flows_.back().close();
         }
 
-        // Create a new one.
+        /* Create a new chunk.
+           The size of the first chunk is chosen to be large enough
+           to contain the whole header (with constants). Doing this
+           does not really affect the performances since it is written
+           only once, at init of the simulation. The optimized buffer
+           size is used for the log data. */
         uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxRecordedDataLines = ((MAX_BUFFER_SIZE - isHeaderThere * headerSize_) / recordedBytesDataLine_);
+        uint32_t maxBufferSize = std::max(MAX_BUFFER_SIZE, isHeaderThere * headerSize_);
+        uint32_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
         returnCode = flows_.back().open(OpenMode::READ_WRITE);
@@ -156,26 +164,21 @@ namespace jiminy
 
     hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
-        std::ofstream myFile = std::ofstream(filename,
-                                             std::ios::out |
-                                             std::ios::binary |
-                                             std::ofstream::trunc);
-        if (myFile.is_open())
+        FileDevice myFile(filename);
+        myFile.open(OpenMode::WRITE_ONLY);
+        if (myFile.isOpen())
         {
-            for (uint32_t i=0; i<flows_.size(); i++)
+            for (auto & flow : flows_)
             {
-                int64_t pos_old = flows_[i].pos();
-                flows_[i].seek(0);
+                int64_t const pos_old = flow.pos();
+                flow.seek(0);
 
                 std::vector<uint8_t> bufferChunk;
                 bufferChunk.resize(pos_old);
-                flows_[i].readData(bufferChunk.data(), pos_old);
-                myFile.write(reinterpret_cast<char_t *>(bufferChunk.data()), pos_old);
+                flow.read(bufferChunk);
+                myFile.write(bufferChunk);
 
-                if (i == flows_.size() - 1)
-                {
-                    flows_[i].seek(pos_old);
-                }
+                flow.seek(pos_old);
             }
 
             myFile.close();
@@ -211,20 +214,21 @@ namespace jiminy
             std::vector<float32_t> floatDataLine;
             floatDataLine.resize(floatSectionSize / sizeof(float32_t));
 
-            for (uint32_t i=0; i<flows.size(); i++)
+            bool_t isReadingHeaderDone = false;
+            for (auto & flow : flows)
             {
-                int64_t pos_old = flows[i]->pos();
-                flows[i]->seek(0);
+                // Save the cursor position and move it to the beginning
+                int64_t const pos_old = flow->pos();
+                flow->seek(0);
 
-                /* Dealing with version flag, constants, header, and descriptor.
-                It makes the reasonable assumption that it does not overlap on several chunks. */
-                if (i == 0)
+                // Dealing with version flag, constants, header, and descriptor.
+                if (!isReadingHeaderDone)
                 {
                     int64_t header_version_length = sizeof(int32_t);
-                    flows[i]->seek(header_version_length); // Skip the version flag
+                    flow->seek(header_version_length); // Skip the version flag
                     std::vector<char_t> headerCharBuffer;
                     headerCharBuffer.resize(headerSize - header_version_length);
-                    flows[i]->readData(headerCharBuffer.data(), headerSize - header_version_length);
+                    flow->read(headerCharBuffer);
                     char_t const * pHeader = &headerCharBuffer[0];
                     uint32_t posHeader = 0;
                     std::string fieldHeader(pHeader);
@@ -244,23 +248,24 @@ namespace jiminy
                             break;
                         }
                     }
+                    isReadingHeaderDone = true;
                 }
 
                 /* Dealing with data lines, starting with new line flag, time, integers, and ultimately floats. */
                 if (recordedBytesDataLine > 0)
                 {
-                    uint32_t numberLines = (flows[i]->size() - flows[i]->pos()) / recordedBytesDataLine;
+                    uint32_t numberLines = (flow->size() - flow->pos()) / recordedBytesDataLine;
                     timestamps.reserve(timestamps.size() + numberLines);
                     intData.reserve(intData.size() + numberLines);
                     floatData.reserve(floatData.size() + numberLines);
                 }
 
-                while (flows[i]->bytesAvailable() > 0)
+                while (flow->bytesAvailable() > 0)
                 {
-                    flows[i]->seek(flows[i]->pos() + START_LINE_TOKEN.size()); // Skip new line flag
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(&timestamp), sizeof(int32_t));
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(intDataLine.data()), integerSectionSize);
-                    flows[i]->readData(reinterpret_cast<uint8_t *>(floatDataLine.data()), floatSectionSize);
+                    flow->seek(flow->pos() + START_LINE_TOKEN.size()); // Skip new line flag
+                    flow->readData(&timestamp, sizeof(int32_t));
+                    flow->readData(intDataLine.data(), integerSectionSize);
+                    flow->readData(floatDataLine.data(), floatSectionSize);
 
                     if (!timestamps.empty() && timestamp == 0)
                     {
@@ -273,10 +278,8 @@ namespace jiminy
                     floatData.emplace_back(floatDataLine);
                 }
 
-                if (i == flows.size() - 1)
-                {
-                    flows[i]->seek(pos_old);
-                }
+                // Restore the cursor position
+                flow->seek(pos_old);
             }
         }
     }

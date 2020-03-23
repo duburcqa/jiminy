@@ -1,35 +1,37 @@
+# Setup script for Ubuntu 18
+
 # Eigen > 3.3.0 is not compatible with Boost < 1.71 because of odeint module
-# The latest version of Boost available using apt-get is 1.65,
-# and currently robotpkg-py36-eigenpy depends of this release.
+# The latest version of Boost available using apt-get is 1.65, and currently
+# robotpkg-py36-eigenpy depends of this release.
 # Conversely, the oldest version of Eigen3 available using apt-get is 3.3.4,
 # and compiling 3.2.10 from source does not generate the cmake configuration
-# fles required by `find_package`.
+# files required by `find_package`.
 
 export DEBIAN_FRONTEND=noninteractive && \
-
-\ # Install Python 3.6 tools
+\
+`# Install Python 3.6 tools` \
 apt update && \
-apt install -y python3-setuptools python3-pip python3-numpy python3-tk && \
+apt install -y sudo python3-setuptools python3-pip python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3.6 1 && \
 update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-pip install wheel twine && \
-
-\ # Install standard linux utilities and boost tools suite
-apt install -y curl wget doxygen graphviz libboost-all-dev && \ # libeigen3-dev
-
-\ # Install Eigen
+sudo -u $(id -nu $SUDO_UID) pip install wheel twine numpy && \
+\
+`# Install standard linux utilities and boost tools suite` \
+apt install -y gnupg curl wget doxygen graphviz libboost-all-dev && `# libeigen3-dev` \
+\
+`# Install Eigen` \
 wget https://github.com/eigenteam/eigen-git-mirror/archive/3.2.10.tar.gz && \
-tar xvzf 3.2.10.tar.gz --one-top-level=eigen-3.2.10 --strip-components 1 && \
+tar xzf 3.2.10.tar.gz --one-top-level=eigen-3.2.10 --strip-components 1 && \
 mkdir /usr/include/eigen3/ && \
 cp -r eigen-3.2.10/Eigen /usr/include/eigen3/ && \
 cp -r eigen-3.2.10/unsupported /usr/include/eigen3/ && \
-
-\ # Install robotpkg tools suite
+\
+`# Install robotpkg tools suite` \
 sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
 curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
 apt update && \
 apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
-               robotpkg-py36-eigenpy robotpkg-py36-pinocchio && \
+               robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy robotpkg-py36-pinocchio && \
 sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
 sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \
 echo "/opt/openrobots/lib/python3.6/site-packages/" > $HOME/.local/lib/python3.6/site-packages/openrobots.pth

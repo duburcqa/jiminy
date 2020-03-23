@@ -1,14 +1,12 @@
 name: Linux CI
 
 on:
-  # Trigger the workflow on push or pull request,
-  # but only for the master branch
+  # Trigger the workflow on push on the master branch,
+  # or for any pull request
   push:
     branches:
       - master
   pull_request:
-    branches:
-      - master
 
 jobs:
   build-test-and-deploy:
@@ -92,6 +90,8 @@ jobs:
       run: |
         cd build/unit
         ./unit
+        cd ../../unit_py
+        python -m unittest discover -v
 
   # pypi-deploy:
   #   needs: build

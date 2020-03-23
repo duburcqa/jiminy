@@ -14,7 +14,7 @@
 
 namespace jiminy
 {
-    uint32_t const MAX_BUFFER_SIZE = (256U * 1024U); // 256Ko
+    int64_t const MAX_BUFFER_SIZE = (256U * 1024U); // 256Ko
 
     class TelemetryData;
 

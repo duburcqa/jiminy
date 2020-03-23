@@ -1,0 +1,39 @@
+<!-- This URDF describes two punctual masses moving along a single axis: it is
+meant to simulate a linear system of spring and masses for simulation testing.
+This is best described by the following diagram:
+         k1   M1   k2   M2
+              __        __
+    //| <><> |__| <><> |__|
+-->
+<?xml version="1.0" ?>
+<robot name="linear_masses">
+    <link name="world"/>
+    <joint name="FirstJoint" type="prismatic">
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <parent link="world"/>
+      <child link="FirstMass"/>
+      <limit effort="1000" velocity="0" lower="-1000" upper="1000"/>
+    </joint>
+    <link name="FirstMass">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="1.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+    <joint name="SecondJoint" type="prismatic">
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <parent link="FirstMass"/>
+      <child link="SecondMass"/>
+      <limit effort="1000" velocity="0" lower="-1000" upper="1000"/>
+    </joint>
+    <link name="SecondMass">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="2.5"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+</robot>

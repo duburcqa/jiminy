@@ -1,6 +1,12 @@
 name: Windows CI
 
-on: [push, pull_request]
+on:
+  # Trigger the workflow on push on the master branch,
+  # or for any pull request
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   build-test-and-deploy:
@@ -110,7 +116,7 @@ jobs:
         $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
         $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
         cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                              -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF -DBUILD_PYTHON_INTERFACE=ON `
+                                              -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
                                               -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
         cmake --build . --target INSTALL --config "$BuildType" --parallel 2
     - name: Archive install artifacts
@@ -119,28 +125,14 @@ jobs:
       with:
         name: install-artifacts-win
         path: .\install
-    # - name: Create Release
-    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.base_ref == 'refs/heads/master'
-    #   uses: actions/create-release@v1
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
-    #   with:
-    #     tag_name: ${{ github.head_ref }}
-    #     release_name: Release ${{ github.head_ref }}
-    #     draft: false
-    #     prerelease: false
-    # - name: Archive install artifacts
-    #   shell: pwsh
-    #   run: |
-    #     Add-Type -A System.IO.Compression.FileSystem
-    #     [System.IO.Compression.ZipFile]::CreateFromDirectory(.\install, .\install-linux.zip)
-    # - name: Upload Release Asset
-    #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.base_ref == 'refs/heads/master'
-    #   uses: actions/upload-release-asset@v1
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
-    #   with:
-    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-    #     asset_path: .\install-linux.zip
-    #     asset_name: install-linux.zip
-    #     asset_content_type: application/zip
+    - name: Running unit tests
+      run: |
+        $ErrorActionPreference = "Stop"
+        Set-PSDebug -Trace 1
+
+        $RootDir = $Env:GITHUB_WORKSPACE
+
+        Set-Location -Path $RootDir\jiminy\build\unit
+        ./unit.exe
+        Set-Location -Path $RootDir\jiminy\unit_py
+        python -m unittest discover -v
