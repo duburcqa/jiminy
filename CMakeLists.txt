@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.2.3)
+set(BUILD_VERSION 1.2.4)
 
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})
