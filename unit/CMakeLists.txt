@@ -4,6 +4,9 @@ cmake_minimum_required(VERSION 3.10)
 # Project name
 project(unit VERSION ${BUILD_VERSION})
 
+# Find pthread if available
+find_package(Threads)
+
 # Create empty file to declare executable without any source files.
 file(WRITE ${CMAKE_BINARY_DIR}/null.cc "")
 
@@ -32,6 +35,9 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
      ${SOURCE_DIR}/googletest/include
      ${SOURCE_DIR}/googlemock/include
 )
-target_link_libraries(${PROJECT_NAME} gtest gtest_main gmock pthread)
+target_link_libraries(${PROJECT_NAME} gtest gtest_main gmock gmock_main "${CMAKE_THREAD_LIBS_INIT}")
+set_property(TARGET ${PROJECT_NAME} PROPERTY
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+)
 include(CTest)
 enable_testing()
