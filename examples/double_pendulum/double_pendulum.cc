@@ -158,6 +158,7 @@ int main(int argc, char_t * argv[])
     matrixN_t log;
     engine->getLogData(header, log);
     std::cout << log.rows() << " log points" << std::endl;
+    std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
     engine->writeLogTxt(outputDirPath + std::string("log.txt"));
     engine->writeLogBinary(outputDirPath + std::string("log.data"));
 

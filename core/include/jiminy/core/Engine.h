@@ -19,7 +19,7 @@
 
 namespace jiminy
 {
-    float64_t const MIN_STEPPER_TIMESTEP = 1e-12;
+    float64_t const MIN_STEPPER_TIMESTEP = 1e-10;
     float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
 
     std::string const ENGINE_OBJECT_NAME("HighLevelController");

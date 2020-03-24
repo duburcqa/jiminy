@@ -585,12 +585,13 @@ namespace jiminy
             // Define a failure checker for the stepper
             failed_step_checker fail_checker;
 
-            // Perform the integration
-            while (tEnd - t > EPS)
+            /* Perform the integration.
+               Do not simulate a timestep smaller than MIN_STEPPER_TIMESTEP. */
+            while (tEnd - t > MIN_STEPPER_TIMESTEP)
             {
                 float64_t tNext = t;
-                // Solver cannot simulate a timestep smaller than MIN_SIMULATION_TIMESTEP
-                if (stepperUpdatePeriod_ > MIN_SIMULATION_TIMESTEP)
+
+                if (stepperUpdatePeriod_ > EPS)
                 {
                     // Update the sensor data if necessary (only for finite update frequency)
                     if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
@@ -683,7 +684,7 @@ namespace jiminy
                     /* Check if the next dt to about equal to the time difference
                        between the current time (it can only be smaller) and
                        enforce next dt to exactly match this value in such a case. */
-                    if (tEnd - t - EPS < dtNextGlobal)
+                    if (tEnd - t - MIN_STEPPER_TIMESTEP < dtNextGlobal)
                     {
                         dtNextGlobal = tEnd - t;
                     }
@@ -692,12 +693,24 @@ namespace jiminy
                     // Compute the next step using adaptive step method
                     while (tNext - t > EPS)
                     {
-                        // Adjust stepsize to end up exactly at the next breakpoint
-                        // and prevent steps larger than dtMax
+                        /* Adjust stepsize to end up exactly at the next breakpoint,
+                           prevent steps larger than dtMax, and make sure that dt is
+                           multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
+                           it is possible, to reduce rounding errors of logged data. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < MIN_STEPPER_TIMESTEP)
                         {
                             dt = tNext - t;
+                        }
+                        if (dt > MIN_SIMULATION_TIMESTEP)
+                        {
+                            float64_t const dtResidual = std::fmod(dt, MIN_SIMULATION_TIMESTEP);
+                            if (dtResidual > MIN_STEPPER_TIMESTEP
+                             && dtResidual < MIN_SIMULATION_TIMESTEP - MIN_STEPPER_TIMESTEP
+                             && dt - dtResidual > MIN_STEPPER_TIMESTEP)
+                            {
+                                dt -= dtResidual;
+                            }
                         }
 
                         if (success == boost::apply_visitor(
