@@ -25,7 +25,7 @@ $Env:PKG_CONFIG_PATH = "$InstallDir\lib\pkgconfig;$InstallDir\share\pkgconfig"
 ### Alter the path to ensure the executable files (and DLL ?) are found
 $Env:Path += ";$InstallDir\bin"
 
-# Build boost (boost numeric odeint < 1.71 does not support eigen3 > 3.2 and eigen < 3.3 build fails on windows because of a cmake error)
+# Build and install boost (boost numeric odeint < 1.71 does not support eigen3 > 3.2 and eigen < 3.3 build fails on windows because of a cmake error)
 
 ### Download boost
 # $BoostDownloadPath = "https://dl.bintray.com/boostorg/release/1.${Env:BOOST_MINOR_VERSION}.0/source/boost_1_${Env:BOOST_MINOR_VERSION}_0.zip"
@@ -65,11 +65,11 @@ $Contents | Foreach {$n=1}{if ($LineNumbers[0] -eq $n) {
 } ; $_ ; $n++} > $RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\libs\python\include\boost\python\operators.hpp
 Set-PSDebug -Trace 1
 
-### Build the build tool b2 (build-ception !)
+### Build and install the build tool b2 (build-ception !)
 Set-Location -Path "$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0"
 .\bootstrap.bat --prefix="$InstallDir"
 
-### Build and install boost
+### Build and install and install boost
 $BuildTypeB2 = $BuildType.ToLower()
 if (-not (Test-Path -PathType Container $RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\build"
@@ -84,7 +84,7 @@ if (-not (Test-Path -PathType Container $RootDir\boost_1_${Env:BOOST_MINOR_VERSI
          --build-type=minimal toolset=msvc-14.0 variant=$BuildTypeB2 threading=multi -q -d0 -j2 `
          architecture=x86 address-model=64 link=shared runtime-link=shared install
 
-# Build eigen3
+# Build and install eigen3
 if (-not (Test-Path -PathType Container $RootDir\eigen3\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\eigen3\build"
 }
@@ -94,7 +94,7 @@ cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX
                                       -DCMAKE_CXX_FLAGS="/bigobj" $RootDir\eigen3
 cmake --build . --target install --config "$BuildType"
 
-# Build eigenpy
+# Build and install eigenpy
 
 ###
 if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
@@ -116,7 +116,7 @@ Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {'Libs:'} else {$_} ; $n++ } > $InstallDir\lib\pkgconfig\eigenpy.pc
 Set-PSDebug -Trace 1
 
-# Build tinyxml
+# Build and install tinyxml
 if (-not (Test-Path -PathType Container $RootDir\tinyxml\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\tinyxml\build"
 }
@@ -125,7 +125,7 @@ cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\tinyxml
 cmake --build . --target install --config "$BuildType" --parallel 2
 
-# Build console_bridge
+# Build and install console_bridge
 
 ### Must remove lines 107 and 114 of CMakefile.txt `if (NOT MSVC) ... endif()`
 $LineNumbers = @(107, 114)
@@ -140,10 +140,11 @@ if (-not (Test-Path -PathType Container $RootDir\console_bridge\build)) {
 }
 Set-Location -Path $RootDir\console_bridge\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                      -DBUILD_SHARED_LIBS=OFF `
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\console_bridge
 cmake --build . --target install --config "$BuildType" --parallel 2
 
-# Build urdfdom_headers
+# Build and install urdfdom_headers
 
 ### Must remove lines 51 and 56 of CMakefile.txt `if (NOT MSVC) ... endif()`
 $LineNumbers = @(51, 56)
@@ -161,7 +162,7 @@ cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\urdfdom_headers
 cmake --build . --target install --config "$BuildType" --parallel 2
 
-# Build urdfdom
+# Build and install urdfdom
 
 ### Must remove lines 68 and 86 of CMakefile.txt `if (NOT MSVC) ... endif()`
 $LineNumbers = @(78, 86)
@@ -177,11 +178,11 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
 Set-Location -Path $RootDir\urdfdom\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                       -DBUILD_TESTING=OFF -DTinyXML_ROOT_DIR="$InstallDir" `
-                                      -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=TRUE `
+                                      -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=ON ` # -DBUILD_SHARED_LIBS=OFF or ON ?
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_EXPORTS" $RootDir\urdfdom # -DURDFDOM_STATIC or -DURDFDOM_EXPORTS ?
 cmake --build . --target install --config "$BuildType" --parallel 2
 
-# Build Pinocchio
+# Build and install Pinocchio
 
 ### Must add line after 337 (387 v2.1.2 eigenpy) of cmake\python.cmake to remove disk prefix in target names and shorten its name to less than 50 chars
 $LineNumber = 337
@@ -197,13 +198,22 @@ string(SUBSTRING ${FILE_TARGET_NAME} ${FILE_TARGET_START} -1 FILE_TARGET_NAME)
 '} ; $_ ; $n++ } > $RootDir\pinocchio\cmake\python.cmake
 Set-PSDebug -Trace 1
 
-### add line before 170 of \CMakeLists.txt to include directory of python lib
+### Replace line 170 of \CMakeLists.txt to include link directory of python and remove defined include headers directory
 $LineNumber = 170
 $Contents = Get-Content $RootDir\pinocchio\CMakeLists.txt
 Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'link_directories(SYSTEM "${PYTHON_LIBRARY_DIRS}")'
-} ; $_ ; $n++ } > $RootDir\pinocchio\CMakeLists.txt
+'link_directories("${PYTHON_LIBRARY_DIRS}")'
+} else {$_} ; $n++ } > $RootDir\pinocchio\CMakeLists.txt
+Set-PSDebug -Trace 1
+
+### Add line at 129 to manually link eigenpy since pkgconfig has been pached to not do it (because it was generating errors...)
+$LineNumber = 129
+$Contents = Get-Content $RootDir\pinocchio\bindings\python\CMakeLists.txt
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/eigenpy.lib")'
+} ; $_ ; $n++ } > $RootDir\pinocchio\bindings\python\CMakeLists.txt
 Set-PSDebug -Trace 1
 
 ### For some reason, the preprocessor directive `PINOCCHIO_EIGEN_PLAIN_TYPE((...))` is not properly generated. Expending it manually
@@ -248,7 +258,7 @@ $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 } else {$_} ; $n++ } > $RootDir\pinocchio\bindings\python\multibody\joint\joint-derived.hpp
 Set-PSDebug -Trace 1
 
-### Build pinocchio, finally !
+### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\pinocchio\build"
 }
@@ -256,6 +266,10 @@ Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                       -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
                                       -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
-                                      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=OFF -DINSTALL_PYTHON_INTERFACE_ONLY=TRUE `
+                                      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=OFF `
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
+
+# Add install site-packages (Eigenpy and Pinocchio) to Python search path
+"$InstallDir\Lib\site-packages" | Out-File `
+"C:\Users\runneradmin\AppData\Roaming\Python\Python36\site-packages\user_install.pth"

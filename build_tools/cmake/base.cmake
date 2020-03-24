@@ -108,6 +108,7 @@ if(BUILD_PYTHON_INTERFACE)
                         OUTPUT_STRIP_TRAILING_WHITESPACE
                         OUTPUT_VARIABLE PYTHON_SITELIB)
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
+        message("-- User site-package: ${PYTHON_SITELIB}")
     endif()
 
     # Include python headers
