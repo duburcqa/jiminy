@@ -1,19 +1,15 @@
 # This file aims at verifying the sanity of the physics and the integration
 # method of jiminy on simple models.
 import unittest
-import os
 import numpy as np
 from scipy.linalg import expm
 
 from jiminy_py import core as jiminy
 
 
-
-# This tolerance is needed because we log time with a precision of 1us,
-# whereas jiminy sometimes takes steps that are slightly off the desired
-# frequency, leading to inconsistent times  in the log (with an error bounded
-# by 1us, so it's not important in practice but it does hinder matching here).
-TOLERANCE = 5e-4
+# Small tolerance for numerical equality.
+# The integration error is supposed to be bounded.
+TOLERANCE = 1e-7
 
 
 class SimulateTwoMasses(unittest.TestCase):
@@ -140,7 +136,7 @@ class SimulateTwoMasses(unittest.TestCase):
         x_analytical = np.array([expm(self.A * t) @ self.x0 for t in time])
 
         # Compute analytical solution
-        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol = TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()

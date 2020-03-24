@@ -1,19 +1,16 @@
 # This file aims at verifying the sanity of the physics and the integration method of jiminy
 # on simple models.
 import unittest
-import os
 import numpy as np
-import scipy.linalg
-import scipy.integrate
-from jiminy_py import core as jiminy
-import pinocchio as pnc
+from scipy.linalg import expm
+from scipy.integrate import ode
 
-# Unit test precision threshold.
-# This tolerance is needed because we log time with a precision of 1us,
-# whereas jiminy sometimes takes steps that are slightly off the desired
-# frequency, leading to inconsistent times  in the log (with an error bounded
-# by 1us, so it's not important in practice but it does hinder matching here).
-TOLERANCE = 5e-4
+from jiminy_py import core as jiminy
+
+
+# Small tolerance for numerical equality.
+# The integration error is supposed to be bounded.
+TOLERANCE = 1e-7
 
 class SimulateSimplePendulum(unittest.TestCase):
     '''
@@ -87,9 +84,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         I_eq = I + J
         A = np.array([[0,                1],
                       [-k_spring / I_eq, 0]])
-        x_analytical = np.array([scipy.linalg.expm(A * t) @ x0 for t in time])
+        x_analytical = np.array([expm(A * t) @ x0 for t in time])
 
-        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol = TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_pendulum_integration(self):
         '''
@@ -112,6 +109,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         x0 = np.array([0.1, 0.0])
         tf = 2.0
+
         # Run simulation
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
@@ -121,11 +119,13 @@ class SimulateSimplePendulum(unittest.TestCase):
         # System dynamics: get length and inertia.
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
         g = 9.81
+
         # Pendulum dynamics
         def dynamics(t, x):
             return np.array([x[1], - g / l * np.sin(x[0])])
         # Integrate, using same Runge-Kutta integrator.
-        solver = scipy.integrate.ode(dynamics)
+
+        solver = ode(dynamics)
         solver.set_initial_value(x0)
         solver.set_integrator("dopri5")
         x_rk_python = [x0]
@@ -133,7 +133,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             solver.integrate(t)
             x_rk_python.append(solver.y)
         x_rk_python = np.array(x_rk_python)
-        self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol = TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()
