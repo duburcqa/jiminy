@@ -271,5 +271,8 @@ cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Add install site-packages (Eigenpy and Pinocchio) to Python search path
-"$InstallDir\Lib\site-packages" | Out-File `
-"C:\Users\runneradmin\AppData\Roaming\Python\Python36\site-packages\user_install.pth"
+$PYTHON_USER_SITE_PATH = "C:\Users\runneradmin\AppData\Roaming\Python\Python36\site-packages"
+if (-not (Test-Path -PathType Container "$PYTHON_USER_SITE_PATH")) {
+  New-Item -ItemType "directory" -Force -Path "$PYTHON_USER_SITE_PATH"
+}
+"$InstallDir\Lib\site-packages" | Out-File "$PYTHON_USER_SITE_PATH\user_install.pth"
