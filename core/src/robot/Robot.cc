@@ -600,7 +600,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motor = std::move(const_cast<AbstractMotorBase *>(motorPtr)->getSharedPtr());
+            motor = std::move(const_cast<AbstractMotorBase *>(motorPtr)->shared_from_this());
         }
 
         return returnCode;
@@ -656,7 +656,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            sensor = std::move(const_cast<AbstractSensorBase *>(sensorPtr)->getSharedPtr());
+            sensor = std::move(const_cast<AbstractSensorBase *>(sensorPtr)->shared_from_this());
         }
 
         return returnCode;

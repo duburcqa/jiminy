@@ -17,6 +17,7 @@ if (_sys.version_info > (3, 0)):
         except ImportError:
             pass
         from .libjiminy_pywrap import *
+        from .libjiminy_pywrap import __version__, __raw_version__
 else:
     with open(_os.devnull, 'w') as stderr:
         old_target = _sys.stderr

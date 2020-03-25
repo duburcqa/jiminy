@@ -59,7 +59,7 @@ namespace jiminy
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
     };
 
-    class AbstractSensorBase: std::enable_shared_from_this<AbstractSensorBase>
+    class AbstractSensorBase: public std::enable_shared_from_this<AbstractSensorBase>
     {
         /* Using friend to avoid double delegation, which would make public
            the attach whereas only robot is able to call it.
@@ -119,7 +119,11 @@ namespace jiminy
         AbstractSensorBase(std::string const & name);
         virtual ~AbstractSensorBase(void) = default;
 
-        std::shared_ptr<AbstractSensorBase> getSharedPtr() { return shared_from_this(); }
+        template <typename T>
+        std::shared_ptr<T> shared_from(T* derived) {
+            assert(this == derived);
+            return std::static_pointer_cast<T>(shared_from_this());
+        }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -440,6 +444,9 @@ namespace jiminy
     public:
         AbstractSensorTpl(std::string const & name);
         virtual ~AbstractSensorTpl(void);
+
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
 
         virtual void reset(void) override;
         void updateTelemetryAll(void) override final;

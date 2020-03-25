@@ -22,9 +22,9 @@ namespace jiminy
 
     using namespace boost::numeric::odeint;
 
-    class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;
+    class AbstractController;
     class Robot;
 
     class explicit_euler

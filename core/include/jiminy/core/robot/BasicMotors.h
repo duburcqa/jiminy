@@ -54,6 +54,9 @@ namespace jiminy
         SimpleMotor(std::string const & name);
         virtual ~SimpleMotor(void) = default;
 
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
         hresult_t initialize(std::string const & jointName);
 
         virtual hresult_t setOptions(configHolder_t motorOptions);

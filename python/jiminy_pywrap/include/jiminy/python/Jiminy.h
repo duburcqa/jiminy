@@ -260,10 +260,10 @@ namespace python
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
         }
 
-        static boost::shared_ptr<heatMapFunctor_t> HeatMapFunctorPyFactory(bp::object          & objPy,
-                                                                           heatMapType_t const & objType)
+        static std::shared_ptr<heatMapFunctor_t> HeatMapFunctorPyFactory(bp::object          & objPy,
+                                                                         heatMapType_t const & objType)
         {
-            return boost::make_shared<heatMapFunctor_t>(HeatMapFunctorPyWrapper(std::move(objPy), objType));
+            return std::make_shared<heatMapFunctor_t>(HeatMapFunctorPyWrapper(std::move(objPy), objType));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -272,11 +272,12 @@ namespace python
         static void expose()
         {
             bp::class_<heatMapFunctor_t,
-                       boost::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
+                       std::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
                 .def(HeatMapFunctorVisitor())
                 .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
                                  bp::default_call_policies(),
                                 (bp::args("heatmap_handle", "heatmap_type"))));
+                bp::register_ptr_to_python<std::shared_ptr<heatMapFunctor_t> >();
         }
     };
 
@@ -430,9 +431,10 @@ namespace python
         static void expose()
         {
             bp::class_<sensorsDataMap_t,
-                       boost::shared_ptr<sensorsDataMap_t>,
+                       std::shared_ptr<sensorsDataMap_t>,
                        boost::noncopyable>("sensorsData", bp::no_init)
                 .def(SensorsDataMapVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<sensorsDataMap_t> >();
         }
     };
 
@@ -528,9 +530,9 @@ namespace python
             PyMotorVisit<PyClass>::visit(cl);
         }
 
-        static boost::shared_ptr<SimpleMotor> MotorPyFactory(std::string const & motorName)
+        static std::shared_ptr<SimpleMotor> MotorPyFactory(std::string const & motorName)
         {
-            return boost::make_shared<SimpleMotor>(motorName);
+            return std::make_shared<SimpleMotor>(motorName);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -552,13 +554,13 @@ namespace python
         static void expose()
         {
             bp::class_<AbstractMotorBase,
-                       boost::shared_ptr<AbstractMotorBase>,
+                       std::shared_ptr<AbstractMotorBase>,
                        boost::noncopyable>("AbstractMotor", bp::no_init)
                 .def(PyMotorVisitor());
             bp::register_ptr_to_python<std::shared_ptr<AbstractMotorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
-                       boost::shared_ptr<SimpleMotor>,
+                       std::shared_ptr<SimpleMotor>,
                        boost::noncopyable>("SimpleMotor", bp::no_init)
                 .def(PyMotorVisitor())
                 .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
@@ -637,9 +639,9 @@ namespace python
         }
 
         template<class TSensor>
-        static boost::shared_ptr<TSensor> SensorPyFactory(std::string const & sensorName)
+        static std::shared_ptr<TSensor> SensorPyFactory(std::string const & sensorName)
         {
-            return boost::make_shared<TSensor>(sensorName);
+            return std::make_shared<TSensor>(sensorName);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -661,13 +663,13 @@ namespace python
         static void expose()
         {
             bp::class_<AbstractSensorBase,
-                       boost::shared_ptr<AbstractSensorBase>,
+                       std::shared_ptr<AbstractSensorBase>,
                        boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
             bp::register_ptr_to_python<std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
-                       boost::shared_ptr<ImuSensor>,
+                       std::shared_ptr<ImuSensor>,
                        boost::noncopyable>("ImuSensor", bp::no_init)
                 .def(PySensorVisitor())
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
@@ -676,7 +678,7 @@ namespace python
             bp::register_ptr_to_python<std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
-                       boost::shared_ptr<ForceSensor>,
+                       std::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor", bp::no_init)
                 .def(PySensorVisitor())
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
@@ -685,7 +687,7 @@ namespace python
             bp::register_ptr_to_python<std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
-                       boost::shared_ptr<EncoderSensor>,
+                       std::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor", bp::no_init)
                 .def(PySensorVisitor())
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
@@ -795,7 +797,7 @@ namespace python
         static void expose()
         {
             bp::class_<Model,
-                       boost::shared_ptr<Model>,
+                       std::shared_ptr<Model>,
                        boost::noncopyable>("Model", bp::no_init)
                 .def(PyModelVisitor());
             bp::register_ptr_to_python<std::shared_ptr<Model> >();
@@ -820,8 +822,7 @@ namespace python
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
                 .def("get_motor", &PyRobotVisitor::getMotor,
-                                  (bp::arg("self"), "motor_name"),
-                                   bp::return_internal_reference<>())
+                                  (bp::arg("self"), "motor_name"))
                 .def("detach_motor", &Robot::detachMotor,
                                      (bp::arg("self"), "joint_name"))
                 .def("detach_motors", &PyRobotVisitor::detachMotors,
@@ -835,8 +836,7 @@ namespace python
                                        (bp::arg("self"),
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyRobotVisitor::getSensor,
-                                   (bp::arg("self"), "sensor_type", "sensor_name"),
-                                    bp::return_internal_reference<>())
+                                   (bp::arg("self"), "sensor_type", "sensor_name"))
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
@@ -891,8 +891,6 @@ namespace python
         static std::shared_ptr<AbstractMotorBase> getMotor(Robot             & self,
                                                            std::string const & motorName)
         {
-            /* Be careful, boost python remove the const qualifier, so that the
-               returned object can be modified ! */
             std::shared_ptr<AbstractMotorBase> motor;
             self.getMotor(motorName, motor);
             return motor;
@@ -902,16 +900,14 @@ namespace python
                                                              std::string const & sensorType,
                                                              std::string const & sensorName)
         {
-            /* Be careful, boost python remove the const qualifier, so that the
-               returned object can be modified ! */
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
             return sensor;
         }
 
-        static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
+        static std::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
         {
-            return boost::make_shared<sensorsDataMap_t>(self.getSensorsData());
+            return std::make_shared<sensorsDataMap_t>(self.getSensorsData());
         }
 
         static bp::dict getSensorsNames(Robot & self)
@@ -972,7 +968,7 @@ namespace python
         static void expose()
         {
             bp::class_<Robot, bp::bases<Model>,
-                       boost::shared_ptr<Robot>,
+                       std::shared_ptr<Robot>,
                        boost::noncopyable>("Robot")
                 .def(PyRobotVisitor());
             bp::register_ptr_to_python<std::shared_ptr<Robot> >();
@@ -1133,9 +1129,10 @@ namespace python
         static void expose()
         {
             bp::class_<AbstractController,
-                       boost::shared_ptr<AbstractController>,
+                       std::shared_ptr<AbstractController>,
                        boost::noncopyable>("AbstractController", bp::no_init)
                 .def(PyAbstractControllerVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<AbstractController> >();
         }
     };
 
@@ -1148,13 +1145,13 @@ namespace python
         using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
 
     public:
-        static boost::shared_ptr<CtrlFunctor> ControllerFunctorPyFactory(bp::object & commandPy,
-                                                                         bp::object & internalDynamicsPy)
+        static std::shared_ptr<CtrlFunctor> ControllerFunctorPyFactory(bp::object & commandPy,
+                                                                       bp::object & internalDynamicsPy)
         {
             ControllerFctWrapper commandFct(commandPy);
             ControllerFctWrapper internalDynamicsFct(internalDynamicsPy);
-            return boost::make_shared<CtrlFunctor>(std::move(commandFct),
-                                                   std::move(internalDynamicsFct));
+            return std::make_shared<CtrlFunctor>(std::move(commandFct),
+                                                 std::move(internalDynamicsFct));
         }
 
         static void initialize(CtrlFunctor                  & self,
@@ -1171,11 +1168,12 @@ namespace python
         static void expose()
         {
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
-                       boost::shared_ptr<CtrlFunctor>,
+                       std::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
             .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
                              bp::default_call_policies(),
                             (bp::arg("command_handle"), "internal_dynamics_handle")));
+            bp::register_ptr_to_python<std::shared_ptr<CtrlFunctor> >();
         }
     };
 
@@ -1254,9 +1252,10 @@ namespace python
         static void expose()
         {
             bp::class_<stepperState_t,
-                       boost::shared_ptr<stepperState_t>,
+                       std::shared_ptr<stepperState_t>,
                        boost::noncopyable>("StepperState", bp::no_init)
                 .def(PyStepperVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<stepperState_t> >();
         }
     };
 
@@ -1494,9 +1493,10 @@ namespace python
         static void expose()
         {
             bp::class_<Engine,
-                       boost::shared_ptr<Engine>,
+                       std::shared_ptr<Engine>,
                        boost::noncopyable>("Engine")
                 .def(PyEngineVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<Engine> >();
         }
     };
 }  // End of namespace python.

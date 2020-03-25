@@ -3,6 +3,7 @@
 #include <numeric>     /* iota */
 #include <type_traits>
 #include <stdlib.h>     /* srand, rand */
+#include <random>
 
 #ifndef _WIN32
 #include <pwd.h>
@@ -13,6 +14,8 @@
 #include <stdio.h>
 #endif
 
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/io/MemoryDevice.h"

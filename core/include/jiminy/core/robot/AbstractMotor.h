@@ -44,7 +44,7 @@ namespace jiminy
         int32_t num_;                               ///< Number of motors
     };
 
-    class AbstractMotorBase: std::enable_shared_from_this<AbstractMotorBase>
+    class AbstractMotorBase: public std::enable_shared_from_this<AbstractMotorBase>
     {
         /* AKA AbstractSensorBase */
         friend Robot;
@@ -100,8 +100,6 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         AbstractMotorBase(std::string const & name);
         virtual ~AbstractMotorBase(void);
-
-        std::shared_ptr<AbstractMotorBase> getSharedPtr() { return shared_from_this(); }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
