@@ -217,7 +217,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
         # is negligible before I.
-        TOLERANCE = 5e-5
+        TOLERANCE = 1e-2
         self.assertTrue(np.allclose(x_jiminy_extract,x_analytical, atol = TOLERANCE))
 
 if __name__ == '__main__':
