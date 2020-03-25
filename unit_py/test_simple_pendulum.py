@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import ode
+import pinocchio as pnc
 
 from jiminy_py import core as jiminy
 
@@ -135,6 +136,89 @@ class SimulateSimplePendulum(unittest.TestCase):
             x_rk_python.append(solver.y)
         x_rk_python = np.array(x_rk_python)
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
+
+    def test_flexiblility_rotor_inertia(self):
+        '''
+        @brief Test the addition of a flexibility in the system.
+
+        @details This test asserts that, by adding a flexibility and a rotor inertia, the output
+                 is 'sufficiently close' to a SEA system: see 'note_on_flexibli_model.pdf' for more
+                 information as to why this is not a true equality.
+        '''
+        # Controller: PD controller on motor.
+        k_controller = 100.0
+        nu_controller = 1.0
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = -k_controller * q[4] - nu_controller * v[3]
+
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        # Physical parameters: rotor inertia, spring stiffness and damping.
+        J = 0.1
+        k = 20.0
+        nu = 0.1
+
+        # Enable flexibility
+        model_options = self.robot.get_model_options()
+        model_options["dynamics"]["enableFlexibleModel"] = True
+        model_options["dynamics"]["flexibilityConfig"] = [{'jointName': "PendulumJoint",
+                                                           'stiffness': k * np.ones(3),
+                                                           'damping': nu * np.ones(3)}]
+        self.robot.set_model_options(model_options)
+        # Enable rotor inertia
+        motor_options = self.robot.get_motors_options()
+        motor_options["PendulumJoint"]['enableRotorInertia'] = True
+        motor_options["PendulumJoint"]['rotorInertia'] = J
+        self.robot.set_motors_options(motor_options)
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine.set_options(engine_options)
+
+        # To avoid having to handle angle conversion, start with an initial velocity for the output mass.
+        v_init = 0.2
+        x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0,v_init, 0.0, 0.0])
+        tf = 10.0
+        # Run simulation
+        engine.simulate(tf, x0)
+
+        # Get log data
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.array([log_data['HighLevelController.' + s] for s in self.robot.logfile_position_headers + self.robot.logfile_velocity_headers]).T
+
+        # Convert quaternion to RPY
+        # Swap order: from x y z w to w x y z
+        for i in range(3):
+            x_jiminy[:, [2 - i, 3-i]] = x_jiminy[:, [3 - i, 2 - i]]
+        x_jiminy = np.array([np.concatenate((pnc.rpy.matrixToRpy(pnc.Quaternion(*(x[:4].astype(float, copy=False))).matrix()), x[4:])) for x in x_jiminy])
+
+        # First, check that there was no motion other than along the Y axis.
+        self.assertTrue(np.allclose(x_jiminy[:,[0,2,4,6]], 0))
+
+        # Now let's group x_jiminy to match the analytical system: flexibility angle, pendulum angle, flexibility velocity, pendulum velocity
+        x_jiminy_extract = x_jiminy[:, [1, 3, 5, 7]]
+
+        # And let's simulate the system: a perfect SEA system.
+        I = self.robot.pinocchio_model_th.inertias[1].mass * self.robot.pinocchio_model_th.inertias[1].lever[2]**2
+
+        # Write system dynamics
+        A = np.array([[0,                    0,                1,                     0],
+                      [0,                    0,                0,                     1],
+                      [-k * (1 / I + 1 / J), k_controller / J, -nu * (1 / I + 1 / J), nu_controller / J],
+                      [k / J,                -k_controller / J, nu / J,               -nu_controller / J]])
+        x_analytical = np.array([expm(A * t) @ x_jiminy_extract[0] for t in time])
+
+        # This test has a specific tolerance because we know the dynamics don't exactly
+        # match: they are however very close, since the inertia of the flexible element
+        # is negligible before I.
+        TOLERANCE = 5e-5
+        self.assertTrue(np.allclose(x_jiminy_extract,x_analytical, atol = TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()
