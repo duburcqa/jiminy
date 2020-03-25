@@ -178,7 +178,7 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
 Set-Location -Path $RootDir\urdfdom\build
 cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                       -DBUILD_TESTING=OFF -DTinyXML_ROOT_DIR="$InstallDir" `
-                                      -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=ON ` # -DBUILD_SHARED_LIBS=OFF or ON ?
+                                      -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=ON `
                                       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_EXPORTS" $RootDir\urdfdom # -DURDFDOM_STATIC or -DURDFDOM_EXPORTS ?
 cmake --build . --target install --config "$BuildType" --parallel 2
 

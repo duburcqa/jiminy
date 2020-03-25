@@ -9,7 +9,7 @@ from jiminy_py import core as jiminy
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
-TOLERANCE = 1e-7
+TOLERANCE = 1e-4
 
 
 class SimulateTwoMasses(unittest.TestCase):
