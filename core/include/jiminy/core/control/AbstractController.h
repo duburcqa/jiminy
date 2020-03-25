@@ -282,8 +282,8 @@ namespace jiminy
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
 
     private:
-        std::vector<std::pair<std::string, float64_t const *> > registeredVariables_;    ///< Vector of dynamically registered telemetry variables
-        std::vector<std::pair<std::string, std::string> > registeredConstants_;          ///< Vector of dynamically registered telemetry constants
+        static_map_t<std::string, float64_t const *> registeredVariables_;    ///< Vector of dynamically registered telemetry variables
+        static_map_t<std::string, std::string> registeredConstants_;          ///< Vector of dynamically registered telemetry constants
     };
 }
 

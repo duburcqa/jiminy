@@ -36,6 +36,9 @@ namespace jiminy
     using float32_t = float;
     using float64_t = double;
 
+    template<typename K, typename M>
+    using static_map_t = std::vector<std::pair<K, M> >;
+
     // Eigen types
     using matrixN_t = Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic>;
     using matrix3_t = Eigen::Matrix<float64_t, 3, 3>;

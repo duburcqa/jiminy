@@ -533,7 +533,7 @@ namespace jiminy
         stepperState_t stepperStateLast_;   ///< Internal state for the integration loop at the end of the previous iteration
         std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> > forcesImpulse_; // Note that one MUST use an ordered map wrt. the application time
         std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> >::const_iterator forceImpulseNextIt_;
-        std::vector<std::pair<std::string, std::tuple<int32_t, forceFunctor_t> > > forcesProfile_;
+        static_map_t<std::string, std::tuple<int32_t, forceFunctor_t> > forcesProfile_;
     };
 }
 
