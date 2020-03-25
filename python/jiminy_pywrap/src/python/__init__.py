@@ -5,19 +5,31 @@
 import os as _os # private import
 import sys as _sys
 
+# Try to preload pinocchio if possible since parts of the code rely on it
+is_pinocchio_available = False
+
 if (_sys.version_info > (3, 0)):
     from contextlib import redirect_stderr as _redirect_stderr
     with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-        import pinocchio as _pnc # Preload the dynamic library Python binding if not already loaded
+        try:
+            import pinocchio as _pnc
+            is_pinocchio_available = True
+        except ImportError:
+            pass
         from .libjiminy_pywrap import *
 else:
     with open(_os.devnull, 'w') as stderr:
         old_target = _sys.stderr
         _sys.stderr = stderr
 
-        import pinocchio as _pnc # Preload the dynamic library Python binding if not already loaded
+        try:
+            import pinocchio as _pnc
+            is_pinocchio_available = True
+        except ImportError:
+            pass
         from .libjiminy_pywrap import *
 
         _sys.stderr = old_target
 
-from .. import _pinocchio_init as _patch
+if is_pinocchio_available:
+    from .. import _pinocchio_init as _patch
