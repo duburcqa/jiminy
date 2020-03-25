@@ -71,7 +71,7 @@ int main(int argc, char_t * argv[])
     robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
-        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
         motor->initialize(jointName);
     }
@@ -80,7 +80,7 @@ int main(int argc, char_t * argv[])
 
     auto controller = std::make_shared<ControllerFunctor<decltype(computeCommand),
                                                          decltype(internalDynamics)> >(computeCommand, internalDynamics);
-    controller->initialize(robot);
+    controller->initialize(robot.get());
 
     // Instantiate and configuration the engine
     auto engine = std::make_shared<Engine>();

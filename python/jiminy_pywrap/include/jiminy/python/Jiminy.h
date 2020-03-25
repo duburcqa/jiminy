@@ -821,7 +821,7 @@ namespace python
                                      (bp::arg("self"), "motor"))
                 .def("get_motor", &PyRobotVisitor::getMotor,
                                   (bp::arg("self"), "motor_name"),
-                                   bp::return_value_policy<bp::reference_existing_object>())
+                                   bp::return_internal_reference<>())
                 .def("detach_motor", &Robot::detachMotor,
                                      (bp::arg("self"), "joint_name"))
                 .def("detach_motors", &PyRobotVisitor::detachMotors,
@@ -836,7 +836,7 @@ namespace python
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"),
-                                    bp::return_value_policy<bp::reference_existing_object>())
+                                    bp::return_internal_reference<>())
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
@@ -888,25 +888,25 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static AbstractMotorBase const * getMotor(Robot             & self,
-                                                  std::string const & motorName)
+        static std::shared_ptr<AbstractMotorBase> getMotor(Robot             & self,
+                                                           std::string const & motorName)
         {
             /* Be careful, boost python remove the const qualifier, so that the
                returned object can be modified ! */
-            std::shared_ptr<AbstractMotorBase const> motor;
+            std::shared_ptr<AbstractMotorBase> motor;
             self.getMotor(motorName, motor);
-            return motor.get();
+            return motor;
         }
 
-        static AbstractSensorBase const * getSensor(Robot             & self,
-                                                    std::string const & sensorType,
-                                                    std::string const & sensorName)
+        static std::shared_ptr<AbstractSensorBase> getSensor(Robot             & self,
+                                                             std::string const & sensorType,
+                                                             std::string const & sensorName)
         {
             /* Be careful, boost python remove the const qualifier, so that the
                returned object can be modified ! */
-            std::shared_ptr<AbstractSensorBase const> sensor;
+            std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
-            return sensor.get();
+            return sensor;
         }
 
         static boost::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)
@@ -992,7 +992,7 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("initialize", &AbstractController::initialize,
+                .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
@@ -1006,6 +1006,12 @@ namespace python
                 .def("get_options", &AbstractController::getOptions,
                                     bp::return_value_policy<bp::return_by_value>())
                 ;
+        }
+
+        static void initialize(AbstractController           & self,
+                               std::shared_ptr<Robot> const & robot)
+        {
+            self.initialize(robot.get());
         }
 
         static hresult_t registerVariable(AbstractController       & self,
@@ -1142,18 +1148,6 @@ namespace python
         using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
 
     public:
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief Expose C++ API through the visitor.
-        ///////////////////////////////////////////////////////////////////////////////
-        template<class PyClass>
-        void visit(PyClass& cl) const
-        {
-            cl
-                .def("initialize", &PyControllerFunctorVisitor::initialize,
-                                   (bp::arg("self"), "robot"))
-                ;
-        }
-
         static boost::shared_ptr<CtrlFunctor> ControllerFunctorPyFactory(bp::object & commandPy,
                                                                          bp::object & internalDynamicsPy)
         {
@@ -1168,7 +1162,7 @@ namespace python
         {
             // Cannot pass const shared_ptr from Python to C++ directly...
 
-            self.initialize(robot);
+            self.initialize(robot.get());
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1179,7 +1173,6 @@ namespace python
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
                        boost::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
-            .def(PyControllerFunctorVisitor())
             .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
                              bp::default_call_policies(),
                             (bp::arg("command_handle"), "internal_dynamics_handle")));

@@ -71,8 +71,8 @@ namespace jiminy
         ///           Should be set before registering any entry.
         /// \retval   E_EPERM if object is already configured.
         ///////////////////////////////////////////////////////////////////////
-        void configureObject(std::shared_ptr<TelemetryData> const & telemetryDataInstance,
-                             std::string                    const & objectNameIn);
+        void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
+                             std::string            const & objectNameIn);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Get the number of registered entries.

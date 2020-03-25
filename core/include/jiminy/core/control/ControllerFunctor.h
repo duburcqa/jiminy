@@ -67,7 +67,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(std::shared_ptr<Robot const> const & robot) override;
+        virtual hresult_t initialize(Robot const * robot) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

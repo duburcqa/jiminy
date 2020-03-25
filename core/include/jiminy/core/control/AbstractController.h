@@ -72,7 +72,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(std::shared_ptr<Robot const> const & robot);
+        virtual hresult_t initialize(Robot const * robot);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -211,7 +211,8 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                             std::string const & objectPrefixName = "");
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -274,7 +275,7 @@ namespace jiminy
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
 
     protected:
-        std::shared_ptr<Robot const> robot_;    ///< Robot for which to compute the command and internal dynamics must be computed
+        Robot const * robot_;                   ///< Robot for which to compute the command and internal dynamics must be computed
         bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller

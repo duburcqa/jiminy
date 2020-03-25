@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "jiminy/core/telemetry/TelemetryData.h"
+#include "jiminy/core/Constants.h"
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
 
@@ -66,7 +67,7 @@ namespace jiminy
                                                          int32_t     const & initialValue)
     {
         int32_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + "." + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
@@ -83,7 +84,7 @@ namespace jiminy
                                                            float64_t   const & initialValue)
     {
         float32_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + "." + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
@@ -112,15 +113,15 @@ namespace jiminy
     hresult_t TelemetrySender::registerConstant(std::string const & variableNameIn,
                                                 std::string const & valueIn)
     {
-        std::string const fullFieldName = objectName_ + "." + variableNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + variableNameIn;
         return telemetryData_->registerConstant(fullFieldName, valueIn);
     }
 
-    void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> const & telemetryDataInstance,
-                                          std::string                    const & objectNameIn)
+    void TelemetrySender::configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
+                                          std::string const & objectNameIn)
     {
         objectName_ = objectNameIn;
-        telemetryData_ = std::shared_ptr<TelemetryData>(telemetryDataInstance);
+        telemetryData_ = std::move(telemetryDataInstance);
         intBufferPosition_.clear();
         floatBufferPosition_.clear();
     }

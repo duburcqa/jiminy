@@ -9,14 +9,15 @@
 #include <fstream>
 
 #include "jiminy/core/io/FileDevice.h"
-#include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Constants.h"
+
+#include "jiminy/core/telemetry/TelemetryRecorder.h"
 
 
 namespace jiminy
 {
-    TelemetryRecorder::TelemetryRecorder(std::shared_ptr<TelemetryData const> const & telemetryDataInstance) :
-    telemetryData_(telemetryDataInstance),
+    TelemetryRecorder::TelemetryRecorder(void) :
     flows_(),
     isInitialized_(false),
     recordedBytesLimits_(0),
@@ -28,10 +29,10 @@ namespace jiminy
     floatsAddress_(),
     floatSectionSize_(0)
     {
-        // Empty.
+        // Empty on purpose
     }
 
-    TelemetryRecorder::~TelemetryRecorder()
+    TelemetryRecorder::~TelemetryRecorder(void)
     {
         if (!flows_.empty())
         {
@@ -39,7 +40,7 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(void)
+    hresult_t TelemetryRecorder::initialize(TelemetryData const * telemetryData)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -55,19 +56,19 @@ namespace jiminy
             // Clear the MemoryDevice buffer
             flows_.clear();
 
-            // Get telemetry data infos.
-            telemetryData_->getData(integersAddress_,
-                                    integerSectionSize_,
-                                    floatsAddress_,
-                                    floatSectionSize_);
+            // Get telemetry data infos
+            telemetryData->getData(integersAddress_,
+                                   integerSectionSize_,
+                                   floatsAddress_,
+                                   floatSectionSize_);
             recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
                                    + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint32_t));
 
             // Get the header
-            telemetryData_->formatHeader(header);
+            telemetryData->formatHeader(header);
             headerSize_ = header.size();
 
-            // Create a new MemoryDevice and open it.
+            // Create a new MemoryDevice and open it
             returnCode = createNewChunk();
         }
 
@@ -93,7 +94,7 @@ namespace jiminy
 
     void TelemetryRecorder::reset(void)
     {
-        // Close the current MemoryDevice, if any and if it was opened.
+        // Close the current MemoryDevice, if any and if it was opened
         if (!flows_.empty())
         {
             flows_.back().close();
@@ -106,7 +107,7 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Close the current MemoryDevice, if any and if it was opened.
+        // Close the current MemoryDevice, if any and if it was opened
         if (!flows_.empty())
         {
             flows_.back().close();
@@ -119,7 +120,7 @@ namespace jiminy
            only once, at init of the simulation. The optimized buffer
            size is used for the log data. */
         uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxBufferSize = std::max(MAX_TELEMETRY_BUFFER_SIZE, isHeaderThere * headerSize_);
+        uint32_t maxBufferSize = std::max(TELEMETRY_MAX_BUFFER_SIZE, isHeaderThere * headerSize_);
         uint32_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
@@ -150,10 +151,10 @@ namespace jiminy
             // Write time
             flows_.back().write(static_cast<int32_t>(std::round(timestamp * TELEMETRY_TIME_DISCRETIZATION_FACTOR)));
 
-            // Write data, integers first.
+            // Write data, integers first
             flows_.back().write(reinterpret_cast<uint8_t const*>(integersAddress_), integerSectionSize_);
 
-            // Write data, floats last.
+            // Write data, floats last
             flows_.back().write(reinterpret_cast<uint8_t const*>(floatsAddress_), floatSectionSize_);
 
             // Update internal counter
@@ -222,7 +223,7 @@ namespace jiminy
                 int64_t const pos_old = flow->pos();
                 flow->seek(0);
 
-                // Dealing with version flag, constants, header, and descriptor.
+                // Dealing with version flag, constants, header, and descriptor
                 if (!isReadingHeaderDone)
                 {
                     int64_t header_version_length = sizeof(int32_t);
@@ -252,7 +253,7 @@ namespace jiminy
                     isReadingHeaderDone = true;
                 }
 
-                /* Dealing with data lines, starting with new line flag, time, integers, and ultimately floats. */
+                // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
                 if (recordedBytesDataLine > 0)
                 {
                     uint32_t numberLines = (flow->size() - flow->pos()) / recordedBytesDataLine;

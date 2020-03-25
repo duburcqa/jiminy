@@ -587,11 +587,10 @@ namespace jiminy
         fieldnames.reserve(size);
         for (uint32_t i=0; i<size; i++)
         {
-            fieldnames.emplace_back(baseName + std::to_string(i)); // TODO: MR going to support "." delimiter
+            fieldnames.emplace_back(std::move(baseName + TELEMETRY_DELIMITER + std::to_string(i)));
         }
         return fieldnames;
     }
-
 
     std::string removeFieldnameSuffix(std::string         fieldname,
                                       std::string const & suffix)
@@ -629,7 +628,7 @@ namespace jiminy
            quaternions on SO3 automatically. Note that the time difference must
            not be too small to avoid failure. */
 
-        dt = std::max(MIN_SIMULATION_TIMESTEP, dt);
+        dt = std::max(SIMULATION_MIN_TIMESTEP, dt);
         vectorN_t qNext(q.size());
         pinocchio::integrate(model, q, v*dt, qNext);
         qDot = (qNext - q) / dt;

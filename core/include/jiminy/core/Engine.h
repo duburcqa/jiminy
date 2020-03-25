@@ -18,9 +18,6 @@
 
 namespace jiminy
 {
-    float64_t const MIN_STEPPER_TIMESTEP = 1e-10;
-    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
-
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
     using namespace boost::numeric::odeint;
@@ -349,9 +346,9 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        hresult_t initialize(std::shared_ptr<Robot>              const & robot,
-                             std::shared_ptr<AbstractController> const & controller,
-                             callbackFunctor_t    callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot>              robot,
+                             std::shared_ptr<AbstractController> controller,
+                             callbackFunctor_t                   callbackFct);
 
         /// \brief Reset engine.
         ///
@@ -410,8 +407,8 @@ namespace jiminy
                                        float64_t   const & t,
                                        float64_t   const & dt,
                                        vector3_t   const & F);
-        hresult_t registerForceProfile(std::string      const & frameName,
-                                       forceFunctor_t           forceFct);
+        hresult_t registerForceProfile(std::string    const & frameName,
+                                       forceFunctor_t         forceFct);
 
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
@@ -420,7 +417,6 @@ namespace jiminy
         Robot & getRobot(void) const;
         AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
-        std::vector<vectorN_t> const & getContactForces(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,
@@ -482,10 +478,10 @@ namespace jiminy
                                    vectorN_t const & xIn,
                                    vectorN_t       & dxdtIn);
 
-    private:
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
 
+    private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType>
         inline Scalar
@@ -527,7 +523,7 @@ namespace jiminy
         callbackFunctor_t callbackFct_;
 
     private:
-        std::unique_ptr<MutexLocal::LockGuardLocal> lockModel_;
+        std::unique_ptr<MutexLocal::LockGuardLocal> robotLocks_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;

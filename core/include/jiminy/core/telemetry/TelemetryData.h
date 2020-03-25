@@ -8,9 +8,7 @@
 #define JIMINY_TELEMETRY_DATA_H
 
 #include <iostream>
-#include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Types.h"
@@ -55,8 +53,8 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////
         /// \brief       Constructor.
         ///
-        /// \param  name  Name of the shared memory.
-        /// \param  size  Size of the shared memory in bytes.
+        /// \param  name  Name of the memory.
+        /// \param  size  Size of the memory in bytes.
         ///////////////////////////////////////////////////////////////////////
         MemoryBuffer(std::string const & name,
                      std::size_t         size) :
@@ -87,16 +85,16 @@ namespace jiminy
         {
             if (memAddress_ != nullptr)
             {
-                // The shared memory has already been created
+                // The memory has already been created
                 return hresult_t::SUCCESS;
             }
 
-            // Create the shared memory, set its mode to R/W and get the R/W access rights.
+            // Create the memory, set its mode to R/W and get the R/W access rights.
             memAddress_ = malloc(size_);
 
             if (memAddress_ == nullptr)
             {
-                std::cout << "Error - MemoryBuffer::create - Memory allocation for the shared memory '" << name_ << "' failed." << std::endl;
+                std::cout << "Error - MemoryBuffer::create - Memory allocation for the memory '" << name_ << "' failed." << std::endl;
                 return hresult_t::ERROR_GENERIC;
             }
 
@@ -113,9 +111,9 @@ namespace jiminy
             return memAddress_;
         };
 
-        std::string name_;  ///< Name of the shared memory.
-        std::size_t size_;  ///< Size in bytes of the shared memory.
-        void* memAddress_;  ///< Address of the shared memory in this processus.
+        std::string name_;  ///< Name of the memory.
+        std::size_t size_;  ///< Size in bytes of the memory.
+        void * memAddress_; ///< Address of the memory in this processus.
     };
 
     ////////////////////////////////////////////////////////////////////////
@@ -209,17 +207,17 @@ namespace jiminy
         int32_t findEntry(struct memHeader       * header,
                           std::string      const & name);
 
-        MemoryBuffer constantsMem_;                ///< Shared memory to handle constants.
-        struct memHeader * constantsHeader_;   ///< Header of the constants shm.
+        MemoryBuffer constantsMem_;            ///< Memory to handle constants
+        struct memHeader * constantsHeader_;   ///< Header of the constants
 
-        MemoryBuffer integersMem_;                 ///< Shared memory to handle integers variables.
-        struct memHeader * integersHeader_;    ///< Header of the integers shm.
+        MemoryBuffer integersMem_;             ///< Memory to handle integers variables
+        struct memHeader * integersHeader_;    ///< Header of the integers
 
-        MemoryBuffer floatsMem_;                   ///< Shared memory to handle floats variables.
-        struct memHeader * floatsHeader_;      ///< Header of the floats shm.
+        MemoryBuffer floatsMem_;               ///< Memory to handle floats variables
+        struct memHeader * floatsHeader_;      ///< Header of the floats
 
-        /// Local cache to avoid looking into the shms (avoid search).
-        std::unordered_map<std::string, void*> entriesMap_;
+        /// Local cache to avoid searching into the memory
+        std::unordered_map<std::string, void *> entriesMap_;
     };
 } // namespace jiminy
 

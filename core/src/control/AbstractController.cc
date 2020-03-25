@@ -2,6 +2,7 @@
 
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
+#include "jiminy/core/Constants.h"
 
 #include "jiminy/core/control/AbstractController.h"
 
@@ -21,15 +22,15 @@ namespace jiminy
         AbstractController::setOptions(getDefaultControllerOptions()); // Clarify that the base implementation is called
     }
 
-    hresult_t AbstractController::initialize(std::shared_ptr<Robot const> const & model)
+    hresult_t AbstractController::initialize(Robot const * robot)
     {
-        if (!model->getIsInitialized())
+        if (!robot->getIsInitialized())
         {
-            std::cout << "Error - AbstractController::initialize - The model is not initialized." << std::endl;
+            std::cout << "Error - AbstractController::initialize - The robot is not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        robot_ = model;
+        robot_ = robot;
 
         try
         {
@@ -77,7 +78,8 @@ namespace jiminy
         isTelemetryConfigured_ = false;
     }
 
-    hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
+    hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                                     std::string const & objectPrefixName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -91,7 +93,12 @@ namespace jiminy
         {
             if (telemetryData)
             {
-                telemetrySender_.configureObject(telemetryData, CONTROLLER_OBJECT_NAME);
+                std::string objectName = CONTROLLER_OBJECT_NAME;
+                if (!objectPrefixName.empty())
+                {
+                    objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
+                }
+                telemetrySender_.configureObject(std::move(telemetryData), objectName);
                 for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)
                 {
                     if (returnCode == hresult_t::SUCCESS)

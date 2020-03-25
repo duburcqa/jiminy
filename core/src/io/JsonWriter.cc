@@ -10,7 +10,7 @@
 namespace jiminy
 {
     JsonWriter::JsonWriter(std::shared_ptr<AbstractIODevice> device) :
-    device_(device)
+    device_(std::move(device))
     {
         // Empty on purpose
     }
