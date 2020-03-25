@@ -10,6 +10,7 @@
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryRecorder.h"
+#include "jiminy/core/Constants.h"
 
 
 namespace jiminy
@@ -118,7 +119,7 @@ namespace jiminy
            only once, at init of the simulation. The optimized buffer
            size is used for the log data. */
         uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxBufferSize = std::max(MAX_BUFFER_SIZE, isHeaderThere * headerSize_);
+        uint32_t maxBufferSize = std::max(MAX_TELEMETRY_BUFFER_SIZE, isHeaderThere * headerSize_);
         uint32_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
@@ -147,7 +148,7 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int32_t>(timestamp * 1e6));
+            flows_.back().write(static_cast<int32_t>(std::round(timestamp * TELEMETRY_TIME_DISCRETIZATION_FACTOR)));
 
             // Write data, integers first.
             flows_.back().write(reinterpret_cast<uint8_t const*>(integersAddress_), integerSectionSize_);
@@ -273,7 +274,7 @@ namespace jiminy
                         break;
                     }
 
-                    timestamps.emplace_back(static_cast<float64_t>(timestamp * 1e-6));
+                    timestamps.emplace_back(static_cast<float64_t>(timestamp / TELEMETRY_TIME_DISCRETIZATION_FACTOR));
                     intData.emplace_back(intDataLine);
                     floatData.emplace_back(floatDataLine);
                 }

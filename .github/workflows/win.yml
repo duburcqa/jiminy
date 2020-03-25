@@ -116,7 +116,8 @@ jobs:
         $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
         $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
         cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                              -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
+                                              -DBoost_USE_STATIC_LIBS=OFF `
+                                              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
                                               -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
         cmake --build . --target INSTALL --config "$BuildType" --parallel 2
     - name: Archive install artifacts
@@ -131,8 +132,9 @@ jobs:
         Set-PSDebug -Trace 1
 
         $RootDir = $Env:GITHUB_WORKSPACE
+        $BuildType = "Release"
 
-        Set-Location -Path $RootDir\jiminy\build\unit
+        Set-Location -Path "$RootDir\jiminy\build\unit\$BuildType"
         ./unit.exe
         Set-Location -Path $RootDir\jiminy\unit_py
         python -m unittest discover -v
