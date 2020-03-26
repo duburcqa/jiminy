@@ -7,7 +7,7 @@ namespace jiminy
     std::string const FREE_FLYER_PREFIX_BASE_NAME = JOINT_PREFIX_BASE + "Freeflyer";
     std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
 
-    std::string const TELEMETRY_DELIMITER = ":";
+    std::string const TELEMETRY_DELIMITER = ".";
     float64_t const TELEMETRY_TIME_DISCRETIZATION_FACTOR = 1e6; // Log the time rounded to the closest µs
     int64_t const TELEMETRY_MAX_BUFFER_SIZE = 256U * 1024U; // 256Ko
 

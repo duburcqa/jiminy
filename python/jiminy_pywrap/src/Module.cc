@@ -21,6 +21,7 @@
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
+#include <boost/python/scope.hpp>
 
 namespace jiminy
 {
