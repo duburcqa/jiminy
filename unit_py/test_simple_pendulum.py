@@ -12,7 +12,7 @@ from jiminy_py import core as jiminy
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
-TOLERANCE = 1e-4
+TOLERANCE = 1e-7
 
 
 class SimulateSimplePendulum(unittest.TestCase):
@@ -143,9 +143,11 @@ class SimulateSimplePendulum(unittest.TestCase):
             solver.integrate(t)
             x_rk_python.append(solver.y)
         x_rk_python = np.stack(x_rk_python, axis=0)
+
+        # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
-    def test_flexiblility_rotor_inertia(self):
+    def test_flexibility_rotor_inertia(self):
         '''
         @brief Test the addition of a flexibility in the system.
 
@@ -208,7 +210,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Convert quaternion to RPY
         x_jiminy = np.stack([
             np.concatenate((
-                matrixToRpy(Quaternion(x[:4]).matrix()).astype(x.dtype, copy=False),
+                matrixToRpy(Quaternion(x[:4][:, np.newaxis]).matrix()).astype(x.dtype, copy=False),
                 x[4:]
             )) for x in x_jiminy
         ], axis=0)
@@ -234,7 +236,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
         # is negligible before I.
-        TOLERANCE = 1e+1
+        TOLERANCE = 5e-5
         self.assertTrue(np.allclose(x_jiminy_extract, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
