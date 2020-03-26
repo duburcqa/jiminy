@@ -78,9 +78,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.array([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
                              for s in self.robot.logfile_position_headers + \
-                                      self.robot.logfile_velocity_headers]).T
+                                      self.robot.logfile_velocity_headers], axis=-1)
 
         # Analytical solution: a simple mass on a spring.
         pnc_model = self.robot.pinocchio_model_th
@@ -88,9 +88,9 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Write system dynamics
         I_eq = I + J
-        A = np.array([[0,                1],
+        A = np.array([[               0, 1],
                       [-k_spring / I_eq, 0]])
-        x_analytical = np.array([expm(A * t) @ x0 for t in time])
+        x_analytical = np.stack([expm(A * t) @ x0 for t in time], axis=0)
 
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
@@ -122,9 +122,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.array([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
                              for s in self.robot.logfile_position_headers + \
-                                      self.robot.logfile_velocity_headers]).T
+                                      self.robot.logfile_velocity_headers], axis=-1)
 
         # System dynamics: get length and inertia.
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
@@ -142,7 +142,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         for t in time[1:]:
             solver.integrate(t)
             x_rk_python.append(solver.y)
-        x_rk_python = np.array(x_rk_python)
+        x_rk_python = np.stack(x_rk_python, axis=0)
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
     def test_flexiblility_rotor_inertia(self):
@@ -201,15 +201,17 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Get log data
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.array([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
                              for s in self.robot.logfile_position_headers + \
-                                      self.robot.logfile_velocity_headers]).T
+                                      self.robot.logfile_velocity_headers], axis=-1)
 
         # Convert quaternion to RPY
-        x_jiminy = np.array([
-            np.concatenate((matrixToRpy(Quaternion(x[:4].astype(float, copy=False)).matrix()), x[4:]))
-            for x in x_jiminy
-        ])
+        x_jiminy = np.stack([
+            np.concatenate((
+                matrixToRpy(Quaternion(x[:4]).matrix()).astype(x.dtype, copy=False),
+                x[4:]
+            )) for x in x_jiminy
+        ], axis=0)
 
         # First, check that there was no motion other than along the Y axis.
         self.assertTrue(np.allclose(x_jiminy[:, [0, 2, 4, 6]], 0))
@@ -227,7 +229,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                       [0,                 0,                0,                                  1],
                       [-k * (1 / I + 1 / J), k_control / J, -nu * (1 / I + 1 / J), nu_control / J],
                       [               k / J,-k_control / J,                nu / J,-nu_control / J]])
-        x_analytical = np.array([expm(A * t) @ x_jiminy_extract[0] for t in time])
+        x_analytical = np.stack([expm(A * t) @ x_jiminy_extract[0] for t in time], axis=0)
 
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
