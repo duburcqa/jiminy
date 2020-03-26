@@ -31,6 +31,8 @@ namespace jiminy
 
     extern float64_t const MIN_SIMULATION_TIMESTEP;
     extern float64_t const MAX_SIMULATION_TIMESTEP;
+    extern float64_t const DEFAULT_SIMULATION_TIMESTEP;
+    extern float64_t const MIN_STEPPER_TIMESTEP;
 }
 
 #endif  // JIMINY_CONSTANTS_H

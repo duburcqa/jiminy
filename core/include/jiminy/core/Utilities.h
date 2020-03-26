@@ -230,6 +230,11 @@ namespace jiminy
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
 
+    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                             pinocchio::Data  const & data,
+                                             int32_t          const & frameId,
+                                             vector3_t        const & fextInWorld);
+
     // ********************** Math utilities *************************
 
     template<typename T0, typename T1, typename... Ts>

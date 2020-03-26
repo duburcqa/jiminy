@@ -9,7 +9,6 @@
 #include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
@@ -29,6 +28,7 @@ namespace jiminy
     class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;
+    class Robot;
 
     class explicit_euler
     {
@@ -83,39 +83,9 @@ namespace jiminy
             // Empty.
         }
 
-        void initialize(Robot & robot)
-        {
-            initialize(robot, vectorN_t::Zero(robot.nx()), DEFAULT_SIMULATION_TIMESTEP);
-        }
-
         void initialize(Robot           & robot,
                         vectorN_t const & xInit,
-                        float64_t const & dt_init)
-        {
-            // Extract some information from the robot
-            nx_ = robot.nx();
-            nq_ = robot.nq();
-            nv_ = robot.nv();
-
-            // Initialize the ode stepper state buffers
-            iter = 0;
-            t = 0.0;
-            dt = dt_init;
-            x = xInit;
-
-            dxdt = vectorN_t::Zero(nx_);
-            computePositionDerivative(robot.pncModel_, q(), v(), qDot());
-
-            fExternal = forceVector_t(robot.pncModel_.joints.size(),
-                                      pinocchio::Force::Zero());
-            uInternal = vectorN_t::Zero(nv_);
-            uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
-            uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
-            u = vectorN_t::Zero(nv_);
-
-            // Set the initialization flag
-            isInitialized_ = true;
-        }
+                        float64_t const & dt_init);
 
         bool_t const & getIsInitialized(void) const
         {
