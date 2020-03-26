@@ -69,7 +69,7 @@ namespace jiminy
                  {
                      return true;
                  }),
-    robotLocks_(),
+    robotLock_(),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -298,7 +298,7 @@ namespace jiminy
             reset(resetRandomNumbers, resetDynamicForceRegister);
 
             // Lock the robot. At this point it is no longer possible to change the robot.
-            returnCode = robot_->getLock(robotLocks_);
+            returnCode = robot_->getLock(robotLock_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -523,7 +523,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check if the simulation has started
-        if (!robotLocks_)
+        if (!robotLock_)
         {
             std::cout << "Error - Engine::step - No simulation running. Please start it before using step method." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
@@ -609,7 +609,7 @@ namespace jiminy
             failed_step_checker fail_checker;
 
             /* Perform the integration.
-               Do not simulate a timestep smaller than MIN_STEPPER_TIMESTEP. */
+               Do not simulate a timestep smaller than STEPPER_MIN_TIMESTEP. */
             while (tEnd - t > STEPPER_MIN_TIMESTEP)
             {
                 float64_t tNext = t;
@@ -707,7 +707,7 @@ namespace jiminy
                     /* Check if the next dt to about equal to the time difference
                        between the current time (it can only be smaller) and
                        enforce next dt to exactly match this value in such a case. */
-                    if (tEnd - t - MIN_STEPPER_TIMESTEP < dtNextGlobal)
+                    if (tEnd - t - STEPPER_MIN_TIMESTEP < dtNextGlobal)
                     {
                         dtNextGlobal = tEnd - t;
                     }
@@ -725,12 +725,12 @@ namespace jiminy
                         {
                             dt = tNext - t;
                         }
-                        if (dt > MIN_SIMULATION_TIMESTEP)
+                        if (dt > SIMULATION_MIN_TIMESTEP)
                         {
-                            float64_t const dtResidual = std::fmod(dt, MIN_SIMULATION_TIMESTEP);
-                            if (dtResidual > MIN_STEPPER_TIMESTEP
-                             && dtResidual < MIN_SIMULATION_TIMESTEP - MIN_STEPPER_TIMESTEP
-                             && dt - dtResidual > MIN_STEPPER_TIMESTEP)
+                            float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
+                            if (dtResidual > STEPPER_MIN_TIMESTEP
+                             && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
+                             && dt - dtResidual > STEPPER_MIN_TIMESTEP)
                             {
                                 dt -= dtResidual;
                             }
@@ -825,10 +825,10 @@ namespace jiminy
     void Engine::stop(void)
     {
         // Make sure that a simulation running
-        if (robotLocks_)
+        if (robotLock_)
         {
             // Release the lock on the robot
-            robotLocks_.reset(nullptr);
+            robotLock_.reset(nullptr);
 
             /* Reset the telemetry. Note that calling `reset` does NOT clear the
             internal data buffer of telemetryRecorder_. Clearing is done at init
@@ -916,7 +916,7 @@ namespace jiminy
     {
         // Make sure that the forces do NOT overlap while taking into account dt.
 
-        if (robotLocks_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::registerForceImpulse - A simulation is running. Please stop it before registering new forces." << std::endl;
             return hresult_t::ERROR_GENERIC;
@@ -930,7 +930,7 @@ namespace jiminy
     hresult_t Engine::registerForceProfile(std::string      const & frameName,
                                            forceFunctor_t           forceFct)
     {
-        if (robotLocks_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::registerForceProfile - A simulation is running. Please stop it before registering new forces." << std::endl;
             return hresult_t::ERROR_GENERIC;
@@ -950,7 +950,7 @@ namespace jiminy
 
     hresult_t Engine::setOptions(configHolder_t const & engineOptions)
     {
-        if (robotLocks_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::setOptions - A simulation is running. Please stop it before updating the options." << std::endl;
             return hresult_t::ERROR_GENERIC;

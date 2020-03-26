@@ -523,7 +523,7 @@ namespace jiminy
         callbackFunctor_t callbackFct_;
 
     private:
-        std::unique_ptr<MutexLocal::LockGuardLocal> robotLocks_;
+        std::unique_ptr<MutexLocal::LockGuardLocal> robotLock_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
