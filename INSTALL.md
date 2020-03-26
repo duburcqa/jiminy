@@ -10,19 +10,19 @@ Just run the setup script already available.
 sudo ./jiminy/build_tools/setup.sh
 ```
 
-## Manual installation
+### Manual installation
 
-### Boost Python library
+#### Boost Python library
 
 ```bash
 sudo apt install -y libboost-all-dev
 ```
 
-### Robotpkg
+#### Robotpkg
 
-#### Ubuntu 18.04 Bionic
+##### Ubuntu 18.04 Bionic
 
-##### Add the repository
+###### Add the repository
 
 ```bash
 sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
@@ -30,28 +30,28 @@ curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key 
 sudo apt update
 ```
 
-##### Install some C++ libraries and binaries
+###### Install some C++ libraries and binaries
 
 ```bash
 sudo apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
                     robotpkg-gepetto-viewer=4.4.0
 ```
 
-##### Install some Python packages (Python 2.7 only)
+###### Install some Python packages (Python 2.7 only)
 
 ```bash
 sudo apt install -y robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy \
                     robotpkg-py27-eigenpy robotpkg-py27-pinocchio
 ```
 
-##### Install some Python packages (Python 3 only)
+###### Install some Python packages (Python 3 only)
 
 ```bash
 sudo apt install -y robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
                     robotpkg-py36-eigenpy robotpkg-py36-pinocchio
 ```
 
-#### Other distributions
+##### Other distributions
 
 Robotpkg is also available for Ubuntu 14.04, Ubuntu 16.04, Ubuntu 19.04, Debian 8, and Debian 9.
 
@@ -62,30 +62,30 @@ conda install pinocchio --channel conda-forge
 
 Yet, it is not helpful for compiling C++ code with Pinocchio dependency. If so, then one must compile it from sources. For Debian 10, please follow the advanced instruction in the next section.
 
-### Python dependencies
+#### Python dependencies
 
-#### Installation procedure (Python 3 only)
+##### Installation procedure (Python 3 only)
 
 ```bash
 sudo apt install -y python3-tk
 ```
 
-## Jiminy learning dependencies (Python 3 only)
+### Jiminy learning dependencies (Python 3 only)
 
-### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
+#### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
 Amazing tutorial: https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070
 
-### Open AI Gym along with some toy models
+#### Open AI Gym along with some toy models
 ```bash
 pip install gym[atari,box2d,classic_control]
 ```
 
-### Open AI Gym Stable-Baseline
+#### Open AI Gym Stable-Baseline
 ```bash
 pip install stable-baselines[mpi]
 ```
 
-### Coach dependencies
+#### Coach dependencies
 ```bash
 sudo apt install -y python-opencv
 sudo apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
@@ -110,7 +110,7 @@ ___
 
 # Building from source on Linux
 
-## Prerequisites
+## Prerequisites (optional if using the script setup.sh)
 
 ```bash
 sudo apt install -y libeigen3-dev doxygen libtinyxml-dev cmake git
@@ -118,7 +118,7 @@ sudo apt install -y libeigen3-dev doxygen libtinyxml-dev cmake git
 
 ### Custom Boost version
 
-If for some reasons you need a specific version of Boost, use the following installation procedure:
+If for some reasons you want to use a specific version of Boost, use the following installation procedure:
 
 ```bash
 wget http://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.bz2 && \
@@ -204,7 +204,7 @@ At least for Urdfdom 0.3.0, it is necessary to fix Python Array API initializati
 update `DuckTypedFactory` method in `urdf_parser_py/src/urdf_parser_py/xml_reflection/core.py` to replace `except Exception, e` by `except Exception as e:`, and
 `install` call in `urdf_parser_py/CMakeLists.txt` to remove `--install-layout deb`.
 
-### Install Pinocchio v2.1.10 (lower versions are not compiling properly)
+### Install Pinocchio v2.1.10 (lower versions are not supported)
 
 ```bash
 git clone --recursive https://github.com/stack-of-tasks/pinocchio && \
@@ -233,7 +233,7 @@ export PYTHONPATH=/usr/local/lib/pythonXXX/site-packages:$PYTHONPATH
 
 ```bash
 mkdir jiminy && cd jiminy
-cmake $HOME/src/jiminy -DCMAKE_INSTALL_PREFIX=$HOME/install
+cmake $HOME/src/jiminy -DBoost_NO_SYSTEM_PATHS=OFF -DCMAKE_CXX_FLAGS="-isystem\ /usr/include/eigen3" -DCMAKE_INSTALL_PREFIX=$HOME/install
 make && make install
 ```
 
