@@ -12,7 +12,7 @@
     <link name="PendulumLink">
         <inertial>
             <origin xyz="0.0 0.0 -1.0" rpy="0.0 0.0 0.0"/>
-            <mass value="1.0"/>
+            <mass value="5.0"/>
             <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
         </inertial>
     </link>

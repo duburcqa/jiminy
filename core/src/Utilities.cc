@@ -1191,11 +1191,11 @@ namespace jiminy
 
         /* Add weightless body.
             In practice having a zero inertia makes some of pinocchio algorithm crash,
-            so we set a very small value instead: 1g. */
+            so we set a very small value instead: 0.1g. Anything below that risks
+            creating numerical instability. */
         std::string bodyName = newJointNameIn + "Body";
-        pinocchio::Inertia inertia = pinocchio::Inertia::Identity();
-        inertia.mass() *= 1.0e-3;
-        inertia.FromEllipsoid(inertia.mass(), 1.0, 1.0, 1.0);
+        pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(1e-4, 1, 1, 1);
+
         modelInOut.appendBodyToJoint(newId, inertia, pinocchio::SE3::Identity());
 
         /* Pinocchio requires that joints are in increasing order as we move to the

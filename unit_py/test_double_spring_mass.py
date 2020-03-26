@@ -9,7 +9,7 @@ from jiminy_py import core as jiminy
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
-TOLERANCE = 1e-4
+TOLERANCE = 1e-7
 
 
 class SimulateTwoMasses(unittest.TestCase):
@@ -28,6 +28,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Specify spring stiffness and damping for this simulation
         self.k = np.array([200, 20])
         self.nu = np.array([0.1, 0.2])
+
         # Define initial state and simulation duration
         self.x0 = np.array([0.1, -0.1, 0.0, 0.0])
         self.tf = 10.0
@@ -55,8 +56,8 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Compute the matrix representing this linear system for analytical
         # computation
-        m = np.array([self.robot.pinocchio_model_th.inertias[i].mass
-                      for i in range(1,3)])
+        m = np.stack([self.robot.pinocchio_model_th.inertias[i].mass
+                      for i in range(1,3)], axis=0)
 
         # Dynamics is linear: dX = A X
         I =  (1 / m[1] + 1 / m[0])
@@ -91,12 +92,12 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.array([log_data['HighLevelController.' + s]
-                            for s in self.robot.logfile_position_headers + \
-                                     self.robot.logfile_velocity_headers]).T
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
 
         # Compute analytical solution
-        x_analytical = np.array([expm(self.A * t) @ self.x0 for t in time])
+        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
@@ -128,14 +129,14 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.array([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
                              for s in self.robot.logfile_position_headers + \
-                                      self.robot.logfile_velocity_headers]).T
+                                      self.robot.logfile_velocity_headers], axis=-1)
 
         # Compute analytical solution
-        x_analytical = np.array([expm(self.A * t) @ self.x0 for t in time])
+        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
 
-        # Compute analytical solution
+        # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
