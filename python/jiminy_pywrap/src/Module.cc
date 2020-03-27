@@ -50,8 +50,10 @@ namespace python
         eigenpy::enableEigenPy();
 
         // Expose the version
+        #ifndef _WIN32
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
+        #endif
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
