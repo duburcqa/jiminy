@@ -155,10 +155,17 @@ namespace jiminy
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size);
 
-    std::string removeFieldnameSuffix(std::string         fieldname,
-                                      std::string const & suffix);
-    std::vector<std::string> removeFieldnamesSuffix(std::vector<std::string>         fieldnames, // Make a copy
-                                                    std::string              const & suffix);
+    std::string addCircumfix(std::string         fieldname, // Make a copy
+                             std::string const & prefix = "",
+                             std::string const & suffix = "");
+    std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & prefix = "",
+                                          std::string              const & suffix = "");
+
+    std::string removeSuffix(std::string         fieldname, // Make a copy
+                             std::string const & suffix);
+    std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn, // Make a copy
+                                          std::string              const & suffix);
 
     // ******************** Pinocchio utilities *********************
 
@@ -261,6 +268,10 @@ namespace jiminy
     float64_t clamp(float64_t const & data,
                     float64_t const & minThr = -INF,
                     float64_t const & maxThr = +INF);
+
+    void catInPlace(std::vector<vectorN_t> const & xList,
+                    vectorN_t                    & xCat);
+    vectorN_t cat(std::vector<vectorN_t> const & xList);
 
     // ********************* Std::vector helpers **********************
 

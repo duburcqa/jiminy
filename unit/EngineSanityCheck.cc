@@ -4,7 +4,7 @@
 // The test system is a double inverted pendulum.
 #include <gtest/gtest.h>
 
-#include "jiminy/core/Engine.h"
+#include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/Types.h"

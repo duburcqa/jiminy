@@ -364,7 +364,7 @@ namespace jiminy
         /// \brief      Get the name of each element of the data measured by the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::vector<std::string> const & getFieldNames(void) const = 0;
+        virtual std::vector<std::string> const & getFieldnames(void) const = 0;
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -455,7 +455,7 @@ namespace jiminy
         virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) override final;
         virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
-        virtual std::vector<std::string> const & getFieldNames(void) const final;
+        virtual std::vector<std::string> const & getFieldnames(void) const final;
         virtual uint32_t getSize(void) const override final;
 
         virtual vectorN_t const * get(void) override final;
@@ -485,7 +485,7 @@ namespace jiminy
            to complete separated robots. */
         static std::string const type_;
         static std::vector<std::string> const fieldNames_;
-        static bool_t const areFieldNamesGrouped_;
+        static bool_t const areFieldnamesGrouped_;
 
     protected:
         int32_t sensorId_;

@@ -53,12 +53,12 @@ namespace jiminy
         *(it->second) = static_cast<float32_t>(value);
     }
 
-    void TelemetrySender::updateValue(std::vector<std::string>    const & fieldNames,
+    void TelemetrySender::updateValue(std::vector<std::string>    const & fieldnames,
                                       Eigen::Ref<vectorN_t const>         values)
     {
         for (uint32_t i=0; i < values.size(); ++i)
         {
-            updateValue(fieldNames[i], values[i]);
+            updateValue(fieldnames[i], values[i]);
         }
     }
 
@@ -96,7 +96,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TelemetrySender::registerVariable(std::vector<std::string> const & fieldNames,
+    hresult_t TelemetrySender::registerVariable(std::vector<std::string> const & fieldnames,
                                                 vectorN_t                const & initialValues)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -104,7 +104,7 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                returnCode = registerVariable(fieldNames[i], initialValues[i]);
+                returnCode = registerVariable(fieldnames[i], initialValues[i]);
             }
         }
         return returnCode;

@@ -171,7 +171,7 @@ namespace jiminy
     }
 
     template <typename T>
-    std::vector<std::string> const & AbstractSensorTpl<T>::getFieldNames(void) const
+    std::vector<std::string> const & AbstractSensorTpl<T>::getFieldnames(void) const
     {
         return fieldNames_;
     }
@@ -184,7 +184,7 @@ namespace jiminy
     template <typename T>
     std::string AbstractSensorTpl<T>::getTelemetryName(void) const
     {
-        if (areFieldNamesGrouped_)
+        if (areFieldnamesGrouped_)
         {
             return getType() + TELEMETRY_DELIMITER + name_;
         }

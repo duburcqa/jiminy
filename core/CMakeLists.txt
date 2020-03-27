@@ -39,7 +39,8 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/BasicSensors.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/EngineMultiRobot.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/Engine.cc"
 )
 
 # Create the library

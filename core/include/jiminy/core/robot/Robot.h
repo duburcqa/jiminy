@@ -115,7 +115,7 @@ namespace jiminy
         vectorN_t getTorqueLimit(void) const;
         vectorN_t getMotorInertia(void) const;
 
-        std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
+        std::vector<std::string> const & getMotorTorqueFieldnames(void) const;
 
         hresult_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
@@ -136,7 +136,7 @@ namespace jiminy
         std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
 
-        std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
+        std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
     private:
         MutexLocal mutexLocal_;

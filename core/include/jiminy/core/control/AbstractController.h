@@ -83,13 +83,13 @@ namespace jiminy
         ///             check. So the user has to take care of the life span of the variable, and to
         ///             update it manually whenever it is necessary to do so.
         ///
-        /// \param[in]  fieldNames      Name of each element of the variable. It will appear in the header of the log.
+        /// \param[in]  fieldnames      Name of each element of the variable. It will appear in the header of the log.
         /// \param[in]  values          Eigen vector to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t registerVariable(std::vector<std::string> const & fieldNames,
+        hresult_t registerVariable(std::vector<std::string> const & fieldnames,
                                    Eigen::Ref<vectorN_t>            values);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,7 +101,7 @@ namespace jiminy
         ///             check. So the user has to take care of the life span of the variable, and to
         ///             update it manually whenever it is necessary to do so.
         ///
-        /// \param[in]  fieldNames      Name of the variable. It will appear in the header of the log.
+        /// \param[in]  fieldnames      Name of the variable. It will appear in the header of the log.
         /// \param[in]  values          Variable to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
@@ -114,7 +114,7 @@ namespace jiminy
         ///
         /// \brief      Register a constant float64 to the telemetry.
         ///
-        /// \param[in]  fieldNames      Name of the variable.
+        /// \param[in]  fieldnames      Name of the variable.
         /// \param[in]  values          Variable to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.

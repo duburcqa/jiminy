@@ -594,8 +594,30 @@ namespace jiminy
         return fieldnames;
     }
 
-    std::string removeFieldnameSuffix(std::string         fieldname,
-                                      std::string const & suffix)
+    std::string addCircumfix(std::string         fieldname,
+                             std::string const & prefix,
+                             std::string const & suffix)
+    {
+        return prefix + fieldname + suffix;
+    }
+
+    std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & prefix,
+                                          std::string              const & suffix)
+    {
+        std::vector<std::string> fieldnames;
+        fieldnames.reserve(fieldnamesIn.size());
+        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+                       std::back_inserter(fieldnames),
+                       [&prefix, &suffix](std::string const & name) -> std::string
+                       {
+                           return addCircumfix(name, prefix, suffix);
+                       });
+        return fieldnames;
+    }
+
+    std::string removeSuffix(std::string         fieldname,
+                             std::string const & suffix)
     {
         if (fieldname.size() > suffix.size())
         {
@@ -607,14 +629,17 @@ namespace jiminy
         return fieldname;
     }
 
-    std::vector<std::string> removeFieldnamesSuffix(std::vector<std::string>         fieldnames,
-                                                    std::string              const & suffix)
+    std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & suffix)
     {
-        std::transform(fieldnames.begin(), fieldnames.end(), fieldnames.begin(),
-        [&suffix](std::string const & name) -> std::string
-        {
-            return removeFieldnameSuffix(name, suffix);
-        });
+        std::vector<std::string> fieldnames;
+        fieldnames.reserve(fieldnamesIn.size());
+        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+                       std::back_inserter(fieldnames),
+                       [&suffix](std::string const & name) -> std::string
+                       {
+                           return removeSuffix(name, suffix);
+                       });
         return fieldnames;
     }
 
@@ -1321,6 +1346,34 @@ namespace jiminy
         else
         {
             return 0.0;
+        }
+    }
+    vectorN_t cat(std::vector<vectorN_t> const & xList)
+    {
+        vectorN_t xCat;
+
+        // Initialize the vector the cumilative size
+        uint32_t xCumSize = 0U;
+        for (vectorN_t const & x : xList)
+        {
+            xCumSize += x.size();
+        }
+        xCat.resize(xCumSize);
+
+        catInPlace(xList, xCat);
+
+        return xCat;
+    }
+
+    void catInPlace(std::vector<vectorN_t> const & xList,
+                    vectorN_t                    & xCat)
+    {
+        uint32_t xIdx = 0U;
+        for (vectorN_t const & x : xList)
+        {
+            uint32_t const xSize = x.size();
+            xCat.segment(xIdx, xSize) = x;
+            xIdx += xSize;
         }
     }
 }

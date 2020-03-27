@@ -7,7 +7,7 @@
 
 #include <cassert>
 
-#include "jiminy/core/Engine.h"
+#include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
@@ -625,7 +625,7 @@ namespace python
                 cl
                     .add_property("type", bp::make_function(&AbstractSensorBase::getType,
                                           bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldNames,
+                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
                                                 bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
@@ -764,11 +764,11 @@ namespace python
                 .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
+                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldnames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
+                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldnames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
+                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
@@ -893,7 +893,7 @@ namespace python
                 .add_property("torque_limit", &Robot::getTorqueLimit)
                 .add_property("motor_inertia", &Robot::getMotorInertia)
 
-                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldNames,
+                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
@@ -1057,10 +1057,10 @@ namespace python
 
             if (PyArray_Check(dataPy))
             {
-                auto fieldNames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
+                auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
                 Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
-                return self.registerVariable(fieldNames, data);
+                return self.registerVariable(fieldnames, data);
             }
             else
             {

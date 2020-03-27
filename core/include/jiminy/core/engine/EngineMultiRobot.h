@@ -22,10 +22,111 @@ namespace jiminy
 
     using namespace boost::numeric::odeint;
 
+    class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;
-    class AbstractController;
     class Robot;
+    class systemDataHolder_t;
+    class EngineMultiRobot;
+
+    // Impossible to use function pointer since it does not support functors
+    using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
+                                                   vectorN_t const & /*x*/)>;
+    using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
+                                                    vectorN_t const & /*x*/)>;
+
+    struct forceImpulse_t
+    {
+    public:
+        forceImpulse_t(void) = default;
+
+        forceImpulse_t(std::string const & frameNameIn,
+                       float64_t   const & tIn,
+                       float64_t   const & dtIn,
+                       vector3_t   const & FIn) :
+        frameName(frameNameIn),
+        t(tIn),
+        dt(dtIn),
+        F(FIn)
+        {
+            // Empty on purpose
+        }
+
+        bool operator < (forceImpulse_t const & r) const
+        {
+            return (t < r.t);
+        }
+
+    public:
+        std::string frameName;
+        float64_t t;
+        float64_t dt;
+        vector3_t F;
+    } ;
+
+    struct forceProfile_t
+    {
+    public:
+        forceProfile_t(void) = default;
+
+        forceProfile_t(std::string    const & frameNameIn,
+                       int32_t        const & frameIdxIn,
+                       forceFunctor_t const & forceFctIn) :
+        frameName(frameNameIn),
+        frameIdx(frameIdxIn),
+        forceFct(forceFctIn)
+        {
+            // Empty on purpose
+        }
+
+    public:
+        std::string frameName;
+        int32_t frameIdx;
+        forceFunctor_t forceFct;
+    } ;
+
+    struct forceCoupling_t
+    {
+    public:
+        forceCoupling_t(void) = default;
+
+        forceCoupling_t(std::string    const & systemName1In,
+                        int32_t        const & systemIdx1In,
+                        std::string    const & systemName2In,
+                        int32_t        const & systemIdx2In,
+                        std::string    const & frameName1In,
+                        int32_t        const & frameIdx1In,
+                        std::string    const & frameName2In,
+                        int32_t        const & frameIdx2In,
+                        forceFunctor_t const & forceFctIn) :
+        systemName1(systemName1In),
+        systemIdx1(systemIdx1In),
+        systemName2(systemName2In),
+        systemIdx2(systemIdx2In),
+        frameName1(frameName1In),
+        frameIdx1(frameIdx1In),
+        frameName2(frameName2In),
+        frameIdx2(frameIdx2In),
+        forceFct(forceFctIn)
+        {
+            // Empty on purpose.
+        }
+
+    public:
+        std::string systemName1;
+        int32_t systemIdx1;
+        std::string systemName2;
+        int32_t systemIdx2;
+        std::string frameName1;
+        int32_t frameIdx1;
+        std::string frameName2;
+        int32_t frameIdx2;
+        forceFunctor_t forceFct;
+    };
+
+    using forceImpulseRegister_t = std::set<forceImpulse_t>;  // Use a set to automatically sort the forces wrt. the application time
+    using forceProfileRegister_t = std::vector<forceProfile_t>;
+    using forceCouplingRegister_t = std::vector<forceCoupling_t>;
 
     class explicit_euler
     {
@@ -34,11 +135,10 @@ namespace jiminy
         using deriv_type = vectorN_t;
         using value_type = float64_t;
         using time_type = float64_t;
-        using order_type = unsigned short;
 
         using stepper_category = controlled_stepper_tag;
 
-        static order_type order(void)
+        static unsigned short order(void)
         {
             return 1;
         }
@@ -61,10 +161,43 @@ namespace jiminy
     {
     public:
         stepperState_t(void) :
-        iter(0),
+        iter(0U),
         t(0.0),
+        tLast(0.0),
         dt(0.0),
-        t_err(0.0),
+        tError(0.0),
+        x(),
+        dxdt()
+        {
+            // Empty on purpose.
+        }
+
+        void reset(float64_t const & dtInit,
+                   vectorN_t const & xInit)
+        {
+            iter = 0U;
+            t = 0.0;
+            tLast = 0.0;
+            dt = dtInit;
+            tError = 0.0;
+            x = xInit;
+            dxdt = vectorN_t::Zero(xInit.size());
+        }
+
+    public:
+        uint32_t iter;
+        float64_t t;
+        float64_t tLast;
+        float64_t dt;
+        float64_t tError; ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
+        vectorN_t x;
+        vectorN_t dxdt;
+    };
+
+    struct systemState_t
+    {
+    public:
+        systemState_t(void) :
         x(),
         dxdt(),
         u(),
@@ -80,9 +213,8 @@ namespace jiminy
             // Empty.
         }
 
-        void initialize(Robot           & robot,
-                        vectorN_t const & xInit,
-                        float64_t const & dt_init);
+        void initialize(Robot           * robot,
+                        vectorN_t const & xInit);
 
         bool_t const & getIsInitialized(void) const
         {
@@ -110,10 +242,6 @@ namespace jiminy
         }
 
     public:
-        uint32_t iter;
-        float64_t t;
-        float64_t dt;
-        float64_t t_err;            ///< Sum of error internal buffer used for Kahan algorithm
         vectorN_t x;
         vectorN_t dxdt;
         vectorN_t u;
@@ -130,7 +258,39 @@ namespace jiminy
         bool_t isInitialized_;
     };
 
-    class Engine
+    struct systemDataHolder_t
+    {
+    public:
+        friend EngineMultiRobot;
+
+        systemDataHolder_t(void);
+
+        systemDataHolder_t(std::string const & systemNameIn,
+                           std::shared_ptr<Robot> robotIn,
+                           std::shared_ptr<AbstractController> controllerIn,
+                           callbackFunctor_t callbackFctIn);
+
+    public:
+        std::string name;
+        std::shared_ptr<Robot> robot;
+        std::shared_ptr<AbstractController> controller;
+        callbackFunctor_t callbackFct;
+        std::vector<std::string> positionFieldnames;
+        std::vector<std::string> velocityFieldnames;
+        std::vector<std::string> accelerationFieldnames;
+        std::vector<std::string> motorTorqueFieldnames;
+        std::string energyFieldname;
+
+    private:
+        std::unique_ptr<MutexLocal::LockGuardLocal> robotLock;
+        systemState_t state;       ///< Internal buffer with the state for the integration loop
+        systemState_t stateLast;   ///< Internal state for the integration loop at the end of the previous iteration
+        forceImpulseRegister_t forcesImpulse;
+        forceImpulseRegister_t::const_iterator forceImpulseNextIt;
+        forceProfileRegister_t forcesProfile;
+    };
+
+    class EngineMultiRobot
     {
     protected:
         configHolder_t getDefaultContactOptions()
@@ -326,29 +486,40 @@ namespace jiminy
             }
         };
 
-    public:
-        // Impossible to use function pointer since it does not support functors
-        using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
-                                                       vectorN_t const & /*x*/)>;
-        using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
-                                                        vectorN_t const & /*x*/)>;
-
     protected:
-        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
-        using stepper_t = boost::variant<result_of::make_controlled<rungeKuttaStepper_t>::type, explicit_euler>;
+        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t /* x */,
+                                                       float64_t /* t */,
+                                                       vectorN_t /* dxdt */,
+                                                       float64_t /* dt */,
+                                                       vector_space_algebra>;
+        using stepper_t = boost::variant<
+            result_of::make_controlled<rungeKuttaStepper_t>::type /* Runge-Kutta stepper */,
+            explicit_euler                                        /* Euler explicit stepper */
+        >;
 
     public:
         // Disable the copy of the class
-        Engine(Engine const & engine) = delete;
-        Engine & operator = (Engine const & other) = delete;
+        EngineMultiRobot(EngineMultiRobot const & engine) = delete;
+        EngineMultiRobot & operator = (EngineMultiRobot const & other) = delete;
 
     public:
-        Engine(void);
-        ~Engine(void);
+        EngineMultiRobot(void);
+        ~EngineMultiRobot(void);
 
-        hresult_t initialize(std::shared_ptr<Robot>              robot,
-                             std::shared_ptr<AbstractController> controller,
-                             callbackFunctor_t                   callbackFct);
+        hresult_t addSystem(std::string const & systemName,
+                            std::shared_ptr<Robot> robot,
+                            std::shared_ptr<AbstractController> controller,
+                            callbackFunctor_t callbackFct);
+        hresult_t removeSystem(std::string const & systemName);
+
+        hresult_t addCouplingForce(std::string    const & systemName1,
+                                   std::string    const & systemName2,
+                                   std::string    const & frameName1,
+                                   std::string    const & frameName2,
+                                   forceFunctor_t         forceFct);
+        hresult_t removeCouplingForces(std::string const & systemName1,
+                                       std::string const & systemName2);
+        hresult_t removeCouplingForces(std::string const & systemName);
 
         /// \brief Reset engine.
         ///
@@ -367,14 +538,12 @@ namespace jiminy
         ///          to match the given initial state.
         ///
         /// \param[in] xInit Initial state.
-        /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        hresult_t start(vectorN_t const & xInit,
-                        bool_t    const & isStateTheoretical = false,
-                        bool_t    const & resetRandomNumbers = false,
-                        bool_t    const & resetDynamicForceRegister = false);
+        hresult_t start(std::vector<vectorN_t> const & xInit,
+                        bool_t const & resetRandomNumbers = false,
+                        bool_t const & resetDynamicForceRegister = false);
 
         /// \brief Integrate system from current state for a duration equal to stepSize
         ///
@@ -398,25 +567,27 @@ namespace jiminy
         ///
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] xInit Initial state, i.e. state at t=0.
-        /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
-        hresult_t simulate(float64_t const & tEnd,
-                           vectorN_t const & xInit,
-                           bool_t    const & isStateTheoretical = false);
+        hresult_t simulate(float64_t              const & tEnd,
+                           std::vector<vectorN_t> const & xInit);
 
-        hresult_t registerForceImpulse(std::string const & frameName,
+        hresult_t registerForceImpulse(std::string const & systemName,
+                                       std::string const & frameName,
                                        float64_t   const & t,
                                        float64_t   const & dt,
                                        vector3_t   const & F);
-        hresult_t registerForceProfile(std::string    const & frameName,
+        hresult_t registerForceProfile(std::string    const & systemName,
+                                       std::string    const & frameName,
                                        forceFunctor_t         forceFct);
 
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
-        bool_t getIsInitialized(void) const;
         bool_t getIsTelemetryConfigured(void) const;
-        Robot & getRobot(void) const;
-        AbstractController & getController(void) const;
+        hresult_t getSystem(std::string        const   & systemName,
+                            systemDataHolder_t const * & system) const;
+        hresult_t getSystem(std::string        const   & systemName,
+                            systemDataHolder_t       * & system);
         stepperState_t const & getStepperState(void) const;
+        systemState_t const & getSystemState(std::string const & systemName) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,
@@ -429,17 +600,6 @@ namespace jiminy
         /// \param[out] logData     Corresponding data in the log file.
         void getLogData(std::vector<std::string> & header,
                         matrixN_t                & logData);
-
-        /// \brief Get the value of a single logged variable.
-        ///
-        /// \param[in] fieldName    Full name of the variable to get
-        /// \param[in] header       Header, vector of field names.
-        /// \param[in] logData      Corresponding data in the log file.
-        ///
-        /// \return Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty.
-        static vectorN_t getLogFieldValue(std::string              const & fieldName,
-                                          std::vector<std::string>       & header,
-                                          matrixN_t                      & logData);
 
         hresult_t writeLogTxt(std::string const & filename);
         hresult_t writeLogBinary(std::string const & filename);
@@ -457,26 +617,31 @@ namespace jiminy
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
-        vector6_t computeFrameForceOnParentJoint(int32_t   const & frameId,
-                                                 vector3_t const & fExtInWorld) const;
-        vector3_t computeContactDynamics(int32_t const & frameId) const;
-        void computeForwardKinematics(Eigen::Ref<vectorN_t const> q,
-                                      Eigen::Ref<vectorN_t const> v,
-                                      Eigen::Ref<vectorN_t const> a);
-        void computeCommand(float64_t                   const & t,
-                            Eigen::Ref<vectorN_t const>         q,
-                            Eigen::Ref<vectorN_t const>         v,
-                            vectorN_t                         & u);
-        void computeExternalForces(float64_t     const & t,
+        static void computeForwardKinematics(systemDataHolder_t          & system,
+                                             Eigen::Ref<vectorN_t const>   q,
+                                             Eigen::Ref<vectorN_t const>   v,
+                                             Eigen::Ref<vectorN_t const>   a);
+
+        vector3_t computeContactDynamics(systemDataHolder_t const & system,
+                                         int32_t            const & frameId) const;
+
+        void computeCommand(systemDataHolder_t          & system,
+                            float64_t            const  & t,
+                            Eigen::Ref<vectorN_t const>   q,
+                            Eigen::Ref<vectorN_t const>   v,
+                            vectorN_t                  & u);
+        void computeExternalForces(systemDataHolder_t  & system,
+                                   float64_t     const & t,
                                    vectorN_t     const & x,
                                    forceVector_t       & fext);
-        void computeInternalDynamics(float64_t                   const & t,
-                                     Eigen::Ref<vectorN_t const>         q,
-                                     Eigen::Ref<vectorN_t const>         v,
-                                     vectorN_t                         & u);
-        void computeSystemDynamics(float64_t const & tIn,
-                                   vectorN_t const & xIn,
-                                   vectorN_t       & dxdtIn);
+        void computeInternalDynamics(systemDataHolder_t          & system,
+                                     float64_t            const  & t,
+                                     Eigen::Ref<vectorN_t const>   q,
+                                     Eigen::Ref<vectorN_t const>   v,
+                                     vectorN_t                   & u) const;
+        void computeSystemDynamics(float64_t const & t,
+                                   vectorN_t const & xCat,
+                                   vectorN_t       & dxdtCat);
 
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
@@ -515,25 +680,19 @@ namespace jiminy
         std::unique_ptr<engineOptions_t const> engineOptions_;
 
     protected:
-        bool_t isInitialized_;
         bool_t isTelemetryConfigured_;
-        std::shared_ptr<Robot> robot_;
-        std::shared_ptr<AbstractController> controller_;
+        bool_t isSimulationRunning_;
         configHolder_t engineOptionsHolder_;
-        callbackFunctor_t callbackFct_;
+        std::vector<systemDataHolder_t> systemsDataHolder_;
 
     private:
-        std::unique_ptr<MutexLocal::LockGuardLocal> robotLock_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
         stepper_t stepper_;
         float64_t stepperUpdatePeriod_;
-        stepperState_t stepperState_;       ///< Internal buffer with the state for the integration loop
-        stepperState_t stepperStateLast_;   ///< Internal state for the integration loop at the end of the previous iteration
-        std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> > forcesImpulse_; // Note that one MUST use an ordered map wrt. the application time
-        std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> >::const_iterator forceImpulseNextIt_;
-        static_map_t<std::string, std::tuple<int32_t, forceFunctor_t> > forcesProfile_;
+        stepperState_t stepperState_;
+        forceCouplingRegister_t forcesCoupling_;
     };
 }
 

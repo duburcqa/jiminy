@@ -38,9 +38,9 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
-    positionFieldNames_(),
-    velocityFieldNames_(),
-    accelerationFieldNames_(),
+    positionFieldnames_(),
+    velocityFieldnames_(),
+    accelerationFieldnames_(),
     pncModelFlexibleOrig_(),
     nq_(0),
     nv_(0),
@@ -228,7 +228,7 @@ namespace jiminy
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     std::string newName =
-                        removeFieldnameSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
+                        removeSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
                     flexibleJointsNames_.emplace_back(newName);
                     insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName); // Ignore return code, as check has already been done.
                 }
@@ -337,15 +337,14 @@ namespace jiminy
 
             /* Generate the fieldnames associated with the configuration,
                velocity, and acceleration vectors. */
-            positionFieldNames_.clear();
-            positionFieldNames_.resize(nq_);
-            velocityFieldNames_.clear();
-            velocityFieldNames_.resize(nv_);
-            accelerationFieldNames_.clear();
-            accelerationFieldNames_.resize(nv_);
+            positionFieldnames_.clear();
+            positionFieldnames_.resize(nq_);
+            velocityFieldnames_.clear();
+            velocityFieldnames_.resize(nv_);
+            accelerationFieldnames_.clear();
+            accelerationFieldnames_.resize(nv_);
             std::vector<std::string> const & jointNames = pncModel_.names;
-            std::vector<std::string> jointShortNames =
-                removeFieldnamesSuffix(jointNames, "Joint");
+            std::vector<std::string> jointShortNames = removeSuffix(jointNames, "Joint");
             for (uint32_t i=0; i<jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
@@ -396,7 +395,7 @@ namespace jiminy
                     {
                         std::copy(jointPositionFieldnames.begin(),
                                   jointPositionFieldnames.end(),
-                                  positionFieldNames_.begin() + idx_q);
+                                  positionFieldnames_.begin() + idx_q);
                     }
 
                     std::vector<std::string> jointTypeVelocitySuffixes;
@@ -421,10 +420,10 @@ namespace jiminy
                     {
                         std::copy(jointVelocityFieldnames.begin(),
                                   jointVelocityFieldnames.end(),
-                                  velocityFieldNames_.begin() + idx_v);
+                                  velocityFieldnames_.begin() + idx_v);
                         std::copy(jointAccelerationFieldnames.begin(),
                                   jointAccelerationFieldnames.end(),
-                                  accelerationFieldNames_.begin() + idx_v);
+                                  accelerationFieldnames_.begin() + idx_v);
                     }
                 }
             }
@@ -740,9 +739,9 @@ namespace jiminy
         return contactFramesIdx_;
     }
 
-    std::vector<std::string> const & Model::getPositionFieldNames(void) const
+    std::vector<std::string> const & Model::getPositionFieldnames(void) const
     {
-        return positionFieldNames_;
+        return positionFieldnames_;
     }
 
     vectorN_t const & Model::getPositionLimitMin(void) const
@@ -755,9 +754,9 @@ namespace jiminy
         return positionLimitMax_;
     }
 
-    std::vector<std::string> const & Model::getVelocityFieldNames(void) const
+    std::vector<std::string> const & Model::getVelocityFieldnames(void) const
     {
-        return velocityFieldNames_;
+        return velocityFieldnames_;
     }
 
     vectorN_t const & Model::getVelocityLimit(void) const
@@ -765,9 +764,9 @@ namespace jiminy
         return velocityLimit_;
     }
 
-    std::vector<std::string> const & Model::getAccelerationFieldNames(void) const
+    std::vector<std::string> const & Model::getAccelerationFieldnames(void) const
     {
-        return accelerationFieldNames_;
+        return accelerationFieldnames_;
     }
 
     std::vector<std::string> const & Model::getRigidJointsNames(void) const

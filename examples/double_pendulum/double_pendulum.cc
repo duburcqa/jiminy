@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-#include "jiminy/core/Engine.h"
+#include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/io/FileDevice.h"

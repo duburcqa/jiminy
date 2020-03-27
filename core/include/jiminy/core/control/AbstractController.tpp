@@ -32,7 +32,7 @@ namespace jiminy
     ///
     /// \brief      Register a constant to the telemetry.
     ///
-    /// \param[in]  fieldNames      Name of the variable.
+    /// \param[in]  fieldnames      Name of the variable.
     /// \param[in]  values          Variable to add to the telemetry
     ///
     /// \return     Return code to determine whether the execution of the method was successful.

@@ -20,7 +20,7 @@
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
-#include "jiminy/core/Engine.h"
+#include "jiminy/core/engine/Engine.h"
 
 #include <boost/numeric/odeint/iterator/n_step_iterator.hpp>
 
@@ -43,7 +43,7 @@ namespace jiminy
         x = xInit;
 
         dxdt = vectorN_t::Zero(nx_);
-        computePositionDerivative(robot.pncModel_, q(), v(), qDot());
+        computePositionDerivative(robot.pncModel_, q(), v(), qDot(), dt);
 
         fExternal = forceVector_t(robot.pncModel_.joints.size(),
                                     pinocchio::Force::Zero());
@@ -144,7 +144,7 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableConfiguration)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        robot_->getPositionFieldNames(),
+                        robot_->getPositionFieldnames(),
                         vectorN_t::Zero(robot_->nq()));
                 }
             }
@@ -153,7 +153,7 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableVelocity)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        robot_->getVelocityFieldNames(),
+                        robot_->getVelocityFieldnames(),
                         vectorN_t::Zero(robot_->nv()));
                 }
             }
@@ -162,7 +162,7 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableAcceleration)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        robot_->getAccelerationFieldNames(),
+                        robot_->getAccelerationFieldnames(),
                         vectorN_t::Zero(robot_->nv()));
                 }
             }
@@ -171,7 +171,7 @@ namespace jiminy
                 if (engineOptions_->telemetry.enableTorque)
                 {
                     returnCode = telemetrySender_.registerVariable(
-                        robot_->getMotorTorqueFieldNames(),
+                        robot_->getMotorTorqueFieldnames(),
                         vectorN_t::Zero(robot_->getMotorsNames().size()));
                 }
             }
@@ -212,22 +212,22 @@ namespace jiminy
         // Update the telemetry internal state
         if (engineOptions_->telemetry.enableConfiguration)
         {
-            telemetrySender_.updateValue(robot_->getPositionFieldNames(),
+            telemetrySender_.updateValue(robot_->getPositionFieldnames(),
                                          stepperState_.q());
         }
         if (engineOptions_->telemetry.enableVelocity)
         {
-            telemetrySender_.updateValue(robot_->getVelocityFieldNames(),
+            telemetrySender_.updateValue(robot_->getVelocityFieldnames(),
                                          stepperState_.v());
         }
         if (engineOptions_->telemetry.enableAcceleration)
         {
-            telemetrySender_.updateValue(robot_->getAccelerationFieldNames(),
+            telemetrySender_.updateValue(robot_->getAccelerationFieldnames(),
                                          stepperState_.a());
         }
         if (engineOptions_->telemetry.enableTorque)
         {
-            telemetrySender_.updateValue(robot_->getMotorTorqueFieldNames(),
+            telemetrySender_.updateValue(robot_->getMotorTorqueFieldnames(),
                                          stepperState_.uMotor);
         }
         if (engineOptions_->telemetry.enableEnergy)
@@ -581,9 +581,9 @@ namespace jiminy
                consists in keeping track of the cumulative rounding error
                to add it back to the sum when it gets larger than the
                numerical precision, thus avoiding it to grows unbounded. */
-            float64_t stepSize_true = stepSize - stepperState_.t_err;
+            float64_t stepSize_true = stepSize - stepperState_.tError;
             tEnd = stepperState_.t + stepSize_true;
-            stepperState_.t_err = (tEnd - stepperState_.t) - stepSize_true;
+            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
 
             // Get references/copies of some internal stepper buffers
             float64_t t = stepperState_.t;
@@ -1125,8 +1125,8 @@ namespace jiminy
     {
         vectorN_t fieldData = vectorN_t::Zero(0);
 
-        std::vector<std::string>::iterator iterator = std::find (header.begin(), header.end(), fieldName);
-        std::vector<std::string>::iterator start = std::find (header.begin(), header.end(), "StartColumns");
+        std::vector<std::string>::iterator iterator = std::find(header.begin(), header.end(), fieldName);
+        std::vector<std::string>::iterator start = std::find(header.begin(), header.end(), "StartColumns");
         if (iterator != header.end())
         {
             fieldData = logData.col(std::distance(start, iterator) - 1);
