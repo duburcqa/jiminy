@@ -2,11 +2,6 @@
 #define JIMINY_UTILITIES_H
 
 #include <chrono>
-#include <vector>
-#include <random>
-
-#include "pinocchio/multibody/model.hpp"
-#include "pinocchio/algorithm/frames.hpp"
 
 #include "json/json.h"
 
@@ -72,8 +67,6 @@ namespace jiminy
 
     // ************* IO file and Directory utilities ****************
 
-    class AbstractIODevice; // Forward declaration
-
     std::string getUserDirectory(void);
 
     // **************** Generic template utilities ******************
@@ -93,7 +86,28 @@ namespace jiminy
         static const bool value = true;
     };
 
+    template <typename Base>
+    inline std::shared_ptr<Base>
+    shared_from_base(std::enable_shared_from_this<Base>* base)
+    {
+        return base->shared_from_this();
+    }
+    template <typename Base>
+    inline std::shared_ptr<const Base>
+    shared_from_base(std::enable_shared_from_this<Base> const* base)
+    {
+        return base->shared_from_this();
+    }
+    template <typename That>
+    inline std::shared_ptr<That>
+    shared_from(That* that)
+    {
+        return std::static_pointer_cast<That>(shared_from_base(that));
+    }
+
     // *************** Convertion to JSON utilities *****************
+
+    class AbstractIODevice;
 
     template<typename T>
     enable_if_t<!is_vector<T>::value, Json::Value>
@@ -229,6 +243,11 @@ namespace jiminy
     hresult_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
+
+    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                             pinocchio::Data  const & data,
+                                             int32_t          const & frameId,
+                                             vector3_t        const & fextInWorld);
 
     // ********************** Math utilities *************************
 

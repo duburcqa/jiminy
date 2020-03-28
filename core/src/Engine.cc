@@ -27,6 +27,36 @@
 
 namespace jiminy
 {
+    void stepperState_t::initialize(Robot           & robot,
+                                    vectorN_t const & xInit,
+                                    float64_t const & dt_init)
+    {
+        // Extract some information from the robot
+        nx_ = robot.nx();
+        nq_ = robot.nq();
+        nv_ = robot.nv();
+
+        // Initialize the ode stepper state buffers
+        iter = 0;
+        t = 0.0;
+        dt = dt_init;
+        x = xInit;
+
+        dxdt = vectorN_t::Zero(nx_);
+        computePositionDerivative(robot.pncModel_, q(), v(), qDot());
+
+        fExternal = forceVector_t(robot.pncModel_.joints.size(),
+                                    pinocchio::Force::Zero());
+        uInternal = vectorN_t::Zero(nv_);
+        uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
+        uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
+        u = vectorN_t::Zero(nv_);
+
+        // Set the initialization flag
+        isInitialized_ = true;
+    }
+
+
     Engine::Engine(void):
     engineOptions_(nullptr),
     isInitialized_(false),
@@ -39,7 +69,7 @@ namespace jiminy
                  {
                      return true;
                  }),
-    lockModel_(),
+    robotLock_(),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -56,11 +86,9 @@ namespace jiminy
 
         // Initialize the global telemetry data holder
         telemetryData_ = std::make_shared<TelemetryData>();
-        telemetryData_->reset();
 
         // Initialize the global telemetry recorder
-        telemetryRecorder_ = std::make_unique<TelemetryRecorder>(
-            std::const_pointer_cast<TelemetryData const>(telemetryData_));
+        telemetryRecorder_ = std::make_unique<TelemetryRecorder>();
 
         // Initialize the engine-specific telemetry sender
         telemetrySender_.configureObject(telemetryData_, ENGINE_OBJECT_NAME);
@@ -71,18 +99,15 @@ namespace jiminy
 
     Engine::~Engine(void) = default; // Cannot be default in the header since some types are incomplete at this point
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot>              const & robot,
-                                 std::shared_ptr<AbstractController> const & controller,
-                                 callbackFunctor_t                           callbackFct)
+    hresult_t Engine::initialize(std::shared_ptr<Robot>              robot,
+                                 std::shared_ptr<AbstractController> controller,
+                                 callbackFunctor_t                   callbackFct)
     {
         if (!robot->getIsInitialized())
         {
             std::cout << "Error - Engine::initialize - Robot not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
-        robot_ = robot;
-
-        stepperState_.initialize(*robot_);
 
         if (!controller->getIsInitialized())
         {
@@ -90,13 +115,11 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        controller_ = controller;
-
         // TODO: Check that the callback function is working as expected
-        callbackFct_ = callbackFct;
 
-        // Make sure the gravity is properly set at model level
-        setOptions(engineOptionsHolder_);
+        robot_ = std::move(robot);
+        controller_ = std::move(controller);
+        callbackFct_ = std::move(callbackFct);
 
         isInitialized_ = true;
 
@@ -275,7 +298,7 @@ namespace jiminy
             reset(resetRandomNumbers, resetDynamicForceRegister);
 
             // Lock the robot. At this point it is no longer possible to change the robot.
-            returnCode = robot_->getLock(lockModel_);
+            returnCode = robot_->getLock(robotLock_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -344,7 +367,7 @@ namespace jiminy
 
             // Compute the initial time step
             float64_t dt;
-            if (stepperUpdatePeriod_ > MIN_SIMULATION_TIMESTEP)
+            if (stepperUpdatePeriod_ > SIMULATION_MIN_TIMESTEP)
             {
                 dt = stepperUpdatePeriod_; // The initial time step is the update period
             }
@@ -408,7 +431,7 @@ namespace jiminy
             configureTelemetry();
 
             // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize();
+            telemetryRecorder_->initialize(telemetryData_.get());
 
             // Log current buffer content as first point of the log data.
             updateTelemetry();
@@ -450,7 +473,7 @@ namespace jiminy
             /* Stop the simulation if the end time has been reached, if
                the callback returns false, or if the max number of
                integration steps is exceeded. */
-            if (tEnd - stepperState_.t < MIN_SIMULATION_TIMESTEP)
+            if (tEnd - stepperState_.t < SIMULATION_MIN_TIMESTEP)
             {
                 if (engineOptions_->stepper.verbose)
                 {
@@ -500,7 +523,7 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Check if the simulation has started
-        if (!lockModel_)
+        if (!robotLock_)
         {
             std::cout << "Error - Engine::step - No simulation running. Please start it before using step method." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
@@ -523,7 +546,7 @@ namespace jiminy
             }
 
             // Check if the desired step size is suitable
-            if (stepSize > EPS && stepSize < MIN_SIMULATION_TIMESTEP)
+            if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
             {
                 std::cout << "Error - Engine::step - The step size 'stepSize' is out of bounds." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
@@ -586,8 +609,8 @@ namespace jiminy
             failed_step_checker fail_checker;
 
             /* Perform the integration.
-               Do not simulate a timestep smaller than MIN_STEPPER_TIMESTEP. */
-            while (tEnd - t > MIN_STEPPER_TIMESTEP)
+               Do not simulate a timestep smaller than STEPPER_MIN_TIMESTEP. */
+            while (tEnd - t > STEPPER_MIN_TIMESTEP)
             {
                 float64_t tNext = t;
 
@@ -598,8 +621,8 @@ namespace jiminy
                     {
                         float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
                         float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                        if (dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP
-                        || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+                        if (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                        || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                         {
                             robot_->setSensorsData(t, q, v, a, uMotor);
                         }
@@ -610,8 +633,8 @@ namespace jiminy
                     {
                         float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                         float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                        if (dtNextControllerUpdatePeriod < MIN_SIMULATION_TIMESTEP
-                        || controllerUpdatePeriod - dtNextControllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+                        if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                        || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                         {
                             computeCommand(t, q, v, uCommand);
 
@@ -658,7 +681,7 @@ namespace jiminy
 
                 /* Increase back the timestep dt if it has been decreased
                    to a ridiculously small value because of a breakpoint. */
-                dt = std::max(dt, DEFAULT_SIMULATION_TIMESTEP);
+                dt = std::max(dt, SIMULATION_DEFAULT_TIMESTEP);
 
                 if (stepperUpdatePeriod_ > EPS)
                 {
@@ -667,7 +690,7 @@ namespace jiminy
                     // need to update the sensors / controller.
                     float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
                     float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
-                    if (dtNextUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+                    if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                     {
                         // Step to reach next sensors / controller update is too short: skip one
                         // controller update and jump to the next one.
@@ -684,7 +707,7 @@ namespace jiminy
                     /* Check if the next dt to about equal to the time difference
                        between the current time (it can only be smaller) and
                        enforce next dt to exactly match this value in such a case. */
-                    if (tEnd - t - MIN_STEPPER_TIMESTEP < dtNextGlobal)
+                    if (tEnd - t - STEPPER_MIN_TIMESTEP < dtNextGlobal)
                     {
                         dtNextGlobal = tEnd - t;
                     }
@@ -698,16 +721,16 @@ namespace jiminy
                            multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
                            it is possible, to reduce rounding errors of logged data. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
-                        if (tNext - (t + dt) < MIN_STEPPER_TIMESTEP)
+                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {
                             dt = tNext - t;
                         }
-                        if (dt > MIN_SIMULATION_TIMESTEP)
+                        if (dt > SIMULATION_MIN_TIMESTEP)
                         {
-                            float64_t const dtResidual = std::fmod(dt, MIN_SIMULATION_TIMESTEP);
-                            if (dtResidual > MIN_STEPPER_TIMESTEP
-                             && dtResidual < MIN_SIMULATION_TIMESTEP - MIN_STEPPER_TIMESTEP
-                             && dt - dtResidual > MIN_STEPPER_TIMESTEP)
+                            float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
+                            if (dtResidual > STEPPER_MIN_TIMESTEP
+                             && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
+                             && dt - dtResidual > STEPPER_MIN_TIMESTEP)
                             {
                                 dt -= dtResidual;
                             }
@@ -802,10 +825,10 @@ namespace jiminy
     void Engine::stop(void)
     {
         // Make sure that a simulation running
-        if (lockModel_)
+        if (robotLock_)
         {
             // Release the lock on the robot
-            lockModel_.reset(nullptr);
+            robotLock_.reset(nullptr);
 
             /* Reset the telemetry. Note that calling `reset` does NOT clear the
             internal data buffer of telemetryRecorder_. Clearing is done at init
@@ -893,7 +916,7 @@ namespace jiminy
     {
         // Make sure that the forces do NOT overlap while taking into account dt.
 
-        if (lockModel_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::registerForceImpulse - A simulation is running. Please stop it before registering new forces." << std::endl;
             return hresult_t::ERROR_GENERIC;
@@ -907,7 +930,7 @@ namespace jiminy
     hresult_t Engine::registerForceProfile(std::string      const & frameName,
                                            forceFunctor_t           forceFct)
     {
-        if (lockModel_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::registerForceProfile - A simulation is running. Please stop it before registering new forces." << std::endl;
             return hresult_t::ERROR_GENERIC;
@@ -927,7 +950,7 @@ namespace jiminy
 
     hresult_t Engine::setOptions(configHolder_t const & engineOptions)
     {
-        if (lockModel_)
+        if (robotLock_)
         {
             std::cout << "Error - Engine::setOptions - A simulation is running. Please stop it before updating the options." << std::endl;
             return hresult_t::ERROR_GENERIC;
@@ -936,7 +959,7 @@ namespace jiminy
         // Make sure the dtMax is not out of bounds
         configHolder_t stepperOptions = boost::get<configHolder_t>(engineOptions.at("stepper"));
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
-        if (MAX_SIMULATION_TIMESTEP < dtMax || dtMax < MIN_SIMULATION_TIMESTEP)
+        if (SIMULATION_MAX_TIMESTEP < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
             std::cout << "Error - Engine::setOptions - 'dtMax' option is out of bounds." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
@@ -955,11 +978,11 @@ namespace jiminy
             boost::get<float64_t>(stepperOptions.at("sensorsUpdatePeriod"));
         float64_t const & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
-        if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
-        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP))
+        if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))
         {
             std::cout << "Error - Engine::setOptions - Cannot simulate a discrete system with period smaller than";
-            std::cout << MIN_SIMULATION_TIMESTEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
+            std::cout << SIMULATION_MIN_TIMESTEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
@@ -1004,11 +1027,11 @@ namespace jiminy
         }
 
         // Compute the breakpoints' period (for command or observation) during the integration loop
-        if (sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+        if (sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
             stepperUpdatePeriod_ = controllerUpdatePeriod;
         }
-        else if (controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+        else if (controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
             stepperUpdatePeriod_ = sensorsUpdatePeriod;
         }
@@ -1282,14 +1305,14 @@ namespace jiminy
         /* Update the sensor data if necessary (only for infinite update frequency).
            Note that it is impossible to have access to the current accelerations
            and torques since they depend on the sensor values themselves. */
-        if (engineOptions_->stepper.sensorsUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+        if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
             robot_->setSensorsData(t, q, v, stepperStateLast_.a(), stepperStateLast_.uMotor);
         }
 
         /* Update the controller command if necessary (only for infinite update frequency).
            Make sure that the sensor state has been updated beforehand. */
-        if (engineOptions_->stepper.controllerUpdatePeriod < MIN_SIMULATION_TIMESTEP)
+        if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
             computeCommand(t, q, v, uCommand);
         }

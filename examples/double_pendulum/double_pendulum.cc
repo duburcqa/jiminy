@@ -12,6 +12,8 @@
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
+#include <boost/filesystem.hpp>
+
 
 using namespace jiminy;
 
@@ -47,9 +49,10 @@ int main(int argc, char_t * argv[])
     // =====================================================================
 
     // Set URDF and log output.
-    std::string homedir = getUserDirectory();
-    std::string urdfPath = homedir + std::string("/wdc_workspace/src/jiminy/data/double_pendulum/double_pendulum.urdf");
-    std::string outputDirPath("/tmp/");
+    boost::filesystem::path const filePath = __FILE__;
+    boost::filesystem::path const jiminySrcPath = filePath.parent_path().parent_path().parent_path();
+    std::string const urdfPath = (jiminySrcPath / "data/double_pendulum/double_pendulum.urdf").string();
+    std::string const outputDirPath = "/tmp/";
 
     // =====================================================================
     // ============ Instantiate and configure the simulation ===============
@@ -71,16 +74,15 @@ int main(int argc, char_t * argv[])
     robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
-        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
         motor->initialize(jointName);
     }
 
     // Instantiate and configuration the controller
-
     auto controller = std::make_shared<ControllerFunctor<decltype(computeCommand),
                                                          decltype(internalDynamics)> >(computeCommand, internalDynamics);
-    controller->initialize(robot);
+    controller->initialize(robot.get());
 
     // Instantiate and configuration the engine
     auto engine = std::make_shared<Engine>();
@@ -118,7 +120,7 @@ int main(int argc, char_t * argv[])
     // Prepare options
     Eigen::VectorXd x0 = Eigen::VectorXd::Zero(4);
     x0(1) = 0.1;
-    float64_t tf = 3.0;
+    float64_t const tf = 3.0;
 
     // Run simulation
     timer.tic();

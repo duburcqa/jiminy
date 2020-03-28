@@ -20,7 +20,8 @@ namespace jiminy
         setOptions(getDefaultSensorOptions());
     }
 
-    hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
+    hresult_t AbstractSensorBase::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                                     std::string const & objectPrefixName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -36,7 +37,12 @@ namespace jiminy
             {
                 if (telemetryData)
                 {
-                    telemetrySender_.configureObject(telemetryData, getTelemetryName());
+                    std::string objectName = getTelemetryName();
+                    if (!objectPrefixName.empty())
+                    {
+                        objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
+                    }
+                    telemetrySender_.configureObject(std::move(telemetryData), objectName);
                     returnCode = telemetrySender_.registerVariable(getFieldNames(), data_);
                     if (returnCode == hresult_t::SUCCESS)
                     {

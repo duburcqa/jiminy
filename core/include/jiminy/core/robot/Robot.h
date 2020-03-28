@@ -33,17 +33,22 @@ namespace jiminy
         hresult_t initialize(std::string const & urdfPath,
                              bool_t      const & hasFreeflyer = true);
 
-        hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> const & motor);
+        hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(std::string const & motorName,
-                           std::shared_ptr<AbstractMotorBase const> & motor) const;
-        motorsHolder_t const & getMotors(void) const;
+                           std::shared_ptr<AbstractMotorBase> & motor);
+        hresult_t getMotor(std::string       const   & motorName,
+                           AbstractMotorBase const * & motor) const;
+        motorsHolder_t & getMotors(void);
         hresult_t detachMotor(std::string const & motorName);
         hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
-        hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor);
+        hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
         hresult_t getSensor(std::string const & sensorType,
                             std::string const & sensorName,
-                            std::shared_ptr<AbstractSensorBase const> & sensor) const;
-        sensorsGroupHolder_t const & getSensors(void) const;
+                            std::shared_ptr<AbstractSensorBase> & sensor);
+        hresult_t getSensor(std::string        const   & sensorType,
+                            std::string        const   & sensorName,
+                            AbstractSensorBase const * & sensor) const;
+        sensorsGroupHolder_t & getSensors(void);
         hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
@@ -95,7 +100,8 @@ namespace jiminy
 
         // Those methods are not intended to be called manually. The Engine is taking care of it.
         virtual void reset(void) override;
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                             std::string const & objectPrefixName = "");
         void updateTelemetry(void);
         bool_t const & getIsTelemetryConfigured(void) const;
 

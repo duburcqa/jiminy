@@ -6,7 +6,7 @@ namespace jiminy
     JsonLoader::JsonLoader(std::shared_ptr<AbstractIODevice> device) :
     rootJson_(),
     payload_(),
-    device_(device)
+    device_(std::move(device))
     {
         // Empty on purpose.
     }

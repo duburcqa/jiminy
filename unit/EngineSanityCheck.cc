@@ -53,7 +53,7 @@ TEST(EngineSanity, EnergyConservation)
     robot->initialize(urdfPath, false);
     for (std::string const & jointName : motorJointNames)
     {
-        std::shared_ptr<SimpleMotor> motor = std::make_shared<SimpleMotor>(jointName);
+        auto motor = std::make_shared<SimpleMotor>(jointName);
         robot->attachMotor(motor);
         motor->initialize(jointName);
     }
@@ -77,7 +77,7 @@ TEST(EngineSanity, EnergyConservation)
         ControllerFunctor<decltype(controllerZeroTorque),
                           decltype(internalDynamics)>
     >(controllerZeroTorque, internalDynamics);
-    controller->initialize(robot);
+    controller->initialize(robot.get());
 
     // Continuous simulation
     auto engine = std::make_shared<Engine>();

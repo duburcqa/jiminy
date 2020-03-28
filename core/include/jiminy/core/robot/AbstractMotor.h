@@ -44,7 +44,7 @@ namespace jiminy
         int32_t num_;                               ///< Number of motors
     };
 
-    class AbstractMotorBase
+    class AbstractMotorBase: public std::enable_shared_from_this<AbstractMotorBase>
     {
         /* AKA AbstractSensorBase */
         friend Robot;
@@ -270,8 +270,8 @@ namespace jiminy
         ///
         /// \details  This method must be called before initializing the sensor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(Robot const * robot,
-                         std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder);
+        hresult_t attach(Robot                   const * robot,
+                         MotorSharedDataHolder_t       * sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Detach the sensor from the robot

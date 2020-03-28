@@ -9,7 +9,6 @@
 #include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
@@ -19,16 +18,14 @@
 
 namespace jiminy
 {
-    float64_t const MIN_STEPPER_TIMESTEP = 1e-10;
-    float64_t const DEFAULT_SIMULATION_TIMESTEP = 1e-3;
-
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
     using namespace boost::numeric::odeint;
 
-    class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;
+    class AbstractController;
+    class Robot;
 
     class explicit_euler
     {
@@ -83,39 +80,9 @@ namespace jiminy
             // Empty.
         }
 
-        void initialize(Robot & robot)
-        {
-            initialize(robot, vectorN_t::Zero(robot.nx()), DEFAULT_SIMULATION_TIMESTEP);
-        }
-
         void initialize(Robot           & robot,
                         vectorN_t const & xInit,
-                        float64_t const & dt_init)
-        {
-            // Extract some information from the robot
-            nx_ = robot.nx();
-            nq_ = robot.nq();
-            nv_ = robot.nv();
-
-            // Initialize the ode stepper state buffers
-            iter = 0;
-            t = 0.0;
-            dt = dt_init;
-            x = xInit;
-
-            dxdt = vectorN_t::Zero(nx_);
-            computePositionDerivative(robot.pncModel_, q(), v(), qDot());
-
-            fExternal = forceVector_t(robot.pncModel_.joints.size(),
-                                      pinocchio::Force::Zero());
-            uInternal = vectorN_t::Zero(nv_);
-            uCommand = vectorN_t::Zero(robot.getMotorsNames().size());
-            uMotor = vectorN_t::Zero(robot.getMotorsNames().size());
-            u = vectorN_t::Zero(nv_);
-
-            // Set the initialization flag
-            isInitialized_ = true;
-        }
+                        float64_t const & dt_init);
 
         bool_t const & getIsInitialized(void) const
         {
@@ -379,9 +346,9 @@ namespace jiminy
         Engine(void);
         ~Engine(void);
 
-        hresult_t initialize(std::shared_ptr<Robot>              const & robot,
-                             std::shared_ptr<AbstractController> const & controller,
-                             callbackFunctor_t    callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot>              robot,
+                             std::shared_ptr<AbstractController> controller,
+                             callbackFunctor_t                   callbackFct);
 
         /// \brief Reset engine.
         ///
@@ -440,8 +407,8 @@ namespace jiminy
                                        float64_t   const & t,
                                        float64_t   const & dt,
                                        vector3_t   const & F);
-        hresult_t registerForceProfile(std::string      const & frameName,
-                                       forceFunctor_t           forceFct);
+        hresult_t registerForceProfile(std::string    const & frameName,
+                                       forceFunctor_t         forceFct);
 
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
@@ -450,7 +417,6 @@ namespace jiminy
         Robot & getRobot(void) const;
         AbstractController & getController(void) const;
         stepperState_t const & getStepperState(void) const;
-        std::vector<vectorN_t> const & getContactForces(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,
@@ -512,10 +478,10 @@ namespace jiminy
                                    vectorN_t const & xIn,
                                    vectorN_t       & dxdtIn);
 
-    private:
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
 
+    private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
                  typename ConfigVectorType, typename TangentVectorType>
         inline Scalar
@@ -557,7 +523,7 @@ namespace jiminy
         callbackFunctor_t callbackFct_;
 
     private:
-        std::unique_ptr<MutexLocal::LockGuardLocal> lockModel_;
+        std::unique_ptr<MutexLocal::LockGuardLocal> robotLock_;
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
@@ -567,7 +533,7 @@ namespace jiminy
         stepperState_t stepperStateLast_;   ///< Internal state for the integration loop at the end of the previous iteration
         std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> > forcesImpulse_; // Note that one MUST use an ordered map wrt. the application time
         std::map<float64_t, std::tuple<std::string, float64_t, vector3_t> >::const_iterator forceImpulseNextIt_;
-        std::vector<std::pair<std::string, std::tuple<int32_t, forceFunctor_t> > > forcesProfile_;
+        static_map_t<std::string, std::tuple<int32_t, forceFunctor_t> > forcesProfile_;
     };
 }
 

@@ -25,7 +25,7 @@ namespace jiminy
 
     template <typename T>
     hresult_t AbstractSensorTpl<T>::attach(Robot const * robot,
-                                           std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder)
+                                           SensorSharedDataHolder_t * sharedHolder)
     {
         if (isAttached_)
         {
@@ -35,7 +35,7 @@ namespace jiminy
 
         // Copy references to the robot and shared data
         robot_ = robot;
-        sharedHolder_ = sharedHolder.get();
+        sharedHolder_ = sharedHolder;
 
         // Get an Id
         sensorId_ = sharedHolder_->num_;
@@ -186,7 +186,7 @@ namespace jiminy
     {
         if (areFieldNamesGrouped_)
         {
-            return getType() + "." + name_;
+            return getType() + TELEMETRY_DELIMITER + name_;
         }
         else
         {
@@ -337,7 +337,7 @@ namespace jiminy
 
         /* Make sure at least the requested delay plus the maximum time step
            is available to handle the case where the solver goes back in time */
-        float64_t const timeMin = t - sharedHolder_->delayMax_ - MAX_SIMULATION_TIMESTEP;
+        float64_t const timeMin = t - sharedHolder_->delayMax_ - SIMULATION_MAX_TIMESTEP;
 
         // Internal buffer memory management
         if (t + std::numeric_limits<float64_t>::epsilon() > sharedHolder_->time_.back())
@@ -345,17 +345,17 @@ namespace jiminy
             if (sharedHolder_->time_[0] < 0 || timeMin > sharedHolder_->time_[1])
             {
                 // Remove some unecessary extra elements if appropriate
-                if (sharedHolder_->time_.size() > 2U + MAX_DELAY_BUFFER_EXCEED
-                && timeMin > sharedHolder_->time_[2U + MAX_DELAY_BUFFER_EXCEED])
+                if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED
+                && timeMin > sharedHolder_->time_[2U + DELAY_MAX_BUFFER_EXCEED])
                 {
-                    for (uint8_t i=0; i < 1 + MAX_DELAY_BUFFER_EXCEED; i ++)
+                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; i ++)
                     {
                         sharedHolder_->time_.pop_front();
                         sharedHolder_->data_.pop_front();
                     }
 
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + MIN_DELAY_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 // Rotate the internal buffer
@@ -367,8 +367,8 @@ namespace jiminy
                 // Increase capacity if required
                 if (sharedHolder_->time_.full())
                 {
-                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1U + MIN_DELAY_BUFFER_RESERVE);
-                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1U + MIN_DELAY_BUFFER_RESERVE);
+                    sharedHolder_->time_.rset_capacity(sharedHolder_->time_.size() + 1U + DELAY_MIN_BUFFER_RESERVE);
+                    sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1U + DELAY_MIN_BUFFER_RESERVE);
                 }
 
                 // Push back new empty buffer (Do NOT initialize it for efficiency)

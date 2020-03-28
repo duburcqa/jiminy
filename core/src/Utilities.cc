@@ -3,6 +3,7 @@
 #include <numeric>     /* iota */
 #include <type_traits>
 #include <stdlib.h>     /* srand, rand */
+#include <random>
 
 #ifndef _WIN32
 #include <pwd.h>
@@ -13,6 +14,8 @@
 #include <stdio.h>
 #endif
 
+#include "pinocchio/multibody/model.hpp"
+#include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/io/MemoryDevice.h"
@@ -587,11 +590,10 @@ namespace jiminy
         fieldnames.reserve(size);
         for (uint32_t i=0; i<size; i++)
         {
-            fieldnames.emplace_back(baseName + std::to_string(i)); // TODO: MR going to support "." delimiter
+            fieldnames.emplace_back(std::move(baseName + TELEMETRY_DELIMITER + std::to_string(i)));
         }
         return fieldnames;
     }
-
 
     std::string removeFieldnameSuffix(std::string         fieldname,
                                       std::string const & suffix)
@@ -629,7 +631,7 @@ namespace jiminy
            quaternions on SO3 automatically. Note that the time difference must
            not be too small to avoid failure. */
 
-        dt = std::max(MIN_SIMULATION_TIMESTEP, dt);
+        dt = std::max(SIMULATION_MIN_TIMESTEP, dt);
         vectorN_t qNext(q.size());
         pinocchio::integrate(model, q, v*dt, qNext);
         qDot = (qNext - q) / dt;
@@ -1208,6 +1210,24 @@ namespace jiminy
         }
 
         return hresult_t::SUCCESS;
+    }
+
+    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                             pinocchio::Data  const & data,
+                                             int32_t          const & frameId,
+                                             vector3_t        const & fextInWorld)
+    {
+        // Get various transformations
+        matrix3_t const & tformFrameRot = data.oMf[frameId].rotation();
+        matrix3_t const & tformFrameJointRot = model.frames[frameId].placement.rotation();
+        vector3_t const & posFrameJoint = model.frames[frameId].placement.translation();
+
+        // Compute the forces at the origin of the parent joint frame
+        vector6_t fextLocal;
+        fextLocal.head<3>() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld;
+        fextLocal.tail<3>() = posFrameJoint.cross(fextLocal.head<3>());
+
+        return fextLocal;
     }
 
     // ********************** Math utilities *************************

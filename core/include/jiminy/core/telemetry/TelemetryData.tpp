@@ -20,7 +20,7 @@ namespace jiminy
     {
         char_t * const memAddress = reinterpret_cast<char_t*>(header);
 
-        // Check in local cache before.
+        // Check in local cache
         auto entry = entriesMap_.find(variableName);
         if (entry != entriesMap_.end())
         {
@@ -28,7 +28,7 @@ namespace jiminy
             return hresult_t::SUCCESS;
         }
 
-        // Check in shared memory.
+        // Check in memory
         int32_t positionInBuffer = findEntry(header, variableName);
         if (positionInBuffer != -1)
         {
@@ -46,7 +46,7 @@ namespace jiminy
 
         if ((header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1) >= header->startDataSection)
         {
-            std::cout << "Error - TelemetryData::updateValue - TODO" << std::endl; //TODO: write appropriate error message
+            std::cout << "Error - TelemetryData::updateValue - Unspecified error." << std::endl; //TODO: write an appropriate error message
             return hresult_t::ERROR_GENERIC;
         }
 

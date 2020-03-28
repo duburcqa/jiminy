@@ -59,7 +59,7 @@ namespace jiminy
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
     };
 
-    class AbstractSensorBase
+    class AbstractSensorBase: public std::enable_shared_from_this<AbstractSensorBase>
     {
         /* Using friend to avoid double delegation, which would make public
            the attach whereas only robot is able to call it.
@@ -119,6 +119,12 @@ namespace jiminy
         AbstractSensorBase(std::string const & name);
         virtual ~AbstractSensorBase(void) = default;
 
+        template <typename T>
+        std::shared_ptr<T> shared_from(T* derived) {
+            assert(this == derived);
+            return std::static_pointer_cast<T>(shared_from_this());
+        }
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
         /// \brief Reset the internal state of the sensor.
@@ -159,7 +165,8 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData);
+        virtual hresult_t configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                             std::string const & objectPrefixName = "");
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Update the internal buffers of the telemetry associated with variables
@@ -368,7 +375,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t attach(Robot const * robot,
-                                 std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) = 0;
+                                 SensorSharedDataHolder_t * sharedHolder) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -438,6 +445,9 @@ namespace jiminy
         AbstractSensorTpl(std::string const & name);
         virtual ~AbstractSensorTpl(void);
 
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
         virtual void reset(void) override;
         void updateTelemetryAll(void) override final;
 
@@ -462,7 +472,7 @@ namespace jiminy
 
     private:
         virtual hresult_t attach(Robot const * robot,
-                                 std::shared_ptr<SensorSharedDataHolder_t> & sharedHolder) override final;
+                                 SensorSharedDataHolder_t * sharedHolder) override final;
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
         using AbstractSensorBase::updateDataBuffer;

@@ -9,7 +9,6 @@
 #define JIMINY_TELEMETRY_RECORDER_H
 
 #include "jiminy/core/io/MemoryDevice.h"
-#include "jiminy/core/telemetry/TelemetryData.h"
 
 
 namespace jiminy
@@ -25,13 +24,13 @@ namespace jiminy
         TelemetryRecorder(TelemetryRecorder const &) = delete;
         TelemetryRecorder & operator=(TelemetryRecorder const &) = delete;
     public:
-        TelemetryRecorder(std::shared_ptr<TelemetryData const> const & telemetryDataInstance);
+        TelemetryRecorder(void);
         ~TelemetryRecorder(void);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
         ////////////////////////////////////////////////////////////////////////
-        hresult_t initialize(void);
+        hresult_t initialize(TelemetryData const * telemetryData);
 
         bool_t const & getIsInitialized(void);
 
@@ -76,7 +75,6 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////
         /// Private attributes
         ///////////////////////////////////////////////////////////////////////
-        std::shared_ptr<TelemetryData const> telemetryData_;
         std::vector<MemoryDevice> flows_;
 
         bool_t isInitialized_;

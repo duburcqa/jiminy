@@ -28,6 +28,8 @@ namespace jiminy
 
         floatsMem_.create();
         floatsHeader_ = static_cast<struct memHeader *>(floatsMem_.address());
+
+        reset();
     }
 
     void TelemetryData::reset()
@@ -35,21 +37,20 @@ namespace jiminy
         entriesMap_.clear();
 
         std::memset(constantsMem_.address(), 0, CONSTANTS_MEM_SIZE);
-        std::memset(integersMem_.address(),  0, INTEGERS_MEM_SIZE);
-        std::memset(floatsMem_.address(),    0, FLOATS_MEM_SIZE);
-
         constantsHeader_->startNameSection = sizeof(struct memHeader);
         constantsHeader_->nextFreeNameOffset = sizeof(struct memHeader);
         constantsHeader_->startDataSection = CONSTANTS_MEM_SIZE; // Set to the end, because it make no sense for constants to have a data section.
         constantsHeader_->nextFreeDataOffset = CONSTANTS_MEM_SIZE;
         constantsHeader_->isRegisteringAvailable = true;
 
+        std::memset(integersMem_.address(),  0, INTEGERS_MEM_SIZE);
         integersHeader_->startNameSection = sizeof(struct memHeader);
         integersHeader_->nextFreeNameOffset = sizeof(struct memHeader);
         integersHeader_->startDataSection = INTEGERS_MEM_SIZE / 2U;
         integersHeader_->nextFreeDataOffset = INTEGERS_MEM_SIZE / 2U;
         integersHeader_->isRegisteringAvailable = true;
 
+        std::memset(floatsMem_.address(),    0, FLOATS_MEM_SIZE);
         floatsHeader_->startNameSection = sizeof(struct memHeader);
         floatsHeader_->nextFreeNameOffset = sizeof(struct memHeader);
         floatsHeader_->startDataSection = FLOATS_MEM_SIZE / 2U;

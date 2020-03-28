@@ -36,7 +36,7 @@ namespace jiminy
     }
 
     hresult_t AbstractMotorBase::attach(Robot const * robot,
-                                        std::shared_ptr<MotorSharedDataHolder_t> & sharedHolder)
+                                        MotorSharedDataHolder_t * sharedHolder)
     {
         if (isAttached_)
         {
@@ -44,9 +44,8 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Copy references to the robot and shared data
         robot_ = robot;
-        sharedHolder_ = sharedHolder.get();
+        sharedHolder_ = sharedHolder;
 
         // Get an Id
         motorId_ = sharedHolder_->num_;

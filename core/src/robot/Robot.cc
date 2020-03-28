@@ -103,7 +103,8 @@ namespace jiminy
         }
     }
 
-    hresult_t Robot::configureTelemetry(std::shared_ptr<TelemetryData> const & telemetryData)
+    hresult_t Robot::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,
+                                        std::string const & objectPrefixName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -115,7 +116,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            telemetryData_ = std::shared_ptr<TelemetryData>(telemetryData);
+            telemetryData_ = std::move(telemetryData);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -130,7 +131,7 @@ namespace jiminy
                         {
                             if (sensorTelemetryOptions_.at(sensorGroup.first))
                             {
-                                returnCode = sensor->configureTelemetry(telemetryData_);
+                                returnCode = sensor->configureTelemetry(telemetryData_, objectPrefixName);
                             }
                         }
                     }
@@ -146,7 +147,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> const & motor)
+    hresult_t Robot::attachMotor(std::shared_ptr<AbstractMotorBase> motor)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -175,13 +176,13 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Attach the motor
-            returnCode = motor->attach(this, motorsSharedHolder_);
+            returnCode = motor->attach(this, motorsSharedHolder_.get());
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             // Add the motor to the holder
-            motorsHolder_.emplace_back(motor);
+            motorsHolder_.emplace_back(std::move(motor));
 
             // Refresh the motors proxies
             refreshMotorsProxies();
@@ -290,7 +291,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::attachSensor(std::shared_ptr<AbstractSensorBase> const & sensor)
+    hresult_t Robot::attachSensor(std::shared_ptr<AbstractSensorBase> sensor)
     {
         // The sensors' names must be unique, even if their type is different.
 
@@ -336,10 +337,10 @@ namespace jiminy
             }
 
             // Create the sensor and add it to its group
-            sensorsGroupHolder_[sensorType].emplace_back(sensor);
+            sensorsGroupHolder_[sensorType].emplace_back(std::move(sensor));
 
             // Attach the sensor
-            returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType));
+            returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType).get());
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -564,8 +565,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::getMotor(std::string const & motorName,
-                              std::shared_ptr<AbstractMotorBase const> & motor) const
+    hresult_t Robot::getMotor(std::string       const   & motorName,
+                              AbstractMotorBase const * & motor) const
     {
         if (!isInitialized_)
         {
@@ -584,19 +585,35 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        motor = (*motorIt);
+        motor = motorIt->get();
 
         return hresult_t::SUCCESS;
     }
 
-    Robot::motorsHolder_t const & Robot::getMotors(void) const
+    hresult_t Robot::getMotor(std::string const & motorName,
+                              std::shared_ptr<AbstractMotorBase> & motor)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        AbstractMotorBase const * motorPtr;
+        returnCode = const_cast<Robot const *>(this)->getMotor(motorName, motorPtr);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            motor = std::move(const_cast<AbstractMotorBase *>(motorPtr)->shared_from_this());
+        }
+
+        return returnCode;
+    }
+
+    Robot::motorsHolder_t & Robot::getMotors(void)
     {
         return motorsHolder_;
     }
 
-    hresult_t Robot::getSensor(std::string const & sensorType,
-                               std::string const & sensorName,
-                               std::shared_ptr<AbstractSensorBase const> & sensor) const
+    hresult_t Robot::getSensor(std::string        const   & sensorType,
+                               std::string        const   & sensorName,
+                               AbstractSensorBase const * & sensor) const
     {
         if (!isInitialized_)
         {
@@ -623,12 +640,29 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        sensor = (*sensorIt);
+        sensor = sensorIt->get();
 
         return hresult_t::SUCCESS;
     }
 
-    Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
+    hresult_t Robot::getSensor(std::string const & sensorType,
+                               std::string const & sensorName,
+                               std::shared_ptr<AbstractSensorBase> & sensor)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        AbstractSensorBase const * sensorPtr;
+        returnCode = const_cast<Robot const *>(this)->getSensor(sensorType, sensorName, sensorPtr);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            sensor = std::move(const_cast<AbstractSensorBase *>(sensorPtr)->shared_from_this());
+        }
+
+        return returnCode;
+    }
+
+    Robot::sensorsGroupHolder_t & Robot::getSensors(void)
     {
         return sensorsGroupHolder_;
     }
@@ -1165,9 +1199,7 @@ namespace jiminy
                                  sensor->get());
             }
 
-            data.emplace(std::piecewise_construct,
-                         std::forward_as_tuple(sensorGroup.first),
-                         std::forward_as_tuple(std::move(dataType)));
+            data.emplace(sensorGroup.first, std::move(dataType));
         }
         return data;
     }

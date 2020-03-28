@@ -351,7 +351,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::shared_ptr<AbstractMotorBase const> motor;
+        AbstractMotorBase const * motor;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = robot_->getMotor(motorName_, motor);

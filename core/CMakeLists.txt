@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system filesystem)
 find_package(urdfdom REQUIRED)
 if(WIN32)
     find_package(Eigen3 3.3.4 REQUIRED NO_MODULE) # it adds target include lib Eigen3::Eigen

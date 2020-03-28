@@ -4,6 +4,8 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <iostream>
+
 // Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
 // The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
 // if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
@@ -18,6 +20,8 @@
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
+#include <boost/python/module.hpp>
+#include <boost/python/scope.hpp>
 #include <boost/python/numpy.hpp>
 
 
@@ -44,6 +48,12 @@ namespace python
         bp::numpy::initialize();
         // Required and create PyArrays<->Eigen automatic converters.
         eigenpy::enableEigenPy();
+
+        // Expose the version
+        #ifndef _WIN32
+        bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
+        bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
+        #endif
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
