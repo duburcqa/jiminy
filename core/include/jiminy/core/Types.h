@@ -10,6 +10,7 @@
 #include <unordered_map>
 
 #include "pinocchio/fwd.hpp"
+#include "pinocchio/multibody/fwd.hpp"
 #include "pinocchio/container/aligned-vector.hpp"
 #include "pinocchio/spatial/force.hpp"
 

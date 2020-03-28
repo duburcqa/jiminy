@@ -1,7 +1,6 @@
 #include <math.h>
 #include <climits>
 #include <numeric>     /* iota */
-#include <type_traits>
 #include <stdlib.h>     /* srand, rand */
 #include <random>
 
@@ -519,7 +518,7 @@ namespace jiminy
 
     // ************** Random number generator utilities ****************
 
-	void resetRandGenerators(uint32_t seed)
+	void resetRandGenerators(uint32_t const & seed)
 	{
 		srand(seed); // Eigen relies on srand for genering random matrix
         generator_.seed(seed);
@@ -621,17 +620,18 @@ namespace jiminy
 
     // ********************** Pinocchio utilities **********************
 
-    void computePositionDerivative(pinocchio::Model            const & model,
-                                   Eigen::Ref<vectorN_t const>         q,
-                                   Eigen::Ref<vectorN_t const>         v,
-                                   Eigen::Ref<vectorN_t>               qDot,
-                                   float64_t                           dt)
+    void computePositionDerivative(pinocchio::Model const & model,
+                                   Eigen::Ref<vectorN_t const> q,
+                                   Eigen::Ref<vectorN_t const> v,
+                                   Eigen::Ref<vectorN_t> qDot,
+                                   float64_t dt)
     {
-        /* Hack to compute the configuration vector derivative, including the
-           quaternions on SO3 automatically. Note that the time difference must
-           not be too small to avoid failure. */
+        /* "Hack" to compute the configuration vector derivative,
+           including the quaternions on SO3 automatically.
+           Note that the time difference must not be too small
+           to avoid failure. */
 
-        dt = std::max(SIMULATION_MIN_TIMESTEP, dt);
+        dt = std::max(STEPPER_MIN_TIMESTEP, dt);
         vectorN_t qNext(q.size());
         pinocchio::integrate(model, q, v*dt, qNext);
         qDot = (qNext - q) / dt;

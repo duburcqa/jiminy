@@ -2,6 +2,7 @@
 #define JIMINY_UTILITIES_H
 
 #include <chrono>
+#include <type_traits>
 
 #include "json/json.h"
 
@@ -71,20 +72,14 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
-    template< bool B, class T = void >
+    template<bool B, class T = void>
     using enable_if_t = typename std::enable_if<B,T>::type;
 
     template<typename T>
-    struct is_vector
-    {
-        static const bool value = false;
-    };
+    struct is_vector : std::integral_constant<bool, false> {};
 
-    template<class T>
-    struct is_vector<std::vector<T> >
-    {
-        static const bool value = true;
-    };
+    template<typename T>
+    struct is_vector<std::vector<T> > : std::integral_constant<bool, true> {};
 
     template <typename Base>
     inline std::shared_ptr<Base>
@@ -135,7 +130,7 @@ namespace jiminy
 
     // ************ Random number generator utilities ***************
 
-    void resetRandGenerators(uint32_t seed);
+    void resetRandGenerators(uint32_t const & seed);
 
     float64_t randUniform(float64_t const & lo,
                           float64_t const & hi);
@@ -167,14 +162,8 @@ namespace jiminy
 
     // ******************** Pinocchio utilities *********************
 
-    void computePositionDerivative(pinocchio::Model            const & model,
-                                   Eigen::Ref<vectorN_t const>         q,
-                                   Eigen::Ref<vectorN_t const>         v,
-                                   Eigen::Ref<vectorN_t>               qDot,
-                                   float64_t                           dt = 1e-5); // Make a copy
-
     // Pinocchio joint types
-    enum class joint_t : int32_t
+    enum class joint_t : uint8_t
     {
         // CYLINDRICAL are not available so far
 
@@ -185,6 +174,12 @@ namespace jiminy
         SPHERICAL = 4,
         FREE = 5,
     };
+
+    void computePositionDerivative(pinocchio::Model const & model,
+                                   Eigen::Ref<vectorN_t const> q,
+                                   Eigen::Ref<vectorN_t const> v,
+                                   Eigen::Ref<vectorN_t> qDot,
+                                   float64_t dt = 1e-5); // Make a copy
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,

@@ -1,8 +1,10 @@
 
+#include <iostream>
 #include <fstream>
 #include <exception>
 
 #include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
@@ -627,6 +629,102 @@ namespace jiminy
         {
             std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Model::getFlexibleStateFromRigid(vectorN_t const & xRigid,
+                                               vectorN_t       & xFlex) const
+    {
+        // Define some proxies
+        uint32_t const & nqRigid = pncModelRigidOrig_.nq;
+        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nqFlex = pncModelFlexibleOrig_.nq;
+        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
+
+        // Check the size of the input state
+        if (xRigid.size() != nqRigid + nvRigid)
+        {
+            std::cout << "Error - Model::getFlexibleStateFromRigid - Size of xRigid inconsistent with theoretical model." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Initialize the flexible state
+        xFlex.resize(nqFlex + nvFlex);
+        xFlex << pinocchio::neutral(pncModelFlexibleOrig_), vectorN_t::Zero(nvFlex);
+
+        // Compute the flexible state based on the rigid state
+        int32_t idxRigid = 0;
+        int32_t idxFlex = 0;
+        for (; idxFlex < pncModelFlexibleOrig_.njoints; idxRigid++, idxFlex++)
+        {
+            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointFlexName = pncModelRigidOrig_.names[idxFlex];
+            if (jointRigidName == jointFlexName)
+            {
+                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
+                if (jointRigid.idx_q() >= 0)
+                {
+                    xFlex.segment(jointFlex.idx_q(), jointFlex.nq()) =
+                        xRigid.segment(jointRigid.idx_q(), jointRigid.nq());
+                    xFlex.segment(nqFlex + jointFlex.idx_v(), jointFlex.nv()) =
+                        xRigid.segment(nqRigid + jointRigid.idx_v(), jointRigid.nv());
+                }
+            }
+            else
+            {
+                idxFlex++;
+            }
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Model::getRigidStateFromFlexible(vectorN_t const & xFlex,
+                                               vectorN_t       & xRigid) const
+    {
+        // Define some proxies
+        uint32_t const & nqRigid = pncModelRigidOrig_.nq;
+        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nqFlex = pncModelFlexibleOrig_.nq;
+        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
+
+        // Check the size of the input state
+        if (xFlex.size() != nqFlex + nvFlex)
+        {
+            std::cout << "Error - Model::getFlexibleStateFromRigid - Size of xRigid inconsistent with theoretical model." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Initialize the flexible state
+        xRigid.resize(nqRigid + nvRigid);
+        xRigid << pinocchio::neutral(pncModelRigidOrig_), vectorN_t::Zero(nvRigid);
+
+        // Compute the flexible state based on the rigid state
+        int32_t idxRigid = 0;
+        int32_t idxFlex = 0;
+        for (; idxFlex < pncModelFlexibleOrig_.njoints; idxRigid++, idxFlex++)
+        {
+            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointFlexName = pncModelRigidOrig_.names[idxFlex];
+            if (jointRigidName == jointFlexName)
+            {
+                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
+                if (jointRigid.idx_q() >= 0)
+                {
+                    xRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
+                        xFlex.segment(jointFlex.idx_q(), jointFlex.nq());
+                    xRigid.segment(nqRigid + jointRigid.idx_v(), jointRigid.nv()) =
+                        xFlex.segment(nqFlex + jointFlex.idx_v(), jointFlex.nv());
+                }
+            }
+            else
+            {
+                idxFlex++;
+            }
         }
 
         return hresult_t::SUCCESS;

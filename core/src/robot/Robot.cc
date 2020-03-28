@@ -1,4 +1,5 @@
 
+#include <iostream>
 #include <fstream>
 #include <exception>
 
@@ -332,12 +333,10 @@ namespace jiminy
             // Create a new sensor data holder if necessary
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                sensorsSharedHolder_[sensorType] = std::make_shared<SensorSharedDataHolder_t>();
-                sensorTelemetryOptions_[sensorType] = false;
+                sensorsSharedHolder_.emplace(std::make_pair(
+                    sensorType, std::make_shared<SensorSharedDataHolder_t>()));
+                sensorTelemetryOptions_.emplace(std::make_pair(sensorType, false));
             }
-
-            // Create the sensor and add it to its group
-            sensorsGroupHolder_[sensorType].emplace_back(std::move(sensor));
 
             // Attach the sensor
             returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType).get());
@@ -345,6 +344,9 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Create the sensor and add it to its group
+            sensorsGroupHolder_[sensorType].emplace_back(std::move(sensor));
+
             // Refresh the sensors proxies
             refreshSensorsProxies();
         }

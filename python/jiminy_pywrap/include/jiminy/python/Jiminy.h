@@ -716,6 +716,11 @@ namespace python
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
 
+                .def("get_flexible_state_from_rigid", &PyModelVisitor::getFlexibleStateFromRigid,
+                                                      (bp::arg("self"), "rigid_state"))
+                .def("get_rigid_state_from_flexible", &PyModelVisitor::getRigidStateFromFlexible,
+                                                      (bp::arg("self"), "flexible_state"))
+
                 .add_property("pinocchio_model", bp::make_getter(&Robot::pncModel_,
                                                  bp::return_internal_reference<>()))
                 .add_property("pinocchio_data", bp::make_getter(&Robot::pncData_,
@@ -780,6 +785,22 @@ namespace python
         {
             auto frameNames = convertFromPython<std::vector<std::string> >(frameNamesPy);
             return self.removeContactPoints(frameNames);
+        }
+
+        static vectorN_t getFlexibleStateFromRigid(Robot           & self,
+                                                   vectorN_t const & xRigid)
+        {
+            vectorN_t xFlexible;
+            self.getFlexibleStateFromRigid(xRigid, xFlexible);
+            return xFlexible;
+        }
+
+        static vectorN_t getRigidStateFromFlexible(Robot           & self,
+                                                   vectorN_t const & xFlexible)
+        {
+            vectorN_t xRigid;
+            self.getRigidStateFromFlexible(xFlexible, xRigid);
+            return xRigid;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1157,8 +1178,6 @@ namespace python
         static void initialize(CtrlFunctor                  & self,
                                std::shared_ptr<Robot> const & robot)
         {
-            // Cannot pass const shared_ptr from Python to C++ directly...
-
             self.initialize(robot.get());
         }
 

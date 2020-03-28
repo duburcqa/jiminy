@@ -155,6 +155,11 @@ namespace jiminy
         std::vector<std::string> const & getVelocityFieldNames(void) const;
         std::vector<std::string> const & getAccelerationFieldNames(void) const;
 
+        hresult_t getFlexibleStateFromRigid(vectorN_t const & xRigid,
+                                            vectorN_t       & xFlex) const;
+        hresult_t getRigidStateFromFlexible(vectorN_t const & xFlex,
+                                            vectorN_t       & xRigid) const;
+
     protected:
         hresult_t loadUrdfModel(std::string const & urdfPath,
                                 bool_t      const & hasFreeflyer);
