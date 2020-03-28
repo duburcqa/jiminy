@@ -167,6 +167,17 @@ namespace jiminy
     std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn, // Make a copy
                                           std::string              const & suffix);
 
+    /// \brief Get the value of a single logged variable.
+    ///
+    /// \param[in] fieldName    Full name of the variable to get
+    /// \param[in] header       Header, vector of field names.
+    /// \param[in] logData      Corresponding data in the log file.
+    ///
+    /// \return Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty.
+    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
+                                                 std::vector<std::string> const & header,
+                                                 matrixN_t                const & logData);
+
     // ******************** Pinocchio utilities *********************
 
     // Pinocchio joint types
@@ -186,7 +197,7 @@ namespace jiminy
                                    Eigen::Ref<vectorN_t const> q,
                                    Eigen::Ref<vectorN_t const> v,
                                    Eigen::Ref<vectorN_t> qDot,
-                                   float64_t dt = 1e-5); // Make a copy
+                                   float64_t dt); // Make a copy
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,

@@ -60,11 +60,11 @@ namespace jiminy
                                   vectorN_t const & u);
         vectorN_t const & getMotorsTorques(void) const;
         float64_t const & getMotorTorque(std::string const & motorName) const;
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & u);
+        void setSensorsData(float64_t            const  & t,
+                            Eigen::Ref<vectorN_t const>   q,
+                            Eigen::Ref<vectorN_t const>   v,
+                            Eigen::Ref<vectorN_t const>   a,
+                            Eigen::Ref<vectorN_t const>   u);
         sensorsDataMap_t getSensorsData(void) const;
         matrixN_t getSensorsData(std::string const & sensorType) const;
         vectorN_t getSensorData(std::string const & sensorType,

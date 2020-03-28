@@ -277,11 +277,11 @@ namespace jiminy
         sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
     }
 
-    hresult_t AbstractMotorBase::computeAllEffort(float64_t const & t,
-                                                  vectorN_t const & q,
-                                                  vectorN_t const & v,
-                                                  vectorN_t const & a,
-                                                  vectorN_t const & uCommand)
+    hresult_t AbstractMotorBase::computeAllEffort(float64_t            const  & t,
+                                                  Eigen::Ref<vectorN_t const>   q,
+                                                  Eigen::Ref<vectorN_t const>   v,
+                                                  Eigen::Ref<vectorN_t const>   a,
+                                                  Eigen::Ref<vectorN_t const>   uCommand)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

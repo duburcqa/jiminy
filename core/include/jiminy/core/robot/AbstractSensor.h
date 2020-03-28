@@ -230,11 +230,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) = 0;
+        virtual hresult_t set(float64_t            const  & t,
+                              Eigen::Ref<vectorN_t const>   q,
+                              Eigen::Ref<vectorN_t const>   v,
+                              Eigen::Ref<vectorN_t const>   a,
+                              Eigen::Ref<vectorN_t const>   uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -256,11 +256,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setAll(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor) = 0;
+        virtual hresult_t setAll(float64_t            const  & t,
+                                 Eigen::Ref<vectorN_t const>   q,
+                                 Eigen::Ref<vectorN_t const>   v,
+                                 Eigen::Ref<vectorN_t const>   a,
+                                 Eigen::Ref<vectorN_t const>   uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -460,11 +460,11 @@ namespace jiminy
 
         virtual vectorN_t const * get(void) override final;
         virtual matrixN_t getAll(void) override final;
-        virtual hresult_t setAll(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor) override final;
+        virtual hresult_t setAll(float64_t            const  & t,
+                                 Eigen::Ref<vectorN_t const>   q,
+                                 Eigen::Ref<vectorN_t const>   v,
+                                 Eigen::Ref<vectorN_t const>   a,
+                                 Eigen::Ref<vectorN_t const>   uMotor) override final;
 
     protected:
         using AbstractSensorBase::data;

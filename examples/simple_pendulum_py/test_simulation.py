@@ -199,7 +199,8 @@ def computeCommand(t, q, v, sensor_data, u):
 
     # Update state
     com, vcom, dcm, zmp, totalWrench = updateState(robot, q, v, sensor_data)
-    comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = updateState(robot, qi, dqi, sensor_data)
+    comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = \
+        updateState(robot, qi, dqi, sensor_data)
 
     # Update logs (only the value stored by the registered variables using [:])
     dcm_log[:] = dcm
@@ -233,7 +234,8 @@ def computeCommand(t, q, v, sensor_data, u):
         # KpKdKi dcm
         integral_ = (1 - decay) * integral_ + (t - t_1) * (d - di[axisCom])
         t_1 = t
-        zmp_cmd = z - (1 + Kpdcm / omega) * (d - di[axisCom]) + (Kddcm / omega) * (z - zi[axisCom]) - Kidcm / omega * integral_
+        zmp_cmd = z - (1 + Kpdcm / omega) * (d - di[axisCom]) \
+                + (Kddcm / omega) * (z - zi[axisCom]) - Kidcm / omega * integral_
         if args.clampCmd:
             np.clip(zmp_cmd, -0.1, 0.1, zmp_cmd)
 
@@ -245,7 +247,8 @@ def computeCommand(t, q, v, sensor_data, u):
 
         # Compute joint torque from joint acceleration (ID)
         if acceleration_control:
-            u_1 = m * (l**2) * ((ax / (l * np.cos(q[iPos]))) + (v[iVel]**2) * np.tan(q[iPos]) - g * np.sin(q[iPos]) / l)
+            u_1 = m * (l**2) * ((ax / (l * np.cos(q[iPos]))) \
+                + (v[iVel]**2) * np.tan(q[iPos]) - g * np.sin(q[iPos]) / l)
 
     # Send last joint torque command
     if acceleration_control:

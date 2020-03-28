@@ -7,6 +7,7 @@
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
 
@@ -34,7 +35,8 @@ void internalDynamics(float64_t const & t,
 }
 
 bool_t callback(float64_t const & t,
-                vectorN_t const & x)
+                vectorN_t const & q,
+                vectorN_t const & v)
 {
     return true;
 }
@@ -95,14 +97,12 @@ TEST(EngineSanity, EnergyConservation)
     std::vector<std::string> header;
     matrixN_t data;
     engine->getLogData(header, data);
-    vectorN_t energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
-    ASSERT_GT(energy.size(), 0);
+    auto energyCont = getLogFieldValue("HighLevelController.energy", header, data);
+    ASSERT_GT(energyCont.size(), 0);
 
-    // Ignore first sample where energy is zero.
-    vectorN_t energyCrop = energy.tail(energy.size() - 1);
     // Check that energy is constant.
-    float64_t deltaEnergy = energyCrop.maxCoeff() - energyCrop.minCoeff();
-    ASSERT_NEAR(0.0, std::abs(deltaEnergy), std::numeric_limits<float64_t>::epsilon());
+    float64_t const deltaEnergyCont = energyCont.maxCoeff() - energyCont.minCoeff();
+    ASSERT_NEAR(0.0, deltaEnergyCont, std::numeric_limits<float64_t>::epsilon());
 
     // Discrete-time simulation
     configHolder_t simuOptions = engine->getOptions();
@@ -112,11 +112,10 @@ TEST(EngineSanity, EnergyConservation)
     engine->simulate(tf, x0);
 
     engine->getLogData(header, data);
-    energy = Engine::getLogFieldValue("HighLevelController.energy", header, data);
-    ASSERT_GT(energy.size(), 0);
-    energyCrop = energy.tail(energy.size() - 1);
-    deltaEnergy = energyCrop.maxCoeff() - energyCrop.minCoeff();
-    ASSERT_NEAR(0.0, std::abs(deltaEnergy), std::numeric_limits<float64_t>::epsilon());
+    auto energyDisc = getLogFieldValue("HighLevelController.energy", header, data);
+    ASSERT_GT(energyDisc.size(), 0);
+    float64_t const deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
+    ASSERT_NEAR(0.0, deltaEnergyDisc, std::numeric_limits<float64_t>::epsilon());
 
     // Don't try simulation with Euler integrator, this scheme is not precise enough to keep energy constant.
 }

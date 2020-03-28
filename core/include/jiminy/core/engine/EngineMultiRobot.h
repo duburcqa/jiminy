@@ -1,12 +1,7 @@
-#ifndef JIMINY_ENGINE_H
-#define JIMINY_ENGINE_H
+#ifndef JIMINY_ENGINE_MULTIROBOT_H
+#define JIMINY_ENGINE_MULTIROBOT_H
 
-#include <tuple>
-#include <string>
 #include <functional>
-
-#include "pinocchio/algorithm/rnea.hpp"
-#include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Utilities.h"
@@ -31,9 +26,11 @@ namespace jiminy
 
     // Impossible to use function pointer since it does not support functors
     using forceFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                          vectorN_t const & /*x*/)>;
+                                                          vectorN_t const & /*q*/,
+                                                          vectorN_t const & /*v*/)>;
     using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
-                                                    vectorN_t const & /*x*/)>;
+                                                    vectorN_t const & /*q*/,
+                                                    vectorN_t const & /*v*/)>;
 
     struct forceImpulse_t
     {
@@ -164,8 +161,8 @@ namespace jiminy
         iter(0U),
         t(0.0),
         tLast(0.0),
-        dt(0.0),
         tError(0.0),
+        dt(0.0),
         x(),
         dxdt()
         {
@@ -188,8 +185,8 @@ namespace jiminy
         uint32_t iter;
         float64_t t;
         float64_t tLast;
-        float64_t dt;
         float64_t tError; ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
+        float64_t dt;
         vectorN_t x;
         vectorN_t dxdt;
     };
@@ -198,52 +195,38 @@ namespace jiminy
     {
     public:
         systemState_t(void) :
-        x(),
-        dxdt(),
+        q(),
+        v(),
+        qDot(),
+        a(),
         u(),
         uCommand(),
         uMotor(),
         uInternal(),
         fExternal(),
-        nx_(0),
-        nq_(0),
-        nv_(0),
-        isInitialized_(false)
+        isInitialized_(false),
+        robot_(nullptr)
         {
-            // Empty.
+            // Empty on purpose.
         }
 
-        void initialize(Robot           * robot,
-                        vectorN_t const & xInit);
+        void initialize(Robot const * robot);
 
         bool_t const & getIsInitialized(void) const
         {
             return isInitialized_;
         }
 
-        Eigen::Ref<vectorN_t> q(void)
-        {
-            return x.head(nq_);
-        }
-
-        Eigen::Ref<vectorN_t> v(void)
-        {
-            return x.tail(nv_);
-        }
-
-        Eigen::Ref<vectorN_t> qDot(void)
-        {
-            return dxdt.head(nq_);
-        }
-
-        Eigen::Ref<vectorN_t> a(void)
-        {
-            return dxdt.tail(nv_);
-        }
+        systemState_t & operator = (systemState_t const & other) = default;
+        systemState_t(systemState_t const & other) = default;
+        systemState_t(systemState_t&& other) = default;
+        ~systemState_t(void) = default;
 
     public:
-        vectorN_t x;
-        vectorN_t dxdt;
+        vectorN_t q;
+        vectorN_t v;
+        vectorN_t qDot;
+        vectorN_t a;
         vectorN_t u;
         vectorN_t uCommand;
         vectorN_t uMotor;
@@ -251,11 +234,9 @@ namespace jiminy
         forceVector_t fExternal;
 
     private:
-        uint32_t nx_;
-        uint32_t nq_;
-        uint32_t nv_;
-
         bool_t isInitialized_;
+        Robot const * robot_;
+
     };
 
     struct systemDataHolder_t
@@ -570,11 +551,11 @@ namespace jiminy
         hresult_t simulate(float64_t              const & tEnd,
                            std::vector<vectorN_t> const & xInit);
 
-        hresult_t registerForceImpulse(std::string const & systemName,
-                                       std::string const & frameName,
-                                       float64_t   const & t,
-                                       float64_t   const & dt,
-                                       vector3_t   const & F);
+        hresult_t registerForceImpulse(std::string      const & systemName,
+                                       std::string      const & frameName,
+                                       float64_t        const & t,
+                                       float64_t        const & dt,
+                                       pinocchio::Force const & F);
         hresult_t registerForceProfile(std::string    const & systemName,
                                        std::string    const & frameName,
                                        forceFunctor_t         forceFct);
@@ -617,6 +598,9 @@ namespace jiminy
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
+        void syncStepperStateWithSystem(void);
+        void syncSystemStateWithStepper(void);
+
         static void computeForwardKinematics(systemDataHolder_t          & system,
                                              Eigen::Ref<vectorN_t const>   q,
                                              Eigen::Ref<vectorN_t const>   v,
@@ -630,10 +614,11 @@ namespace jiminy
                             Eigen::Ref<vectorN_t const>   q,
                             Eigen::Ref<vectorN_t const>   v,
                             vectorN_t                  & u);
-        void computeExternalForces(systemDataHolder_t  & system,
-                                   float64_t     const & t,
-                                   vectorN_t     const & x,
-                                   forceVector_t       & fext);
+        void computeExternalForces(systemDataHolder_t          & system,
+                                   float64_t            const  & t,
+                                   Eigen::Ref<vectorN_t const>   q,
+                                   Eigen::Ref<vectorN_t const>   v,
+                                   forceVector_t              & fext);
         void computeInternalDynamics(systemDataHolder_t          & system,
                                      float64_t            const  & t,
                                      Eigen::Ref<vectorN_t const>   q,
@@ -696,4 +681,4 @@ namespace jiminy
     };
 }
 
-#endif //end of JIMINY_ENGINE_H
+#endif //end of JIMINY_ENGINE_MULTIROBOT_H

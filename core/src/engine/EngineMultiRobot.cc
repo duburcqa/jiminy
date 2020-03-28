@@ -7,8 +7,10 @@
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/multibody/visitor.hpp"
-#include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/joint-configuration.hpp"
+#include "pinocchio/algorithm/aba.hpp"
+#include "pinocchio/algorithm/rnea.hpp"
+#include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -27,6 +29,27 @@
 
 namespace jiminy
 {
+    // ===============================================
+    // ================ systemState_t ================
+    // ===============================================
+
+    void systemState_t::initialize(Robot const * robot)
+    {
+        robot_ = robot;
+        q = vectorN_t::Zero(robot_->nq());
+        v = vectorN_t::Zero(robot_->nv());
+        qDot = vectorN_t::Zero(robot_->nq());
+        a = vectorN_t::Zero(robot_->nv());
+        uInternal = vectorN_t::Zero(robot_->nv());
+        uCommand = vectorN_t::Zero(robot_->getMotorsNames().size());
+        uMotor = vectorN_t::Zero(robot_->getMotorsNames().size());
+        u = vectorN_t::Zero(robot_->nv());
+        fExternal = forceVector_t(robot_->pncModel_.joints.size(),
+                                    pinocchio::Force::Zero());
+
+        isInitialized_ = true;
+    }
+
     // ====================================================
     // ================ systemDataHolder_t ================
     // ====================================================
@@ -51,44 +74,20 @@ namespace jiminy
     forceImpulseNextIt(),
     forcesProfile()
     {
-        // Empty on purpose.
+        state.initialize(robot.get());
+        stateLast.initialize(robot.get());
     }
 
     systemDataHolder_t::systemDataHolder_t(void) :
     systemDataHolder_t("", nullptr, nullptr,
     [](float64_t const & t,
-       vectorN_t const & x) -> bool_t
+       vectorN_t const & q,
+       vectorN_t const & v) -> bool_t
     {
         return true;
     })
     {
         // Empty on purpose.
-    }
-
-    // ================================================
-    // ================ systemState_t ================
-    // ================================================
-
-    void systemState_t::initialize(Robot           * robot,
-                                   vectorN_t const & xInit)
-    {
-        // Extract some information from the robot
-        nx_ = robot->nx();
-        nq_ = robot->nq();
-        nv_ = robot->nv();
-
-        // Initialize the ode stepper state buffers
-        x = xInit;
-        dxdt = vectorN_t::Zero(nx_);
-        fExternal = forceVector_t(robot->pncModel_.joints.size(),
-                                  pinocchio::Force::Zero());
-        uInternal = vectorN_t::Zero(nv_);
-        uCommand = vectorN_t::Zero(robot->getMotorsNames().size());
-        uMotor = vectorN_t::Zero(robot->getMotorsNames().size());
-        u = vectorN_t::Zero(nv_);
-
-        // Set the initialization flag
-        isInitialized_ = true;
     }
 
     // ==================================================
@@ -336,7 +335,7 @@ namespace jiminy
                     {
                         returnCode = telemetrySender_.registerVariable(
                             system.positionFieldnames,
-                            system.state.q());
+                            system.state.q);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -345,7 +344,7 @@ namespace jiminy
                     {
                         returnCode = telemetrySender_.registerVariable(
                             system.velocityFieldnames,
-                            system.state.v());
+                            system.state.v);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -354,7 +353,7 @@ namespace jiminy
                     {
                         returnCode = telemetrySender_.registerVariable(
                             system.accelerationFieldnames,
-                            system.state.a());
+                            system.state.a);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -401,28 +400,33 @@ namespace jiminy
         for (auto & system : systemsDataHolder_)
         {
             // Compute the total energy of the system
-            Eigen::Ref<vectorN_t const> q = system.state.q();
-            Eigen::Ref<vectorN_t const> v = system.state.v();
             float64_t energy = EngineMultiRobot::kineticEnergy(
-                system.robot->pncModel_, system.robot->pncData_, q, v, true);
+                system.robot->pncModel_,
+                system.robot->pncData_,
+                system.state.q,
+                system.state.v,
+                true);
             energy += pinocchio::potentialEnergy(
-                system.robot->pncModel_, system.robot->pncData_, q, false);
+                system.robot->pncModel_,
+                system.robot->pncData_,
+                system.state.q,
+                false);
 
             // Update the telemetry internal state
             if (engineOptions_->telemetry.enableConfiguration)
             {
                 telemetrySender_.updateValue(system.positionFieldnames,
-                                             system.state.q());
+                                             system.state.q);
             }
             if (engineOptions_->telemetry.enableVelocity)
             {
                 telemetrySender_.updateValue(system.velocityFieldnames,
-                                             system.state.v());
+                                             system.state.v);
             }
             if (engineOptions_->telemetry.enableAcceleration)
             {
                 telemetrySender_.updateValue(system.accelerationFieldnames,
-                                             system.state.a());
+                                             system.state.a);
             }
             if (engineOptions_->telemetry.enableTorque)
             {
@@ -560,17 +564,6 @@ namespace jiminy
                 dt = engineOptions_->stepper.dtMax;
             }
 
-            // Initialize the stepper state
-            stepperState_.reset(dt, cat(xInit));
-
-            // Initialize the stepper internal state
-            xInitIt = xInit.begin();
-            systemIt = systemsDataHolder_.begin();
-            for ( ; systemIt != systemsDataHolder_.end() ; xInitIt++, systemIt++)
-            {
-                systemIt->state.initialize(systemIt->robot.get(), *xInitIt);
-            }
-
             // Update the frame indices associated with the coupling forces
             for (auto & force : forcesCoupling_)
             {
@@ -581,6 +574,12 @@ namespace jiminy
                             force.frameName2,
                             force.frameIdx2);
             }
+
+            // Initialize the stepper state
+            stepperState_.reset(dt, cat(xInit));
+
+            // Synchronize the individual system states with the global stepper state
+            syncStepperStateWithSystem();
 
             for (auto & system : systemsDataHolder_)
             {
@@ -597,11 +596,10 @@ namespace jiminy
 
                 // Get some system state proxies
                 float64_t & t = stepperState_.t;
-                Eigen::Ref<vectorN_t> q = system.state.q();
-                Eigen::Ref<vectorN_t> v = system.state.v();
-                vectorN_t & x = system.state.x;
-                Eigen::Ref<vectorN_t> qDot = system.state.qDot();
-                Eigen::Ref<vectorN_t> a = system.state.a();
+                vectorN_t & q = system.state.q;
+                vectorN_t & v = system.state.v;
+                vectorN_t & qDot = system.state.qDot;
+                vectorN_t & a = system.state.a;
                 vectorN_t & u = system.state.u;
                 vectorN_t & uCommand = system.state.uCommand;
                 vectorN_t & uMotor = system.state.uMotor;
@@ -612,7 +610,7 @@ namespace jiminy
                 computeForwardKinematics(system, q, v, a);
 
                 // Initialize the external contact forces
-                computeExternalForces(system, t, x, fext);
+                computeExternalForces(system, t, q, v, fext);
 
                 // Initialize the sensor data
                 system.robot->setSensorsData(t, q, v, a, uMotor);
@@ -647,6 +645,9 @@ namespace jiminy
                 // Update the sensor data with the updated torque and acceleration
                 system.robot->setSensorsData(t, q, v, a, uMotor);
             }
+
+            // Synchronize the individual system states with the global stepper state
+            syncSystemStateWithStepper();
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -714,7 +715,7 @@ namespace jiminy
             // Stop the simulation if any of the callbacks return false
             for (auto & system : systemsDataHolder_)
             {
-                if (!system.callbackFct(stepperState_.t, system.state.x))
+                if (!system.callbackFct(stepperState_.t, system.state.q, system.state.v))
                 {
                     if (engineOptions_->stepper.verbose)
                     {
@@ -769,14 +770,11 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Check if there is something wrong with the integration
-            for (auto & system : systemsDataHolder_)
+            if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
             {
-                if ((system.state.x.array() != system.state.x.array()).any()) // isnan if NOT equal to itself
-                {
-                    std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed."\
-                                 "Consider increasing the stepper accuracy." << std::endl;
-                    return hresult_t::ERROR_GENERIC;
-                }
+                std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed."\
+                                "Consider increasing the stepper accuracy." << std::endl;
+                return hresult_t::ERROR_GENERIC;
             }
 
             // Check if the desired step size is suitable
@@ -855,9 +853,9 @@ namespace jiminy
                         {
                             for (auto & system : systemsDataHolder_)
                             {
-                                Eigen::Ref<vectorN_t const> q = system.state.q();
-                                Eigen::Ref<vectorN_t const> v = system.state.v();
-                                Eigen::Ref<vectorN_t const> a = system.state.a();
+                                vectorN_t const & q = system.state.q;
+                                vectorN_t const & v = system.state.v;
+                                vectorN_t const & a = system.state.a;
                                 vectorN_t const & uMotor = system.state.uMotor;
                                 system.robot->setSensorsData(t, q, v, a, uMotor);
                             }
@@ -874,8 +872,8 @@ namespace jiminy
                         {
                             for (auto & system : systemsDataHolder_)
                             {
-                                Eigen::Ref<vectorN_t const> q = system.state.q();
-                                Eigen::Ref<vectorN_t const> v = system.state.v();
+                                vectorN_t const & q = system.state.q;
+                                vectorN_t const & v = system.state.v;
                                 vectorN_t & uCommand = system.state.uCommand;
                                 computeCommand(system, t, q, v, uCommand);
                             }
@@ -1000,6 +998,9 @@ namespace jiminy
                             // reset the fail counter
                             fail_checker.reset();
 
+                            // Synchronize the individual system states
+                            syncStepperStateWithSystem();
+
                             // Increment the iteration counter only for successful steps
                             stepperState_.iter++;
 
@@ -1050,6 +1051,9 @@ namespace jiminy
                         {
                             // reset the fail counter
                             fail_checker.reset();
+
+                            // Synchronize the individual system states
+                            syncStepperStateWithSystem();
 
                             // Increment the iteration counter
                             stepperState_.iter++;
@@ -1115,11 +1119,11 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::registerForceImpulse(std::string const & systemName,
-                                                     std::string const & frameName,
-                                                     float64_t   const & t,
-                                                     float64_t   const & dt,
-                                                     vector3_t   const & F)
+    hresult_t EngineMultiRobot::registerForceImpulse(std::string      const & systemName,
+                                                     std::string      const & frameName,
+                                                     float64_t        const & t,
+                                                     float64_t        const & dt,
+                                                     pinocchio::Force const & F)
     {
         // Make sure that the forces do NOT overlap while taking into account dt.
 
@@ -1346,6 +1350,38 @@ namespace jiminy
     // ================ Core physics utilities ================
     // ========================================================
 
+    void EngineMultiRobot::syncStepperStateWithSystem(void)
+    {
+        uint32_t xIdx = 0U;
+        for (auto & system : systemsDataHolder_)
+        {
+            int32_t const & nq = system.robot->nq();
+            int32_t const & nv = system.robot->nv();
+            int32_t const & nx = system.robot->nx();
+            system.state.q = stepperState_.x.segment(xIdx, nq);
+            system.state.v = stepperState_.x.segment(xIdx + nq,  nv);
+            system.state.qDot = stepperState_.dxdt.segment(xIdx, nq);
+            system.state.a = stepperState_.dxdt.segment(xIdx + nq, nv);
+            xIdx += nx;
+        }
+    }
+
+    void EngineMultiRobot::syncSystemStateWithStepper(void)
+    {
+        uint32_t xIdx = 0U;
+        for (auto & system : systemsDataHolder_)
+        {
+            int32_t const & nq = system.robot->nq();
+            int32_t const & nv = system.robot->nv();
+            int32_t const & nx = system.robot->nx();
+            stepperState_.x.segment(xIdx, nq) = system.state.q;
+            stepperState_.x.segment(xIdx + nq,  nv) = system.state.v;
+            stepperState_.dxdt.segment(xIdx, nq) = system.state.qDot;
+            stepperState_.dxdt.segment(xIdx + nq, nv) = system.state.a;
+            xIdx += nx;
+        }
+    }
+
     void EngineMultiRobot::computeForwardKinematics(systemDataHolder_t          & system,
                                                     Eigen::Ref<vectorN_t const>   q,
                                                     Eigen::Ref<vectorN_t const>   v,
@@ -1434,10 +1470,11 @@ namespace jiminy
         return {fextInWorld, vector3_t::Zero()};
     }
 
-    void EngineMultiRobot::computeExternalForces(systemDataHolder_t       & system,
-                                                 float64_t          const & t,
-                                                 vectorN_t          const & x,
-                                                 forceVector_t            & fext)
+    void EngineMultiRobot::computeExternalForces(systemDataHolder_t          & system,
+                                                 float64_t            const  & t,
+                                                 Eigen::Ref<vectorN_t const>   q,
+                                                 Eigen::Ref<vectorN_t const>   v,
+                                                 forceVector_t              & fext)
     {
         // Reinitialize the external forces
         for (pinocchio::Force & fext_i : fext)
@@ -1484,7 +1521,7 @@ namespace jiminy
             int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
             forceFunctor_t const & forceFct = forceProfile.forceFct;
             fext[parentIdx] += computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, x));
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, q, v));
         }
     }
 
@@ -1637,39 +1674,40 @@ namespace jiminy
            velocities and accelerations are relative to the parent body frame. */
 
         uint32_t xIdx = 0U;
+        dxdtCat.resize(xCat.size());
         for (auto & system : systemsDataHolder_)
         {
-            // Extract the state and derivate associated with the system
+            // Extract the state of the system and its derivate
             Eigen::Ref<vectorN_t const> x = xCat.segment(xIdx, system.robot->nx());
             Eigen::Ref<vectorN_t> dxdt = dxdtCat.segment(xIdx, system.robot->nx());
 
-            // Get references to the internal stepper buffers
+            // Extract some proxies from them
             Eigen::Ref<vectorN_t const> q = x.head(system.robot->nq());
             Eigen::Ref<vectorN_t const> v = x.tail(system.robot->nv());
+            Eigen::Ref<vectorN_t> qDot = dxdt.head(system.robot->nq());
+            Eigen::Ref<vectorN_t> a = dxdt.tail(system.robot->nv());
+
+            // Get additional references to the internal system buffers
             vectorN_t & u = system.state.u;
             vectorN_t & uCommand = system.state.uCommand;
             vectorN_t & uMotor = system.state.uMotor;
             vectorN_t & uInternal = system.state.uInternal;
             forceVector_t & fext = system.state.fExternal;
 
-            // Get proxies to the state derivative
-            Eigen::Ref<vectorN_t> qDot = dxdt.head(system.robot->nq());
-            Eigen::Ref<vectorN_t> a = dxdt.tail(system.robot->nv());
-
             // Compute kinematics information
-            computeForwardKinematics(system, q, v, system.state.a());
+            computeForwardKinematics(system, q, v, a);
 
             /* Compute the external contact forces.
             Note that one must call this method BEFORE updating the sensors since
             the force sensor measurements rely on robot_->contactForces_ */
-            computeExternalForces(system, t, x, fext);
+            computeExternalForces(system, t, q, v, fext);
 
             /* Update the sensor data if necessary (only for infinite update frequency).
             Note that it is impossible to have access to the current accelerations
             and torques since they depend on the sensor values themselves. */
             if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                system.robot->setSensorsData(t, q, v, system.stateLast.a(), system.stateLast.uMotor);
+                system.robot->setSensorsData(t, q, v, system.stateLast.a, system.stateLast.uMotor);
             }
 
             /* Update the controller command if necessary (only for infinite update frequency).
@@ -1681,7 +1719,7 @@ namespace jiminy
 
             /* Compute the actual motor torque.
             Note that it is impossible to have access to the current accelerations. */
-            system.robot->computeMotorsTorques(t, q, v, system.stateLast.a(), uCommand);
+            system.robot->computeMotorsTorques(t, q, v, system.stateLast.a, uCommand);
             uMotor = system.robot->getMotorsTorques();
 
             /* Compute the internal dynamics.

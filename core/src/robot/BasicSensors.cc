@@ -85,11 +85,11 @@ namespace jiminy
         return frameName_;
     }
 
-    hresult_t ImuSensor::set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor)
+    hresult_t ImuSensor::set(float64_t            const  & t,
+                             Eigen::Ref<vectorN_t const>   q,
+                             Eigen::Ref<vectorN_t const>   v,
+                             Eigen::Ref<vectorN_t const>   a,
+                             Eigen::Ref<vectorN_t const>   uMotor)
     {
         if (!isInitialized_)
         {
@@ -181,11 +181,11 @@ namespace jiminy
         return frameName_;
     }
 
-    hresult_t ForceSensor::set(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & uMotor)
+    hresult_t ForceSensor::set(float64_t            const  & t,
+                               Eigen::Ref<vectorN_t const>   q,
+                               Eigen::Ref<vectorN_t const>   v,
+                               Eigen::Ref<vectorN_t const>   a,
+                               Eigen::Ref<vectorN_t const>   uMotor)
     {
         if (!isInitialized_)
         {
@@ -276,11 +276,11 @@ namespace jiminy
         return jointName_;
     }
 
-    hresult_t EncoderSensor::set(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor)
+    hresult_t EncoderSensor::set(float64_t            const  & t,
+                                 Eigen::Ref<vectorN_t const>   q,
+                                 Eigen::Ref<vectorN_t const>   v,
+                                 Eigen::Ref<vectorN_t const>   a,
+                                 Eigen::Ref<vectorN_t const>   uMotor)
     {
         if (!isInitialized_)
         {
@@ -370,11 +370,11 @@ namespace jiminy
         return motorName_;
     }
 
-    hresult_t TorqueSensor::set(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & uMotor)
+    hresult_t TorqueSensor::set(float64_t            const  & t,
+                                Eigen::Ref<vectorN_t const>   q,
+                                Eigen::Ref<vectorN_t const>   v,
+                                Eigen::Ref<vectorN_t const>   a,
+                                Eigen::Ref<vectorN_t const>   uMotor)
     {
         if (!isInitialized_)
         {

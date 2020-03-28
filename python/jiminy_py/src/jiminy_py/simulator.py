@@ -91,7 +91,7 @@ class BasicSimulator(object):
                              "controller_handle(t, y, dy, sensorsData, u_command)")
 
     @staticmethod
-    def callback(t, x, out):
+    def callback(t, q, v, out):
         '''
         @brief Callback method for the simulation.
         '''

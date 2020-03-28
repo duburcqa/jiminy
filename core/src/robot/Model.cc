@@ -350,11 +350,11 @@ namespace jiminy
                 std::string const & jointName = jointNames[i];
                 int32_t const jointIdx = pncModel_.getJointId(jointName);
 
-                int32_t idx_q = pncModel_.joints[jointIdx].idx_q();
+                int32_t const idx_q = pncModel_.joints[jointIdx].idx_q();
 
                 if (idx_q >= 0) // Otherwise the joint is not part of the vectorial representation
                 {
-                    int32_t idx_v = pncModel_.joints[jointIdx].idx_v();
+                    int32_t const idx_v = pncModel_.joints[jointIdx].idx_v();
 
                     joint_t jointType;
                     std::string jointPrefix;
@@ -434,9 +434,10 @@ namespace jiminy
             // Get the joint position limits from the URDF or the user options
             if (mdlOptions_->joints.positionLimitFromUrdf)
             {
-                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
-                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
-                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                uint8_t const numRigidJoints = rigidJointsPositionIdx_.size();
+                positionLimitMin_.resize(numRigidJoints);
+                positionLimitMax_.resize(numRigidJoints);
+                for (uint32_t i=0; i < numRigidJoints; ++i)
                 {
                     positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
                     positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
@@ -815,17 +816,17 @@ namespace jiminy
         }
     }
 
-    uint32_t const & Model::nq(void) const
+    int32_t const & Model::nq(void) const
     {
         return nq_;
     }
 
-    uint32_t const & Model::nv(void) const
+    int32_t const & Model::nv(void) const
     {
         return nv_;
     }
 
-    uint32_t const & Model::nx(void) const
+    int32_t const & Model::nx(void) const
     {
         return nx_;
     }

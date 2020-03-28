@@ -134,9 +134,9 @@ namespace jiminy
         std::string const & getUrdfPath(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        uint32_t const & nq(void) const;
-        uint32_t const & nv(void) const;
-        uint32_t const & nx(void) const;
+        int32_t const & nq(void) const;
+        int32_t const & nv(void) const;
+        int32_t const & nx(void) const;
 
         std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
@@ -201,9 +201,9 @@ namespace jiminy
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
-        uint32_t nq_;
-        uint32_t nv_;
-        uint32_t nx_;
+        int32_t nq_;
+        int32_t nv_;
+        int32_t nx_;
     };
 }
 

@@ -61,10 +61,10 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
     #define MAKE_FUNC(T) \
     PyObject * getNumpyReferenceFromEigenVector( \
-        Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> const> value /* Must use Ref to support fixed size array without copy */ ) \
+        Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> > value /* Must use Ref to support fixed size array without copy */ ) \
     { \
         npy_intp dims[1] = {npy_intp(value.size())}; \
-        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data())); \
+        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), value.data()); \
     }
 
     MAKE_FUNC(int32_t)
@@ -91,12 +91,6 @@ namespace python
     PyObject * getNumpyReference(T & data)
     {
         return getNumpyReferenceFromScalar(data);
-    }
-
-    template<>
-    PyObject * getNumpyReference<vector3_t>(vector3_t & data)
-    {
-        return getNumpyReferenceFromEigenVector(data);
     }
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -136,7 +130,7 @@ namespace python
     template<>
     bp::object convertToPython<vectorN_t>(vectorN_t const & data)
     {
-        PyObject * vecPyPtr = getNumpyReferenceFromEigenVector(data);
+        PyObject * vecPyPtr = getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(data));
         return bp::object(bp::handle<>(PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY)));
     }
 

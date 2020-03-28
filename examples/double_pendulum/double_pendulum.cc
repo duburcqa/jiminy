@@ -37,7 +37,8 @@ void internalDynamics(float64_t      const & t,
 }
 
 bool_t callback(float64_t const & t,
-              vectorN_t const & x)
+                vectorN_t const & q,
+                vectorN_t const & v)
 {
     return true;
 }

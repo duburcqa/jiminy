@@ -32,6 +32,15 @@ namespace python
     namespace bp = boost::python;
 
     template<typename T>
+    using TimeStateFct = typename std::function<T (float64_t const&, vectorN_t const&, vectorN_t const&)>;
+
+    #define TIME_STATE_FCT_EXPOSE(T) \
+    bp::class_<TimeStateFct<T>, boost::noncopyable>("TimeStateFunctor_"#T, bp::no_init) \
+        .def("__call__", &TimeStateFct<T>::operator(), \
+                         bp::return_value_policy<bp::return_by_value>(), \
+                         (bp::arg("self"), bp::arg("t"), bp::arg("q"), bp::arg("v")));
+
+    template<typename T>
     struct converterToPython
     {
         static PyObject * convert(T const & data)
@@ -75,8 +84,11 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
         bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
         bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
+        bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
 
         // Expose classes
+        TIME_STATE_FCT_EXPOSE(bool_t)
+        TIME_STATE_FCT_EXPOSE(pinocchio::Force)
         jiminy::python::HeatMapFunctorVisitor::expose();
         jiminy::python::SensorsDataMapVisitor::expose();
         jiminy::python::PyModelVisitor::expose();
@@ -85,8 +97,13 @@ namespace python
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
         jiminy::python::PyControllerFunctorVisitor::expose();
-        jiminy::python::PyStepperVisitor::expose();
+        jiminy::python::PyStepperStateVisitor::expose();
+        jiminy::python::PySystemStateVisitor::expose();
+        jiminy::python::PySystemDataVisitor::expose();
+        jiminy::python::PyEngineMultiRobotVisitor::expose();
         jiminy::python::PyEngineVisitor::expose();
     }
+
+    #undef TIME_STATE_FCT_EXPOSE
 }
 }

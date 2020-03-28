@@ -643,6 +643,23 @@ namespace jiminy
         return fieldnames;
     }
 
+    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
+                                                 std::vector<std::string> const & header,
+                                                 matrixN_t                const & logData)
+    {
+        static vectorN_t fieldDataEmpty;
+
+        auto iterator = std::find(header.begin(), header.end(), fieldName);
+        if (iterator == header.end())
+        {
+            std::cout << "Error - Utilities::getLogFieldValue - Field does not exist." << std::endl;
+            return fieldDataEmpty;
+        }
+
+        auto start = std::find(header.begin(), header.end(), "StartColumns");
+        return logData.col(std::distance(start, iterator) - 1);
+    }
+
     // ********************** Pinocchio utilities **********************
 
     void computePositionDerivative(pinocchio::Model const & model,
@@ -1257,7 +1274,7 @@ namespace jiminy
 
         // Compute the forces at the origin of the parent joint frame
         fextLocal.linear() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld.linear();
-        fextLocal.angular() = posFrameJoint.cross(fextLocal.head<3>()) + fextInWorld.angular();
+        fextLocal.angular() = posFrameJoint.cross(fextLocal.linear()) + fextInWorld.angular();
 
         return fextLocal;
     }

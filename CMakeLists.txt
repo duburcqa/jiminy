@@ -20,7 +20,7 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 
 # Set the compilation flags
 if(NOT WIN32)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g ${WARN_FULL}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -ftemplate-backtrace-limit=0 ${WARN_FULL}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 ${WARN_FULL} -Wno-non-virtual-dtor -Wno-deprecated-declarations -Wno-unused-parameter -Wfatal-errors -Werror")
 else(NOT WIN32)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /EHsc /bigobj -g /Wall")
