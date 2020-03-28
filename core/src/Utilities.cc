@@ -1243,20 +1243,21 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
-                                             pinocchio::Data  const & data,
-                                             int32_t          const & frameId,
-                                             vector3_t        const & fextInWorld)
+    pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                                    pinocchio::Data  const & data,
+                                                    int32_t          const & frameId,
+                                                    pinocchio::Force const & fextInWorld)
     {
+        pinocchio::Force fextLocal;
+
         // Get various transformations
         matrix3_t const & tformFrameRot = data.oMf[frameId].rotation();
         matrix3_t const & tformFrameJointRot = model.frames[frameId].placement.rotation();
         vector3_t const & posFrameJoint = model.frames[frameId].placement.translation();
 
         // Compute the forces at the origin of the parent joint frame
-        vector6_t fextLocal;
-        fextLocal.head<3>() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld;
-        fextLocal.tail<3>() = posFrameJoint.cross(fextLocal.head<3>());
+        fextLocal.linear() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld.linear();
+        fextLocal.angular() = posFrameJoint.cross(fextLocal.head<3>()) + fextInWorld.angular();
 
         return fextLocal;
     }

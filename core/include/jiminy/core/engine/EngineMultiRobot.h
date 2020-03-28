@@ -30,8 +30,8 @@ namespace jiminy
     class EngineMultiRobot;
 
     // Impossible to use function pointer since it does not support functors
-    using forceFunctor_t = std::function<vector3_t(float64_t const & /*t*/,
-                                                   vectorN_t const & /*x*/)>;
+    using forceFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                          vectorN_t const & /*x*/)>;
     using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
                                                     vectorN_t const & /*x*/)>;
 
@@ -40,10 +40,10 @@ namespace jiminy
     public:
         forceImpulse_t(void) = default;
 
-        forceImpulse_t(std::string const & frameNameIn,
-                       float64_t   const & tIn,
-                       float64_t   const & dtIn,
-                       vector3_t   const & FIn) :
+        forceImpulse_t(std::string      const & frameNameIn,
+                       float64_t        const & tIn,
+                       float64_t        const & dtIn,
+                       pinocchio::Force const & FIn) :
         frameName(frameNameIn),
         t(tIn),
         dt(dtIn),
@@ -61,7 +61,7 @@ namespace jiminy
         std::string frameName;
         float64_t t;
         float64_t dt;
-        vector3_t F;
+        pinocchio::Force F;
     } ;
 
     struct forceProfile_t
@@ -622,8 +622,8 @@ namespace jiminy
                                              Eigen::Ref<vectorN_t const>   v,
                                              Eigen::Ref<vectorN_t const>   a);
 
-        vector3_t computeContactDynamics(systemDataHolder_t const & system,
-                                         int32_t            const & frameId) const;
+        pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
+                                                int32_t            const & frameId) const;
 
         void computeCommand(systemDataHolder_t          & system,
                             float64_t            const  & t,

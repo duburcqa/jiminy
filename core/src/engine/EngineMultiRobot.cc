@@ -1355,8 +1355,8 @@ namespace jiminy
         pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
     }
 
-    vector3_t EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
-                                                       int32_t            const & frameId) const
+    pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
+                                                              int32_t            const & frameId) const
     {
         // Returns the external force in the contact frame.
         // It must then be converted into a force onto the parent joint.
@@ -1431,7 +1431,7 @@ namespace jiminy
             fextInWorld.setZero();
         }
 
-        return fextInWorld;
+        return {fextInWorld, vector3_t::Zero()};
     }
 
     void EngineMultiRobot::computeExternalForces(systemDataHolder_t       & system,
@@ -1450,15 +1450,15 @@ namespace jiminy
         for (uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
             // Compute force in the contact frame.
-            int32_t const & contactFrameIdx = contactFramesIdx[i];
-            vector3_t const fextInFrame = computeContactDynamics(system, contactFrameIdx);
-            system.robot->contactForces_[i] = pinocchio::Force(fextInFrame, vector3_t::Zero());
+            int32_t const & frameIdx = contactFramesIdx[i];
+            pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
+            fextInFrame = computeContactDynamics(system, frameIdx);
 
             // Apply the force at the origin of the parent joint frame
-            vector6_t const fextLocal = computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, contactFrameIdx, fextInFrame);
-            int32_t const & parentIdx = system.robot->pncModel_.frames[contactFrameIdx].parent;
-            fext[parentIdx] += pinocchio::Force(fextLocal);
+            pinocchio::Force const fextLocal = computeFrameForceOnParentJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInFrame);
+            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            fext[parentIdx] += fextLocal;
         }
 
         // Add the effect of user-defined external forces
@@ -1468,13 +1468,13 @@ namespace jiminy
             float64_t const & dt = system.forceImpulseNextIt->dt;
             if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
             {
-                int32_t frameIdx;
                 std::string const & frameName = system.forceImpulseNextIt->frameName;
-                vector3_t const & F = system.forceImpulseNextIt->F;
+                pinocchio::Force const & F = system.forceImpulseNextIt->F;
+                int32_t frameIdx;
                 getFrameIdx(system.robot->pncModel_, frameName, frameIdx);
                 int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-                fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(
-                    system.robot->pncModel_, system.robot->pncData_, frameIdx, F));
+                fext[parentIdx] += computeFrameForceOnParentJoint(
+                    system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
 
@@ -1483,8 +1483,8 @@ namespace jiminy
             int32_t const & frameIdx = forceProfile.frameIdx;
             int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
             forceFunctor_t const & forceFct = forceProfile.forceFct;
-            fext[parentIdx] += pinocchio::Force(computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, x)));
+            fext[parentIdx] += computeFrameForceOnParentJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, x));
         }
     }
 

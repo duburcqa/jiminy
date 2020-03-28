@@ -246,10 +246,10 @@ namespace jiminy
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
 
-    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
-                                             pinocchio::Data  const & data,
-                                             int32_t          const & frameId,
-                                             vector3_t        const & fextInWorld);
+    pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                                    pinocchio::Data  const & data,
+                                                    int32_t          const & frameId,
+                                                    pinocchio::Force const & fextInWorld);
 
     // ********************** Math utilities *************************
 
