@@ -2,6 +2,7 @@
 #define JIMINY_BASIC_MOTORS_H
 
 #include "jiminy/core/robot/AbstractMotor.h"
+#include "jiminy/core/Utilities.h"
 
 
 namespace jiminy

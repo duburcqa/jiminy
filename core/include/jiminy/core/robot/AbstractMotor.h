@@ -12,6 +12,8 @@
 #ifndef JIMINY_ABSTRACT_MOTOR_H
 #define JIMINY_ABSTRACT_MOTOR_H
 
+#include <memory>
+
 #include "jiminy/core/Types.h"
 
 

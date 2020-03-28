@@ -2,8 +2,8 @@
 #define JIMINY_BASIC_SENSORS_H
 
 #include "jiminy/core/robot/AbstractMotor.h"
-
 #include "jiminy/core/robot/AbstractSensor.h"
+#include "jiminy/core/Utilities.h"
 
 
 namespace jiminy
