@@ -10,6 +10,7 @@ namespace jiminy
 {
     struct MotorSharedDataHolder_t;
     class AbstractMotorBase;
+    class AbstractConstraint;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -65,6 +66,38 @@ namespace jiminy
                             Eigen::Ref<vectorN_t const> const & v,
                             Eigen::Ref<vectorN_t const> const & a,
                             vectorN_t                   const & u);
+
+        /// \brief Add a kinematic constraint to the robot.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        /// \param[in] constraint Constraint to add.
+        hresult_t addConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraint> constraint);
+
+        /// \brief Remove a kinematic constraint form the system.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        hresult_t removeConstraint(std::string const & constraintName);
+
+        /// \brief Compute jacobian and drift associated to all the constraints.
+        ///
+        /// \note This function internally calls pinocchio::computeAllTerms.
+        ///
+        /// \param[in] q    Joint position.
+        /// \param[in] v    Joint velocity.
+        /// \param[out] jacobianOut Output jacobian matrix.
+        /// \param[out] driftOut    Output drift vector.
+        void computeConstraints(vectorN_t const & q,
+                                vectorN_t const & v,
+                                matrixN_t & jacobianOut,
+                                vectorN_t & driftOut);
+
+        /// \brief Returns true if at least one constraint is active on the robot.
+        inline bool hasConstraint()
+        {
+            return !constraintsHolder_.empty();
+        }
+
         sensorsDataMap_t getSensorsData(void) const;
         matrixN_t getSensorsData(std::string const & sensorType) const;
         vectorN_t getSensorData(std::string const & sensorType,
@@ -134,6 +167,8 @@ namespace jiminy
         std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
+
+        std::unordered_map<std::string, std::shared_ptr<AbstractConstraint>> constraintsHolder_;
 
     private:
         MutexLocal mutexLocal_;

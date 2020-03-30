@@ -12,6 +12,7 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
+#include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
@@ -641,6 +642,65 @@ namespace python
         }
     };
 
+    // ***************************** PyConstraintVisitor ***********************************
+
+    struct PyConstraintVisitor
+        : public bp::def_visitor<PyConstraintVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+
+        template<class PyClass>
+        class PyConstraintVisit
+        {
+        public:
+            using TConstraint = typename PyClass::wrapped_type;
+
+            static void visit(PyClass& cl)
+            {
+                cl
+                    .def("get_jacobian", &AbstractConstraint::getJacobian)
+                    .def("get_drift", &AbstractConstraint::getDrift)
+                    ;
+            }
+        };
+
+    public:
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            PyConstraintVisit<PyClass>::visit(cl);
+        }
+
+        static std::shared_ptr<FixedFrameConstraint> ConstraintPyFactory(std::string const & frameName)
+        {
+            return std::make_shared<FixedFrameConstraint>(frameName);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<AbstractConstraint,
+                       std::shared_ptr<AbstractConstraint>,
+                       boost::noncopyable>("AbstractConstraint", bp::no_init)
+                .def(PyConstraintVisitor());
+            bp::register_ptr_to_python<std::shared_ptr<AbstractConstraint> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
+
+            bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraint>,
+                       std::shared_ptr<FixedFrameConstraint>,
+                       boost::noncopyable>("FixedFrameConstraint", bp::no_init)
+                .def(PyConstraintVisitor())
+                .def("__init__", bp::make_constructor(&PyConstraintVisitor::ConstraintPyFactory,
+                                 bp::default_call_policies(),
+                                 (bp::arg("frame_name"))));
+            bp::register_ptr_to_python<std::shared_ptr<FixedFrameConstraint> >();
+        }
+    };
+
     // ***************************** PySensorVisitor ***********************************
 
     struct PySensorVisitor
@@ -924,6 +984,10 @@ namespace python
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"))
+                .def("add_constraint", &Robot::addConstraint,
+                                     (bp::arg("self"), "name", "constraint"))
+                .def("remove_constraint", &Robot::removeConstraint,
+                                     (bp::arg("self"), "name"))
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,

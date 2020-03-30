@@ -6,7 +6,9 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/compute-all-terms.hpp"
 
+#include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -26,6 +28,7 @@ namespace jiminy
     motorsNames_(),
     sensorsNames_(),
     motorTorqueFieldnames_(),
+    constraintsHolder_(),
     mutexLocal_(),
     motorsSharedHolder_(nullptr),
     sensorsSharedHolder_()
@@ -73,6 +76,15 @@ namespace jiminy
             if (returnCode == hresult_t::SUCCESS)
             {
                 returnCode = motor->refreshProxies();
+            }
+        }
+
+        // Refresh the constraints
+        for (auto & constraint : constraintsHolder_)
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = constraint.second->refreshProxies();
             }
         }
 
@@ -474,6 +486,51 @@ namespace jiminy
         return returnCode;
     }
 
+
+    hresult_t Robot::addConstraint(std::string const & constraintName,
+                                   std::shared_ptr<AbstractConstraint> constraint)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (constraintsHolder_.count(constraintName) > 0)
+        {
+            std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName;
+            std::cout << " already exists." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            returnCode = constraint->initialize(this);
+            if (returnCode != hresult_t::SUCCESS)
+            {
+                std::cout << "Error - Robot::addConstraint - Fail to initialize constraint. " << std::endl;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+            else
+            {
+                constraintsHolder_.insert(std::make_pair(constraintName, constraint));
+            }
+        }
+        return returnCode;
+    }
+
+    hresult_t Robot::removeConstraint(std::string const & constraintName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (constraintsHolder_.count(constraintName) == 0)
+        {
+            std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            constraintsHolder_.erase(constraintName);
+        }
+        return returnCode;
+    }
+
+
     hresult_t Robot::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -497,6 +554,18 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshSensorsProxies();
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Refresh the constraints.
+            for (auto & constraint : constraintsHolder_)
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    returnCode = constraint.second->refreshProxies();
+                }
+            }
         }
 
         return returnCode;
@@ -1186,6 +1255,30 @@ namespace jiminy
             }
         }
     }
+
+    void Robot::computeConstraints(vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   matrixN_t & jacobianOut,
+                                   vectorN_t & driftOut)
+    {
+        // Give the right number of columns to the jacobian.
+        jacobianOut.resize(0, pncModel_.nv);
+
+        // Call computeAllTerms to update frame jacobian: this is needed by forwardDynamics anyway.
+        pinocchio::computeAllTerms(pncModel_, pncData_, q, v);
+
+        for (auto & constraint : constraintsHolder_)
+        {
+            matrixN_t J = constraint.second->getJacobian(q);
+            vectorN_t drift = constraint.second->getDrift(q, v);
+            int constraintSize = drift.size();
+            // Concatenate drift and jacobians.
+            jacobianOut.conservativeResize(jacobianOut.rows() + constraintSize, Eigen::NoChange);
+            jacobianOut.bottomRows(constraintSize) = J;
+            driftOut.conservativeResize(driftOut.size() + constraintSize);
+            driftOut.tail(constraintSize) = drift;
+        }
+     }
 
     sensorsDataMap_t Robot::getSensorsData(void) const
     {

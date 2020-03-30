@@ -11,6 +11,7 @@
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
+#include "pinocchio/algorithm/contact-dynamics.hpp"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -732,9 +733,7 @@ namespace jiminy
                 }
 
                 // Compute dynamics
-                a = EngineMultiRobot::aba(system.robot->pncModel_,
-                                          system.robot->pncData_,
-                                          q, v, u, fext);
+                a = computeAcceleration(system.robot, q, v, u, fext);
 
                 // Project the derivative in state space
                 computePositionDerivative(system.robot->pncModel_, q, v, qDot, dt);
@@ -2082,8 +2081,7 @@ namespace jiminy
             }
 
             // Compute the dynamics
-            a = EngineMultiRobot::aba(
-                systemIt->robot->pncModel_, systemIt->robot->pncData_, q, v, u, fext);
+            a = computeAcceleration(systemIt->robot, q, v, u, fext);
 
             // Project the derivative in state space (only if moving forward in time)
             float64_t const dt = t - stepperState_.tPrev;
@@ -2282,6 +2280,40 @@ namespace jiminy
             logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
         }
         return returnCode;
+    }
+
+    vectorN_t EngineMultiRobot::computeAcceleration(std::shared_ptr<Robot> robot,
+                                                    vectorN_t const & q,
+                                                    vectorN_t const & v,
+                                                    vectorN_t const & u,
+                                                    forceVector_t const & fext)
+    {
+        if (robot->hasConstraint())
+        {
+            // Handle kinematic constraints.
+            matrixN_t J;
+            vectorN_t drift;
+            robot->computeConstraints(q, v, J, drift);
+
+            // TODO: handle external forces.
+            // TODO: rotor inertia.
+
+            // Call forward dynamics.
+            float64_t damping = 1e-12;
+            return pinocchio::forwardDynamics(robot->pncModel_,
+                                              robot->pncData_,
+                                              q,
+                                              v,
+                                              u,
+                                              J,
+                                              drift,
+                                              damping);
+        }
+        else
+        {
+            // No kinematic constraint: run aba algorithm.
+            return EngineMultiRobot::aba(robot->pncModel_, robot->pncData_, q, v, u, fext);
+        }
     }
 
     // =====================================================================================================

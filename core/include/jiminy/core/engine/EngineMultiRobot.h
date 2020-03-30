@@ -668,6 +668,24 @@ namespace jiminy
             Eigen::MatrixBase<TangentVectorType2>                  const & tau,
             pinocchio::container::aligned_vector<ForceDerived>     const & fext);
 
+        /// \brief Compute system acceleration from current system state.
+        ///
+        /// \details This function performs forward dynamics computation, either
+        ///          with kinematic constraints (using Lagrange multiplier for computing the forces)
+        ///          or unconstrainted (aba).
+        ///
+        /// \param[in] robot Robot for which to compute the dynamics.
+        /// \param[in] q Joint position.
+        /// \param[in] v Joint velocity.
+        /// \param[in] u Joint torque.
+        /// \param[in] fext External forces applied on the system.
+        /// \return System acceleration.
+        vectorN_t computeAcceleration(std::shared_ptr<Robot> robot,
+                                      vectorN_t const & q,
+                                      vectorN_t const & v,
+                                      vectorN_t const & u,
+                                      forceVector_t const & fext);
+
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
 
