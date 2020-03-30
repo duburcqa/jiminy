@@ -1619,7 +1619,7 @@ namespace python
             return bp::make_tuple(data, constants);
         }
 
-        static bp::tuple getLog(Engine & self)
+        static bp::tuple getLog(EngineMultiRobot & self)
         {
             std::vector<std::string> header;
             std::vector<float64_t> timestamps;
@@ -1647,8 +1647,8 @@ namespace python
             }
         }
 
-        static hresult_t setOptions(Engine         & self,
-                                    bp::dict const & configPy)
+        static hresult_t setOptions(EngineMultiRobot & self,
+                                    bp::dict const   & configPy)
         {
             configHolder_t config = self.getOptions();
             convertFromPython(configPy, config);
