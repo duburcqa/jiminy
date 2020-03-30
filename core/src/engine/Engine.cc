@@ -121,8 +121,8 @@ namespace jiminy
         return EngineMultiRobot::registerForceImpulse("", frameName, t, dt, F);
     }
 
-    hresult_t Engine::registerForceProfile(std::string      const & frameName,
-                                           forceFunctor_t           forceFct)
+    hresult_t Engine::registerForceProfile(std::string           const & frameName,
+                                           forceProfileFunctor_t         forceFct)
     {
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }

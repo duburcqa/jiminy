@@ -31,114 +31,78 @@ namespace python
 {
     namespace bp = boost::python;
 
-    // ************************** TimeStateFctPyWrapper ******************************
+    // ************************** FctPyWrapper ******************************
 
     template<typename T>
-    struct TimeStateFctPyWrapper {
-    public:
-        // Disable the copy of the class
-        TimeStateFctPyWrapper & operator = (TimeStateFctPyWrapper const & other) = delete;
-
-    public:
-        TimeStateFctPyWrapper(bp::object const& objPy) :
-        funcPyPtr_(objPy),
-        outPtr_(new T),
-        outPyPtr_(nullptr)
-        {
-            outPyPtr_ = getNumpyReference(*outPtr_);
-        }
-
-        // Copy constructor, same as the normal constructor
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper const & other) :
-        funcPyPtr_(other.funcPyPtr_),
-        outPtr_(new T),
-        outPyPtr_(nullptr)
-        {
-            *outPtr_ = *(other.outPtr_);
-            outPyPtr_ = getNumpyReference(*outPtr_);
-        }
-
-        // Move constructor, takes a rvalue reference &&
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper&& other) :
-        funcPyPtr_(other.funcPyPtr_),
-        outPtr_(nullptr),
-        outPyPtr_(nullptr)
-        {
-            // Steal the resource from "other"
-            outPtr_ = other.outPtr_;
-            outPyPtr_ = other.outPyPtr_;
-
-            /* "other" will soon be destroyed and its destructor will
-               do nothing because we null out its resource here */
-            other.outPtr_ = nullptr;
-            other.outPyPtr_ = nullptr;
-        }
-
-        // Destructor
-        ~TimeStateFctPyWrapper()
-        {
-            Py_XDECREF(outPyPtr_);
-            delete outPtr_;
-        }
-
-        // Move assignment, takes a rvalue reference &&
-        TimeStateFctPyWrapper& operator = (TimeStateFctPyWrapper&& other)
-        {
-            /* "other" is soon going to be destroyed, so we let it destroy our current resource
-               instead and we take "other"'s current resource via swapping */
-            std::swap(funcPyPtr_, other.funcPyPtr_);
-            std::swap(outPtr_, other.outPtr_);
-            std::swap(outPyPtr_, other.outPyPtr_);
-            return *this;
-        }
-
-        T const & operator() (float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v)
-        {
-            // Pass the arguments by reference (be careful const qualifiers are lost)
-            bp::handle<> qPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(q)));
-            bp::handle<> vPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(v)));
-            bp::handle<> outPy(bp::borrowed(outPyPtr_));
-            funcPyPtr_(t, qPy, vPy, outPy);
-            return *outPtr_;
-        }
-
-    private:
-        bp::object funcPyPtr_;
-        T * outPtr_;
-        PyObject * outPyPtr_;
+    struct DataInternalBufferType
+    {
+        using type = typename std::add_lvalue_reference<T>::type;
     };
 
     template<>
-    struct TimeStateFctPyWrapper<pinocchio::Force> {
+    struct DataInternalBufferType<pinocchio::Force> {
+        using type = typename Eigen::Ref<vector6_t>;
+    };
+
+    template<typename T>
+    typename DataInternalBufferType<T>::type
+    setDataInternalBuffer(T * arg)
+    {
+        return *arg;
+    }
+
+    template<>
+    typename DataInternalBufferType<pinocchio::Force>::type
+    setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg)
+    {
+        return arg->toVector();
+    }
+
+    template<typename T>
+    bp::handle<> FctPyWrapperArgToPython(T const & arg)
+    {
+        return bp::handle<>(bp::object(arg).ptr());
+    }
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<vectorN_t>(vectorN_t const & arg)
+    {
+        // Pass the arguments by reference (be careful const qualifiers are lost)
+        return bp::handle<>(getNumpyReference(const_cast<vectorN_t &>(arg)));
+    }
+
+    template<typename OutputArg, typename ... InputArgs>
+    struct FctPyWrapper
+    {
+    public:
+        using OutputBufferType = typename  DataInternalBufferType<OutputArg>::type;
     public:
         // Disable the copy of the class
-        TimeStateFctPyWrapper & operator = (TimeStateFctPyWrapper const & other) = delete;
+        FctPyWrapper & operator = (FctPyWrapper const & other) = delete;
 
     public:
-        TimeStateFctPyWrapper(bp::object const& objPy) :
+        FctPyWrapper(bp::object const & objPy) :
         funcPyPtr_(objPy),
-        outPtr_(new pinocchio::Force),
-        outData_(outPtr_->toVector()),
+        outPtr_(new OutputArg),
+        outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
-            outPyPtr_ = getNumpyReferenceFromEigenVector(outData_);
+            outPyPtr_ = getNumpyReference(outData_);
         }
 
         // Copy constructor, same as the normal constructor
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper const & other) :
+        FctPyWrapper(FctPyWrapper const & other) :
         funcPyPtr_(other.funcPyPtr_),
-        outPtr_(new pinocchio::Force),
-        outData_(outPtr_->toVector()),
+        outPtr_(new OutputArg),
+        outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
             *outPtr_ = *(other.outPtr_);
-            outPyPtr_ = getNumpyReferenceFromEigenVector(outData_);
+            outPyPtr_ = getNumpyReference(outData_);
         }
 
         // Move constructor, takes a rvalue reference &&
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper&& other) :
+        FctPyWrapper(FctPyWrapper&& other) :
         funcPyPtr_(other.funcPyPtr_),
         outPtr_(nullptr),
         outData_(other.outData_),
@@ -155,14 +119,14 @@ namespace python
         }
 
         // Destructor
-        ~TimeStateFctPyWrapper()
+        ~FctPyWrapper()
         {
             Py_XDECREF(outPyPtr_);
             delete outPtr_;
         }
 
         // Move assignment, takes a rvalue reference &&
-        TimeStateFctPyWrapper& operator = (TimeStateFctPyWrapper&& other)
+        FctPyWrapper& operator = (FctPyWrapper&& other)
         {
             /* "other" is soon going to be destroyed, so we let it destroy our current resource
                instead and we take "other"'s current resource via swapping */
@@ -173,24 +137,27 @@ namespace python
             return *this;
         }
 
-        pinocchio::Force const & operator() (float64_t const & t,
-                                             vectorN_t const & q,
-                                             vectorN_t const & v)
+        OutputArg const & operator() (InputArgs const & ... args)
         {
-            // Pass the arguments by reference (be careful const qualifiers are lost)
-            bp::handle<> qPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(q)));
-            bp::handle<> vPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(v)));
             bp::handle<> outPy(bp::borrowed(outPyPtr_));
-            funcPyPtr_(t, qPy, vPy, outPy);
+            funcPyPtr_(FctPyWrapperArgToPython(args)..., outPy);
             return *outPtr_;
         }
 
     private:
         bp::object funcPyPtr_;
-        pinocchio::Force * outPtr_;
-        Eigen::Ref<vector6_t> outData_;
+        OutputArg * outPtr_;
+        OutputBufferType outData_;
         PyObject * outPyPtr_;
     };
+
+    template<typename T>
+    using TimeStateFctPyWrapper = FctPyWrapper<T, float64_t, vectorN_t, vectorN_t>;
+
+    template<typename T>
+    using TimeBistateFctPyWrapper = FctPyWrapper<T, float64_t, vectorN_t, vectorN_t, vectorN_t, vectorN_t>;
+
+    // ************************** HeatMapFunctorPyWrapper ******************************
 
     enum class heatMapType_t : uint8_t
     {
@@ -227,7 +194,7 @@ namespace python
             else if (heatMapType_ == heatMapType_t::GENERIC)
             {
                 out1PyPtr_ = getNumpyReference(*out1Ptr_);
-                out2PyPtr_ = getNumpyReferenceFromEigenVector(*out2Ptr_);
+                out2PyPtr_ = getNumpyReference(*out2Ptr_);
             }
         }
 
@@ -243,7 +210,7 @@ namespace python
             *out1Ptr_ = *(other.out1Ptr_);
             *out2Ptr_ = *(other.out2Ptr_);
             out1PyPtr_ = getNumpyReference(*out1Ptr_);
-            out2PyPtr_ = getNumpyReferenceFromEigenVector(*out2Ptr_);
+            out2PyPtr_ = getNumpyReference(*out2Ptr_);
         }
 
         // Move constructor, takes a rvalue reference &&
@@ -423,7 +390,7 @@ namespace python
                 auto & sensorDataTypeByName = self.at(sensorType).get<IndexByName>();
                 auto sensorDataIt = sensorDataTypeByName.find(sensorName);
                 vectorN_t const * sensorDataValue = sensorDataIt->value;
-                bp::handle<> valuePy(getNumpyReferenceFromEigenVector(*const_cast<vectorN_t *>(sensorDataValue)));
+                bp::handle<> valuePy(getNumpyReference(*const_cast<vectorN_t *>(sensorDataValue)));
                 return bp::object(valuePy);
             }
             catch (...)
@@ -536,9 +503,9 @@ namespace python
                          vectorN_t              & uCommand)
         {
             // Pass the arguments by reference (be careful const qualifiers are lost).
-            bp::handle<> qPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(q)));
-            bp::handle<> vPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(v)));
-            bp::handle<> uCommandPy(getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(uCommand)));
+            bp::handle<> qPy(getNumpyReference(const_cast<vectorN_t &>(q)));
+            bp::handle<> vPy(getNumpyReference(const_cast<vectorN_t &>(v)));
+            bp::handle<> uCommandPy(getNumpyReference(const_cast<vectorN_t &>(uCommand)));
             funcPyPtr_(t, qPy, vPy, boost::ref(sensorsData), uCommandPy);
         }
     private:
@@ -1524,7 +1491,7 @@ namespace python
                                           std::string      const & frameName2,
                                           bp::object       const & forcePy)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeBistateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(
                 systemName1, systemName2, frameName1, frameName2, forceFct);
         }
@@ -1597,7 +1564,7 @@ namespace python
 
             // Get Global.Time
             Eigen::Ref<vectorN_t> timeBuffer = vectorN_t::Map(timestamps.data(), timestamps.size());
-            PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
+            PyObject * valuePyTime(getNumpyReference(timeBuffer));
             data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
             Py_XDECREF(valuePyTime);
 
@@ -1616,7 +1583,8 @@ namespace python
 
             for (uint32_t i=0; i<intData[0].size(); i++)
             {
-                PyObject * valuePyInt(getNumpyReferenceFromEigenVector(intDataMatrix.col(i)));
+                Eigen::Ref<Eigen::Matrix<int32_t, Eigen::Dynamic, 1> > intDataCol(intDataMatrix.col(i));
+                PyObject * valuePyInt(getNumpyReference(intDataCol));
                 std::string const & header_i = header[i + (lastConstantId + 1) + 1];
                 // One must make copies with PyArray_FROM_OF instead of using raw pointer for floatDataMatrix
                 // and setting NPY_ARRAY_OWNDATA because otherwise Python is not able to free the memory
@@ -1641,7 +1609,8 @@ namespace python
 
             for (uint32_t i=0; i<floatData[0].size(); i++)
             {
-                PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix.col(i)));
+                Eigen::Ref<Eigen::Matrix<float32_t, Eigen::Dynamic, 1> > floatDataCol(floatDataMatrix.col(i));
+                PyObject * valuePyFloat(getNumpyReference(floatDataCol));
                 std::string const & header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
                 data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
                 Py_XDECREF(valuePyFloat);

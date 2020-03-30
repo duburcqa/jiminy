@@ -189,11 +189,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::addCouplingForce(std::string    const & systemName1,
-                                                 std::string    const & systemName2,
-                                                 std::string    const & frameName1,
-                                                 std::string    const & frameName2,
-                                                 forceFunctor_t         forceFct)
+    hresult_t EngineMultiRobot::addCouplingForce(std::string            const & systemName1,
+                                                 std::string            const & systemName2,
+                                                 std::string            const & frameName1,
+                                                 std::string            const & frameName2,
+                                                 forceCouplingFunctor_t         forceFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -579,7 +579,7 @@ namespace jiminy
             stepperState_.reset(dt, cat(xInit));
 
             // Synchronize the individual system states with the global stepper state
-            syncStepperStateWithSystem();
+            syncSystemsStateWithStepper();
 
             for (auto & system : systemsDataHolder_)
             {
@@ -646,8 +646,8 @@ namespace jiminy
                 system.robot->setSensorsData(t, q, v, a, uMotor);
             }
 
-            // Synchronize the individual system states with the global stepper state
-            syncSystemStateWithStepper();
+            // Synchronize the global stepper state with the individual system states
+            syncStepperStateWithSystems();
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -999,7 +999,7 @@ namespace jiminy
                             fail_checker.reset();
 
                             // Synchronize the individual system states
-                            syncStepperStateWithSystem();
+                            syncSystemsStateWithStepper();
 
                             // Increment the iteration counter only for successful steps
                             stepperState_.iter++;
@@ -1053,7 +1053,7 @@ namespace jiminy
                             fail_checker.reset();
 
                             // Synchronize the individual system states
-                            syncStepperStateWithSystem();
+                            syncSystemsStateWithStepper();
 
                             // Increment the iteration counter
                             stepperState_.iter++;
@@ -1146,9 +1146,9 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::registerForceProfile(std::string    const & systemName,
-                                                     std::string    const & frameName,
-                                                     forceFunctor_t         forceFct)
+    hresult_t EngineMultiRobot::registerForceProfile(std::string           const & systemName,
+                                                     std::string           const & frameName,
+                                                     forceProfileFunctor_t         forceFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1350,35 +1350,77 @@ namespace jiminy
     // ================ Core physics utilities ================
     // ========================================================
 
-    void EngineMultiRobot::syncStepperStateWithSystem(void)
+    template<template<typename> class F = type_identity>
+    stateSplitRef_t<F> splitStateImpl(std::vector<systemDataHolder_t> const & systemsData,
+                                      typename F<vectorN_t>::type & val)
     {
+        stateSplitRef_t<F> valSplit;
+
+        uint8_t const nSystems = systemsData.size();
+        valSplit.first.reserve(nSystems);
+        valSplit.second.reserve(nSystems);
+
         uint32_t xIdx = 0U;
-        for (auto & system : systemsDataHolder_)
+        for (auto const & system : systemsData)
         {
             int32_t const & nq = system.robot->nq();
             int32_t const & nv = system.robot->nv();
             int32_t const & nx = system.robot->nx();
-            system.state.q = stepperState_.x.segment(xIdx, nq);
-            system.state.v = stepperState_.x.segment(xIdx + nq,  nv);
-            system.state.qDot = stepperState_.dxdt.segment(xIdx, nq);
-            system.state.a = stepperState_.dxdt.segment(xIdx + nq, nv);
+            valSplit.first.emplace_back(val.segment(xIdx, nq));
+            valSplit.second.emplace_back(val.segment(xIdx + nq,  nv));
             xIdx += nx;
+        }
+
+        return valSplit;
+    }
+
+    stateSplitRef_t<std::add_const> EngineMultiRobot::splitState(vectorN_t const & val) const
+    {
+        return splitStateImpl<std::add_const>(systemsDataHolder_, val);
+    }
+
+    stateSplitRef_t<> EngineMultiRobot::splitState(vectorN_t & val) const
+    {
+        return splitStateImpl<>(systemsDataHolder_, val);
+    }
+
+    void EngineMultiRobot::syncStepperStateWithSystems(void)
+    {
+        auto xSplit = splitState(stepperState_.x);
+        auto dxdtSplit = splitState(stepperState_.dxdt);
+
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        auto vSplitIt = xSplit.second.begin();
+        auto qDotSplitIt = dxdtSplit.first.begin();
+        auto aSplitIt = dxdtSplit.second.begin();
+        for ( ; systemIt != systemsDataHolder_.end();
+             systemIt++, qSplitIt++, vSplitIt++, qDotSplitIt++, aSplitIt++)
+        {
+            *qSplitIt = systemIt->state.q;
+            *vSplitIt = systemIt->state.v;
+            *qDotSplitIt = systemIt->state.qDot;
+            *aSplitIt = systemIt->state.a;
         }
     }
 
-    void EngineMultiRobot::syncSystemStateWithStepper(void)
+    void EngineMultiRobot::syncSystemsStateWithStepper(void)
     {
-        uint32_t xIdx = 0U;
-        for (auto & system : systemsDataHolder_)
+        auto xSplit = splitState(stepperState_.x);
+        auto dxdtSplit = splitState(stepperState_.dxdt);
+
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        auto vSplitIt = xSplit.second.begin();
+        auto qDotSplitIt = dxdtSplit.first.begin();
+        auto aSplitIt = dxdtSplit.second.begin();
+        for ( ; systemIt != systemsDataHolder_.end();
+             systemIt++, qSplitIt++, vSplitIt++, qDotSplitIt++, aSplitIt++)
         {
-            int32_t const & nq = system.robot->nq();
-            int32_t const & nv = system.robot->nv();
-            int32_t const & nx = system.robot->nx();
-            stepperState_.x.segment(xIdx, nq) = system.state.q;
-            stepperState_.x.segment(xIdx + nq,  nv) = system.state.v;
-            stepperState_.dxdt.segment(xIdx, nq) = system.state.qDot;
-            stepperState_.dxdt.segment(xIdx + nq, nv) = system.state.a;
-            xIdx += nx;
+            systemIt->state.q = *qSplitIt;
+            systemIt->state.v = *vSplitIt;
+            systemIt->state.qDot = *qDotSplitIt;
+            systemIt->state.a = *aSplitIt;
         }
     }
 
@@ -1470,59 +1512,17 @@ namespace jiminy
         return {fextInWorld, vector3_t::Zero()};
     }
 
-    void EngineMultiRobot::computeExternalForces(systemDataHolder_t          & system,
-                                                 float64_t            const  & t,
-                                                 Eigen::Ref<vectorN_t const>   q,
-                                                 Eigen::Ref<vectorN_t const>   v,
-                                                 forceVector_t              & fext)
+    void EngineMultiRobot::computeCommand(systemDataHolder_t                & system,
+                                          float64_t                   const & t,
+                                          Eigen::Ref<vectorN_t const>         q,
+                                          Eigen::Ref<vectorN_t const>         v,
+                                          vectorN_t                         & u)
     {
         // Reinitialize the external forces
-        for (pinocchio::Force & fext_i : fext)
-        {
-            fext_i.setZero();
-        }
+        u.setZero();
 
-        // Compute the contact forces
-        std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
-        for (uint32_t i=0; i < contactFramesIdx.size(); i++)
-        {
-            // Compute force in the contact frame.
-            int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
-            fextInFrame = computeContactDynamics(system, frameIdx);
-
-            // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextLocal = computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInFrame);
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentIdx] += fextLocal;
-        }
-
-        // Add the effect of user-defined external forces
-        if (system.forceImpulseNextIt != system.forcesImpulse.end())
-        {
-            float64_t const & tForceImpulseNext = system.forceImpulseNextIt->t;
-            float64_t const & dt = system.forceImpulseNextIt->dt;
-            if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
-            {
-                std::string const & frameName = system.forceImpulseNextIt->frameName;
-                pinocchio::Force const & F = system.forceImpulseNextIt->F;
-                int32_t frameIdx;
-                getFrameIdx(system.robot->pncModel_, frameName, frameIdx);
-                int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-                fext[parentIdx] += computeFrameForceOnParentJoint(
-                    system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
-            }
-        }
-
-        for (auto const & forceProfile : system.forcesProfile)
-        {
-            int32_t const & frameIdx = forceProfile.frameIdx;
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            forceFunctor_t const & forceFct = forceProfile.forceFct;
-            fext[parentIdx] += computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, q, v));
-        }
+        // Command the command
+        system.controller->computeCommand(t, q, v, u);
     }
 
     void EngineMultiRobot::computeInternalDynamics(systemDataHolder_t          & system,
@@ -1653,83 +1653,195 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeCommand(systemDataHolder_t                & system,
-                                          float64_t                   const & t,
-                                          Eigen::Ref<vectorN_t const>         q,
-                                          Eigen::Ref<vectorN_t const>         v,
-                                          vectorN_t                         & u)
+    void EngineMultiRobot::computeExternalForces(systemDataHolder_t          & system,
+                                                 float64_t            const  & t,
+                                                 Eigen::Ref<vectorN_t const>   q,
+                                                 Eigen::Ref<vectorN_t const>   v,
+                                                 forceVector_t              & fext)
+    {
+        // Compute the contact forces
+        std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
+        for (uint32_t i=0; i < contactFramesIdx.size(); i++)
+        {
+            // Compute force in the contact frame.
+            int32_t const & frameIdx = contactFramesIdx[i];
+            pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
+            fextInFrame = computeContactDynamics(system, frameIdx);
+
+            // Apply the force at the origin of the parent joint frame
+            pinocchio::Force const fextLocal = computeFrameForceOnParentJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInFrame);
+            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            fext[parentIdx] += fextLocal;
+        }
+
+        // Add the effect of user-defined external forces
+        if (system.forceImpulseNextIt != system.forcesImpulse.end())
+        {
+            float64_t const & tForceImpulseNext = system.forceImpulseNextIt->t;
+            float64_t const & dt = system.forceImpulseNextIt->dt;
+            if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
+            {
+                std::string const & frameName = system.forceImpulseNextIt->frameName;
+                pinocchio::Force const & F = system.forceImpulseNextIt->F;
+                int32_t frameIdx;
+                getFrameIdx(system.robot->pncModel_, frameName, frameIdx);
+                int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+                fext[parentIdx] += computeFrameForceOnParentJoint(
+                    system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
+            }
+        }
+
+        for (auto const & forceProfile : system.forcesProfile)
+        {
+            int32_t const & frameIdx = forceProfile.frameIdx;
+            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
+            fext[parentIdx] += computeFrameForceOnParentJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, q, v));
+
+            std::cout << forceFct(t, q, v).toVector() << std::endl;
+        }
+    }
+
+    void EngineMultiRobot::computeInternalForces(float64_t                       const & t,
+                                                 stateSplitRef_t<std::add_const> const & xSplit)
+    {
+        for (auto & forceCoupling : forcesCoupling_)
+        {
+            int32_t const & systemIdx1 = forceCoupling.systemIdx1;
+            int32_t const & systemIdx2 = forceCoupling.systemIdx2;
+            int32_t const & frameIdx1 = forceCoupling.frameIdx1;
+            int32_t const & frameIdx2 = forceCoupling.frameIdx2;
+            forceCouplingFunctor_t const & forceFct = forceCoupling.forceFct;
+
+            systemDataHolder_t & system1 = systemsDataHolder_[systemIdx1];
+            systemDataHolder_t & system2 = systemsDataHolder_[systemIdx2];
+            Eigen::Ref<vectorN_t const> q1 = xSplit.first[systemIdx1];
+            Eigen::Ref<vectorN_t const> v1 = xSplit.second[systemIdx1];
+            Eigen::Ref<vectorN_t const> q2 = xSplit.first[systemIdx2];
+            Eigen::Ref<vectorN_t const> v2 = xSplit.second[systemIdx2];
+            forceVector_t & fext1 = system1.state.fExternal;
+            forceVector_t & fext2 = system2.state.fExternal;
+
+            pinocchio::Force const force = forceFct(t, q1, v1, q2, v2);
+            int32_t const & parentIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
+            fext1[parentIdx1] += computeFrameForceOnParentJoint(
+                system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
+            int32_t const & parentIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
+            fext2[parentIdx2] += computeFrameForceOnParentJoint(
+                system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -force);
+        }
+    }
+
+    void EngineMultiRobot::computeAllForces(float64_t                       const & t,
+                                            stateSplitRef_t<std::add_const> const & xSplit)
     {
         // Reinitialize the external forces
-        u.setZero();
+        for (auto & system : systemsDataHolder_)
+        {
+            for (pinocchio::Force & fext_i : system.state.fExternal)
+            {
+                fext_i.setZero();
+            }
+        }
 
-        // Command the command
-        system.controller->computeCommand(t, q, v, u);
+        // Compute the internal forces
+        computeInternalForces(t, xSplit);
+
+        // Compute each individual system dynamics
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        auto vSplitIt = xSplit.second.begin();
+        for ( ; systemIt != systemsDataHolder_.end();
+             systemIt++, qSplitIt++, vSplitIt++)
+        {
+            // Define some proxies
+            Eigen::Ref<vectorN_t const> q = *qSplitIt;
+            Eigen::Ref<vectorN_t const> v = *vSplitIt;
+            forceVector_t & fext = systemIt->state.fExternal;
+
+            // Compute the external contact forces.
+            computeExternalForces(*systemIt, t, q, v, fext);
+        }
     }
 
     void EngineMultiRobot::computeSystemDynamics(float64_t const & t,
                                                  vectorN_t const & xCat,
                                                  vectorN_t       & dxdtCat)
     {
-        /* Note that the position of the free flyer is in world frame, whereas the
-           velocities and accelerations are relative to the parent body frame. */
+        /* Note that the position of the free flyer is in world frame,
+           whereas the velocities and accelerations are relative to
+           the parent body frame. */
 
-        uint32_t xIdx = 0U;
+        /* Allocate memory for the state derivative.
+           Note that doing so is mandatory even if the input value
+           given to the stepper is pre-allocated since the stepper
+           is not using it directly internally at lower level. */
         dxdtCat.resize(xCat.size());
-        for (auto & system : systemsDataHolder_)
+
+        // Split the input state and derivative (by reference)
+        auto xSplit = splitState(xCat);
+        auto dxdtSplit = splitState(dxdtCat);
+
+        /* Compute the internal and external forces applied on every systems.
+           Note that one must call this method BEFORE updating the sensors
+           since the force sensor measurements rely on robot_->contactForces_. */
+        computeAllForces(t, xSplit);
+
+        // Compute each individual system dynamics
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        auto vSplitIt = xSplit.second.begin();
+        auto qDotSplitIt = dxdtSplit.first.begin();
+        auto aSplitIt = dxdtSplit.second.begin();
+        for ( ; systemIt != systemsDataHolder_.end();
+             systemIt++, qSplitIt++, vSplitIt++, qDotSplitIt++, aSplitIt++)
         {
-            // Extract the state of the system and its derivate
-            Eigen::Ref<vectorN_t const> x = xCat.segment(xIdx, system.robot->nx());
-            Eigen::Ref<vectorN_t> dxdt = dxdtCat.segment(xIdx, system.robot->nx());
-
-            // Extract some proxies from them
-            Eigen::Ref<vectorN_t const> q = x.head(system.robot->nq());
-            Eigen::Ref<vectorN_t const> v = x.tail(system.robot->nv());
-            Eigen::Ref<vectorN_t> qDot = dxdt.head(system.robot->nq());
-            Eigen::Ref<vectorN_t> a = dxdt.tail(system.robot->nv());
-
-            // Get additional references to the internal system buffers
-            vectorN_t & u = system.state.u;
-            vectorN_t & uCommand = system.state.uCommand;
-            vectorN_t & uMotor = system.state.uMotor;
-            vectorN_t & uInternal = system.state.uInternal;
-            forceVector_t & fext = system.state.fExternal;
+            // Define some proxies
+            Eigen::Ref<vectorN_t const> q = *qSplitIt;
+            Eigen::Ref<vectorN_t const> v = *vSplitIt;
+            Eigen::Ref<vectorN_t> qDot = *qDotSplitIt;
+            Eigen::Ref<vectorN_t> a = *aSplitIt;
+            vectorN_t & aPrev = systemIt->stateLast.a;
+            vectorN_t & u = systemIt->state.u;
+            vectorN_t & uCommand = systemIt->state.uCommand;
+            vectorN_t & uMotor = systemIt->state.uMotor;
+            vectorN_t & uMotorPrev = systemIt->stateLast.uMotor;
+            vectorN_t & uInternal = systemIt->state.uInternal;
+            forceVector_t & fext = systemIt->state.fExternal;
 
             // Compute kinematics information
-            computeForwardKinematics(system, q, v, a);
-
-            /* Compute the external contact forces.
-            Note that one must call this method BEFORE updating the sensors since
-            the force sensor measurements rely on robot_->contactForces_ */
-            computeExternalForces(system, t, q, v, fext);
+            computeForwardKinematics(*systemIt, q, v, a);
 
             /* Update the sensor data if necessary (only for infinite update frequency).
-            Note that it is impossible to have access to the current accelerations
-            and torques since they depend on the sensor values themselves. */
+               Note that it is impossible to have access to the current accelerations
+               and torques since they depend on the sensor values themselves. */
             if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                system.robot->setSensorsData(t, q, v, system.stateLast.a, system.stateLast.uMotor);
+                systemIt->robot->setSensorsData(t, q, v, aPrev, uMotorPrev);
             }
 
             /* Update the controller command if necessary (only for infinite update frequency).
-            Make sure that the sensor state has been updated beforehand. */
+               Make sure that the sensor state has been updated beforehand. */
             if (engineOptions_->stepper.controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
-                computeCommand(system, t, q, v, uCommand);
+                computeCommand(*systemIt, t, q, v, uCommand);
             }
 
             /* Compute the actual motor torque.
-            Note that it is impossible to have access to the current accelerations. */
-            system.robot->computeMotorsTorques(t, q, v, system.stateLast.a, uCommand);
-            uMotor = system.robot->getMotorsTorques();
+               Note that it is impossible to have access to the current accelerations. */
+            systemIt->robot->computeMotorsTorques(t, q, v, aPrev, uCommand);
+            uMotor = systemIt->robot->getMotorsTorques();
 
             /* Compute the internal dynamics.
-            Make sure that the sensor state has been updated beforehand since
-            the user-defined internal dynamics may rely on it. */
-            computeInternalDynamics(system, t, q, v, uInternal);
+               Make sure that the sensor state has been updated beforehand since
+               the user-defined internal dynamics may rely on it. */
+            computeInternalDynamics(*systemIt, t, q, v, uInternal);
 
             // Compute the total torque vector
             u = uInternal;
-            for (auto const & motor : system.robot->getMotors())
+            for (auto const & motor : systemIt->robot->getMotors())
             {
                 int32_t const & motorId = motor->getIdx();
                 int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
@@ -1737,14 +1849,12 @@ namespace jiminy
             }
 
             // Compute the dynamics
-            a = EngineMultiRobot::aba(system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
+            a = EngineMultiRobot::aba(
+                systemIt->robot->pncModel_, systemIt->robot->pncData_, q, v, u, fext);
 
             // Project the derivative in state space
             float64_t const dt = t - stepperState_.tLast;
-            computePositionDerivative(system.robot->pncModel_, q, v, qDot, dt);
-
-            // Update the running first index
-            xIdx += system.robot->nx();
+            computePositionDerivative(systemIt->robot->pncModel_, q, v, qDot, dt);
         }
     }
 

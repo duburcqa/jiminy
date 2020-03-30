@@ -25,9 +25,14 @@ namespace jiminy
     class EngineMultiRobot;
 
     // Impossible to use function pointer since it does not support functors
-    using forceFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                          vectorN_t const & /*q*/,
-                                                          vectorN_t const & /*v*/)>;
+    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                 vectorN_t const & /*q*/,
+                                                                 vectorN_t const & /*v*/)>;
+    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                  vectorN_t const & /*q_1*/,
+                                                                  vectorN_t const & /*v_1*/,
+                                                                  vectorN_t const & /*q_2*/,
+                                                                  vectorN_t const & /*v_2*/)>;
     using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
                                                     vectorN_t const & /*q*/,
                                                     vectorN_t const & /*v*/)>;
@@ -66,9 +71,9 @@ namespace jiminy
     public:
         forceProfile_t(void) = default;
 
-        forceProfile_t(std::string    const & frameNameIn,
-                       int32_t        const & frameIdxIn,
-                       forceFunctor_t const & forceFctIn) :
+        forceProfile_t(std::string           const & frameNameIn,
+                       int32_t               const & frameIdxIn,
+                       forceProfileFunctor_t const & forceFctIn) :
         frameName(frameNameIn),
         frameIdx(frameIdxIn),
         forceFct(forceFctIn)
@@ -79,7 +84,7 @@ namespace jiminy
     public:
         std::string frameName;
         int32_t frameIdx;
-        forceFunctor_t forceFct;
+        forceProfileFunctor_t forceFct;
     } ;
 
     struct forceCoupling_t
@@ -87,15 +92,15 @@ namespace jiminy
     public:
         forceCoupling_t(void) = default;
 
-        forceCoupling_t(std::string    const & systemName1In,
-                        int32_t        const & systemIdx1In,
-                        std::string    const & systemName2In,
-                        int32_t        const & systemIdx2In,
-                        std::string    const & frameName1In,
-                        int32_t        const & frameIdx1In,
-                        std::string    const & frameName2In,
-                        int32_t        const & frameIdx2In,
-                        forceFunctor_t const & forceFctIn) :
+        forceCoupling_t(std::string            const & systemName1In,
+                        int32_t                const & systemIdx1In,
+                        std::string            const & systemName2In,
+                        int32_t                const & systemIdx2In,
+                        std::string            const & frameName1In,
+                        int32_t                const & frameIdx1In,
+                        std::string            const & frameName2In,
+                        int32_t                const & frameIdx2In,
+                        forceCouplingFunctor_t const & forceFctIn) :
         systemName1(systemName1In),
         systemIdx1(systemIdx1In),
         systemName2(systemName2In),
@@ -118,7 +123,7 @@ namespace jiminy
         int32_t frameIdx1;
         std::string frameName2;
         int32_t frameIdx2;
-        forceFunctor_t forceFct;
+        forceCouplingFunctor_t forceFct;
     };
 
     using forceImpulseRegister_t = std::set<forceImpulse_t>;  // Use a set to automatically sort the forces wrt. the application time
@@ -190,6 +195,10 @@ namespace jiminy
         vectorN_t x;
         vectorN_t dxdt;
     };
+
+    template<template<typename> class F = type_identity>
+    using stateSplitRef_t = std::pair<std::vector<Eigen::Ref<typename F<vectorN_t>::type> >,
+                                      std::vector<Eigen::Ref<typename F<vectorN_t>::type> > >;
 
     struct systemState_t
     {
@@ -493,11 +502,11 @@ namespace jiminy
                             callbackFunctor_t callbackFct);
         hresult_t removeSystem(std::string const & systemName);
 
-        hresult_t addCouplingForce(std::string    const & systemName1,
-                                   std::string    const & systemName2,
-                                   std::string    const & frameName1,
-                                   std::string    const & frameName2,
-                                   forceFunctor_t         forceFct);
+        hresult_t addCouplingForce(std::string            const & systemName1,
+                                   std::string            const & systemName2,
+                                   std::string            const & frameName1,
+                                   std::string            const & frameName2,
+                                   forceCouplingFunctor_t         forceFct);
         hresult_t removeCouplingForces(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeCouplingForces(std::string const & systemName);
@@ -556,9 +565,9 @@ namespace jiminy
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
-        hresult_t registerForceProfile(std::string    const & systemName,
-                                       std::string    const & frameName,
-                                       forceFunctor_t         forceFct);
+        hresult_t registerForceProfile(std::string           const & systemName,
+                                       std::string           const & frameName,
+                                       forceProfileFunctor_t         forceFct);
 
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
@@ -598,8 +607,11 @@ namespace jiminy
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
-        void syncStepperStateWithSystem(void);
-        void syncSystemStateWithStepper(void);
+        stateSplitRef_t<std::add_const> splitState(vectorN_t const & val) const;
+        stateSplitRef_t<> splitState(vectorN_t & val) const;
+
+        void syncStepperStateWithSystems(void);
+        void syncSystemsStateWithStepper(void);
 
         static void computeForwardKinematics(systemDataHolder_t          & system,
                                              Eigen::Ref<vectorN_t const>   q,
@@ -614,16 +626,20 @@ namespace jiminy
                             Eigen::Ref<vectorN_t const>   q,
                             Eigen::Ref<vectorN_t const>   v,
                             vectorN_t                  & u);
-        void computeExternalForces(systemDataHolder_t          & system,
-                                   float64_t            const  & t,
-                                   Eigen::Ref<vectorN_t const>   q,
-                                   Eigen::Ref<vectorN_t const>   v,
-                                   forceVector_t              & fext);
         void computeInternalDynamics(systemDataHolder_t          & system,
                                      float64_t            const  & t,
                                      Eigen::Ref<vectorN_t const>   q,
                                      Eigen::Ref<vectorN_t const>   v,
                                      vectorN_t                   & u) const;
+        void computeExternalForces(systemDataHolder_t          & system,
+                                   float64_t            const  & t,
+                                   Eigen::Ref<vectorN_t const>   q,
+                                   Eigen::Ref<vectorN_t const>   v,
+                                   forceVector_t              & fext);
+        void computeInternalForces(float64_t                       const & t,
+                                   stateSplitRef_t<std::add_const> const & xSplit);
+        void computeAllForces(float64_t                       const & t,
+                              stateSplitRef_t<std::add_const> const & xSplit);
         void computeSystemDynamics(float64_t const & t,
                                    vectorN_t const & xCat,
                                    vectorN_t       & dxdtCat);

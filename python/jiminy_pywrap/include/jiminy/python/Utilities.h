@@ -17,38 +17,20 @@ namespace python
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
 
-    inline int getPyType(bool_t const & data)
-    {
-        return NPY_BOOL;
-    }
-
-    inline int getPyType(float64_t const & data)
-    {
-        return NPY_FLOAT64;
-    }
-
-    inline int getPyType(float32_t const & data)
-    {
-        return NPY_FLOAT32;
-    }
-
-    inline int getPyType(int32_t const & data)
-    {
-        return NPY_INT32;
-    }
-
-    inline int getPyType(int64_t const & data)
-    {
-        return NPY_INT64;
-    }
-
     // ****************************************************************************
     // **************************** C++ TO PYTHON *********************************
     // ****************************************************************************
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert scalar to Numpy array by reference.
-    ///////////////////////////////////////////////////////////////////////////////
+    /// C++ to Python type mapping
+
+    inline int getPyType(bool_t const & data) { return NPY_BOOL; }
+    inline int getPyType(float64_t const & data) { return NPY_FLOAT64; }
+    inline int getPyType(float32_t const & data) { return NPY_FLOAT32; }
+    inline int getPyType(int32_t const & data) { return NPY_INT32; }
+    inline int getPyType(int64_t const & data) { return NPY_INT64; }
+
+    /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
+
     template<typename T>
     PyObject * getNumpyReferenceFromScalar(T & value)
     {
@@ -56,63 +38,58 @@ namespace python
         return PyArray_SimpleNewFromData(1, dims, getPyType(value), &value);
     }
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert Eigen vector to Numpy array by reference.
-    ///////////////////////////////////////////////////////////////////////////////
-    #define MAKE_FUNC(T) \
-    PyObject * getNumpyReferenceFromEigenVector( \
-        Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> > value /* Must use Ref to support fixed size array without copy */ ) \
+    #define MAKE_FUNCS(T) \
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> > value) \
     { \
         npy_intp dims[1] = {npy_intp(value.size())}; \
         return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), value.data()); \
+    } \
+    \
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> > value) \
+    { \
+        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())}; \
+        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>( \
+            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL); \
     }
 
-    MAKE_FUNC(int32_t)
-    MAKE_FUNC(float32_t)
-    MAKE_FUNC(float64_t)
+    MAKE_FUNCS(int32_t)
+    MAKE_FUNCS(float32_t)
+    MAKE_FUNCS(float64_t)
 
-    #undef MAKE_FUNC
+    #undef MAKE_FUNCS
 
-    ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert Eigen matrix to Numpy array by reference.
-    ///////////////////////////////////////////////////////////////////////////////
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<matrixN_t const> value)
-    {
-        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
-        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, NPY_FLOAT64, const_cast<float64_t *>(value.data()))), NULL);
-    }
+    /// Generic converter to Numpy array by reference
 
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Template specializations
-    ///////////////////////////////////////////////////////////////////////////////
     template<typename T>
-    PyObject * getNumpyReference(T & data)
+    enable_if_t<!is_eigen<T>::value, PyObject *>
+    getNumpyReference(T & value)
     {
-        return getNumpyReferenceFromScalar(data);
+        return getNumpyReferenceFromScalar(value);
+    }
+
+    template<typename T>
+    enable_if_t<is_eigen_vector<T>::value, PyObject *>
+    getNumpyReference(T & value)
+    {
+        return getNumpyReferenceFromEigenVector(value);
+    }
+
+    template<typename T>
+    enable_if_t<is_eigen<T>::value
+            && !is_eigen_vector<T>::value, PyObject *>
+    getNumpyReference(T & value)
+    {
+        return getNumpyReferenceFromEigenMatrix(value);
     }
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert an Eigen vector into a 1D python list by value.
-    ///////////////////////////////////////////////////////////////////////////////
-    bp::list eigenVectorTolistPy(vectorN_t const & v)
-    {
-        bp::list l;
-        for (int32_t j = 0; j < v.rows(); j++)
-        {
-            l.append(v[j]);
-        }
-        return l;
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert most C++ objects into Python objects by value.
+    /// Convert most C++ objects into Python objects by value.
     ///////////////////////////////////////////////////////////////////////////////
 
-    template<typename CType>
-    enable_if_t<!is_vector<CType>::value, bp::object>
-    convertToPython(CType const & data)
+    template<typename T>
+    enable_if_t<!is_vector<T>::value
+             && !is_eigen<T>::value, bp::object>
+    convertToPython(T const & data)
     {
         return bp::object(data);
     }
@@ -127,23 +104,17 @@ namespace python
         return flexibilityJointDataPy;
     }
 
-    template<>
-    bp::object convertToPython<vectorN_t>(vectorN_t const & data)
+    template<typename T>
+    enable_if_t<is_eigen<T>::value, bp::object>
+    convertToPython(T const & data)
     {
-        PyObject * vecPyPtr = getNumpyReferenceFromEigenVector(const_cast<vectorN_t &>(data));
+        PyObject * vecPyPtr = getNumpyReference(const_cast<T &>(data));
         return bp::object(bp::handle<>(PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY)));
     }
 
-    template<>
-    bp::object convertToPython<matrixN_t>(matrixN_t const & data)
-    {
-        PyObject * matPyPtr = getNumpyReferenceFromEigenMatrix(data);
-        return bp::object(bp::handle<>(PyArray_FROM_OF(matPyPtr, NPY_ARRAY_ENSURECOPY)));
-    }
-
-    template<typename CType>
-    enable_if_t<is_vector<CType>::value, bp::object>
-    convertToPython(CType const & data)
+    template<typename T>
+    enable_if_t<is_vector<T>::value, bp::object>
+    convertToPython(T const & data)
     {
         bp::list dataPy;
         for (auto const & val : data)
@@ -180,9 +151,7 @@ namespace python
     // **************************** PYTHON TO C++ *********************************
     // ****************************************************************************
 
-    ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert a 1D python list into an Eigen vector by value.
-    ///////////////////////////////////////////////////////////////////////////////
     vectorN_t listPyToEigenVector(bp::list const & listPy)
     {
         vectorN_t x(len(listPy));
@@ -194,9 +163,7 @@ namespace python
         return x;
     }
 
-    ///////////////////////////////////////////////////////////////////////////////
     /// \brief  Convert a 2D python list into an Eigen matrix.
-    ///////////////////////////////////////////////////////////////////////////////
     matrixN_t listPyToEigenMatrix(bp::list const & listPy)
     {
         int32_t const nRows = len(listPy);
@@ -217,23 +184,22 @@ namespace python
     }
 
     ///////////////////////////////////////////////////////////////////////////////
-    /// \brief  Convert most Python objects in C++ objects by value.
+    /// Convert most Python objects in C++ objects by value.
     ///////////////////////////////////////////////////////////////////////////////
 
-    template<typename CType>
-    enable_if_t<!is_vector<CType>::value
-             && !std::is_same<CType, int32_t>::value
-             && !std::is_same<CType, uint32_t>::value
-             && !std::is_same<CType, vectorN_t>::value
-             && !std::is_same<CType, matrixN_t>::value, CType>
+    template<typename T>
+    enable_if_t<!is_vector<T>::value
+             && !std::is_same<T, int32_t>::value
+             && !std::is_same<T, uint32_t>::value
+             && !is_eigen<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
-        return bp::extract<CType>(dataPy);
+        return bp::extract<T>(dataPy);
     }
 
-    template<typename CType>
-    enable_if_t<std::is_same<CType, int32_t>::value
-             || std::is_same<CType, uint32_t>::value, CType>
+    template<typename T>
+    enable_if_t<std::is_same<T, int32_t>::value
+             || std::is_same<T, uint32_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -241,22 +207,21 @@ namespace python
         if (optionTypePyStr == "ndarray")
         {
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
-            return *reinterpret_cast<CType const *>(dataNumpy.get_data());
+            return *reinterpret_cast<T const *>(dataNumpy.get_data());
         }
         else if (optionTypePyStr == "matrix")
         {
             np::matrix dataMatrix = bp::extract<np::matrix>(dataPy);
-            return *reinterpret_cast<CType *>(dataMatrix.get_data());
+            return *reinterpret_cast<T *>(dataMatrix.get_data());
         }
         else
         {
-            return bp::extract<CType>(dataPy);
+            return bp::extract<T>(dataPy);
         }
     }
 
-    template<typename CType>
-    enable_if_t<std::is_same<CType, vectorN_t>::value
-             || std::is_same<CType, matrixN_t>::value, CType>
+    template<typename T>
+    enable_if_t<is_eigen<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -267,7 +232,7 @@ namespace python
             dataNumpy = dataNumpy.astype(np::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
             Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if (std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<T, vectorN_t>::value)
             {
                 return Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
             }
@@ -282,7 +247,7 @@ namespace python
             np::ndarray dataNumpy = dataMatrix.astype(np::dtype::get_builtin<float64_t>());
             float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
             Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if (std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<T, vectorN_t>::value)
             {
                 return Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
             }
@@ -293,7 +258,7 @@ namespace python
         }
         else
         {
-            if (std::is_same<CType, vectorN_t>::value)
+            if (std::is_same<T, vectorN_t>::value)
             {
                 return listPyToEigenVector(bp::extract<bp::list>(dataPy));
             }
@@ -315,18 +280,18 @@ namespace python
         return flexData;
     }
 
-    template<typename CType>
-    enable_if_t<is_vector<CType>::value, CType>
+    template<typename T>
+    enable_if_t<is_vector<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
-        CType vec;
+        T vec;
         bp::list const listPy = bp::extract<bp::list>(dataPy);
         vec.reserve(bp::len(listPy));
         for (bp::ssize_t i=0; i < bp::len(listPy); i++)
         {
             bp::object const itemPy = listPy[i];
             vec.push_back(std::move(
-                convertFromPython<typename CType::value_type>(itemPy)
+                convertFromPython<typename T::value_type>(itemPy)
             ));
         }
         return vec;

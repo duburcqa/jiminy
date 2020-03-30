@@ -72,14 +72,19 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
+    template<typename T>
+    struct type_identity {
+        using type = T;
+    };
+
     template<bool B, class T = void>
     using enable_if_t = typename std::enable_if<B,T>::type;
 
     template<typename T>
-    struct is_vector : std::integral_constant<bool, false> {};
+    struct is_vector : std::false_type {};
 
     template<typename T>
-    struct is_vector<std::vector<T> > : std::integral_constant<bool, true> {};
+    struct is_vector<std::vector<T> > : std::true_type {};
 
     template <typename Base>
     inline std::shared_ptr<Base>
@@ -99,6 +104,41 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
+
+    namespace isEigenObjectDetail {
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const *);
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
+        std::false_type test(...);
+    }
+
+    template <typename T>
+    struct isEigenObject :
+        public decltype(isEigenObjectDetail::test(std::declval<T*>())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen : public std::false_type {};
+
+    template<typename T>
+    struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
+
+    namespace isEigenVectorDetail {
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, 1> const *);
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > const *);
+        std::false_type test(...);
+    }
+
+    template <typename T>
+    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<T*>())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen_vector : std::false_type {};
+
+    template<typename T>
+    struct is_eigen_vector<T, typename std::enable_if<isEigenVector<T>::value>::type> : std::true_type {};
 
     // *************** Convertion to JSON utilities *****************
 
@@ -280,10 +320,6 @@ namespace jiminy
                     float64_t const & minThr = -INF,
                     float64_t const & maxThr = +INF);
 
-    void catInPlace(std::vector<vectorN_t> const & xList,
-                    vectorN_t                    & xCat);
-    vectorN_t cat(std::vector<vectorN_t> const & xList);
-
     // ********************* Std::vector helpers **********************
 
     template<typename T>
@@ -312,6 +348,10 @@ namespace jiminy
                           uint32_t                               const & firstBlockLength,
                           uint32_t                               const & secondBlockStart,
                           uint32_t                               const & secondBlockLength);
+
+    void catInPlace(std::vector<vectorN_t> const & xList,
+                    vectorN_t                    & xCat);
+    vectorN_t cat(std::vector<vectorN_t> const & xList);
 }
 
 #include "jiminy/core/Utilities.tpp"

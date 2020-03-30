@@ -49,8 +49,8 @@ namespace jiminy
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
-        hresult_t registerForceProfile(std::string    const & frameName,
-                                       forceFunctor_t         forceFct);
+        hresult_t registerForceProfile(std::string           const & frameName,
+                                       forceProfileFunctor_t         forceFct);
 
         bool_t const & getIsInitialized(void) const;
         Robot const & getRobot(void) const;
