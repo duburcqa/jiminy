@@ -20,10 +20,10 @@ class SimulateMultiRobot(unittest.TestCase):
 
         @details The system simulated can be represented as such: each system is a single mass
                 linked to a spring, and a spring k_12 links both systems.
-                    k1             M1
-                //| <><> <><> <><> |__|
-                    k2   M2    <><>/
-                //| <><> |__| / k_12
+                    k1     M1   k(1->2)  M2
+                //| <><>  |__| <><><><> |  |
+                             k2         |  |
+                //| <><> <><> <><> <><> |__|
 
         '''
         # Load URDF, create robot.
@@ -84,11 +84,10 @@ class SimulateMultiRobot(unittest.TestCase):
             # Add system to engine.
             engine.add_system(system_names[i], robots[i], controller)
 
-        # Add coupling force between both systems.
+        # Add coupling force between both systems: a spring between both masses.
         def coupling_force(t, q1, v1, q2, v2):
-            print('here')
             f = Force.Zero()
-            f.linear[0] = -k[2] * (q2[0] - q1[0]) -nu[2] * (v2[0] - v1[0])
+            f.linear[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
             return f
 
         engine.add_coupling_force(system_names[0], system_names[1], "Mass", "Mass", coupling_force)
@@ -105,10 +104,12 @@ class SimulateMultiRobot(unittest.TestCase):
 
         # Write analytical system dynamics: two masses linked by three springs.
         m = [r.pinocchio_model_th.inertias[1].mass for r in robots]
-        A = np.array([[           0,             1,            0,            0],
-                      [-k[0] / m[0], -nu[0] / m[0],            0,            0],
-                      [           0,             0,            0,            1],
-                      [           0,             0, -k[1] / m[1], -nu[1] / m[1]]])
+        k_eq = [x + k[2] for x in k]
+        nu_eq = [x + nu[2] for x in nu]
+        A = np.array([[              0,                1,               0,                0],
+                      [-k_eq[0] / m[0], -nu_eq[0] / m[0],     k[2] / m[0],      nu[2] / m[0]],
+                      [              0,                0,               0,                1],
+                      [    k[2] / m[1],     nu[2] / m[1], -k_eq [1]/ m[1], -nu_eq[1] / m[1]]])
         # Compute analytical solution
         x_analytical = np.stack([expm(A * t) @ x_jiminy[0, :] for t in time], axis=0)
 
