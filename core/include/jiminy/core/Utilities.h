@@ -233,11 +233,11 @@ namespace jiminy
         FREE = 5,
     };
 
-    void computePositionDerivative(pinocchio::Model const & model,
-                                   Eigen::Ref<vectorN_t const> q,
-                                   Eigen::Ref<vectorN_t const> v,
-                                   Eigen::Ref<vectorN_t> qDot,
-                                   float64_t dt); // Make a copy
+    hresult_t computePositionDerivative(pinocchio::Model const & model,
+                                        Eigen::Ref<vectorN_t const> q,
+                                        Eigen::Ref<vectorN_t const> v,
+                                        Eigen::Ref<vectorN_t> qDot,
+                                        float64_t dt); // Make a copy
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,

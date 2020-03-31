@@ -828,7 +828,7 @@ namespace jiminy
 
             // Get references to some internal stepper buffers
             float64_t & t = stepperState_.t;
-            float64_t & dt = stepperState_.dt;
+            float64_t & dtNext = stepperState_.dt;
             vectorN_t & x = stepperState_.x;
             vectorN_t & dxdt = stepperState_.dxdt;
 
@@ -879,12 +879,17 @@ namespace jiminy
                             }
 
                             /* Update the internal stepper state dxdt since the dynamics has changed.
-                                -> Make sure the next impulse force iterator has NOT been updated yet !
-                                Note: This point is still subject to debate: it's more a choice than
-                                mathematical condition. Anyway, numerically, the results are similar. */
+                               Note that ONLY the acceleration part must be updated since the projection
+                               of the velocity on the state space is not supposed to have changed, and
+                               on top of that tLast is invalid at this point because it has been
+                               updated just after the last successful step.
+                               -> Make sure the next impulse force iterator has NOT been updated yet !
+                               Note: This point is still subject to debate: it's more a choice than
+                               mathematical condition. Anyway, numerically, the results are similar. */
                             if (engineOptions_->stepper.odeSolver != "explicit_euler")
                             {
                                 computeSystemDynamics(t, x, dxdt);
+                                syncSystemsStateWithStepper();
                             }
                         }
                     }
@@ -934,7 +939,7 @@ namespace jiminy
 
                 /* Increase back the timestep dt if it has been decreased
                    to a ridiculously small value because of a breakpoint. */
-                dt = std::max(dt, SIMULATION_DEFAULT_TIMESTEP);
+                dtNext = std::max(dtNext, SIMULATION_DEFAULT_TIMESTEP);
 
                 if (stepperUpdatePeriod_ > EPS)
                 {
@@ -973,26 +978,26 @@ namespace jiminy
                            prevent steps larger than dtMax, and make sure that dt is
                            multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
                            it is possible, to reduce rounding errors of logged data. */
-                        dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
-                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                        dtNext = min(dtNext, tNext - t, engineOptions_->stepper.dtMax);
+                        if (tNext - (t + dtNext) < STEPPER_MIN_TIMESTEP)
                         {
-                            dt = tNext - t;
+                            dtNext = tNext - t;
                         }
-                        if (dt > SIMULATION_MIN_TIMESTEP)
+                        if (dtNext > SIMULATION_MIN_TIMESTEP)
                         {
-                            float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
+                            float64_t const dtResidual = std::fmod(dtNext, SIMULATION_MIN_TIMESTEP);
                             if (dtResidual > STEPPER_MIN_TIMESTEP
                              && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
-                             && dt - dtResidual > STEPPER_MIN_TIMESTEP)
+                             && dtNext - dtResidual > STEPPER_MIN_TIMESTEP)
                             {
-                                dt -= dtResidual;
+                                dtNext -= dtResidual;
                             }
                         }
 
                         if (success == boost::apply_visitor(
                             [&](auto && one)
                             {
-                                return one.try_step(systemOde, x, dxdt, t, dt);
+                                return one.try_step(systemOde, x, dxdt, t, dtNext);
                             }, stepper_))
                         {
                             // reset the fail counter
@@ -1033,10 +1038,10 @@ namespace jiminy
                 else
                 {
                     // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
-                    dt = min(dt,
-                             engineOptions_->stepper.dtMax,
-                             tEnd - t,
-                             tForceImpulseNext - t);
+                    dtNext = min(dtNext,
+                                 engineOptions_->stepper.dtMax,
+                                 tEnd - t,
+                                 tForceImpulseNext - t);
 
                     // Compute the next step using adaptive step method
                     controlled_step_result res = fail;
@@ -1045,7 +1050,7 @@ namespace jiminy
                         res = boost::apply_visitor(
                             [&](auto && one)
                             {
-                                return one.try_step(systemOde, x, dxdt, t, dt);
+                                return one.try_step(systemOde, x, dxdt, t, dtNext);
                             }, stepper_);
                         if (res == success)
                         {
@@ -1852,9 +1857,12 @@ namespace jiminy
             a = EngineMultiRobot::aba(
                 systemIt->robot->pncModel_, systemIt->robot->pncData_, q, v, u, fext);
 
-            // Project the derivative in state space
+            // Project the derivative in state space (only if moving forward in time)
             float64_t const dt = t - stepperState_.tLast;
-            computePositionDerivative(systemIt->robot->pncModel_, q, v, qDot, dt);
+            if (dt > STEPPER_MIN_TIMESTEP)
+            {
+                computePositionDerivative(systemIt->robot->pncModel_, q, v, qDot, dt);
+            }
         }
     }
 

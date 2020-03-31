@@ -662,21 +662,28 @@ namespace jiminy
 
     // ********************** Pinocchio utilities **********************
 
-    void computePositionDerivative(pinocchio::Model const & model,
-                                   Eigen::Ref<vectorN_t const> q,
-                                   Eigen::Ref<vectorN_t const> v,
-                                   Eigen::Ref<vectorN_t> qDot,
-                                   float64_t dt)
+    hresult_t computePositionDerivative(pinocchio::Model const & model,
+                                        Eigen::Ref<vectorN_t const> q,
+                                        Eigen::Ref<vectorN_t const> v,
+                                        Eigen::Ref<vectorN_t> qDot,
+                                        float64_t dt)
     {
         /* "Hack" to compute the configuration vector derivative,
            including the quaternions on SO3 automatically.
            Note that the time difference must not be too small
            to avoid failure. */
 
-        dt = std::max(STEPPER_MIN_TIMESTEP, dt);
+        if (dt < STEPPER_MIN_TIMESTEP)
+        {
+            std::cout << "Error - Utilities::computePositionDerivative - dt must be larger than STEPPER_MIN_TIMESTEP." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
         vectorN_t qNext(q.size());
         pinocchio::integrate(model, q, v*dt, qNext);
         qDot = (qNext - q) / dt;
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,

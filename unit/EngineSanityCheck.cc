@@ -111,9 +111,12 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
     engine->simulate(tf, x0);
 
+    // Get system energy.
     engine->getLogData(header, data);
     auto energyDisc = getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energyDisc.size(), 0);
+
+    // Check that energy is constant.
     float64_t const deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
     ASSERT_NEAR(0.0, deltaEnergyDisc, std::numeric_limits<float64_t>::epsilon());
 
