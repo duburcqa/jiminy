@@ -110,6 +110,8 @@ namespace jiminy
         std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const *);
         template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const> const *);
         std::false_type test(...);
     }
 
@@ -128,6 +130,8 @@ namespace jiminy
         std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, 1> const *);
         template <typename T, int RowsAtCompileTime>
         std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > const *);
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const *);
         std::false_type test(...);
     }
 
@@ -233,11 +237,16 @@ namespace jiminy
         FREE = 5,
     };
 
-    hresult_t computePositionDerivative(pinocchio::Model const & model,
-                                        Eigen::Ref<vectorN_t const> q,
-                                        Eigen::Ref<vectorN_t const> v,
-                                        Eigen::Ref<vectorN_t> qDot,
-                                        float64_t dt); // Make a copy
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        Eigen::Ref<vectorN_t>             & qDot,
+                                        float64_t                   const & dt);
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        vectorN_t                         & qDot,
+                                        float64_t                   const & dt);
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,
@@ -312,7 +321,7 @@ namespace jiminy
                            float64_t const & ma,
                            float64_t const & r);
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const>         data,
+    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr = -INF,
                     float64_t                   const & maxThr = +INF);
 

@@ -90,7 +90,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t registerVariable(std::vector<std::string> const & fieldnames,
-                                   Eigen::Ref<vectorN_t>            values);
+                                   Eigen::Ref<vectorN_t>            values); // Make a "copy" to support both vectorN_t and reference
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -148,10 +148,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeCommand(float64_t const & t,
-                                         vectorN_t const & q,
-                                         vectorN_t const & v,
-                                         vectorN_t       & u) = 0;
+        virtual hresult_t computeCommand(float64_t                   const & t,
+                                         Eigen::Ref<vectorN_t const> const & q,
+                                         Eigen::Ref<vectorN_t const> const & v,
+                                         vectorN_t                         & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -166,10 +166,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t internalDynamics(float64_t const & t,
-                                           vectorN_t const & q,
-                                           vectorN_t const & v,
-                                           vectorN_t       & u) = 0;
+        virtual hresult_t internalDynamics(float64_t                   const & t,
+                                           Eigen::Ref<vectorN_t const> const & q,
+                                           Eigen::Ref<vectorN_t const> const & v,
+                                           vectorN_t                         & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

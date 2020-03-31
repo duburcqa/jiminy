@@ -43,7 +43,7 @@ namespace jiminy
                          T           const & valueIn);
 
         void updateValue(std::vector<std::string>    const & fieldnames,
-                         Eigen::Ref<vectorN_t const>         values);
+                         Eigen::Ref<vectorN_t const> const & values);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief      Register a variable into the telemetry system..

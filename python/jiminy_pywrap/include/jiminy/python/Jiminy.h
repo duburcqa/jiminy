@@ -67,8 +67,14 @@ namespace python
     template<>
     bp::handle<> FctPyWrapperArgToPython<vectorN_t>(vectorN_t const & arg)
     {
-        // Pass the arguments by reference (be careful const qualifiers are lost)
         return bp::handle<>(getNumpyReference(const_cast<vectorN_t &>(arg)));
+    }
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<Eigen::Ref<vectorN_t const> >(Eigen::Ref<vectorN_t const> const & arg)
+    {
+        // Pass the arguments by reference (be careful const qualifiers are lost)
+        return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename OutputArg, typename ... InputArgs>
@@ -152,10 +158,18 @@ namespace python
     };
 
     template<typename T>
-    using TimeStateFctPyWrapper = FctPyWrapper<T, float64_t, vectorN_t, vectorN_t>;
+    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                               float64_t /* t */,
+                                               Eigen::Ref<vectorN_t const> /* q */,
+                                               Eigen::Ref<vectorN_t const> /* v */>;
 
     template<typename T>
-    using TimeBistateFctPyWrapper = FctPyWrapper<T, float64_t, vectorN_t, vectorN_t, vectorN_t, vectorN_t>;
+    using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                 float64_t /* t */,
+                                                 Eigen::Ref<vectorN_t const> /* q1 */,
+                                                 Eigen::Ref<vectorN_t const> /* v1 */,
+                                                 Eigen::Ref<vectorN_t const> /* q2 */,
+                                                 Eigen::Ref<vectorN_t const> /* v2 */ >;
 
     // ************************** HeatMapFunctorPyWrapper ******************************
 

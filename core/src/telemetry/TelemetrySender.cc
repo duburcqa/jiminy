@@ -54,7 +54,7 @@ namespace jiminy
     }
 
     void TelemetrySender::updateValue(std::vector<std::string>    const & fieldnames,
-                                      Eigen::Ref<vectorN_t const>         values)
+                                      Eigen::Ref<vectorN_t const> const & values)
     {
         for (uint32_t i=0; i < values.size(); ++i)
         {

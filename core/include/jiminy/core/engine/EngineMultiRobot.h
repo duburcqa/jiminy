@@ -25,17 +25,17 @@ namespace jiminy
     class EngineMultiRobot;
 
     // Impossible to use function pointer since it does not support functors
-    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                                 vectorN_t const & /*q*/,
-                                                                 vectorN_t const & /*v*/)>;
-    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
-                                                                  vectorN_t const & /*q_1*/,
-                                                                  vectorN_t const & /*v_1*/,
-                                                                  vectorN_t const & /*q_2*/,
-                                                                  vectorN_t const & /*v_2*/)>;
-    using callbackFunctor_t =  std::function<bool_t(float64_t const & /*t*/,
-                                                    vectorN_t const & /*q*/,
-                                                    vectorN_t const & /*v*/)>;
+    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t                   const & /*t*/,
+                                                                 Eigen::Ref<vectorN_t const> const & /*q*/,
+                                                                 Eigen::Ref<vectorN_t const> const & /*v*/)>;
+    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t                   const & /*t*/,
+                                                                  Eigen::Ref<vectorN_t const> const & /*q_1*/,
+                                                                  Eigen::Ref<vectorN_t const> const & /*v_1*/,
+                                                                  Eigen::Ref<vectorN_t const> const & /*q_2*/,
+                                                                  Eigen::Ref<vectorN_t const> const & /*v_2*/)>;
+    using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
+                                                   vectorN_t const & /*q*/,
+                                                   vectorN_t const & /*v*/)>;
 
     struct forceImpulse_t
     {
@@ -627,29 +627,29 @@ namespace jiminy
         void syncStepperStateWithSystems(void);
         void syncSystemsStateWithStepper(void);
 
-        static void computeForwardKinematics(systemDataHolder_t          & system,
-                                             Eigen::Ref<vectorN_t const>   q,
-                                             Eigen::Ref<vectorN_t const>   v,
-                                             Eigen::Ref<vectorN_t const>   a);
+        static void computeForwardKinematics(systemDataHolder_t       & system,
+                                             vectorN_t          const & q,
+                                             vectorN_t          const & v,
+                                             vectorN_t          const & a);
 
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
                                                 int32_t            const & frameId) const;
 
-        void computeCommand(systemDataHolder_t          & system,
-                            float64_t            const  & t,
-                            Eigen::Ref<vectorN_t const>   q,
-                            Eigen::Ref<vectorN_t const>   v,
-                            vectorN_t                  & u);
-        void computeInternalDynamics(systemDataHolder_t          & system,
-                                     float64_t            const  & t,
-                                     Eigen::Ref<vectorN_t const>   q,
-                                     Eigen::Ref<vectorN_t const>   v,
-                                     vectorN_t                   & u) const;
-        void computeExternalForces(systemDataHolder_t          & system,
-                                   float64_t            const  & t,
-                                   Eigen::Ref<vectorN_t const>   q,
-                                   Eigen::Ref<vectorN_t const>   v,
-                                   forceVector_t              & fext);
+        void computeCommand(systemDataHolder_t                & system,
+                            float64_t                   const & t,
+                            Eigen::Ref<vectorN_t const> const & q,
+                            Eigen::Ref<vectorN_t const> const & v,
+                            vectorN_t                         & u);
+        void computeInternalDynamics(systemDataHolder_t                & system,
+                                     float64_t                   const & t,
+                                     Eigen::Ref<vectorN_t const> const & q,
+                                     Eigen::Ref<vectorN_t const> const & v,
+                                     vectorN_t                         & u) const;
+        void computeExternalForces(systemDataHolder_t                & system,
+                                   float64_t                   const & t,
+                                   Eigen::Ref<vectorN_t const> const & q,
+                                   Eigen::Ref<vectorN_t const> const & v,
+                                   forceVector_t                     & fext);
         void computeInternalForces(float64_t                       const & t,
                                    stateSplitRef_t<std::add_const> const & xSplit);
         void computeAllForces(float64_t                       const & t,

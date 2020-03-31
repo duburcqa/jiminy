@@ -642,7 +642,10 @@ namespace jiminy
                 // Project the derivative in state space
                 computePositionDerivative(system.robot->pncModel_, q, v, qDot, dt);
 
-                // Update the sensor data with the updated torque and acceleration
+                // Compute the forward kinematics once again, with the updated acceleration
+                computeForwardKinematics(system, q, v, a);
+
+                // Update the sensor data once again, with the updated torque and acceleration
                 system.robot->setSensorsData(t, q, v, a, uMotor);
             }
 
@@ -1429,10 +1432,10 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeForwardKinematics(systemDataHolder_t          & system,
-                                                    Eigen::Ref<vectorN_t const>   q,
-                                                    Eigen::Ref<vectorN_t const>   v,
-                                                    Eigen::Ref<vectorN_t const>   a)
+    void EngineMultiRobot::computeForwardKinematics(systemDataHolder_t       & system,
+                                                    vectorN_t          const & q,
+                                                    vectorN_t          const & v,
+                                                    vectorN_t          const & a)
     {
         pinocchio::forwardKinematics(system.robot->pncModel_, system.robot->pncData_, q, v, a);
         pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
@@ -1519,8 +1522,8 @@ namespace jiminy
 
     void EngineMultiRobot::computeCommand(systemDataHolder_t                & system,
                                           float64_t                   const & t,
-                                          Eigen::Ref<vectorN_t const>         q,
-                                          Eigen::Ref<vectorN_t const>         v,
+                                          Eigen::Ref<vectorN_t const> const & q,
+                                          Eigen::Ref<vectorN_t const> const & v,
                                           vectorN_t                         & u)
     {
         // Reinitialize the external forces
@@ -1530,11 +1533,11 @@ namespace jiminy
         system.controller->computeCommand(t, q, v, u);
     }
 
-    void EngineMultiRobot::computeInternalDynamics(systemDataHolder_t          & system,
-                                                   float64_t            const  & t,
-                                                   Eigen::Ref<vectorN_t const>   q,
-                                                   Eigen::Ref<vectorN_t const>   v,
-                                                   vectorN_t                   & u) const
+    void EngineMultiRobot::computeInternalDynamics(systemDataHolder_t                & system,
+                                                   float64_t                   const & t,
+                                                   Eigen::Ref<vectorN_t const> const & q,
+                                                   Eigen::Ref<vectorN_t const> const & v,
+                                                   vectorN_t                         & u) const
     {
         // Reinitialize the internal torque vector
         u.setZero();
@@ -1558,8 +1561,8 @@ namespace jiminy
                 uint32_t const & positionIdx = pncModel.joints[rigidIdx[i]].idx_q();
                 uint32_t const & velocityIdx = pncModel.joints[rigidIdx[i]].idx_v();
 
-                uint32_t const & jointDof = pncModel.joints[rigidIdx[i]].nq();
-                for (uint32_t j = 0; j < jointDof; j++)
+                int32_t const & jointDof = pncModel.joints[rigidIdx[i]].nq();
+                for (int32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & qJoint = q[positionIdx + j];
                     float64_t const & vJoint = v[velocityIdx + j];
@@ -1658,11 +1661,11 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeExternalForces(systemDataHolder_t          & system,
-                                                 float64_t            const  & t,
-                                                 Eigen::Ref<vectorN_t const>   q,
-                                                 Eigen::Ref<vectorN_t const>   v,
-                                                 forceVector_t              & fext)
+    void EngineMultiRobot::computeExternalForces(systemDataHolder_t                & system,
+                                                 float64_t                   const & t,
+                                                 Eigen::Ref<vectorN_t const> const & q,
+                                                 Eigen::Ref<vectorN_t const> const & v,
+                                                 forceVector_t                     & fext)
     {
         // Compute the contact forces
         std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
@@ -1702,8 +1705,10 @@ namespace jiminy
             int32_t const & frameIdx = forceProfile.frameIdx;
             int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
             forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
+
+            pinocchio::Force const force = forceFct(t, q, v);
             fext[parentIdx] += computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, forceFct(t, q, v));
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
 
             std::cout << forceFct(t, q, v).toVector() << std::endl;
         }
@@ -1722,10 +1727,10 @@ namespace jiminy
 
             systemDataHolder_t & system1 = systemsDataHolder_[systemIdx1];
             systemDataHolder_t & system2 = systemsDataHolder_[systemIdx2];
-            Eigen::Ref<vectorN_t const> q1 = xSplit.first[systemIdx1];
-            Eigen::Ref<vectorN_t const> v1 = xSplit.second[systemIdx1];
-            Eigen::Ref<vectorN_t const> q2 = xSplit.first[systemIdx2];
-            Eigen::Ref<vectorN_t const> v2 = xSplit.second[systemIdx2];
+            Eigen::Ref<vectorN_t const> const & q1 = xSplit.first[systemIdx1];
+            Eigen::Ref<vectorN_t const> const & v1 = xSplit.second[systemIdx1];
+            Eigen::Ref<vectorN_t const> const & q2 = xSplit.first[systemIdx2];
+            Eigen::Ref<vectorN_t const> const & v2 = xSplit.second[systemIdx2];
             forceVector_t & fext1 = system1.state.fExternal;
             forceVector_t & fext2 = system2.state.fExternal;
 
@@ -1762,8 +1767,8 @@ namespace jiminy
              systemIt++, qSplitIt++, vSplitIt++)
         {
             // Define some proxies
-            Eigen::Ref<vectorN_t const> q = *qSplitIt;
-            Eigen::Ref<vectorN_t const> v = *vSplitIt;
+            Eigen::Ref<vectorN_t const> const & q = *qSplitIt;
+            Eigen::Ref<vectorN_t const> const & v = *vSplitIt;
             forceVector_t & fext = systemIt->state.fExternal;
 
             // Compute the external contact forces.
@@ -1804,20 +1809,20 @@ namespace jiminy
              systemIt++, qSplitIt++, vSplitIt++, qDotSplitIt++, aSplitIt++)
         {
             // Define some proxies
-            Eigen::Ref<vectorN_t const> q = *qSplitIt;
-            Eigen::Ref<vectorN_t const> v = *vSplitIt;
-            Eigen::Ref<vectorN_t> qDot = *qDotSplitIt;
-            Eigen::Ref<vectorN_t> a = *aSplitIt;
-            vectorN_t & aPrev = systemIt->stateLast.a;
+            Eigen::Ref<vectorN_t const> const & q = *qSplitIt;
+            Eigen::Ref<vectorN_t const> const & v = *vSplitIt;
+            Eigen::Ref<vectorN_t> & qDot = *qDotSplitIt;
+            Eigen::Ref<vectorN_t> & a = *aSplitIt;
             vectorN_t & u = systemIt->state.u;
             vectorN_t & uCommand = systemIt->state.uCommand;
             vectorN_t & uMotor = systemIt->state.uMotor;
-            vectorN_t & uMotorPrev = systemIt->stateLast.uMotor;
             vectorN_t & uInternal = systemIt->state.uInternal;
             forceVector_t & fext = systemIt->state.fExternal;
+            vectorN_t const & aPrev = systemIt->stateLast.a;
+            vectorN_t const & uMotorPrev = systemIt->stateLast.uMotor;
 
             // Compute kinematics information
-            computeForwardKinematics(*systemIt, q, v, a);
+            computeForwardKinematics(*systemIt, q, v, aPrev);
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations

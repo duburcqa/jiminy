@@ -1131,11 +1131,11 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsTorques(float64_t const & t,
-                                     vectorN_t const & q,
-                                     vectorN_t const & v,
-                                     vectorN_t const & a,
-                                     vectorN_t const & u)
+    void Robot::computeMotorsTorques(float64_t            const  & t,
+                                     Eigen::Ref<vectorN_t const> const & q,
+                                     Eigen::Ref<vectorN_t const> const & v,
+                                     vectorN_t                   const & a,
+                                     vectorN_t                   const & u)
     {
         (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
     }
@@ -1170,10 +1170,10 @@ namespace jiminy
     }
 
     void Robot::setSensorsData(float64_t            const  & t,
-                               Eigen::Ref<vectorN_t const>   q,
-                               Eigen::Ref<vectorN_t const>   v,
-                               Eigen::Ref<vectorN_t const>   a,
-                               Eigen::Ref<vectorN_t const>   u)
+                               Eigen::Ref<vectorN_t const> const & q,
+                               Eigen::Ref<vectorN_t const> const & v,
+                               Eigen::Ref<vectorN_t const> const & a,
+                               vectorN_t                   const & u)
     {
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {

@@ -251,11 +251,11 @@ namespace jiminy
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t computeAllEffort(float64_t            const  & t,
-                                   Eigen::Ref<vectorN_t const>   q,
-                                   Eigen::Ref<vectorN_t const>   v,
-                                   Eigen::Ref<vectorN_t const>   a,
-                                   Eigen::Ref<vectorN_t const>   uCommand);
+        hresult_t computeAllEffort(float64_t                   const & t,
+                                   Eigen::Ref<vectorN_t const> const & q,
+                                   Eigen::Ref<vectorN_t const> const & v,
+                                   Eigen::Ref<vectorN_t const> const & a,
+                                   vectorN_t                   const & uCommand);
 
         void clearDataBuffer(void);
 

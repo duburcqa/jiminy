@@ -15,28 +15,28 @@ using namespace jiminy;
 
 
 // Controller sending zero torque to the motors.
-void controllerZeroTorque(float64_t const & t,
-                          vectorN_t const & q,
-                          vectorN_t const & v,
-                          sensorsDataMap_t const & sensorData,
-                          vectorN_t & u)
+void controllerZeroTorque(float64_t                   const & t,
+                          Eigen::Ref<vectorN_t const> const & q,
+                          Eigen::Ref<vectorN_t const> const & v,
+                          sensorsDataMap_t            const & sensorData,
+                          vectorN_t                         & u)
 {
     u.setZero();
 }
 
 // Internal dynamics of the system (friction, ...)
-void internalDynamics(float64_t const & t,
-                      vectorN_t const & q,
-                      vectorN_t const & v,
+void internalDynamics(float64_t        const & t,
+                      vectorN_t        const & q,
+                      vectorN_t        const & v,
                       sensorsDataMap_t const & sensorData,
-                      vectorN_t       & u)
+                      vectorN_t              & u)
 {
     u.setZero();
 }
 
-bool_t callback(float64_t const & t,
-                vectorN_t const & q,
-                vectorN_t const & v)
+bool_t callback(float64_t                   const & t,
+                Eigen::Ref<vectorN_t const> const & q,
+                Eigen::Ref<vectorN_t const> const & v)
 {
     return true;
 }

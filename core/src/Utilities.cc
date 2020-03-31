@@ -662,11 +662,12 @@ namespace jiminy
 
     // ********************** Pinocchio utilities **********************
 
-    hresult_t computePositionDerivative(pinocchio::Model const & model,
-                                        Eigen::Ref<vectorN_t const> q,
-                                        Eigen::Ref<vectorN_t const> v,
-                                        Eigen::Ref<vectorN_t> qDot,
-                                        float64_t dt)
+    template<typename T>
+    hresult_t computePositionDerivativeImpl(pinocchio::Model            const & model,
+                                            Eigen::Ref<vectorN_t const> const & q,
+                                            Eigen::Ref<vectorN_t const> const & v,
+                                            T                                 & qDot,
+                                            float64_t                   const & dt)
     {
         /* "Hack" to compute the configuration vector derivative,
            including the quaternions on SO3 automatically.
@@ -679,12 +680,31 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        vectorN_t qNext(q.size());
-        pinocchio::integrate(model, q, v*dt, qNext);
+        auto & qNext = qDot; // Use qDot as buffer to avoid allocating memory for a temporary
+        pinocchio::integrate(model, q, v*dt, qDot);
         qDot = (qNext - q) / dt;
 
         return hresult_t::SUCCESS;
     }
+
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        Eigen::Ref<vectorN_t>             & qDot,
+                                        float64_t                   const & dt)
+    {
+        return computePositionDerivativeImpl(model, q, v, qDot, dt);
+    }
+
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        vectorN_t                         & qDot,
+                                        float64_t                   const & dt)
+    {
+        return computePositionDerivativeImpl(model, q, v, qDot, dt);
+    }
+
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,
@@ -1349,7 +1369,7 @@ namespace jiminy
         return out;
     }
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const>         data,
+    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr,
                     float64_t                   const & maxThr)
     {

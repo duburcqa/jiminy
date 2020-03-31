@@ -327,11 +327,11 @@ namespace jiminy
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::setAll(float64_t            const  & t,
-                                           Eigen::Ref<vectorN_t const>   q,
-                                           Eigen::Ref<vectorN_t const>   v,
-                                           Eigen::Ref<vectorN_t const>   a,
-                                           Eigen::Ref<vectorN_t const>   u)
+    hresult_t AbstractSensorTpl<T>::setAll(float64_t                   const & t,
+                                           Eigen::Ref<vectorN_t const> const & q,
+                                           Eigen::Ref<vectorN_t const> const & v,
+                                           Eigen::Ref<vectorN_t const> const & a,
+                                           vectorN_t                   const & u)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

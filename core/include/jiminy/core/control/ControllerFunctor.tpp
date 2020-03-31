@@ -35,10 +35,10 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t const & t,
-                                                        vectorN_t const & q,
-                                                        vectorN_t const & v,
-                                                        vectorN_t       & u)
+    hresult_t ControllerFunctor<F1, F2>::computeCommand(float64_t                   const & t,
+                                                        Eigen::Ref<vectorN_t const> const & q,
+                                                        Eigen::Ref<vectorN_t const> const & v,
+                                                        vectorN_t                         & u)
     {
         if (!getIsInitialized())
         {
@@ -52,10 +52,10 @@ namespace jiminy
     }
 
     template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t const & t,
-                                                          vectorN_t const & q,
-                                                          vectorN_t const & v,
-                                                          vectorN_t       & u)
+    hresult_t ControllerFunctor<F1, F2>::internalDynamics(float64_t                   const & t,
+                                                          Eigen::Ref<vectorN_t const> const & q,
+                                                          Eigen::Ref<vectorN_t const> const & v,
+                                                          vectorN_t                         & u)
     {
         if (!getIsInitialized())
         {

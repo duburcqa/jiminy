@@ -20,7 +20,7 @@ namespace jiminy
         return {var};
     }
 
-    inline std::string to_string(Eigen::Ref<matrixN_t const> var)
+    inline std::string to_string(Eigen::Ref<matrixN_t const> const & var)
     {
         Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
         std::stringstream matrixStream;

@@ -38,25 +38,46 @@ namespace python
         return PyArray_SimpleNewFromData(1, dims, getPyType(value), &value);
     }
 
-    #define MAKE_FUNCS(T) \
-    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, 1> > value) \
-    { \
-        npy_intp dims[1] = {npy_intp(value.size())}; \
-        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), value.data()); \
-    } \
-    \
-    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> > value) \
-    { \
-        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())}; \
-        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>( \
-            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL); \
+    template<typename T, int RowsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Matrix<T, RowsAtCompileTime, 1> & value)
+    {
+        npy_intp dims[1] = {npy_intp(value.size())};
+        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), value.data());
     }
 
-    MAKE_FUNCS(int32_t)
-    MAKE_FUNCS(float32_t)
-    MAKE_FUNCS(float64_t)
+    template<typename T, int RowsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > & value)
+    {
+        npy_intp dims[1] = {npy_intp(value.size())};
+        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), value.data());
+    }
 
-    #undef MAKE_FUNCS
+    template<typename T, int RowsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
+    __attribute__((warning("Be careful, this method casts away constness for compatibility with Python C API. Use only if necessary.")));
+
+    template<typename T, int RowsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
+    {
+        npy_intp dims[1] = {npy_intp(value.size())};
+        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
+    }
+
+    template<typename T>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> & value)
+    {
+        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
+        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
+            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL);
+    }
+
+    template<typename T>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Ref<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> > & value)
+    {
+        npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
+        return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
+            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL);
+    }
 
     /// Generic converter to Numpy array by reference
 
