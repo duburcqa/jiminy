@@ -85,12 +85,11 @@ class SimulateMultiRobot(unittest.TestCase):
             engine.add_system(system_names[i], robots[i], controller)
 
         # Add coupling force between both systems: a spring between both masses.
-        def coupling_force(t, q1, v1, q2, v2):
-            f = Force.Zero()
-            f.linear[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
-            return f
+        def coupling_force(t, q1, v1, q2, v2, f):
+            f[0] = k[2] * (q2[0] - q1[0]) + nu[2] * (v2[0] - v1[0])
 
         engine.add_coupling_force(system_names[0], system_names[1], "Mass", "Mass", coupling_force)
+
         # Run multi-robot simulation.
         engine.simulate(tf, x0)
 
@@ -114,21 +113,7 @@ class SimulateMultiRobot(unittest.TestCase):
         x_analytical = np.stack([expm(A * t) @ x_jiminy[0, :] for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
-        # self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
-        import matplotlib.pyplot as plt
-        plt.subplot(221)
-        plt.plot(time, x_jiminy[:, 0])
-        plt.plot(time, x_analytical[:, 0])
-        plt.subplot(222)
-        plt.plot(time, x_jiminy[:, 1] )
-        plt.plot(time, x_analytical[:, 1])
-        plt.subplot(223)
-        plt.plot(time, x_jiminy[:, 2] )
-        plt.plot(time, x_analytical[:, 2])
-        plt.subplot(224)
-        plt.plot(time, x_jiminy[:, 3] )
-        plt.plot(time, x_analytical[:, 3])
-        plt.show()
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 
 if __name__ == '__main__':

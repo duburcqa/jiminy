@@ -36,9 +36,9 @@ void internalDynamics(float64_t                   const & t,
     u.setZero();
 }
 
-bool_t callback(float64_t                   const & t,
-                Eigen::Ref<vectorN_t const> const & q,
-                Eigen::Ref<vectorN_t const> const & v)
+bool_t callback(float64_t const & t,
+                vectorN_t const & q,
+                vectorN_t const & v)
 {
     return true;
 }

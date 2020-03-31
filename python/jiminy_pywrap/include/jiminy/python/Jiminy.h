@@ -59,9 +59,12 @@ namespace python
     }
 
     template<typename T>
-    bp::handle<> FctPyWrapperArgToPython(T const & arg)
+    bp::handle<> FctPyWrapperArgToPython(T const & arg) = delete; // Do NOT provide default implementation
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<float64_t>(float64_t const & arg)
     {
-        return bp::handle<>(bp::object(arg).ptr());
+        return bp::handle<>(PyFloat_FromDouble(arg));
     }
 
     template<>
@@ -81,7 +84,7 @@ namespace python
     struct FctPyWrapper
     {
     public:
-        using OutputBufferType = typename  DataInternalBufferType<OutputArg>::type;
+        using OutputBufferType = typename DataInternalBufferType<OutputArg>::type;
     public:
         // Disable the copy of the class
         FctPyWrapper & operator = (FctPyWrapper const & other) = delete;
@@ -158,18 +161,24 @@ namespace python
     };
 
     template<typename T>
-    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                               float64_t /* t */,
-                                               Eigen::Ref<vectorN_t const> /* q */,
-                                               Eigen::Ref<vectorN_t const> /* v */>;
+    using TimeStateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                  float64_t /* t */,
+                                                  Eigen::Ref<vectorN_t const> /* q */,
+                                                  Eigen::Ref<vectorN_t const> /* v */>;
 
     template<typename T>
-    using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                                 float64_t /* t */,
-                                                 Eigen::Ref<vectorN_t const> /* q1 */,
-                                                 Eigen::Ref<vectorN_t const> /* v1 */,
-                                                 Eigen::Ref<vectorN_t const> /* q2 */,
-                                                 Eigen::Ref<vectorN_t const> /* v2 */ >;
+    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                               float64_t /* t */,
+                                               vectorN_t /* q */,
+                                               vectorN_t /* v */>;
+
+    template<typename T>
+    using TimeBistateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                    float64_t /* t */,
+                                                    Eigen::Ref<vectorN_t const> /* q1 */,
+                                                    Eigen::Ref<vectorN_t const> /* v1 */,
+                                                    Eigen::Ref<vectorN_t const> /* q2 */,
+                                                    Eigen::Ref<vectorN_t const> /* v2 */ >;
 
     // ************************** HeatMapFunctorPyWrapper ******************************
 
@@ -1505,7 +1514,7 @@ namespace python
                                           std::string      const & frameName2,
                                           bp::object       const & forcePy)
         {
-            TimeBistateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeBistateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(
                 systemName1, systemName2, frameName1, frameName2, forceFct);
         }
@@ -1563,7 +1572,7 @@ namespace python
                                          std::string      const & frameName,
                                          bp::object       const & forcePy)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(systemName, frameName, std::move(forceFct));
         }
 
@@ -1787,7 +1796,7 @@ namespace python
                                          std::string const & frameName,
                                          bp::object  const & forcePy)
         {
-            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
         }
 
