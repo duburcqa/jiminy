@@ -1412,14 +1412,14 @@ namespace python
                         void (EngineMultiRobot::*)(bool_t const &)
                     >(&EngineMultiRobot::reset),
                     (bp::arg("self"), bp::arg("remove_forces") = false))
-                .def("start", &EngineMultiRobot::start,
+                .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "x_init",
                                bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
-                .def("simulate", &EngineMultiRobot::simulate,
+                .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "end_time", "x_init"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
@@ -1496,11 +1496,28 @@ namespace python
                 systemName1, systemName2, frameName1, frameName2, forceFct);
         }
 
+        static hresult_t start(EngineMultiRobot       & self,
+                               bp::object       const & xInit,
+                               bool             const & resetRandomGenerator,
+                               bool             const & removeForces)
+        {
+            return self.start(convertFromPython<std::vector<vectorN_t>>(xInit),
+                              resetRandomGenerator,
+                              removeForces);
+        }
+
         static hresult_t step(EngineMultiRobot       & self,
                               float64_t        const & dtDesired)
         {
             // Only way to handle C++ default values that are not accessible in Python
             return self.step(dtDesired);
+        }
+
+        static hresult_t simulate(EngineMultiRobot       & self,
+                                  float64_t        const & endTime,
+                                  bp::object       const & xInit)
+        {
+            return self.simulate(endTime, convertFromPython<std::vector<vectorN_t>>(xInit));
         }
 
         static void writeLog(EngineMultiRobot       & self,

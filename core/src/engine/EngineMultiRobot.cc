@@ -210,7 +210,7 @@ namespace jiminy
         if (systemIt1 == systemsDataHolder_.end()
          || systemIt2 == systemsDataHolder_.end())
         {
-            std::cout << "Error - EngineMultiRobot::removeSystem - At least one of the names does not correspond to any system added to the engine." << std::endl;
+            std::cout << "Error - EngineMultiRobot::addCouplingForce - At least one of the names does not correspond to any system added to the engine." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -218,13 +218,13 @@ namespace jiminy
         int32_t frameIdx1;
         int32_t systemIdx2;
         int32_t frameIdx2;
-        if (returnCode == hresult_t::ERROR_BAD_INPUT)
+        if (returnCode == hresult_t::SUCCESS)
         {
             systemIdx1 = std::distance(systemsDataHolder_.begin(), systemIt1);
             returnCode = getFrameIdx(systemIt1->robot->pncModel_, frameName1, frameIdx1);
 
         }
-        if (returnCode == hresult_t::ERROR_BAD_INPUT)
+        if (returnCode == hresult_t::SUCCESS)
         {
             systemIdx2 = std::distance(systemsDataHolder_.begin(), systemIt2);
             returnCode = getFrameIdx(systemIt1->robot->pncModel_, frameName2, frameIdx2);

@@ -502,6 +502,20 @@ namespace jiminy
                             callbackFunctor_t callbackFct);
         hresult_t removeSystem(std::string const & systemName);
 
+        /// \brief Add a force linking both systems together
+        ///
+        /// \details This function registers a callback function forceFct that links
+        ///          both systems by a given force. This function must return the
+        ///          force that the second systems applies to the first system,
+        ///          in the world frame.
+        ///
+        /// \param[in] systemName1 Name of the first system (the one receiving the force)
+        /// \param[in] systemName2 Name of the second system (the one applying the force)
+        /// \param[in] frameName1 Frame on the first system where the force is applied.
+        /// \param[in] frameName2 Frame on the second system where
+        ///                       (the opposite of) the force is applied.
+        /// \param[in] forceFct Callback function returning the force that systemName2
+        ///                     applies on systemName1, in the world frame.
         hresult_t addCouplingForce(std::string            const & systemName1,
                                    std::string            const & systemName2,
                                    std::string            const & frameName1,
