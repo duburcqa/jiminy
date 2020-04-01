@@ -1712,8 +1712,6 @@ namespace jiminy
             pinocchio::Force const force = forceFct(t, q, v);
             fext[parentIdx] += computeFrameForceOnParentJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
-
-            std::cout << forceFct(t, q, v).toVector() << std::endl;
         }
     }
 

@@ -139,5 +139,44 @@ class SimulateTwoMasses(unittest.TestCase):
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
+    def test_external_force_profile(self):
+        '''
+        @brief Test adding an external force profile function to the system.
+        '''
+        # Set same spings as usual
+        def compute_command(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internal_dynamics(t, q, v, sensor_data, u):
+            u[:] = - self.k * q - self.nu * v
+        controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        # Define external force: a spring linking the second mass to the origin.
+        k_ext = 50
+        def external_force(t, q, v, f):
+            f[0] = - k_ext * (q[0] + q[1])
+        engine.register_force_profile("SecondMass", external_force)
+
+        # Run simulation
+        engine.simulate(self.tf, self.x0)
+
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Compute analytical solution
+        # Add extra external force to second mass.
+        m = self.robot.pinocchio_model_th.inertias[2].mass
+        self.A[3, :] += np.array([-k_ext / m, -k_ext / m, 0, 0])
+        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+
+        # Compare the numerical and analytical solutions
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+
 if __name__ == '__main__':
     unittest.main()

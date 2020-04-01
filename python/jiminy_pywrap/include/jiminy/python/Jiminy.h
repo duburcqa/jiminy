@@ -1740,9 +1740,9 @@ namespace python
                     >(&Engine::simulate),
                     (bp::arg("self"), "end_time", "x_init", bp::arg("is_state_theoretical") = false))
 
-                .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
+                .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
-                .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
+                .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function"))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
