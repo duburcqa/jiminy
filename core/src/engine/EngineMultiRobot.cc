@@ -566,7 +566,9 @@ namespace jiminy
             }
 
             // Initialize the stepper state
-            stepperState_.reset(dt, cat(xInit));
+            float64_t const t = 0.0;
+            vectorN_t const xCat = cat(xInit);
+            stepperState_.reset(dt, xCat);
 
             // Synchronize the individual system states with the global stepper state
             syncSystemsStateWithStepper();
@@ -584,29 +586,18 @@ namespace jiminy
                                 force.frameIdx);
                 }
 
-                // Get some system state proxies
-                float64_t & t = stepperState_.t;
-                vectorN_t & q = system.state.q;
-                vectorN_t & v = system.state.v;
-                vectorN_t & qDot = system.state.qDot;
-                vectorN_t & a = system.state.a;
-                vectorN_t & u = system.state.u;
-                vectorN_t & uCommand = system.state.uCommand;
-                vectorN_t & uMotor = system.state.uMotor;
-                vectorN_t & uInternal = system.state.uInternal;
-                forceVector_t & fext = system.state.fExternal;
-
-                // Compute the forward kinematics
+                // Compute the forward kinematics for each system
+                vectorN_t const & q = system.state.q;
+                vectorN_t const & v = system.state.v;
+                vectorN_t const & a = system.state.a;
                 computeForwardKinematics(system, q, v, a);
 
                 // Make sure that the contact forces are bounded
                 std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
                 for (uint32_t i=0; i < contactFramesIdx.size(); i++)
                 {
-                    // Compute force in the contact frame.
-                    int32_t const & frameIdx = contactFramesIdx[i];
-                    pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
-                    fextInFrame = computeContactDynamics(system, frameIdx);
+                    pinocchio::Force fextInFrame;
+                    fextInFrame = computeContactDynamics(system, contactFramesIdx[i]);
                     if (fextInFrame.linear().norm() > 1e5)
                     {
                         std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
@@ -614,9 +605,24 @@ namespace jiminy
                         returnCode = hresult_t::ERROR_BAD_INPUT;
                     }
                 }
+            }
 
-                // Initialize the contact forces and user-defined external forces
-                computeExternalForces(system, t, q, v, fext);
+            // Compute the internal and external forces applied on every systems
+            auto const xSplit = splitState(xCat);
+            computeAllForces(t, xSplit);
+
+            for (auto & system : systemsDataHolder_)
+            {
+                // Get some system state proxies
+                vectorN_t const & q = system.state.q;
+                vectorN_t const & v = system.state.v;
+                vectorN_t & qDot = system.state.qDot;
+                vectorN_t & a = system.state.a;
+                vectorN_t & u = system.state.u;
+                vectorN_t & uCommand = system.state.uCommand;
+                vectorN_t & uMotor = system.state.uMotor;
+                vectorN_t & uInternal = system.state.uInternal;
+                forceVector_t & fext = system.state.fExternal;
 
                 // Initialize the sensor data
                 system.robot->setSensorsData(t, q, v, a, uMotor);
@@ -778,8 +784,8 @@ namespace jiminy
             // Check if there is something wrong with the integration
             if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
             {
-                std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed."\
-                                "Consider increasing the stepper accuracy." << std::endl;
+                std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "\
+                             "Consider increasing the stepper accuracy." << std::endl;
                 return hresult_t::ERROR_GENERIC;
             }
 
@@ -998,6 +1004,13 @@ namespace jiminy
                             {
                                 dtNext -= dtResidual;
                             }
+                        }
+
+                        // Make sure that the timestep is not getting too small
+                        if (dtNext < STEPPER_MIN_TIMESTEP)
+                        {
+                            std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
+                                         "Impossible to integrate physics further in time." << std::endl;
                         }
 
                         if (success == boost::apply_visitor(
@@ -1795,15 +1808,30 @@ namespace jiminy
         auto xSplit = splitState(xCat);
         auto dxdtSplit = splitState(dxdtCat);
 
+        // Update the kinematics of each system
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        auto vSplitIt = xSplit.second.begin();
+        for ( ; systemIt != systemsDataHolder_.end();
+             systemIt++, qSplitIt++, vSplitIt++)
+        {
+            // Define some proxies
+            Eigen::Ref<vectorN_t const> const & q = *qSplitIt;
+            Eigen::Ref<vectorN_t const> const & v = *vSplitIt;
+            vectorN_t const & aPrev = systemIt->stateLast.a;
+
+            computeForwardKinematics(*systemIt, q, v, aPrev);
+        }
+
         /* Compute the internal and external forces applied on every systems.
            Note that one must call this method BEFORE updating the sensors
            since the force sensor measurements rely on robot_->contactForces_. */
         computeAllForces(t, xSplit);
 
         // Compute each individual system dynamics
-        auto systemIt = systemsDataHolder_.begin();
-        auto qSplitIt = xSplit.first.begin();
-        auto vSplitIt = xSplit.second.begin();
+        systemIt = systemsDataHolder_.begin();
+        qSplitIt = xSplit.first.begin();
+        vSplitIt = xSplit.second.begin();
         auto qDotSplitIt = dxdtSplit.first.begin();
         auto aSplitIt = dxdtSplit.second.begin();
         for ( ; systemIt != systemsDataHolder_.end();
@@ -1821,9 +1849,6 @@ namespace jiminy
             forceVector_t & fext = systemIt->state.fExternal;
             vectorN_t const & aPrev = systemIt->stateLast.a;
             vectorN_t const & uMotorPrev = systemIt->stateLast.uMotor;
-
-            // Compute kinematics information
-            computeForwardKinematics(*systemIt, q, v, aPrev);
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
@@ -1865,7 +1890,7 @@ namespace jiminy
 
             // Project the derivative in state space (only if moving forward in time)
             float64_t const dt = t - stepperState_.tLast;
-            if (dt > STEPPER_MIN_TIMESTEP)
+            if (dt >= STEPPER_MIN_TIMESTEP)
             {
                 computePositionDerivative(systemIt->robot->pncModel_, q, v, qDot, dt);
             }
