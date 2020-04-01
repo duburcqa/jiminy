@@ -1339,14 +1339,16 @@ namespace jiminy
         // Compute the dynamics
         vectorN_t a = Engine::aba(robot_->pncModel_, robot_->pncData_, q, v, u, fext);
 
-        float64_t dt = t - stepperStateLast_.t;
-        vectorN_t qDot(robot_->nq());
-        computePositionDerivative(robot_->pncModel_, q, v, qDot, dt);
-
         // Fill up dxdt
         dxdt.resize(robot_->nx());
-        dxdt.head(robot_->nq()) = qDot;
         dxdt.tail(robot_->nv()) = a;
+        float64_t dt = t - stepperStateLast_.t;
+        if (dt > 0.0)
+        {
+            vectorN_t qDot(robot_->nq());
+            computePositionDerivative(robot_->pncModel_, q, v, qDot, dt);
+            dxdt.head(robot_->nq()) = qDot;
+        }
     }
 
     vector6_t Engine::computeFrameForceOnParentJoint(int32_t   const & frameId,
