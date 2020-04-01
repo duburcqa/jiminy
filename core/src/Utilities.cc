@@ -1158,29 +1158,33 @@ namespace jiminy
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn)
     {
+        using namespace pinocchio;
+
         if (!modelInOut.existJointName(childJointNameIn))
         {
             std::cout << "Error - insertFlexibilityInModel - Child joint does not exist." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
-        int32_t childId = modelInOut.getJointId(childJointNameIn);
+        int32_t const & childId = modelInOut.getJointId(childJointNameIn);
+
         // Flexible joint is placed at the same position as the child joint, in its parent frame.
-        pinocchio::SE3 jointPosition = modelInOut.jointPlacements[childId];
+        SE3 const jointPosition = modelInOut.jointPlacements[childId];
 
         // Create joint.
-        int32_t newId = modelInOut.addJoint(modelInOut.parents[childId],
-                                            pinocchio::JointModelSpherical(),
-                                            jointPosition,
-                                            newJointNameIn);
+        int32_t const newId = modelInOut.addJoint(modelInOut.parents[childId],
+                                                  JointModelSpherical(),
+                                                  jointPosition,
+                                                  newJointNameIn);
 
         // Set child joint to be a child of the new joint, at the origin.
         modelInOut.parents[childId] = newId;
-        modelInOut.jointPlacements[childId] = pinocchio::SE3::Identity();
+        modelInOut.jointPlacements[childId] = SE3::Identity();
 
         // Add new joint to frame list.
-        int32_t childFrameId = modelInOut.getFrameId(childJointNameIn);
-        int32_t newFrameId = modelInOut.addJointFrame(newId, modelInOut.frames[childFrameId].previousFrame);
+        int32_t const & childFrameId = modelInOut.getFrameId(childJointNameIn);
+        int32_t const & newFrameId = modelInOut.addJointFrame(
+            newId, modelInOut.frames[childFrameId].previousFrame);
 
         // Update child joint previousFrame id.
         modelInOut.frames[childFrameId].previousFrame = newFrameId;
@@ -1192,13 +1196,15 @@ namespace jiminy
         }
 
         /* Add weightless body.
-            In practice having a zero inertia makes some of pinocchio algorithm crash,
-            so we set a very small value instead: 0.1g. Anything below that risks
-            creating numerical instability. */
-        std::string bodyName = newJointNameIn + "Body";
-        pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(1e-4, 1, 1, 1);
+           In practice having a zero inertia makes some of pinocchio algorithm crash,
+           so we set a very small value instead: 1.0g. Anything below that creates
+           numerical instability. */
+        float64_t const mass = 1.0e-3;
+        float64_t const length_semiaxis = 1.0;
+        pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(
+            mass, length_semiaxis, length_semiaxis, length_semiaxis);
 
-        modelInOut.appendBodyToJoint(newId, inertia, pinocchio::SE3::Identity());
+        modelInOut.appendBodyToJoint(newId, inertia, SE3::Identity());
 
         /* Pinocchio requires that joints are in increasing order as we move to the
             leaves of the kinematic tree. Here this is no longer the case, as an

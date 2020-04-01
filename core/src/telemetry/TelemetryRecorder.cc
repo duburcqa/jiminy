@@ -167,7 +167,7 @@ namespace jiminy
     hresult_t TelemetryRecorder::writeDataBinary(std::string const & filename)
     {
         FileDevice myFile(filename);
-        myFile.open(OpenMode::WRITE_ONLY);
+        myFile.open(OpenMode::WRITE_ONLY | OpenMode::TRUNCATE);
         if (myFile.isOpen())
         {
             for (auto & flow : flows_)

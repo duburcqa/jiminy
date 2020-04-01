@@ -193,7 +193,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # To avoid having to handle angle conversion,
         # start with an initial velocity for the output mass.
-        v_init = 0.2
+        v_init = 0.1
         x0 = np.array([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, v_init, 0.0, 0.0])
         tf = 10.0
 
@@ -236,7 +236,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
         # is negligible before I.
-        TOLERANCE = 5e-5
+        TOLERANCE = 1e-4
         self.assertTrue(np.allclose(x_jiminy_extract, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
