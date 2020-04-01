@@ -657,10 +657,10 @@ namespace jiminy
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxFlex < pncModelFlexibleOrig_.njoints; idxRigid++, idxFlex++)
+        for (; idxRigid < pncModelRigidOrig_.njoints; idxFlex++)
         {
             std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
-            std::string const & jointFlexName = pncModelRigidOrig_.names[idxFlex];
+            std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
                 auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
@@ -672,10 +672,7 @@ namespace jiminy
                     xFlex.segment(nqFlex + jointFlex.idx_v(), jointFlex.nv()) =
                         xRigid.segment(nqRigid + jointRigid.idx_v(), jointRigid.nv());
                 }
-            }
-            else
-            {
-                idxFlex++;
+                idxRigid++;
             }
         }
 

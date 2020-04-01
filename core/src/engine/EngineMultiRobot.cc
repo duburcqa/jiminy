@@ -551,18 +551,8 @@ namespace jiminy
                 stepper_ = explicit_euler();
             }
 
-            // Compute the initial time step
-            float64_t dt;
-            if (stepperUpdatePeriod_ > SIMULATION_MIN_TIMESTEP)
-            {
-                // The initial time step is the global update period (breakpoint frequency)
-                dt = stepperUpdatePeriod_;
-            }
-            else
-            {
-                // Use the maximum allowed time step as default
-                dt = engineOptions_->stepper.dtMax;
-            }
+            // Set the initial time step
+            float64_t const dt = SIMULATION_MIN_TIMESTEP;
 
             // Update the frame indices associated with the coupling forces
             for (auto & force : forcesCoupling_)
@@ -609,7 +599,23 @@ namespace jiminy
                 // Compute the forward kinematics
                 computeForwardKinematics(system, q, v, a);
 
-                // Initialize the external contact forces
+                // Make sure that the contact forces are bounded
+                std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
+                for (uint32_t i=0; i < contactFramesIdx.size(); i++)
+                {
+                    // Compute force in the contact frame.
+                    int32_t const & frameIdx = contactFramesIdx[i];
+                    pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
+                    fextInFrame = computeContactDynamics(system, frameIdx);
+                    if (fextInFrame.linear().norm() > 1e5)
+                    {
+                        std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
+                                     "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
+                        returnCode = hresult_t::ERROR_BAD_INPUT;
+                    }
+                }
+
+                // Initialize the contact forces and user-defined external forces
                 computeExternalForces(system, t, q, v, fext);
 
                 // Initialize the sensor data
@@ -653,22 +659,19 @@ namespace jiminy
             syncStepperStateWithSystems();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Lock the telemetry. At this point it is no longer possible to register new variables.
+        configureTelemetry();
+
+        // Write the header: this locks the registration of new variables
+        telemetryRecorder_->initialize(telemetryData_.get());
+
+        // Log current buffer content as first point of the log data.
+        updateTelemetry();
+
+        // Initialize the last system states
+        for (auto & system : systemsDataHolder_)
         {
-            // Lock the telemetry. At this point it is no longer possible to register new variables.
-            configureTelemetry();
-
-            // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get());
-
-            // Log current buffer content as first point of the log data.
-            updateTelemetry();
-
-            // Initialize the last system states
-            for (auto & system : systemsDataHolder_)
-            {
-                system.stateLast = system.state;
-            }
+            system.stateLast = system.state;
         }
 
         if (returnCode != hresult_t::SUCCESS)
