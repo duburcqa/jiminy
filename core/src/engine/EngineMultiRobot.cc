@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "pinocchio/parsers/urdf.hpp"
+#include "pinocchio/algorithm/contact-dynamics.hpp"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -2290,7 +2291,7 @@ namespace jiminy
             // Project external forces from cartesian space to joint space.
             vectorN_t uTotal = u;
             matrixN_t jointJacobian = matrixN_t::Zero(6, system.robot->pncModel_.nv);
-            for (int i = 0; i < system.robot->pncModel_.njoints; i++)
+            for (int i = 1; i < system.robot->pncModel_.njoints; i++)
             {
                 jointJacobian.setZero();
                 pinocchio::getJointJacobian(system.robot->pncModel_,
@@ -2300,11 +2301,28 @@ namespace jiminy
                                             jointJacobian);
                 uTotal += jointJacobian.transpose() * fext[i].toVector();
             }
+            // Compute non-linear effects.
+            pinocchio::nonLinearEffects(system.robot->pncModel_,
+                                        system.robot->pncData_,
+                                        q,
+                                        v);
 
-            // TODO handle rotor inertia in pinocchio "patch"
+            // Compute inertia matrix, adding rotor inertia.
+            pinocchio::crba(system.robot->pncModel_,
+                            system.robot->pncData_,
+                            q);
+            for (int i = 1; i < system.robot->pncModel_.njoints; i++)
+            {
+                // Only support inertia for 1DoF joints.
+                if (system.robot->pncModel_.joints[i].nv() == 1)
+                {
+                    int jointId = system.robot->pncModel_.joints[i].idx_v();
+                    system.robot->pncData_.M(jointId, jointId) +=
+                            system.robot->pncModel_.rotorInertia[jointId];
+                }
+            }
 
             // Call forward dynamics.
-            float64_t damping = 1e-12;
             return pinocchio::forwardDynamics(system.robot->pncModel_,
                                               system.robot->pncData_,
                                               q,
@@ -2312,7 +2330,8 @@ namespace jiminy
                                               uTotal,
                                               J,
                                               drift,
-                                              damping);
+                                              CONSTRAINT_INVERSION_DAMPING,
+                                              false);
         }
         else
         {

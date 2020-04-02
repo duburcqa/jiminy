@@ -22,12 +22,12 @@ class SimulateSimplePendulum(unittest.TestCase):
     '''
     def setUp(self):
         # Load URDF, create model.
-        urdf_path = "data/simple_pendulum.urdf"
+        self.urdf_path = "data/simple_pendulum.urdf"
 
         # Create the jiminy model
 
         # Instanciate model and engine
-        self.robot = load_urdf_default(urdf_path, ["PendulumJoint"])
+        self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
 
     def test_rotor_inertia(self):
         '''
@@ -329,6 +329,64 @@ class SimulateSimplePendulum(unittest.TestCase):
         # is negligible before I.
         TOLERANCE = 1e-4
         self.assertTrue(np.allclose(x_jiminy_extract, x_analytical, atol=TOLERANCE))
+
+
+    def test_fixed_body_constraint_rotor_inertia(self):
+        '''
+        @brief Test fixed body constraint together with rotor inertia.
+        '''
+        # Create robot with freeflyer, set rotor inertia.
+        self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
+        J = 0.1
+        motor_options = self.robot.get_motors_options()
+        motor_options["PendulumJoint"]['enableRotorInertia'] = True
+        motor_options["PendulumJoint"]['rotorInertia'] = J
+        self.robot.set_motors_options(motor_options)
+
+        # No controller
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        # Dynamics: simulate a spring of stifness k
+        k_spring = 500
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = - k_spring * q[:]
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+
+        # Set fixed body constraint.
+        freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+        self.robot.add_constraint("world", freeflyer_constraint)
+
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine.set_options(engine_options)
+
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Analytical solution: dynamics should be unmodifed by
+        # the constraint, so we have a simple mass on a spring.
+        pnc_model = self.robot.pinocchio_model_th
+        I = pnc_model.inertias[1].mass * pnc_model.inertias[1].lever[2] ** 2
+
+        # Write system dynamics
+        I_eq = I + J
+        A = np.array([[               0, 1],
+                      [-k_spring / I_eq, 0]])
+        x_analytical = np.stack([expm(A * t) @ x0 for t in time], axis=0)
+
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()

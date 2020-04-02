@@ -14,6 +14,9 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
+    float64_t const CONSTRAINT_INVERSION_DAMPING = 1e-12; ///< Damping factor used to perform matrix pseudo-inverse
+                                                          /// when computing forward dynamics with constraints.
+
     class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;

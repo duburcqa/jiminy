@@ -6,7 +6,7 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
-#include "pinocchio/algorithm/compute-all-terms.hpp"
+#include "pinocchio/algorithm/jacobian.hpp"
 
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/AbstractMotor.h"
@@ -1265,8 +1265,9 @@ namespace jiminy
         // Give the right number of columns to the jacobian.
         jacobianOut.resize(0, pncModel_.nv);
 
-        // Call computeAllTerms to update frame jacobian: this is needed by forwardDynamics anyway.
-        pinocchio::computeAllTerms(pncModel_, pncData_, q, v);
+        // Call joint jacobian and frame forward kinematics.
+        pinocchio::computeJointJacobians(pncModel_, pncData_, q);
+        // pinocchio::updateFramePlacements(pncModel_, pncData_);
 
         for (auto & constraint : constraintsHolder_)
         {

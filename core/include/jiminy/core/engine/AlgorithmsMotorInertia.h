@@ -15,8 +15,6 @@
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
-#include "pinocchio/algorithm/contact-dynamics.hpp"
-
 
 namespace jiminy
 {

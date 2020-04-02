@@ -81,7 +81,7 @@ namespace jiminy
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
-        /// \note This function internally calls pinocchio::computeAllTerms.
+        /// \note  It is assumed frames forward kinematics has already been called.
         ///
         /// \param[in] q    Joint position.
         /// \param[in] v    Joint velocity.
