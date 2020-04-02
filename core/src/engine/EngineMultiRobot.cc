@@ -1168,6 +1168,34 @@ namespace jiminy
 
         systemDataHolder_t * system;
         returnCode = getSystem(systemName, system);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            int32_t frameIdx;
+            returnCode = getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
+        }
+
+        if (dt < SIMULATION_MIN_TIMESTEP)
+        {
+            std::cout << "Error - EngineMultiRobot::registerForceImpulse - The force duration cannot be smaller than "
+                      << SIMULATION_MIN_TIMESTEP << "." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            auto forceImpulseIt = std::find_if(system->forcesImpulse.begin(), system->forcesImpulse.end(),
+                                               [&t](auto const & forceImpulse)
+                                               {
+                                                   return (std::abs(forceImpulse.t - t) < SIMULATION_MIN_TIMESTEP);
+                                               });
+            if (forceImpulseIt != system->forcesImpulse.end())
+            {
+                std::cout << "Error - EngineMultiRobot::registerForceImpulse - One can only register a single force for a given application time." << std::endl;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             system->forcesImpulse.emplace(frameName, t, dt, F);
@@ -1195,7 +1223,7 @@ namespace jiminy
         int32_t frameIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode =  getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
+            returnCode = getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
         }
 
         if (returnCode == hresult_t::SUCCESS)
