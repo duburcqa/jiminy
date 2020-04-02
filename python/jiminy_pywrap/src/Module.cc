@@ -82,8 +82,6 @@ namespace python
         bp::to_python_converter<std::vector<int32_t>,     converterToPython<std::vector<int32_t> > >();
         bp::to_python_converter<std::vector<vectorN_t>,   converterToPython<std::vector<vectorN_t> > >();
         bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
-        bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
-        bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
         bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
 
         // Expose classes

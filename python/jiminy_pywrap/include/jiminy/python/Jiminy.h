@@ -352,7 +352,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
                                  bp::default_call_policies(),
                                 (bp::args("heatmap_function", "heatmap_type"))));
-                bp::register_ptr_to_python<std::shared_ptr<heatMapFunctor_t> >();
         }
     };
 
@@ -509,7 +508,6 @@ namespace python
                        std::shared_ptr<sensorsDataMap_t>,
                        boost::noncopyable>("sensorsData", bp::no_init)
                 .def(SensorsDataMapVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<sensorsDataMap_t> >();
         }
     };
 
@@ -632,7 +630,6 @@ namespace python
                        std::shared_ptr<AbstractMotorBase>,
                        boost::noncopyable>("AbstractMotor", bp::no_init)
                 .def(PyMotorVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractMotorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
@@ -641,7 +638,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<SimpleMotor> >();
         }
     };
 
@@ -741,7 +737,6 @@ namespace python
                        std::shared_ptr<AbstractSensorBase>,
                        boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
@@ -750,7 +745,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
@@ -759,7 +753,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
@@ -768,7 +761,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<EncoderSensor> >();
         }
     };
 
@@ -896,7 +888,6 @@ namespace python
                        std::shared_ptr<Model>,
                        boost::noncopyable>("Model", bp::no_init)
                 .def(PyModelVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Model> >();
         }
     };
 
@@ -1069,7 +1060,6 @@ namespace python
                        std::shared_ptr<Robot>,
                        boost::noncopyable>("Robot")
                 .def(PyRobotVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Robot> >();
         }
     };
 
@@ -1230,7 +1220,6 @@ namespace python
                        std::shared_ptr<AbstractController>,
                        boost::noncopyable>("AbstractController", bp::no_init)
                 .def(PyAbstractControllerVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractController> >();
         }
     };
 
@@ -1269,7 +1258,6 @@ namespace python
             .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
                              bp::default_call_policies(),
                             (bp::arg("command_function"), "internal_dynamics_function")));
-            bp::register_ptr_to_python<std::shared_ptr<CtrlFunctor> >();
         }
     };
 
@@ -1305,7 +1293,6 @@ namespace python
                        std::shared_ptr<stepperState_t>,
                        boost::noncopyable>("StepperState", bp::no_init)
                 .def(PyStepperStateVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<stepperState_t> >();
         }
     };
 
@@ -1352,7 +1339,6 @@ namespace python
                        std::shared_ptr<systemState_t>,
                        boost::noncopyable>("SystemState", bp::no_init)
                 .def(PySystemStateVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<systemState_t> >();
         }
     };
 
@@ -1389,7 +1375,6 @@ namespace python
                        std::shared_ptr<systemDataHolder_t>,
                        boost::noncopyable>("systemData", bp::no_init)
                 .def(PySystemDataVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<systemDataHolder_t> >();
         }
     };
 
@@ -1704,7 +1689,6 @@ namespace python
                        std::shared_ptr<EngineMultiRobot>,
                        boost::noncopyable>("EngineMultiRobot")
                 .def(PyEngineMultiRobotVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<EngineMultiRobot> >();
         }
     };
 
@@ -1809,7 +1793,6 @@ namespace python
                        std::shared_ptr<Engine>,
                        boost::noncopyable>("Engine")
                 .def(PyEngineVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Engine> >();
         }
     };
 }  // End of namespace python.
