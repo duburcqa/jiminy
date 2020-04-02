@@ -9,6 +9,7 @@ from jiminy_py import core as jiminy
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
 
+from utilities import load_urdf_default, integrate_dynamics
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -26,22 +27,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Create the jiminy model
 
         # Instanciate model and engine
-        self.robot = jiminy.Robot()
-        self.robot.initialize(urdf_path, has_freeflyer=False)
-        motor = jiminy.SimpleMotor("PendulumJoint")
-        self.robot.attach_motor(motor)
-        motor.initialize("PendulumJoint")
-
-        # Configure model.
-        model_options = self.robot.get_model_options()
-        motor_options = self.robot.get_motors_options()
-        model_options["joints"]["enablePositionLimit"] = False
-        model_options["joints"]["enableVelocityLimit"] = False
-        for m in motor_options:
-            motor_options[m]['enableTorqueLimit'] = False
-            motor_options[m]['enableRotorInertia'] = False
-        self.robot.set_model_options(model_options)
-        self.robot.set_motors_options(motor_options)
+        self.robot = load_urdf_default(urdf_path, ["PendulumJoint"])
 
     def test_rotor_inertia(self):
         '''
@@ -126,15 +112,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         def dynamics(t, x):
             return np.array([x[1], g / l * np.sin(x[0])])
 
-        # Integrate, using same Runge-Kutta integrator.
-        solver = ode(dynamics)
-        solver.set_initial_value(x0)
-        solver.set_integrator("dopri5")
-        x_rk_python = [x0]
-        for t in time[1:]:
-            solver.integrate(t)
-            x_rk_python.append(solver.y)
-        x_rk_python = np.stack(x_rk_python, axis=0)
+        # Integrate this non-linear dynamics.
+        x_rk_python = integrate_dynamics(time, x0, dynamics)
 
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))

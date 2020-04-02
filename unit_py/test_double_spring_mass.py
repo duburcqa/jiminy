@@ -6,6 +6,7 @@ from scipy.linalg import expm
 
 from jiminy_py import core as jiminy
 
+from utilities import load_urdf_default, integrate_dynamics
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -23,7 +24,9 @@ class SimulateTwoMasses(unittest.TestCase):
     '''
     def setUp(self):
         # Load URDF, create robot.
-        urdf_path = "data/linear_two_masses.urdf"
+        self.urdf_path = "data/linear_two_masses.urdf"
+        self.motor_names = ["FirstJoint", "SecondJoint"]
+        self.robot = load_urdf_default(self.urdf_path, self.motor_names)
 
         # Specify spring stiffness and damping for this simulation
         self.k = np.array([200, 20])
@@ -32,27 +35,6 @@ class SimulateTwoMasses(unittest.TestCase):
         # Define initial state and simulation duration
         self.x0 = np.array([0.1, -0.1, 0.0, 0.0])
         self.tf = 10.0
-
-        # Create the jiminy robot
-
-        # Instantiate robot and engine
-        self.robot = jiminy.Robot()
-        self.robot.initialize(urdf_path, has_freeflyer=False)
-        for joint_name in ["FirstJoint", "SecondJoint"]:
-            motor = jiminy.SimpleMotor(joint_name)
-            self.robot.attach_motor(motor)
-            motor.initialize(joint_name)
-
-        # Configure robot
-        model_options = self.robot.get_model_options()
-        motor_options = self.robot.get_motors_options()
-        model_options["joints"]["enablePositionLimit"] = False
-        model_options["joints"]["enableVelocityLimit"] = False
-        for m in motor_options:
-            motor_options[m]['enableTorqueLimit'] = False
-            motor_options[m]['enableRotorInertia'] = False
-        self.robot.set_model_options(model_options)
-        self.robot.set_motors_options(motor_options)
 
         # Compute the matrix representing this linear system for analytical
         # computation
@@ -226,23 +208,7 @@ class SimulateTwoMasses(unittest.TestCase):
                      - a fixed body constaint on the output mass.
         '''
         # Rebuild the model with a freeflyer.
-        self.robot = jiminy.Robot()
-        self.robot.initialize("data/linear_two_masses.urdf", has_freeflyer=True)
-        for joint_name in ["FirstJoint", "SecondJoint"]:
-            motor = jiminy.SimpleMotor(joint_name)
-            self.robot.attach_motor(motor)
-            motor.initialize(joint_name)
-
-        # Configure robot
-        model_options = self.robot.get_model_options()
-        motor_options = self.robot.get_motors_options()
-        model_options["joints"]["enablePositionLimit"] = False
-        model_options["joints"]["enableVelocityLimit"] = False
-        for m in motor_options:
-            motor_options[m]['enableTorqueLimit'] = False
-            motor_options[m]['enableRotorInertia'] = False
-        self.robot.set_model_options(model_options)
-        self.robot.set_motors_options(motor_options)
+        self.robot = load_urdf_default(self.urdf_path, self.motor_names, has_freeflyer = True)
 
         # Set same spings as usual
         def compute_command(t, q, v, sensor_data, u):

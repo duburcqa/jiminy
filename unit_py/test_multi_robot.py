@@ -6,6 +6,7 @@ from scipy.linalg import expm
 
 from jiminy_py import core as jiminy
 
+from utilities import load_urdf_default
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -55,24 +56,9 @@ class SimulateMultiRobot(unittest.TestCase):
         engine = jiminy.EngineMultiRobot()
 
         system_names = ['FirstSystem', 'SecondSystem']
-        robots = [jiminy.Robot(), jiminy.Robot()]
+        robots = []
         for i in range(2):
-            robots[i].initialize(urdf_path, has_freeflyer=False)
-            for joint_name in ["Joint"]:
-                motor = jiminy.SimpleMotor(joint_name)
-                robots[i].attach_motor(motor)
-                motor.initialize(joint_name)
-
-            # Configure robot
-            model_options = robots[i].get_model_options()
-            motor_options = robots[i].get_motors_options()
-            model_options["joints"]["enablePositionLimit"] = False
-            model_options["joints"]["enableVelocityLimit"] = False
-            for m in motor_options:
-                motor_options[m]['enableTorqueLimit'] = False
-                motor_options[m]['enableRotorInertia'] = False
-            robots[i].set_model_options(model_options)
-            robots[i].set_motors_options(motor_options)
+            robots.append(load_urdf_default(urdf_path, ["Joint"]))
 
             # Create controller
             controller = Controllers(k[i], nu[i])
