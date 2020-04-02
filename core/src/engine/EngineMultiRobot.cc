@@ -2295,8 +2295,21 @@ namespace jiminy
             vectorN_t drift;
             robot->computeConstraints(q, v, J, drift);
 
-            // TODO: handle external forces.
-            // TODO: rotor inertia.
+            // Project external forces from cartesian space to joint space.
+            vectorN_t uTotal = u;
+            matrixN_t jointJacobian = matrixN_t::Zero(6, robot->pncModel_.nv);
+            for (int i=0; i<robot->pncModel_.njoints; i++)
+            {
+                jointJacobian.setZero();
+                pinocchio::getJointJacobian(robot->pncModel_,
+                                            robot->pncData_,
+                                            i,
+                                            pinocchio::LOCAL,
+                                            jointJacobian);
+                uTotal += jointJacobian.transpose() * fext[i].toVector();
+            }
+
+            // TODO handle rotor inertia in pinocchio "patch"
 
             // Call forward dynamics.
             float64_t damping = 1e-12;
@@ -2304,7 +2317,7 @@ namespace jiminy
                                               robot->pncData_,
                                               q,
                                               v,
-                                              u,
+                                              uTotal,
                                               J,
                                               drift,
                                               damping);
