@@ -143,12 +143,13 @@ class SimulateTwoMasses(unittest.TestCase):
         '''
         @brief Test adding an external force profile function to the system.
         '''
-        # Set same spings as usual
+        # Set same springs as usual
         def compute_command(t, q, v, sensor_data, u):
             u[:] = 0.0
 
         def internal_dynamics(t, q, v, sensor_data, u):
             u[:] = - self.k * q - self.nu * v
+
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
         controller.initialize(self.robot)
         engine = jiminy.Engine()
