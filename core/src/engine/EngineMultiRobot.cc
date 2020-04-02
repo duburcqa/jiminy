@@ -319,14 +319,20 @@ namespace jiminy
             {
                 // Generate the log fieldnames
                 system.positionFieldnames =
-                    addCircumfix(system.robot->getPositionFieldnames(), system.name);
+                    addCircumfix(system.robot->getPositionFieldnames(),
+                                 system.name, "", TELEMETRY_DELIMITER);
                 system.velocityFieldnames =
-                    addCircumfix(system.robot->getVelocityFieldnames(), system.name);
+                    addCircumfix(system.robot->getVelocityFieldnames(),
+                                 system.name, "", TELEMETRY_DELIMITER);
                 system.accelerationFieldnames =
-                    addCircumfix(system.robot->getAccelerationFieldnames(), system.name);
+                    addCircumfix(system.robot->getAccelerationFieldnames(),
+                                 system.name, "", TELEMETRY_DELIMITER);
                 system.motorTorqueFieldnames =
-                    addCircumfix(system.robot->getMotorTorqueFieldnames(), system.name);
-                system.energyFieldname = addCircumfix("energy", system.name);
+                    addCircumfix(system.robot->getMotorTorqueFieldnames(),
+                                 system.name, "", TELEMETRY_DELIMITER);
+                system.energyFieldname =
+                    addCircumfix("energy",
+                                 system.name, "", TELEMETRY_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (returnCode == hresult_t::SUCCESS)

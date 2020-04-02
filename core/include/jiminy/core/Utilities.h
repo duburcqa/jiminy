@@ -201,10 +201,12 @@ namespace jiminy
 
     std::string addCircumfix(std::string         fieldname, // Make a copy
                              std::string const & prefix = "",
-                             std::string const & suffix = "");
+                             std::string const & suffix = "",
+                             std::string const & delimiter = "");
     std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
                                           std::string              const & prefix = "",
-                                          std::string              const & suffix = "");
+                                          std::string              const & suffix = "",
+                                          std::string              const & delimiter = "");
 
     std::string removeSuffix(std::string         fieldname, // Make a copy
                              std::string const & suffix);

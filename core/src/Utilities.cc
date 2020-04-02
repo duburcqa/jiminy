@@ -596,22 +596,32 @@ namespace jiminy
 
     std::string addCircumfix(std::string         fieldname,
                              std::string const & prefix,
-                             std::string const & suffix)
+                             std::string const & suffix,
+                             std::string const & delimiter)
     {
-        return prefix + fieldname + suffix;
+        if (!prefix.empty())
+        {
+            fieldname = prefix + delimiter + fieldname;
+        }
+        if (!suffix.empty())
+        {
+            fieldname = fieldname + delimiter + suffix;
+        }
+        return fieldname;
     }
 
     std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
                                           std::string              const & prefix,
-                                          std::string              const & suffix)
+                                          std::string              const & suffix,
+                                          std::string              const & delimiter)
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(fieldnamesIn.size());
         std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
                        std::back_inserter(fieldnames),
-                       [&prefix, &suffix](std::string const & name) -> std::string
+                       [&prefix, &suffix, &delimiter](std::string const & name) -> std::string
                        {
-                           return addCircumfix(name, prefix, suffix);
+                           return addCircumfix(name, prefix, suffix, delimiter);
                        });
         return fieldnames;
     }

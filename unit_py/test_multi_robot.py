@@ -3,8 +3,8 @@
 import unittest
 import numpy as np
 from scipy.linalg import expm
-from pinocchio import Force
 
+from pinocchio import Force
 from jiminy_py import core as jiminy
 
 
@@ -96,7 +96,7 @@ class SimulateMultiRobot(unittest.TestCase):
         # Extract log data
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + system_names[i] + s]
+        x_jiminy = np.stack([log_data['.'.join(('HighLevelController', system_names[i], s))]
                              for i in range(len(system_names)) \
                                  for s in robots[i].logfile_position_headers + \
                                           robots[i].logfile_velocity_headers] , axis=-1)
@@ -109,6 +109,7 @@ class SimulateMultiRobot(unittest.TestCase):
                       [-k_eq[0] / m[0], -nu_eq[0] / m[0],     k[2] / m[0],      nu[2] / m[0]],
                       [              0,                0,               0,                1],
                       [    k[2] / m[1],     nu[2] / m[1], -k_eq [1]/ m[1], -nu_eq[1] / m[1]]])
+
         # Compute analytical solution
         x_analytical = np.stack([expm(A * t) @ x_jiminy[0, :] for t in time], axis=0)
 
