@@ -25,11 +25,11 @@ namespace jiminy
         std::string const & getFrameName(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) override;
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) override;
 
     private:
         std::string frameName_;
@@ -51,11 +51,11 @@ namespace jiminy
         std::string const & getFrameName(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) override;
 
     private:
         std::string frameName_;
@@ -77,11 +77,11 @@ namespace jiminy
         std::string const & getJointName(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) override;
 
     private:
         std::string jointName_;
@@ -104,11 +104,11 @@ namespace jiminy
         std::string const & getMotorName(void) const;
 
     private:
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor);
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) override;
 
     private:
         std::string motorName_;

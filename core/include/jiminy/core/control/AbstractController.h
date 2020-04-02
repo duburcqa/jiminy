@@ -83,14 +83,14 @@ namespace jiminy
         ///             check. So the user has to take care of the life span of the variable, and to
         ///             update it manually whenever it is necessary to do so.
         ///
-        /// \param[in]  fieldNames      Name of each element of the variable. It will appear in the header of the log.
+        /// \param[in]  fieldnames      Name of each element of the variable. It will appear in the header of the log.
         /// \param[in]  values          Eigen vector to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t registerVariable(std::vector<std::string> const & fieldNames,
-                                   Eigen::Ref<vectorN_t>            values);
+        hresult_t registerVariable(std::vector<std::string> const & fieldnames,
+                                   Eigen::Ref<vectorN_t>            values); // Make a "copy" to support both vectorN_t and reference
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -101,7 +101,7 @@ namespace jiminy
         ///             check. So the user has to take care of the life span of the variable, and to
         ///             update it manually whenever it is necessary to do so.
         ///
-        /// \param[in]  fieldNames      Name of the variable. It will appear in the header of the log.
+        /// \param[in]  fieldnames      Name of the variable. It will appear in the header of the log.
         /// \param[in]  values          Variable to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
@@ -114,7 +114,7 @@ namespace jiminy
         ///
         /// \brief      Register a constant float64 to the telemetry.
         ///
-        /// \param[in]  fieldNames      Name of the variable.
+        /// \param[in]  fieldnames      Name of the variable.
         /// \param[in]  values          Variable to add to the telemetry
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
@@ -148,10 +148,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t computeCommand(float64_t const & t,
-                                         vectorN_t const & q,
-                                         vectorN_t const & v,
-                                         vectorN_t       & u) = 0;
+        virtual hresult_t computeCommand(float64_t                   const & t,
+                                         Eigen::Ref<vectorN_t const> const & q,
+                                         Eigen::Ref<vectorN_t const> const & v,
+                                         vectorN_t                         & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -166,10 +166,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t internalDynamics(float64_t const & t,
-                                           vectorN_t const & q,
-                                           vectorN_t const & v,
-                                           vectorN_t       & u) = 0;
+        virtual hresult_t internalDynamics(float64_t                   const & t,
+                                           Eigen::Ref<vectorN_t const> const & q,
+                                           Eigen::Ref<vectorN_t const> const & v,
+                                           vectorN_t                         & u) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

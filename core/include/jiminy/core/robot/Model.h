@@ -134,9 +134,9 @@ namespace jiminy
         std::string const & getUrdfPath(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
-        uint32_t const & nq(void) const;
-        uint32_t const & nv(void) const;
-        uint32_t const & nx(void) const;
+        int32_t const & nq(void) const;
+        int32_t const & nv(void) const;
+        int32_t const & nx(void) const;
 
         std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
@@ -151,9 +151,9 @@ namespace jiminy
         vectorN_t const & getPositionLimitMax(void) const;
         vectorN_t const & getVelocityLimit(void) const;
 
-        std::vector<std::string> const & getPositionFieldNames(void) const;
-        std::vector<std::string> const & getVelocityFieldNames(void) const;
-        std::vector<std::string> const & getAccelerationFieldNames(void) const;
+        std::vector<std::string> const & getPositionFieldnames(void) const;
+        std::vector<std::string> const & getVelocityFieldnames(void) const;
+        std::vector<std::string> const & getAccelerationFieldnames(void) const;
 
         hresult_t getFlexibleStateFromRigid(vectorN_t const & xRigid,
                                             vectorN_t       & xFlex) const;
@@ -195,15 +195,15 @@ namespace jiminy
         vectorN_t positionLimitMax_;
         vectorN_t velocityLimit_;
 
-        std::vector<std::string> positionFieldNames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
-        std::vector<std::string> velocityFieldNames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot
-        std::vector<std::string> accelerationFieldNames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid robot
+        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
+        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot
+        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid robot
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
-        uint32_t nq_;
-        uint32_t nv_;
-        uint32_t nx_;
+        int32_t nq_;
+        int32_t nv_;
+        int32_t nx_;
     };
 }
 

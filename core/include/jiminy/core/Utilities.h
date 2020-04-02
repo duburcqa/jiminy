@@ -72,14 +72,19 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
+    template<typename T>
+    struct type_identity {
+        using type = T;
+    };
+
     template<bool B, class T = void>
     using enable_if_t = typename std::enable_if<B,T>::type;
 
     template<typename T>
-    struct is_vector : std::integral_constant<bool, false> {};
+    struct is_vector : std::false_type {};
 
     template<typename T>
-    struct is_vector<std::vector<T> > : std::integral_constant<bool, true> {};
+    struct is_vector<std::vector<T> > : std::true_type {};
 
     template <typename Base>
     inline std::shared_ptr<Base>
@@ -99,6 +104,45 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
+
+    namespace isEigenObjectDetail {
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const *);
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> > const *);
+        template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, ColsAtCompileTime> const> const *);
+        std::false_type test(...);
+    }
+
+    template <typename T>
+    struct isEigenObject :
+        public decltype(isEigenObjectDetail::test(std::declval<T*>())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen : public std::false_type {};
+
+    template<typename T>
+    struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
+
+    namespace isEigenVectorDetail {
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, 1> const *);
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> > const *);
+        template <typename T, int RowsAtCompileTime>
+        std::true_type test(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const *);
+        std::false_type test(...);
+    }
+
+    template <typename T>
+    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<T*>())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_eigen_vector : std::false_type {};
+
+    template<typename T>
+    struct is_eigen_vector<T, typename std::enable_if<isEigenVector<T>::value>::type> : std::true_type {};
 
     // *************** Convertion to JSON utilities *****************
 
@@ -155,10 +199,30 @@ namespace jiminy
     std::vector<std::string> defaultVectorFieldnames(std::string const & baseName,
                                                      uint32_t    const & size);
 
-    std::string removeFieldnameSuffix(std::string         fieldname,
-                                      std::string const & suffix);
-    std::vector<std::string> removeFieldnamesSuffix(std::vector<std::string>         fieldnames, // Make a copy
-                                                    std::string              const & suffix);
+    std::string addCircumfix(std::string         fieldname, // Make a copy
+                             std::string const & prefix = "",
+                             std::string const & suffix = "",
+                             std::string const & delimiter = "");
+    std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & prefix = "",
+                                          std::string              const & suffix = "",
+                                          std::string              const & delimiter = "");
+
+    std::string removeSuffix(std::string         fieldname, // Make a copy
+                             std::string const & suffix);
+    std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn, // Make a copy
+                                          std::string              const & suffix);
+
+    /// \brief Get the value of a single logged variable.
+    ///
+    /// \param[in] fieldName    Full name of the variable to get
+    /// \param[in] header       Header, vector of field names.
+    /// \param[in] logData      Corresponding data in the log file.
+    ///
+    /// \return Vector of values for fieldName. If fieldName is not in the header list, this vector will be empty.
+    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
+                                                 std::vector<std::string> const & header,
+                                                 matrixN_t                const & logData);
 
     // ******************** Pinocchio utilities *********************
 
@@ -175,11 +239,16 @@ namespace jiminy
         FREE = 5,
     };
 
-    void computePositionDerivative(pinocchio::Model const & model,
-                                   Eigen::Ref<vectorN_t const> q,
-                                   Eigen::Ref<vectorN_t const> v,
-                                   Eigen::Ref<vectorN_t> qDot,
-                                   float64_t dt = 1e-5); // Make a copy
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        Eigen::Ref<vectorN_t>             & qDot,
+                                        float64_t                   const & dt);
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        vectorN_t                         & qDot,
+                                        float64_t                   const & dt);
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,
@@ -239,10 +308,10 @@ namespace jiminy
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
 
-    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
-                                             pinocchio::Data  const & data,
-                                             int32_t          const & frameId,
-                                             vector3_t        const & fextInWorld);
+    pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                                    pinocchio::Data  const & data,
+                                                    int32_t          const & frameId,
+                                                    pinocchio::Force const & fextInWorld);
 
     // ********************** Math utilities *************************
 
@@ -254,7 +323,7 @@ namespace jiminy
                            float64_t const & ma,
                            float64_t const & r);
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const>         data,
+    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr = -INF,
                     float64_t                   const & maxThr = +INF);
 
@@ -290,6 +359,10 @@ namespace jiminy
                           uint32_t                               const & firstBlockLength,
                           uint32_t                               const & secondBlockStart,
                           uint32_t                               const & secondBlockLength);
+
+    void catInPlace(std::vector<vectorN_t> const & xList,
+                    vectorN_t                    & xCat);
+    vectorN_t cat(std::vector<vectorN_t> const & xList);
 }
 
 #include "jiminy/core/Utilities.tpp"

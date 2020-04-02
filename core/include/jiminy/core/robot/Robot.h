@@ -53,18 +53,18 @@ namespace jiminy
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
 
-        void computeMotorsTorques(float64_t const & t,
-                                  vectorN_t const & q,
-                                  vectorN_t const & v,
-                                  vectorN_t const & a,
-                                  vectorN_t const & u);
+        void computeMotorsTorques(float64_t                   const & t,
+                                  Eigen::Ref<vectorN_t const> const & q,
+                                  Eigen::Ref<vectorN_t const> const & v,
+                                  vectorN_t                   const & a, // Do Not use Eigen::Ref for the acceleration to avoid memory allocation by the engine for a temporary
+                                  vectorN_t                   const & u);
         vectorN_t const & getMotorsTorques(void) const;
         float64_t const & getMotorTorque(std::string const & motorName) const;
-        void setSensorsData(float64_t const & t,
-                            vectorN_t const & q,
-                            vectorN_t const & v,
-                            vectorN_t const & a,
-                            vectorN_t const & u);
+        void setSensorsData(float64_t                   const & t,
+                            Eigen::Ref<vectorN_t const> const & q,
+                            Eigen::Ref<vectorN_t const> const & v,
+                            Eigen::Ref<vectorN_t const> const & a,
+                            vectorN_t                   const & u);
         sensorsDataMap_t getSensorsData(void) const;
         matrixN_t getSensorsData(std::string const & sensorType) const;
         vectorN_t getSensorData(std::string const & sensorType,
@@ -115,7 +115,7 @@ namespace jiminy
         vectorN_t getTorqueLimit(void) const;
         vectorN_t getMotorInertia(void) const;
 
-        std::vector<std::string> const & getMotorTorqueFieldNames(void) const;
+        std::vector<std::string> const & getMotorTorqueFieldnames(void) const;
 
         hresult_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
@@ -136,7 +136,7 @@ namespace jiminy
         std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
 
-        std::vector<std::string> motorTorqueFieldNames_;    ///< Fieldnames of the torques of the motors
+        std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
     private:
         MutexLocal mutexLocal_;

@@ -7,7 +7,8 @@
 
 #include <cassert>
 
-#include "jiminy/core/Engine.h"
+#include "jiminy/core/engine/EngineMultiRobot.h"
+#include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
@@ -30,37 +31,90 @@ namespace python
 {
     namespace bp = boost::python;
 
-    // ************************** TimeStateFctPyWrapper ******************************
+    // ************************** FctPyWrapper ******************************
 
     template<typename T>
-    struct TimeStateFctPyWrapper {
+    struct DataInternalBufferType
+    {
+        using type = typename std::add_lvalue_reference<T>::type;
+    };
+
+    template<>
+    struct DataInternalBufferType<pinocchio::Force> {
+        using type = typename Eigen::Ref<vector6_t>;
+    };
+
+    template<typename T>
+    typename DataInternalBufferType<T>::type
+    setDataInternalBuffer(T * arg)
+    {
+        return *arg;
+    }
+
+    template<>
+    typename DataInternalBufferType<pinocchio::Force>::type
+    setDataInternalBuffer<pinocchio::Force>(pinocchio::Force * arg)
+    {
+        return arg->toVector();
+    }
+
+    template<typename T>
+    bp::handle<> FctPyWrapperArgToPython(T const & arg) = delete; // Do NOT provide default implementation
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<float64_t>(float64_t const & arg)
+    {
+        return bp::handle<>(PyFloat_FromDouble(arg));
+    }
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<vectorN_t>(vectorN_t const & arg)
+    {
+        return bp::handle<>(getNumpyReference(const_cast<vectorN_t &>(arg)));
+    }
+
+    template<>
+    bp::handle<> FctPyWrapperArgToPython<Eigen::Ref<vectorN_t const> >(Eigen::Ref<vectorN_t const> const & arg)
+    {
+        // Pass the arguments by reference (be careful const qualifiers are lost)
+        return bp::handle<>(getNumpyReference(arg));
+    }
+
+    template<typename OutputArg, typename ... InputArgs>
+    struct FctPyWrapper
+    {
+    public:
+        using OutputBufferType = typename DataInternalBufferType<OutputArg>::type;
     public:
         // Disable the copy of the class
-        TimeStateFctPyWrapper & operator = (TimeStateFctPyWrapper const & other) = delete;
+        FctPyWrapper & operator = (FctPyWrapper const & other) = delete;
 
     public:
-        TimeStateFctPyWrapper(bp::object const& objPy) :
+        FctPyWrapper(bp::object const & objPy) :
         funcPyPtr_(objPy),
-        outPtr_(new T),
-        outPyPtr_()
+        outPtr_(new OutputArg),
+        outData_(setDataInternalBuffer(outPtr_)),
+        outPyPtr_(nullptr)
         {
-            outPyPtr_ = getNumpyReference(*outPtr_);
+            outPyPtr_ = getNumpyReference(outData_);
         }
 
         // Copy constructor, same as the normal constructor
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper const & other) :
+        FctPyWrapper(FctPyWrapper const & other) :
         funcPyPtr_(other.funcPyPtr_),
-        outPtr_(new T),
-        outPyPtr_()
+        outPtr_(new OutputArg),
+        outData_(setDataInternalBuffer(outPtr_)),
+        outPyPtr_(nullptr)
         {
             *outPtr_ = *(other.outPtr_);
-            outPyPtr_ = getNumpyReference(*outPtr_);
+            outPyPtr_ = getNumpyReference(outData_);
         }
 
         // Move constructor, takes a rvalue reference &&
-        TimeStateFctPyWrapper(TimeStateFctPyWrapper&& other) :
+        FctPyWrapper(FctPyWrapper&& other) :
         funcPyPtr_(other.funcPyPtr_),
         outPtr_(nullptr),
+        outData_(other.outData_),
         outPyPtr_(nullptr)
         {
             // Steal the resource from "other"
@@ -74,38 +128,59 @@ namespace python
         }
 
         // Destructor
-        ~TimeStateFctPyWrapper()
+        ~FctPyWrapper()
         {
             Py_XDECREF(outPyPtr_);
             delete outPtr_;
         }
 
         // Move assignment, takes a rvalue reference &&
-        TimeStateFctPyWrapper& operator = (TimeStateFctPyWrapper&& other)
+        FctPyWrapper& operator = (FctPyWrapper&& other)
         {
             /* "other" is soon going to be destroyed, so we let it destroy our current resource
                instead and we take "other"'s current resource via swapping */
             std::swap(funcPyPtr_, other.funcPyPtr_);
             std::swap(outPtr_, other.outPtr_);
+            std::swap(outData_, other.outData_);
             std::swap(outPyPtr_, other.outPyPtr_);
             return *this;
         }
 
-        T const & operator() (float64_t const & t,
-                              vectorN_t const & x)
+        OutputArg const & operator() (InputArgs const & ... args)
         {
-            // Pass the arguments by reference (be careful const qualifiers are lost)
-            bp::handle<> xPy(getNumpyReferenceFromEigenVector(x));
             bp::handle<> outPy(bp::borrowed(outPyPtr_));
-            funcPyPtr_(t, xPy, outPy);
+            funcPyPtr_(FctPyWrapperArgToPython(args)..., outPy);
             return *outPtr_;
         }
 
     private:
         bp::object funcPyPtr_;
-        T * outPtr_;
+        OutputArg * outPtr_;
+        OutputBufferType outData_;
         PyObject * outPyPtr_;
     };
+
+    template<typename T>
+    using TimeStateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                  float64_t /* t */,
+                                                  Eigen::Ref<vectorN_t const> /* q */,
+                                                  Eigen::Ref<vectorN_t const> /* v */>;
+
+    template<typename T>
+    using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                               float64_t /* t */,
+                                               vectorN_t /* q */,
+                                               vectorN_t /* v */>;
+
+    template<typename T>
+    using TimeBistateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                    float64_t /* t */,
+                                                    Eigen::Ref<vectorN_t const> /* q1 */,
+                                                    Eigen::Ref<vectorN_t const> /* v1 */,
+                                                    Eigen::Ref<vectorN_t const> /* q2 */,
+                                                    Eigen::Ref<vectorN_t const> /* v2 */ >;
+
+    // ************************** HeatMapFunctorPyWrapper ******************************
 
     enum class heatMapType_t : uint8_t
     {
@@ -253,8 +328,8 @@ namespace python
                 ;
         }
 
-        static bp::tuple eval (heatMapFunctor_t       & self,
-                               vector3_t        const & posFrame)
+        static bp::tuple eval(heatMapFunctor_t       & self,
+                              vector3_t        const & posFrame)
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
@@ -276,8 +351,7 @@ namespace python
                 .def(HeatMapFunctorVisitor())
                 .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
                                  bp::default_call_policies(),
-                                (bp::args("heatmap_handle", "heatmap_type"))));
-                bp::register_ptr_to_python<std::shared_ptr<heatMapFunctor_t> >();
+                                (bp::args("heatmap_function", "heatmap_type"))));
         }
     };
 
@@ -338,7 +412,7 @@ namespace python
                 auto & sensorDataTypeByName = self.at(sensorType).get<IndexByName>();
                 auto sensorDataIt = sensorDataTypeByName.find(sensorName);
                 vectorN_t const * sensorDataValue = sensorDataIt->value;
-                bp::handle<> valuePy(getNumpyReferenceFromEigenVector(*sensorDataValue));
+                bp::handle<> valuePy(getNumpyReference(*const_cast<vectorN_t *>(sensorDataValue)));
                 return bp::object(valuePy);
             }
             catch (...)
@@ -434,7 +508,6 @@ namespace python
                        std::shared_ptr<sensorsDataMap_t>,
                        boost::noncopyable>("sensorsData", bp::no_init)
                 .def(SensorsDataMapVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<sensorsDataMap_t> >();
         }
     };
 
@@ -451,9 +524,9 @@ namespace python
                          vectorN_t              & uCommand)
         {
             // Pass the arguments by reference (be careful const qualifiers are lost).
-            bp::handle<> qPy(getNumpyReferenceFromEigenVector(q));
-            bp::handle<> vPy(getNumpyReferenceFromEigenVector(v));
-            bp::handle<> uCommandPy(getNumpyReferenceFromEigenVector(uCommand));
+            bp::handle<> qPy(getNumpyReference(const_cast<vectorN_t &>(q)));
+            bp::handle<> vPy(getNumpyReference(const_cast<vectorN_t &>(v)));
+            bp::handle<> uCommandPy(getNumpyReference(const_cast<vectorN_t &>(uCommand)));
             funcPyPtr_(t, qPy, vPy, boost::ref(sensorsData), uCommandPy);
         }
     private:
@@ -488,7 +561,7 @@ namespace python
                     .add_property("name", bp::make_function(&AbstractMotorBase::getName,
                                           bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("idx", bp::make_function(&AbstractMotorBase::getIdx,
-                                        bp::return_value_policy<bp::copy_const_reference>()))
+                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_name", bp::make_function(&AbstractMotorBase::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
@@ -557,7 +630,6 @@ namespace python
                        std::shared_ptr<AbstractMotorBase>,
                        boost::noncopyable>("AbstractMotor", bp::no_init)
                 .def(PyMotorVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractMotorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
@@ -566,7 +638,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<SimpleMotor> >();
         }
     };
 
@@ -625,7 +696,7 @@ namespace python
                 cl
                     .add_property("type", bp::make_function(&AbstractSensorBase::getType,
                                           bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldNames,
+                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
                                                 bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
@@ -666,7 +737,6 @@ namespace python
                        std::shared_ptr<AbstractSensorBase>,
                        boost::noncopyable>("AbstractSensor", bp::no_init)
                 .def(PySensorVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractSensorBase> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
@@ -675,7 +745,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<ImuSensor> >();
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
@@ -684,7 +753,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<ForceSensor> >();
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
@@ -693,7 +761,6 @@ namespace python
                 .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
                                  bp::default_call_policies(),
                                  (bp::arg("motor_name"))));
-            bp::register_ptr_to_python<std::shared_ptr<EncoderSensor> >();
         }
     };
 
@@ -764,11 +831,11 @@ namespace python
                 .add_property("velocity_limit", bp::make_function(&Robot::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldNames,
+                .add_property("logfile_position_headers", bp::make_function(&Robot::getPositionFieldnames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldNames,
+                .add_property("logfile_velocity_headers", bp::make_function(&Robot::getVelocityFieldnames,
                                                           bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldNames,
+                .add_property("logfile_acceleration_headers", bp::make_function(&Robot::getAccelerationFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
@@ -821,7 +888,6 @@ namespace python
                        std::shared_ptr<Model>,
                        boost::noncopyable>("Model", bp::no_init)
                 .def(PyModelVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Model> >();
         }
     };
 
@@ -875,7 +941,9 @@ namespace python
                 .def("set_sensors_options", &PyRobotVisitor::setSensorsOptions,
                                             (bp::arg("self"), "sensors_options"))
                 .def("get_sensors_options",
-                    static_cast<configHolder_t (Robot::*)(void) const>(&Robot::getSensorsOptions))
+                    static_cast<
+                        configHolder_t (Robot::*)(void) const
+                    >(&Robot::getSensorsOptions))
                 .def("set_telemetry_options", &PyRobotVisitor::setTelemetryOptions,
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
@@ -893,7 +961,7 @@ namespace python
                 .add_property("torque_limit", &Robot::getTorqueLimit)
                 .add_property("motor_inertia", &Robot::getMotorInertia)
 
-                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldNames,
+                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
@@ -992,7 +1060,6 @@ namespace python
                        std::shared_ptr<Robot>,
                        boost::noncopyable>("Robot")
                 .def(PyRobotVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Robot> >();
         }
     };
 
@@ -1057,10 +1124,10 @@ namespace python
 
             if (PyArray_Check(dataPy))
             {
-                auto fieldNames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
+                auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
                 Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
-                return self.registerVariable(fieldNames, data);
+                return self.registerVariable(fieldnames, data);
             }
             else
             {
@@ -1153,7 +1220,6 @@ namespace python
                        std::shared_ptr<AbstractController>,
                        boost::noncopyable>("AbstractController", bp::no_init)
                 .def(PyAbstractControllerVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractController> >();
         }
     };
 
@@ -1191,15 +1257,14 @@ namespace python
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
             .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
                              bp::default_call_policies(),
-                            (bp::arg("command_handle"), "internal_dynamics_handle")));
-            bp::register_ptr_to_python<std::shared_ptr<CtrlFunctor> >();
+                            (bp::arg("command_function"), "internal_dynamics_function")));
         }
     };
 
-    // ***************************** PyStepperVisitor ***********************************
+    // ***************************** PyStepperStateVisitor ***********************************
 
-    struct PyStepperVisitor
-        : public bp::def_visitor<PyStepperVisitor>
+    struct PyStepperStateVisitor
+        : public bp::def_visitor<PyStepperStateVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1214,55 +1279,9 @@ namespace python
                 .def_readonly("dt", &stepperState_t::dt)
                 .add_property("x", bp::make_getter(&stepperState_t::x,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("q", bp::make_function(&PyStepperVisitor::q,
-                                   bp::return_value_policy<bp::return_by_value>()))
-                .add_property("v", bp::make_function(&PyStepperVisitor::v,
-                                   bp::return_value_policy<bp::return_by_value>()))
                 .add_property("dxdt", bp::make_getter(&stepperState_t::dxdt,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("qDot", bp::make_function(&PyStepperVisitor::qDot,
-                                      bp::return_value_policy<bp::return_by_value>()))
-                .add_property("a", bp::make_function(&PyStepperVisitor::a,
-                                   bp::return_value_policy<bp::return_by_value>()))
-                .add_property("u", bp::make_getter(&stepperState_t::u,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_motor", bp::make_getter(&stepperState_t::uMotor,
-                                           bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_command", bp::make_getter(&stepperState_t::uCommand,
-                                           bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("u_internal", bp::make_getter(&stepperState_t::uInternal,
-                                            bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("f_external", bp::make_getter(&stepperState_t::fExternal,
-                                            bp::return_value_policy<bp::copy_non_const_reference>()))
                 ;
-        }
-
-        static vectorN_t q(stepperState_t & self)
-        {
-            // Eigenpy is not able to convert automatically a Eigen::Ref object
-
-            return self.q();
-        }
-
-        static vectorN_t v(stepperState_t & self)
-        {
-            // Eigenpy is not able to convert automatically a Eigen::Ref object
-
-            return self.v();
-        }
-
-        static vectorN_t qDot(stepperState_t & self)
-        {
-            // Eigenpy is not able to convert automatically a Eigen::Ref object
-
-            return self.qDot();
-        }
-
-        static vectorN_t a(stepperState_t & self)
-        {
-            // Eigenpy is not able to convert automatically a Eigen::Ref object
-
-            return self.a();
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1273,8 +1292,419 @@ namespace python
             bp::class_<stepperState_t,
                        std::shared_ptr<stepperState_t>,
                        boost::noncopyable>("StepperState", bp::no_init)
-                .def(PyStepperVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<stepperState_t> >();
+                .def(PyStepperStateVisitor());
+        }
+    };
+
+    // ***************************** PySystemStateVisitor ***********************************
+
+    struct PySystemStateVisitor
+        : public bp::def_visitor<PySystemStateVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .add_property("q", bp::make_getter(&systemState_t::q,
+                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("v", bp::make_getter(&systemState_t::v,
+                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("qDot", bp::make_getter(&systemState_t::qDot,
+                                      bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("a", bp::make_getter(&systemState_t::a,
+                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u", bp::make_getter(&systemState_t::u,
+                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_motor", bp::make_getter(&systemState_t::uMotor,
+                                         bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_command", bp::make_getter(&systemState_t::uCommand,
+                                           bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("u_internal", bp::make_getter(&systemState_t::uInternal,
+                                            bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
+                                            bp::return_value_policy<bp::copy_non_const_reference>()))
+                ;
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<systemState_t,
+                       std::shared_ptr<systemState_t>,
+                       boost::noncopyable>("SystemState", bp::no_init)
+                .def(PySystemStateVisitor());
+        }
+    };
+
+    // ***************************** PySystemDataVisitor ***********************************
+
+    struct PySystemDataVisitor
+        : public bp::def_visitor<PySystemDataVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .add_property("name", bp::make_getter(&systemDataHolder_t::name,
+                                      bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("robot", bp::make_getter(&systemDataHolder_t::robot,
+                                       bp::return_internal_reference<>()))
+                .add_property("controller", bp::make_getter(&systemDataHolder_t::controller,
+                                            bp::return_internal_reference<>()))
+                .add_property("callbackFct", bp::make_getter(&systemDataHolder_t::callbackFct,
+                                             bp::return_internal_reference<>()))
+                ;
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<systemDataHolder_t,
+                       std::shared_ptr<systemDataHolder_t>,
+                       boost::noncopyable>("systemData", bp::no_init)
+                .def(PySystemDataVisitor());
+        }
+    };
+
+    // ************************* PyEngineMultiRobotVisitor ****************************
+
+    struct PyEngineMultiRobotVisitor
+        : public bp::def_visitor<PyEngineMultiRobotVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("add_system", &PyEngineMultiRobotVisitor::addSystem,
+                                   (bp::arg("self"), "system_name",
+                                    "robot", "controller"))
+                .def("add_system", &PyEngineMultiRobotVisitor::addSystemWithCallback,
+                                   (bp::arg("self"), "system_name",
+                                    "robot", "controller", "callback_function"))
+                .def("remove_system", &EngineMultiRobot::removeSystem,
+                                      (bp::arg("self"), "system_name"))
+                .def("add_coupling_force", &PyEngineMultiRobotVisitor::addCouplingForce,
+                                           (bp::arg("self"),
+                                            "system_name_1", "system_name_2",
+                                            "frame_name_1", "frame_name_2",
+                                            "force_function"))
+                .def("remove_coupling_forces",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &, std::string const &)
+                    >(&EngineMultiRobot::removeCouplingForces),
+                    (bp::arg("self"), "system_name_1", "system_name_2"))
+                .def("remove_coupling_forces",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(std::string const &)
+                    >(&EngineMultiRobot::removeCouplingForces),
+                    (bp::arg("self"), "system_name"))
+
+                .def("reset",
+                    static_cast<
+                        void (EngineMultiRobot::*)(bool_t const &)
+                    >(&EngineMultiRobot::reset),
+                    (bp::arg("self"), bp::arg("remove_forces") = false))
+                .def("start", &PyEngineMultiRobotVisitor::start,
+                              (bp::arg("self"), "x_init",
+                               bp::arg("reset_random_generator") = false,
+                               bp::arg("remove_forces") = false))
+                .def("step", &PyEngineMultiRobotVisitor::step,
+                             (bp::arg("self"), bp::arg("dt_desired") = -1))
+                .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
+                .def("simulate", &PyEngineMultiRobotVisitor::simulate,
+                                 (bp::arg("self"), "end_time", "x_init"))
+
+                .def("get_log", &PyEngineMultiRobotVisitor::getLog)
+                .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
+                                  (bp::arg("self"), "filename",
+                                   bp::arg("isModeBinary") = true))
+                .def("read_log", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
+                .staticmethod("read_log")
+
+                .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
+                                               (bp::arg("self"), "system_name",
+                                                "frame_name", "t", "dt", "F"))
+                .def("register_force_profile", &PyEngineMultiRobotVisitor::registerForceProfile,
+                                               (bp::arg("self"), "system_name",
+                                                "frame_name", "force_function"))
+                .def("remove_forces", &PyEngineMultiRobotVisitor::removeForces)
+
+                .def("get_options", &EngineMultiRobot::getOptions,
+                                    bp::return_value_policy<bp::return_by_value>())
+                .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
+
+                .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
+                                   bp::return_internal_reference<>(),
+                                   (bp::arg("self"), "system_name")))
+                .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
+                                         bp::return_internal_reference<>(),
+                                         (bp::arg("self"), "system_name")))
+                .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
+                                               bp::return_internal_reference<>()))
+                ;
+        }
+
+        static hresult_t addSystem(EngineMultiRobot                          & self,
+                                   std::string                         const & systemName,
+                                   std::shared_ptr<Robot>              const & robot,
+                                   std::shared_ptr<AbstractController> const & controller)
+        {
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+        }
+
+        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
+                                               std::string                         const & systemName,
+                                               std::shared_ptr<Robot>              const & robot,
+                                               std::shared_ptr<AbstractController> const & controller,
+                                               bp::object                          const & callbackPy)
+        {
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
+            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+        }
+
+        static systemDataHolder_t & getSystem(EngineMultiRobot  & self,
+                                              std::string const & systemName)
+        {
+            systemDataHolder_t * system;
+            self.getSystem(systemName, system);
+            return *system;
+        }
+
+        static hresult_t addCouplingForce(EngineMultiRobot       & self,
+                                          std::string      const & systemName1,
+                                          std::string      const & systemName2,
+                                          std::string      const & frameName1,
+                                          std::string      const & frameName2,
+                                          bp::object       const & forcePy)
+        {
+            TimeBistateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            return self.addCouplingForce(
+                systemName1, systemName2, frameName1, frameName2, forceFct);
+        }
+
+        static hresult_t start(EngineMultiRobot       & self,
+                               bp::object       const & xInit,
+                               bool             const & resetRandomGenerator,
+                               bool             const & removeForces)
+        {
+            return self.start(convertFromPython<std::vector<vectorN_t>>(xInit),
+                              resetRandomGenerator,
+                              removeForces);
+        }
+
+        static hresult_t step(EngineMultiRobot       & self,
+                              float64_t        const & dtDesired)
+        {
+            // Only way to handle C++ default values that are not accessible in Python
+            return self.step(dtDesired);
+        }
+
+        static hresult_t simulate(EngineMultiRobot       & self,
+                                  float64_t        const & endTime,
+                                  bp::object       const & xInit)
+        {
+            return self.simulate(endTime, convertFromPython<std::vector<vectorN_t>>(xInit));
+        }
+
+        static void writeLog(EngineMultiRobot       & self,
+                             std::string      const & filename,
+                             bool_t           const & isModeBinary)
+        {
+            if (isModeBinary)
+            {
+                self.writeLogBinary(filename);
+            }
+            else
+            {
+                self.writeLogTxt(filename);
+            }
+        }
+
+        static void registerForceImpulse(EngineMultiRobot       & self,
+                                         std::string      const & systemName,
+                                         std::string      const & frameName,
+                                         float64_t        const & t,
+                                         float64_t        const & dt,
+                                         vector6_t        const & F)
+        {
+            self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
+        }
+
+        static void registerForceProfile(EngineMultiRobot       & self,
+                                         std::string      const & systemName,
+                                         std::string      const & frameName,
+                                         bp::object       const & forcePy)
+        {
+            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            self.registerForceProfile(systemName, frameName, std::move(forceFct));
+        }
+
+        static void removeForces(Engine & self)
+        {
+            self.reset(true);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief      Getters and Setters
+        ///////////////////////////////////////////////////////////////////////////////
+
+        static bp::tuple formatLog(std::vector<std::string>             const & header,
+                                   std::vector<float64_t>                     & timestamps,
+                                   std::vector<std::vector<int32_t> >         & intData,
+                                   std::vector<std::vector<float32_t> >       & floatData,
+                                   bool_t                               const & clear_memory = true)
+        {
+            bp::dict constants;
+            bp::dict data;
+
+            // Get constants
+            int32_t const lastConstantId = std::distance(
+                header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
+            for (int32_t i = 1; i < lastConstantId; i++)
+            {
+                int32_t const delimiter = header[i].find("=");
+                constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
+            }
+
+            // Get Global.Time
+            if (!timestamps.empty())
+            {
+                Eigen::Ref<vectorN_t> timeBuffer = vectorN_t::Map(
+                    timestamps.data(), timestamps.size());
+                PyObject * valuePyTime(getNumpyReference(timeBuffer));
+                data[header[lastConstantId + 1]] = bp::object(bp::handle<>(
+                    PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
+                Py_XDECREF(valuePyTime);
+            }
+
+            // Get intergers
+            Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intMatrix;
+            if (!intData.empty())
+            {
+                intMatrix.resize(timestamps.size(), intData[0].size());
+                for (uint32_t i=0; i<intData.size(); i++)
+                {
+                    intMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
+                        intData[i].data(), intData[0].size());
+                }
+                if (clear_memory)
+                {
+                    intData.clear();
+                }
+
+                for (uint32_t i=0; i<intData[0].size(); i++)
+                {
+                    Eigen::Ref<Eigen::Matrix<int32_t, -1, 1> > intCol(intMatrix.col(i));
+                    PyObject * valuePyInt(getNumpyReference(intCol));
+                    std::string const & header_i = header[i + (lastConstantId + 1) + 1];
+                    /* One must make copies with PyArray_FROM_OF instead of using
+                       raw pointer for floatMatrix and setting NPY_ARRAY_OWNDATA
+                       because otherwise Python is not able to free the memory
+                       associated with each columns independently. Moreover, one
+                       must decrease manually the counter reference for some reasons... */
+                    data[header_i] = bp::object(bp::handle<>(
+                        PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
+                    Py_XDECREF(valuePyInt);
+                }
+            }
+
+            // Get floats
+            Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic> floatMatrix;
+            if (!floatData.empty())
+            {
+                floatMatrix.resize(timestamps.size(), floatData[0].size());
+                for (uint32_t i=0; i<floatData.size(); i++)
+                {
+                    floatMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
+                        floatData[i].data(), floatData[0].size());
+                }
+                if (clear_memory)
+                {
+                    floatData.clear();
+                }
+
+                for (uint32_t i=0; i<floatData[0].size(); i++)
+                {
+                    Eigen::Ref<Eigen::Matrix<float32_t, -1, 1> > floatCol(floatMatrix.col(i));
+                    PyObject * valuePyFloat(getNumpyReference(floatCol));
+                    std::string const & header_i =
+                        header[i + (lastConstantId + 1) + 1 + intData[0].size()];
+                    data[header_i] = bp::object(bp::handle<>(
+                        PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
+                    Py_XDECREF(valuePyFloat);
+                }
+            }
+
+            return bp::make_tuple(data, constants);
+        }
+
+        static bp::tuple getLog(EngineMultiRobot & self)
+        {
+            std::vector<std::string> header;
+            std::vector<float64_t> timestamps;
+            std::vector<std::vector<int32_t> > intData;
+            std::vector<std::vector<float32_t> > floatData;
+            self.getLogDataRaw(header, timestamps, intData, floatData);
+            return formatLog(header, timestamps, intData, floatData);
+        }
+
+        static bp::tuple parseLogBinary(std::string const & filename)
+        {
+            std::vector<std::string> header;
+            std::vector<float64_t> timestamps;
+            std::vector<std::vector<int32_t> > intData;
+            std::vector<std::vector<float32_t> > floatData;
+            hresult_t returnCode = EngineMultiRobot::parseLogBinaryRaw(
+                filename, header, timestamps, intData, floatData);
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                return formatLog(header, timestamps, intData, floatData);
+            }
+            else
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
+        }
+
+        static hresult_t setOptions(EngineMultiRobot & self,
+                                    bp::dict const   & configPy)
+        {
+            configHolder_t config = self.getOptions();
+            convertFromPython(configPy, config);
+            return self.setOptions(config);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<EngineMultiRobot,
+                       std::shared_ptr<EngineMultiRobot>,
+                       boost::noncopyable>("EngineMultiRobot")
+                .def(PyEngineMultiRobotVisitor());
         }
     };
 
@@ -1294,47 +1724,40 @@ namespace python
                 .def("initialize", &PyEngineVisitor::initialize,
                                    (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
-                                   (bp::arg("self"), "robot", "controller", "callback_handle"))
+                                   (bp::arg("self"), "robot", "controller", "callback_function"))
 
-                .def("reset", static_cast<void (Engine::*)(bool_t const &)>(&Engine::reset),
-                              (bp::arg("self"),
-                               bp::arg("remove_forces") = false))
-                .def("start", &Engine::start,
-                              (bp::arg("self"), "x_init",
-                               bp::arg("is_state_theoretical") = false,
-                               bp::arg("reset_random_generator") = false,
-                               bp::arg("remove_forces") = false))
-                .def("step", &PyEngineVisitor::step,
-                             (bp::arg("self"),
-                              bp::arg("dt_desired") = -1))
-                .def("stop", &Engine::stop, (bp::arg("self")))
-                .def("simulate", &Engine::simulate,
-                                 (bp::arg("self"), "end_time", "x_init",
-                                  bp::arg("is_state_theoretical") = false))
+                .def("start",
+                    static_cast<
+                        hresult_t (Engine::*)(vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
+                    >(&Engine::start),
+                    (bp::arg("self"), "x_init",
+                     bp::arg("is_state_theoretical") = false,
+                     bp::arg("reset_random_generator") = false,
+                     bp::arg("remove_forces") = false))
+                .def("simulate",
+                    static_cast<
+                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, bool_t const &)
+                    >(&Engine::simulate),
+                    (bp::arg("self"), "end_time", "x_init", bp::arg("is_state_theoretical") = false))
 
-                .def("get_log", &PyEngineVisitor::getLog)
-                .def("write_log", &PyEngineVisitor::writeLog,
-                                  (bp::arg("self"), "filename",
-                                   bp::arg("isModeBinary") = true))
-                .def("read_log", &PyEngineVisitor::parseLogBinary, (bp::arg("filename")))
-                .staticmethod("read_log")
-
-                .def("register_force_impulse", &Engine::registerForceImpulse,
+                .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
-                                               (bp::arg("self"), "frame_name", "force_handle"))
-                .def("remove_forces", &PyEngineVisitor::removeForces)
+                                               (bp::arg("self"), "frame_name", "force_function"))
 
-                .def("get_options", &Engine::getOptions,
-                                    bp::return_value_policy<bp::return_by_value>())
-                .def("set_options", &PyEngineVisitor::setOptions)
-
-                .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
-                                               bp::return_internal_reference<>()))
+                .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("robot", bp::make_function(&Engine::getRobot,
                                        bp::return_internal_reference<>()))
                 .add_property("controller", bp::make_function(&Engine::getController,
                                             bp::return_internal_reference<>()))
+                .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
+                                               bp::return_internal_reference<>()))
+                .add_property("system_state", bp::make_function(
+                    static_cast<
+                        systemState_t const & (Engine::*)(void) const
+                    >(&Engine::getSystemState),
+                    bp::return_internal_reference<>()))
                 ;
         }
 
@@ -1342,11 +1765,12 @@ namespace python
                                     std::shared_ptr<Robot>              const & robot,
                                     std::shared_ptr<AbstractController> const & controller)
         {
-            Engine::callbackFunctor_t callbackFct = [](float64_t const & t,
-                                                       vectorN_t const & x) -> bool_t
-                                                    {
-                                                        return true;
-                                                    };
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
             return self.initialize(robot, controller, std::move(callbackFct));
         }
 
@@ -1359,151 +1783,21 @@ namespace python
             return self.initialize(robot, controller, std::move(callbackFct));
         }
 
-        static hresult_t step(Engine          & self,
-                              float64_t const & dtDesired)
+        static void registerForceImpulse(Engine            & self,
+                                         std::string const & frameName,
+                                         float64_t   const & t,
+                                         float64_t   const & dt,
+                                         vector6_t   const & F)
         {
-            // Only way to handle C++ default values that are not accessible in Python
-            return self.step(dtDesired);
-        }
-
-        static void writeLog(Engine            & self,
-                             std::string const & filename,
-                             bool_t      const & isModeBinary)
-        {
-            if (isModeBinary)
-            {
-                self.writeLogBinary(filename);
-            }
-            else
-            {
-                self.writeLogTxt(filename);
-            }
+            self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }
 
         static void registerForceProfile(Engine            & self,
                                          std::string const & frameName,
                                          bp::object  const & forcePy)
         {
-            TimeStateFctPyWrapper<vector3_t> forceFct(forcePy);
+            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
-        }
-
-        static void removeForces(Engine & self)
-        {
-            self.reset(true);
-        }
-
-        ///////////////////////////////////////////////////////////////////////////////
-        /// \brief      Getters and Setters
-        ///////////////////////////////////////////////////////////////////////////////
-
-        static bp::tuple formatLog(std::vector<std::string>             const & header,
-                                   std::vector<float64_t>               const & timestamps,
-                                   std::vector<std::vector<int32_t> >         & intData,
-                                   std::vector<std::vector<float32_t> >       & floatData,
-                                   bool_t                               const & clear_memory = true)
-        {
-            bp::dict constants;
-            bp::dict data;
-
-            // Get constants
-            uint32_t lastConstantId = std::distance(header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
-            for (uint32_t i = 1; i < lastConstantId; i++)
-            {
-                int32_t delimiter = header[i].find("=");
-                constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
-            }
-
-            // Get Global.Time
-            Eigen::Ref<Eigen::Matrix<float64_t, Eigen::Dynamic, 1> const> timeBuffer =
-                Eigen::Matrix<float64_t, Eigen::Dynamic, 1>::Map(
-                    timestamps.data(), timestamps.size());
-            PyObject * valuePyTime(getNumpyReferenceFromEigenVector(timeBuffer));
-            data[header[lastConstantId + 1]] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
-            Py_XDECREF(valuePyTime);
-
-            // Get intergers
-            Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intDataMatrix;
-            intDataMatrix.resize(timestamps.size(), intData[0].size());
-            for (uint32_t i=0; i<intData.size(); i++)
-            {
-                intDataMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
-                    intData[i].data(), intData[0].size());
-            }
-            if (clear_memory)
-            {
-                intData.clear();
-            }
-
-            for (uint32_t i=0; i<intData[0].size(); i++)
-            {
-                PyObject * valuePyInt(getNumpyReferenceFromEigenVector(intDataMatrix.col(i)));
-                std::string const & header_i = header[i + (lastConstantId + 1) + 1];
-                // One must make copies with PyArray_FROM_OF instead of using raw pointer for floatDataMatrix
-                // and setting NPY_ARRAY_OWNDATA because otherwise Python is not able to free the memory
-                // associated with each columns independently.
-                // Moreover, one must decrease manually the counter reference for some reason...
-                data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
-                Py_XDECREF(valuePyInt);
-            }
-
-            // Get floats
-            Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic> floatDataMatrix;
-            floatDataMatrix.resize(timestamps.size(), floatData[0].size());
-            for (uint32_t i=0; i<floatData.size(); i++)
-            {
-                floatDataMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
-                    floatData[i].data(), floatData[0].size());
-            }
-            if (clear_memory)
-            {
-                floatData.clear();
-            }
-
-            for (uint32_t i=0; i<floatData[0].size(); i++)
-            {
-                PyObject * valuePyFloat(getNumpyReferenceFromEigenVector(floatDataMatrix.col(i)));
-                std::string const & header_i = header[i + (lastConstantId + 1) + 1 + intData[0].size()];
-                data[header_i] = bp::object(bp::handle<>(PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
-                Py_XDECREF(valuePyFloat);
-            }
-
-            return bp::make_tuple(data, constants);
-        }
-
-        static bp::tuple getLog(Engine & self)
-        {
-            std::vector<std::string> header;
-            std::vector<float64_t> timestamps;
-            std::vector<std::vector<int32_t> > intData;
-            std::vector<std::vector<float32_t> > floatData;
-            self.getLogDataRaw(header, timestamps, intData, floatData);
-            return formatLog(header, timestamps, intData, floatData);
-        }
-
-        static bp::tuple parseLogBinary(std::string const & filename)
-        {
-            std::vector<std::string> header;
-            std::vector<float64_t> timestamps;
-            std::vector<std::vector<int32_t> > intData;
-            std::vector<std::vector<float32_t> > floatData;
-            hresult_t returnCode = Engine::parseLogBinaryRaw(filename, header, timestamps, intData, floatData);
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                return formatLog(header, timestamps, intData, floatData);
-            }
-            else
-            {
-                return bp::make_tuple(bp::dict(), bp::dict());
-            }
-        }
-
-        static hresult_t setOptions(Engine         & self,
-                                    bp::dict const & configPy)
-        {
-            configHolder_t config = self.getOptions();
-            convertFromPython(configPy, config);
-            return self.setOptions(config);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1511,11 +1805,10 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<Engine,
+            bp::class_<Engine, bp::bases<EngineMultiRobot>,
                        std::shared_ptr<Engine>,
                        boost::noncopyable>("Engine")
                 .def(PyEngineVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<Engine> >();
         }
     };
 }  // End of namespace python.

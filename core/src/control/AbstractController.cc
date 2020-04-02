@@ -130,7 +130,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldNames,
+    hresult_t AbstractController::registerVariable(std::vector<std::string> const & fieldnames,
                                                    Eigen::Ref<vectorN_t>            values)
     {
         // Delayed variable registration (Taken into account by 'configureTelemetry')
@@ -141,8 +141,8 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::vector<std::string>::const_iterator fieldIt = fieldNames.begin();
-        for (uint32_t i=0; fieldIt != fieldNames.end(); ++fieldIt, ++i)
+        std::vector<std::string>::const_iterator fieldIt = fieldnames.begin();
+        for (uint32_t i=0; fieldIt != fieldnames.end(); ++fieldIt, ++i)
         {
             // Check in local cache before.
             auto variableIt = std::find_if(registeredVariables_.begin(),

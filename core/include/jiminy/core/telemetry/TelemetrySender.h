@@ -42,8 +42,8 @@ namespace jiminy
         void updateValue(std::string const & fieldNameIn,
                          T           const & valueIn);
 
-        void updateValue(std::vector<std::string>    const & fieldNames,
-                         Eigen::Ref<vectorN_t const>         values);
+        void updateValue(std::vector<std::string>    const & fieldnames,
+                         Eigen::Ref<vectorN_t const> const & values);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief      Register a variable into the telemetry system..
@@ -57,7 +57,7 @@ namespace jiminy
         hresult_t registerVariable(std::string const & fieldNameIn,
                                    T           const & initialValue);
 
-        hresult_t registerVariable(std::vector<std::string> const & fieldNames,
+        hresult_t registerVariable(std::vector<std::string> const & fieldnames,
                                    vectorN_t                const & initialValues);
 
         ////////////////////////////////////////////////////////////////////////

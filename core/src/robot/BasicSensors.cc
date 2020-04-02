@@ -16,7 +16,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<ImuSensor>::type_("ImuSensor");
     template<>
-    bool_t const AbstractSensorTpl<ImuSensor>::areFieldNamesGrouped_(false);
+    bool_t const AbstractSensorTpl<ImuSensor>::areFieldnamesGrouped_(false);
     template<>
     std::vector<std::string> const AbstractSensorTpl<ImuSensor>::fieldNames_(
         {"Quatx", "Quaty", "Quatz", "Quatw", "Gyrox", "Gyroy", "Gyroz", "Accelx", "Accely", "Accelz"});
@@ -85,11 +85,11 @@ namespace jiminy
         return frameName_;
     }
 
-    hresult_t ImuSensor::set(float64_t const & t,
-                             vectorN_t const & q,
-                             vectorN_t const & v,
-                             vectorN_t const & a,
-                             vectorN_t const & uMotor)
+    hresult_t ImuSensor::set(float64_t                   const & t,
+                             Eigen::Ref<vectorN_t const> const & q,
+                             Eigen::Ref<vectorN_t const> const & v,
+                             Eigen::Ref<vectorN_t const> const & a,
+                             vectorN_t                   const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -113,7 +113,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<ForceSensor>::type_("ForceSensor");
     template<>
-    bool_t const AbstractSensorTpl<ForceSensor>::areFieldNamesGrouped_(false);
+    bool_t const AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_(false);
     template<>
     std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
 
@@ -181,11 +181,11 @@ namespace jiminy
         return frameName_;
     }
 
-    hresult_t ForceSensor::set(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & uMotor)
+    hresult_t ForceSensor::set(float64_t                   const & t,
+                               Eigen::Ref<vectorN_t const> const & q,
+                               Eigen::Ref<vectorN_t const> const & v,
+                               Eigen::Ref<vectorN_t const> const & a,
+                               vectorN_t                   const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -205,7 +205,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<EncoderSensor>::type_("EncoderSensor");
     template<>
-    bool_t const AbstractSensorTpl<EncoderSensor>::areFieldNamesGrouped_(true);
+    bool_t const AbstractSensorTpl<EncoderSensor>::areFieldnamesGrouped_(true);
     template<>
     std::vector<std::string> const AbstractSensorTpl<EncoderSensor>::fieldNames_({"Q", "V"});
 
@@ -276,11 +276,11 @@ namespace jiminy
         return jointName_;
     }
 
-    hresult_t EncoderSensor::set(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor)
+    hresult_t EncoderSensor::set(float64_t                   const & t,
+                                 Eigen::Ref<vectorN_t const> const & q,
+                                 Eigen::Ref<vectorN_t const> const & v,
+                                 Eigen::Ref<vectorN_t const> const & a,
+                                 vectorN_t                   const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -299,7 +299,7 @@ namespace jiminy
     template<>
     std::string const AbstractSensorTpl<TorqueSensor>::type_("TorqueSensor");
     template<>
-    bool_t const AbstractSensorTpl<TorqueSensor>::areFieldNamesGrouped_(true);
+    bool_t const AbstractSensorTpl<TorqueSensor>::areFieldnamesGrouped_(true);
     template<>
     std::vector<std::string> const AbstractSensorTpl<TorqueSensor>::fieldNames_({"U"});
 
@@ -370,11 +370,11 @@ namespace jiminy
         return motorName_;
     }
 
-    hresult_t TorqueSensor::set(float64_t const & t,
-                                vectorN_t const & q,
-                                vectorN_t const & v,
-                                vectorN_t const & a,
-                                vectorN_t const & uMotor)
+    hresult_t TorqueSensor::set(float64_t                   const & t,
+                                Eigen::Ref<vectorN_t const> const & q,
+                                Eigen::Ref<vectorN_t const> const & v,
+                                Eigen::Ref<vectorN_t const> const & a,
+                                vectorN_t                   const & uMotor)
     {
         if (!isInitialized_)
         {

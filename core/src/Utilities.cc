@@ -594,8 +594,40 @@ namespace jiminy
         return fieldnames;
     }
 
-    std::string removeFieldnameSuffix(std::string         fieldname,
-                                      std::string const & suffix)
+    std::string addCircumfix(std::string         fieldname,
+                             std::string const & prefix,
+                             std::string const & suffix,
+                             std::string const & delimiter)
+    {
+        if (!prefix.empty())
+        {
+            fieldname = prefix + delimiter + fieldname;
+        }
+        if (!suffix.empty())
+        {
+            fieldname = fieldname + delimiter + suffix;
+        }
+        return fieldname;
+    }
+
+    std::vector<std::string> addCircumfix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & prefix,
+                                          std::string              const & suffix,
+                                          std::string              const & delimiter)
+    {
+        std::vector<std::string> fieldnames;
+        fieldnames.reserve(fieldnamesIn.size());
+        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+                       std::back_inserter(fieldnames),
+                       [&prefix, &suffix, &delimiter](std::string const & name) -> std::string
+                       {
+                           return addCircumfix(name, prefix, suffix, delimiter);
+                       });
+        return fieldnames;
+    }
+
+    std::string removeSuffix(std::string         fieldname,
+                             std::string const & suffix)
     {
         if (fieldname.size() > suffix.size())
         {
@@ -607,35 +639,82 @@ namespace jiminy
         return fieldname;
     }
 
-    std::vector<std::string> removeFieldnamesSuffix(std::vector<std::string>         fieldnames,
-                                                    std::string              const & suffix)
+    std::vector<std::string> removeSuffix(std::vector<std::string> const & fieldnamesIn,
+                                          std::string              const & suffix)
     {
-        std::transform(fieldnames.begin(), fieldnames.end(), fieldnames.begin(),
-        [&suffix](std::string const & name) -> std::string
-        {
-            return removeFieldnameSuffix(name, suffix);
-        });
+        std::vector<std::string> fieldnames;
+        fieldnames.reserve(fieldnamesIn.size());
+        std::transform(fieldnamesIn.begin(), fieldnamesIn.end(),
+                       std::back_inserter(fieldnames),
+                       [&suffix](std::string const & name) -> std::string
+                       {
+                           return removeSuffix(name, suffix);
+                       });
         return fieldnames;
+    }
+
+    Eigen::Ref<vectorN_t const> getLogFieldValue(std::string              const & fieldName,
+                                                 std::vector<std::string> const & header,
+                                                 matrixN_t                const & logData)
+    {
+        static vectorN_t fieldDataEmpty;
+
+        auto iterator = std::find(header.begin(), header.end(), fieldName);
+        if (iterator == header.end())
+        {
+            std::cout << "Error - Utilities::getLogFieldValue - Field does not exist." << std::endl;
+            return fieldDataEmpty;
+        }
+
+        auto start = std::find(header.begin(), header.end(), "StartColumns");
+        return logData.col(std::distance(start, iterator) - 1);
     }
 
     // ********************** Pinocchio utilities **********************
 
-    void computePositionDerivative(pinocchio::Model const & model,
-                                   Eigen::Ref<vectorN_t const> q,
-                                   Eigen::Ref<vectorN_t const> v,
-                                   Eigen::Ref<vectorN_t> qDot,
-                                   float64_t dt)
+    template<typename T>
+    hresult_t computePositionDerivativeImpl(pinocchio::Model            const & model,
+                                            Eigen::Ref<vectorN_t const> const & q,
+                                            Eigen::Ref<vectorN_t const> const & v,
+                                            T                                 & qDot,
+                                            float64_t                   const & dt)
     {
         /* "Hack" to compute the configuration vector derivative,
            including the quaternions on SO3 automatically.
            Note that the time difference must not be too small
            to avoid failure. */
 
-        dt = std::max(STEPPER_MIN_TIMESTEP, dt);
-        vectorN_t qNext(q.size());
-        pinocchio::integrate(model, q, v*dt, qNext);
+        if (dt < STEPPER_MIN_TIMESTEP)
+        {
+            std::cout << "Error - Utilities::computePositionDerivative - dt must be larger than STEPPER_MIN_TIMESTEP." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        auto & qNext = qDot; // Use qDot as buffer to avoid allocating memory for a temporary
+        pinocchio::integrate(model, q, v*dt, qDot);
         qDot = (qNext - q) / dt;
+
+        return hresult_t::SUCCESS;
     }
+
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        Eigen::Ref<vectorN_t>             & qDot,
+                                        float64_t                   const & dt)
+    {
+        return computePositionDerivativeImpl(model, q, v, qDot, dt);
+    }
+
+    hresult_t computePositionDerivative(pinocchio::Model            const & model,
+                                        Eigen::Ref<vectorN_t const> const & q,
+                                        Eigen::Ref<vectorN_t const> const & v,
+                                        vectorN_t                         & qDot,
+                                        float64_t                   const & dt)
+    {
+        return computePositionDerivativeImpl(model, q, v, qDot, dt);
+    }
+
 
     hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
                                          int32_t          const & idIn,
@@ -1218,20 +1297,21 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    vector6_t computeFrameForceOnParentJoint(pinocchio::Model const & model,
-                                             pinocchio::Data  const & data,
-                                             int32_t          const & frameId,
-                                             vector3_t        const & fextInWorld)
+    pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
+                                                    pinocchio::Data  const & data,
+                                                    int32_t          const & frameId,
+                                                    pinocchio::Force const & fextInWorld)
     {
+        pinocchio::Force fextLocal;
+
         // Get various transformations
         matrix3_t const & tformFrameRot = data.oMf[frameId].rotation();
         matrix3_t const & tformFrameJointRot = model.frames[frameId].placement.rotation();
         vector3_t const & posFrameJoint = model.frames[frameId].placement.translation();
 
         // Compute the forces at the origin of the parent joint frame
-        vector6_t fextLocal;
-        fextLocal.head<3>() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld;
-        fextLocal.tail<3>() = posFrameJoint.cross(fextLocal.head<3>());
+        fextLocal.linear() = tformFrameJointRot * tformFrameRot.transpose() * fextInWorld.linear();
+        fextLocal.angular() = posFrameJoint.cross(fextLocal.linear()) + fextInWorld.angular();
 
         return fextLocal;
     }
@@ -1299,7 +1379,7 @@ namespace jiminy
         return out;
     }
 
-    vectorN_t clamp(Eigen::Ref<vectorN_t const>         data,
+    vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr,
                     float64_t                   const & maxThr)
     {
@@ -1321,6 +1401,34 @@ namespace jiminy
         else
         {
             return 0.0;
+        }
+    }
+    vectorN_t cat(std::vector<vectorN_t> const & xList)
+    {
+        vectorN_t xCat;
+
+        // Initialize the vector the cumilative size
+        uint32_t xCumSize = 0U;
+        for (vectorN_t const & x : xList)
+        {
+            xCumSize += x.size();
+        }
+        xCat.resize(xCumSize);
+
+        catInPlace(xList, xCat);
+
+        return xCat;
+    }
+
+    void catInPlace(std::vector<vectorN_t> const & xList,
+                    vectorN_t                    & xCat)
+    {
+        uint32_t xIdx = 0U;
+        for (vectorN_t const & x : xList)
+        {
+            uint32_t const xSize = x.size();
+            xCat.segment(xIdx, xSize) = x;
+            xIdx += xSize;
         }
     }
 }

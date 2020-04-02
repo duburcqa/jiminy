@@ -25,7 +25,7 @@ namespace jiminy
     sensorTelemetryOptions_(),
     motorsNames_(),
     sensorsNames_(),
-    motorTorqueFieldNames_(),
+    motorTorqueFieldnames_(),
     mutexLocal_(),
     motorsSharedHolder_(nullptr),
     sensorsSharedHolder_()
@@ -525,11 +525,7 @@ namespace jiminy
                            });
 
             // Generate the fieldnames associated with the motor torques
-            motorTorqueFieldNames_.clear();
-            for (std::string const & jointName : removeFieldnamesSuffix(motorsNames_, "Joint"))
-            {
-                motorTorqueFieldNames_.emplace_back(JOINT_PREFIX_BASE + "Torque" + jointName);
-            }
+            motorTorqueFieldnames_ = addCircumfix(motorsNames_, JOINT_PREFIX_BASE + "Torque");
         }
 
         return returnCode;
@@ -597,12 +593,12 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        AbstractMotorBase const * motorPtr;
-        returnCode = const_cast<Robot const *>(this)->getMotor(motorName, motorPtr);
+        AbstractMotorBase const * motorConst;
+        returnCode = const_cast<Robot const *>(this)->getMotor(motorName, motorConst);
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motor = std::move(const_cast<AbstractMotorBase *>(motorPtr)->shared_from_this());
+            motor = std::move(const_cast<AbstractMotorBase *>(motorConst)->shared_from_this());
         }
 
         return returnCode;
@@ -1135,11 +1131,11 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsTorques(float64_t const & t,
-                                     vectorN_t const & q,
-                                     vectorN_t const & v,
-                                     vectorN_t const & a,
-                                     vectorN_t const & u)
+    void Robot::computeMotorsTorques(float64_t            const  & t,
+                                     Eigen::Ref<vectorN_t const> const & q,
+                                     Eigen::Ref<vectorN_t const> const & v,
+                                     vectorN_t                   const & a,
+                                     vectorN_t                   const & u)
     {
         (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
     }
@@ -1173,11 +1169,11 @@ namespace jiminy
         return motorTorqueEmpty;
     }
 
-    void Robot::setSensorsData(float64_t const & t,
-                               vectorN_t const & q,
-                               vectorN_t const & v,
-                               vectorN_t const & a,
-                               vectorN_t const & u)
+    void Robot::setSensorsData(float64_t            const  & t,
+                               Eigen::Ref<vectorN_t const> const & q,
+                               Eigen::Ref<vectorN_t const> const & v,
+                               Eigen::Ref<vectorN_t const> const & a,
+                               vectorN_t                   const & u)
     {
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
@@ -1357,8 +1353,8 @@ namespace jiminy
         return motorInertia;
     }
 
-    std::vector<std::string> const & Robot::getMotorTorqueFieldNames(void) const
+    std::vector<std::string> const & Robot::getMotorTorqueFieldnames(void) const
     {
-        return motorTorqueFieldNames_;
+        return motorTorqueFieldnames_;
     }
 }

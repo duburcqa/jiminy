@@ -38,9 +38,9 @@ namespace jiminy
     positionLimitMin_(),
     positionLimitMax_(),
     velocityLimit_(),
-    positionFieldNames_(),
-    velocityFieldNames_(),
-    accelerationFieldNames_(),
+    positionFieldnames_(),
+    velocityFieldnames_(),
+    accelerationFieldnames_(),
     pncModelFlexibleOrig_(),
     nq_(0),
     nv_(0),
@@ -228,7 +228,7 @@ namespace jiminy
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     std::string newName =
-                        removeFieldnameSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
+                        removeSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
                     flexibleJointsNames_.emplace_back(newName);
                     insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName); // Ignore return code, as check has already been done.
                 }
@@ -337,25 +337,24 @@ namespace jiminy
 
             /* Generate the fieldnames associated with the configuration,
                velocity, and acceleration vectors. */
-            positionFieldNames_.clear();
-            positionFieldNames_.resize(nq_);
-            velocityFieldNames_.clear();
-            velocityFieldNames_.resize(nv_);
-            accelerationFieldNames_.clear();
-            accelerationFieldNames_.resize(nv_);
+            positionFieldnames_.clear();
+            positionFieldnames_.resize(nq_);
+            velocityFieldnames_.clear();
+            velocityFieldnames_.resize(nv_);
+            accelerationFieldnames_.clear();
+            accelerationFieldnames_.resize(nv_);
             std::vector<std::string> const & jointNames = pncModel_.names;
-            std::vector<std::string> jointShortNames =
-                removeFieldnamesSuffix(jointNames, "Joint");
+            std::vector<std::string> jointShortNames = removeSuffix(jointNames, "Joint");
             for (uint32_t i=0; i<jointNames.size(); ++i)
             {
                 std::string const & jointName = jointNames[i];
                 int32_t const jointIdx = pncModel_.getJointId(jointName);
 
-                int32_t idx_q = pncModel_.joints[jointIdx].idx_q();
+                int32_t const idx_q = pncModel_.joints[jointIdx].idx_q();
 
                 if (idx_q >= 0) // Otherwise the joint is not part of the vectorial representation
                 {
-                    int32_t idx_v = pncModel_.joints[jointIdx].idx_v();
+                    int32_t const idx_v = pncModel_.joints[jointIdx].idx_v();
 
                     joint_t jointType;
                     std::string jointPrefix;
@@ -396,7 +395,7 @@ namespace jiminy
                     {
                         std::copy(jointPositionFieldnames.begin(),
                                   jointPositionFieldnames.end(),
-                                  positionFieldNames_.begin() + idx_q);
+                                  positionFieldnames_.begin() + idx_q);
                     }
 
                     std::vector<std::string> jointTypeVelocitySuffixes;
@@ -421,10 +420,10 @@ namespace jiminy
                     {
                         std::copy(jointVelocityFieldnames.begin(),
                                   jointVelocityFieldnames.end(),
-                                  velocityFieldNames_.begin() + idx_v);
+                                  velocityFieldnames_.begin() + idx_v);
                         std::copy(jointAccelerationFieldnames.begin(),
                                   jointAccelerationFieldnames.end(),
-                                  accelerationFieldNames_.begin() + idx_v);
+                                  accelerationFieldnames_.begin() + idx_v);
                     }
                 }
             }
@@ -435,9 +434,10 @@ namespace jiminy
             // Get the joint position limits from the URDF or the user options
             if (mdlOptions_->joints.positionLimitFromUrdf)
             {
-                positionLimitMin_.resize(rigidJointsPositionIdx_.size());
-                positionLimitMax_.resize(rigidJointsPositionIdx_.size());
-                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); ++i)
+                uint8_t const numRigidJoints = rigidJointsPositionIdx_.size();
+                positionLimitMin_.resize(numRigidJoints);
+                positionLimitMax_.resize(numRigidJoints);
+                for (uint32_t i=0; i < numRigidJoints; ++i)
                 {
                     positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
                     positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
@@ -657,10 +657,10 @@ namespace jiminy
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxFlex < pncModelFlexibleOrig_.njoints; idxRigid++, idxFlex++)
+        for (; idxRigid < pncModelRigidOrig_.njoints; idxFlex++)
         {
             std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
-            std::string const & jointFlexName = pncModelRigidOrig_.names[idxFlex];
+            std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
                 auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
@@ -672,10 +672,7 @@ namespace jiminy
                     xFlex.segment(nqFlex + jointFlex.idx_v(), jointFlex.nv()) =
                         xRigid.segment(nqRigid + jointRigid.idx_v(), jointRigid.nv());
                 }
-            }
-            else
-            {
-                idxFlex++;
+                idxRigid++;
             }
         }
 
@@ -740,9 +737,9 @@ namespace jiminy
         return contactFramesIdx_;
     }
 
-    std::vector<std::string> const & Model::getPositionFieldNames(void) const
+    std::vector<std::string> const & Model::getPositionFieldnames(void) const
     {
-        return positionFieldNames_;
+        return positionFieldnames_;
     }
 
     vectorN_t const & Model::getPositionLimitMin(void) const
@@ -755,9 +752,9 @@ namespace jiminy
         return positionLimitMax_;
     }
 
-    std::vector<std::string> const & Model::getVelocityFieldNames(void) const
+    std::vector<std::string> const & Model::getVelocityFieldnames(void) const
     {
-        return velocityFieldNames_;
+        return velocityFieldnames_;
     }
 
     vectorN_t const & Model::getVelocityLimit(void) const
@@ -765,9 +762,9 @@ namespace jiminy
         return velocityLimit_;
     }
 
-    std::vector<std::string> const & Model::getAccelerationFieldNames(void) const
+    std::vector<std::string> const & Model::getAccelerationFieldnames(void) const
     {
-        return accelerationFieldNames_;
+        return accelerationFieldnames_;
     }
 
     std::vector<std::string> const & Model::getRigidJointsNames(void) const
@@ -816,17 +813,17 @@ namespace jiminy
         }
     }
 
-    uint32_t const & Model::nq(void) const
+    int32_t const & Model::nq(void) const
     {
         return nq_;
     }
 
-    uint32_t const & Model::nv(void) const
+    int32_t const & Model::nv(void) const
     {
         return nv_;
     }
 
-    uint32_t const & Model::nx(void) const
+    int32_t const & Model::nx(void) const
     {
         return nx_;
     }

@@ -230,11 +230,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t set(float64_t const & t,
-                              vectorN_t const & q,
-                              vectorN_t const & v,
-                              vectorN_t const & a,
-                              vectorN_t const & uMotor) = 0;
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -256,11 +256,11 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setAll(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor) = 0;
+        virtual hresult_t setAll(float64_t                   const & t,
+                                 Eigen::Ref<vectorN_t const> const & q,
+                                 Eigen::Ref<vectorN_t const> const & v,
+                                 Eigen::Ref<vectorN_t const> const & a,
+                                 vectorN_t                   const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -364,7 +364,7 @@ namespace jiminy
         /// \brief      Get the name of each element of the data measured by the sensor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual std::vector<std::string> const & getFieldNames(void) const = 0;
+        virtual std::vector<std::string> const & getFieldnames(void) const = 0;
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -455,16 +455,16 @@ namespace jiminy
         virtual hresult_t setOptionsAll(configHolder_t const & sensorOptions) override final;
         virtual int32_t const & getIdx(void) const override final;
         virtual std::string const & getType(void) const override final;
-        virtual std::vector<std::string> const & getFieldNames(void) const final;
+        virtual std::vector<std::string> const & getFieldnames(void) const final;
         virtual uint32_t getSize(void) const override final;
 
         virtual vectorN_t const * get(void) override final;
         virtual matrixN_t getAll(void) override final;
-        virtual hresult_t setAll(float64_t const & t,
-                                 vectorN_t const & q,
-                                 vectorN_t const & v,
-                                 vectorN_t const & a,
-                                 vectorN_t const & uMotor) override final;
+        virtual hresult_t setAll(float64_t                   const & t,
+                                 Eigen::Ref<vectorN_t const> const & q,
+                                 Eigen::Ref<vectorN_t const> const & v,
+                                 Eigen::Ref<vectorN_t const> const & a,
+                                 vectorN_t                   const & uMotor) override final;
 
     protected:
         using AbstractSensorBase::data;
@@ -485,7 +485,7 @@ namespace jiminy
            to complete separated robots. */
         static std::string const type_;
         static std::vector<std::string> const fieldNames_;
-        static bool_t const areFieldNamesGrouped_;
+        static bool_t const areFieldnamesGrouped_;
 
     protected:
         int32_t sensorId_;

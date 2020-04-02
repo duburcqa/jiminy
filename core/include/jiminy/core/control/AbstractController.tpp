@@ -20,7 +20,7 @@ namespace jiminy
         return {var};
     }
 
-    inline std::string to_string(Eigen::Ref<matrixN_t const> var)
+    inline std::string to_string(Eigen::Ref<matrixN_t const> const & var)
     {
         Eigen::IOFormat HeavyFmt(Eigen::FullPrecision, 0, ", ", ";\n", "[", "]", "[", "]");
         std::stringstream matrixStream;
@@ -32,7 +32,7 @@ namespace jiminy
     ///
     /// \brief      Register a constant to the telemetry.
     ///
-    /// \param[in]  fieldNames      Name of the variable.
+    /// \param[in]  fieldnames      Name of the variable.
     /// \param[in]  values          Variable to add to the telemetry
     ///
     /// \return     Return code to determine whether the execution of the method was successful.

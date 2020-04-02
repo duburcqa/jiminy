@@ -43,7 +43,7 @@ namespace jiminy
                         objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
                     }
                     telemetrySender_.configureObject(std::move(telemetryData), objectName);
-                    returnCode = telemetrySender_.registerVariable(getFieldNames(), data_);
+                    returnCode = telemetrySender_.registerVariable(getFieldnames(), data_);
                     if (returnCode == hresult_t::SUCCESS)
                     {
                         isTelemetryConfigured_ = true;
@@ -65,7 +65,7 @@ namespace jiminy
         if (isTelemetryConfigured_)
         {
             updateDataBuffer(); // Force update the internal measurement buffer if necessary
-            telemetrySender_.updateValue(getFieldNames(), data_);
+            telemetrySender_.updateValue(getFieldnames(), data_);
         }
     }
 
