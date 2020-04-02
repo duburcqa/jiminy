@@ -87,13 +87,13 @@ namespace jiminy
         /// \param[in] v    Joint velocity.
         /// \param[out] jacobianOut Output jacobian matrix.
         /// \param[out] driftOut    Output drift vector.
-        void computeConstraints(vectorN_t const & q,
-                                vectorN_t const & v,
+        void computeConstraints(Eigen::Ref<vectorN_t const> const & q,
+                                Eigen::Ref<vectorN_t const> const & v,
                                 matrixN_t & jacobianOut,
                                 vectorN_t & driftOut);
 
         /// \brief Returns true if at least one constraint is active on the robot.
-        inline bool hasConstraint()
+        inline bool_t hasConstraint()
         {
             return !constraintsHolder_.empty();
         }
@@ -173,7 +173,7 @@ namespace jiminy
     private:
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
-        std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
+        std::map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
     };
 }
 

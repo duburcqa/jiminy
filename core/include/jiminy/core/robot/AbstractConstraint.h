@@ -21,10 +21,13 @@
 
 namespace jiminy
 {
+    class Robot;
     class Model;
 
     class AbstractConstraint: public std::enable_shared_from_this<AbstractConstraint>
     {
+        // See AbstractSensor for comment on this.
+        friend Robot;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,24 +40,7 @@ namespace jiminy
         /// \brief      Constructor
         ///////////////////////////////////////////////////////////////////////////////////////////////
         AbstractConstraint();
-        virtual ~AbstractConstraint(void);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Initialize the constraint on the given model.
-        ///
-        /// \note       This function is called internally when adding a constraint to a robot:
-        ///             there is no need to call it manually.
-        /// \param[in] model    Model on which to apply the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(Model *model);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void);
+        virtual ~AbstractConstraint(void) = default;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the jacobian of the constraint.
@@ -66,7 +52,7 @@ namespace jiminy
         /// \param[in] q    Current joint position.
         /// \return         Jacobian of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t getJacobian(vectorN_t const & q) const;
+        virtual matrixN_t getJacobian(vectorN_t const & q);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the drift of the constraint.
@@ -79,11 +65,34 @@ namespace jiminy
         /// \return         Drift of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual vectorN_t getDrift(vectorN_t const & q,
-                                   vectorN_t const & v) const;
+                                   vectorN_t const & v);
 
     protected:
-        Model * model_; ///< Model on which the constraint operates.
-        bool isInitialized_; ///< Flag to indicate if the constraint has been initialized.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Link the constraint on the given model, and initialize it.
+        ///
+        /// \param[in] model    Model on which to apply the constraint.
+        /// \return     Error code: attach may fail, including if the constraint is already attached.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t attach(Model const * model);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Detach the constraint from its model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void detach();
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Refresh the proxies.
+        ///
+        /// \remark   This method is not intended to be called manually. The Robot to which the
+        ///           motor is added is taking care of it when its own `refresh` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t refreshProxies(void);
+
+        Model const * model_; ///< Model on which the constraint operates.
+        bool isAttached_; ///< Flag to indicate if the constraint has been attached to a model.
+        matrixN_t jacobian_; ///< Jacobian of the constraint.
+        vectorN_t drift_; ///< Drift of the constraint.
     };
 }
 

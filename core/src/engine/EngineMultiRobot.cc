@@ -733,7 +733,7 @@ namespace jiminy
                 }
 
                 // Compute dynamics
-                a = computeAcceleration(system.robot, q, v, u, fext);
+                a = computeAcceleration(system, q, v, u, fext);
 
                 // Project the derivative in state space
                 computePositionDerivative(system.robot->pncModel_, q, v, qDot, dt);
@@ -2081,7 +2081,7 @@ namespace jiminy
             }
 
             // Compute the dynamics
-            a = computeAcceleration(systemIt->robot, q, v, u, fext);
+            a = computeAcceleration(*systemIt, q, v, u, fext);
 
             // Project the derivative in state space (only if moving forward in time)
             float64_t const dt = t - stepperState_.tPrev;
@@ -2282,27 +2282,27 @@ namespace jiminy
         return returnCode;
     }
 
-    vectorN_t EngineMultiRobot::computeAcceleration(std::shared_ptr<Robot> robot,
-                                                    vectorN_t const & q,
-                                                    vectorN_t const & v,
+    vectorN_t EngineMultiRobot::computeAcceleration(systemDataHolder_t & system,
+                                                    Eigen::Ref<vectorN_t const> const & q,
+                                                    Eigen::Ref<vectorN_t const> const & v,
                                                     vectorN_t const & u,
                                                     forceVector_t const & fext)
     {
-        if (robot->hasConstraint())
+        if (system.robot->hasConstraint())
         {
             // Handle kinematic constraints.
             matrixN_t J;
             vectorN_t drift;
-            robot->computeConstraints(q, v, J, drift);
+            system.robot->computeConstraints(q, v, J, drift);
 
             // Project external forces from cartesian space to joint space.
             vectorN_t uTotal = u;
-            matrixN_t jointJacobian = matrixN_t::Zero(6, robot->pncModel_.nv);
-            for (int i=0; i<robot->pncModel_.njoints; i++)
+            matrixN_t jointJacobian = matrixN_t::Zero(6, system.robot->pncModel_.nv);
+            for (int i = 0; i < system.robot->pncModel_.njoints; i++)
             {
                 jointJacobian.setZero();
-                pinocchio::getJointJacobian(robot->pncModel_,
-                                            robot->pncData_,
+                pinocchio::getJointJacobian(system.robot->pncModel_,
+                                            system.robot->pncData_,
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
@@ -2313,8 +2313,8 @@ namespace jiminy
 
             // Call forward dynamics.
             float64_t damping = 1e-12;
-            return pinocchio::forwardDynamics(robot->pncModel_,
-                                              robot->pncData_,
+            return pinocchio::forwardDynamics(system.robot->pncModel_,
+                                              system.robot->pncData_,
                                               q,
                                               v,
                                               uTotal,
@@ -2325,7 +2325,12 @@ namespace jiminy
         else
         {
             // No kinematic constraint: run aba algorithm.
-            return EngineMultiRobot::aba(robot->pncModel_, robot->pncData_, q, v, u, fext);
+            return EngineMultiRobot::aba(system.robot->pncModel_,
+                                         system.robot->pncData_,
+                                         q,
+                                         v,
+                                         u,
+                                         fext);
         }
     }
 

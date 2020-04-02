@@ -500,7 +500,7 @@ namespace jiminy
         }
         else
         {
-            returnCode = constraint->initialize(this);
+            returnCode = constraint->attach(this);
             if (returnCode != hresult_t::SUCCESS)
             {
                 std::cout << "Error - Robot::addConstraint - Fail to initialize constraint. " << std::endl;
@@ -525,6 +525,7 @@ namespace jiminy
         }
         else
         {
+            constraintsHolder_.at(constraintName)->detach();
             constraintsHolder_.erase(constraintName);
         }
         return returnCode;
@@ -1256,8 +1257,8 @@ namespace jiminy
         }
     }
 
-    void Robot::computeConstraints(vectorN_t const & q,
-                                   vectorN_t const & v,
+    void Robot::computeConstraints(Eigen::Ref<vectorN_t const> const & q,
+                                   Eigen::Ref<vectorN_t const> const & v,
                                    matrixN_t & jacobianOut,
                                    vectorN_t & driftOut)
     {

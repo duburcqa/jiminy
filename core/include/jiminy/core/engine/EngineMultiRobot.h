@@ -674,15 +674,15 @@ namespace jiminy
         ///          with kinematic constraints (using Lagrange multiplier for computing the forces)
         ///          or unconstrainted (aba).
         ///
-        /// \param[in] robot Robot for which to compute the dynamics.
+        /// \param[in] system System for which to compute the dynamics.
         /// \param[in] q Joint position.
         /// \param[in] v Joint velocity.
         /// \param[in] u Joint torque.
         /// \param[in] fext External forces applied on the system.
         /// \return System acceleration.
-        vectorN_t computeAcceleration(std::shared_ptr<Robot> robot,
-                                      vectorN_t const & q,
-                                      vectorN_t const & v,
+        vectorN_t computeAcceleration(systemDataHolder_t & system,
+                                      Eigen::Ref<vectorN_t const> const & q,
+                                      Eigen::Ref<vectorN_t const> const & v,
                                       vectorN_t const & u,
                                       forceVector_t const & fext);
 

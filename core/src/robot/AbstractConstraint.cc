@@ -8,35 +8,39 @@ namespace jiminy
 {
     AbstractConstraint::AbstractConstraint() :
     model_(nullptr),
-    isInitialized_(false)
+    isAttached_(false),
+    jacobian_(matrixN_t::Zero(0,0)),
+    drift_(vectorN_t::Zero(0))
     {
         // Empty on purpose
     }
 
-    AbstractConstraint::~AbstractConstraint()
+    matrixN_t AbstractConstraint::getJacobian(vectorN_t const & q)
     {
-        // Empty on purpose
+        return jacobian_;
     }
 
-    hresult_t AbstractConstraint::initialize(Model *model)
+    vectorN_t AbstractConstraint::getDrift(vectorN_t const & q, vectorN_t const & v)
+    {
+        return drift_;
+    }
+
+
+    hresult_t AbstractConstraint::attach(Model const * model)
     {
         model_ = model;
-        isInitialized_ = true;
+        isAttached_ = true;
         return hresult_t::SUCCESS;
+    }
+
+    void AbstractConstraint::detach()
+    {
+        model_ = nullptr;
+        isAttached_ = false;
     }
 
     hresult_t AbstractConstraint::refreshProxies()
     {
         return hresult_t::SUCCESS;
-    }
-
-    matrixN_t AbstractConstraint::getJacobian(vectorN_t const & q) const
-    {
-        return matrixN_t::Zero(0, model_->pncModel_.nv);
-    }
-
-    vectorN_t AbstractConstraint::getDrift(vectorN_t const & q, vectorN_t const & v) const
-    {
-        return vectorN_t::Zero(0);
     }
 }

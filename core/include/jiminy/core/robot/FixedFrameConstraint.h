@@ -37,25 +37,6 @@ namespace jiminy
         FixedFrameConstraint(std::string const & frameName);
         virtual ~FixedFrameConstraint(void);
 
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Initialize the constraint on the given model.
-        ///
-        /// \note       This function is called internally when adding a constraint to a robot:
-        ///             there is no need to call it manually
-        /// \param[in] model    Model on which to apply the constraint.
-        /// \return     ERROR_BAD_INPUT if frameName_  does not exist in the model, SUCCESS otherwise.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t initialize(Model *model) override;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void) override;
-
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the jacobian of the constraint.
         ///
@@ -66,7 +47,7 @@ namespace jiminy
         /// \param[in] q    Current joint position.
         /// \return         Jacobian of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t getJacobian(vectorN_t const & q) const override;
+        virtual matrixN_t getJacobian(vectorN_t const & q) override final;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the drift of the constraint.
@@ -79,7 +60,26 @@ namespace jiminy
         /// \return         Drift of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual vectorN_t getDrift(vectorN_t const & q,
-                                   vectorN_t const & v) const;
+                                   vectorN_t const & v) override final;
+
+    protected:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Link the constraint on the given model, and initialize it.
+        ///
+        /// \param[in] model    Model on which to apply the constraint.
+        /// \return     Error code: attach may fail if:
+        ///              - the constraint is already attached.
+        ///              - the target frame name does not exist in model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t attach(Model const * model) override final;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Refresh the proxies.
+        ///
+        /// \remark   This method is not intended to be called manually. The Robot to which the
+        ///           motor is added is taking care of it when its own `refresh` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t refreshProxies(void) override final;
 
     private:
         std::string frameName_; ///< Name of the frame on which the constraint operates.
