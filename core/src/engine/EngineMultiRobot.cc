@@ -1031,6 +1031,22 @@ namespace jiminy
                             }
                         }
 
+                        // Add a breakpoint exactly at the end of force impulse
+                        for (auto & system : systemsDataHolder_)
+                        {
+                            if (system.forceImpulseNextIt != system.forcesImpulse.end())
+                            {
+                                auto & forceImpulseNextIt = system.forceImpulseNextIt;
+                                float64_t const & tForceImpulse = forceImpulseNextIt->t;
+                                float64_t const & dtForceImpulse = forceImpulseNextIt->dt;
+                                if (t > tForceImpulse && tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
+                                {
+                                    std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
+                                    dt = min(dt, tForceImpulse + dtForceImpulse - t);
+                                }
+                            }
+                        }
+
                         /* A breakpoint has been reached dt has been decreased
                            wrt the largest possible dt within integration tol. */
                         isBreakpointReached = (stepperState_.dtLargest > dt);
@@ -1123,6 +1139,22 @@ namespace jiminy
                              engineOptions_->stepper.dtMax,
                              tEnd - t,
                              tForceImpulseNext - t);
+
+                    // Add a breakpoint exactly at the end of force impulse
+                    for (auto & system : systemsDataHolder_)
+                    {
+                        if (system.forceImpulseNextIt != system.forcesImpulse.end())
+                        {
+                            auto & forceImpulseNextIt = system.forceImpulseNextIt;
+                            float64_t const & tForceImpulse = forceImpulseNextIt->t;
+                            float64_t const & dtForceImpulse = forceImpulseNextIt->dt;
+                            if (t > tForceImpulse && tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
+                            {
+                                std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
+                                dt = min(dt, tForceImpulse + dtForceImpulse - t);
+                            }
+                        }
+                    }
 
                     /* A breakpoint has been reached dt has been decreased
                         wrt the largest possible dt within integration tol. */

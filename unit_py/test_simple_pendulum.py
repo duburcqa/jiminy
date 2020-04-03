@@ -147,6 +147,47 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
+    def test_pendulum_force_impulse(self):
+        '''
+        @brief   Compare pendulum motion, as simulated by Jiminy, against an
+                 equivalent simulation done in python.
+
+        @details Since we don't have a simple analytical expression for the solution
+                 of a (nonlinear) pendulum motion, we perform the simulation in
+                 python, with the same integrator, and compare both results.
+        '''
+        # No controller and no internal dynamics
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        # Configure the engine: No gravity + Continuous time simulation
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
+        engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
+        engine.set_options(engine_options)
+
+        x0 = np.array([0.0, 0.0])
+        tf = 2.0
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+
+
     def test_flexibility_rotor_inertia(self):
         '''
         @brief Test the addition of a flexibility in the system.
