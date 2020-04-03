@@ -548,9 +548,11 @@ namespace jiminy
             // Initialize the ode solver
             if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
             {
-                stepper_ = make_controlled(engineOptions_->stepper.tolAbs,
-                                           engineOptions_->stepper.tolRel,
-                                           rungeKuttaStepper_t());
+                stepper_ = rungeKuttaStepper_t(rungeKuttaErrorChecker_t(
+                    engineOptions_->stepper.tolAbs,
+                    engineOptions_->stepper.tolRel,
+                    0.1, 1.0
+                ), rungeKuttaStepAdjuster_t());
             }
             else if (engineOptions_->stepper.odeSolver == "bulirsch_stoer")
             {
@@ -559,7 +561,7 @@ namespace jiminy
             }
             else if (engineOptions_->stepper.odeSolver == "explicit_euler")
             {
-                stepper_ = explicit_euler();
+                stepper_ = eulerExplicitStepper_t();
             }
 
             // Set the initial time step

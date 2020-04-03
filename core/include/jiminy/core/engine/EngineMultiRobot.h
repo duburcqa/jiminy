@@ -134,35 +134,6 @@ namespace jiminy
     using forceProfileRegister_t = std::vector<forceProfile_t>;
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
 
-    class explicit_euler
-    {
-    public:
-        using state_type = vectorN_t;
-        using deriv_type = vectorN_t;
-        using value_type = float64_t;
-        using time_type = float64_t;
-
-        using stepper_category = controlled_stepper_tag;
-
-        static unsigned short order(void)
-        {
-            return 1;
-        }
-
-        template<class System>
-        controlled_step_result try_step(System       system,
-                                        state_type & x,
-                                        deriv_type & dxdt,
-                                        time_type  & t,
-                                        time_type  & dt) const
-        {
-            t += dt;
-            system(x, dxdt, t);
-            x += dt * dxdt;
-            return controlled_step_result::success;
-        }
-    };
-
     struct stepperState_t
     {
     public:
@@ -493,20 +464,103 @@ namespace jiminy
         };
 
     protected:
+        class eulerExplicitStepper_t
+        {
+        public:
+            using state_type = vectorN_t;
+            using deriv_type = vectorN_t;
+            using value_type = float64_t;
+            using time_type = float64_t;
+
+            using stepper_category = controlled_stepper_tag;
+
+            static unsigned short order(void)
+            {
+                return 1;
+            }
+
+            template<class System>
+            controlled_step_result try_step(System       system,
+                                            state_type & x,
+                                            deriv_type & dxdt,
+                                            time_type  & t,
+                                            time_type  & dt) const
+            {
+                t += dt;
+                system(x, dxdt, t);
+                x += dt * dxdt;
+                return controlled_step_result::success;
+            }
+        };
+
         using bulirschStoerStepper_t = bulirsch_stoer<vectorN_t /* x */,
-                                                                float64_t /* t */,
-                                                                vectorN_t /* dxdt */,
-                                                                float64_t /* dt */,
-                                                                vector_space_algebra /* Enable Eigen support */>;
-        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t /* x */,
-                                                       float64_t /* t */,
-                                                       vectorN_t /* dxdt */,
-                                                       float64_t /* dt */,
-                                                       vector_space_algebra /* Enable Eigen support */>;
+                                                      float64_t /* t */,
+                                                      vectorN_t /* dxdt */,
+                                                      float64_t /* dt */,
+                                                      vector_space_algebra /* Enable Eigen support */>;
+
+        using rungeKuttaBackend_t = runge_kutta_dopri5<
+            vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
+
+        using rungeKuttaErrorChecker_t = default_error_checker<
+            typename rungeKuttaBackend_t::value_type,
+            typename rungeKuttaBackend_t::algebra_type,
+            typename rungeKuttaBackend_t::operations_type
+        >;
+
+        class rungeKuttaStepAdjuster_t
+        {
+        public:
+            using time_type = typename rungeKuttaBackend_t::time_type;
+            using value_type = typename rungeKuttaBackend_t::value_type;
+
+            rungeKuttaStepAdjuster_t(void) = default;
+
+            time_type decrease_step(time_type          dt,
+                                    value_type const & error,
+                                    int        const & error_order) const
+            {
+                // Returns the decreased time step
+                dt *= std::max(
+                    static_cast<value_type>(static_cast<value_type>(9) / static_cast<value_type>(10) *
+                                            std::pow(error, static_cast<value_type>(-1) / (error_order - 1))),
+                    static_cast<value_type>(static_cast<value_type>(1) / static_cast<value_type> (5))
+                );
+                return dt;
+            }
+
+            time_type increase_step(time_type          dt,
+                                    value_type         error,
+                                    int        const & stepper_order) const
+            {
+                if(error < 0.5)
+                {
+                    // Error should be > 0
+                    error = std::max(
+                        error,
+                        static_cast<value_type>(std::pow(static_cast<value_type>(5.0),
+                                                -static_cast<value_type>(stepper_order)))
+                    );
+
+                    // Error too small - increase dt and keep the evolution and limit scaling factor to 5.0
+                    dt *= static_cast<value_type>(9)/static_cast<value_type>(10)
+                       * pow(error, static_cast<value_type>(-1) / stepper_order);
+                }
+                return dt;
+            }
+
+            bool check_step_size_limit(time_type const & dt) { return true; }
+            time_type get_max_dt() { return static_cast<time_type>(0.0); }
+        };
+
+        using rungeKuttaStepper_t = controlled_runge_kutta<rungeKuttaBackend_t,
+                                                           rungeKuttaErrorChecker_t,
+                                                           rungeKuttaStepAdjuster_t>;
+
         using stepper_t = boost::variant<
-            bulirschStoerStepper_t                                /* Bulirsch-Stoer stepper */,
-            result_of::make_controlled<rungeKuttaStepper_t>::type /* Runge-Kutta-Dopri stepper */,
-            explicit_euler                                        /* Euler explicit stepper */
+            bulirschStoerStepper_t  /* Bulirsch-Stoer stepper */,
+            rungeKuttaStepper_t     /* Runge-Kutta Dopri stepper */,
+            eulerExplicitStepper_t  /* Explicit Euler stepper */
         >;
 
     public:
