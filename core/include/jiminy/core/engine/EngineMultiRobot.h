@@ -341,7 +341,7 @@ namespace jiminy
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = 1.0e-3;
-            config["dtRestoreThresholdRel"] = 0.5;
+            config["dtRestoreThresholdRel"] = 0.2;
             config["iterMax"] = 1000000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
