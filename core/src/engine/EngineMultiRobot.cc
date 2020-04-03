@@ -923,7 +923,7 @@ namespace jiminy
 
                         float64_t tForceImpulse = forceImpulseNextIt->t;
                         float64_t dtForceImpulse = forceImpulseNextIt->dt;
-                        if (t > tForceImpulse + dtForceImpulse)
+                        if (t >= tForceImpulse + dtForceImpulse)
                         {
                             // The current force is over. Switch to the next one.
                             forceImpulseNextIt++;
@@ -1738,7 +1738,7 @@ namespace jiminy
         {
             float64_t const & tForceImpulseNext = system.forceImpulseNextIt->t;
             float64_t const & dt = system.forceImpulseNextIt->dt;
-            if (tForceImpulseNext <= t && t <= tForceImpulseNext + dt)
+            if (tForceImpulseNext <= t && t < tForceImpulseNext + dt)
             {
                 std::string const & frameName = system.forceImpulseNextIt->frameName;
                 pinocchio::Force const & F = system.forceImpulseNextIt->F;
@@ -1828,15 +1828,13 @@ namespace jiminy
                                                  vectorN_t const & xCat,
                                                  vectorN_t       & dxdtCat)
     {
-        /* Note that the position of the free flyer is in world frame,
-           whereas the velocities and accelerations are relative to
-           the parent body frame. */
-
-        /* Allocate memory for the state derivative.
-           Note that doing so is mandatory even if the input value
-           given to the stepper is pre-allocated since the stepper
-           is not using it directly internally at lower level. */
-        dxdtCat.resize(xCat.size());
+        /* - Note that the position of the free flyer is in world frame,
+             whereas the velocities and accelerations are relative to
+             the parent body frame.
+           - Note that dxdtCat is a different preallocated buffer for
+             each midpoint of the stepper, so there is 6 different
+             buffers in the case of the Dopri5. The actually stepper
+             buffer never directly use by this method. */
 
         // Split the input state and derivative (by reference)
         auto xSplit = splitState(xCat);

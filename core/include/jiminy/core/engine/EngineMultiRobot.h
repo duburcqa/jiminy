@@ -8,7 +8,7 @@
 #include "jiminy/core/Types.h"
 
 #include <boost/numeric/odeint.hpp>
-#include <boost/numeric/odeint/external/eigen/eigen_algebra.hpp>
+#include <boost/numeric/odeint/external/eigen/eigen.hpp>
 
 
 namespace jiminy
