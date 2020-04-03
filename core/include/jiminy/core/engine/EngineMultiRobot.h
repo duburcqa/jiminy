@@ -15,6 +15,10 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
+    std::set<std::string> const STEPPER_ALGORITHMS{"runge_kutta_dopri5",
+                                                   "explicit_euler",
+                                                   "bulirsch_stoer"};
+
     using namespace boost::numeric::odeint;
 
     class AbstractController;
@@ -333,7 +337,7 @@ namespace jiminy
             configHolder_t config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
+            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler", "bulirsch_stoer"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = 1.0e-3;
@@ -489,13 +493,19 @@ namespace jiminy
         };
 
     protected:
+        using bulirschStoerStepper_t = bulirsch_stoer<vectorN_t /* x */,
+                                                                float64_t /* t */,
+                                                                vectorN_t /* dxdt */,
+                                                                float64_t /* dt */,
+                                                                vector_space_algebra /* Enable Eigen support */>;
         using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t /* x */,
                                                        float64_t /* t */,
                                                        vectorN_t /* dxdt */,
                                                        float64_t /* dt */,
-                                                       vector_space_algebra>;
+                                                       vector_space_algebra /* Enable Eigen support */>;
         using stepper_t = boost::variant<
-            result_of::make_controlled<rungeKuttaStepper_t>::type /* Runge-Kutta stepper */,
+            bulirschStoerStepper_t                                /* Bulirsch-Stoer stepper */,
+            result_of::make_controlled<rungeKuttaStepper_t>::type /* Runge-Kutta-Dopri stepper */,
             explicit_euler                                        /* Euler explicit stepper */
         >;
 

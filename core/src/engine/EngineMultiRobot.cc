@@ -552,6 +552,16 @@ namespace jiminy
                                            engineOptions_->stepper.tolRel,
                                            rungeKuttaStepper_t());
             }
+            else if (engineOptions_->stepper.odeSolver == "bulirsch_stoer")
+            {
+                float64_t const factor_x = 1.0;
+                float64_t const factor_dxdt = 1.0;
+                stepper_ = bulirschStoerStepper_t(engineOptions_->stepper.tolAbs,
+                                                  engineOptions_->stepper.tolRel,
+                                                  factor_x,
+                                                  factor_dxdt,
+                                                  engineOptions_->stepper.dtMax);
+            }
             else if (engineOptions_->stepper.odeSolver == "explicit_euler")
             {
                 stepper_ = explicit_euler();
@@ -1333,7 +1343,7 @@ namespace jiminy
 
         // Make sure the selected ode solver is available and instantiate it
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
-        if (odeSolver != "runge_kutta_dopri5" && odeSolver != "explicit_euler")
+        if (STEPPER_ALGORITHMS.find(odeSolver) == STEPPER_ALGORITHMS.end())
         {
             std::cout << "Error - EngineMultiRobot::setOptions - The requested 'odeSolver' is not available." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
