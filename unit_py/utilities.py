@@ -63,4 +63,5 @@ def integrate_dynamics(time, x0, dynamics):
     for t in time[1:]:
         solver.integrate(t)
         x_sol.append(solver.y)
+
     return np.stack(x_sol, axis=0)

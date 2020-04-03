@@ -81,17 +81,27 @@ namespace jiminy
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
+        /// \details The results are accessible using getConstraintsJacobian and
+        ///          getConstraintsDrift.
         /// \note  It is assumed frames forward kinematics has already been called.
         ///
         /// \param[in] q    Joint position.
         /// \param[in] v    Joint velocity.
-        /// \param[out] jacobianOut Output jacobian matrix.
-        /// \param[out] driftOut    Output drift vector.
+        /// \return ERROR_GENERIC if one constraint has the wrong jacobian / drift size.
         void computeConstraints(Eigen::Ref<vectorN_t const> const & q,
-                                Eigen::Ref<vectorN_t const> const & v,
-                                matrixN_t & jacobianOut,
-                                vectorN_t & driftOut);
+                                Eigen::Ref<vectorN_t const> const & v);
 
+        /// \brief Get jacobian of the constraints.
+        inline matrixN_t const & getConstraintsJacobian()
+        {
+            return constraintsJacobian_;
+        }
+
+        /// \brief Get drift of the constraints.
+        inline vectorN_t const & getConstraintsDrift()
+        {
+            return constraintsDrift_;
+        }
         /// \brief Returns true if at least one constraint is active on the robot.
         inline bool_t hasConstraint()
         {
@@ -156,6 +166,8 @@ namespace jiminy
     protected:
         hresult_t refreshMotorsProxies(void);
         hresult_t refreshSensorsProxies(void);
+        /// \brief Refresh the proxies of the kinematics constraints.
+        hresult_t refreshConstraintsProxies(void);
         virtual hresult_t refreshProxies(void) override;
 
     protected:
@@ -168,7 +180,9 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
-        static_map_t<std::string, std::shared_ptr<AbstractConstraint>> constraintsHolder_;
+        std::vector<std::tuple<std::string, std::shared_ptr<AbstractConstraint>, int>> constraintsHolder_;
+        matrixN_t constraintsJacobian_; ///< Matrix holding the jacobian of the constraints.
+        vectorN_t constraintsDrift_;    ///< Vector holding the drift of the constraints.
 
     private:
         MutexLocal mutexLocal_;

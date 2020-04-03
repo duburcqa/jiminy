@@ -64,7 +64,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -100,7 +100,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -221,7 +221,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -294,7 +294,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Get log data
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 

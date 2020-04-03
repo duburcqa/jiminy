@@ -675,7 +675,7 @@ namespace python
         {
             bp::class_<AbstractConstraint,
                        std::shared_ptr<AbstractConstraint>,
-                       boost::noncopyable>("AbstractConstraint", bp::init<>())
+                       boost::noncopyable>("AbstractConstraint")
                 .def(PyConstraintVisitor());
             bp::register_ptr_to_python<std::shared_ptr<AbstractConstraint> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 

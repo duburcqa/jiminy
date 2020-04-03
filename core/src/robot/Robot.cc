@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/jacobian.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/AbstractMotor.h"
@@ -29,6 +30,8 @@ namespace jiminy
     sensorsNames_(),
     motorTorqueFieldnames_(),
     constraintsHolder_(),
+    constraintsJacobian_(),
+    constraintsDrift_(),
     mutexLocal_(),
     motorsSharedHolder_(nullptr),
     sensorsSharedHolder_()
@@ -80,12 +83,9 @@ namespace jiminy
         }
 
         // Refresh the constraints
-        for (auto & constraint : constraintsHolder_)
+        if (returnCode == hresult_t::SUCCESS)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = constraint.second->refreshProxies();
-            }
+            returnCode = refreshConstraintsProxies();
         }
 
         // Reset the motors
@@ -496,7 +496,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.first == constraintName;
+                                             return std::get<0>(element) == constraintName;
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
@@ -510,12 +510,16 @@ namespace jiminy
             if (returnCode != hresult_t::SUCCESS)
             {
                 std::cout << "Error - Robot::addConstraint - Fail to initialize constraint. " << std::endl;
-                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             else
             {
-                constraintsHolder_.push_back(std::make_pair(constraintName, constraint));
+                constraintsHolder_.push_back(std::make_tuple(constraintName, constraint, 0));
             }
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Required to resize constraintsJacobian_ to the right size.
+            refreshConstraintsProxies();
         }
         return returnCode;
     }
@@ -530,7 +534,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.first == constraintName;
+                                             return std::get<0>(element) == constraintName;
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
@@ -539,8 +543,13 @@ namespace jiminy
         }
         else
         {
-            constraintIt->second->detach();
+            std::get<1>(*constraintIt)->detach();
             constraintsHolder_.erase(constraintIt);
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Required to resize constraintsJacobian_ to the right size.
+            refreshConstraintsProxies();
         }
         return returnCode;
     }
@@ -573,16 +582,59 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Refresh the constraints.
-            for (auto & constraint : constraintsHolder_)
+            returnCode = refreshConstraintsProxies();
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Robot::refreshConstraintsProxies(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+        vectorN_t q = pinocchio::neutral(pncModel_);
+        vectorN_t v = vectorN_t::Zero(pncModel_.nv);
+
+        int constraintSize = 0;
+        for (auto & constraint : constraintsHolder_)
+        {
+            if (returnCode == hresult_t::SUCCESS)
             {
+                returnCode = std::get<1>(constraint)->refreshProxies();
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                // Call constraint on neutral position and zero velocity.
+                matrixN_t J = std::get<1>(constraint)->getJacobian(q);
+                vectorN_t drift = std::get<1>(constraint)->getDrift(q, v);
+
+                // Verify dimensions.
+                if (J.cols() != pncModel_.nv)
+                {
+                    std::cout << "Robot::refreshConstraintsProxies: constraint " << std::get<0>(constraint);
+                    std::cout << "has an invalid jacobian (wrong number of columns)." << std::endl;
+                    returnCode = hresult_t::ERROR_GENERIC;
+                }
+                if (drift.size() != J.rows())
+                {
+                    std::cout << "Robot::refreshConstraintsProxies: constraint " << std::get<0>(constraint);
+                    std::cout << "has inconsistend jacobian and drift (size mismatch)." << std::endl;
+                    returnCode = hresult_t::ERROR_GENERIC;
+                }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    returnCode = constraint.second->refreshProxies();
+                    // Store constraint size.
+                    std::get<2>(constraint) = J.rows();
+                    constraintSize += J.rows();
                 }
             }
         }
 
+        // Reset jacobian and drift to 0.
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
+            constraintsDrift_ = vectorN_t::Zero(constraintSize);
+        }
         return returnCode;
     }
 
@@ -1272,27 +1324,30 @@ namespace jiminy
     }
 
     void Robot::computeConstraints(Eigen::Ref<vectorN_t const> const & q,
-                                   Eigen::Ref<vectorN_t const> const & v,
-                                   matrixN_t & jacobianOut,
-                                   vectorN_t & driftOut)
+                                   Eigen::Ref<vectorN_t const> const & v)
     {
-        // Give the right number of columns to the jacobian.
-        jacobianOut.resize(0, pncModel_.nv);
-
-        // Call joint jacobian and frame forward kinematics.
+        // Compute joint jacobian.
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
-        // pinocchio::updateFramePlacements(pncModel_, pncData_);
 
+        int currentRow = 0;
         for (auto & constraint : constraintsHolder_)
         {
-            matrixN_t J = constraint.second->getJacobian(q);
-            vectorN_t drift = constraint.second->getDrift(q, v);
-            int constraintSize = drift.size();
-            // Concatenate drift and jacobians.
-            jacobianOut.conservativeResize(jacobianOut.rows() + constraintSize, Eigen::NoChange);
-            jacobianOut.bottomRows(constraintSize) = J;
-            driftOut.conservativeResize(driftOut.size() + constraintSize);
-            driftOut.tail(constraintSize) = drift;
+            matrixN_t J = std::get<1>(constraint)->getJacobian(q);
+            vectorN_t drift = std::get<1>(constraint)->getDrift(q, v);
+
+            int constraintDim = J.rows();
+            // Resize matrix if needed.
+            if (constraintDim != std::get<2>(constraint))
+            {
+                constraintsJacobian_.conservativeResize(
+                    constraintsJacobian_.rows() + constraintDim - std::get<2>(constraint),
+                    Eigen::NoChange);
+                constraintsDrift_.conservativeResize(constraintsDrift_.size() + constraintDim - std::get<2>(constraint));
+                std::get<2>(constraint) = constraintDim;
+            }
+            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = J;
+            constraintsDrift_.segment(currentRow, constraintDim) = drift;
+            currentRow += constraintDim;
         }
      }
 

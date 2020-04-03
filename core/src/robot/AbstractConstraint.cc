@@ -15,12 +15,13 @@ namespace jiminy
         // Empty on purpose
     }
 
-    matrixN_t const & AbstractConstraint::getJacobian(vectorN_t const & q)
+    matrixN_t const & AbstractConstraint::getJacobian(Eigen::Ref<vectorN_t const> const & q)
     {
         return jacobian_;
     }
 
-    vectorN_t const & AbstractConstraint::getDrift(vectorN_t const & q, vectorN_t const & v)
+    vectorN_t const & AbstractConstraint::getDrift(Eigen::Ref<vectorN_t const> const & q,
+                                                   Eigen::Ref<vectorN_t const> const & v)
     {
         return drift_;
     }

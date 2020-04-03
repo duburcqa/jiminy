@@ -2283,10 +2283,8 @@ namespace jiminy
     {
         if (system.robot->hasConstraint())
         {
-            // Handle kinematic constraints.
-            matrixN_t J;
-            vectorN_t drift;
-            system.robot->computeConstraints(q, v, J, drift);
+            // Compute kinematic constraints.
+            system.robot->computeConstraints(q, v);
 
             // Project external forces from cartesian space to joint space.
             vectorN_t uTotal = u;
@@ -2328,8 +2326,8 @@ namespace jiminy
                                               q,
                                               v,
                                               uTotal,
-                                              J,
-                                              drift,
+                                              system.robot->getConstraintsJacobian(),
+                                              system.robot->getConstraintsDrift(),
                                               CONSTRAINT_INVERSION_DAMPING,
                                               false);
         }

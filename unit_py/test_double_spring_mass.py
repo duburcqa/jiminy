@@ -74,7 +74,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -111,7 +111,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -148,7 +148,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -186,7 +186,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -247,7 +247,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -349,7 +349,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Extract log data
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = [np.stack([log_data['HighLevelController.' + system_names[i] + "." + s]
+        x_jiminy = [np.stack([log_data['.'.join(['HighLevelController', system_names[i], s])]
                                 for s in robots[i].logfile_position_headers + \
                                          robots[i].logfile_velocity_headers] , axis=-1)
                                             for i in range(len(system_names))]
