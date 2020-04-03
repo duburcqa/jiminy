@@ -604,11 +604,6 @@ namespace python
             PyMotorVisit<PyClass>::visit(cl);
         }
 
-        static std::shared_ptr<SimpleMotor> MotorPyFactory(std::string const & motorName)
-        {
-            return std::make_shared<SimpleMotor>(motorName);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -634,11 +629,8 @@ namespace python
 
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
-                       boost::noncopyable>("SimpleMotor", bp::no_init)
-                .def(PyMotorVisitor())
-                .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("SimpleMotor", bp::init<std::string>())
+                .def(PyMotorVisitor());
         }
     };
 
@@ -763,12 +755,6 @@ namespace python
             PySensorVisit<PyClass>::visit(cl);
         }
 
-        template<class TSensor>
-        static std::shared_ptr<TSensor> SensorPyFactory(std::string const & sensorName)
-        {
-            return std::make_shared<TSensor>(sensorName);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -794,27 +780,18 @@ namespace python
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
-                       boost::noncopyable>("ImuSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("ImuSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
-                       boost::noncopyable>("ForceSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("ForceSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
-                       boost::noncopyable>("EncoderSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("EncoderSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
         }
     };
 
