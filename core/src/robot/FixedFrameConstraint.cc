@@ -18,7 +18,7 @@ namespace jiminy
         // Empty on purpose
     }
 
-    matrixN_t FixedFrameConstraint::getJacobian(vectorN_t const & q)
+    matrixN_t const & FixedFrameConstraint::getJacobian(vectorN_t const & q)
     {
         jacobian_.setZero();
         if (isAttached_)
@@ -34,8 +34,8 @@ namespace jiminy
         return jacobian_;
     }
 
-    vectorN_t FixedFrameConstraint::getDrift(vectorN_t const & q,
-                                             vectorN_t const & v)
+    vectorN_t const & FixedFrameConstraint::getDrift(vectorN_t const & q,
+                                                     vectorN_t const & v)
     {
         if (isAttached_)
         {

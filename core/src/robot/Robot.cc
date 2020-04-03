@@ -492,7 +492,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (constraintsHolder_.count(constraintName) > 0)
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.first == constraintName;
+                                         });
+        if (constraintIt != constraintsHolder_.end())
         {
             std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName;
             std::cout << " already exists." << std::endl;
@@ -508,7 +514,7 @@ namespace jiminy
             }
             else
             {
-                constraintsHolder_.insert(std::make_pair(constraintName, constraint));
+                constraintsHolder_.push_back(std::make_pair(constraintName, constraint));
             }
         }
         return returnCode;
@@ -518,15 +524,23 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (constraintsHolder_.count(constraintName) == 0)
+
+        // Check in local cache before.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.first == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
         {
             std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
         else
         {
-            constraintsHolder_.at(constraintName)->detach();
-            constraintsHolder_.erase(constraintName);
+            constraintIt->second->detach();
+            constraintsHolder_.erase(constraintIt);
         }
         return returnCode;
     }

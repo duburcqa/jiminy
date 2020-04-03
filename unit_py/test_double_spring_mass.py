@@ -171,6 +171,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         def internal_dynamics(t, q, v, sensor_data, u):
             u[:] = - self.k * q - self.nu * v
+
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
         controller.initialize(self.robot)
         engine = jiminy.Engine()
@@ -237,7 +238,8 @@ class SimulateTwoMasses(unittest.TestCase):
         x_init[7:9] = self.x0[:2]
         x_init[-2:] = self.x0[2:]
         # ... and a "random" (but fixed) freeflyer quaternion
-        x_init[:7] = np.array([0.5, -0.8, 42.0, 0.1, 0.5, -0.7, 0.1])
+        np.random.seed(42)
+        x_init[:7] = np.random.rand(7)
         x_init[3:7] /= np.linalg.norm(x_init[3:7])
 
         # Run simulation

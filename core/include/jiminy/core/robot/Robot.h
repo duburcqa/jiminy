@@ -168,12 +168,12 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
-        std::unordered_map<std::string, std::shared_ptr<AbstractConstraint>> constraintsHolder_;
+        static_map_t<std::string, std::shared_ptr<AbstractConstraint>> constraintsHolder_;
 
     private:
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
-        std::map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
+        std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
     };
 }
 
