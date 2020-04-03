@@ -554,13 +554,8 @@ namespace jiminy
             }
             else if (engineOptions_->stepper.odeSolver == "bulirsch_stoer")
             {
-                float64_t const factor_x = 1.0;
-                float64_t const factor_dxdt = 1.0;
                 stepper_ = bulirschStoerStepper_t(engineOptions_->stepper.tolAbs,
-                                                  engineOptions_->stepper.tolRel,
-                                                  factor_x,
-                                                  factor_dxdt,
-                                                  engineOptions_->stepper.dtMax);
+                                                  engineOptions_->stepper.tolRel);
             }
             else if (engineOptions_->stepper.odeSolver == "explicit_euler")
             {
@@ -741,16 +736,22 @@ namespace jiminy
             }
 
             // Stop the simulation if any of the callbacks return false
+            bool_t isCallbackFalse = false;
             for (auto & system : systemsDataHolder_)
             {
                 if (!system.callbackFct(stepperState_.t, system.state.q, system.state.v))
                 {
-                    if (engineOptions_->stepper.verbose)
-                    {
-                        std::cout << "Simulation done: callback returned false." << std::endl;
-                    }
+                    isCallbackFalse = true;
                     break;
                 }
+            }
+            if (isCallbackFalse)
+            {
+                if (engineOptions_->stepper.verbose)
+                {
+                    std::cout << "Simulation done: callback returned false." << std::endl;
+                }
+                break;
             }
 
             // Stop the simulation if the max number of integration steps is reached
@@ -903,7 +904,6 @@ namespace jiminy
                                 // Add a breakpoint exactly at the end of force impulse
                                 if (tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
                                 {
-                                    std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
                                     tForceImpulseNext = min(tForceImpulseNext, tForceImpulse + dtForceImpulse);
                                 }
 
@@ -1041,7 +1041,6 @@ namespace jiminy
                                 float64_t const & dtForceImpulse = forceImpulseNextIt->dt;
                                 if (t > tForceImpulse && tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
                                 {
-                                    std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
                                     dt = min(dt, tForceImpulse + dtForceImpulse - t);
                                 }
                             }
