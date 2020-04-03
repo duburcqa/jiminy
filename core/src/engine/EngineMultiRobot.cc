@@ -69,13 +69,13 @@ namespace jiminy
     energyFieldname(),
     robotLock(nullptr),
     state(),
-    stateLast(),
+    statePrev(),
     forcesImpulse(),
     forceImpulseNextIt(),
     forcesProfile()
     {
         state.initialize(robot.get());
-        stateLast.initialize(robot.get());
+        statePrev.initialize(robot.get());
     }
 
     systemDataHolder_t::systemDataHolder_t(void) :
@@ -558,7 +558,7 @@ namespace jiminy
             }
 
             // Set the initial time step
-            float64_t const dt = SIMULATION_MIN_TIMESTEP;
+            float64_t const dt = SIMULATION_INITIAL_TIMESTEP;
 
             // Update the frame indices associated with the coupling forces
             for (auto & force : forcesCoupling_)
@@ -683,7 +683,7 @@ namespace jiminy
         // Initialize the last system states
         for (auto & system : systemsDataHolder_)
         {
-            system.stateLast = system.state;
+            system.statePrev = system.state;
         }
 
         if (returnCode != hresult_t::SUCCESS)
@@ -846,7 +846,8 @@ namespace jiminy
 
             // Get references to some internal stepper buffers
             float64_t & t = stepperState_.t;
-            float64_t & dtNext = stepperState_.dt;
+            float64_t & dt = stepperState_.dt;
+            float64_t & dtLargest = stepperState_.dtLargest;
             vectorN_t & x = stepperState_.x;
             vectorN_t & dxdt = stepperState_.dxdt;
 
@@ -855,9 +856,61 @@ namespace jiminy
 
             /* Perform the integration.
                Do not simulate a timestep smaller than STEPPER_MIN_TIMESTEP. */
+            bool_t isBreakpointReached = false;
             while (tEnd - t > STEPPER_MIN_TIMESTEP)
             {
                 float64_t tNext = t;
+
+                /* Get the next impulse force application time and update
+                   the iterators if necessary. */
+                float64_t tForceImpulseNext = tEnd;
+                for (auto & system : systemsDataHolder_)
+                {
+                    if (system.forceImpulseNextIt != system.forcesImpulse.end())
+                    {
+                        auto & forceImpulseNextIt = system.forceImpulseNextIt;
+
+                        float64_t tForceImpulse = forceImpulseNextIt->t;
+                        float64_t dtForceImpulse = forceImpulseNextIt->dt;
+                        if (t >= tForceImpulse + dtForceImpulse)
+                        {
+                            // The current force is over. Switch to the next one.
+                            forceImpulseNextIt++;
+                        }
+
+                        if (forceImpulseNextIt != system.forcesImpulse.end())
+                        {
+                            tForceImpulse = forceImpulseNextIt->t;
+                            dtForceImpulse = forceImpulseNextIt->dt;
+                            if (tForceImpulse > t)
+                            {
+                                /* The application time of the current force is
+                                   ahead of time. So waiting for it to begin... */
+                                tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
+                            }
+                            else
+                            {
+                                // Add a breakpoint exactly at the end of force impulse
+                                if (tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
+                                {
+                                    std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
+                                    tForceImpulseNext = min(tForceImpulseNext, tForceImpulse + dtForceImpulse);
+                                }
+
+                                /* The application time of the current force is past BUT
+                                   the application duration may not be over. In such a
+                                   case, one must NOT increment the force iterator, yet
+                                   the next application time does not correspond to the
+                                   current force but the next one. */
+                                if (forceImpulseNextIt != std::prev(system.forcesImpulse.end()))
+                                {
+                                    tForceImpulse = std::next(forceImpulseNextIt)->t;
+                                    tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if (stepperUpdatePeriod_ > EPS)
                 {
@@ -899,11 +952,13 @@ namespace jiminy
                             /* Update the internal stepper state dxdt since the dynamics has changed.
                                Note that ONLY the acceleration part must be updated since the projection
                                of the velocity on the state space is not supposed to have changed, and
-                               on top of that tLast is invalid at this point because it has been
+                               on top of that tPrev is invalid at this point because it has been
                                updated just after the last successful step.
                                -> Make sure the next impulse force iterator has NOT been updated yet !
-                               Note: This point is still subject to debate: it's more a choice than
-                               mathematical condition. Anyway, numerically, the results are similar. */
+                               Note that this point is still subject to debate: it's more a choice than
+                               mathematical condition. Anyway, numerically, the results are similar.
+                               Note that the estimated dt is no longer very meaningful since the dynamics
+                               has changed. Maybe dt should be reschedule in such a case... */
                             if (engineOptions_->stepper.odeSolver != "explicit_euler")
                             {
                                 computeSystemDynamics(t, x, dxdt);
@@ -913,65 +968,19 @@ namespace jiminy
                     }
                 }
 
-                // Get the next impulse force application time and update the iterators if necessary
-                float64_t tForceImpulseNext = tEnd;
-                for (auto & system : systemsDataHolder_)
-                {
-                    if (system.forceImpulseNextIt != system.forcesImpulse.end())
-                    {
-                        auto & forceImpulseNextIt = system.forceImpulseNextIt;
-
-                        float64_t tForceImpulse = forceImpulseNextIt->t;
-                        float64_t dtForceImpulse = forceImpulseNextIt->dt;
-                        if (t >= tForceImpulse + dtForceImpulse)
-                        {
-                            // The current force is over. Switch to the next one.
-                            forceImpulseNextIt++;
-                        }
-
-                        if (forceImpulseNextIt != system.forcesImpulse.end())
-                        {
-                            tForceImpulse = forceImpulseNextIt->t;
-                            if (tForceImpulse > t)
-                            {
-                                /* The application time of the current force is
-                                   ahead of time. So waiting for it to begin... */
-                                tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
-                            }
-                            else
-                            {
-                                /* The application time of the current force is past BUT
-                                   the application duration may not be over. In such a
-                                   case, one must NOT increment the force iterator, yet
-                                   the next application time does not correspond to the
-                                   current force but the next one. */
-                                if (forceImpulseNextIt != std::prev(system.forcesImpulse.end()))
-                                {
-                                    tForceImpulse = std::next(forceImpulseNextIt)->t;
-                                    tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                /* Increase back the timestep dt if it has been decreased
-                   to a ridiculously small value because of a breakpoint. */
-                dtNext = std::max(dtNext, SIMULATION_DEFAULT_TIMESTEP);
-
                 if (stepperUpdatePeriod_ > EPS)
                 {
-                    // Get the time of the next breakpoint for the ODE solver:
-                    // a breakpoint occurs if we reached tEnd, if an external force is applied, or if we
-                    // need to update the sensors / controller.
+                    /* Get the time of the next breakpoint for the ODE solver:
+                       a breakpoint occurs if we reached tEnd, if an external force
+                       is applied, or if we need to update the sensors / controller. */
                     float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
                     float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                     if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                     {
-                        // Step to reach next sensors / controller update is too short: skip one
-                        // controller update and jump to the next one.
-                        // Note that in this case, the sensors have already been updated in
-                        // anticipation in previous loop.
+                        /* Step to reach next sensors/controller update is too short:
+                           skip one controller update and jump to the next one.
+                           Note that in this case, the sensors have already been
+                           updated in anticipation in previous loop. */
                         dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
                                            tForceImpulseNext - t);
                     }
@@ -996,33 +1005,40 @@ namespace jiminy
                            prevent steps larger than dtMax, and make sure that dt is
                            multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
                            it is possible, to reduce rounding errors of logged data. */
-                        dtNext = min(dtNext, tNext - t, engineOptions_->stepper.dtMax);
-                        if (tNext - (t + dtNext) < STEPPER_MIN_TIMESTEP)
+                        dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
+                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {
-                            dtNext = tNext - t;
+                            dt = tNext - t;
                         }
-                        if (dtNext > SIMULATION_MIN_TIMESTEP)
+                        if (dt > SIMULATION_MIN_TIMESTEP)
                         {
-                            float64_t const dtResidual = std::fmod(dtNext, SIMULATION_MIN_TIMESTEP);
+                            float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
                             if (dtResidual > STEPPER_MIN_TIMESTEP
                              && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
-                             && dtNext - dtResidual > STEPPER_MIN_TIMESTEP)
+                             && dt - dtResidual > STEPPER_MIN_TIMESTEP)
                             {
-                                dtNext -= dtResidual;
+                                dt -= dtResidual;
                             }
                         }
 
+                        /* A breakpoint has been reached dt has been decreased
+                           wrt the largest possible dt within integration tol. */
+                        isBreakpointReached = (stepperState_.dtLargest > dt);
+
                         // Make sure that the timestep is not getting too small
-                        if (dtNext < STEPPER_MIN_TIMESTEP)
+                        if (dt < STEPPER_MIN_TIMESTEP)
                         {
                             std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
                                          "Impossible to integrate physics further in time." << std::endl;
                         }
 
+                        // Set the timestep to be tried by the stepper
+                        dtLargest = dt;
+
                         if (success == boost::apply_visitor(
                             [&](auto && one)
                             {
-                                return one.try_step(systemOde, x, dxdt, t, dtNext);
+                                return one.try_step(systemOde, x, dxdt, t, dtLargest);
                             }, stepper_))
                         {
                             // reset the fail counter
@@ -1040,43 +1056,82 @@ namespace jiminy
                                 updateTelemetry();
                             }
 
+                            /* Restore the step size dt if it has been significantly
+                            decreased to because of a breakpoint. It is set
+                            equal to the last available largest dt to be known,
+                            namely the second to last successfull step. */
+                            if (isBreakpointReached)
+                            {
+                                /* Restore the step size if and only if:
+                                   - the next estimated largest step size is larger than
+                                     the requested one for the current (successful) step.
+                                   - the next estimated largest step size is significantly
+                                     smaller than the estimated largest step size for the
+                                     previous step. */
+                                float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
+                                    engineOptions_->stepper.dtRestoreThresholdRel;
+                                if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
+                                {
+                                    dtLargest = stepperState_.dtLargestPrev;
+                                }
+                            }
+
                             /* Backup the stepper and systems' state on success only:
                                - t at last successful iteration is used to compute dt,
                                  which is project the accelation in the state space
                                  instead of SO3^2.
+                               - dtLargestPrev is used to restore the largest step
+                                 size in case of a breakpoint requiring lowering it.
                                - the acceleration and torque at the last successful
                                  iteration is used to update the sensors' data in
                                  case of continuous sensing. */
-                            stepperState_.tLast = t;
+                            stepperState_.tPrev = t;
+                            stepperState_.dtLargestPrev = stepperState_.dtLargest;
                             for (auto & system : systemsDataHolder_)
                             {
-                                system.stateLast = system.state;
+                                system.statePrev = system.state;
                             }
                         }
                         else
                         {
                             // check for possible overflow of failed steps in step size adjustment
                             fail_checker();
+
+                            // Increment the failed iteration counter
+                            stepperState_.iterFailed++;
                         }
+
+                        // Initialize the next dt
+                        dt = dtLargest;
                     }
                 }
                 else
                 {
-                    // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
-                    dtNext = min(dtNext,
-                                 engineOptions_->stepper.dtMax,
-                                 tEnd - t,
-                                 tForceImpulseNext - t);
+                    /* Make sure it ends exactly at the tEnd, never exceeds
+                       dtMax, and stop to apply impulse forces. */
+                    dt = min(dt,
+                             engineOptions_->stepper.dtMax,
+                             tEnd - t,
+                             tForceImpulseNext - t);
+
+                    /* A breakpoint has been reached dt has been decreased
+                        wrt the largest possible dt within integration tol. */
+                    isBreakpointReached = (stepperState_.dtLargest > dt);
 
                     // Compute the next step using adaptive step method
                     controlled_step_result res = fail;
                     while (res == fail)
                     {
+                        // Set the timestep to be tried by the stepper
+                        dtLargest = dt;
+
+                        // Try to do a step
                         res = boost::apply_visitor(
                             [&](auto && one)
                             {
-                                return one.try_step(systemOde, x, dxdt, t, dtNext);
+                                return one.try_step(systemOde, x, dxdt, t, dtLargest);
                             }, stepper_);
+
                         if (res == success)
                         {
                             // reset the fail counter
@@ -1094,18 +1149,36 @@ namespace jiminy
                                 updateTelemetry();
                             }
 
+                            // Restore the step size if necessary
+                            if (isBreakpointReached)
+                            {
+                                float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
+                                    engineOptions_->stepper.dtRestoreThresholdRel;
+                                if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
+                                {
+                                    dtLargest = stepperState_.dtLargestPrev;
+                                }
+                            }
+
                             // Backup the stepper and systems' state
-                            stepperState_.tLast = t;
+                            stepperState_.tPrev = t;
+                            stepperState_.dtLargestPrev = dtLargest;
                             for (auto & system : systemsDataHolder_)
                             {
-                                system.stateLast = system.state;
+                                system.statePrev = system.state;
                             }
                         }
                         else
                         {
                             // check for possible overflow of failed steps in step size adjustment
                             fail_checker();
+
+                            // Increment the failed iteration counter
+                            stepperState_.iterFailed++;
                         }
+
+                        // Initialize the next dt
+                        dt = dtLargest;
                     }
                 }
             }
@@ -1850,7 +1923,7 @@ namespace jiminy
             // Define some proxies
             Eigen::Ref<vectorN_t const> const & q = *qSplitIt;
             Eigen::Ref<vectorN_t const> const & v = *vSplitIt;
-            vectorN_t const & aPrev = systemIt->stateLast.a;
+            vectorN_t const & aPrev = systemIt->statePrev.a;
 
             computeForwardKinematics(*systemIt, q, v, aPrev);
         }
@@ -1879,8 +1952,8 @@ namespace jiminy
             vectorN_t & uMotor = systemIt->state.uMotor;
             vectorN_t & uInternal = systemIt->state.uInternal;
             forceVector_t & fext = systemIt->state.fExternal;
-            vectorN_t const & aPrev = systemIt->stateLast.a;
-            vectorN_t const & uMotorPrev = systemIt->stateLast.uMotor;
+            vectorN_t const & aPrev = systemIt->statePrev.a;
+            vectorN_t const & uMotorPrev = systemIt->statePrev.uMotor;
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
@@ -1921,7 +1994,7 @@ namespace jiminy
                 systemIt->robot->pncModel_, systemIt->robot->pncData_, q, v, u, fext);
 
             // Project the derivative in state space (only if moving forward in time)
-            float64_t const dt = t - stepperState_.tLast;
+            float64_t const dt = t - stepperState_.tPrev;
             if (dt >= STEPPER_MIN_TIMESTEP)
             {
                 computePositionDerivative(systemIt->robot->pncModel_, q, v, qDot, dt);

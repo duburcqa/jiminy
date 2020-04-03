@@ -164,10 +164,13 @@ namespace jiminy
     public:
         stepperState_t(void) :
         iter(0U),
+        iterFailed(0U),
         t(0.0),
-        tLast(0.0),
+        tPrev(0.0),
         tError(0.0),
         dt(0.0),
+        dtLargest(0.0),
+        dtLargestPrev(0.0),
         x(),
         dxdt()
         {
@@ -178,9 +181,12 @@ namespace jiminy
                    vectorN_t const & xInit)
         {
             iter = 0U;
+            iterFailed = 0U;
             t = 0.0;
-            tLast = 0.0;
+            tPrev = 0.0;
             dt = dtInit;
+            dtLargest = dtInit;
+            dtLargestPrev = dtInit;
             tError = 0.0;
             x = xInit;
             dxdt = vectorN_t::Zero(xInit.size());
@@ -188,10 +194,13 @@ namespace jiminy
 
     public:
         uint32_t iter;
+        uint32_t iterFailed;
         float64_t t;
-        float64_t tLast;
+        float64_t tPrev;
         float64_t tError; ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
         float64_t dt;
+        float64_t dtLargest;
+        float64_t dtLargestPrev;
         vectorN_t x;
         vectorN_t dxdt;
     };
@@ -274,7 +283,7 @@ namespace jiminy
     private:
         std::unique_ptr<MutexLocal::LockGuardLocal> robotLock;
         systemState_t state;       ///< Internal buffer with the state for the integration loop
-        systemState_t stateLast;   ///< Internal state for the integration loop at the end of the previous iteration
+        systemState_t statePrev;   ///< Internal state for the integration loop at the end of the previous iteration
         forceImpulseRegister_t forcesImpulse;
         forceImpulseRegister_t::const_iterator forceImpulseNextIt;
         forceProfileRegister_t forcesProfile;
@@ -328,6 +337,7 @@ namespace jiminy
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = 1.0e-3;
+            config["dtRestoreThresholdRel"] = 0.5;
             config["iterMax"] = 1000000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
@@ -417,6 +427,7 @@ namespace jiminy
             float64_t   const tolAbs;
             float64_t   const tolRel;
             float64_t   const dtMax;
+            float64_t   const dtRestoreThresholdRel;
             int32_t     const iterMax;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
@@ -429,6 +440,7 @@ namespace jiminy
             tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
             tolRel(boost::get<float64_t>(options.at("tolRel"))),
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
+            dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
