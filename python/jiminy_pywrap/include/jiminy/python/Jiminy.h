@@ -1510,7 +1510,7 @@ namespace python
                                bool             const & resetRandomGenerator,
                                bool             const & removeForces)
         {
-            return self.start(convertFromPython<std::vector<vectorN_t>>(xInit),
+            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(xInit),
                               resetRandomGenerator,
                               removeForces);
         }
@@ -1526,7 +1526,8 @@ namespace python
                                   float64_t        const & endTime,
                                   bp::object       const & xInit)
         {
-            return self.simulate(endTime, convertFromPython<std::vector<vectorN_t>>(xInit));
+            return self.simulate(endTime,
+                                 convertFromPython<std::map<std::string, vectorN_t> >(xInit));
         }
 
         static void writeLog(EngineMultiRobot       & self,

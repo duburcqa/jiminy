@@ -491,7 +491,7 @@ namespace jiminy
         reset(true, resetDynamicForceRegister);
     }
 
-    hresult_t EngineMultiRobot::start(std::vector<vectorN_t> const & xInit,
+    hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & xInit,
                                       bool_t const & resetRandomNumbers,
                                       bool_t const & resetDynamicForceRegister)
     {
@@ -509,16 +509,29 @@ namespace jiminy
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Check the dimension of the state
-        auto xInitIt = xInit.begin();
-        auto systemIt = systemsDataHolder_.begin();
-        for ( ; systemIt != systemsDataHolder_.end() ; xInitIt++, systemIt++)
+        // Check the dimension of the initial state associated with every system and order them
+        std::vector<vectorN_t> xInitOrdered;
+        xInitOrdered.reserve(systemsDataHolder_.size());
+        for (auto & system : systemsDataHolder_)
         {
-
-            if (xInitIt->rows() != systemIt->robot->nx())
+            auto xInitIt = xInit.find(system.name);
+            if (xInitIt == xInit.end())
             {
-                std::cout << "Error - EngineMultiRobot::start - Size of xInit inconsistent with model size." << std::endl;
-                returnCode = hresult_t::ERROR_BAD_INPUT;
+                    std::cout << "Error - EngineMultiRobot::start - At least one system does not have an initial state." << std::endl;
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                if (xInitIt->second.rows() != system.robot->nx())
+                {
+                    std::cout << "Error - EngineMultiRobot::start - The size of the initial state is inconsistent "
+                                 "with model size for at least one system." << std::endl;
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                xInitOrdered.emplace_back(std::move(xInitIt->second));
             }
         }
 
@@ -574,7 +587,7 @@ namespace jiminy
 
             // Initialize the stepper state
             float64_t const t = 0.0;
-            vectorN_t const xCat = cat(xInit);
+            vectorN_t const xCat = cat(xInitOrdered);
             stepperState_.reset(dt, xCat);
 
             // Synchronize the individual system states with the global stepper state
@@ -730,7 +743,7 @@ namespace jiminy
     }
 
     hresult_t EngineMultiRobot::simulate(float64_t              const & tEnd,
-                                         std::vector<vectorN_t> const & xInit)
+                                         std::map<std::string, vectorN_t> const & xInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

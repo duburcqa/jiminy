@@ -54,18 +54,18 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::vector<vectorN_t> xInitList;
+        std::map<std::string, vectorN_t> xInitList;
         if (returnCode == hresult_t::SUCCESS)
         {
             if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
                 vectorN_t x0;
                 returnCode = robot_->getFlexibleStateFromRigid(xInit, x0);
-                xInitList.emplace_back(std::move(x0));
+                xInitList.emplace("", std::move(x0));
             }
             else
             {
-                xInitList.emplace_back(xInit);
+                xInitList.emplace("", xInit);
             }
         }
 
@@ -90,18 +90,18 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::vector<vectorN_t> xInitList;
+        std::map<std::string, vectorN_t> xInitList;
         if (returnCode == hresult_t::SUCCESS)
         {
             if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
                 vectorN_t x0;
                 returnCode = robot_->getFlexibleStateFromRigid(xInit, x0);
-                xInitList.emplace_back(std::move(x0));
+                xInitList.emplace("", std::move(x0));
             }
             else
             {
-                xInitList.emplace_back(xInit);
+                xInitList.emplace("", xInit);
             }
         }
 
