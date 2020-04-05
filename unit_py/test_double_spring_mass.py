@@ -334,14 +334,14 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Initialize the whole system.
         # First sytem: freeflyer at identity.
-        x_init_first = np.zeros(17)
-        x_init_first[7:9] = self.x0[:2]
-        x_init_first[-2:] = self.x0[2:]
-        x_init_first[6] = 1.0
+        x_init = {'FirstSystem': np.zeros(17)}
+        x_init['FirstSystem'][7:9] = self.x0[:2]
+        x_init['FirstSystem'][7:9] = self.x0[:2]
+        x_init['FirstSystem'][-2:] = self.x0[2:]
+        x_init['FirstSystem'][6] = 1.0
         # Second system: rotation by pi / 2 around Z to bring X axis to Y axis.
-        x_init_second = np.copy(x_init_first)
-        x_init_second[5:7] = np.sqrt(2) / 2.0
-        x_init = [x_init_first, x_init_second]
+        x_init['SecondSystem'] = np.copy(x_init['FirstSystem'])
+        x_init['SecondSystem'][5:7] = np.sqrt(2) / 2.0
 
         # Run simulation
         engine.simulate(self.tf, x_init)
@@ -386,7 +386,7 @@ class SimulateTwoMasses(unittest.TestCase):
                 dx[3 + 4 * i] = -dx[2 + 4 * i]
             return dx
 
-        x0 = np.hstack([x[[7, 8, 15, 16]] for x in x_init])
+        x0 = np.hstack([x_init[key][[7, 8, 15, 16]] for key in x_init])
         x_python = integrate_dynamics(time, x0, system_dynamics)
         self.assertTrue(np.allclose(x_jiminy_extract, x_python, atol=TOLERANCE))
 
