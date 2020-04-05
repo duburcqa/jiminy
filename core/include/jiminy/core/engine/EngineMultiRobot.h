@@ -514,7 +514,7 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        hresult_t start(std::vector<vectorN_t> const & xInit,
+        hresult_t start(std::map<std::string, vectorN_t> const & xInit,
                         bool_t const & resetRandomNumbers = false,
                         bool_t const & resetDynamicForceRegister = false);
 
@@ -540,8 +540,8 @@ namespace jiminy
         ///
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] xInit Initial state, i.e. state at t=0.
-        hresult_t simulate(float64_t              const & tEnd,
-                           std::vector<vectorN_t> const & xInit);
+        hresult_t simulate(float64_t const & tEnd,
+                           std::map<std::string, vectorN_t> const & xInit);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///        The force must be given in the world frame.

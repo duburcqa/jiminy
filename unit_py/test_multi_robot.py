@@ -47,14 +47,14 @@ class SimulateMultiRobot(unittest.TestCase):
             def internal_dynamics(self, t, q, v, sensor_data, u):
                 u[:] = - self.k * q - self.nu * v
 
-
         # Define initial state (for both systems) and simulation duration
-        x0 = [np.array([0.1, 0.0]), np.array([0.1, 0.0])]
+        x0 = {'FirstSystem': np.array([0.1, 0.0]),
+              'SecondSystem': np.array([-0.1, 0.0])}
         tf = 10.0
 
+        # Create two identical robots
         engine = jiminy.EngineMultiRobot()
 
-        # Create two idential robots
         system_names = ['FirstSystem', 'SecondSystem']
         robots = [jiminy.Robot(), jiminy.Robot()]
         for i in range(2):

@@ -210,6 +210,7 @@ namespace python
 
     template<typename T>
     enable_if_t<!is_vector<T>::value
+             && !is_map<T>::value
              && !std::is_same<T, int32_t>::value
              && !std::is_same<T, uint32_t>::value
              && !is_eigen<T>::value, T>
@@ -305,17 +306,36 @@ namespace python
     enable_if_t<is_vector<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
+        using V = typename T::value_type;
+
         T vec;
         bp::list const listPy = bp::extract<bp::list>(dataPy);
         vec.reserve(bp::len(listPy));
         for (bp::ssize_t i=0; i < bp::len(listPy); i++)
         {
             bp::object const itemPy = listPy[i];
-            vec.push_back(std::move(
-                convertFromPython<typename T::value_type>(itemPy)
-            ));
+            vec.push_back(std::move(convertFromPython<V>(itemPy)));
         }
         return vec;
+    }
+
+    template<typename T>
+    enable_if_t<is_map<T>::value, T>
+    convertFromPython(bp::object const & dataPy)
+    {
+        using K = typename T::key_type;
+        using V = typename T::mapped_type;
+
+        T map;
+        bp::dict const dictPy = bp::extract<bp::dict>(dataPy);
+        bp::list keysPy = dictPy.keys();
+        for (bp::ssize_t i=0; i < bp::len(keysPy); i++)
+        {
+            K const key = bp::extract<K>(keysPy[i]);
+            map[key] = convertFromPython<V>(dictPy[key]);
+        }
+
+        return map;
     }
 
     void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration

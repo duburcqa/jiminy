@@ -80,11 +80,7 @@ namespace jiminy
     template<bool B, class T = void>
     using enable_if_t = typename std::enable_if<B,T>::type;
 
-    template<typename T>
-    struct is_vector : std::false_type {};
-
-    template<typename T>
-    struct is_vector<std::vector<T> > : std::true_type {};
+    // ================= enable_shared_from_this ====================
 
     template <typename Base>
     inline std::shared_ptr<Base>
@@ -104,6 +100,15 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
+    // ======================== is_vector ===========================
+
+    template<typename T>
+    struct is_vector : std::false_type {};
+
+    template<typename T>
+    struct is_vector<std::vector<T> > : std::true_type {};
+
+    // ========================= is_eigen ===========================
 
     namespace isEigenObjectDetail {
         template <typename T, int RowsAtCompileTime, int ColsAtCompileTime>
@@ -125,6 +130,8 @@ namespace jiminy
     template<typename T>
     struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
 
+    // ====================== is_eigen_vector =======================
+
     namespace isEigenVectorDetail {
         template <typename T, int RowsAtCompileTime>
         std::true_type test(Eigen::Matrix<T, RowsAtCompileTime, 1> const *);
@@ -143,6 +150,25 @@ namespace jiminy
 
     template<typename T>
     struct is_eigen_vector<T, typename std::enable_if<isEigenVector<T>::value>::type> : std::true_type {};
+
+    // ========================== is_map ============================
+
+    namespace isMapDetail {
+        template<typename K, typename T>
+        std::true_type test(std::map<K, T> const *);
+        template<typename K, typename T>
+        std::true_type test(std::unordered_map<K, T> const *);
+        std::false_type test(...);
+    }
+
+    template <typename T>
+    struct isMap : public decltype(isMapDetail::test(std::declval<T*>())) {};
+
+    template<typename T, typename Enable = void>
+    struct is_map : std::false_type {};
+
+    template<typename T>
+    struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
 
     // *************** Convertion to JSON utilities *****************
 
