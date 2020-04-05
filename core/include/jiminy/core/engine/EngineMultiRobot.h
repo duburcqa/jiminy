@@ -7,15 +7,12 @@
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
-#include <boost/numeric/odeint.hpp>
-#include <boost/numeric/odeint/external/eigen/eigen_algebra.hpp>
+#include "jiminy/core/engine/Steppers.h"
 
 
 namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
-
-    using namespace boost::numeric::odeint;
 
     class AbstractController;
     class TelemetryData;
@@ -36,35 +33,6 @@ namespace jiminy
     using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
                                                    vectorN_t const & /*q*/,
                                                    vectorN_t const & /*v*/)>;
-
-    struct forceImpulse_t
-    {
-    public:
-        forceImpulse_t(void) = default;
-
-        forceImpulse_t(std::string      const & frameNameIn,
-                       float64_t        const & tIn,
-                       float64_t        const & dtIn,
-                       pinocchio::Force const & FIn) :
-        frameName(frameNameIn),
-        t(tIn),
-        dt(dtIn),
-        F(FIn)
-        {
-            // Empty on purpose
-        }
-
-        bool operator < (forceImpulse_t const & r) const
-        {
-            return (t < r.t);
-        }
-
-    public:
-        std::string frameName;
-        float64_t t;
-        float64_t dt;
-        pinocchio::Force F;
-    } ;
 
     struct forceProfile_t
     {
@@ -126,48 +94,49 @@ namespace jiminy
         forceCouplingFunctor_t forceFct;
     };
 
-    using forceImpulseRegister_t = std::set<forceImpulse_t>;  // Use a set to automatically sort the forces wrt. the application time
-    using forceProfileRegister_t = std::vector<forceProfile_t>;
-    using forceCouplingRegister_t = std::vector<forceCoupling_t>;
-
-    class explicit_euler
+    struct forceImpulse_t
     {
     public:
-        using state_type = vectorN_t;
-        using deriv_type = vectorN_t;
-        using value_type = float64_t;
-        using time_type = float64_t;
+        forceImpulse_t(void) = default;
 
-        using stepper_category = controlled_stepper_tag;
-
-        static unsigned short order(void)
+        forceImpulse_t(std::string      const & frameNameIn,
+                       int32_t          const & frameIdxIn,
+                       float64_t        const & tIn,
+                       float64_t        const & dtIn,
+                       pinocchio::Force const & FIn) :
+        frameName(frameNameIn),
+        frameIdx(frameIdxIn),
+        t(tIn),
+        dt(dtIn),
+        F(FIn)
         {
-            return 1;
+            // Empty on purpose
         }
 
-        template<class System>
-        controlled_step_result try_step(System       system,
-                                        state_type & x,
-                                        deriv_type & dxdt,
-                                        time_type  & t,
-                                        time_type  & dt) const
-        {
-            t += dt;
-            system(x, dxdt, t);
-            x += dt * dxdt;
-            return controlled_step_result::success;
-        }
+    public:
+        std::string frameName;
+        int32_t frameIdx;
+        float64_t t;
+        float64_t dt;
+        pinocchio::Force F;
     };
+
+    using forceProfileRegister_t = std::vector<forceProfile_t>;
+    using forceCouplingRegister_t = std::vector<forceCoupling_t>;
+    using forceImpulseRegister_t = std::vector<forceImpulse_t>;
 
     struct stepperState_t
     {
     public:
         stepperState_t(void) :
         iter(0U),
+        iterFailed(0U),
         t(0.0),
-        tLast(0.0),
+        tPrev(0.0),
         tError(0.0),
         dt(0.0),
+        dtLargest(0.0),
+        dtLargestPrev(0.0),
         x(),
         dxdt()
         {
@@ -178,9 +147,12 @@ namespace jiminy
                    vectorN_t const & xInit)
         {
             iter = 0U;
+            iterFailed = 0U;
             t = 0.0;
-            tLast = 0.0;
+            tPrev = 0.0;
             dt = dtInit;
+            dtLargest = dtInit;
+            dtLargestPrev = dtInit;
             tError = 0.0;
             x = xInit;
             dxdt = vectorN_t::Zero(xInit.size());
@@ -188,10 +160,13 @@ namespace jiminy
 
     public:
         uint32_t iter;
+        uint32_t iterFailed;
         float64_t t;
-        float64_t tLast;
+        float64_t tPrev;
         float64_t tError; ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
         float64_t dt;
+        float64_t dtLargest;
+        float64_t dtLargestPrev;
         vectorN_t x;
         vectorN_t dxdt;
     };
@@ -274,10 +249,12 @@ namespace jiminy
     private:
         std::unique_ptr<MutexLocal::LockGuardLocal> robotLock;
         systemState_t state;       ///< Internal buffer with the state for the integration loop
-        systemState_t stateLast;   ///< Internal state for the integration loop at the end of the previous iteration
-        forceImpulseRegister_t forcesImpulse;
-        forceImpulseRegister_t::const_iterator forceImpulseNextIt;
+        systemState_t statePrev;   ///< Internal state for the integration loop at the end of the previous iteration
         forceProfileRegister_t forcesProfile;
+        forceImpulseRegister_t forcesImpulse;
+        std::set<float64_t> forcesImpulseBreaks;    ///< Ordered list (without repetitions) of the start and end time associated with the forces
+        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;   ///< Iterator related to the time of the next breakpoint associated with the impulse forces
+        std::vector<bool_t> forcesImpulseActive;    ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
     };
 
     class EngineMultiRobot
@@ -324,10 +301,11 @@ namespace jiminy
             configHolder_t config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler"]
+            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler", "bulirsch_stoer"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = 1.0e-3;
+            config["dtRestoreThresholdRel"] = 0.2;
             config["iterMax"] = 1000000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
@@ -417,6 +395,7 @@ namespace jiminy
             float64_t   const tolAbs;
             float64_t   const tolRel;
             float64_t   const dtMax;
+            float64_t   const dtRestoreThresholdRel;
             int32_t     const iterMax;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
@@ -429,6 +408,7 @@ namespace jiminy
             tolAbs(boost::get<float64_t>(options.at("tolAbs"))),
             tolRel(boost::get<float64_t>(options.at("tolRel"))),
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
+            dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
@@ -475,17 +455,6 @@ namespace jiminy
                 // Empty.
             }
         };
-
-    protected:
-        using rungeKuttaStepper_t = runge_kutta_dopri5<vectorN_t /* x */,
-                                                       float64_t /* t */,
-                                                       vectorN_t /* dxdt */,
-                                                       float64_t /* dt */,
-                                                       vector_space_algebra>;
-        using stepper_t = boost::variant<
-            result_of::make_controlled<rungeKuttaStepper_t>::type /* Runge-Kutta stepper */,
-            explicit_euler                                        /* Euler explicit stepper */
-        >;
 
     public:
         // Disable the copy of the class
@@ -574,11 +543,16 @@ namespace jiminy
         hresult_t simulate(float64_t              const & tEnd,
                            std::vector<vectorN_t> const & xInit);
 
+        /// \brief Apply an impulse force on a frame for a given duration at the desired time.
+        ///        The force must be given in the world frame.
         hresult_t registerForceImpulse(std::string      const & systemName,
                                        std::string      const & frameName,
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
+
+        /// \brief Apply an time-continuous external force on a frame.
+        ///        The force can be time and state dependent, and must be given in the world frame.
         hresult_t registerForceProfile(std::string           const & systemName,
                                        std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);

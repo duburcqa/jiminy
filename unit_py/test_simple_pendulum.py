@@ -147,6 +147,134 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
+    def test_pendulum_force_impulse(self):
+        '''
+        @brief   Validate the impulse-momentum theorem
+
+        @details The analytical expression for the solution is exact for
+                 impulse of force that are perfect dirac functions.
+        '''
+        # No controller and no internal dynamics
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        # Analytical solution
+        pnc_model = self.robot.pinocchio_model_th
+        mass = pnc_model.inertias[1].mass
+        length = abs(pnc_model.inertias[1].lever[2])
+        axis = np.array([0.0, 1.0, 0.0])
+        def sys(t):
+            q = 0.0
+            v = 0.0
+            for i in range(len(F_register)):
+                if t > F_register[i]["t"]:
+                    pos = length * np.array([-np.cos(q - np.pi / 2), 0.0, np.sin(q - np.pi / 2)])
+                    n = pos / np.linalg.norm(pos)
+                    d = np.cross(axis, n)
+                    F_proj = F_register[i]["F"][:3].T @ d
+                    v_delta = ((F_proj + F_register[i]["F"][4] / length) * min(F_register[i]["dt"], t - F_register[i]["t"])) / mass
+                    if (i < len(F_register) - 1):
+                        q += (v + v_delta) * max(0, min(t, F_register[i+1]["t"]) - (F_register[i]["t"] + F_register[i]["dt"]))
+                    else:
+                        q += (v + v_delta) * max(0, t - F_register[i]["t"] + F_register[i]["dt"])
+                    q += (v + v_delta/2) * min(F_register[i]["dt"], t - F_register[i]["t"])
+                    v += v_delta
+                else:
+                    break
+            return np.array([q, v])
+
+        # Register a set of impulse forces
+        np.random.seed(0)
+        F_register = [{"t": 0.0, "dt": 2.0e-3, "F": np.array([1.0e3, 0.0, 0.0, 0.0, 0.0, 0.0])},
+                      {"t": 0.1, "dt": 1.0e-3, "F": np.array([0.0, 1.0e3, 0.0, 0.0, 0.0, 0.0])},
+                      {"t": 0.2, "dt": 2.0e-5, "F": np.array([-1.0e5, 0.0, 0.0, 0.0, 0.0, 0.0])},
+                      {"t": 0.2, "dt": 2.0e-4, "F": np.array([0.0, 0.0, 1.0e4, 0.0, 0.0, 0.0])},
+                      {"t": 0.4, "dt": 1.0e-5, "F": np.array([0.0, 0.0, 0.0, 0.0, 2.0e4, 0.0])},
+                      {"t": 0.4, "dt": 1.0e-5, "F": np.array([1.0e3, 1.0e4, 3.0e4, 0.0, 0.0, 0.0])},
+                      {"t": 0.6, "dt": 1.0e-6, "F": (2.0 * (np.random.rand(6) - 0.5)) * 4.0e6},
+                      {"t": 0.8, "dt": 2.0e-6, "F": np.array([0.0, 0.0, 2.0e5, 0.0, 0.0, 0.0])}]
+        for f in F_register:
+            engine.register_force_impulse("PendulumLink", f["t"], f["dt"], f["F"])
+
+        # Set the initial state and simulation duration
+        x0 = np.array([0.0, 0.0])
+        tf = 1.0
+
+        # Configure the engine: No gravity + Continuous time simulation
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
+        engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
+        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine.set_options(engine_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Compute the associated analytical solution
+        x_analytical = np.stack([sys(t) for t in time], axis=0)
+
+        # Check if t = t_start / t_end were breakpoints (the accuracy for the log is 1us)
+        t_break_err = np.concatenate([np.array([min(abs(f["t"] - log_data['Global.Time'])),
+                                                min(abs(f["t"] + f["dt"] - log_data['Global.Time']))])
+                                      for f in F_register])
+        self.assertTrue(np.allclose(t_break_err, 0.0, atol=1e-12))
+
+        # This test has a specific tolerance because the analytical solution is an
+        # approximation since in practice, the external force is not constant over
+        # its whole application duration but rather depends on the orientation of
+        # the pole. For simplicity, the effect of the impulse forces is assumed
+        # to be constant. As a result, the tolerance cannot be tighter.
+        TOLERANCE = 1e-6
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+
+        # Configure the engine: No gravity + Discrete time simulation
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
+        engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
+        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine.set_options(engine_options)
+
+        # Configure the engine: Continuous time simulation
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
+        engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
+        engine.set_options(engine_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Compute the associated analytical solution
+        x_analytical = np.stack([sys(t) for t in time], axis=0)
+
+        # Check if t = t_start / t_end were breakpoints (the accuracy for the log is 1us)
+        t_break_err = np.concatenate([np.array([min(abs(f["t"] - log_data['Global.Time'])),
+                                                min(abs(f["t"] + f["dt"] - log_data['Global.Time']))])
+                                      for f in F_register])
+        self.assertTrue(np.allclose(t_break_err, 0.0, atol=1e-12))
+
+         # Compare the numerical and analytical solution
+        TOLERANCE = 1e-6
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+
     def test_flexibility_rotor_inertia(self):
         '''
         @brief Test the addition of a flexibility in the system.

@@ -16,6 +16,6 @@ namespace jiminy
 
     float64_t const SIMULATION_MIN_TIMESTEP = 1.0 / TELEMETRY_TIME_DISCRETIZATION_FACTOR;
     float64_t const SIMULATION_MAX_TIMESTEP = 5e-3;
-    float64_t const SIMULATION_DEFAULT_TIMESTEP = 1e-3;
+    float64_t const SIMULATION_INITIAL_TIMESTEP = 1e-4;
     float64_t const STEPPER_MIN_TIMESTEP = 1e-10;
 }

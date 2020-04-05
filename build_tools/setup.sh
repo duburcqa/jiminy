@@ -14,7 +14,8 @@ apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3.6 1 && \
 update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-sudo -u $(id -nu $SUDO_UID) pip install wheel twine numpy ipython
+sudo -u $(id -nu $SUDO_UID) pip install wheel twine && \
+sudo -u $(id -nu $SUDO_UID) pip install numpy ipython
 
 # Install standard linux utilities and boost tools suite
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev # libeigen3-dev

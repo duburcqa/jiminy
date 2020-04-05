@@ -1275,6 +1275,7 @@ namespace python
         {
             cl
                 .def_readonly("iter", &stepperState_t::iter)
+                .def_readonly("iter_failed", &stepperState_t::iterFailed)
                 .def_readonly("t", &stepperState_t::t)
                 .def_readonly("dt", &stepperState_t::dt)
                 .add_property("x", bp::make_getter(&stepperState_t::x,
