@@ -16,7 +16,7 @@
 #include "jiminy/core/Constants.h"
 
 #include "jiminy/core/engine/EngineMultiRobot.h"
-#include "jiminy/core/engine/AlgorithmsMotorInertia.h"
+#include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
 
 #include <boost/numeric/odeint/iterator/n_step_iterator.hpp>
 
@@ -402,7 +402,7 @@ namespace jiminy
         for (auto & system : systemsDataHolder_)
         {
             // Compute the total energy of the system
-            float64_t energy = EngineMultiRobot::kineticEnergy(
+            float64_t energy = pinocchiooverload::kineticEnergy(
                 system.robot->pncModel_,
                 system.robot->pncData_,
                 system.state.q,
@@ -2334,7 +2334,7 @@ namespace jiminy
         else
         {
             // No kinematic constraint: run aba algorithm.
-            return EngineMultiRobot::aba(system.robot->pncModel_,
+            return pinocchiooverload::aba(system.robot->pncModel_,
                                          system.robot->pncData_,
                                          q,
                                          v,

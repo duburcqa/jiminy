@@ -22,6 +22,22 @@ namespace jiminy
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
 
+        struct robotConstraint_t
+        {
+            std::string name_; ///< Name of the constraint.
+            std::shared_ptr<AbstractConstraint> constraint_; ///< The constraint itself.
+            uint32_t dim_; ///< Dimension of the constraint.
+
+            robotConstraint_t(std::string const & name,
+                              std::shared_ptr<AbstractConstraint> constraint):
+                name_(name),
+                constraint_(constraint),
+                dim_(0)
+            {
+                // Empty.
+            }
+        };
+
     public:
         // Disable the copy of the class
         Robot(Robot const & robot) = delete;
@@ -180,7 +196,7 @@ namespace jiminy
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
-        std::vector<std::tuple<std::string, std::shared_ptr<AbstractConstraint>, int>> constraintsHolder_;
+        std::vector<robotConstraint_t> constraintsHolder_;
         matrixN_t constraintsJacobian_; ///< Matrix holding the jacobian of the constraints.
         vectorN_t constraintsDrift_;    ///< Vector holding the drift of the constraints.
 

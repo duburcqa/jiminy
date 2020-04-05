@@ -1,12 +1,11 @@
 /// Remimplementation of several dynamics algorithms from pinocchio,
 /// adding support for rotor inertia for 1DoF (prismatic, revolue) joints.
-#ifndef JIMINY_ALGORITHMS_MOTOR_INERTIA_H
-#define JIMINY_ALGORITHMS_MOTOR_INERTIA_H
+#ifndef PINOCCHIO_OVERLOAD_ALGORITHMS_H
+#define PINOCCHIO_OVERLOAD_ALGORITHMS_H
 
 
 #include <functional>
 
-#include "jiminy/core/engine/EngineMultiRobot.h"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/multibody/model.hpp"
@@ -16,17 +15,21 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
+#include "jiminy/core/engine/EngineMultiRobot.h"
+
 namespace jiminy
+{
+namespace pinocchiooverload
 {
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType>
     inline Scalar
-    EngineMultiRobot::kineticEnergy(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-                                    pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
-                                    Eigen::MatrixBase<ConfigVectorType>                    const & q,
-                                    Eigen::MatrixBase<TangentVectorType>                   const & v,
-                                    bool_t                                                 const & update_kinematics)
+    kineticEnergy(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+                  pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+                  Eigen::MatrixBase<ConfigVectorType>                    const & q,
+                  Eigen::MatrixBase<TangentVectorType>                   const & v,
+                  bool_t                                                 const & update_kinematics)
     {
         pinocchio::kineticEnergy(model, data, q, v, update_kinematics);
         data.kinetic_energy += 0.5 * (model.rotorInertia.array() * Eigen::pow(v.array(), 2)).sum();
@@ -37,12 +40,12 @@ namespace jiminy
              typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2,
              typename ForceDerived>
     inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
-    EngineMultiRobot::rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-                           pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
-                           Eigen::MatrixBase<ConfigVectorType>                    const & q,
-                           Eigen::MatrixBase<TangentVectorType1>                  const & v,
-                           Eigen::MatrixBase<TangentVectorType2>                  const & a,
-                           pinocchio::container::aligned_vector<ForceDerived>     const & fext)
+    rnea(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+         pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+         Eigen::MatrixBase<ConfigVectorType>                    const & q,
+         Eigen::MatrixBase<TangentVectorType1>                  const & v,
+         Eigen::MatrixBase<TangentVectorType2>                  const & a,
+         pinocchio::container::aligned_vector<ForceDerived>     const & fext)
     {
         pinocchio::rnea(model, data, q, v, a, fext);
         data.tau += model.rotorInertia.asDiagonal() * a;
@@ -137,12 +140,12 @@ namespace jiminy
              typename ConfigVectorType, typename TangentVectorType1,
              typename TangentVectorType2, typename ForceDerived>
     inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
-    EngineMultiRobot::aba(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-                          pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
-                          Eigen::MatrixBase<ConfigVectorType>                    const & q,
-                          Eigen::MatrixBase<TangentVectorType1>                  const & v,
-                          Eigen::MatrixBase<TangentVectorType2>                  const & tau,
-                          pinocchio::container::aligned_vector<ForceDerived>     const & fext)
+    aba(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
+        pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+        Eigen::MatrixBase<ConfigVectorType>                    const & q,
+        Eigen::MatrixBase<TangentVectorType1>                  const & v,
+        Eigen::MatrixBase<TangentVectorType2>                  const & tau,
+        pinocchio::container::aligned_vector<ForceDerived>     const & fext)
 
     {
         assert(model.check(data) && "data is not consistent with model.");
@@ -181,6 +184,7 @@ namespace jiminy
 
         return data.ddq;
     }
+}
 }
 
 #endif //end of JIMINY_ALGORITHMS_MOTOR_INERTIA_H
