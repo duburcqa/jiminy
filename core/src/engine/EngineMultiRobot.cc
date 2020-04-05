@@ -70,9 +70,11 @@ namespace jiminy
     robotLock(nullptr),
     state(),
     statePrev(),
+    forcesProfile(),
     forcesImpulse(),
-    forceImpulseNextIt(),
-    forcesProfile()
+    forcesImpulseBreaks(),
+    forcesImpulseBreakNextIt(),
+    forcesImpulseActive()
     {
         state.initialize(robot.get());
         statePrev.initialize(robot.get());
@@ -461,7 +463,8 @@ namespace jiminy
             for (auto & system : systemsDataHolder_)
             {
                 system.forcesImpulse.clear();
-                system.forceImpulseNextIt = system.forcesImpulse.begin();
+                system.forcesImpulseBreaks.clear();
+                system.forcesImpulseActive.clear();
                 system.forcesProfile.clear();
             }
         }
@@ -548,24 +551,34 @@ namespace jiminy
             // Initialize the ode solver
             if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
             {
-                stepper_ = rungeKuttaStepper_t(rungeKuttaErrorChecker_t(
-                    engineOptions_->stepper.tolAbs,
-                    engineOptions_->stepper.tolRel,
-                    0.1, 1.0
-                ), rungeKuttaStepAdjuster_t());
+                stepper_ = stepper::RungeKutta(
+                    stepper::runge_kutta::ErrorChecker(
+                        engineOptions_->stepper.tolAbs,
+                        engineOptions_->stepper.tolRel
+                    ), stepper::runge_kutta::StepAdjuster());
             }
             else if (engineOptions_->stepper.odeSolver == "bulirsch_stoer")
             {
-                stepper_ = bulirschStoerStepper_t(engineOptions_->stepper.tolAbs,
-                                                  engineOptions_->stepper.tolRel);
+                stepper_ = stepper::BulirschStoer(
+                    engineOptions_->stepper.tolAbs,
+                    engineOptions_->stepper.tolRel
+                );
             }
             else if (engineOptions_->stepper.odeSolver == "explicit_euler")
             {
-                stepper_ = eulerExplicitStepper_t();
+                stepper_ = stepper::EulerExplicit();
             }
 
             // Set the initial time step
             float64_t const dt = SIMULATION_INITIAL_TIMESTEP;
+
+            // Initialize the stepper state
+            float64_t const t = 0.0;
+            vectorN_t const xCat = cat(xInit);
+            stepperState_.reset(dt, xCat);
+
+            // Synchronize the individual system states with the global stepper state
+            syncSystemsStateWithStepper();
 
             // Update the frame indices associated with the coupling forces
             for (auto & force : forcesCoupling_)
@@ -578,26 +591,29 @@ namespace jiminy
                             force.frameIdx2);
             }
 
-            // Initialize the stepper state
-            float64_t const t = 0.0;
-            vectorN_t const xCat = cat(xInit);
-            stepperState_.reset(dt, xCat);
-
-            // Synchronize the individual system states with the global stepper state
-            syncSystemsStateWithStepper();
-
             for (auto & system : systemsDataHolder_)
             {
-                // Reset the impulse for iterator counter
-                system.forceImpulseNextIt = system.forcesImpulse.begin();
-
-                // Update the frame indices associated with the force profiles
+                // Update the frame indices associated with the impulse forces and force profiles
                 for (auto & force : system.forcesProfile)
                 {
                     getFrameIdx(system.robot->pncModel_,
                                 force.frameName,
                                 force.frameIdx);
                 }
+                for (auto & force : system.forcesImpulse)
+                {
+                    getFrameIdx(system.robot->pncModel_,
+                                force.frameName,
+                                force.frameIdx);
+                }
+
+                // Initialize the impulse force breakpoint point iterator
+                system.forcesImpulseBreakNextIt = system.forcesImpulseBreaks.begin();
+
+                // Reset the active set of impulse forces
+                std::fill(system.forcesImpulseActive.begin(),
+                          system.forcesImpulseActive.end(),
+                          false);
 
                 // Compute the forward kinematics for each system
                 vectorN_t const & q = system.state.q;
@@ -606,7 +622,7 @@ namespace jiminy
                 computeForwardKinematics(system, q, v, a);
 
                 // Make sure that the contact forces are bounded
-                std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
+                auto const & contactFramesIdx = system.robot->getContactFramesIdx();
                 for (uint32_t i=0; i < contactFramesIdx.size(); i++)
                 {
                     pinocchio::Force fextInFrame;
@@ -616,6 +632,18 @@ namespace jiminy
                         std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
                                      "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
                         returnCode = hresult_t::ERROR_BAD_INPUT;
+                    }
+                }
+
+                // Activate every force impulse starting at t=0
+                auto forcesImpulseActiveIt = system.forcesImpulseActive.begin();
+                auto forcesImpulseIt = system.forcesImpulse.begin();
+                for ( ; forcesImpulseIt != system.forcesImpulse.end() ;
+                    forcesImpulseActiveIt++, forcesImpulseIt++)
+                {
+                    if (forcesImpulseIt->t < STEPPER_MIN_TIMESTEP)
+                    {
+                        *forcesImpulseActiveIt = true;
                     }
                 }
             }
@@ -780,8 +808,7 @@ namespace jiminy
             returnCode = step(stepSize); // Automatic dt adjustment
         }
 
-        /* Stop the simulation. New variables can be registered again,
-           and the lock on the robot is released. */
+        // Stop the simulation. New variables can be registered again, and the lock on the robot is released
         stop();
 
         return returnCode;
@@ -815,9 +842,10 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            /* Set end time: The default step size is equal to the controller update period if
-            discrete-time, otherwise it uses the sensor update period if discrete-time,
-            otherwise it uses the user-defined parameter dtMax. */
+            /* Set end time: The default step size is equal to the
+               controller update period if discrete-time, otherwise
+               it uses the sensor update period if discrete-time,
+               otherwise it uses the user-defined parameter dtMax. */
             float64_t tEnd;
             if (stepSize < EPS)
             {
@@ -867,60 +895,85 @@ namespace jiminy
             // Define a failure checker for the stepper
             failed_step_checker fail_checker;
 
-            /* Perform the integration.
-               Do not simulate a timestep smaller than STEPPER_MIN_TIMESTEP. */
+            /* Flag monitoring if the current time step depends of a breakpoint
+               or the integration tolerance. It will be used by the restoration
+               mechanism, if dt gets very small to reach a breakpoint, in order
+               to avoid having to perform several steps to stabilize again the
+               estimation of the optimal time step. */
             bool_t isBreakpointReached = false;
+
+            /* Flag monitoring if the dynamics has changed because of impulse
+               forces or the command (only in the case of discrete control).
+
+               `try_step(rhs, x, dxdt, t, dt)` method of error controlled boost
+               steppers leverage the FSAL (first same as last) principle. It is
+               implemented by considering at the value of (x, dxdt) in argument
+               have been initialized by the user with the system dynamics at
+               current time t. Thus, if the system dynamics is discontinuous,
+               one has to manually integrate up to t-, then update dxdt to take
+               into the acceleration at t+.
+
+               Note that ONLY the acceleration part of dxdt must be updated since
+               the  projection of the velocity on the state space is not supposed
+               to have changed, and on top of that tPrev is invalid at this point
+               because it has been updated just after the last successful step.
+
+               Note that the estimated dt is no longer very meaningful since the
+               dynamics has changed. Maybe dt should be reschedule... */
+            bool_t hasDynamicsChanged = false;
+
+            // Perform the integration. Do not simulate extremely small time steps
             while (tEnd - t > STEPPER_MIN_TIMESTEP)
             {
                 float64_t tNext = t;
 
-                /* Get the next impulse force application time and update
-                   the iterators if necessary. */
-                float64_t tForceImpulseNext = tEnd;
+
+                // Update the active set and get the next breakpoint of impulse forces
+                float64_t tForceImpulseNext = INF;
                 for (auto & system : systemsDataHolder_)
                 {
-                    if (system.forceImpulseNextIt != system.forcesImpulse.end())
+                    /* Update the active set: activate an impulse force as soon as
+                       the current time gets close enough of the application time,
+                       and deactivate it once the following the same reasoning.
+
+                       Note that breakpoints at the begining and the end of every
+                       impulse force at already enforced, so that the forces
+                       cannot get activated/desactivate too late. */
+                    auto forcesImpulseActiveIt = system.forcesImpulseActive.begin();
+                    auto forcesImpulseIt = system.forcesImpulse.begin();
+                    for ( ; forcesImpulseIt != system.forcesImpulse.end() ;
+                        forcesImpulseActiveIt++, forcesImpulseIt++)
                     {
-                        auto & forceImpulseNextIt = system.forceImpulseNextIt;
+                        float64_t const & tForceImpulse = forcesImpulseIt->t;
+                        float64_t const & dtForceImpulse = forcesImpulseIt->dt;
 
-                        float64_t tForceImpulse = forceImpulseNextIt->t;
-                        float64_t dtForceImpulse = forceImpulseNextIt->dt;
-                        if (t >= tForceImpulse + dtForceImpulse)
+                        if (t > tForceImpulse - STEPPER_MIN_TIMESTEP)
                         {
-                            // The current force is over. Switch to the next one.
-                            forceImpulseNextIt++;
+                            *forcesImpulseActiveIt = true;
+                            hasDynamicsChanged = true;
                         }
-
-                        if (forceImpulseNextIt != system.forcesImpulse.end())
+                        if (t > tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
                         {
-                            tForceImpulse = forceImpulseNextIt->t;
-                            dtForceImpulse = forceImpulseNextIt->dt;
-                            if (tForceImpulse > t)
-                            {
-                                /* The application time of the current force is
-                                   ahead of time. So waiting for it to begin... */
-                                tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
-                            }
-                            else
-                            {
-                                // Add a breakpoint exactly at the end of force impulse
-                                if (tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
-                                {
-                                    tForceImpulseNext = min(tForceImpulseNext, tForceImpulse + dtForceImpulse);
-                                }
-
-                                /* The application time of the current force is past BUT
-                                   the application duration may not be over. In such a
-                                   case, one must NOT increment the force iterator, yet
-                                   the next application time does not correspond to the
-                                   current force but the next one. */
-                                if (forceImpulseNextIt != std::prev(system.forcesImpulse.end()))
-                                {
-                                    tForceImpulse = std::next(forceImpulseNextIt)->t;
-                                    tForceImpulseNext = min(tForceImpulseNext, tForceImpulse);
-                                }
-                            }
+                            *forcesImpulseActiveIt = false;
+                            hasDynamicsChanged = true;
                         }
+                    }
+
+                    // Update the breakpoint time iterator if necessary
+                    auto & tBreakNextIt = system.forcesImpulseBreakNextIt;
+                    if (tBreakNextIt != system.forcesImpulseBreaks.end())
+                    {
+                        if (t > *tBreakNextIt - STEPPER_MIN_TIMESTEP)
+                        {
+                            // The current breakpoint is behind in time. Switching to the next one.
+                            tBreakNextIt++;
+                        }
+                    }
+
+                    // Get the next breakpoint time if any
+                    if (tBreakNextIt != system.forcesImpulseBreaks.end())
+                    {
+                        tForceImpulseNext = min(tForceImpulseNext, *tBreakNextIt);
                     }
                 }
 
@@ -960,24 +1013,16 @@ namespace jiminy
                                 vectorN_t & uCommand = system.state.uCommand;
                                 computeCommand(system, t, q, v, uCommand);
                             }
-
-                            /* Update the internal stepper state dxdt since the dynamics has changed.
-                               Note that ONLY the acceleration part must be updated since the projection
-                               of the velocity on the state space is not supposed to have changed, and
-                               on top of that tPrev is invalid at this point because it has been
-                               updated just after the last successful step.
-                               -> Make sure the next impulse force iterator has NOT been updated yet !
-                               Note that this point is still subject to debate: it's more a choice than
-                               mathematical condition. Anyway, numerically, the results are similar.
-                               Note that the estimated dt is no longer very meaningful since the dynamics
-                               has changed. Maybe dt should be reschedule in such a case... */
-                            if (engineOptions_->stepper.odeSolver != "explicit_euler")
-                            {
-                                computeSystemDynamics(t, x, dxdt);
-                                syncSystemsStateWithStepper();
-                            }
+                            hasDynamicsChanged = true;
                         }
                     }
+                }
+
+                // Fix the FSAL issue if the dynamics has changed
+                if (hasDynamicsChanged)
+                {
+                    computeSystemDynamics(t, x, dxdt);
+                    syncSystemsStateWithStepper();
                 }
 
                 if (stepperUpdatePeriod_ > EPS)
@@ -1033,21 +1078,6 @@ namespace jiminy
                             }
                         }
 
-                        // Add a breakpoint exactly at the end of force impulse
-                        for (auto & system : systemsDataHolder_)
-                        {
-                            if (system.forceImpulseNextIt != system.forcesImpulse.end())
-                            {
-                                auto & forceImpulseNextIt = system.forceImpulseNextIt;
-                                float64_t const & tForceImpulse = forceImpulseNextIt->t;
-                                float64_t const & dtForceImpulse = forceImpulseNextIt->dt;
-                                if (t > tForceImpulse && tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
-                                {
-                                    dt = min(dt, tForceImpulse + dtForceImpulse - t);
-                                }
-                            }
-                        }
-
                         /* A breakpoint has been reached dt has been decreased
                            wrt the largest possible dt within integration tol. */
                         isBreakpointReached = (stepperState_.dtLargest > dt);
@@ -1062,11 +1092,7 @@ namespace jiminy
                         // Set the timestep to be tried by the stepper
                         dtLargest = dt;
 
-                        if (success == boost::apply_visitor(
-                            [&](auto && one)
-                            {
-                                return one.try_step(systemOde, x, dxdt, t, dtLargest);
-                            }, stepper_))
+                        if (try_step(stepper_, systemOde, x, dxdt, t, dtLargest))
                         {
                             // reset the fail counter
                             fail_checker.reset();
@@ -1084,9 +1110,9 @@ namespace jiminy
                             }
 
                             /* Restore the step size dt if it has been significantly
-                            decreased to because of a breakpoint. It is set
-                            equal to the last available largest dt to be known,
-                            namely the second to last successfull step. */
+                               decreased to because of a breakpoint. It is set
+                               equal to the last available largest dt to be known,
+                               namely the second to last successfull step. */
                             if (isBreakpointReached)
                             {
                                 /* Restore the step size if and only if:
@@ -1134,48 +1160,27 @@ namespace jiminy
                 }
                 else
                 {
-                    /* Make sure it ends exactly at the tEnd, never exceeds
-                       dtMax, and stop to apply impulse forces. */
+                    // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
                     dt = min(dt,
                              engineOptions_->stepper.dtMax,
                              tEnd - t,
                              tForceImpulseNext - t);
 
-                    // Add a breakpoint exactly at the end of force impulse
-                    for (auto & system : systemsDataHolder_)
-                    {
-                        if (system.forceImpulseNextIt != system.forcesImpulse.end())
-                        {
-                            auto & forceImpulseNextIt = system.forceImpulseNextIt;
-                            float64_t const & tForceImpulse = forceImpulseNextIt->t;
-                            float64_t const & dtForceImpulse = forceImpulseNextIt->dt;
-                            if (t > tForceImpulse && tForceImpulse + dtForceImpulse > t + STEPPER_MIN_TIMESTEP)
-                            {
-                                std::cout << "Adding a breakpoint at the end: t = " << (tForceImpulse + dtForceImpulse) << std::endl;
-                                dt = min(dt, tForceImpulse + dtForceImpulse - t);
-                            }
-                        }
-                    }
-
                     /* A breakpoint has been reached dt has been decreased
-                        wrt the largest possible dt within integration tol. */
+                       wrt the largest possible dt within integration tol. */
                     isBreakpointReached = (stepperState_.dtLargest > dt);
 
                     // Compute the next step using adaptive step method
-                    controlled_step_result res = fail;
-                    while (res == fail)
+                    bool_t isStepSuccessful = false;
+                    while (!isStepSuccessful)
                     {
                         // Set the timestep to be tried by the stepper
                         dtLargest = dt;
 
                         // Try to do a step
-                        res = boost::apply_visitor(
-                            [&](auto && one)
-                            {
-                                return one.try_step(systemOde, x, dxdt, t, dtLargest);
-                            }, stepper_);
+                        isStepSuccessful = try_step(stepper_, systemOde, x, dxdt, t, dtLargest);
 
-                        if (res == success)
+                        if (isStepSuccessful)
                         {
                             // reset the fail counter
                             fail_checker.reset();
@@ -1227,13 +1232,12 @@ namespace jiminy
             }
 
             /* Update the final time to make sure it corresponds
-            to the desired tEnd and avoid compounding of error.
-            Anyway the user asked for a step of exactly stepSize,
-            so he is expecting this value to be reached. */
+               to the desired tEnd and avoid compounding of error.
+               Anyway the user asked for a step of exactly stepSize,
+               so he is expecting this value to be reached. */
             stepperState_.t = tEnd;
 
-            /* Monitor current iteration number, and log the current time,
-            state, command, and sensors data. */
+            // Monitor current iteration number, and log the current time, state, command, and sensors data
             if (!engineOptions_->stepper.logInternalStepperSteps)
             {
                 updateTelemetry();
@@ -1255,8 +1259,8 @@ namespace jiminy
             }
 
             /* Reset the telemetry. Note that calling `reset` does NOT clear the
-            internal data buffer of telemetryRecorder_. Clearing is done at init
-            time, so that it remains accessible until the next initialization. */
+               internal data buffer of telemetryRecorder_. Clearing is done at init
+               time, so that it remains accessible until the next initialization. */
             telemetryRecorder_->reset();
             telemetryData_->reset();
             isTelemetryConfigured_ = false;
@@ -1285,36 +1289,25 @@ namespace jiminy
         systemDataHolder_t * system;
         returnCode = getSystem(systemName, system);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            int32_t frameIdx;
-            returnCode = getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
-        }
-
-        if (dt < SIMULATION_MIN_TIMESTEP)
+        if (dt < STEPPER_MIN_TIMESTEP)
         {
             std::cout << "Error - EngineMultiRobot::registerForceImpulse - The force duration cannot be smaller than "
-                      << SIMULATION_MIN_TIMESTEP << "." << std::endl;
+                      << STEPPER_MIN_TIMESTEP << "." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
+        int32_t frameIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
-            auto forceImpulseIt = std::find_if(system->forcesImpulse.begin(), system->forcesImpulse.end(),
-                                               [&t](auto const & forceImpulse)
-                                               {
-                                                   return (std::abs(forceImpulse.t - t) < SIMULATION_MIN_TIMESTEP);
-                                               });
-            if (forceImpulseIt != system->forcesImpulse.end())
-            {
-                std::cout << "Error - EngineMultiRobot::registerForceImpulse - One can only register a single force for a given application time." << std::endl;
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            returnCode = getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            system->forcesImpulse.emplace(frameName, t, dt, F);
+            system->forcesImpulse.emplace_back(frameName, frameIdx, t, dt, F);
+            system->forcesImpulseBreaks.emplace(t);
+            system->forcesImpulseBreaks.emplace(t + dt);
+            system->forcesImpulseActive.emplace_back(false);
         }
 
         return hresult_t::SUCCESS;
@@ -1339,13 +1332,14 @@ namespace jiminy
         int32_t frameIdx;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(system->robot->pncModel_, frameName, frameIdx);
+            returnCode = getFrameIdx(
+                system->robot->pncModel_, frameName, frameIdx);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             system->forcesProfile.emplace_back(
-                frameName, std::move(frameIdx), std::move(forceFct));
+                frameName, frameIdx, std::move(forceFct));
         }
 
         return returnCode;
@@ -1376,7 +1370,7 @@ namespace jiminy
 
         // Make sure the selected ode solver is available and instantiate it
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
-        if (STEPPER_ALGORITHMS.find(odeSolver) == STEPPER_ALGORITHMS.end())
+        if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
             std::cout << "Error - EngineMultiRobot::setOptions - The requested 'odeSolver' is not available." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
@@ -1610,9 +1604,9 @@ namespace jiminy
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
                                                               int32_t            const & frameId) const
     {
-        // Returns the external force in the contact frame.
-        // It must then be converted into a force onto the parent joint.
-        // /* /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
+        /* Returns the external force in the contact frame.
+           It must then be converted into a force onto the parent joint.
+           /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
         contactOptions_t const & contactOptions_ = engineOptions_->contacts;
 
@@ -1849,23 +1843,27 @@ namespace jiminy
             fext[parentIdx] += fextLocal;
         }
 
-        // Add the effect of user-defined external forces
-        if (system.forceImpulseNextIt != system.forcesImpulse.end())
+        // Add the effect of user-defined external impulse forces
+        auto forcesImpulseActiveIt = system.forcesImpulseActive.begin();
+        auto forcesImpulseIt = system.forcesImpulse.begin();
+        for ( ; forcesImpulseIt != system.forcesImpulse.end() ;
+             forcesImpulseActiveIt++, forcesImpulseIt++)
         {
-            float64_t const & tForceImpulseNext = system.forceImpulseNextIt->t;
-            float64_t const & dt = system.forceImpulseNextIt->dt;
-            if (tForceImpulseNext <= t && t < tForceImpulseNext + dt)
+            /* Do not check if the force is active at this point.
+               This is managed at stepper level to get around the
+               ambiguous t- versus t+. */
+            if (*forcesImpulseActiveIt)
             {
-                std::string const & frameName = system.forceImpulseNextIt->frameName;
-                pinocchio::Force const & F = system.forceImpulseNextIt->F;
-                int32_t frameIdx;
-                getFrameIdx(system.robot->pncModel_, frameName, frameIdx);
+                int32_t const & frameIdx = forcesImpulseIt->frameIdx;
                 int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+                pinocchio::Force const & F = forcesImpulseIt->F;
+
                 fext[parentIdx] += computeFrameForceOnParentJoint(
                     system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
 
+        // Add the effect of user-defined external force profiles
         for (auto const & forceProfile : system.forcesProfile)
         {
             int32_t const & frameIdx = forceProfile.frameIdx;

@@ -7,19 +7,12 @@
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
 
-#include <boost/numeric/odeint.hpp>
-#include <boost/numeric/odeint/external/eigen/eigen.hpp>
+#include "jiminy/core/engine/Steppers.h"
 
 
 namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
-
-    std::set<std::string> const STEPPER_ALGORITHMS{"runge_kutta_dopri5",
-                                                   "explicit_euler",
-                                                   "bulirsch_stoer"};
-
-    using namespace boost::numeric::odeint;
 
     class AbstractController;
     class TelemetryData;
@@ -40,35 +33,6 @@ namespace jiminy
     using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
                                                    vectorN_t const & /*q*/,
                                                    vectorN_t const & /*v*/)>;
-
-    struct forceImpulse_t
-    {
-    public:
-        forceImpulse_t(void) = default;
-
-        forceImpulse_t(std::string      const & frameNameIn,
-                       float64_t        const & tIn,
-                       float64_t        const & dtIn,
-                       pinocchio::Force const & FIn) :
-        frameName(frameNameIn),
-        t(tIn),
-        dt(dtIn),
-        F(FIn)
-        {
-            // Empty on purpose
-        }
-
-        bool operator < (forceImpulse_t const & r) const
-        {
-            return (t < r.t);
-        }
-
-    public:
-        std::string frameName;
-        float64_t t;
-        float64_t dt;
-        pinocchio::Force F;
-    } ;
 
     struct forceProfile_t
     {
@@ -130,9 +94,36 @@ namespace jiminy
         forceCouplingFunctor_t forceFct;
     };
 
-    using forceImpulseRegister_t = std::set<forceImpulse_t>;  // Use a set to automatically sort the forces wrt. the application time
+    struct forceImpulse_t
+    {
+    public:
+        forceImpulse_t(void) = default;
+
+        forceImpulse_t(std::string      const & frameNameIn,
+                       int32_t          const & frameIdxIn,
+                       float64_t        const & tIn,
+                       float64_t        const & dtIn,
+                       pinocchio::Force const & FIn) :
+        frameName(frameNameIn),
+        frameIdx(frameIdxIn),
+        t(tIn),
+        dt(dtIn),
+        F(FIn)
+        {
+            // Empty on purpose
+        }
+
+    public:
+        std::string frameName;
+        int32_t frameIdx;
+        float64_t t;
+        float64_t dt;
+        pinocchio::Force F;
+    };
+
     using forceProfileRegister_t = std::vector<forceProfile_t>;
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
+    using forceImpulseRegister_t = std::vector<forceImpulse_t>;
 
     struct stepperState_t
     {
@@ -259,9 +250,11 @@ namespace jiminy
         std::unique_ptr<MutexLocal::LockGuardLocal> robotLock;
         systemState_t state;       ///< Internal buffer with the state for the integration loop
         systemState_t statePrev;   ///< Internal state for the integration loop at the end of the previous iteration
-        forceImpulseRegister_t forcesImpulse;
-        forceImpulseRegister_t::const_iterator forceImpulseNextIt;
         forceProfileRegister_t forcesProfile;
+        forceImpulseRegister_t forcesImpulse;
+        std::set<float64_t> forcesImpulseBreaks;    ///< Ordered list (without repetitions) of the start and end time associated with the forces
+        std::set<float64_t>::const_iterator forcesImpulseBreakNextIt;   ///< Iterator related to the time of the next breakpoint associated with the impulse forces
+        std::vector<bool_t> forcesImpulseActive;    ///< Flag to active the forces. This is used to handle t-, t+ properly. Otherwise, it is impossible to determine at time t if the force is active or not.
     };
 
     class EngineMultiRobot
@@ -463,106 +456,6 @@ namespace jiminy
             }
         };
 
-    protected:
-        class eulerExplicitStepper_t
-        {
-        public:
-            using state_type = vectorN_t;
-            using deriv_type = vectorN_t;
-            using value_type = float64_t;
-            using time_type = float64_t;
-
-            using stepper_category = controlled_stepper_tag;
-
-            static unsigned short order(void)
-            {
-                return 1;
-            }
-
-            template<class System>
-            controlled_step_result try_step(System       system,
-                                            state_type & x,
-                                            deriv_type & dxdt,
-                                            time_type  & t,
-                                            time_type  & dt) const
-            {
-                t += dt;
-                system(x, dxdt, t);
-                x += dt * dxdt;
-                return controlled_step_result::success;
-            }
-        };
-
-        using bulirschStoerStepper_t = bulirsch_stoer<vectorN_t /* x */,
-                                                      float64_t /* t */,
-                                                      vectorN_t /* dxdt */,
-                                                      float64_t /* dt */,
-                                                      vector_space_algebra /* Enable Eigen support */>;
-
-        using rungeKuttaBackend_t = runge_kutta_dopri5<
-            vectorN_t, float64_t, vectorN_t, float64_t, vector_space_algebra>;
-
-        using rungeKuttaErrorChecker_t = default_error_checker<
-            typename rungeKuttaBackend_t::value_type,
-            typename rungeKuttaBackend_t::algebra_type,
-            typename rungeKuttaBackend_t::operations_type
-        >;
-
-        class rungeKuttaStepAdjuster_t
-        {
-        public:
-            using time_type = typename rungeKuttaBackend_t::time_type;
-            using value_type = typename rungeKuttaBackend_t::value_type;
-
-            rungeKuttaStepAdjuster_t(void) = default;
-
-            time_type decrease_step(time_type          dt,
-                                    value_type const & error,
-                                    int        const & error_order) const
-            {
-                // Returns the decreased time step
-                dt *= std::max(
-                    static_cast<value_type>(static_cast<value_type>(9) / static_cast<value_type>(10) *
-                                            std::pow(error, static_cast<value_type>(-1) / (error_order - 1))),
-                    static_cast<value_type>(static_cast<value_type>(1) / static_cast<value_type> (5))
-                );
-                return dt;
-            }
-
-            time_type increase_step(time_type          dt,
-                                    value_type         error,
-                                    int        const & stepper_order) const
-            {
-                if(error < 0.5)
-                {
-                    // Error should be > 0
-                    error = std::max(
-                        error,
-                        static_cast<value_type>(std::pow(static_cast<value_type>(5.0),
-                                                -static_cast<value_type>(stepper_order)))
-                    );
-
-                    // Error too small - increase dt and keep the evolution and limit scaling factor to 5.0
-                    dt *= static_cast<value_type>(9)/static_cast<value_type>(10)
-                       * pow(error, static_cast<value_type>(-1) / stepper_order);
-                }
-                return dt;
-            }
-
-            bool check_step_size_limit(time_type const & dt) { return true; }
-            time_type get_max_dt() { return static_cast<time_type>(0.0); }
-        };
-
-        using rungeKuttaStepper_t = controlled_runge_kutta<rungeKuttaBackend_t,
-                                                           rungeKuttaErrorChecker_t,
-                                                           rungeKuttaStepAdjuster_t>;
-
-        using stepper_t = boost::variant<
-            bulirschStoerStepper_t  /* Bulirsch-Stoer stepper */,
-            rungeKuttaStepper_t     /* Runge-Kutta Dopri stepper */,
-            eulerExplicitStepper_t  /* Explicit Euler stepper */
-        >;
-
     public:
         // Disable the copy of the class
         EngineMultiRobot(EngineMultiRobot const & engine) = delete;
@@ -650,11 +543,16 @@ namespace jiminy
         hresult_t simulate(float64_t              const & tEnd,
                            std::vector<vectorN_t> const & xInit);
 
+        /// \brief Apply an impulse force on a frame for a given duration at the desired time.
+        ///        The force must be given in the world frame.
         hresult_t registerForceImpulse(std::string      const & systemName,
                                        std::string      const & frameName,
                                        float64_t        const & t,
                                        float64_t        const & dt,
                                        pinocchio::Force const & F);
+
+        /// \brief Apply an time-continuous external force on a frame.
+        ///        The force can be time and state dependent, and must be given in the world frame.
         hresult_t registerForceProfile(std::string           const & systemName,
                                        std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);
