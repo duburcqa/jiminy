@@ -1749,10 +1749,14 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot", bp::make_function(&Engine::getRobot,
-                                       bp::return_internal_reference<>()))
-                .add_property("controller", bp::make_function(&Engine::getController,
-                                            bp::return_internal_reference<>()))
+                .add_property("robot",
+                    static_cast<
+                        std::shared_ptr<Robot> (Engine::*)(void)
+                    >(&Engine::getRobot))
+                .add_property("controller",
+                    static_cast<
+                        std::shared_ptr<AbstractController> (Engine::*)(void)
+                    >(&Engine::getController))
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("system_state", bp::make_function(
