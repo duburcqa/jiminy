@@ -675,7 +675,7 @@ namespace python
         {
             bp::class_<AbstractConstraint,
                        std::shared_ptr<AbstractConstraint>,
-                       boost::noncopyable>("AbstractConstraint")
+                       boost::noncopyable>("AbstractConstraint", bp::no_init)
                 .def(PyConstraintVisitor());
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraint>,
@@ -955,6 +955,8 @@ namespace python
                                    (bp::arg("self"), "sensor_type", "sensor_name"))
                 .def("add_constraint", &Robot::addConstraint,
                                        (bp::arg("self"), "name", "constraint"))
+                .def("get_constraint", &PyRobotVisitor::getConstraint,
+                                  (bp::arg("self"), "constraint_name"))
                 .def("remove_constraint", &Robot::removeConstraint,
                                           (bp::arg("self"), "name"))
 
@@ -1025,6 +1027,14 @@ namespace python
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
             return sensor;
+        }
+
+        static std::shared_ptr<AbstractConstraint> getConstraint(Robot             & self,
+                                                                 std::string const & constraintName)
+        {
+            std::shared_ptr<AbstractConstraint> constraint;
+            self.getConstraint(constraintName, constraint);
+            return constraint;
         }
 
         static std::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)

@@ -543,6 +543,28 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    hresult_t Robot::getConstraint(std::string const & constraintName,
+                                   std::shared_ptr<AbstractConstraint> & constraint) const
+    {
+        // Lookup constraint.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.name_ == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
+        {
+            std::cout << "Error - Robot::getConstraint - No constraint with this name exists." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            constraint = constraintIt->constraint_;
+        }
+        return hresult_t::SUCCESS;
+    }
+
 
     hresult_t Robot::refreshProxies(void)
     {

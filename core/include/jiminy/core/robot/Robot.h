@@ -95,6 +95,13 @@ namespace jiminy
         /// \param[in] constraintName Unique name identifying the kinematic constraint.
         hresult_t removeConstraint(std::string const & constraintName);
 
+        /// \brief Get a pointer to the constraint referenced by constraintName
+        ///
+        /// \param[in] constraintName Name of the constraint to get.
+        /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
+        hresult_t getConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraint> & constraint) const;
+
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
         /// \details The results are accessible using getConstraintsJacobian and

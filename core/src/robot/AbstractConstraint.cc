@@ -39,9 +39,4 @@ namespace jiminy
         model_ = nullptr;
         isAttached_ = false;
     }
-
-    hresult_t AbstractConstraint::refreshProxies()
-    {
-        return hresult_t::SUCCESS;
-    }
 }

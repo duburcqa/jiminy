@@ -85,9 +85,9 @@ namespace jiminy
         /// \brief    Refresh the proxies.
         ///
         /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
+        ///           constraint is added is taking care of it when its own `refresh` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void);
+        virtual hresult_t refreshProxies(void) = 0;
 
         Model const * model_; ///< Model on which the constraint operates.
         bool isAttached_; ///< Flag to indicate if the constraint has been attached to a model.
