@@ -5,9 +5,9 @@ import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import ode
 
+from jiminy_py import core as jiminy
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
-from jiminy_py import core as jiminy
 
 
 # Small tolerance for numerical equality.
@@ -120,11 +120,11 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # System dynamics: get length and inertia.
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
-        g = 9.81
+        g = self.robot.pinocchio_model.gravity.linear[2]
 
         # Pendulum dynamics
         def dynamics(t, x):
-            return np.array([x[1], - g / l * np.sin(x[0])])
+            return np.array([x[1], g / l * np.sin(x[0])])
 
         # Integrate, using same Runge-Kutta integrator.
         solver = ode(dynamics)

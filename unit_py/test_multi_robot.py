@@ -4,7 +4,6 @@ import unittest
 import numpy as np
 from scipy.linalg import expm
 
-from pinocchio import Force
 from jiminy_py import core as jiminy
 
 
@@ -118,6 +117,4 @@ class SimulateMultiRobot(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # unittest.main()
-    t = SimulateMultiRobot()
-    t.test_multi_robot()
+    unittest.main()

@@ -535,6 +535,36 @@ namespace jiminy
             }
         }
 
+        for (auto & system : systemsDataHolder_)
+        {
+            for (auto const & sensorGroup : system.robot->getSensors())
+            {
+                for (auto const & sensor : sensorGroup.second)
+                {
+                    if (returnCode == hresult_t::SUCCESS)
+                    {
+                        if (!sensor->getIsInitialized())
+                        {
+                            std::cout << "Error - EngineMultiRobot::start - At least a sensor of a robot is not initialized." << std::endl;
+                            returnCode = hresult_t::ERROR_INIT_FAILED;
+                        }
+                    }
+                }
+            }
+
+            for (auto const & motor : system.robot->getMotors())
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (!motor->getIsInitialized())
+                    {
+                        std::cout << "Error - EngineMultiRobot::start - At least a motor of a robot is not initialized." << std::endl;
+                        returnCode = hresult_t::ERROR_INIT_FAILED;
+                    }
+                }
+            }
+        }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             // Reset the robot, controller, engine, and registered impulse forces if requested
@@ -646,6 +676,7 @@ namespace jiminy
                                      "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
                         returnCode = hresult_t::ERROR_BAD_INPUT;
                     }
+                    break;
                 }
 
                 // Activate every force impulse starting at t=0

@@ -88,9 +88,9 @@ namespace jiminy
             returnCode = generateModelBiased();
         }
 
+        // Unset the initialization flag in case of failure
         if (returnCode != hresult_t::SUCCESS)
         {
-            // Set the initialization flag
             isInitialized_ = false;
         }
 
