@@ -35,8 +35,8 @@ if ! [-d "/opt/openrobots/lib/python3.6/site-packages/" ] ; then
     sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
     curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
     apt update && \
-    apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
-                robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy=2.0.2 robotpkg-py36-pinocchio=2.2.2 && \
+    apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 robotpkg-hpp-fcl=1.3.0 \
+                   robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy=2.0.2 robotpkg-py36-pinocchio=2.2.2 && \
     echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib' >> $HOME/.bashrc && \
     sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
     sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \
