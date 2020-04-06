@@ -265,7 +265,8 @@ namespace jiminy
             configHolder_t config;
             config["frictionViscous"] = 0.8;
             config["frictionDry"] = 1.0;
-            config["dryFrictionVelEps"] = 1.0e-2;
+            config["frictionStictionVel"] = 1.0e-2;
+            config["frictionStictionRatio"] = 0.5;
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
             config["transitionEps"] = 1.0e-3;
@@ -278,7 +279,7 @@ namespace jiminy
             configHolder_t config;
             config["boundStiffness"] = 1.0e5;
             config["boundDamping"] = 1.0e4;
-            config["boundTransitionEps"] = 1.0e-2; // about 0.55 degrees
+            config["transitionEps"] = 1.0e-2; // about 0.55 degrees
 
             return config;
         };
@@ -342,7 +343,8 @@ namespace jiminy
         {
             float64_t const frictionViscous;
             float64_t const frictionDry;
-            float64_t const dryFrictionVelEps;
+            float64_t const frictionStictionVel;
+            float64_t const frictionStictionRatio;
             float64_t const stiffness;
             float64_t const damping;
             float64_t const transitionEps;
@@ -350,7 +352,8 @@ namespace jiminy
             contactOptions_t(configHolder_t const & options) :
             frictionViscous(boost::get<float64_t>(options.at("frictionViscous"))),
             frictionDry(boost::get<float64_t>(options.at("frictionDry"))),
-            dryFrictionVelEps(boost::get<float64_t>(options.at("dryFrictionVelEps"))),
+            frictionStictionVel(boost::get<float64_t>(options.at("frictionStictionVel"))),
+            frictionStictionRatio(boost::get<float64_t>(options.at("frictionStictionRatio"))),
             stiffness(boost::get<float64_t>(options.at("stiffness"))),
             damping(boost::get<float64_t>(options.at("damping"))),
             transitionEps(boost::get<float64_t>(options.at("transitionEps")))
@@ -363,12 +366,12 @@ namespace jiminy
         {
             float64_t const boundStiffness;
             float64_t const boundDamping;
-            float64_t const boundTransitionEps;
+            float64_t const transitionEps;
 
             jointOptions_t(configHolder_t const & options) :
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
             boundDamping(boost::get<float64_t>(options.at("boundDamping"))),
-            boundTransitionEps(boost::get<float64_t>(options.at("boundTransitionEps")))
+            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
             {
                 // Empty.
             }

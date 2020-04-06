@@ -13,19 +13,17 @@ TOLERANCE = 1e-7
 
 class SimulatePointMass(unittest.TestCase):
     def setUp(self):
-        '''
-        @brief Validate the contact dynamics.
-
-        @details The energy is expected to decrease slowly when penetrating into the ground,
-                 but should stay constant otherwise. Then, the equilibrium point must also
-                 match the physics. Note that the friction model is not assessed here.
-        '''
         # Load URDF, create robot.
         urdf_path = "data/point_mass.urdf"
 
         # Define the parameters of the contact dynamics
         self.k_contact = 1.0e6
         self.nu_contact = 2.0e3
+        self.v_stiction = 5e-2
+        self.r_stiction = 0.5
+        self.dry_friction = 5.5
+        self.visc_friction = 2.0
+        self.dtMax = 1.0e-5
 
         # Create the jiminy robot and controller
         self.robot = jiminy.Robot()
@@ -36,6 +34,13 @@ class SimulatePointMass(unittest.TestCase):
         force_sensor.initialize('MassBody')
 
     def test_contact_point_dynamics(self):
+        '''
+        @brief Validate the contact dynamics.
+
+        @details The energy is expected to decrease slowly when penetrating into the ground,
+                 but should stay constant otherwise. Then, the equilibrium point must also
+                 match the physics. Note that the friction model is not assessed here.
+        '''
         # Create the engine
         engine = jiminy.Engine()
         engine.initialize(self.robot)
@@ -43,11 +48,8 @@ class SimulatePointMass(unittest.TestCase):
         engine_options = engine.get_options()
         engine_options['contacts']['stiffness'] = self.k_contact
         engine_options['contacts']['damping'] = self.nu_contact
-        engine_options['contacts']['transitionEps'] = 1/self.k_contact # To avoid assertion failure because of problem regularization
-        # engine_options['contacts']['frictionDry'] = 5.0
-        # engine_options['contacts']['frictionViscous'] = 5.0
-        # engine_options['contacts']['dryFrictionVelEps'] = 1.0e-2
-        engine_options["stepper"]["dtMax"] = 1.0e-5
+        engine_options['contacts']['transitionEps'] = 1.0 / self.k_contact # To avoid assertion failure because of problem regularization
+        engine_options["stepper"]["dtMax"] = self.dtMax
         engine_options["stepper"]["logInternalStepperSteps"] = True
         engine.set_options(engine_options)
 
@@ -63,6 +65,7 @@ class SimulatePointMass(unittest.TestCase):
         engine.simulate(tf, x0)
 
         log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
         x_jiminy = np.stack([log_data['HighLevelController.' + s]
                                 for s in self.robot.logfile_position_headers + \
                                          self.robot.logfile_velocity_headers], axis=-1)
@@ -71,12 +74,12 @@ class SimulatePointMass(unittest.TestCase):
         E_contact = 1/2 * self.k_contact * np.minimum(x_jiminy[:, 2], 0.0) ** 2
         E_robot = log_data['HighLevelController.energy']
         E_tot = E_robot + E_contact
-        E_diff_robot = np.concatenate((np.diff(E_robot), np.array([0.0], dtype=E_robot.dtype)))
-        E_diff_tot = np.concatenate((np.diff(E_tot), np.array([0.0], dtype=E_robot.dtype)))
+        E_diff_robot = np.concatenate((np.diff(E_robot) / np.diff(time), np.array([0.0], dtype=E_robot.dtype)))
+        E_diff_tot = np.concatenate((np.diff(E_tot) / np.diff(time), np.array([0.0], dtype=E_robot.dtype)))
 
         # Check that the total energy never increases
         # One must use a specific, less restrictive, tolerance, because of numerical differentiation error of float32.
-        TOLERANCE_diff = 1e-6
+        TOLERANCE_diff = 5e-2
         self.assertTrue(np.all(E_diff_tot < TOLERANCE_diff))
 
         # Check that the energy of robot only increases when the robot is moving upward while still in the ground.

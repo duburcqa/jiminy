@@ -106,9 +106,10 @@ int main(int argc, char_t * argv[])
     boost::get<uint32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("randomSeed")) = 0U; // Use time(nullptr) for random seed.
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("stiffness")) = 1e6;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("damping")) = 2000.0;
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("dryFrictionVelEps")) = 0.01;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionDry")) = 5.0;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionViscous")) = 5.0;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionStictionVel")) = 0.01;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionStictionRatio")) = 0.5;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("transitionEps")) = 0.001;
     engine->setOptions(simuOptions);
     engine->initialize(robot, controller, callback);

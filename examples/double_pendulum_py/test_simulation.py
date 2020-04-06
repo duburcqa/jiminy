@@ -62,9 +62,10 @@ engine_options["stepper"]["logInternalStepperSteps"] = False
 engine_options["stepper"]["randomSeed"] = 0
 engine_options['contacts']['stiffness'] = 1.0e6
 engine_options['contacts']['damping'] = 2000.0
-engine_options['contacts']['dryFrictionVelEps'] = 0.01
 engine_options['contacts']['frictionDry'] = 5.0
 engine_options['contacts']['frictionViscous'] = 5.0
+engine_options['contacts']['frictionStictionVel'] = 0.01
+engine_options['contacts']['frictionStictionRatio'] = 0.5
 engine_options['contacts']['transitionEps'] = 0.001
 
 robot.set_options(robot_options)
