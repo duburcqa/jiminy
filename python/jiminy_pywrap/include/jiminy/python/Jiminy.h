@@ -1392,6 +1392,8 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("add_system", &PyEngineMultiRobotVisitor::addSystemWithoutController,
+                                   (bp::arg("self"), "system_name", "robot"))
                 .def("add_system", &PyEngineMultiRobotVisitor::addSystem,
                                    (bp::arg("self"), "system_name",
                                     "robot", "controller"))
@@ -1461,6 +1463,34 @@ namespace python
                 ;
         }
 
+        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
+                                                    std::string            const & systemName,
+                                                    std::shared_ptr<Robot> const & robot)
+        {
+            auto commandFct = [](float64_t        const & t,
+                                 vectorN_t        const & q,
+                                 vectorN_t        const & v,
+                                 sensorsDataMap_t const & sensorsData,
+                                 vectorN_t              & uCommand) {};
+            auto internalDynamicsFct = [](float64_t        const & t,
+                                          vectorN_t        const & q,
+                                          vectorN_t        const & v,
+                                          sensorsDataMap_t const & sensorsData,
+                                          vectorN_t              & uCommand) {};
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            auto controller = std::make_shared<
+                ControllerFunctor<decltype(commandFct),
+                                  decltype(internalDynamicsFct)>
+            >(commandFct, internalDynamicsFct);
+            controller->initialize(robot.get());
+            return self.addSystem(systemName, robot, controller, callbackFct);
+        }
+
         static hresult_t addSystem(EngineMultiRobot                          & self,
                                    std::string                         const & systemName,
                                    std::shared_ptr<Robot>              const & robot,
@@ -1472,7 +1502,7 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+            return self.addSystem(systemName, robot, controller, callbackFct);
         }
 
         static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
@@ -1723,6 +1753,8 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("initialize", &PyEngineVisitor::initializeWithoutController,
+                                   (bp::arg("self"), "robot"))
                 .def("initialize", &PyEngineVisitor::initialize,
                                    (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
@@ -1749,10 +1781,14 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot", bp::make_function(&Engine::getRobot,
-                                       bp::return_internal_reference<>()))
-                .add_property("controller", bp::make_function(&Engine::getController,
-                                            bp::return_internal_reference<>()))
+                .add_property("robot",
+                    static_cast<
+                        std::shared_ptr<Robot> (Engine::*)(void)
+                    >(&Engine::getRobot))
+                .add_property("controller",
+                    static_cast<
+                        std::shared_ptr<AbstractController> (Engine::*)(void)
+                    >(&Engine::getController))
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("system_state", bp::make_function(
@@ -1761,6 +1797,33 @@ namespace python
                     >(&Engine::getSystemState),
                     bp::return_internal_reference<>()))
                 ;
+        }
+
+        static hresult_t initializeWithoutController(Engine                       & self,
+                                                     std::shared_ptr<Robot> const & robot)
+        {
+            auto commandFct = [](float64_t        const & t,
+                                 vectorN_t        const & q,
+                                 vectorN_t        const & v,
+                                 sensorsDataMap_t const & sensorsData,
+                                 vectorN_t              & uCommand) {};
+            auto internalDynamicsFct = [](float64_t        const & t,
+                                          vectorN_t        const & q,
+                                          vectorN_t        const & v,
+                                          sensorsDataMap_t const & sensorsData,
+                                          vectorN_t              & uCommand) {};
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            auto controller = std::make_shared<
+                ControllerFunctor<decltype(commandFct),
+                                  decltype(internalDynamicsFct)>
+            >(commandFct, internalDynamicsFct);
+            controller->initialize(robot.get());
+            return self.initialize(robot, controller, callbackFct);
         }
 
         static hresult_t initialize(Engine                                    & self,
@@ -1773,7 +1836,7 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.initialize(robot, controller, std::move(callbackFct));
+            return self.initialize(robot, controller, callbackFct);
         }
 
         static hresult_t initializeWithCallback(Engine                                    & self,

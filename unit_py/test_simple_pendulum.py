@@ -5,9 +5,9 @@ import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import ode
 
+from jiminy_py import core as jiminy
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
-from jiminy_py import core as jiminy
 
 
 # Small tolerance for numerical equality.
@@ -103,17 +103,9 @@ class SimulateSimplePendulum(unittest.TestCase):
                  of a (nonlinear) pendulum motion, we perform the simulation in
                  python, with the same integrator, and compare both results.
         '''
-        # No controller and no internal dynamics
-        def computeCommand(t, q, v, sensor_data, u):
-            u[:] = 0.0
-
-        def internalDynamics(t, q, v, sensor_data, u):
-            u[:] = 0.0
-
-        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
-        controller.initialize(self.robot)
+        # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
-        engine.initialize(self.robot, controller)
+        engine.initialize(self.robot)
 
         x0 = np.array([0.1, 0.0])
         tf = 2.0
@@ -128,11 +120,11 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # System dynamics: get length and inertia.
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
-        g = 9.81
+        g = self.robot.pinocchio_model.gravity.linear[2]
 
         # Pendulum dynamics
         def dynamics(t, x):
-            return np.array([x[1], - g / l * np.sin(x[0])])
+            return np.array([x[1], g / l * np.sin(x[0])])
 
         # Integrate, using same Runge-Kutta integrator.
         solver = ode(dynamics)
@@ -154,17 +146,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         @details The analytical expression for the solution is exact for
                  impulse of force that are perfect dirac functions.
         '''
-        # No controller and no internal dynamics
-        def computeCommand(t, q, v, sensor_data, u):
-            u[:] = 0.0
-
-        def internalDynamics(t, q, v, sensor_data, u):
-            u[:] = 0.0
-
-        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
-        controller.initialize(self.robot)
+        # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
-        engine.initialize(self.robot, controller)
+        engine.initialize(self.robot)
 
         # Analytical solution
         pnc_model = self.robot.pinocchio_model_th

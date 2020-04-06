@@ -43,11 +43,12 @@ namespace jiminy
         {
             frameName_ = frameName;
             isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (returnCode != hresult_t::SUCCESS)
         {
-            returnCode = refreshProxies();
+            isInitialized_ = false;
         }
 
         return returnCode;
@@ -139,11 +140,12 @@ namespace jiminy
         {
             frameName_ = frameName;
             isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (returnCode != hresult_t::SUCCESS)
         {
-            returnCode = refreshProxies();
+            isInitialized_ = false;
         }
 
         return returnCode;
@@ -232,11 +234,12 @@ namespace jiminy
         {
             jointName_ = jointName;
             isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (returnCode != hresult_t::SUCCESS)
         {
-            returnCode = refreshProxies();
+            isInitialized_ = false;
         }
 
         return returnCode;
@@ -325,11 +328,12 @@ namespace jiminy
         {
             motorName_ = motorName;
             isInitialized_ = true;
+            returnCode = refreshProxies();
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (returnCode != hresult_t::SUCCESS)
         {
-            returnCode = refreshProxies();
+            isInitialized_ = false;
         }
 
         return returnCode;

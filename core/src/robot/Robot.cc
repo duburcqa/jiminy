@@ -335,7 +335,7 @@ namespace jiminy
             {
                 sensorsSharedHolder_.emplace(std::make_pair(
                     sensorType, std::make_shared<SensorSharedDataHolder_t>()));
-                sensorTelemetryOptions_.emplace(std::make_pair(sensorType, false));
+                sensorTelemetryOptions_.emplace(std::make_pair(sensorType, true)); // Enable the telemetry by default
             }
 
             // Attach the sensor
@@ -604,7 +604,7 @@ namespace jiminy
         return returnCode;
     }
 
-    Robot::motorsHolder_t & Robot::getMotors(void)
+    Robot::motorsHolder_t const & Robot::getMotors(void) const
     {
         return motorsHolder_;
     }
@@ -660,7 +660,7 @@ namespace jiminy
         return returnCode;
     }
 
-    Robot::sensorsGroupHolder_t & Robot::getSensors(void)
+    Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
     {
         return sensorsGroupHolder_;
     }
@@ -1137,7 +1137,10 @@ namespace jiminy
                                      vectorN_t                   const & a,
                                      vectorN_t                   const & u)
     {
-        (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
+        if (!motorsHolder_.empty())
+        {
+            (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
+        }
     }
 
     vectorN_t const & Robot::getMotorsTorques(void) const

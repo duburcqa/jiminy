@@ -535,6 +535,36 @@ namespace jiminy
             }
         }
 
+        for (auto & system : systemsDataHolder_)
+        {
+            for (auto const & sensorGroup : system.robot->getSensors())
+            {
+                for (auto const & sensor : sensorGroup.second)
+                {
+                    if (returnCode == hresult_t::SUCCESS)
+                    {
+                        if (!sensor->getIsInitialized())
+                        {
+                            std::cout << "Error - EngineMultiRobot::start - At least a sensor of a robot is not initialized." << std::endl;
+                            returnCode = hresult_t::ERROR_INIT_FAILED;
+                        }
+                    }
+                }
+            }
+
+            for (auto const & motor : system.robot->getMotors())
+            {
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    if (!motor->getIsInitialized())
+                    {
+                        std::cout << "Error - EngineMultiRobot::start - At least a motor of a robot is not initialized." << std::endl;
+                        returnCode = hresult_t::ERROR_INIT_FAILED;
+                    }
+                }
+            }
+        }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             // Reset the robot, controller, engine, and registered impulse forces if requested
@@ -646,6 +676,7 @@ namespace jiminy
                                      "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
                         returnCode = hresult_t::ERROR_BAD_INPUT;
                     }
+                    break;
                 }
 
                 // Activate every force impulse starting at t=0
@@ -1417,16 +1448,23 @@ namespace jiminy
 
         // Make sure the contacts options are fine
         configHolder_t contactsOptions = boost::get<configHolder_t>(engineOptions.at("contacts"));
-        float64_t const & dryFrictionVelEps =
-            boost::get<float64_t>(contactsOptions.at("dryFrictionVelEps"));
-        float64_t const & transitionEps =
-            boost::get<float64_t>(contactsOptions.at("transitionEps"));
-        if (dryFrictionVelEps < 0.0)
+        float64_t const & frictionStictionVel =
+            boost::get<float64_t>(contactsOptions.at("frictionStictionVel"));
+        if (frictionStictionVel < 0.0)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'dryFrictionVelEps' must be positive." << std::endl;
+            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'frictionStictionVel' must be positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
-        else if (transitionEps < 0.0)
+        float64_t const & frictionStictionRatio =
+            boost::get<float64_t>(contactsOptions.at("frictionStictionRatio"));
+        if (frictionStictionRatio < 0.0)
+        {
+            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'frictionStictionRatio' must be positive." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & contactsTransitionEps =
+            boost::get<float64_t>(contactsOptions.at("transitionEps"));
+        if (contactsTransitionEps < 0.0)
         {
             std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'transitionEps' must be positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
@@ -1434,11 +1472,11 @@ namespace jiminy
 
         // Make sure the joints options are fine
         configHolder_t jointsOptions = boost::get<configHolder_t>(engineOptions.at("joints"));
-        float64_t const & boundTransitionEps =
-            boost::get<float64_t>(jointsOptions.at("boundTransitionEps"));
-        if (boundTransitionEps < 0.0)
+        float64_t const & jointsTransitionEps =
+            boost::get<float64_t>(jointsOptions.at("transitionEps"));
+        if (jointsTransitionEps < 0.0)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'boundTransitionEps' must be positive." << std::endl;
+            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionEps' must be positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1628,19 +1666,19 @@ namespace jiminy
 
         // Initialize the contact force
         vector3_t fextInWorld;
-        std::pair<float64_t, vector3_t> ground = engineOptions_->world.groundProfile(posFrame);
+        auto ground = engineOptions_->world.groundProfile(posFrame);
         float64_t const & zGround = std::get<float64_t>(ground);
-        vector3_t nGround = std::get<vector3_t>(ground);
+        vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();
-        float64_t depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
         if (depth < 0.0)
         {
             // Get frame motion in the motion frame.
-            vector3_t motionFrame = pinocchio::getFrameVelocity(
+            vector3_t const motionFrame = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameId).linear();
-            vector3_t vFrameInWorld = tformFrameRot * motionFrame;
-            float64_t vDepth = vFrameInWorld.dot(nGround);
+            vector3_t const vFrameInWorld = tformFrameRot * motionFrame;
+            float64_t const vDepth = vFrameInWorld.dot(nGround);
 
             // Compute normal force
             float64_t fextNormal = 0.0;
@@ -1652,17 +1690,17 @@ namespace jiminy
             fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
-            vector3_t vTangential = vFrameInWorld - vDepth * nGround;
-            float64_t vNorm = vTangential.norm();
+            vector3_t const vTangential = vFrameInWorld - vDepth * nGround;
+            float64_t const vNorm = vTangential.norm();
 
             float64_t frictionCoeff = 0.0;
-            if (vNorm >= contactOptions_.dryFrictionVelEps)
+            if (vNorm > contactOptions_.frictionStictionVel)
             {
-                if (vNorm < 1.5 * contactOptions_.dryFrictionVelEps)
+                if (vNorm < (1.0 + contactOptions_.frictionStictionRatio) * contactOptions_.frictionStictionVel)
                 {
-                    frictionCoeff = -2.0 * (contactOptions_.frictionDry -
-                        contactOptions_.frictionViscous) * (vNorm / contactOptions_.dryFrictionVelEps)
-                        + 3.0 * contactOptions_.frictionDry - 2.0*contactOptions_.frictionViscous;
+                    float64_t const vRatio = vNorm / contactOptions_.frictionStictionVel;
+                    frictionCoeff = (contactOptions_.frictionDry * ((1.0 + contactOptions_.frictionStictionRatio) - vRatio)
+                                  - contactOptions_.frictionViscous * (1.0 - vRatio)) / contactOptions_.frictionStictionRatio;
                 }
                 else
                 {
@@ -1671,17 +1709,17 @@ namespace jiminy
             }
             else
             {
-                frictionCoeff = contactOptions_.frictionDry *
-                    (vNorm / contactOptions_.dryFrictionVelEps);
+                float64_t const vRatio = vNorm / contactOptions_.frictionStictionVel;
+                frictionCoeff = contactOptions_.frictionDry * vRatio;
             }
-            float64_t fextTangential = frictionCoeff * fextNormal;
+            float64_t const fextTangential = frictionCoeff * fextNormal;
             fextInWorld += -fextTangential * vTangential;
 
             // Add blending factor
             if (contactOptions_.transitionEps > EPS)
             {
-                float64_t blendingFactor = -depth / contactOptions_.transitionEps;
-                float64_t blendingLaw = std::tanh(2 * blendingFactor);
+                float64_t const blendingFactor = -depth / contactOptions_.transitionEps;
+                float64_t const blendingLaw = std::tanh(2 * blendingFactor);
                 fextInWorld *= blendingLaw;
             }
         }
@@ -1757,9 +1795,9 @@ namespace jiminy
                         forceJoint = jointOptions.boundStiffness * qJointError + damping;
                     }
 
-                    if (jointOptions.boundTransitionEps > EPS)
+                    if (jointOptions.transitionEps > EPS)
                     {
-                        float64_t const blendingFactor = qJointError / jointOptions.boundTransitionEps;
+                        float64_t const blendingFactor = qJointError / jointOptions.transitionEps;
                         float64_t const blendingLaw = std::tanh(2 * blendingFactor);
                         forceJoint *= blendingLaw;
                     }
@@ -1802,9 +1840,9 @@ namespace jiminy
                         forceJoint = jointOptions.boundDamping * vJointError;
                     }
 
-                    if (jointOptions.boundTransitionEps > EPS)
+                    if (jointOptions.transitionEps > EPS)
                     {
-                        float64_t const blendingFactor = vJointError / jointOptions.boundTransitionEps;
+                        float64_t const blendingFactor = vJointError / jointOptions.transitionEps;
                         float64_t const blendingLaw = std::tanh(2 * blendingFactor);
                         forceJoint *= blendingLaw;
                     }

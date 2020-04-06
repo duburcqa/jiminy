@@ -38,7 +38,7 @@ namespace jiminy
                            std::shared_ptr<AbstractMotorBase> & motor);
         hresult_t getMotor(std::string       const   & motorName,
                            AbstractMotorBase const * & motor) const;
-        motorsHolder_t & getMotors(void);
+        motorsHolder_t const & getMotors(void) const;
         hresult_t detachMotor(std::string const & motorName);
         hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
         hresult_t attachSensor(std::shared_ptr<AbstractSensorBase> sensor);
@@ -48,7 +48,7 @@ namespace jiminy
         hresult_t getSensor(std::string        const   & sensorType,
                             std::string        const   & sensorName,
                             AbstractSensorBase const * & sensor) const;
-        sensorsGroupHolder_t & getSensors(void);
+        sensorsGroupHolder_t const & getSensors(void) const;
         hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
@@ -127,15 +127,12 @@ namespace jiminy
 
     protected:
         bool_t isTelemetryConfigured_;
-
         std::shared_ptr<TelemetryData> telemetryData_;
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
-
         std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
-
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
 
     private:

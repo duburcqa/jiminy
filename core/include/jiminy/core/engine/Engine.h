@@ -54,7 +54,9 @@ namespace jiminy
 
         bool_t const & getIsInitialized(void) const;
         Robot const & getRobot(void) const;
+        std::shared_ptr<Robot> getRobot(void);
         AbstractController const & getController(void) const;
+        std::shared_ptr<AbstractController> getController(void);
         systemState_t const & getSystemState(void) const;
 
     private:

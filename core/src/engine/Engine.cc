@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "jiminy/core/robot/Robot.h"
+#include "jiminy/core/control/AbstractController.h"
 
 #include "jiminy/core/engine/Engine.h"
 
@@ -137,9 +138,19 @@ namespace jiminy
         return *robot_;
     }
 
+    std::shared_ptr<Robot> Engine::getRobot(void)
+    {
+        return systemsDataHolder_.begin()->robot;
+    }
+
     AbstractController const & Engine::getController(void) const
     {
         return *controller_;
+    }
+
+    std::shared_ptr<AbstractController> Engine::getController(void)
+    {
+        return systemsDataHolder_.begin()->controller;
     }
 
     systemState_t const & Engine::getSystemState(void) const
