@@ -9,8 +9,8 @@ namespace jiminy
     AbstractConstraint::AbstractConstraint() :
     model_(nullptr),
     isAttached_(false),
-    jacobian_(matrixN_t::Zero(0,0)),
-    drift_(vectorN_t::Zero(0))
+    jacobian_(),
+    drift_()
     {
         // Empty on purpose
     }

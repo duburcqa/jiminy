@@ -677,13 +677,11 @@ namespace python
                        std::shared_ptr<AbstractConstraint>,
                        boost::noncopyable>("AbstractConstraint")
                 .def(PyConstraintVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<AbstractConstraint> >(); // Required to handle std::shared_ptr from/to Python (as opposed to boost::shared_ptr)
 
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraint>,
                        std::shared_ptr<FixedFrameConstraint>,
                        boost::noncopyable>("FixedFrameConstraint", bp::init<std::string>())
                 .def(PyConstraintVisitor());
-            bp::register_ptr_to_python<std::shared_ptr<FixedFrameConstraint> >();
         }
     };
 

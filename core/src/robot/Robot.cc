@@ -500,18 +500,13 @@ namespace jiminy
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
-            std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName;
-            std::cout << " already exists." << std::endl;
+            std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName <<  " already exists." << std::endl;
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
         else
         {
             returnCode = constraint->attach(this);
-            if (returnCode != hresult_t::SUCCESS)
-            {
-                std::cout << "Error - Robot::addConstraint - Fail to initialize constraint. " << std::endl;
-            }
-            else
+            if (returnCode == hresult_t::SUCCESS)
             {
                 constraintsHolder_.push_back(robotConstraint_t(constraintName, constraint));
             }
@@ -526,10 +521,7 @@ namespace jiminy
 
     hresult_t Robot::removeConstraint(std::string const & constraintName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-
-        // Check in local cache before.
+        // Lookup constraint.
         auto constraintIt = std::find_if(constraintsHolder_.begin(),
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
@@ -539,19 +531,16 @@ namespace jiminy
         if (constraintIt == constraintsHolder_.end())
         {
             std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
         else
         {
             constraintIt->constraint_->detach();
             constraintsHolder_.erase(constraintIt);
-        }
-        if (returnCode == hresult_t::SUCCESS)
-        {
             // Required to resize constraintsJacobian_ to the right size.
             refreshConstraintsProxies();
         }
-        return returnCode;
+        return hresult_t::SUCCESS;
     }
 
 
