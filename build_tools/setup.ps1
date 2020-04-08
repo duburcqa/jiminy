@@ -178,14 +178,18 @@ Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | Out-File -Encoding ASCII $RootDir\urdfdom\CMakeLists.txt
 Set-PSDebug -Trace 1
 
+### Must patch \urdf_parser\CMakeLists.txt to enable STATIC linking
+(Get-Content $RootDir\urdfdom\urdf_parser\CMakeLists.txt).replace('SHARED ', '') | Set-Content $RootDir\urdfdom\urdf_parser\CMakeLists.txt
+
 ###
 if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\urdfdom\build"
 }
 Set-Location -Path $RootDir\urdfdom\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DBUILD_TESTING=OFF -DTinyXML_ROOT_DIR="$InstallDir" `
+                                           -DTinyXML_ROOT_DIR="$InstallDir" `
                                            -DBUILD_SHARED_LIBS=OFF `
+                                           -DBUILD_TESTING=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC" $RootDir\urdfdom
 cmake --build . --target install --config "$BuildType" --parallel 2
 
