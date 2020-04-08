@@ -11,7 +11,7 @@ on:
 jobs:
   build-test-and-deploy:
     name: "Build project on Windows"
-    runs-on: [windows-2016]
+    runs-on: [windows-2019]
 
     steps:
     - name: Checkout boost

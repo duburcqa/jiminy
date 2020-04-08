@@ -40,4 +40,4 @@ ___
 
 # Getting started
 
-Jiminy is compatible with Linux, MacOS, and Windows. It also supports Python2.7 and Python3.5+. However, only pre-compiled binaries for Python are available for Linux/Python3.6 and Windows/Python3.6 (coming soon), which can be installed using `pip`. Otherwise, it has to be built from source for now. The complete installation instructions are available [here](./INSTALL.md).
+Jiminy is compatible with Linux, MacOS, and Windows. It also supports Python2.7 and Python3.5+. However, only pre-compiled binaries for Python are available for Linux/Python3.6 and Windows/Python3.8, which can be installed using `pip`. Otherwise, it has to be built from source for now. The complete installation instructions are available [here](./INSTALL.md).

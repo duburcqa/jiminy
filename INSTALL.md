@@ -244,7 +244,7 @@ ___
 
 ## Prerequisites
 
-You have to preinstall by yourself the `MSVC 14.0` toolchain (automated build script only compatible with this exact version so far), `chocolatey` and `python3`. Then, install `Numpy` and `Pkg-Config` using
+You have to preinstall by yourself the MSVC toolchain (automated build script only compatible with this exact version so far), `chocolatey` and `python3`. Then, install `Numpy` and `Pkg-Config` using
 
 ```pwsh
     choco install pkgconfiglite -y
@@ -276,8 +276,22 @@ You are finally ready to build Jiminy itself
     }
     Set-Location -Path $RootDir\jiminy\build
     $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
-    cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                          -DCMAKE_MODULE_PATH="$CmakeModulePath" -DBUILD_TESTING=OFF `
-                                          -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\jiminy
+    $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
+    cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                               -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
+                                               -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
+                                               -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
+    cmake --build . --config "$BuildType" --parallel 2
+    
+    if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
+      New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+    }
+    Copy-Item "$InstallDir\bin\eigenpy.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+    Copy-Item "$InstallDir\lib\urdfdom_model.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+    Copy-Item "$InstallDir\lib\boost_numpy38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+    Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+    Copy-Item -Path "$InstallDir\lib\site-packages\*" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
+    
     cmake --build . --target INSTALL --config "$BuildType" --parallel 2
 ```
