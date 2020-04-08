@@ -79,7 +79,10 @@ if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
-    find_program(PYTHON_EXECUTABLE python)
+    execute_process(COMMAND python -c
+                            "import sys;sys.stdout.write(sys.executable)"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE PYTHON_EXECUTABLE)
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                     OUTPUT_STRIP_TRAILING_WHITESPACE

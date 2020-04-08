@@ -62,7 +62,7 @@ $Contents | Foreach {$n=1}{if ($LineNumbers[0] -eq $n) {
 #endif
 #endif
 #endif'
-} ; $_ ; $n++} > $RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\libs\python\include\boost\python\operators.hpp
+} ; $_ ; $n++} | Out-File -Encoding ASCII $RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\libs\python\include\boost\python\operators.hpp
 Set-PSDebug -Trace 1
 
 ### Build and install the build tool b2 (build-ception !)
@@ -77,11 +77,10 @@ if (-not (Test-Path -PathType Container $RootDir\boost_1_${Env:BOOST_MINOR_VERSI
 .\b2.exe --prefix="$InstallDir" --build-dir="$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\build" `
          --without-wave --without-contract --without-graph --without-regex `
          --without-mpi --without-coroutine --without-fiber --without-context `
-         --without-timer --without-thread --without-chrono --without-date_time `
-         --without-atomic --without-graph_parallel --without-type_erasure `
-         --without-container --without-exception --without-locale --without-log `
-         --without-program_options --without-random --without-math --without-iostreams `
-         --build-type=minimal toolset=msvc-14.0 variant=$BuildTypeB2 threading=multi -q -d0 -j2 `
+         --without-timer --without-chrono --without-atomic --without-graph_parallel `
+         --without-type_erasure --without-container --without-exception --without-locale `
+         --without-log --without-program_options --without-random --without-iostreams `
+         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi -q -d1 -j2 `
          architecture=x86 address-model=64 link=shared runtime-link=shared install
 
 # Build and install eigen3
@@ -89,9 +88,9 @@ if (-not (Test-Path -PathType Container $RootDir\eigen3\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\eigen3\build"
 }
 Set-Location -Path $RootDir\eigen3\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON `
-                                      -DCMAKE_CXX_FLAGS="/bigobj" $RootDir\eigen3
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON `
+                                           -DCMAKE_CXX_FLAGS="/bigobj" $RootDir\eigen3
 cmake --build . --target install --config "$BuildType"
 
 # Build and install eigenpy
@@ -101,11 +100,11 @@ if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\eigenpy\build"
 }
 Set-Location -Path $RootDir\eigenpy\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                      -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_NO_SYSTEM_PATHS=TRUE `
-                                      -DBUILD_TESTING=OFF `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\eigenpy
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
+                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                           -DBUILD_TESTING=OFF `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\eigenpy
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 ### Must patch line 18 of $InstallDir\lib\pkgconfig\eigenpy.pc because if the list of library includes in ill-formated on Windows.
@@ -113,16 +112,20 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 $LineNumber = 18
 $Contents = Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc
 Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {'Libs:'} else {$_} ; $n++ } > $InstallDir\lib\pkgconfig\eigenpy.pc
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {'Libs:'} else {$_} ; $n++ } | Out-File -Encoding ASCII $InstallDir\lib\pkgconfig\eigenpy.pc
 Set-PSDebug -Trace 1
+
+### Must replace "Program Files" by "PROGRA~1" and "Program Files (x86)" by "PROGRA~2" to avoid having spaces in paths...
+(Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc).replace("Program Files (x86)", "PROGRA~2") | Set-Content $InstallDir\lib\pkgconfig\eigenpy.pc
+(Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc).replace("Program Files", "PROGRA~1") | Set-Content $InstallDir\lib\pkgconfig\eigenpy.pc
 
 # Build and install tinyxml
 if (-not (Test-Path -PathType Container $RootDir\tinyxml\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\tinyxml\build"
 }
 Set-Location -Path $RootDir\tinyxml\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\tinyxml
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\tinyxml
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install console_bridge
@@ -131,7 +134,7 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 $LineNumbers = @(107, 114)
 $Contents = Get-Content $RootDir\console_bridge\CMakeLists.txt
 Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} > $RootDir\console_bridge\CMakeLists.txt
+$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | Out-File -Encoding ASCII $RootDir\console_bridge\CMakeLists.txt
 Set-PSDebug -Trace 1
 
 ###
@@ -139,9 +142,9 @@ if (-not (Test-Path -PathType Container $RootDir\console_bridge\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\console_bridge\build"
 }
 Set-Location -Path $RootDir\console_bridge\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DBUILD_SHARED_LIBS=OFF `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\console_bridge
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBUILD_SHARED_LIBS=OFF `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\console_bridge
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install urdfdom_headers
@@ -150,7 +153,7 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 $LineNumbers = @(51, 56)
 $Contents = Get-Content $RootDir\urdfdom_headers\CMakeLists.txt
 Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} > $RootDir\urdfdom_headers\CMakeLists.txt
+$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | Out-File -Encoding ASCII $RootDir\urdfdom_headers\CMakeLists.txt
 Set-PSDebug -Trace 1
 
 ###
@@ -158,8 +161,8 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom_headers\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\urdfdom_headers\build"
 }
 Set-Location -Path $RootDir\urdfdom_headers\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\urdfdom_headers
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\urdfdom_headers
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install urdfdom
@@ -168,7 +171,7 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 $LineNumbers = @(78, 86)
 $Contents = Get-Content $RootDir\urdfdom\CMakeLists.txt
 Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} > $RootDir\urdfdom\CMakeLists.txt
+$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | Out-File -Encoding ASCII $RootDir\urdfdom\CMakeLists.txt
 Set-PSDebug -Trace 1
 
 ###
@@ -176,10 +179,10 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\urdfdom\build"
 }
 Set-Location -Path $RootDir\urdfdom\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DBUILD_TESTING=OFF -DTinyXML_ROOT_DIR="$InstallDir" `
-                                      -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=ON `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_EXPORTS" $RootDir\urdfdom # -DURDFDOM_STATIC or -DURDFDOM_EXPORTS ?
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBUILD_TESTING=OFF -DTinyXML_ROOT_DIR="$InstallDir" `
+                                           -DBUILD_SHARED_LIBS=OFF `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC" $RootDir\urdfdom
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install Pinocchio
@@ -195,7 +198,7 @@ if(${FILE_TARGET_START} LESS 3)
   set(FILE_TARGET_START 3)
 endif()
 string(SUBSTRING ${FILE_TARGET_NAME} ${FILE_TARGET_START} -1 FILE_TARGET_NAME)
-'} ; $_ ; $n++ } > $RootDir\pinocchio\cmake\python.cmake
+'} ; $_ ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\cmake\python.cmake
 Set-PSDebug -Trace 1
 
 ### Replace line 170 of \CMakeLists.txt to include link directory of python and remove defined include headers directory
@@ -204,16 +207,18 @@ $Contents = Get-Content $RootDir\pinocchio\CMakeLists.txt
 Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 'link_directories("${PYTHON_LIBRARY_DIRS}")'
-} else {$_} ; $n++ } > $RootDir\pinocchio\CMakeLists.txt
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\CMakeLists.txt
 Set-PSDebug -Trace 1
 
-### Add line at 129 to manually link eigenpy since pkgconfig has been pached to not do it (because it was generating errors...)
+### Add line at 129 to manually link eigenpy and urdfdom since pkgconfig has been patched to not do it automatically because it was generating errors...
 $LineNumber = 129
 $Contents = Get-Content $RootDir\pinocchio\bindings\python\CMakeLists.txt
 Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/eigenpy.lib")'
-} ; $_ ; $n++ } > $RootDir\pinocchio\bindings\python\CMakeLists.txt
+'TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/eigenpy.lib")
+TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/urdfdom_model.lib")
+'
+} ; $_ ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\CMakeLists.txt
 Set-PSDebug -Trace 1
 
 ### For some reason, the preprocessor directive `PINOCCHIO_EIGEN_PLAIN_TYPE((...))` is not properly generated. Expending it manually
@@ -233,7 +238,7 @@ $Contents = Get-Content $RootDir\pinocchio\bindings\python\algorithm\expose-geom
 Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 '(void (*)(GeometryModel &, const Eigen::MatrixBase<Vector3d> &))&setGeometryMeshScales<Vector3d>,'
-} else {$_} ; $n++ } > $RootDir\pinocchio\bindings\python\algorithm\expose-geometry.cpp
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\algorithm\expose-geometry.cpp
 Set-PSDebug -Trace 1
 
 ### Patch line 285 (289 v2.3.1 pinocchio) of \src\algorithm\model.hxx to fix dot placed after the closing double quote by mistake, not supported by MSVC.
@@ -242,8 +247,12 @@ $Contents = Get-Content $RootDir\pinocchio\src\algorithm\model.hxx
 Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 '"The number of joints to lock is greater than the total of joints in the reduced_model.");'
-} else {$_} ; $n++ } > $RootDir\pinocchio\src\algorithm\model.hxx
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\src\algorithm\model.hxx
 Set-PSDebug -Trace 1
+
+### Patch the files using the 'not' operator, not supported by MSVC without "#include <iso646.h>" or "#include <ciso646>",  by '!'.
+(Get-Content $RootDir\pinocchio\bindings\python\module.cpp).replace('if(not ', 'if(!') | Set-Content $RootDir\pinocchio\bindings\python\module.cpp
+(Get-Content $RootDir\pinocchio\src\algorithm\center-of-mass.hxx).replace('if(not ', 'if(!') | Set-Content $RootDir\pinocchio\src\algorithm\center-of-mass.hxx
 
 ### C-style overloading disambiguation is not working properly with MSVC.
 #   Must patch lines at 35 of bindings\python\multibody\joint\joint-derived.hpp
@@ -255,7 +264,7 @@ $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
                     (void (JointModelDerived::*)(JointIndex, int, int))&JointModelDerived::setIndexes,
                     bp::default_call_policies(),
                     boost::mpl::vector<void, JointModelDerived, JointIndex, int, int>()))'
-} else {$_} ; $n++ } > $RootDir\pinocchio\bindings\python\multibody\joint\joint-derived.hpp
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\multibody\joint\joint-derived.hpp
 Set-PSDebug -Trace 1
 
 ### Build and install pinocchio, finally !
@@ -263,16 +272,17 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\pinocchio\build"
 }
 Set-Location -Path $RootDir\pinocchio\build
-cmake -G "Visual Studio 15" -T "v140" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                      -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                      -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
-                                      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=OFF `
-                                      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
+cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
+                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                           -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
+                                           -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Add install site-packages (Eigenpy and Pinocchio) to Python search path
-$PYTHON_USER_SITE_PATH = "C:\Users\runneradmin\AppData\Roaming\Python\Python36\site-packages"
+$PYTHON_USER_SITE_PATH = (python -m site --user-site)
 if (-not (Test-Path -PathType Container "$PYTHON_USER_SITE_PATH")) {
   New-Item -ItemType "directory" -Force -Path "$PYTHON_USER_SITE_PATH"
 }
-"$InstallDir\Lib\site-packages" | Out-File "$PYTHON_USER_SITE_PATH\user_install.pth"
+"import site ; site.addsitedir(r'$InstallDir\lib\site-packages')"  | Out-File -Encoding ASCII "$PYTHON_USER_SITE_PATH\sitecustomize.py"

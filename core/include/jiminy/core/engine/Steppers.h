@@ -2,6 +2,7 @@
 #ifndef JIMINY_STEPPERS_H
 #define JIMINY_STEPPERS_H
 
+#include <set>
 
 #include "jiminy/core/Types.h"
 
@@ -13,13 +14,13 @@ namespace jiminy
 {
     using namespace boost::numeric::odeint;
 
-    using state_type = vectorN_t;  ///< x
-    using deriv_type = vectorN_t;  ///< dxdt
-    using time_type = float64_t;   ///< t
-    using value_type = float64_t;  ///< err
-
     namespace stepper
     {
+        using state_type = vectorN_t;  ///< x
+        using deriv_type = vectorN_t;  ///< dxdt
+        using time_type = float64_t;   ///< t
+        using value_type = float64_t;  ///< err
+
         // ************************************************************************
         // **************************** Euler explicit ****************************
         // ************************************************************************
@@ -151,12 +152,12 @@ namespace jiminy
                                          "euler_explicit"};
 
     template<typename system_t>
-    bool_t try_step(stepper_t  & stepper,
-                    system_t   & rhs,
-                    state_type & x,
-                    deriv_type & dxdt,
-                    time_type  & t,
-                    time_type  & dt)
+    bool_t try_step(stepper_t & stepper,
+                    system_t  & rhs,
+                    vectorN_t & x,
+                    vectorN_t & dxdt,
+                    float64_t & t,
+                    float64_t & dt)
     {
         return (boost::apply_visitor(
         [&rhs, &x, &dxdt, &t, &dt](auto && one) -> bool_t
