@@ -84,7 +84,7 @@ jobs:
     - name: Configure Python
       uses: actions/setup-python@v1
       with:
-        python-version: '3.6'
+        python-version: '3.8'
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |

@@ -15,8 +15,6 @@ set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
 
 # Make library
 add_library(${PROJECT_NAME} SHARED ${SRC})
-add_definitions("-DBOOST_PYTHON_STATIC_LIB")
-add_definitions("-DBOOST_PYTHON_STATIC_MODULE")
 set_target_properties(${PROJECT_NAME} PROPERTIES
     VERSION ${BUILD_VERSION}
 )

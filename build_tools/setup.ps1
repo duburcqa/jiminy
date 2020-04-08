@@ -279,10 +279,3 @@ cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAK
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
-
-# Add install site-packages (Eigenpy and Pinocchio) to Python search path
-$PYTHON_USER_SITE_PATH = (python -m site --user-site)
-if (-not (Test-Path -PathType Container "$PYTHON_USER_SITE_PATH")) {
-  New-Item -ItemType "directory" -Force -Path "$PYTHON_USER_SITE_PATH"
-}
-"import site ; site.addsitedir(r'$InstallDir\lib\site-packages')"  | Out-File -Encoding ASCII "$PYTHON_USER_SITE_PATH\sitecustomize.py"

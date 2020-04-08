@@ -49,8 +49,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-# Determine if python bindings must be generated
-option(BUILD_PYTHON_INTERFACE "Build the python binding" ON)
+# Determine if Python bindings must be generated
+option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 option(BUILD_EXAMPLES "Build the C++ examples" ON)
 
 # Add missing include & lib directory(ies)
@@ -79,10 +79,14 @@ if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
-    execute_process(COMMAND python -c
-                            "import sys;sys.stdout.write(sys.executable)"
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE PYTHON_EXECUTABLE)
+    if(NOT WIN32)
+        find_program(PYTHON_EXECUTABLE python)
+    else(NOT WIN32)
+        execute_process(COMMAND python -c
+                                "import sys; sys.stdout.write(sys.executable)"
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        OUTPUT_VARIABLE PYTHON_EXECUTABLE)
+    endif(NOT WIN32)
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -93,28 +97,39 @@ if(BUILD_PYTHON_INTERFACE)
     set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
     message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
 
-    ## Get python system site-package and install flags
+    ## Get Python system and user site-packages
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sysconfig; print(sysconfig.get_paths()['purelib'])"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE PYTHON_SITELIB)
-    set(PYTHON_INSTALL_FLAGS "--upgrade ")
-
-    # Check permissions on Python site-package to determine whether to use user site
-    execute_process(COMMAND bash -c
-                            "if test -w ${PYTHON_SITELIB} ; then echo 0; else echo 1; fi"
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE PYTHON_RIGHT_SITELIB)
-    if(${PYTHON_RIGHT_SITELIB})
-        message("-- No right on system site-package: ${PYTHON_SITELIB}. Using user site as fallback.")
-        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                    OUTPUT_VARIABLE PYTHON_SYS_SITELIB)
+    message("-- Python system site-packages: ${PYTHON_SYS_SITELIB}")
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                OUTPUT_VARIABLE PYTHON_USER_SITELIB)
+    message("-- Python user site-package: ${PYTHON_USER_SITELIB}")
+    
+    # Check write permissions on Python system site-package to 
+    # determine whether to use user site as fallback.
+    # It also sets the installation flags
+    if(NOT WIN32)
+        execute_process(COMMAND bash -c
+                                "if test -w ${PYTHON_SYS_SITELIB} ; then echo 0; else echo 1; fi"
                         OUTPUT_STRIP_TRAILING_WHITESPACE
-                        OUTPUT_VARIABLE PYTHON_SITELIB)
+                        OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
+    else(NOT WIN32)
+        set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
+    endif(NOT WIN32)
+                    
+    set(PYTHON_INSTALL_FLAGS "--upgrade ")
+    if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
-        message("-- User site-package: ${PYTHON_SITELIB}")
-    endif()
+        set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
+        message("-- No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
+    else(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
+        set(PYTHON_SITELIB "${PYTHON_SYS_SITELIB}")
+    endif(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
 
-    # Include python headers
+    # Include Python headers
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -122,7 +137,8 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Add Python library directory to search path on Windows
     if(WIN32)
-        get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
+        get_filename_component(PYTHON_ROOT ${PYTHON_SYS_SITELIB} DIRECTORY)
+        get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
         link_directories(SYSTEM "${PYTHON_ROOT}/libs/")
     endif()
 

@@ -4,8 +4,6 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 // Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
 // The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
 // if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
@@ -20,7 +18,6 @@
 
 #include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
-#include <boost/python/module.hpp>
 #include <boost/python/scope.hpp>
 #include <boost/python/numpy.hpp>
 
@@ -59,10 +56,8 @@ namespace python
         eigenpy::enableEigenPy();
 
         // Expose the version
-        #ifndef _WIN32
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
-        #endif
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
@@ -87,19 +82,19 @@ namespace python
         // Expose classes
         TIME_STATE_FCT_EXPOSE(bool_t)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force)
-        jiminy::python::HeatMapFunctorVisitor::expose();
-        jiminy::python::SensorsDataMapVisitor::expose();
-        jiminy::python::PyModelVisitor::expose();
-        jiminy::python::PyRobotVisitor::expose();
-        jiminy::python::PyMotorVisitor::expose();
-        jiminy::python::PySensorVisitor::expose();
-        jiminy::python::PyAbstractControllerVisitor::expose();
-        jiminy::python::PyControllerFunctorVisitor::expose();
-        jiminy::python::PyStepperStateVisitor::expose();
-        jiminy::python::PySystemStateVisitor::expose();
-        jiminy::python::PySystemDataVisitor::expose();
-        jiminy::python::PyEngineMultiRobotVisitor::expose();
-        jiminy::python::PyEngineVisitor::expose();
+        HeatMapFunctorVisitor::expose();
+        SensorsDataMapVisitor::expose();
+        PyModelVisitor::expose();
+        PyRobotVisitor::expose();
+        PyMotorVisitor::expose();
+        PySensorVisitor::expose();
+        PyAbstractControllerVisitor::expose();
+        PyControllerFunctorVisitor::expose();
+        PyStepperStateVisitor::expose();
+        PySystemStateVisitor::expose();
+        PySystemDataVisitor::expose();
+        PyEngineMultiRobotVisitor::expose();
+        PyEngineVisitor::expose();
     }
 
     #undef TIME_STATE_FCT_EXPOSE
