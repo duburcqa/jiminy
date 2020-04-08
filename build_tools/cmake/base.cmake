@@ -129,6 +129,22 @@ if(BUILD_PYTHON_INTERFACE)
         set(PYTHON_SITELIB "${PYTHON_SYS_SITELIB}")
     endif(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
 
+    # Get PYTHON_EXT_SUFFIX
+    set(PYTHON_EXT_SUFFIX "")
+    if(PYTHON_VERSION_MAJOR EQUAL 3)
+        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
+                                "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))"
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
+    endif(PYTHON_VERSION_MAJOR EQUAL 3)
+    if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
+        if(NOT WIN32)
+            SET(PYTHON_EXT_SUFFIX ".so")
+        else(WIN32)
+            SET(PYTHON_EXT_SUFFIX ".pyd")
+        endif(WIN32)
+    ENDIF()
+  
     # Include Python headers
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"

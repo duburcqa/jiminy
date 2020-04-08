@@ -119,6 +119,10 @@ Set-PSDebug -Trace 1
 (Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc).replace("Program Files (x86)", "PROGRA~2") | Set-Content $InstallDir\lib\pkgconfig\eigenpy.pc
 (Get-Content $InstallDir\lib\pkgconfig\eigenpy.pc).replace("Program Files", "PROGRA~1") | Set-Content $InstallDir\lib\pkgconfig\eigenpy.pc
 
+### Embedded the required dynamic library in the package folder
+Copy-Item "$InstallDir\bin\eigenpy.dll" -Destination "$InstallDir\lib\site-packages\eigenpy"
+Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$InstallDir\lib\site-packages\eigenpy"
+
 # Build and install tinyxml
 if (-not (Test-Path -PathType Container $RootDir\tinyxml\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\tinyxml\build"
@@ -279,3 +283,15 @@ cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAK
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
+
+### Fix wrong Python library dll naming convention for Windows
+Remove-Item -Force -Path "$InstallDir\lib\site-packages\pinocchio\pinocchio_pywrap.lib"
+Rename-Item -Force -Path "$InstallDir\lib\site-packages\pinocchio\pinocchio_pywrap.dll" `
+                   -NewName "$InstallDir\lib\site-packages\pinocchio\libpinocchio_pywrap.cp38-win_amd64.pyd"
+
+### Embedded the required dynamic library in the package folder
+Copy-Item "$InstallDir\bin\eigenpy.dll" -Destination "$InstallDir\lib\site-packages\pinocchio"
+Copy-Item "$InstallDir\lib\urdfdom_model.dll" -Destination "$InstallDir\lib\site-packages\pinocchio"
+Copy-Item "$InstallDir\lib\boost_filesystem-vc142-mt-x64-1_72.dll" -Destination "$InstallDir\lib\site-packages\pinocchio"
+Copy-Item "$InstallDir\lib\boost_serialization-vc142-mt-x64-1_72.dll" -Destination "$InstallDir\lib\site-packages\pinocchio"
+Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$InstallDir\lib\site-packages\pinocchio"

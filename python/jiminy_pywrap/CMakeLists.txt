@@ -16,9 +16,12 @@ set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
 # Make library
 add_library(${PROJECT_NAME} SHARED ${SRC})
 set_target_properties(${PROJECT_NAME} PROPERTIES
+    PREFIX ""
     VERSION ${BUILD_VERSION}
+    SUFFIX ${PYTHON_EXT_SUFFIX}
+    OUTPUT_NAME "${PROJECT_NAME}"
 )
-
+  
 # Substitute Docstring @copydoc flags with C++ Doxygen documentations
 pythonDocstingSubstitution()
 

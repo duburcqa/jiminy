@@ -46,7 +46,7 @@ namespace python
         }
     };
 
-    BOOST_PYTHON_MODULE(libjiminy_pywrap)
+    BOOST_PYTHON_MODULE(jiminy_pywrap)
     {
         // Required to initialized Python C API
         Py_Initialize();
