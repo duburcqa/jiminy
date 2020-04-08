@@ -275,6 +275,18 @@ $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 } else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\multibody\joint\joint-derived.hpp
 Set-PSDebug -Trace 1
 
+### Patch \bindings\python\module.cpp to add PY_ARRAY_UNIQUE_SYMBOL
+$LineNumber = 5
+$Contents = Get-Content $RootDir\pinocchio\bindings\python\module.cpp
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include "numpy/ndarrayobject.h"
+#define NO_IMPORT_ARRAY'
+} ; $_ ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\module.cpp
+Set-PSDebug -Trace 1
+
 ### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\pinocchio\build"
