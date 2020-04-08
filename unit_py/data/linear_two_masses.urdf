@@ -7,7 +7,13 @@ This is best described by the following diagram:
 -->
 <?xml version="1.0" ?>
 <robot name="linear_masses">
-    <link name="world"/>
+    <link name="world">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+        </inertial>
+    </link>
     <joint name="FirstJoint" type="prismatic">
       <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
       <axis xyz="1 0 0"/>

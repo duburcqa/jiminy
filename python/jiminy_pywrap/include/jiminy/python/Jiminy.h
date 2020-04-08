@@ -12,6 +12,7 @@
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
+#include "jiminy/core/robot/FixedFrameConstraint.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
@@ -603,11 +604,6 @@ namespace python
             PyMotorVisit<PyClass>::visit(cl);
         }
 
-        static std::shared_ptr<SimpleMotor> MotorPyFactory(std::string const & motorName)
-        {
-            return std::make_shared<SimpleMotor>(motorName);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -633,11 +629,59 @@ namespace python
 
             bp::class_<SimpleMotor, bp::bases<AbstractMotorBase>,
                        std::shared_ptr<SimpleMotor>,
-                       boost::noncopyable>("SimpleMotor", bp::no_init)
-                .def(PyMotorVisitor())
-                .def("__init__", bp::make_constructor(&PyMotorVisitor::MotorPyFactory,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("SimpleMotor", bp::init<std::string>())
+                .def(PyMotorVisitor());
+        }
+    };
+
+    // ***************************** PyConstraintVisitor ***********************************
+
+    struct PyConstraintVisitor
+        : public bp::def_visitor<PyConstraintVisitor>
+    {
+    public:
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+
+        template<class PyClass>
+        class PyConstraintVisit
+        {
+        public:
+            using TConstraint = typename PyClass::wrapped_type;
+
+            static void visit(PyClass& cl)
+            {
+                cl
+                    .add_property("get_jacobian", bp::make_function(&AbstractConstraint::getJacobian,
+                                                  bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("get_drift", bp::make_function(&AbstractConstraint::getDrift,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    ;
+            }
+        };
+
+    public:
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            PyConstraintVisit<PyClass>::visit(cl);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose.
+        ///////////////////////////////////////////////////////////////////////////////
+        static void expose()
+        {
+            bp::class_<AbstractConstraint,
+                       std::shared_ptr<AbstractConstraint>,
+                       boost::noncopyable>("AbstractConstraint", bp::no_init)
+                .def(PyConstraintVisitor());
+
+            bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraint>,
+                       std::shared_ptr<FixedFrameConstraint>,
+                       boost::noncopyable>("FixedFrameConstraint", bp::init<std::string>())
+                .def(PyConstraintVisitor());
         }
     };
 
@@ -709,12 +753,6 @@ namespace python
             PySensorVisit<PyClass>::visit(cl);
         }
 
-        template<class TSensor>
-        static std::shared_ptr<TSensor> SensorPyFactory(std::string const & sensorName)
-        {
-            return std::make_shared<TSensor>(sensorName);
-        }
-
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
@@ -740,27 +778,18 @@ namespace python
 
             bp::class_<ImuSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ImuSensor>,
-                       boost::noncopyable>("ImuSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ImuSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("ImuSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
 
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
-                       boost::noncopyable>("ForceSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<ForceSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("ForceSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
 
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
-                       boost::noncopyable>("EncoderSensor", bp::no_init)
-                .def(PySensorVisitor())
-                .def("__init__", bp::make_constructor(&PySensorVisitor::SensorPyFactory<EncoderSensor>,
-                                 bp::default_call_policies(),
-                                 (bp::arg("motor_name"))));
+                       boost::noncopyable>("EncoderSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
         }
     };
 
@@ -924,6 +953,12 @@ namespace python
                                         bp::arg("sensor_type") = std::string()))
                 .def("get_sensor", &PyRobotVisitor::getSensor,
                                    (bp::arg("self"), "sensor_type", "sensor_name"))
+                .def("add_constraint", &Robot::addConstraint,
+                                       (bp::arg("self"), "name", "constraint"))
+                .def("get_constraint", &PyRobotVisitor::getConstraint,
+                                  (bp::arg("self"), "constraint_name"))
+                .def("remove_constraint", &Robot::removeConstraint,
+                                          (bp::arg("self"), "name"))
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
                 .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
@@ -992,6 +1027,14 @@ namespace python
             std::shared_ptr<AbstractSensorBase> sensor;
             self.getSensor(sensorType, sensorName, sensor);
             return sensor;
+        }
+
+        static std::shared_ptr<AbstractConstraint> getConstraint(Robot             & self,
+                                                                 std::string const & constraintName)
+        {
+            std::shared_ptr<AbstractConstraint> constraint;
+            self.getConstraint(constraintName, constraint);
+            return constraint;
         }
 
         static std::shared_ptr<sensorsDataMap_t> getSensorsData(Robot & self)

@@ -86,6 +86,7 @@ namespace python
         SensorsDataMapVisitor::expose();
         PyModelVisitor::expose();
         PyRobotVisitor::expose();
+        PyConstraintVisitor::expose();
         PyMotorVisitor::expose();
         PySensorVisitor::expose();
         PyAbstractControllerVisitor::expose();

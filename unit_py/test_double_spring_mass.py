@@ -6,6 +6,7 @@ from scipy.linalg import expm
 
 from jiminy_py import core as jiminy
 
+from utilities import load_urdf_default, integrate_dynamics
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -23,7 +24,9 @@ class SimulateTwoMasses(unittest.TestCase):
     '''
     def setUp(self):
         # Load URDF, create robot.
-        urdf_path = "data/linear_two_masses.urdf"
+        self.urdf_path = "data/linear_two_masses.urdf"
+        self.motor_names = ["FirstJoint", "SecondJoint"]
+        self.robot = load_urdf_default(self.urdf_path, self.motor_names)
 
         # Specify spring stiffness and damping for this simulation
         self.k = np.array([200, 20])
@@ -32,27 +35,6 @@ class SimulateTwoMasses(unittest.TestCase):
         # Define initial state and simulation duration
         self.x0 = np.array([0.1, -0.1, 0.0, 0.0])
         self.tf = 10.0
-
-        # Create the jiminy robot
-
-        # Instantiate robot and engine
-        self.robot = jiminy.Robot()
-        self.robot.initialize(urdf_path, has_freeflyer=False)
-        for joint_name in ["FirstJoint", "SecondJoint"]:
-            motor = jiminy.SimpleMotor(joint_name)
-            self.robot.attach_motor(motor)
-            motor.initialize(joint_name)
-
-        # Configure robot
-        model_options = self.robot.get_model_options()
-        motor_options = self.robot.get_motors_options()
-        model_options["joints"]["enablePositionLimit"] = False
-        model_options["joints"]["enableVelocityLimit"] = False
-        for m in motor_options:
-            motor_options[m]['enableTorqueLimit'] = False
-            motor_options[m]['enableRotorInertia'] = False
-        self.robot.set_model_options(model_options)
-        self.robot.set_motors_options(motor_options)
 
         # Compute the matrix representing this linear system for analytical
         # computation
@@ -92,7 +74,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -129,7 +111,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -166,7 +148,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -178,6 +160,235 @@ class SimulateTwoMasses(unittest.TestCase):
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+
+    def test_fixed_body_constraint(self):
+        '''
+        @brief Test kinematic constraint: fixed second mass with a constaint.
+        '''
+        # Set same spings as usual
+        def compute_command(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internal_dynamics(t, q, v, sensor_data, u):
+            u[:] = - self.k * q - self.nu * v
+
+        controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        # Add a kinematic constraint on the second mass
+        constraint = jiminy.FixedFrameConstraint("SecondMass")
+        self.robot.add_constraint("fixMass", constraint)
+
+        # Run simulation
+        engine.simulate(self.tf, self.x0)
+
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Compute analytical solution
+        # The dynamics of the first mass is not changed, the acceleration of the second
+        # mass is the opposite of that of the first mass to provide a constant
+        # output position.
+        self.A[3, :] = -self.A[2, :]
+        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+
+        # Compare the numerical and analytical solutions
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+
+    def test_freeflyer_multiple_constraints(self):
+        '''
+        @brief Test having several constraints at once.
+        @details This test features:
+                     - a freeflyer with a fixed body constraint on the freeflyer
+                    (this gives a non-trivial constraint to solve to effectively cancel the freeflyer)
+                     - a fixed body constaint on the output mass.
+        '''
+        # Rebuild the model with a freeflyer.
+        self.robot = load_urdf_default(self.urdf_path, self.motor_names, has_freeflyer = True)
+
+        # Set same spings as usual
+        def compute_command(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        def internal_dynamics(t, q, v, sensor_data, u):
+            u[6:] = - self.k * q[7:] - self.nu * v[6:]
+
+        controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+        # Disable gravity.
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine.set_options(engine_options)
+
+        # Add a kinematic constraints.
+        freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+        self.robot.add_constraint("world", freeflyer_constraint)
+        fix_mass_constraint = jiminy.FixedFrameConstraint("SecondMass")
+        self.robot.add_constraint("fixMass", fix_mass_constraint)
+
+        # Initialize with zero freeflyer velocity...
+        x_init = np.zeros(17)
+        x_init[7:9] = self.x0[:2]
+        x_init[-2:] = self.x0[2:]
+        # ... and a "random" (but fixed) freeflyer quaternion
+        np.random.seed(42)
+        x_init[:7] = np.random.rand(7)
+        x_init[3:7] /= np.linalg.norm(x_init[3:7])
+
+        # Run simulation
+        engine.simulate(self.tf, x_init)
+
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Verify that freeflyer hasn't moved.
+        self.assertTrue(np.allclose(x_jiminy[:, 9:15], 0, atol=TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy[:, :7], x_jiminy[0, :7], atol=TOLERANCE))
+
+        # Compute analytical solution - the acceleration of the second mass should
+        # be the opposite of that of the first.
+        self.A[3, :] = -self.A[2, :]
+        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+
+        # Compare the numerical and analytical solutions
+        self.assertTrue(np.allclose(x_jiminy[:, [7,8,15,16]], x_analytical, atol=TOLERANCE))
+
+    def test_constraint_external_force(self):
+        '''
+        @brief Test support of external force applied with constraints.
+        @details To provide a non-trivial test case with an external force non-colinear
+                 to the constraints, simulate two masses oscillating, one along
+                 the x axis and the other along the y axis, with a spring between
+                 them (in diagonal). The system may be represented as such ((f) indicates fixed bodies)
+
+                 [M_22 (f)]
+                     ^
+                     ^
+                   [M_21]\<>\
+                     ^     \<>\
+                     ^       \<>\
+                     ^         \<>\
+                   [O (f)] <><> [M_11] <><> [M_12 (f)]
+
+        '''
+        # Build two robots with freeflyers, with a freeflyer and a fixed second body constraint.
+        # Rebuild the model with a freeflyer.
+        robots = []
+        engine = jiminy.EngineMultiRobot()
+
+        system_names = ['FirstSystem', 'SecondSystem']
+        k = np.array([[100, 50], [80, 120]])
+        nu = np.array([[0.2, 0.01], [0.05, 0.1]])
+        k_cross = 100
+
+        class Controllers():
+            def __init__(self, k, nu):
+                self.k = k
+                self.nu = nu
+
+            def compute_command(self, t, q, v, sensor_data, u):
+                u[:] = 0
+
+            def internal_dynamics(self, t, q, v, sensor_data, u):
+                u[6:] = - self.k * q[7:] - self.nu * v[6:]
+
+        for i in range(2):
+            # Load robot.
+            robots.append(load_urdf_default(self.urdf_path, self.motor_names, True))
+
+            # Apply constraints.
+            freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+            robots[i].add_constraint("world", freeflyer_constraint)
+            fix_mass_constraint = jiminy.FixedFrameConstraint("SecondMass")
+            robots[i].add_constraint("fixMass", fix_mass_constraint)
+
+            # Create controller
+            controller = Controllers(k[i, :], nu[i, :])
+            controller = jiminy.ControllerFunctor(controller.compute_command, controller.internal_dynamics)
+            controller.initialize(robots[i])
+
+            # Add system to engine.
+            engine.add_system(system_names[i], robots[i], controller)
+
+        # Add coupling force.
+        def coupling_force(t, q1, v1, q2, v2, f):
+            # Putting a linear spring between both systems would actually
+            # decouple them (the force applied on each system would be a function
+            # of this system state only). So we use a nonlinear stiffness, proportional
+            # to the square of the distance of both systems to the origin.
+            dsquared = q1[7]**2 + q2[7]**2
+            f[0] = - k_cross * (1 + dsquared) * q1[7]
+            f[1] = k_cross * (1 + dsquared) * q2[7]
+
+        engine.add_coupling_force(system_names[0], system_names[1], "FirstMass", "FirstMass", coupling_force)
+
+        # Initialize the whole system.
+        # First sytem: freeflyer at identity.
+        x_init = {'FirstSystem': np.zeros(17)}
+        x_init['FirstSystem'][7:9] = self.x0[:2]
+        x_init['FirstSystem'][7:9] = self.x0[:2]
+        x_init['FirstSystem'][-2:] = self.x0[2:]
+        x_init['FirstSystem'][6] = 1.0
+        # Second system: rotation by pi / 2 around Z to bring X axis to Y axis.
+        x_init['SecondSystem'] = np.copy(x_init['FirstSystem'])
+        x_init['SecondSystem'][5:7] = np.sqrt(2) / 2.0
+
+        # Run simulation
+        engine.simulate(self.tf, x_init)
+
+        # Extract log data
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = [np.stack([log_data['.'.join(['HighLevelController', system_names[i], s])]
+                                for s in robots[i].logfile_position_headers + \
+                                         robots[i].logfile_velocity_headers] , axis=-1)
+                                            for i in range(len(system_names))]
+        # Verify that both freeflyers didn't moved.
+        for i in range(len(system_names)):
+            self.assertTrue(np.allclose(x_jiminy[i][:, 9:15], 0, atol=TOLERANCE))
+            self.assertTrue(np.allclose(x_jiminy[i][:, :7], x_jiminy[i][0, :7], atol=TOLERANCE))
+
+        # Extract coordinates in a minimum state vector.
+        x_jiminy_extract = np.hstack([x_jiminy[i][:, [7,8,15,16]]
+                                        for i in range(len(system_names))])
+
+        # Define dynamics of this system
+        def system_dynamics(t, x):
+            dx = np.zeros(8)
+            # Velocity to position.
+            dx[:2] = x[2:4]
+            dx[4:6] = x[6:8]
+            # Compute acceleration linked to the spring.
+            for i in range(2):
+                dx[2 + 4 * i] = -k[i, 0] * x[4 * i] - nu[i, 0] * x[2 + 4 * i] \
+                                + k[i, 1] * x[1 + 4 * i] + nu[i, 1] * x[3 + 4 * i]
+
+            # Coupling force between both system.
+            dsquared = x[0]**2 + x[4]**2
+            dx[2] += - k_cross * (1 + dsquared) * x[0]
+            dx[6] += - k_cross * (1 + dsquared) * x[4]
+
+            for i in range(2):
+                # Devide forces by mass.
+                m = robots[i].pinocchio_model_th.inertias[1].mass
+                dx[2 + 4 * i] /= m
+                # Second mass accelration should be opposite of the first.
+                dx[3 + 4 * i] = -dx[2 + 4 * i]
+            return dx
+
+        x0 = np.hstack([x_init[key][[7, 8, 15, 16]] for key in x_init])
+        x_python = integrate_dynamics(time, x0, system_dynamics)
+        self.assertTrue(np.allclose(x_jiminy_extract, x_python, atol=TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()

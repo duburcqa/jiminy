@@ -9,6 +9,7 @@ from jiminy_py import core as jiminy
 from pinocchio import Quaternion
 from pinocchio.rpy import matrixToRpy
 
+from utilities import load_urdf_default, integrate_dynamics
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -21,27 +22,12 @@ class SimulateSimplePendulum(unittest.TestCase):
     '''
     def setUp(self):
         # Load URDF, create model.
-        urdf_path = "data/simple_pendulum.urdf"
+        self.urdf_path = "data/simple_pendulum.urdf"
 
         # Create the jiminy model
 
         # Instanciate model and engine
-        self.robot = jiminy.Robot()
-        self.robot.initialize(urdf_path, has_freeflyer=False)
-        motor = jiminy.SimpleMotor("PendulumJoint")
-        self.robot.attach_motor(motor)
-        motor.initialize("PendulumJoint")
-
-        # Configure model.
-        model_options = self.robot.get_model_options()
-        motor_options = self.robot.get_motors_options()
-        model_options["joints"]["enablePositionLimit"] = False
-        model_options["joints"]["enableVelocityLimit"] = False
-        for m in motor_options:
-            motor_options[m]['enableTorqueLimit'] = False
-            motor_options[m]['enableRotorInertia'] = False
-        self.robot.set_model_options(model_options)
-        self.robot.set_motors_options(motor_options)
+        self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
 
     def test_rotor_inertia(self):
         '''
@@ -78,7 +64,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -114,7 +100,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -126,15 +112,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         def dynamics(t, x):
             return np.array([x[1], g / l * np.sin(x[0])])
 
-        # Integrate, using same Runge-Kutta integrator.
-        solver = ode(dynamics)
-        solver.set_initial_value(x0)
-        solver.set_integrator("dopri5")
-        x_rk_python = [x0]
-        for t in time[1:]:
-            solver.integrate(t)
-            x_rk_python.append(solver.y)
-        x_rk_python = np.stack(x_rk_python, axis=0)
+        # Integrate this non-linear dynamics.
+        x_rk_python = integrate_dynamics(time, x0, dynamics)
 
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
@@ -242,7 +221,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -315,7 +294,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Get log data
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+        x_jiminy = np.stack([log_data['.'.join(['HighLevelController', s])]
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
@@ -350,6 +329,64 @@ class SimulateSimplePendulum(unittest.TestCase):
         # is negligible before I.
         TOLERANCE = 1e-4
         self.assertTrue(np.allclose(x_jiminy_extract, x_analytical, atol=TOLERANCE))
+
+
+    def test_fixed_body_constraint_rotor_inertia(self):
+        '''
+        @brief Test fixed body constraint together with rotor inertia.
+        '''
+        # Create robot with freeflyer, set rotor inertia.
+        self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
+        J = 0.1
+        motor_options = self.robot.get_motors_options()
+        motor_options["PendulumJoint"]['enableRotorInertia'] = True
+        motor_options["PendulumJoint"]['rotorInertia'] = J
+        self.robot.set_motors_options(motor_options)
+
+        # No controller
+        def computeCommand(t, q, v, sensor_data, u):
+            u[:] = 0.0
+
+        # Dynamics: simulate a spring of stifness k
+        k_spring = 500
+        def internalDynamics(t, q, v, sensor_data, u):
+            u[:] = - k_spring * q[:]
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+
+        # Set fixed body constraint.
+        freeflyer_constraint = jiminy.FixedFrameConstraint("world")
+        self.robot.add_constraint("world", freeflyer_constraint)
+
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine.set_options(engine_options)
+
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        x_jiminy = np.stack([log_data['HighLevelController.' + s]
+                             for s in self.robot.logfile_position_headers + \
+                                      self.robot.logfile_velocity_headers], axis=-1)
+
+        # Analytical solution: dynamics should be unmodifed by
+        # the constraint, so we have a simple mass on a spring.
+        pnc_model = self.robot.pinocchio_model_th
+        I = pnc_model.inertias[1].mass * pnc_model.inertias[1].lever[2] ** 2
+
+        # Write system dynamics
+        I_eq = I + J
+        A = np.array([[               0, 1],
+                      [-k_spring / I_eq, 0]])
+        x_analytical = np.stack([expm(A * t) @ x0 for t in time], axis=0)
+
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':
     unittest.main()
