@@ -177,6 +177,7 @@ if(BUILD_PYTHON_INTERFACE)
             list(APPEND BOOST_PYTHON_LIB "boost_python")
         endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
     endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+	message("-- Boost Python Libs: ${Boost_LIBRARIES}")
 
     # Define Python install helpers
     function(deployPythonPackage TARGET_NAME)
