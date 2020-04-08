@@ -14,6 +14,9 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
+    float64_t const CONSTRAINT_INVERSION_DAMPING = 1e-12; ///< Damping factor used to perform matrix pseudo-inverse
+                                                          /// when computing forward dynamics with constraints.
+
     class AbstractController;
     class TelemetryData;
     class TelemetryRecorder;
@@ -667,6 +670,24 @@ namespace jiminy
             Eigen::MatrixBase<TangentVectorType1>                  const & v,
             Eigen::MatrixBase<TangentVectorType2>                  const & tau,
             pinocchio::container::aligned_vector<ForceDerived>     const & fext);
+
+        /// \brief Compute system acceleration from current system state.
+        ///
+        /// \details This function performs forward dynamics computation, either
+        ///          with kinematic constraints (using Lagrange multiplier for computing the forces)
+        ///          or unconstrainted (aba).
+        ///
+        /// \param[in] system System for which to compute the dynamics.
+        /// \param[in] q Joint position.
+        /// \param[in] v Joint velocity.
+        /// \param[in] u Joint torque.
+        /// \param[in] fext External forces applied on the system.
+        /// \return System acceleration.
+        vectorN_t computeAcceleration(systemDataHolder_t & system,
+                                      Eigen::Ref<vectorN_t const> const & q,
+                                      Eigen::Ref<vectorN_t const> const & v,
+                                      vectorN_t const & u,
+                                      forceVector_t const & fext);
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;

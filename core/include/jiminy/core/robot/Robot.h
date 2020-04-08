@@ -10,6 +10,7 @@ namespace jiminy
 {
     struct MotorSharedDataHolder_t;
     class AbstractMotorBase;
+    class AbstractConstraint;
     struct SensorSharedDataHolder_t;
     class AbstractSensorBase;
     class TelemetryData;
@@ -20,6 +21,22 @@ namespace jiminy
         using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase> >;
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
+
+        struct robotConstraint_t
+        {
+            std::string name_; ///< Name of the constraint.
+            std::shared_ptr<AbstractConstraint> constraint_; ///< The constraint itself.
+            uint32_t dim_; ///< Dimension of the constraint.
+
+            robotConstraint_t(std::string const & name,
+                              std::shared_ptr<AbstractConstraint> constraint):
+                name_(name),
+                constraint_(constraint),
+                dim_(0)
+            {
+                // Empty.
+            }
+        };
 
     public:
         // Disable the copy of the class
@@ -65,6 +82,55 @@ namespace jiminy
                             Eigen::Ref<vectorN_t const> const & v,
                             Eigen::Ref<vectorN_t const> const & a,
                             vectorN_t                   const & u);
+
+        /// \brief Add a kinematic constraint to the robot.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        /// \param[in] constraint Constraint to add.
+        hresult_t addConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraint> constraint);
+
+        /// \brief Remove a kinematic constraint form the system.
+        ///
+        /// \param[in] constraintName Unique name identifying the kinematic constraint.
+        hresult_t removeConstraint(std::string const & constraintName);
+
+        /// \brief Get a pointer to the constraint referenced by constraintName
+        ///
+        /// \param[in] constraintName Name of the constraint to get.
+        /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
+        hresult_t getConstraint(std::string const & constraintName,
+                                std::shared_ptr<AbstractConstraint> & constraint) const;
+
+        /// \brief Compute jacobian and drift associated to all the constraints.
+        ///
+        /// \details The results are accessible using getConstraintsJacobian and
+        ///          getConstraintsDrift.
+        /// \note  It is assumed frames forward kinematics has already been called.
+        ///
+        /// \param[in] q    Joint position.
+        /// \param[in] v    Joint velocity.
+        /// \return ERROR_GENERIC if one constraint has the wrong jacobian / drift size.
+        void computeConstraints(Eigen::Ref<vectorN_t const> const & q,
+                                Eigen::Ref<vectorN_t const> const & v);
+
+        /// \brief Get jacobian of the constraints.
+        inline matrixN_t const & getConstraintsJacobian()
+        {
+            return constraintsJacobian_;
+        }
+
+        /// \brief Get drift of the constraints.
+        inline vectorN_t const & getConstraintsDrift()
+        {
+            return constraintsDrift_;
+        }
+        /// \brief Returns true if at least one constraint is active on the robot.
+        inline bool_t hasConstraint()
+        {
+            return !constraintsHolder_.empty();
+        }
+
         sensorsDataMap_t getSensorsData(void) const;
         matrixN_t getSensorsData(std::string const & sensorType) const;
         vectorN_t getSensorData(std::string const & sensorType,
@@ -123,6 +189,8 @@ namespace jiminy
     protected:
         hresult_t refreshMotorsProxies(void);
         hresult_t refreshSensorsProxies(void);
+        /// \brief Refresh the proxies of the kinematics constraints.
+        hresult_t refreshConstraintsProxies(void);
         virtual hresult_t refreshProxies(void) override;
 
     protected:
@@ -134,6 +202,10 @@ namespace jiminy
         std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
         std::vector<std::string> motorTorqueFieldnames_;    ///< Fieldnames of the torques of the motors
+
+        std::vector<robotConstraint_t> constraintsHolder_;
+        matrixN_t constraintsJacobian_; ///< Matrix holding the jacobian of the constraints.
+        vectorN_t constraintsDrift_;    ///< Vector holding the drift of the constraints.
 
     private:
         MutexLocal mutexLocal_;

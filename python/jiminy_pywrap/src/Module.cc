@@ -92,6 +92,7 @@ namespace python
         jiminy::python::PyModelVisitor::expose();
         jiminy::python::PyRobotVisitor::expose();
         jiminy::python::PyMotorVisitor::expose();
+        jiminy::python::PyConstraintVisitor::expose();
         jiminy::python::PySensorVisitor::expose();
         jiminy::python::PyAbstractControllerVisitor::expose();
         jiminy::python::PyControllerFunctorVisitor::expose();

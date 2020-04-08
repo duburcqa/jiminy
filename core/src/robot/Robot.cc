@@ -6,7 +6,10 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/jacobian.hpp"
+#include "pinocchio/algorithm/joint-configuration.hpp"
 
+#include "jiminy/core/robot/AbstractConstraint.h"
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -26,6 +29,9 @@ namespace jiminy
     motorsNames_(),
     sensorsNames_(),
     motorTorqueFieldnames_(),
+    constraintsHolder_(),
+    constraintsJacobian_(),
+    constraintsDrift_(),
     mutexLocal_(),
     motorsSharedHolder_(nullptr),
     sensorsSharedHolder_()
@@ -74,6 +80,12 @@ namespace jiminy
             {
                 returnCode = motor->refreshProxies();
             }
+        }
+
+        // Refresh the constraints
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = refreshConstraintsProxies();
         }
 
         // Reset the motors
@@ -474,6 +486,86 @@ namespace jiminy
         return returnCode;
     }
 
+
+    hresult_t Robot::addConstraint(std::string const & constraintName,
+                                   std::shared_ptr<AbstractConstraint> constraint)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.name_ == constraintName;
+                                         });
+        if (constraintIt != constraintsHolder_.end())
+        {
+            std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName <<  " already exists." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            returnCode = constraint->attach(this);
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                constraintsHolder_.push_back(robotConstraint_t(constraintName, constraint));
+            }
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Required to resize constraintsJacobian_ to the right size.
+            refreshConstraintsProxies();
+        }
+        return returnCode;
+    }
+
+    hresult_t Robot::removeConstraint(std::string const & constraintName)
+    {
+        // Lookup constraint.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.name_ == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
+        {
+            std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            constraintIt->constraint_->detach();
+            constraintsHolder_.erase(constraintIt);
+            // Required to resize constraintsJacobian_ to the right size.
+            refreshConstraintsProxies();
+        }
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Robot::getConstraint(std::string const & constraintName,
+                                   std::shared_ptr<AbstractConstraint> & constraint) const
+    {
+        // Lookup constraint.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.name_ == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
+        {
+            std::cout << "Error - Robot::getConstraint - No constraint with this name exists." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        else
+        {
+            constraint = constraintIt->constraint_;
+        }
+        return hresult_t::SUCCESS;
+    }
+
+
     hresult_t Robot::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -499,6 +591,61 @@ namespace jiminy
             returnCode = refreshSensorsProxies();
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = refreshConstraintsProxies();
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Robot::refreshConstraintsProxies(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+        vectorN_t q = pinocchio::neutral(pncModel_);
+        vectorN_t v = vectorN_t::Zero(pncModel_.nv);
+
+        int constraintSize = 0;
+        for (auto & constraint : constraintsHolder_)
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = constraint.constraint_->refreshProxies();
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                // Call constraint on neutral position and zero velocity.
+                matrixN_t J = constraint.constraint_->getJacobian(q);
+                vectorN_t drift = constraint.constraint_->getDrift(q, v);
+
+                // Verify dimensions.
+                if (J.cols() != pncModel_.nv)
+                {
+                    std::cout << "Robot::refreshConstraintsProxies: constraint " << constraint.name_;
+                    std::cout << "has an invalid jacobian (wrong number of columns)." << std::endl;
+                    returnCode = hresult_t::ERROR_GENERIC;
+                }
+                if (drift.size() != J.rows())
+                {
+                    std::cout << "Robot::refreshConstraintsProxies: constraint " << constraint.name_;
+                    std::cout << "has inconsistend jacobian and drift (size mismatch)." << std::endl;
+                    returnCode = hresult_t::ERROR_GENERIC;
+                }
+                if (returnCode == hresult_t::SUCCESS)
+                {
+                    // Store constraint size.
+                    constraint.dim_ = J.rows();
+                    constraintSize += J.rows();
+                }
+            }
+        }
+
+        // Reset jacobian and drift to 0.
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
+            constraintsDrift_ = vectorN_t::Zero(constraintSize);
+        }
         return returnCode;
     }
 
@@ -1186,6 +1333,34 @@ namespace jiminy
             }
         }
     }
+
+    void Robot::computeConstraints(Eigen::Ref<vectorN_t const> const & q,
+                                   Eigen::Ref<vectorN_t const> const & v)
+    {
+        // Compute joint jacobian.
+        pinocchio::computeJointJacobians(pncModel_, pncData_, q);
+
+        uint32_t currentRow = 0;
+        for (auto & constraint : constraintsHolder_)
+        {
+            matrixN_t J = constraint.constraint_->getJacobian(q);
+            vectorN_t drift = constraint.constraint_->getDrift(q, v);
+
+            uint32_t constraintDim = J.rows();
+            // Resize matrix if needed.
+            if (constraintDim != constraint.dim_)
+            {
+                constraintsJacobian_.conservativeResize(
+                    constraintsJacobian_.rows() + constraintDim - constraint.dim_,
+                    Eigen::NoChange);
+                constraintsDrift_.conservativeResize(constraintsDrift_.size() + constraintDim - constraint.dim_);
+                constraint.dim_ = constraintDim;
+            }
+            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = J;
+            constraintsDrift_.segment(currentRow, constraintDim) = drift;
+            currentRow += constraintDim;
+        }
+     }
 
     sensorsDataMap_t Robot::getSensorsData(void) const
     {
