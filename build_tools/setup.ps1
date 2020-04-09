@@ -15,6 +15,10 @@ if (-not (Test-Path -PathType Container $InstallDir)) {
   New-Item -ItemType "directory" -Force -Path "$InstallDir"
 }
 
+### Eigenpy and Pinocchio are using the deprecated FindPythonInterp cmake helper 
+#   to detect Python executable, which is not working properly on Windows.
+$PYTHON_EXECUTABLE = ( python -c "import sys; sys.stdout.write(sys.executable)" )
+
 ### Remove the preinstalled boost library from path
 if (Test-Path Env:/Boost_ROOT) {
   Remove-Item Env:/Boost_ROOT
@@ -27,12 +31,6 @@ $Env:PKG_CONFIG_PATH = "$InstallDir\lib\pkgconfig;$InstallDir\share\pkgconfig"
 $Env:Path += ";$InstallDir\bin"
 
 # Build and install boost (boost numeric odeint < 1.71 does not support eigen3 > 3.2 and eigen < 3.3 build fails on windows because of a cmake error)
-
-### Download boost
-# $BoostDownloadPath = "https://dl.bintray.com/boostorg/release/1.${Env:BOOST_MINOR_VERSION}.0/source/boost_1_${Env:BOOST_MINOR_VERSION}_0.zip"
-# (new-object System.Net.WebClient).DownloadFile($BoostDownloadPath, "$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0.zip")
-# Add-Type -A System.IO.Compression.FileSystem
-# [IO.Compression.ZipFile]::ExtractToDirectory("$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0.zip", "$RootDir")
 
 ### Patch \boost\python\operators.hpp (or \libs\python\include\boost\python\operators.hpp on github) to avoid conflicts with msvc
 $LineNumbers = @(22, 371)
@@ -109,6 +107,7 @@ if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
 }
 Set-Location -Path $RootDir\eigenpy\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
                                            -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
                                            -DBoost_USE_STATIC_LIBS=OFF `
@@ -300,6 +299,7 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
 }
 Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
                                            -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
                                            -DBoost_USE_STATIC_LIBS=OFF `
