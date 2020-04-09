@@ -67,13 +67,13 @@ else(NOT WIN32)
     include_directories(SYSTEM "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}")
 endif(NOT WIN32)
 
-# Define search strategy for Boost package and find it
+# Define search strategy for Boost package and find it in order to store the version number
 # TODO: Remove hard-coded path
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
 if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
     set(BOOST_ROOT "/opt/install/pc/")
 endif()
-find_package(Boost REQUIRED)
+find_package(Boost QUIET REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version

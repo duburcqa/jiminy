@@ -18,13 +18,13 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: 'boostorg/boost'
-        ref: 'boost-1.72.0'
-        path: 'boost_1_72_0'
+        ref: 'boost-1.71.0' # 1.72.0 is not properly supported by FindBoost on Cmake 3.16.1 and older.
+        path: 'boost_1_71_0'
     - name: Checkout boost submodules
       run: |
-        cd boost_1_72_0
+        cd boost_1_71_0
         git submodule update --init --recursive --jobs 8
-        echo "::set-env name=BOOST_MINOR_VERSION::72"
+        echo "::set-env name=BOOST_MINOR_VERSION::71"
     - name: Checkout eigen
       uses: actions/checkout@v2
       with:
