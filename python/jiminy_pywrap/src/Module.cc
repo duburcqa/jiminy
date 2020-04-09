@@ -9,17 +9,33 @@
 // if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
 #define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/ndarrayobject.h"
+#include "numpy/arrayobject.h"
 #define NO_IMPORT_ARRAY
 
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
 
-#include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
 #include <boost/python/scope.hpp>
 #include <boost/python/numpy.hpp>
+#include <eigenpy/eigenpy.hpp>
+
+
+#ifdef _WIN32
+#if PY_MAJOR_VERSION == 2
+static void initNumpy()
+{
+    import_array();
+}
+#else
+static void * initNumpy()
+{
+    import_array();
+    return NULL;
+}
+#endif
+#endif
 
 
 namespace jiminy
@@ -50,7 +66,13 @@ namespace python
     {
         // Required to initialized Python C API
         Py_Initialize();
-        // Required to handle numpy::ndarray object (it loads Python C API of Numpy) and ufunc
+        #ifdef _WIN32
+        // Required to handle raw numpy::ndarray object (it loads Python C API of Numpy)
+        // Note that, in principle, it is unecessary to call this method manually, 
+        // but it is not working properly on Windows for some reasons...
+        initNumpy(); 
+        #endif
+        // Required to handle boost::pyhton::numpy::ndarray object
         bp::numpy::initialize();
         // Required and create PyArrays<->Eigen automatic converters.
         eigenpy::enableEigenPy();
