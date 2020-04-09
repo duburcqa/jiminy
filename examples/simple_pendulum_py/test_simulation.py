@@ -5,12 +5,12 @@ import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-import pinocchio as pnc
 
 from jiminy_py import core as jiminy
 from jiminy_py.log import extract_state_from_simulation_log
 from jiminy_py.viewer import play_trajectories
 from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
+import pinocchio as pnc
 
 from interactive_plot_util import interactive_legend
 
@@ -36,7 +36,8 @@ fHLC = args.fHLC
 acceleration_control = args.acceleration
 position_control = not acceleration_control
 
-os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+script_dir = os.path.dirname(os.path.realpath(__file__))
+os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################

@@ -6,7 +6,8 @@ from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 
-os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+script_dir = os.path.dirname(os.path.realpath(__file__))
+os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
 motor_joint_names = ("slider_to_cart",)

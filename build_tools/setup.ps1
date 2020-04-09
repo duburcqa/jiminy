@@ -8,7 +8,8 @@ $RootDir = (Get-Item -Path "..\").FullName
 if (Test-Path Env:/GITHUB_ACTIONS) {
   $RootDir = $Env:GITHUB_WORKSPACE
 }
-$InstallDir = "$RootDir\install"
+$RootDir = $RootDir  -replace '\\', '/' # Force cmake compliant path delimiter
+$InstallDir = "$RootDir/install"
 
 if (-not (Test-Path -PathType Container $InstallDir)) {
   New-Item -ItemType "directory" -Force -Path "$InstallDir"
@@ -69,7 +70,7 @@ Set-PSDebug -Trace 1
 Set-Location -Path "$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0"
 .\bootstrap.bat --prefix="$InstallDir"
 
-### Build and install and install boost
+### Build and install and install boost (Replace -d0 option by -d1 to check compilation errors)
 $BuildTypeB2 = $BuildType.ToLower()
 if (-not (Test-Path -PathType Container $RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\boost_1_${Env:BOOST_MINOR_VERSION}_0\build"
@@ -80,8 +81,15 @@ if (-not (Test-Path -PathType Container $RootDir\boost_1_${Env:BOOST_MINOR_VERSI
          --without-timer --without-chrono --without-atomic --without-graph_parallel `
          --without-type_erasure --without-container --without-exception --without-locale `
          --without-log --without-program_options --without-random --without-iostreams `
-         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi -q -d1 -j2 `
+         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi -q -d0 -j2 `
          architecture=x86 address-model=64 link=shared runtime-link=shared install
+
+# How to properly detect custom install of Boost library:
+# - if Boost_NO_BOOST_CMAKE is TRUE:
+#   * Set the cmake cache variable CMAKE_PREFIX_PATH
+#   * Set the environment variable Boost_DIR
+# - if Boost_NO_BOOST_CMAKE is FALSE:
+#   * Set the cmake cache variable BOOST_ROOT and Boost_INCLUDE_DIR
 
 # Build and install eigen3
 if (-not (Test-Path -PathType Container $RootDir\eigen3\build)) {
@@ -101,8 +109,9 @@ if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
 }
 Set-Location -Path $RootDir\eigenpy\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_DEBUG=TRUE `
+                                           -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+                                           -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
+                                           -DBoost_USE_STATIC_LIBS=OFF `
                                            -DBUILD_TESTING=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\eigenpy
 cmake --build . --target install --config "$BuildType" --parallel 2
@@ -289,8 +298,9 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
 }
 Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                           -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+                                           -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
+                                           -DBoost_USE_STATIC_LIBS=OFF `
                                            -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
