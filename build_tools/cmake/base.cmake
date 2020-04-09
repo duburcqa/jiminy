@@ -94,8 +94,9 @@ if(BUILD_PYTHON_INTERFACE)
     string(REPLACE ";" "." PYTHON_VERSION_STRING "${_VERSION}")
     list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
     list(GET _VERSION 1 PYTHON_VERSION_MINOR)
-    set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
+    list(GET _VERSION 2 PYTHON_VERSION_PATCH)
+    set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+    message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
 
     ## Get Python system and user site-packages
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
@@ -156,6 +157,7 @@ if(BUILD_PYTHON_INTERFACE)
         get_filename_component(PYTHON_ROOT ${PYTHON_SYS_SITELIB} DIRECTORY)
         get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
         link_directories(SYSTEM "${PYTHON_ROOT}/libs/")
+        message("-- Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
     endif()
 
     # Define Python install helpers
