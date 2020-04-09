@@ -79,14 +79,16 @@ if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
-    if(NOT WIN32)
+    if(${CMAKE_VERSION} VERSION_LESS "3.12.4") 
         find_program(PYTHON_EXECUTABLE python)
-    else(NOT WIN32)
-        execute_process(COMMAND python -c
-                                "import sys; sys.stdout.write(sys.executable)"
-                        OUTPUT_STRIP_TRAILING_WHITESPACE
-                        OUTPUT_VARIABLE PYTHON_EXECUTABLE)
-    endif(NOT WIN32)
+        if (NOT PYTHONINTERP_FOUND)
+            message(FATAL_ERROR "No Python executable found, CMake will exit.")
+        endif()
+    else()
+        find_package(Python REQUIRED COMPONENTS Interpreter)
+        set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
+    endif()
+    
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
