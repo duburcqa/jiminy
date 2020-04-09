@@ -10,6 +10,21 @@ if(WIN32)
     message("-- Found eigenpy: version ${eigenpy_VERSION}")
 endif()
 
+# Find Boost Python library names
+if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+    find_package(Boost REQUIRED COMPONENTS
+                 "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
+                 "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
+    set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
+else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+    if(${PYTHON_VERSION_MAJOR} EQUAL 3)
+        set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
+    else(${PYTHON_VERSION_MAJOR} EQUAL 3)
+        set(BOOST_PYTHON_LIB "boost_numpy;boost_python")
+    endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
+endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+message("-- Boost Python Libs: ${Boost_LIBRARIES}")
+    
 # Add cpp sources
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
 
