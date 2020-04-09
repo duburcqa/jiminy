@@ -126,11 +126,16 @@ jobs:
         if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
           New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
         }
-        Copy-Item "$InstallDir\bin\eigenpy.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item "$InstallDir\lib\urdfdom_model.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item "$InstallDir\lib\boost_numpy38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\site-packages\*" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
+        Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
+                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        Copy-Item -Path "$InstallDir\lib\urdfdom_model.dll" `
+                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        Copy-Item -Path "$InstallDir\lib\boost_numpy*.dll" `
+                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        Copy-Item -Path "$InstallDir\lib\boost_python*.dll" `
+                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        Copy-Item -Path "$InstallDir\lib\site-packages\*" `
+                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
         
         cmake --build . --target INSTALL --config "$BuildType" --parallel 2
         
