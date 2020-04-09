@@ -160,6 +160,9 @@ if(BUILD_PYTHON_INTERFACE)
         message("-- Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
     endif()
 
+    # Define NUMPY_INCLUDE_DIRS
+    find_package(NumPy REQUIRED)
+
     # Define Python install helpers
     function(deployPythonPackage TARGET_NAME)
         install(CODE "execute_process(COMMAND pip install ${PYTHON_INSTALL_FLAGS} .
