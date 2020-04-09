@@ -58,7 +58,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 # Link with other libraries (in such a way to avoid any warnings compiling them)
-target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${Boost_INCLUDE_DIRS}")
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
 target_link_libraries(${PROJECT_NAME} urdfdom_model "${Boost_LIBRARIES}")
 if(WIN32)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)

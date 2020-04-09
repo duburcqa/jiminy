@@ -7,7 +7,7 @@ project(unit VERSION ${BUILD_VERSION})
 # Find pthread if available
 find_package(Threads)
 
-# Create empty file to declare executable without any source files.
+# Create empty file to declare executable without any source files
 file(WRITE ${CMAKE_BINARY_DIR}/null.cc "")
 
 # Create the unit test executable
@@ -25,7 +25,7 @@ if(EXISTS ${UNIT_CURRENT_DATA_DIR})
 	file (COPY ${UNIT_CURRENT_DATA_DIR} DESTINATION "${CMAKE_BINARY_DIR}/unit/data/")
 endif()
 
-# Include core library for unit tests.
+# Include core library for unit tests
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 
 # Configure gtest dependency

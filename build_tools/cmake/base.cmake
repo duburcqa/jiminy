@@ -55,7 +55,7 @@ option(BUILD_EXAMPLES "Build the C++ examples" ON)
 
 # Add missing include & lib directory(ies)
 # TODO: Remove hard-coded paths after support of find_package for Eigen and Pinocchio,
-# namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.4.X
+# namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.3.0
 if(NOT WIN32)
     link_directories(SYSTEM /opt/openrobots/lib)
     link_directories(SYSTEM /opt/install/pc/lib)
