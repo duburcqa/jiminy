@@ -23,6 +23,7 @@ setup(name = 'jiminy_py',
       include_package_data = True, # make sure the shared library is included
       distclass = BinaryDistribution,
       install_requires = [
+          'Pillow',
           'meshcat',
           'scipy',
           'matplotlib',

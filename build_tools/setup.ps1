@@ -102,7 +102,7 @@ if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
 Set-Location -Path $RootDir\eigenpy\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBoost_NO_BOOST_CMAKE=FALSE -DNO_CMAKE_SYSTEM_PATH=TRUE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_DEBUG=TRUE `
                                            -DBUILD_TESTING=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\eigenpy
 cmake --build . --target install --config "$BuildType" --parallel 2
@@ -290,7 +290,7 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
 Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBoost_NO_BOOST_CMAKE=FALSE -DNO_CMAKE_SYSTEM_PATH=TRUE -DBoost_NO_SYSTEM_PATHS=TRUE `
+                                           -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
                                            -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
