@@ -132,11 +132,6 @@ jobs:
         Copy-Item -Path "$InstallDir\lib\site-packages\*" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
         
         cmake --build . --target INSTALL --config "$BuildType" --parallel 2
-    - name: Archive install artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: install-artifacts-win
-        path: install
         
     - name: Running unit tests
       run: |
