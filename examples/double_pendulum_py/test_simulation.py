@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,7 +92,7 @@ print(log_constants)
 trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
 
 # Save the log in CSV
-engine.write_log("/tmp/log.csv", False)
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"), False)
 
 # ############################ Display the results ######################################
 

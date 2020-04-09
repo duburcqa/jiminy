@@ -70,8 +70,8 @@ endif(NOT WIN32)
 # Define search strategy for Boost package and find it
 # TODO: Remove hard-coded path
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
-if(Boost_NO_SYSTEM_PATHS AND NOT BOOST_ROOT)
-    set(BOOST_ROOT /opt/install/pc/)
+if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
+    set(BOOST_ROOT "/opt/install/pc/")
 endif()
 find_package(Boost REQUIRED)
 
