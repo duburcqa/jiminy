@@ -330,7 +330,7 @@ namespace python
         }
 
         static bp::tuple eval(heatMapFunctor_t       & self,
-                              vector3_t        const & posFrame)
+                              vectorN_t        const & posFrame) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
@@ -1622,7 +1622,7 @@ namespace python
                                          std::string      const & frameName,
                                          float64_t        const & t,
                                          float64_t        const & dt,
-                                         vector6_t        const & F)
+                                         vectorN_t        const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
         {
             self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
         }
@@ -1689,7 +1689,7 @@ namespace python
                     intData.clear();
                 }
 
-                for (uint32_t i=0; i<intData[0].size(); i++)
+                for (uint32_t i=0; i<intMatrix.cols(); i++)
                 {
                     Eigen::Ref<Eigen::Matrix<int32_t, -1, 1> > intCol(intMatrix.col(i));
                     PyObject * valuePyInt(getNumpyReference(intCol));
@@ -1720,7 +1720,7 @@ namespace python
                     floatData.clear();
                 }
 
-                for (uint32_t i=0; i<floatData[0].size(); i++)
+                for (uint32_t i=0; i<floatMatrix.cols(); i++)
                 {
                     Eigen::Ref<Eigen::Matrix<float32_t, -1, 1> > floatCol(floatMatrix.col(i));
                     PyObject * valuePyFloat(getNumpyReference(floatCol));
@@ -1895,7 +1895,7 @@ namespace python
                                          std::string const & frameName,
                                          float64_t   const & t,
                                          float64_t   const & dt,
-                                         vector6_t   const & F)
+                                         vectorN_t   const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
         {
             self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }
