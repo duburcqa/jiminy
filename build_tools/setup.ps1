@@ -107,11 +107,9 @@ if (-not (Test-Path -PathType Container $RootDir\eigenpy\build)) {
 }
 Set-Location -Path $RootDir\eigenpy\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
-                                           -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
-                                           -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBUILD_TESTING=OFF `
+                                           -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\eigenpy
 cmake --build . --target install --config "$BuildType" --parallel 2
 
@@ -216,8 +214,7 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
 }
 Set-Location -Path $RootDir\urdfdom\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DTinyXML_ROOT_DIR="$InstallDir" -DBUILD_SHARED_LIBS=OFF `
-                                           -DBUILD_TESTING=OFF `
+                                           -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC" $RootDir\urdfdom
 cmake --build . --target install --config "$BuildType" --parallel 2
 
@@ -253,6 +250,8 @@ Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 'TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/eigenpy.lib")
 TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/urdfdom_model.lib")
+TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/tinyxml.lib")
+TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/console_bridge.lib")
 '
 } ; $_ ; $n++ } | Out-File -Encoding ASCII $RootDir\pinocchio\bindings\python\CMakeLists.txt
 Set-PSDebug -Trace 1
@@ -321,11 +320,9 @@ if (-not (Test-Path -PathType Container $RootDir\pinocchio\build)) {
 }
 Set-Location -Path $RootDir\pinocchio\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
-                                           -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+                                           -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
                                            -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
-                                           -DBoost_USE_STATIC_LIBS=OFF `
-                                           -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
+                                           -DBoost_USE_STATIC_LIBS=OFF  -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
