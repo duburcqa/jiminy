@@ -188,6 +188,9 @@ Set-PSDebug -Trace 0
 $Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | Out-File -Encoding ASCII $RootDir\urdfdom\CMakeLists.txt
 Set-PSDebug -Trace 1
 
+### Must patch \urdf_parser\CMakeLists.txt to disable library type enforced STATIC
+(Get-Content $RootDir\urdfdom\urdf_parser\CMakeLists.txt).replace('SHARED ', '') | Set-Content $RootDir\urdfdom\urdf_parser\CMakeLists.txt
+
 ###
 if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
   New-Item -ItemType "directory" -Force -Path "$RootDir\urdfdom\build"

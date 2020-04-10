@@ -5,12 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-if(WIN32)
-    find_package(eigenpy 2.0.3 REQUIRED NO_MODULE) # It adds target include lib eigenpy::eigenpy
-    message("-- Found eigenpy: version ${eigenpy_VERSION}")
-endif()
-
-# Find Boost Python library names
+find_package(Boost QUIET REQUIRED)
 if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
     find_package(Boost REQUIRED COMPONENTS
                  "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
@@ -24,7 +19,12 @@ else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
     endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
 endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
 message("-- Boost Python Libs: ${Boost_LIBRARIES}")
-    
+
+if(WIN32)
+    find_package(eigenpy 2.0.3 REQUIRED NO_MODULE) # It adds target include lib eigenpy::eigenpy
+    message("-- Found eigenpy: version ${eigenpy_VERSION}")
+endif()
+
 # Add cpp sources
 set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
 
