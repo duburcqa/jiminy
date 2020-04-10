@@ -13,18 +13,6 @@ file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cc "")
 # Create the unit test executable
 add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/null.cc)
 
-if(NOT WIN32)
-    set_target_properties(${PROJECT_NAME}
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-    )
-else(NOT WIN32)
-    set_target_properties(${PROJECT_NAME}
-        PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY $<1:${CMAKE_BINARY_DIR}>
-    )
-endif(NOT WIN32)
-
 # Define the list of unit test files
 set(UNIT_TEST_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/EngineSanityCheck.cc"

@@ -139,6 +139,7 @@ if (-not (Test-Path -PathType Container $RootDir\tinyxml\build)) {
 }
 Set-Location -Path $RootDir\tinyxml\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+                                           -DBUILD_SHARED_LIBS=OFF `
                                            -DCMAKE_CXX_FLAGS="/EHsc /bigobj" $RootDir\tinyxml
 cmake --build . --target install --config "$BuildType" --parallel 2
 
@@ -181,7 +182,25 @@ cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install urdfdom
 
-### Must remove lines 68 and 86 of CMakefile.txt `if (NOT MSVC) ... endif()`
+### Patch line 71 of CMakeLists.txt to add TinyXML dependency to cmake configuration files generator
+$LineNumber = 71
+$Contents = Get-Content $RootDir\urdfdom\CMakeLists.txt
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'set(PKG_DEPENDS urdfdom_headers console_bridge TinyXML)'
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\urdfdom\CMakeLists.txt
+Set-PSDebug -Trace 1
+
+### Patch line 81 of CMakeLists.txt to add TinyXML dependency to pkgconfig files generator
+$LineNumber = 81
+$Contents = Get-Content $RootDir\urdfdom\CMakeLists.txt
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'set(PKG_URDF_LIBS "-lurdfdom_sensor -lurdfdom_model_state -lurdfdom_model -lurdfdom_world -ltinyxml")'
+} else {$_} ; $n++ } | Out-File -Encoding ASCII $RootDir\urdfdom\CMakeLists.txt
+Set-PSDebug -Trace 1
+
+### Must remove lines 78 and 86 of CMakefile.txt `if (NOT MSVC) ... endif()`
 $LineNumbers = @(78, 86)
 $Contents = Get-Content $RootDir\urdfdom\CMakeLists.txt
 Set-PSDebug -Trace 0
@@ -197,9 +216,9 @@ if (-not (Test-Path -PathType Container $RootDir\urdfdom\build)) {
 }
 Set-Location -Path $RootDir\urdfdom\build
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                           -DTinyXML_ROOT_DIR="$InstallDir" -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE -DBUILD_SHARED_LIBS=ON `
+                                           -DTinyXML_ROOT_DIR="$InstallDir" -DBUILD_SHARED_LIBS=OFF `
                                            -DBUILD_TESTING=OFF `
-                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_EXPORTS" $RootDir\urdfdom
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC" $RootDir\urdfdom
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 # Build and install Pinocchio
@@ -308,7 +327,7 @@ cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAK
                                            -DBoost_USE_STATIC_LIBS=OFF `
                                            -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
                                            -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
-                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC" $RootDir\pinocchio
+                                           -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC" $RootDir\pinocchio
 cmake --build . --target install --config "$BuildType" --parallel 2
 
 ### Fix wrong Python library dll naming convention for Windows
