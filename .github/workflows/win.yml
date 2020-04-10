@@ -128,8 +128,6 @@ jobs:
         }
         Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
                   -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\urdfdom_model.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
         Copy-Item -Path "$InstallDir\lib\boost_numpy*.dll" `
                   -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
         Copy-Item -Path "$InstallDir\lib\boost_python*.dll" `

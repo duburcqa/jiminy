@@ -336,8 +336,6 @@ Rename-Item -Force -Path "$InstallDir\lib\site-packages\pinocchio\pinocchio_pywr
 ### Embedded the required dynamic library in the package folder
 Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
           -Destination "$InstallDir\lib\site-packages\pinocchio"
-Copy-Item -Path "$InstallDir\lib\urdfdom_model.dll" `
-          -Destination "$InstallDir\lib\site-packages\pinocchio"
 Copy-Item -Path "$InstallDir\lib\boost_filesystem*.dll" `
           -Destination "$InstallDir\lib\site-packages\pinocchio"
 Copy-Item -Path "$InstallDir\lib\boost_serialization*.dll" `
