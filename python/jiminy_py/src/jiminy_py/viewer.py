@@ -443,7 +443,7 @@ class Viewer:
 
 
 def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
-                      backend='gepetto-gui', window_name='python-pinocchio', scene_name='world',
+                      backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
     @brief      Display robot evolution in Gepetto-viewer at stable speed.
@@ -479,7 +479,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
                        backend=backend, window_name=window_name, scene_name=scene_name)
 
         if (xyz_offset is not None and xyz_offset[i] is not None):
-            q = trajectory_data[i]['evolution_robot'][0].q.copy() # Make sure to use a copy to avoid altering the original data
+            q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q

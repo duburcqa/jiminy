@@ -47,7 +47,9 @@ TEST(EngineSanity, EnergyConservation)
     // Verify that when sending zero torque to a system, its energy remains constant
 
     // Double pendulum model
-    std::string urdfPath = "data/double_pendulum_rigid.urdf";
+    std::string const dataDirPath(UNIT_TEST_DATA_DIR);
+    auto const urdfPath = dataDirPath + "/double_pendulum_rigid.urdf";
+    
     // All joints actuated.
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
