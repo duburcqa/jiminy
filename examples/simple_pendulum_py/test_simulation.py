@@ -266,7 +266,8 @@ def computeCommand(t, q, v, sensor_data, u):
     state_target_log[0], state_target_log[1] = qi[iPos], dqi[iVel]
 
 def internalDynamics(t, q, v, sensor_data, u):
-    u[:] = 0.0
+    pass
+
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)

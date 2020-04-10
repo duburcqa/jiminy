@@ -324,6 +324,9 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::factory,
+                                 bp::default_call_policies(),
+                                (bp::args("heatmap_function", "heatmap_type"))))
                 .def("__call__", &HeatMapFunctorVisitor::eval,
                                  (bp::arg("self"), bp::arg("position")))
                 ;
@@ -336,8 +339,8 @@ namespace python
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
         }
 
-        static std::shared_ptr<heatMapFunctor_t> HeatMapFunctorPyFactory(bp::object          & objPy,
-                                                                         heatMapType_t const & objType)
+        static std::shared_ptr<heatMapFunctor_t> factory(bp::object          & objPy,
+                                                         heatMapType_t const & objType)
         {
             return std::make_shared<heatMapFunctor_t>(HeatMapFunctorPyWrapper(std::move(objPy), objType));
         }
@@ -349,10 +352,7 @@ namespace python
         {
             bp::class_<heatMapFunctor_t,
                        std::shared_ptr<heatMapFunctor_t> >("HeatMapFunctor", bp::no_init)
-                .def(HeatMapFunctorVisitor())
-                .def("__init__", bp::make_constructor(&HeatMapFunctorVisitor::HeatMapFunctorPyFactory,
-                                 bp::default_call_policies(),
-                                (bp::args("heatmap_function", "heatmap_type"))));
+                .def(HeatMapFunctorVisitor());
         }
     };
 
@@ -1275,21 +1275,28 @@ namespace python
         using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
 
     public:
-        static std::shared_ptr<CtrlFunctor> ControllerFunctorPyFactory(bp::object & commandPy,
-                                                                       bp::object & internalDynamicsPy)
+        ///////////////////////////////////////////////////////////////////////////////
+        /// \brief Expose C++ API through the visitor.
+        ///////////////////////////////////////////////////////////////////////////////
+        template<class PyClass>
+        void visit(PyClass& cl) const
+        {
+            cl
+                .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
+                                 bp::default_call_policies(),
+                                (bp::arg("command_function"), "internal_dynamics_function")));
+                ;
+        }
+        
+        static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
+                                                    bp::object & internalDynamicsPy)
         {
             ControllerFctWrapper commandFct(commandPy);
             ControllerFctWrapper internalDynamicsFct(internalDynamicsPy);
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));
         }
-
-        static void initialize(CtrlFunctor                  & self,
-                               std::shared_ptr<Robot> const & robot)
-        {
-            self.initialize(robot.get());
-        }
-
+        
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
         ///////////////////////////////////////////////////////////////////////////////
@@ -1298,9 +1305,7 @@ namespace python
             bp::class_<CtrlFunctor, bp::bases<AbstractController>,
                        std::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
-            .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::ControllerFunctorPyFactory,
-                             bp::default_call_policies(),
-                            (bp::arg("command_function"), "internal_dynamics_function")));
+                .def(PyControllerFunctorVisitor());
         }
     };
 
