@@ -147,8 +147,7 @@ jobs:
         $RootDir = $Env:GITHUB_WORKSPACE
         $BuildType = "Release"
 
-        Set-Location -Path "$RootDir\jiminy\build\unit\$BuildType"
-        ./unit.exe
+        & "$RootDir\jiminy\build\unit.exe"
         Set-Location -Path $RootDir\jiminy\unit_py
         python -m unittest discover -v
         
