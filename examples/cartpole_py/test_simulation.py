@@ -4,6 +4,7 @@ import numpy as np
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.viewer import sleep
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -39,21 +40,20 @@ engine_options["telemetry"]["enableEnergy"] = False
 
 engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
 engine_options["stepper"]["iterMax"] = -1
-engine_options["stepper"]["sensorsUpdatePeriod"] = 1e-3
-engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
+engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
+engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
 
 robot.set_options(robot_options)
 engine_py.set_engine_options(engine_options)
 engine_py.set_controller_options(ctrl_options)
 
-time_start = time.time()
 engine_py.seed(0)
 engine_py.reset(np.zeros(robot.nx))
+
+refresh_time_prev = time.time()
 for i in range(10000):
     engine_py.step(np.array([0.001]))
     engine_py.render()
 
-    time_end = time.time()
-    dt = engine_options["stepper"]["controllerUpdatePeriod"] - (time_end - time_start)
-    time.sleep(max(dt, 0.0))
-    time_start = time_end
+    sleep(engine_py.step_dt_prev - (time.time() - refresh_time_prev))
+    refresh_time_prev = time.time()
