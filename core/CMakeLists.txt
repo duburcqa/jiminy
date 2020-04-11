@@ -70,7 +70,12 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 
 # Link with other libraries (in such a way to avoid any warnings compiling them)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}")
-target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${urdfdom_LIBRARIES}" "${Boost_LIBRARIES}")
+target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
+if(NOT WIN32)
+    target_link_libraries(${PROJECT_NAME} urdfdom_model)
+else(NOT WIN32)
+    target_link_libraries(${PROJECT_NAME} "${urdfdom_LIBRARIES}")
+endif(NOT WIN32)
 if(WIN32)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 endif()
