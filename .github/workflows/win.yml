@@ -12,6 +12,9 @@ jobs:
   build-test-and-deploy:
     name: "Build project on Windows"
     runs-on: [windows-2019]
+    
+    env:
+      BUILD_TYPE: "Release"
 
     steps:
     - name: Checkout boost
@@ -103,7 +106,6 @@ jobs:
 
         $RootDir = $Env:GITHUB_WORKSPACE -replace '\\', '/'
         $InstallDir = "$RootDir/install"
-        $BuildType = "Release"
 
         if (Test-Path Env:/Boost_ROOT) {
           Remove-Item Env:/Boost_ROOT
@@ -121,7 +123,7 @@ jobs:
                                                    -DBoost_USE_STATIC_LIBS=OFF `
                                                    -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
                                                    -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
-        cmake --build . --config "$BuildType" --parallel 2
+        cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
         
         if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
           New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
@@ -135,7 +137,7 @@ jobs:
         Copy-Item -Path "$InstallDir\lib\site-packages\*" `
                   -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
         
-        cmake --build . --target INSTALL --config "$BuildType" --parallel 2
+        cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
         
     - name: Running unit tests
       shell: pwsh
@@ -143,11 +145,8 @@ jobs:
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        $RootDir = $Env:GITHUB_WORKSPACE
-        $BuildType = "Release"
-
-        & "$RootDir\jiminy\build\unit\$BuildType\unit.exe"
-        Set-Location -Path $RootDir\jiminy\unit_py
+        & "${Env:GITHUB_WORKSPACE}\jiminy\build\unit\${Env:BUILD_TYPE}\unit.exe"
+        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\unit_py
         python -m unittest discover -v
         
     - name: Generating Python pip wheel

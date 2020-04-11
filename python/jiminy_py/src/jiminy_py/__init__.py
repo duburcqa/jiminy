@@ -16,4 +16,4 @@ except ImportError:
 	pass
 
 # Import core submodule
-import core
+from . import core
