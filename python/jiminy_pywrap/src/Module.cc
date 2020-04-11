@@ -4,25 +4,38 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <iostream>
-
 // Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
 // The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
 // if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
 #define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/ndarrayobject.h"
+#include "numpy/arrayobject.h"
 #define NO_IMPORT_ARRAY
 
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
 
-#include <eigenpy/eigenpy.hpp>
 #include <boost/python.hpp>
-#include <boost/python/module.hpp>
 #include <boost/python/scope.hpp>
 #include <boost/python/numpy.hpp>
+#include <eigenpy/eigenpy.hpp>
+
+
+#ifdef _WIN32
+#if PY_MAJOR_VERSION == 2
+static void initNumpy()
+{
+    import_array();
+}
+#else
+static void * initNumpy()
+{
+    import_array();
+    return NULL;
+}
+#endif
+#endif
 
 
 namespace jiminy
@@ -49,20 +62,24 @@ namespace python
         }
     };
 
-    BOOST_PYTHON_MODULE(libjiminy_pywrap)
+    BOOST_PYTHON_MODULE(jiminy_pywrap)
     {
         // Required to initialized Python C API
         Py_Initialize();
-        // Required to handle numpy::ndarray object (it loads Python C API of Numpy) and ufunc
+        #ifdef _WIN32
+        // Required to handle raw numpy::ndarray object (it loads Python C API of Numpy)
+        // Note that, in principle, it is unecessary to call this method manually, 
+        // but it is not working properly on Windows for some reasons...
+        initNumpy(); 
+        #endif
+        // Required to handle boost::pyhton::numpy::ndarray object
         bp::numpy::initialize();
         // Required and create PyArrays<->Eigen automatic converters.
         eigenpy::enableEigenPy();
 
         // Expose the version
-        #ifndef _WIN32
         bp::scope().attr("__version__") = bp::str(JIMINY_VERSION);
         bp::scope().attr("__raw_version__") = bp::str(JIMINY_VERSION);
-        #endif
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
@@ -87,20 +104,20 @@ namespace python
         // Expose classes
         TIME_STATE_FCT_EXPOSE(bool_t)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force)
-        jiminy::python::HeatMapFunctorVisitor::expose();
-        jiminy::python::SensorsDataMapVisitor::expose();
-        jiminy::python::PyModelVisitor::expose();
-        jiminy::python::PyRobotVisitor::expose();
-        jiminy::python::PyMotorVisitor::expose();
-        jiminy::python::PyConstraintVisitor::expose();
-        jiminy::python::PySensorVisitor::expose();
-        jiminy::python::PyAbstractControllerVisitor::expose();
-        jiminy::python::PyControllerFunctorVisitor::expose();
-        jiminy::python::PyStepperStateVisitor::expose();
-        jiminy::python::PySystemStateVisitor::expose();
-        jiminy::python::PySystemDataVisitor::expose();
-        jiminy::python::PyEngineMultiRobotVisitor::expose();
-        jiminy::python::PyEngineVisitor::expose();
+        HeatMapFunctorVisitor::expose();
+        SensorsDataMapVisitor::expose();
+        PyModelVisitor::expose();
+        PyRobotVisitor::expose();
+        PyConstraintVisitor::expose();
+        PyMotorVisitor::expose();
+        PySensorVisitor::expose();
+        PyAbstractControllerVisitor::expose();
+        PyControllerFunctorVisitor::expose();
+        PyStepperStateVisitor::expose();
+        PySystemStateVisitor::expose();
+        PySystemDataVisitor::expose();
+        PyEngineMultiRobotVisitor::expose();
+        PyEngineVisitor::expose();
     }
 
     #undef TIME_STATE_FCT_EXPOSE

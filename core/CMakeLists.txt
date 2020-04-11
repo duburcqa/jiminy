@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(Boost REQUIRED COMPONENTS system filesystem)
+find_package(Boost REQUIRED COMPONENTS system)
 find_package(urdfdom REQUIRED)
 if(WIN32)
     find_package(Eigen3 3.3.4 REQUIRED NO_MODULE) # it adds target include lib Eigen3::Eigen
@@ -57,13 +57,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
 )
 
-# Link with other libraries (in such a way to avoid any warnings compiling them)
-target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE "${Boost_INCLUDE_DIRS}")
-target_link_libraries(${PROJECT_NAME} urdfdom_model "${Boost_LIBRARIES}")
-if(WIN32)
-    target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
-endif()
-
 # Configure jsoncpp dependency.
 # Note that defining only BUILD_INTERFACE will prevent the header files to be exported,
 # thus not making them available by a side-project depending on Jiminy. However, since
@@ -74,7 +67,13 @@ EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external SOURCE_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     $<BUILD_INTERFACE:${SOURCE_DIR}/include>
 )
-target_link_libraries(${PROJECT_NAME} jsoncpp_lib)
+
+# Link with other libraries (in such a way to avoid any warnings compiling them)
+target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}")
+target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${urdfdom_LIBRARIES}" "${Boost_LIBRARIES}")
+if(WIN32)
+    target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
+endif()
 
 # Activate C++14 on Linux (not properly supported by MSVC 2015)
 set_target_properties(${PROJECT_NAME} PROPERTIES

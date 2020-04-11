@@ -21,8 +21,8 @@ namespace jiminy
     class TelemetryData;
     class TelemetryRecorder;
     class Robot;
-    class systemDataHolder_t;
     class EngineMultiRobot;
+    struct systemDataHolder_t;
 
     // Impossible to use function pointer since it does not support functors
     using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t                   const & /*t*/,

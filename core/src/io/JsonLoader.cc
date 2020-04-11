@@ -33,7 +33,7 @@ namespace jiminy
                                                      payload_.data() + payload_.size(),
                                                      &rootJson_,
                                                      &errs);
-           if (not isParsingOk)
+           if (!isParsingOk)
            {
                returnCode = hresult_t::ERROR_GENERIC;
            }

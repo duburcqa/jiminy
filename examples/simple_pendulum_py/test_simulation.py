@@ -1,15 +1,16 @@
 import os
+import tempfile
 import time
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-import pinocchio as pnc
 
 from jiminy_py import core as jiminy
 from jiminy_py.log import extract_state_from_simulation_log
 from jiminy_py.viewer import play_trajectories
 from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
+import pinocchio as pnc
 
 from interactive_plot_util import interactive_legend
 
@@ -35,7 +36,8 @@ fHLC = args.fHLC
 acceleration_control = args.acceleration
 position_control = not acceleration_control
 
-os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+script_dir = os.path.dirname(os.path.realpath(__file__))
+os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
@@ -264,7 +266,8 @@ def computeCommand(t, q, v, sensor_data, u):
     state_target_log[0], state_target_log[1] = qi[iPos], dqi[iVel]
 
 def internalDynamics(t, q, v, sensor_data, u):
-    u[:] = 0.0
+    pass
+
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)
@@ -367,7 +370,7 @@ log_data, log_constants = engine.get_log()
 trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
 
 # Save the log in CSV
-engine.write_log("/tmp/log.data", True)
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.data"), True)
 
 # ############################ Display the results ######################################
 

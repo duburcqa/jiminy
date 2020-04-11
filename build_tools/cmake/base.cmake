@@ -49,37 +49,45 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-# Determine if python bindings must be generated
-option(BUILD_PYTHON_INTERFACE "Build the python binding" ON)
+# Determine if Python bindings must be generated
+option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 option(BUILD_EXAMPLES "Build the C++ examples" ON)
 
 # Add missing include & lib directory(ies)
 # TODO: Remove hard-coded paths after support of find_package for Eigen and Pinocchio,
-# namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.4.X
+# namely after migration to Eigen 3.3.7 / Boost 1.71, and Pinocchio 2.3.0
 if(NOT WIN32)
-    link_directories(SYSTEM /opt/openrobots/lib)
-    link_directories(SYSTEM /opt/install/pc/lib)
-    include_directories(SYSTEM /opt/openrobots/include/)
-    include_directories(SYSTEM /opt/install/pc/include/)
-    include_directories(SYSTEM /opt/install/pc/include/eigen3/)
+    link_directories("/opt/openrobots/lib")
+    link_directories("/opt/install/pc/lib")
+    include_directories(SYSTEM "/opt/openrobots/include/")
+    include_directories(SYSTEM "/opt/install/pc/include/")
+    include_directories(SYSTEM "/opt/install/pc/include/eigen3/")
 else(NOT WIN32)
-    link_directories(SYSTEM "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
+    link_directories("${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     include_directories(SYSTEM "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}")
 endif(NOT WIN32)
 
-# Define search strategy for Boost package and find it
+# Define search strategy for Boost package
 # TODO: Remove hard-coded path
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
-if(Boost_NO_SYSTEM_PATHS AND NOT BOOST_ROOT)
-    set(BOOST_ROOT /opt/install/pc/)
+if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
+    set(BOOST_ROOT "/opt/install/pc/")
 endif()
-find_package(Boost REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
-    find_program(PYTHON_EXECUTABLE python)
+    if(${CMAKE_VERSION} VERSION_LESS "3.12.4") 
+        find_program(PYTHON_EXECUTABLE python)
+        if (NOT PYTHONINTERP_FOUND)
+            message(FATAL_ERROR "No Python executable found, CMake will exit.")
+        endif()
+    else()
+        find_package(Python REQUIRED COMPONENTS Interpreter)
+        set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
+    endif()
+    
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -87,31 +95,59 @@ if(BUILD_PYTHON_INTERFACE)
     string(REPLACE ";" "." PYTHON_VERSION_STRING "${_VERSION}")
     list(GET _VERSION 0 PYTHON_VERSION_MAJOR)
     list(GET _VERSION 1 PYTHON_VERSION_MINOR)
-    set(PYTHON_VERSION ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
-    message("-- Found Python: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION}\")")
+    list(GET _VERSION 2 PYTHON_VERSION_PATCH)
+    set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+    message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
 
-    ## Get python system site-package and install flags
+    ## Get Python system and user site-packages
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sysconfig; print(sysconfig.get_paths()['purelib'])"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE PYTHON_SITELIB)
-    set(PYTHON_INSTALL_FLAGS "--upgrade ")
-
-    # Check permissions on Python site-package to determine whether to use user site
-    execute_process(COMMAND bash -c
-                            "if test -w ${PYTHON_SITELIB} ; then echo 0; else echo 1; fi"
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE PYTHON_RIGHT_SITELIB)
-    if(${PYTHON_RIGHT_SITELIB})
-        message("-- No right on system site-package: ${PYTHON_SITELIB}. Using user site as fallback.")
-        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                    OUTPUT_VARIABLE PYTHON_SYS_SITELIB)
+    message("-- Python system site-packages: ${PYTHON_SYS_SITELIB}")
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                OUTPUT_VARIABLE PYTHON_USER_SITELIB)
+    message("-- Python user site-package: ${PYTHON_USER_SITELIB}")
+    
+    # Check write permissions on Python system site-package to 
+    # determine whether to use user site as fallback.
+    # It also sets the installation flags
+    if(NOT WIN32)
+        execute_process(COMMAND bash -c
+                                "if test -w ${PYTHON_SYS_SITELIB} ; then echo 0; else echo 1; fi"
                         OUTPUT_STRIP_TRAILING_WHITESPACE
-                        OUTPUT_VARIABLE PYTHON_SITELIB)
+                        OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
+    else(NOT WIN32)
+        set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
+    endif(NOT WIN32)
+                    
+    set(PYTHON_INSTALL_FLAGS "--upgrade ")
+    if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
-        message("-- User site-package: ${PYTHON_SITELIB}")
-    endif()
+        set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
+        message("-- No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
+    else(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
+        set(PYTHON_SITELIB "${PYTHON_SYS_SITELIB}")
+    endif(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
 
-    # Include python headers
+    # Get PYTHON_EXT_SUFFIX
+    set(PYTHON_EXT_SUFFIX "")
+    if(PYTHON_VERSION_MAJOR EQUAL 3)
+        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
+                                "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))"
+                        OUTPUT_STRIP_TRAILING_WHITESPACE
+                        OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
+    endif(PYTHON_VERSION_MAJOR EQUAL 3)
+    if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
+        if(NOT WIN32)
+            SET(PYTHON_EXT_SUFFIX ".so")
+        else(WIN32)
+            SET(PYTHON_EXT_SUFFIX ".pyd")
+        endif(WIN32)
+    ENDIF()
+  
+    # Include Python headers
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -119,29 +155,14 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Add Python library directory to search path on Windows
     if(WIN32)
-        get_filename_component(PYTHON_ROOT ${PYTHON_EXECUTABLE} DIRECTORY)
-        link_directories(SYSTEM "${PYTHON_ROOT}/libs/")
+        get_filename_component(PYTHON_ROOT ${PYTHON_SYS_SITELIB} DIRECTORY)
+        get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
+        link_directories("${PYTHON_ROOT}/libs/")
+        message("-- Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
     endif()
 
-    # Find Numpy and add it as a dependency
+    # Define NUMPY_INCLUDE_DIRS
     find_package(NumPy REQUIRED)
-
-    # Find Boost Python library names
-    if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
-        find_package(Boost REQUIRED COMPONENTS
-                    "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
-                    "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
-        )
-        set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
-    else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
-        if(${PYTHON_VERSION_MAJOR} EQUAL 3)
-            set(BOOST_PYTHON_LIB "boost_numpy3")
-            list(APPEND BOOST_PYTHON_LIB "boost_python3")
-        else(${PYTHON_VERSION_MAJOR} EQUAL 3)
-            set(BOOST_PYTHON_LIB "boost_numpy")
-            list(APPEND BOOST_PYTHON_LIB "boost_python")
-        endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
-    endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
 
     # Define Python install helpers
     function(deployPythonPackage TARGET_NAME)

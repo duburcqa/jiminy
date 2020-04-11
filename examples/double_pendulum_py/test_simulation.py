@@ -1,4 +1,5 @@
 import os
+import tempfile
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,8 @@ from jiminy_py.log import extract_state_from_simulation_log
 
 # ################################ User parameters #######################################
 
-os.environ["JIMINY_MESH_PATH"] = os.path.join(os.environ["HOME"], "wdc_workspace/src/jiminy/data")
+script_dir = os.path.dirname(os.path.realpath(__file__))
+os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
 urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
@@ -91,7 +93,7 @@ print(log_constants)
 trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
 
 # Save the log in CSV
-engine.write_log("/tmp/log.csv", False)
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"), False)
 
 # ############################ Display the results ######################################
 

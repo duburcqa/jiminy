@@ -41,11 +41,6 @@ jobs:
         cd build
         make install
 
-    - name: Archive install artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: install-artifacts-linux
-        path: install
     # - name: Create Release
     #   if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'pull_request' && github.base_ref == 'refs/heads/master'
     #   uses: actions/create-release@v1

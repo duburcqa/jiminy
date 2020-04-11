@@ -20,6 +20,14 @@ from pinocchio import Quaternion, SE3, se3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix
 
 
+# Determine if Gepetto-Viewer is available
+try:
+    import gepetto as _gepetto
+    is_gepetto_available = True
+except ImportError:
+    is_gepetto_available = False
+
+
 class Viewer:
     backend = None
     port_forwarding = None
@@ -50,7 +58,10 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                backend = 'meshcat' if Viewer._is_notebook() else 'gepetto-gui'
+                if Viewer._is_notebook() or not is_gepetto_available:
+                    backend = 'meshcat'
+                else:
+                    backend = 'gepetto-gui'
             else:
                 backend = Viewer.backend
 
@@ -405,7 +416,7 @@ class Viewer:
             self._updateGeometryPlacements(visual=True)
             for visual in self._rb.visual_model.geometryObjects:
                 T = self._rb.visual_data.oMg[\
-                    self._rb.visual_model.getGeometryId(visual.name)].homogeneous.A
+                    self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
                     self._getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
 
@@ -432,7 +443,7 @@ class Viewer:
 
 
 def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
-                      backend='gepetto-gui', window_name='python-pinocchio', scene_name='world',
+                      backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
     @brief      Display robot evolution in Gepetto-viewer at stable speed.
@@ -468,7 +479,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
                        backend=backend, window_name=window_name, scene_name=scene_name)
 
         if (xyz_offset is not None and xyz_offset[i] is not None):
-            q = trajectory_data[i]['evolution_robot'][0].q.copy() # Make sure to use a copy to avoid altering the original data
+            q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q

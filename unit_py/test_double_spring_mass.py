@@ -326,7 +326,7 @@ class SimulateTwoMasses(unittest.TestCase):
             # decouple them (the force applied on each system would be a function
             # of this system state only). So we use a nonlinear stiffness, proportional
             # to the square of the distance of both systems to the origin.
-            dsquared = q1[7]**2 + q2[7]**2
+            dsquared = q1[7] ** 2 + q2[7] ** 2
             f[0] = - k_cross * (1 + dsquared) * q1[7]
             f[1] = k_cross * (1 + dsquared) * q2[7]
 
@@ -353,9 +353,10 @@ class SimulateTwoMasses(unittest.TestCase):
                                 for s in robots[i].logfile_position_headers + \
                                          robots[i].logfile_velocity_headers] , axis=-1)
                                             for i in range(len(system_names))]
+
         # Verify that both freeflyers didn't moved.
         for i in range(len(system_names)):
-            self.assertTrue(np.allclose(x_jiminy[i][:, 9:15], 0, atol=TOLERANCE))
+            self.assertTrue(np.allclose(x_jiminy[i][:, 9:15], 0.0, atol=TOLERANCE))
             self.assertTrue(np.allclose(x_jiminy[i][:, :7], x_jiminy[i][0, :7], atol=TOLERANCE))
 
         # Extract coordinates in a minimum state vector.
@@ -374,7 +375,7 @@ class SimulateTwoMasses(unittest.TestCase):
                                 + k[i, 1] * x[1 + 4 * i] + nu[i, 1] * x[3 + 4 * i]
 
             # Coupling force between both system.
-            dsquared = x[0]**2 + x[4]**2
+            dsquared = x[0] ** 2 + x[4] ** 2
             dx[2] += - k_cross * (1 + dsquared) * x[0]
             dx[6] += - k_cross * (1 + dsquared) * x[4]
 

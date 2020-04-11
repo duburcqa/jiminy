@@ -54,10 +54,6 @@ namespace python
 
     template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
-    __attribute__((warning("Be careful, this method casts away constness for compatibility with Python C API. Use only if necessary.")));
-
-    template<typename T, int RowsAtCompileTime>
-    PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
     {
         npy_intp dims[1] = {npy_intp(value.size())};
         return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
