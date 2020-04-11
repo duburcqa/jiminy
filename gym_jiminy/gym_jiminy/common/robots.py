@@ -134,7 +134,7 @@ class RobotJiminyEnv(core.Env):
         self.steps_beyond_done = None
         return self._get_obs()
 
-    def render(self, mode=None, lock=None):
+    def render(self, mode=None, lock=None, **kwargs):
         """
         @brief      Render the current state of the robot in Gepetto-viewer.
 
@@ -149,7 +149,7 @@ class RobotJiminyEnv(core.Env):
         @return     Fake output for compatibility with Gym OpenAI.
         """
 
-        self.engine_py.render(return_rgb_array=False, lock=lock)
+        self.engine_py.render(return_rgb_array=False, lock=lock, **kwargs)
         return RenderOutMock()
 
     def close(self):

@@ -1267,11 +1267,12 @@ namespace jiminy
                 }
             }
 
-            /* Update the final time to make sure it corresponds
-               to the desired tEnd and avoid compounding of error.
+            /* Update the final time and dt to make sure it corresponds
+               to the desired values and avoid compounding of error.
                Anyway the user asked for a step of exactly stepSize,
                so he is expecting this value to be reached. */
             stepperState_.t = tEnd;
+            stepperState_.dt = stepSize;
 
             // Monitor current iteration number, and log the current time, state, command, and sensors data
             if (!engineOptions_->stepper.logInternalStepperSteps)

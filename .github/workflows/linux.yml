@@ -88,9 +88,8 @@ jobs:
   #       path: build
     - name: Running unit tests
       run: |
-        cd build/unit
-        ./unit
-        cd ../../unit_py
+        ./build/unit/unit
+        cd unit_py
         python -m unittest discover -v
 
   # pypi-deploy:

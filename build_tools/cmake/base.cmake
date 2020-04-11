@@ -78,16 +78,16 @@ if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     unset(PYTHON_EXECUTABLE)
     unset(PYTHON_EXECUTABLE CACHE)
-    if(${CMAKE_VERSION} VERSION_LESS "3.12.4") 
+    if(${CMAKE_VERSION} VERSION_LESS "3.12.4")
         find_program(PYTHON_EXECUTABLE python)
-        if (NOT PYTHONINTERP_FOUND)
+        if (NOT PYTHON_EXECUTABLE)
             message(FATAL_ERROR "No Python executable found, CMake will exit.")
         endif()
     else()
         find_package(Python REQUIRED COMPONENTS Interpreter)
         set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
     endif()
-    
+
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sys; sys.stdout.write(';'.join([str(x) for x in sys.version_info[:3]]))"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -109,8 +109,8 @@ if(BUILD_PYTHON_INTERFACE)
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE PYTHON_USER_SITELIB)
     message("-- Python user site-package: ${PYTHON_USER_SITELIB}")
-    
-    # Check write permissions on Python system site-package to 
+
+    # Check write permissions on Python system site-package to
     # determine whether to use user site as fallback.
     # It also sets the installation flags
     if(NOT WIN32)
@@ -121,7 +121,7 @@ if(BUILD_PYTHON_INTERFACE)
     else(NOT WIN32)
         set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
     endif(NOT WIN32)
-                    
+
     set(PYTHON_INSTALL_FLAGS "--upgrade ")
     if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
@@ -146,7 +146,7 @@ if(BUILD_PYTHON_INTERFACE)
             SET(PYTHON_EXT_SUFFIX ".pyd")
         endif(WIN32)
     ENDIF()
-  
+
     # Include Python headers
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"

@@ -19,13 +19,25 @@ from pinocchio import libpinocchio_pywrap as pin
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix
 
-
 # Determine if Gepetto-Viewer is available
 try:
     import gepetto as _gepetto
     is_gepetto_available = True
 except ImportError:
     is_gepetto_available = False
+
+
+def sleep(dt):
+    ''' 
+        @brief   Function to provide cross-plateform time sleep with maximum accuracy.
+    
+        @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
+                 As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure  
+                 accurate delay on a non-real-time systems such as Windows 10.
+    '''
+    _ = time.perf_counter() + dt
+    while time.perf_counter() < _:
+        pass
 
 
 class Viewer:
@@ -283,7 +295,7 @@ class Viewer:
                                             shell=False,
                                             stdout=FNULL,
                                             stderr=FNULL)
-                    time.sleep(1)
+                    time.sleep(1.0)
                     try:
                         return Client(), proc
                     except:
@@ -438,8 +450,7 @@ class Viewer:
                     break
             t_simu = (time.time() - init_time) * speed_ratio
             i = bisect_right(t, t_simu)
-            if t_simu < s.t:
-                time.sleep(s.t - t_simu)
+            sleep(s.t - t_simu)
 
 
 def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,

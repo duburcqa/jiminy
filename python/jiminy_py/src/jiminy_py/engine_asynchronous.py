@@ -8,6 +8,7 @@
 
 import os
 import tempfile
+import time
 import numpy as np
 from collections import OrderedDict
 
@@ -60,7 +61,10 @@ class EngineAsynchronous(object):
         self.viewer_backend = viewer_backend
         self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
-
+        
+        ## Real time rendering management
+        self.step_dt_prev = -1
+        
         ## Flag to determine if the simulation is running, and if the state is theoretical
         self._is_running = False
         self._is_state_theoretical = False
@@ -118,6 +122,7 @@ class EngineAsynchronous(object):
         self._engine.stop()
         self._is_running = False
         self._state = x0
+        self.step_dt_prev = -1
         self._is_state_theoretical = is_state_theoretical
 
     def step(self, action_next=None, dt_desired=-1):
@@ -143,7 +148,9 @@ class EngineAsynchronous(object):
         if (action_next is not None):
             self.action = action_next
         self._state = None
-        return self._engine.step(dt_desired)
+        return_code = self._engine.step(dt_desired)
+        self.step_dt_prev = self._engine.stepper_state.dt
+        return return_code
 
     def render(self, return_rgb_array=False, lock=None):
         """
@@ -176,11 +183,11 @@ class EngineAsynchronous(object):
                                       window_name='jiminy', scene_name=scene_name)
                 self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
                                                 rotation=[np.pi/2, 0.0, np.pi])
-
+    
             # Refresh viewer
             self._viewer.refresh()
 
-            # return rgb array if needed
+            # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
         except:
