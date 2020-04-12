@@ -47,10 +47,10 @@
 
     <joint name="PendulumJoint" type="revolute">
       <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
-      <axis xyz="0 1 0"/>
+      <axis xyz="1 0 0"/>
       <parent link="Foot"/>
       <child link="PendulumArm"/>
-      <limit effort="1000" velocity="100" lower="-1.5" upper="1.5"/>
+      <limit effort="1000" velocity="100" lower="-100" upper="100"/>
     </joint>
 
     <link name="PendulumArm">

@@ -26,13 +26,14 @@ try:
 except ImportError:
     is_gepetto_available = False
 
+from .state import State
 
 def sleep(dt):
-    ''' 
+    '''
         @brief   Function to provide cross-plateform time sleep with maximum accuracy.
-    
+
         @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
-                 As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure  
+                 As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure
                  accurate delay on a non-real-time systems such as Windows 10.
     '''
     _ = time.perf_counter() + dt
@@ -51,8 +52,21 @@ class Viewer:
     _lock = Lock()
 
     def __init__(self, robot, use_theoretical_model=False,
+                 mesh_root_path = None,
                  urdf_rgba=None, robot_index=0,
                  backend=None, window_name='python-pinocchio', scene_name='world'):
+        '''
+        @brief Constructor.
+
+        @param robot The jiminy.Robot to display.
+        @param use_theoretical_model Whether to use the theoretical (rigid) model or the flexible model for this robot.
+        @param mesh_root_path Optional, path to the folder containing the URDF meshes.
+        @param urdf_rgba Color to use to display this robot (rgba).
+        @param robot_index Unique robot index, to identify each robot in the viewer.
+        @param backend Optional, either 'gepetto-gui' or 'meshcat'.
+        @param window_name Window name, used only when gepetto-gui is used as backend.
+        @param scene_name Scene name, used only when gepetto-gui is used as backend.
+        '''
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.scene_name = scene_name
@@ -129,11 +143,12 @@ class Viewer:
                 self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3])
             else:
                 alpha = 1.0
+        root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
         collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                                os.environ.get('JIMINY_MESH_PATH', []),
+                                                root_path,
                                                 pin.GeometryType.COLLISION)
         visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                             os.environ.get('JIMINY_MESH_PATH', []),
+                                             root_path,
                                              pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=collision_model,
@@ -453,11 +468,11 @@ class Viewer:
             sleep(s.t - t_simu)
 
 
-def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
+def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
                       backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
-    @brief      Display robot evolution in Gepetto-viewer at stable speed.
+    @brief      Display robot evolution in choosen viewer (gepetto-gui or meshcat) at stable speed.
 
     @remark     The speed is independent of the machine, and more
                 specifically of CPU power.
@@ -466,10 +481,13 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model':  whether the theoretical or actual model must be used
+    @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
     @param[in]  speed_ratio         Speed ratio of the simulation
+    @param[in]  backend             Backend, one of 'meshcat' or 'gepetto-gui'. By default 'meshcat' is used
+                                    in notebook environment and 'gepetto-gui' otherwise.
     @param[in]  window_name         Name of the Gepetto-viewer's window in which to display the robot.
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
@@ -485,7 +503,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     for i in range(len(trajectory_data)):
         robot = trajectory_data[i]['robot']
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        robot = Viewer(robot, use_theoretical_model=use_theoretical_model,
+        robot = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
                        backend=backend, window_name=window_name, scene_name=scene_name)
 
@@ -515,3 +533,59 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
 
     if close_backend:
         Viewer.close()
+
+
+def play_logfiles(robots, log_datas, **kwargs):
+    '''
+    @brief Play the content of a logfile in a viewer.
+    @details This method simply formats the data then calls play_trajectories.
+
+    @param robots jiminy.Robot: either a single robot, or a list of robot for each log data.
+    @param log_datas Either a single dictionnary, or a list of dictionnaries of simulation data log.
+    @param kwargs Keyword arguments for play_trajectories method.
+    '''
+    # Reformat everything as lists.
+    if not(isinstance(log_datas, list)):
+        log_datas = [log_datas]
+    if not(isinstance(robots, list)):
+        robots = [robots] * len(log_datas)
+
+    # For each pair (robot, log), create a dictionnary for play_trajectories.
+    trajectories = []
+    for i in range(len(robots)):
+        robot = robots[i]
+        log_data = log_datas[i]
+
+        # Get the current robot model options
+        model_options = robot.get_model_options()
+        # Extract the joint positions time evolution - automatically switching
+        # between rigid and flexible model based on log content.
+        t = log_data["Global.Time"]
+        try:
+            qe = np.stack([log_data["HighLevelController." + s]
+                        for s in robot.logfile_position_headers], axis=-1)
+        except:
+            model_options['dynamics']['enableFlexibleModel'] = not robot.is_flexible
+            robot.set_model_options(model_options)
+            qe = np.stack([log_data["HighLevelController." + s]
+                        for s in robot.logfile_position_headers], axis=-1)
+
+        # Determine whether the theoretical model of the flexible one must be used
+        use_theoretical_model = not robot.is_flexible
+
+        # Make sure that the flexibilities are enabled
+        model_options['dynamics']['enableFlexibleModel'] = True
+        robot.set_model_options(model_options)
+
+        # Create state sequence
+        evolution_robot = []
+        for i in range(len(t)):
+            evolution_robot.append(State(qe[i].T, None, None, t[i]))
+
+        traj = {'evolution_robot': evolution_robot,
+                'robot': robot,
+                'use_theoretical_model': use_theoretical_model}
+        trajectories.append(traj)
+
+    # Finally, play the trajectories.
+    play_trajectories(trajectories, **kwargs)
