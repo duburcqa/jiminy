@@ -52,9 +52,21 @@ class Viewer:
     _lock = Lock()
 
     def __init__(self, robot, use_theoretical_model=False,
+                 mesh_root_path = None,
                  urdf_rgba=None, robot_index=0,
-                 backend=None, window_name='python-pinocchio', scene_name='world',
-                 urdf_root_path = None):
+                 backend=None, window_name='python-pinocchio', scene_name='world'):
+        '''
+        @brief Constructor.
+
+        @param robot The jiminy.Robot to display.
+        @param use_theoretical_model Whether to use the theoretical (rigid) model or the flexible model for this robot.
+        @param mesh_root_path Optional, path to the folder containing the URDF meshes.
+        @param urdf_rgba Color to use to display this robot (rgba).
+        @param robot_index Unique robot index, to identify each robot in the viewer.
+        @param backend Optional, either 'gepetto-gui' or 'meshcat'.
+        @param window_name Window name, used only when gepetto-gui is used as backend.
+        @param scene_name Scene name, used only when gepetto-gui is used as backend.
+        '''
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.scene_name = scene_name
@@ -131,7 +143,7 @@ class Viewer:
                 self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3])
             else:
                 alpha = 1.0
-        root_path = urdf_root_path if urdf_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
+        root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
         collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                                 root_path,
                                                 pin.GeometryType.COLLISION)
@@ -456,11 +468,11 @@ class Viewer:
             sleep(s.t - t_simu)
 
 
-def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
+def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
                       backend=None, window_name='python-pinocchio', scene_name='world',
-                      close_backend=None, urdf_root_path = None):
+                      close_backend=None):
     """!
-    @brief      Display robot evolution in Gepetto-viewer at stable speed.
+    @brief      Display robot evolution in choosen viewer (gepetto-gui or meshcat) at stable speed.
 
     @remark     The speed is independent of the machine, and more
                 specifically of CPU power.
@@ -469,6 +481,7 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model':  whether the theoretical or actual model must be used
+    @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
@@ -479,7 +492,6 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
-    @param[in]  urdf_root_path      Optional, path to the folder containing the URDF meshes.
     """
 
     if (close_backend is None):
@@ -491,10 +503,9 @@ def play_trajectories(trajectory_data, xyz_offset=None, urdf_rgba=None, speed_ra
     for i in range(len(trajectory_data)):
         robot = trajectory_data[i]['robot']
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        robot = Viewer(robot, use_theoretical_model=use_theoretical_model,
+        robot = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
-                       backend=backend, window_name=window_name, scene_name=scene_name,
-                       urdf_root_path = urdf_root_path)
+                       backend=backend, window_name=window_name, scene_name=scene_name)
 
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
@@ -575,5 +586,6 @@ def play_logfiles(robots, log_datas, **kwargs):
                 'robot': robot,
                 'use_theoretical_model': use_theoretical_model}
         trajectories.append(traj)
+
     # Finally, play the trajectories.
     play_trajectories(trajectories, **kwargs)
