@@ -1123,6 +1123,7 @@ namespace jiminy
                         {
                             std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
                                          "Impossible to integrate physics further in time." << std::endl;
+                            returnCode = hresult_t::ERROR_GENERIC;
                         }
 
                         // Set the timestep to be tried by the stepper
