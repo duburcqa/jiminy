@@ -81,20 +81,20 @@ namespace jiminy
 
         if (!header->isRegisteringAvailable)
         {
-            std::cout << "hresult_t - TelemetryData::registerConstant - Registration is locked." << std::endl;
+            std::cout << "Error - TelemetryData::registerConstant - Registration is locked." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
         std::string const fullConstant = variableNameIn + "=" + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
-            std::cout << "hresult_t - TelemetryData::registerConstant - Maximum number of registration exceeded." << std::endl;
+            std::cout << "Error - TelemetryData::registerConstant - Maximum number of registration exceeded." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
         if (findEntry(header, fullConstant) != -1)
         {
-            std::cout << "hresult_t - TelemetryData::registerConstant - A constant with this name was already registered." << std::endl;
+            std::cout << "Error - TelemetryData::registerConstant - A constant with this name was already registered." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 

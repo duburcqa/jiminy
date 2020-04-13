@@ -75,6 +75,7 @@ namespace jiminy
             removeEntries();
         }
 
+        // Update the telemetry flag
         isTelemetryConfigured_ = false;
     }
 

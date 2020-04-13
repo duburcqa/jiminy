@@ -20,7 +20,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & frameName);
 
-        virtual hresult_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
 
@@ -29,7 +29,7 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & q,
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) override;
+                              vectorN_t                   const & uMotor) final override;
 
     private:
         std::string frameName_;
@@ -46,7 +46,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & frameName);
 
-        virtual hresult_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
 
@@ -55,7 +55,7 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & q,
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) override;
+                              vectorN_t                   const & uMotor) final override;
 
     private:
         std::string frameName_;
@@ -72,7 +72,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & jointName);
 
-        virtual hresult_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getJointName(void) const;
 
@@ -81,7 +81,7 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & q,
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) override;
+                              vectorN_t                   const & uMotor) final override;
 
     private:
         std::string jointName_;
@@ -99,7 +99,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & motorName);
 
-        virtual hresult_t refreshProxies(void) override;
+        virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getMotorName(void) const;
 
@@ -108,7 +108,7 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & q,
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) override;
+                              vectorN_t                   const & uMotor) final override;
 
     private:
         std::string motorName_;

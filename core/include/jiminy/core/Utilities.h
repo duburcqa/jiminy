@@ -276,17 +276,17 @@ namespace jiminy
                                         vectorN_t                         & qDot,
                                         float64_t                   const & dt);
 
-    hresult_t getJointNameFromPositionId(pinocchio::Model const & model,
-                                         int32_t          const & idIn,
-                                         std::string            & jointNameOut);
+    hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
+                                          int32_t          const & idIn,
+                                          std::string            & jointNameOut);
 
-    hresult_t getJointNameFromVelocityId(pinocchio::Model const & model,
-                                         int32_t          const & idIn,
-                                         std::string            & jointNameOut);
+    hresult_t getJointNameFromVelocityIdx(pinocchio::Model const & model,
+                                          int32_t          const & idIn,
+                                          std::string            & jointNameOut);
 
-    hresult_t getJointTypeFromId(pinocchio::Model const & model,
-                                 int32_t          const & idIn,
-                                 joint_t                & jointTypeOut);
+    hresult_t getJointTypeFromIdx(pinocchio::Model const & model,
+                                  int32_t          const & idIn,
+                                  joint_t                & jointTypeOut);
 
     hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut);
@@ -336,7 +336,7 @@ namespace jiminy
 
     pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
                                                     pinocchio::Data  const & data,
-                                                    int32_t          const & frameId,
+                                                    int32_t          const & frameIdx,
                                                     pinocchio::Force const & fextInWorld);
 
     // ********************** Math utilities *************************

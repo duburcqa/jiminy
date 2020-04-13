@@ -9,7 +9,7 @@ namespace jiminy
     FixedFrameConstraint::FixedFrameConstraint(std::string const & frameName) :
     AbstractConstraint(),
     frameName_(frameName),
-    frameId_(0)
+    frameIdx_(0)
     {
         // Empty on purpose
     }
@@ -27,7 +27,7 @@ namespace jiminy
             // in local frame by pinocchio.
             getFrameJacobian(model_->pncModel_,
                              model_->pncData_,
-                             frameId_,
+                             frameIdx_,
                              pinocchio::LOCAL,
                              jacobian_);
         }
@@ -40,8 +40,8 @@ namespace jiminy
         if (isAttached_)
         {
             drift_ = getFrameAcceleration(model_->pncModel_,
-                                         model_->pncData_,
-                                         frameId_).toVector();
+                                          model_->pncData_,
+                                          frameIdx_).toVector();
         }
         return drift_;
     }
@@ -68,7 +68,7 @@ namespace jiminy
 
     hresult_t FixedFrameConstraint::refreshProxies()
     {
-        return getFrameIdx(model_->pncModel_, frameName_, frameId_);
+        return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 }
 

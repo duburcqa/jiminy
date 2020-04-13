@@ -360,7 +360,7 @@ namespace jiminy
                     std::string jointPrefix;
                     if (returnCode == hresult_t::SUCCESS)
                     {
-                        returnCode = getJointTypeFromId(pncModel_, jointIdx, jointType);
+                        returnCode = getJointTypeFromIdx(pncModel_, jointIdx, jointType);
                     }
                     if (returnCode == hresult_t::SUCCESS)
                     {

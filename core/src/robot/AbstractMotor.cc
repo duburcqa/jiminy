@@ -13,7 +13,7 @@ namespace jiminy
     isAttached_(false),
     robot_(nullptr),
     name_(name),
-    motorId_(-1),
+    motorIdx_(-1),
     jointName_(),
     jointModelIdx_(-1),
     jointPositionIdx_(-1),
@@ -47,11 +47,14 @@ namespace jiminy
         robot_ = robot;
         sharedHolder_ = sharedHolder;
 
-        // Get an Id
-        motorId_ = sharedHolder_->num_;
+        // Get an index
+        motorIdx_ = sharedHolder_->num_;
 
-        // Add the motor to the shared data
-        sharedHolder_->data_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
+        // Add a value for the motor to the shared data buffer
+        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ + 1);
+        sharedHolder_->data_.tail<1>().setZero();
+
+        // Add the motor to the shared memory
         sharedHolder_->motors_.push_back(this);
         ++sharedHolder_->num_;
 
@@ -72,24 +75,22 @@ namespace jiminy
         }
 
         // Remove associated col in the global data buffer
-        if (motorId_ < sharedHolder_->num_ - 1)
+        if (motorIdx_ < sharedHolder_->num_ - 1)
         {
-            int32_t motorShift = sharedHolder_->num_ - motorId_ - 1;
-            sharedHolder_->data_.segment(motorId_, motorShift) =
-                sharedHolder_->data_.segment(motorId_ + 1, motorShift).eval(); // eval to avoid aliasing
+            int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
+            sharedHolder_->data_.segment(motorIdx_, motorShift) =
+                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval(); // eval to avoid aliasing
         }
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (int32_t i = motorId_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; i++)
         {
-            --sharedHolder_->motors_[i]->motorId_;
+            --sharedHolder_->motors_[i]->motorIdx_;
         }
 
-        // Remove the deprecated elements of the global containers
-        sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorId_);
-
-        // Update the total number of motors left
+        // Remove the motor to the shared memory
+        sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
         --sharedHolder_->num_;
 
         // Clear the references to the robot and shared data
@@ -199,12 +200,12 @@ namespace jiminy
 
     float64_t & AbstractMotorBase::data(void)
     {
-        return sharedHolder_->data_[motorId_];
+        return sharedHolder_->data_[motorIdx_];
     }
 
     float64_t const & AbstractMotorBase::get(void) const
     {
-        return sharedHolder_->data_[motorId_];
+        return sharedHolder_->data_[motorIdx_];
     }
 
     vectorN_t const & AbstractMotorBase::getAll(void) const
@@ -239,7 +240,7 @@ namespace jiminy
 
     int32_t const & AbstractMotorBase::getIdx(void) const
     {
-        return motorId_;
+        return motorIdx_;
     }
 
     std::string const & AbstractMotorBase::getJointName(void) const
@@ -277,7 +278,7 @@ namespace jiminy
         sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
     }
 
-    hresult_t AbstractMotorBase::computeAllEffort(float64_t                   const & t,
+    hresult_t AbstractMotorBase::computeEffortAll(float64_t                   const & t,
                                                   Eigen::Ref<vectorN_t const> const & q,
                                                   Eigen::Ref<vectorN_t const> const & v,
                                                   Eigen::Ref<vectorN_t const> const & a,

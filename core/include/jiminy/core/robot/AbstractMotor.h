@@ -167,7 +167,7 @@ namespace jiminy
         std::string const & getName(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get motorId_.
+        /// \brief      Get motorIdx_.
         ///
         /// \details    It is the index of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -251,7 +251,7 @@ namespace jiminy
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t computeAllEffort(float64_t                   const & t,
+        hresult_t computeEffortAll(float64_t                   const & t,
                                    Eigen::Ref<vectorN_t const> const & q,
                                    Eigen::Ref<vectorN_t const> const & v,
                                    Eigen::Ref<vectorN_t const> const & a,
@@ -289,7 +289,7 @@ namespace jiminy
         bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a robot
         Robot const * robot_;                       ///< Robot for which the command and internal dynamics
         std::string name_;                          ///< Name of the motor
-        int32_t motorId_;                           ///< Index of the motor in the measurement buffer
+        int32_t motorIdx_;                           ///< Index of the motor in the measurement buffer
         std::string jointName_;
         int32_t jointModelIdx_;
         int32_t jointPositionIdx_;

@@ -426,16 +426,15 @@ namespace python
         static matrixN_t getSub(sensorsDataMap_t       & self,
                                 std::string      const & sensorType)
         {
-            // Extract the encoder data matrix
-            auto const & sensorsDataType = self.at(sensorType);
             matrixN_t data;
+            auto const & sensorsDataType = self.at(sensorType);
             auto sensorDataIt = sensorsDataType.begin();
             data.resize(sensorDataIt->value->size(), sensorsDataType.size());
-            data.col(sensorDataIt->id) = *sensorDataIt->value;
-            ++sensorDataIt;
-            for (; sensorDataIt != sensorsDataType.end(); ++sensorDataIt)
+            data.col(sensorDataIt->idx) = *sensorDataIt->value;
+            sensorDataIt++;
+            for (; sensorDataIt != sensorsDataType.end(); sensorDataIt++)
             {
-                data.col(sensorDataIt->id) = *sensorDataIt->value;
+                data.col(sensorDataIt->idx) = *sensorDataIt->value;
             }
             return data;
         }
@@ -1287,7 +1286,7 @@ namespace python
                                 (bp::arg("command_function"), "internal_dynamics_function")));
                 ;
         }
-        
+
         static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
                                                     bp::object & internalDynamicsPy)
         {
@@ -1296,7 +1295,7 @@ namespace python
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));
         }
-        
+
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
         ///////////////////////////////////////////////////////////////////////////////
@@ -1660,9 +1659,9 @@ namespace python
             bp::dict data;
 
             // Get constants
-            int32_t const lastConstantId = std::distance(
+            int32_t const lastConstantIdx = std::distance(
                 header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
-            for (int32_t i = 1; i < lastConstantId; i++)
+            for (int32_t i = 1; i < lastConstantIdx; i++)
             {
                 int32_t const delimiter = header[i].find("=");
                 constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
@@ -1674,7 +1673,7 @@ namespace python
                 Eigen::Ref<vectorN_t> timeBuffer = vectorN_t::Map(
                     timestamps.data(), timestamps.size());
                 PyObject * valuePyTime(getNumpyReference(timeBuffer));
-                data[header[lastConstantId + 1]] = bp::object(bp::handle<>(
+                data[header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
                     PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
                 Py_XDECREF(valuePyTime);
             }
@@ -1698,7 +1697,7 @@ namespace python
                 {
                     Eigen::Ref<Eigen::Matrix<int32_t, -1, 1> > intCol(intMatrix.col(i));
                     PyObject * valuePyInt(getNumpyReference(intCol));
-                    std::string const & header_i = header[i + (lastConstantId + 1) + 1];
+                    std::string const & header_i = header[i + (lastConstantIdx + 1) + 1];
                     /* One must make copies with PyArray_FROM_OF instead of using
                        raw pointer for floatMatrix and setting NPY_ARRAY_OWNDATA
                        because otherwise Python is not able to free the memory
@@ -1730,7 +1729,7 @@ namespace python
                     Eigen::Ref<Eigen::Matrix<float32_t, -1, 1> > floatCol(floatMatrix.col(i));
                     PyObject * valuePyFloat(getNumpyReference(floatCol));
                     std::string const & header_i =
-                        header[i + (lastConstantId + 1) + 1 + intData[0].size()];
+                        header[i + (lastConstantIdx + 1) + 1 + intData[0].size()];
                     data[header_i] = bp::object(bp::handle<>(
                         PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
                     Py_XDECREF(valuePyFloat);

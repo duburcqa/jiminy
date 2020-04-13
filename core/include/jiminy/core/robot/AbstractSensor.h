@@ -53,7 +53,7 @@ namespace jiminy
         ~SensorSharedDataHolder_t(void) = default;
 
         boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor data
+        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor real data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
         int32_t num_;                                               ///< Number of sensors of that type
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
@@ -127,7 +127,7 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief Reset the internal state of the sensor.
+        /// \brief    Reset the internal state of the sensors.
         ///
         /// \details  This method resets the internal state of the sensor and unset the configuration
         ///           of the telemetry.
@@ -336,7 +336,7 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Get sensorId_.
+        /// \brief      Get sensorIdx_.
         ///
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
@@ -488,7 +488,7 @@ namespace jiminy
         static bool_t const areFieldnamesGrouped_;
 
     protected:
-        int32_t sensorId_;
+        int32_t sensorIdx_;
 
     private:
         using AbstractSensorBase::data_;
