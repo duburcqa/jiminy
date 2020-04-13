@@ -46,13 +46,12 @@ namespace jiminy
             data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ + 1);
             data.rightCols<1>().setZero();
         }
+        sharedHolder_->dataMeasured_.conservativeResize(getSize(), sharedHolder_->num_ + 1);
+        sharedHolder_->dataMeasured_.rightCols<1>().setZero();
 
         // Add the sensor to the shared memory
         sharedHolder_->sensors_.push_back(this);
         ++sharedHolder_->num_;
-
-        // Initialized the measurement buffer
-        data_ = vectorN_t::Zero(getSize());
 
         // Update the flag
         isAttached_ = true;
@@ -80,11 +79,14 @@ namespace jiminy
                 data.middleCols(sensorIdx_, sensorShift) =
                     data.middleCols(sensorIdx_ + 1, sensorShift).eval();
             }
+            sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
+                sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
         }
         for (matrixN_t & data : sharedHolder_->data_)
         {
             data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
         }
+        sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
         // Shift the sensor indices
         for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; i++)
@@ -123,13 +125,24 @@ namespace jiminy
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::reset(void)
+    void AbstractSensorTpl<T>::resetAll(void)
     {
         // Clear the data buffer
-        clearDataBuffer();
+        sharedHolder_->time_.resize(2);
+        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
+        sharedHolder_->time_.back() = 0;
+        sharedHolder_->data_.resize(2);
+        for (matrixN_t & data : sharedHolder_->data_)
+        {
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do NOT use setZero since the size may be ill-defined
+        }
+        sharedHolder_->dataMeasured_.setZero();
 
         // Refresh proxies that are robot-dependent
-        refreshProxies();
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+        {
+            sensor->refreshProxies();
+        }
 
         // Reset the telemetry state
         isTelemetryConfigured_ = false;
@@ -196,34 +209,28 @@ namespace jiminy
     }
 
     template <typename T>
-    inline vectorN_t const * AbstractSensorTpl<T>::get(void)
+    inline Eigen::Ref<vectorN_t const> AbstractSensorTpl<T>::get(void) const
     {
-        return &data_;
+        return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template <typename T>
-    matrixN_t AbstractSensorTpl<T>::getAll(void)
+    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::get(void)
     {
-        matrixN_t data(getSize(), sharedHolder_->num_);
-        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
-        {
-            int32_t const & sensorIdx = static_cast<AbstractSensorTpl<T> *>(sensor)->sensorIdx_;
-            data.col(sensorIdx) = *sensor->get();
-        }
-        return data;
+        return sharedHolder_->dataMeasured_.col(sensorIdx_);
     }
 
     template <typename T>
-    Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
+    inline Eigen::Ref<vectorN_t> AbstractSensorTpl<T>::data(void)
     {
         return sharedHolder_->data_.back().col(sensorIdx_);
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::updateDataBuffer(void)
+    hresult_t AbstractSensorTpl<T>::interpolateData(void)
     {
-        // Add 1e-9 to timeDesired to avoid float comparison issues (std::numeric_limits<float64_t>::epsilon() is not enough)
-        float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + 1e-9;
+        // Add STEPPER_MIN_TIMESTEP to timeDesired to avoid float comparison issues
+        float64_t const timeDesired = sharedHolder_->time_.back() - baseSensorOptions_->delay + STEPPER_MIN_TIMESTEP;
 
         /* Determine the position of the closest right element.
         Bisection method can be used since times are sorted. */
@@ -280,11 +287,11 @@ namespace jiminy
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
             {
-                data_ = sharedHolder_->data_[idxLeft].col(sensorIdx_);
+                get() = sharedHolder_->data_[idxLeft].col(sensorIdx_);
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 1)
             {
-                data_ = 1 / (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]) *
+                get() = 1 / (sharedHolder_->time_[idxLeft + 1] - sharedHolder_->time_[idxLeft]) *
                         ((timeDesired - sharedHolder_->time_[idxLeft]) * sharedHolder_->data_[idxLeft + 1].col(sensorIdx_) +
                         (sharedHolder_->time_[idxLeft + 1] - timeDesired) * sharedHolder_->data_[idxLeft].col(sensorIdx_));
             }
@@ -299,12 +306,12 @@ namespace jiminy
             if (sharedHolder_->time_[0] >= 0.0 || baseSensorOptions_->delay < EPS)
             {
                 // Return the most recent value
-                data_ = sharedHolder_->data_.back().col(sensorIdx_);
+                get() = sharedHolder_->data_.back().col(sensorIdx_);
             }
             else
             {
                 // Return Zero since the sensor is not fully initialized yet
-                data_ = sharedHolder_->data_.front().col(sensorIdx_);
+                get() = sharedHolder_->data_.front().col(sensorIdx_);
             }
         }
 
@@ -312,17 +319,26 @@ namespace jiminy
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::clearDataBuffer(void)
+    hresult_t AbstractSensorTpl<T>::generateMeasurementAll(void)
     {
-        sharedHolder_->time_.resize(2);
-        std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
-        sharedHolder_->time_.back() = 0;
-        sharedHolder_->data_.resize(2);
-        for (matrixN_t & data : sharedHolder_->data_)
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
-            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do not use setZero since the size may be ill-defined
+            // Compute the real value at current time, namely taking into account the sensor delay
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                returnCode = sensor->interpolateData();
+            }
+
+            // Shew the data with white noise and bias
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                sensor->skewMeasurement();
+            }
         }
-        data_.setZero();
+
+        return returnCode;
     }
 
     template <typename T>
@@ -370,10 +386,9 @@ namespace jiminy
                     sharedHolder_->data_.rset_capacity(sharedHolder_->data_.size() + 1U + DELAY_MIN_BUFFER_RESERVE);
                 }
 
-                // Push back new empty buffer (Do NOT initialize it for efficiency)
-                sharedHolder_->time_.push_back();
-                sharedHolder_->data_.push_back();
-                sharedHolder_->data_.back().resize(getSize(), sharedHolder_->num_);
+                // Push back new empty buffer
+                sharedHolder_->time_.push_back(-1);
+                sharedHolder_->data_.push_back(matrixN_t::Zero(getSize(), sharedHolder_->num_));
             }
         }
         else
@@ -388,33 +403,19 @@ namespace jiminy
         }
         sharedHolder_->time_.back() = t;
 
-        // Compute the sensors' output
+        // Update the last real data buffer
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                // Compute the true value
                 returnCode = sensor->set(t, q, v, a, u);
             }
+        }
 
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                // Add white noise
-                if (baseSensorOptions_->noiseStd.size())
-                {
-                    data(sensor) += randVectorNormal(sensor->baseSensorOptions_->noiseStd);
-                }
-                if (sensor->baseSensorOptions_->bias.size())
-                {
-                    data(sensor) += sensor->baseSensorOptions_->bias;
-                }
-            }
-
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                // Update data buffer
-                returnCode = updateDataBuffer(sensor);
-            }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Compute the measurement data
+            returnCode = generateMeasurementAll();
         }
 
         return returnCode;

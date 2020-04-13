@@ -13,7 +13,6 @@ namespace jiminy
     isTelemetryConfigured_(false),
     robot_(nullptr),
     name_(name),
-    data_(),
     telemetrySender_()
     {
         // Initialize the options
@@ -43,7 +42,7 @@ namespace jiminy
                         objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
                     }
                     telemetrySender_.configureObject(std::move(telemetryData), objectName);
-                    returnCode = telemetrySender_.registerVariable(getFieldnames(), data_);
+                    returnCode = telemetrySender_.registerVariable(getFieldnames(), get());
                     if (returnCode == hresult_t::SUCCESS)
                     {
                         isTelemetryConfigured_ = true;
@@ -64,8 +63,22 @@ namespace jiminy
     {
         if (isTelemetryConfigured_)
         {
-            updateDataBuffer(); // Force update the internal measurement buffer if necessary
-            telemetrySender_.updateValue(getFieldnames(), data_);
+            telemetrySender_.updateValue(getFieldnames(), get());
+        }
+    }
+
+    void AbstractSensorBase::skewMeasurement(void)
+    {
+        // Add white noise
+        if (baseSensorOptions_->noiseStd.size())
+        {
+            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+        }
+
+        // Add bias
+        if (baseSensorOptions_->bias.size())
+        {
+            get() += baseSensorOptions_->bias;
         }
     }
 

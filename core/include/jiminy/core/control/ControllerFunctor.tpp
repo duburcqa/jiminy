@@ -10,8 +10,7 @@ namespace jiminy
                                                  F2 & internalDynamicsFct) :
     AbstractController(),
     commandFct_(commandFct),
-    internalDynamicsFct_(internalDynamicsFct),
-    sensorsData_()
+    internalDynamicsFct_(internalDynamicsFct)
     {
         // Empty.
     }
@@ -21,17 +20,9 @@ namespace jiminy
                                                  F2 && internalDynamicsFct) :
     AbstractController(),
     commandFct_(std::move(commandFct)),
-    internalDynamicsFct_(std::move(internalDynamicsFct)),
-    sensorsData_()
+    internalDynamicsFct_(std::move(internalDynamicsFct))
     {
         // Empty.
-    }
-
-    template<typename F1, typename F2>
-    hresult_t ControllerFunctor<F1, F2>::initialize(Robot const * model)
-    {
-        sensorsData_ = model->getSensorsData(); // Only one copy is needed thanks to C++11 Copy Elision paradigm
-        return AbstractController::initialize(model);
     }
 
     template<typename F1, typename F2>

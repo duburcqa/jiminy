@@ -103,10 +103,10 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void AbstractMotorBase::reset(void)
+    void AbstractMotorBase::resetAll(void)
     {
         // Clear the data buffer
-        clearDataBuffer();
+        sharedHolder_->data_.setZero();
 
         // Refresh proxies that are robot-dependent
         refreshProxies();
@@ -271,11 +271,6 @@ namespace jiminy
     float64_t const & AbstractMotorBase::getRotorInertia(void) const
     {
         return rotorInertia_;
-    }
-
-    void AbstractMotorBase::clearDataBuffer(void)
-    {
-        sharedHolder_->data_ = vectorN_t::Zero(sharedHolder_->num_);
     }
 
     hresult_t AbstractMotorBase::computeEffortAll(float64_t                   const & t,

@@ -67,51 +67,22 @@ namespace jiminy
 
     void Robot::reset(void)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Reset the model and the telemetry
         Model::reset();
         isTelemetryConfigured_ = false;
 
-        // Refresh the motors
-        for (auto & motor : motorsHolder_)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = motor->refreshProxies();
-            }
-        }
-
-        // Refresh the constraints
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = refreshConstraintsProxies();
-        }
-
         // Reset the motors
-        for (auto & motor : motorsHolder_)
+        if (!motorsHolder_.empty())
         {
-            motor->reset();
-        }
-
-        // Refresh the sensors
-        for (auto & sensorGroup : sensorsGroupHolder_)
-        {
-            for (auto & sensor : sensorGroup.second)
-            {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = sensor->refreshProxies();
-                }
-            }
+            (*motorsHolder_.begin())->resetAll();
         }
 
         // Reset the sensors
         for (auto & sensorGroup : sensorsGroupHolder_)
         {
-            for (auto & sensor : sensorGroup.second)
+            if (!sensorGroup.second.empty())
             {
-                sensor->reset();
+                (*sensorGroup.second.begin())->resetAll();
             }
         }
     }
@@ -1372,9 +1343,10 @@ namespace jiminy
             sensorDataTypeMap_t dataType;
             for (auto & sensor : sensorGroup.second)
             {
-                dataType.emplace(sensor->getName(),
-                                 sensor->getIdx(),
-                                 sensor->get());
+                auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
+                dataType.emplace(sensorConst.getName(),
+                                 sensorConst.getIdx(),
+                                 sensorConst.get());
             }
 
             data.emplace(sensorGroup.first, std::move(dataType));
@@ -1382,20 +1354,12 @@ namespace jiminy
         return data;
     }
 
-    matrixN_t Robot::getSensorsData(std::string const & sensorType) const
+    Eigen::Ref<vectorN_t const> Robot::getSensorData(std::string const & sensorType,
+                                                     std::string const & sensorName) const
     {
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt != sensorsGroupHolder_.end())
-        {
-            return (*sensorGroupIt->second.begin())->getAll();
-        }
+        static vectorN_t const sensorDataEmpty;
+        static Eigen::Ref<vectorN_t const> const sensorDataRefEmpty(sensorDataEmpty);
 
-        return {};
-    }
-
-    vectorN_t Robot::getSensorData(std::string const & sensorType,
-                                   std::string const & sensorName) const
-    {
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt != sensorsGroupHolder_.end())
         {
@@ -1407,11 +1371,11 @@ namespace jiminy
                                          });
             if (sensorIt != sensorGroupIt->second.end())
             {
-                return *(*sensorIt)->get();
+                return (*sensorIt)->get();
             }
         }
 
-        return {};
+        return sensorDataRefEmpty;
     }
 
     void Robot::updateTelemetry(void)

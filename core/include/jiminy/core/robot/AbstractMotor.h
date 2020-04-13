@@ -112,14 +112,14 @@ namespace jiminy
         virtual hresult_t refreshProxies(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Reset the internal state of the motor.
+        /// \brief    Reset the internal state of the motors.
         ///
         /// \details  This method resets the internal state of the motor.
         ///
         /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           motor is added is taking care of it when its own `reset` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(void);
+        virtual void resetAll(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get the configuration options of the motor.
@@ -256,8 +256,6 @@ namespace jiminy
                                    Eigen::Ref<vectorN_t const> const & v,
                                    Eigen::Ref<vectorN_t const> const & a,
                                    vectorN_t                   const & uCommand);
-
-        void clearDataBuffer(void);
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////

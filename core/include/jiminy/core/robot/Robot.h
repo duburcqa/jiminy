@@ -124,9 +124,8 @@ namespace jiminy
         bool_t hasConstraint(void) const;
 
         sensorsDataMap_t getSensorsData(void) const;
-        matrixN_t getSensorsData(std::string const & sensorType) const;
-        vectorN_t getSensorData(std::string const & sensorType,
-                                std::string const & motorName) const;
+        Eigen::Ref<vectorN_t const> getSensorData(std::string const & sensorType,
+                                                  std::string const & sensorName) const;
 
         hresult_t setOptions(configHolder_t const & robotOptions);
         configHolder_t getOptions(void) const;

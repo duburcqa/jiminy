@@ -128,9 +128,9 @@ namespace jiminy
         sensorDataTypePair_t(sensorDataTypePair_t const & sensorDataPairIn) = delete;
         sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
 
-        sensorDataTypePair_t(std::string const & nameIn,
-                             int32_t     const & idIn,
-                             vectorN_t   const * valueIn) :
+        sensorDataTypePair_t(std::string                 const & nameIn,
+                             int32_t                     const & idIn,
+                             Eigen::Ref<vectorN_t const> const & valueIn) :
         name(nameIn),
         idx(idIn),
         value(valueIn)
@@ -150,7 +150,7 @@ namespace jiminy
 
         std::string name;
         int32_t idx;
-        vectorN_t const * value;
+        Eigen::Ref<vectorN_t const> value;
     };
 
     using namespace boost::multi_index;

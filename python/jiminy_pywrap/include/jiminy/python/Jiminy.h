@@ -412,8 +412,8 @@ namespace python
             {
                 auto & sensorDataTypeByName = self.at(sensorType).get<IndexByName>();
                 auto sensorDataIt = sensorDataTypeByName.find(sensorName);
-                vectorN_t const * sensorDataValue = sensorDataIt->value;
-                bp::handle<> valuePy(getNumpyReference(*const_cast<vectorN_t *>(sensorDataValue)));
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorDataIt->value;
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
                 return bp::object(valuePy);
             }
             catch (...)
@@ -429,12 +429,12 @@ namespace python
             matrixN_t data;
             auto const & sensorsDataType = self.at(sensorType);
             auto sensorDataIt = sensorsDataType.begin();
-            data.resize(sensorDataIt->value->size(), sensorsDataType.size());
-            data.col(sensorDataIt->idx) = *sensorDataIt->value;
+            data.resize(sensorDataIt->value.size(), sensorsDataType.size());
+            data.col(sensorDataIt->idx) = sensorDataIt->value;
             sensorDataIt++;
             for (; sensorDataIt != sensorsDataType.end(); sensorDataIt++)
             {
-                data.col(sensorDataIt->idx) = *sensorDataIt->value;
+                data.col(sensorDataIt->idx) = sensorDataIt->value;
             }
             return data;
         }
