@@ -19,7 +19,7 @@
 
 namespace jiminy
 {
-namespace pinocchiooverload
+namespace pinocchio_overload
 {
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,

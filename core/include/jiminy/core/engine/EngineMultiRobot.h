@@ -613,7 +613,7 @@ namespace jiminy
                                              vectorN_t          const & a);
 
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
-                                                int32_t            const & frameId) const;
+                                                int32_t            const & frameIdx) const;
 
         void computeCommand(systemDataHolder_t                & system,
                             float64_t                   const & t,

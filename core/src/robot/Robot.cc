@@ -67,51 +67,22 @@ namespace jiminy
 
     void Robot::reset(void)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Reset the model and the telemetry
         Model::reset();
         isTelemetryConfigured_ = false;
 
-        // Refresh the motors
-        for (auto & motor : motorsHolder_)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = motor->refreshProxies();
-            }
-        }
-
-        // Refresh the constraints
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = refreshConstraintsProxies();
-        }
-
         // Reset the motors
-        for (auto & motor : motorsHolder_)
+        if (!motorsHolder_.empty())
         {
-            motor->reset();
-        }
-
-        // Refresh the sensors
-        for (auto & sensorGroup : sensorsGroupHolder_)
-        {
-            for (auto & sensor : sensorGroup.second)
-            {
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    returnCode = sensor->refreshProxies();
-                }
-            }
+            (*motorsHolder_.begin())->resetAll();
         }
 
         // Reset the sensors
         for (auto & sensorGroup : sensorsGroupHolder_)
         {
-            for (auto & sensor : sensorGroup.second)
+            if (!sensorGroup.second.empty())
             {
-                sensor->reset();
+                (*sensorGroup.second.begin())->resetAll();
             }
         }
     }
@@ -166,8 +137,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::addMotors - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before adding motors." << std::endl;
+            std::cout << "Error - Robot::addMotors - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before adding motors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -210,8 +181,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::detachMotor - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before removing motors." << std::endl;
+            std::cout << "Error - Robot::detachMotor - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before removing motors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -312,8 +283,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::attachSensor - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before adding sensors." << std::endl;
+            std::cout << "Error - Robot::attachSensor - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before adding sensors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -373,8 +344,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::detachSensor - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before removing sensors." << std::endl;
+            std::cout << "Error - Robot::detachSensor - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before removing sensors." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -511,11 +482,13 @@ namespace jiminy
                 constraintsHolder_.push_back(robotConstraint_t(constraintName, constraint));
             }
         }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             // Required to resize constraintsJacobian_ to the right size.
             refreshConstraintsProxies();
         }
+
         return returnCode;
     }
 
@@ -533,13 +506,13 @@ namespace jiminy
             std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
-        else
-        {
-            constraintIt->constraint_->detach();
-            constraintsHolder_.erase(constraintIt);
-            // Required to resize constraintsJacobian_ to the right size.
-            refreshConstraintsProxies();
-        }
+
+        constraintIt->constraint_->detach();
+        constraintsHolder_.erase(constraintIt);
+
+        // Required to resize constraintsJacobian_ to the right size.
+        refreshConstraintsProxies();
+
         return hresult_t::SUCCESS;
     }
 
@@ -583,17 +556,17 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            returnCode = refreshConstraintsProxies();
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
             returnCode = refreshMotorsProxies();
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = refreshSensorsProxies();
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = refreshConstraintsProxies();
         }
 
         return returnCode;
@@ -621,14 +594,14 @@ namespace jiminy
                 // Verify dimensions.
                 if (J.cols() != pncModel_.nv)
                 {
-                    std::cout << "Robot::refreshConstraintsProxies: constraint " << constraint.name_;
-                    std::cout << "has an invalid jacobian (wrong number of columns)." << std::endl;
+                    std::cout << "Error - Robot::refreshConstraintsProxies: constraint "\
+                                 "has an invalid jacobian (wrong number of columns)." << std::endl;
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
                 if (drift.size() != J.rows())
                 {
-                    std::cout << "Robot::refreshConstraintsProxies: constraint " << constraint.name_;
-                    std::cout << "has inconsistend jacobian and drift (size mismatch)." << std::endl;
+                    std::cout << "Error - Robot::refreshConstraintsProxies: constraint "\
+                                 "has inconsistent jacobian and drift (size mismatch)." << std::endl;
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -908,8 +881,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setMotorOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the motor options." << std::endl;
+            std::cout << "Error - Robot::setMotorOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the motor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -942,8 +915,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setMotorsOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the motor options." << std::endl;
+            std::cout << "Error - Robot::setMotorsOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the motor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1005,8 +978,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the sensor options." << std::endl;
+            std::cout << "Error - Robot::setSensorOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1050,8 +1023,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the sensor options." << std::endl;
+            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1093,8 +1066,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the sensor options." << std::endl;
+            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the sensor options." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1218,8 +1191,8 @@ namespace jiminy
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setTelemetryOptions - Robot is locked, probably because a simulation is running.";
-            std::cout << " Please stop it before updating the telemetry options." << std::endl;
+            std::cout << "Error - Robot::setTelemetryOptions - Robot is locked, probably because a simulation is running."\
+                         " Please stop it before updating the telemetry options." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1286,7 +1259,7 @@ namespace jiminy
     {
         if (!motorsHolder_.empty())
         {
-            (*motorsHolder_.begin())->computeAllEffort(t, q, v, a, u);
+            (*motorsHolder_.begin())->computeEffortAll(t, q, v, a, u);
         }
     }
 
@@ -1319,7 +1292,7 @@ namespace jiminy
         return motorTorqueEmpty;
     }
 
-    void Robot::setSensorsData(float64_t            const  & t,
+    void Robot::setSensorsData(float64_t                   const & t,
                                Eigen::Ref<vectorN_t const> const & q,
                                Eigen::Ref<vectorN_t const> const & v,
                                Eigen::Ref<vectorN_t const> const & a,
@@ -1370,9 +1343,10 @@ namespace jiminy
             sensorDataTypeMap_t dataType;
             for (auto & sensor : sensorGroup.second)
             {
-                dataType.emplace(sensor->getName(),
-                                 sensor->getIdx(),
-                                 sensor->get());
+                auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
+                dataType.emplace(sensorConst.getName(),
+                                 sensorConst.getIdx(),
+                                 sensorConst.get());
             }
 
             data.emplace(sensorGroup.first, std::move(dataType));
@@ -1380,20 +1354,12 @@ namespace jiminy
         return data;
     }
 
-    matrixN_t Robot::getSensorsData(std::string const & sensorType) const
+    Eigen::Ref<vectorN_t const> Robot::getSensorData(std::string const & sensorType,
+                                                     std::string const & sensorName) const
     {
-        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (sensorGroupIt != sensorsGroupHolder_.end())
-        {
-            return (*sensorGroupIt->second.begin())->getAll();
-        }
+        static vectorN_t const sensorDataEmpty;
+        static Eigen::Ref<vectorN_t const> const sensorDataRefEmpty(sensorDataEmpty);
 
-        return {};
-    }
-
-    vectorN_t Robot::getSensorData(std::string const & sensorType,
-                                   std::string const & sensorName) const
-    {
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt != sensorsGroupHolder_.end())
         {
@@ -1405,11 +1371,11 @@ namespace jiminy
                                          });
             if (sensorIt != sensorGroupIt->second.end())
             {
-                return *(*sensorIt)->get();
+                return (*sensorIt)->get();
             }
         }
 
-        return {};
+        return sensorDataRefEmpty;
     }
 
     void Robot::updateTelemetry(void)
@@ -1534,5 +1500,23 @@ namespace jiminy
     std::vector<std::string> const & Robot::getMotorTorqueFieldnames(void) const
     {
         return motorTorqueFieldnames_;
+    }
+
+    /// \brief Get jacobian of the constraints.
+    matrixN_t const & Robot::getConstraintsJacobian(void) const
+    {
+        return constraintsJacobian_;
+    }
+
+    /// \brief Get drift of the constraints.
+    vectorN_t const & Robot::getConstraintsDrift(void) const
+    {
+        return constraintsDrift_;
+    }
+
+    /// \brief Returns true if at least one constraint is active on the robot.
+    bool_t Robot::hasConstraint(void) const
+    {
+        return !constraintsHolder_.empty();
     }
 }

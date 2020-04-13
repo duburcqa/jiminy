@@ -402,7 +402,7 @@ namespace jiminy
         for (auto & system : systemsDataHolder_)
         {
             // Compute the total energy of the system
-            float64_t energy = pinocchiooverload::kineticEnergy(
+            float64_t energy = pinocchio_overload::kineticEnergy(
                 system.robot->pncModel_,
                 system.robot->pncData_,
                 system.state.q,
@@ -720,9 +720,9 @@ namespace jiminy
                 u = uInternal;
                 for (auto const & motor : system.robot->getMotors())
                 {
-                    int32_t const & motorId = motor->getIdx();
+                    int32_t const & motorIdx = motor->getIdx();
                     int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                    u[motorVelocityIdx] += uMotor[motorId];
+                    u[motorVelocityIdx] += uMotor[motorIdx];
                 }
 
                 // Compute dynamics
@@ -1123,6 +1123,7 @@ namespace jiminy
                         {
                             std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
                                          "Impossible to integrate physics further in time." << std::endl;
+                            returnCode = hresult_t::ERROR_GENERIC;
                         }
 
                         // Set the timestep to be tried by the stepper
@@ -1646,7 +1647,7 @@ namespace jiminy
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
-                                                              int32_t            const & frameId) const
+                                                              int32_t            const & frameIdx) const
     {
         /* Returns the external force in the contact frame.
            It must then be converted into a force onto the parent joint.
@@ -1654,8 +1655,8 @@ namespace jiminy
 
         contactOptions_t const & contactOptions_ = engineOptions_->contacts;
 
-        matrix3_t const & tformFrameRot = system.robot->pncData_.oMf[frameId].rotation();
-        vector3_t const & posFrame = system.robot->pncData_.oMf[frameId].translation();
+        matrix3_t const & tformFrameRot = system.robot->pncData_.oMf[frameIdx].rotation();
+        vector3_t const & posFrame = system.robot->pncData_.oMf[frameIdx].translation();
 
         // Initialize the contact force
         vector3_t fextInWorld;
@@ -1669,7 +1670,7 @@ namespace jiminy
         {
             // Get frame motion in the motion frame.
             vector3_t const motionFrame = pinocchio::getFrameVelocity(
-                system.robot->pncModel_, system.robot->pncData_, frameId).linear();
+                system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
             vector3_t const vFrameInWorld = tformFrameRot * motionFrame;
             float64_t const vDepth = vFrameInWorld.dot(nGround);
 
@@ -2069,9 +2070,9 @@ namespace jiminy
             u = uInternal;
             for (auto const & motor : systemIt->robot->getMotors())
             {
-                int32_t const & motorId = motor->getIdx();
+                int32_t const & motorIdx = motor->getIdx();
                 int32_t const & motorVelocityIdx = motor->getJointVelocityIdx();
-                u[motorVelocityIdx] += uMotor[motorId];
+                u[motorVelocityIdx] += uMotor[motorIdx];
             }
 
             // Compute the dynamics
@@ -2315,9 +2316,9 @@ namespace jiminy
                 // Only support inertia for 1DoF joints.
                 if (system.robot->pncModel_.joints[i].nv() == 1)
                 {
-                    int jointId = system.robot->pncModel_.joints[i].idx_v();
-                    system.robot->pncData_.M(jointId, jointId) +=
-                            system.robot->pncModel_.rotorInertia[jointId];
+                    int jointIdx = system.robot->pncModel_.joints[i].idx_v();
+                    system.robot->pncData_.M(jointIdx, jointIdx) +=
+                            system.robot->pncModel_.rotorInertia[jointIdx];
                 }
             }
 
@@ -2335,12 +2336,8 @@ namespace jiminy
         else
         {
             // No kinematic constraint: run aba algorithm.
-            return pinocchiooverload::aba(system.robot->pncModel_,
-                                         system.robot->pncData_,
-                                         q,
-                                         v,
-                                         u,
-                                         fext);
+            return pinocchio_overload::aba(
+                system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
     }
 }

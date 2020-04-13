@@ -43,6 +43,7 @@ namespace jiminy
         SensorSharedDataHolder_t(void) :
         time_(),
         data_(),
+        dataMeasured_(),
         sensors_(),
         num_(0),
         delayMax_(0.0)
@@ -53,7 +54,8 @@ namespace jiminy
         ~SensorSharedDataHolder_t(void) = default;
 
         boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor data
+        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor real data
+        matrixN_t dataMeasured_;                                    ///< Buffer of current sensor measurement data
         std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
         int32_t num_;                                               ///< Number of sensors of that type
         float64_t delayMax_;                                        ///< Maximum delay over all the sensors
@@ -68,6 +70,9 @@ namespace jiminy
            lambda function able to create each type of sensors. These lambda
            functions are registered by each sensor using static method. */
         friend Robot;
+
+        template<typename T>
+        friend class AbstractSensorTpl;
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +132,7 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief Reset the internal state of the sensor.
+        /// \brief    Reset the internal state of the sensors.
         ///
         /// \details  This method resets the internal state of the sensor and unset the configuration
         ///           of the telemetry.
@@ -136,7 +141,7 @@ namespace jiminy
         ///           sensor is added is taking care of it when its own `reset` method is called.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(void) = 0;
+        virtual void resetAll(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
@@ -216,28 +221,6 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Request the sensor to record data based of the input data.
-        ///
-        /// \details    It assumes that the internal state of the robot is consistent with the
-        ///             input arguments.
-        ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  uMotor  Current motor torque vector
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
         /// \brief      Request every sensors of the same type than the current one to record data
         ///             based of the input data.
         ///
@@ -276,22 +259,7 @@ namespace jiminy
         ///             a higher dimensional tensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual vectorN_t const * get(void) = 0;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
-        /// \brief      Get the measurements of all the sensors of the same type than the current one
-        ///             at the current time.
-        ///
-        /// \details    Note that the current time corresponds to the last time sensor data was
-        ///             recorded. If the delay of a sensor is nonzero, then an interpolation method
-        ///             is used to compute the delayed measurement based on a buffer of previously
-        ///             recorded non-delayed data.
-        ///
-        /// \return     Eigen matrix where to store of measurement of all the sensors.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t getAll(void) = 0;
+        virtual Eigen::Ref<vectorN_t const> get(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -336,7 +304,7 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Get sensorId_.
+        /// \brief      Get sensorIdx_.
         ///
         /// \details    It is the index of the sensor of the global shared buffer.
         ///
@@ -369,6 +337,28 @@ namespace jiminy
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
+        /// \brief      Request the sensor to record data based of the input data.
+        ///
+        /// \details    It assumes that the internal state of the robot is consistent with the
+        ///             input arguments.
+        ///
+        /// \param[in]  t       Current time
+        /// \param[in]  q       Current configuration vector
+        /// \param[in]  v       Current velocity vector
+        /// \param[in]  a       Current acceleration vector
+        /// \param[in]  uMotor  Current motor torque vector
+        ///
+        /// \return     Return code to determine whether the execution of the method was successful.
+        ///
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        ///
         /// \brief    Attach the sensor to a robot
         ///
         /// \details  This method must be called before initializing the sensor.
@@ -397,7 +387,8 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual Eigen::Ref<vectorN_t> data(void) = 0;
-        static Eigen::Ref<vectorN_t> data(AbstractSensorBase * base) { return base->data(); }
+
+        virtual Eigen::Ref<vectorN_t> get(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -412,10 +403,19 @@ namespace jiminy
         virtual std::string getTelemetryName(void) const = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Update the measurement buffer.
+        /// \brief      Set the measurement buffer with the real data interpolated at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t updateDataBuffer(void) = 0;
-        static hresult_t updateDataBuffer(AbstractSensorBase * base) { return base->updateDataBuffer(); }
+        virtual hresult_t interpolateData(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief       Add white noise and bias to the measurement buffer.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual void skewMeasurement(void);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Set the measurement buffer with the real data, but skewed with white noise and bias.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t generateMeasurementAll(void) = 0;
 
     public:
         std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;    ///< Structure with the parameters of the sensor
@@ -427,7 +427,6 @@ namespace jiminy
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the sensor has been initialized or not
         Robot const * robot_;                   ///< Robot for which the command and internal dynamics
         std::string name_;                      ///< Name of the sensor
-        vectorN_t data_;                        ///< Measurement buffer to avoid recomputing the same "current" measurement multiple times
 
     private:
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
@@ -448,7 +447,7 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        virtual void reset(void) override;
+        virtual void resetAll(void) override;
         void updateTelemetryAll(void) override final;
 
         virtual hresult_t setOptions(configHolder_t const & sensorOptions) override;
@@ -458,8 +457,7 @@ namespace jiminy
         virtual std::vector<std::string> const & getFieldnames(void) const final;
         virtual uint32_t getSize(void) const override final;
 
-        virtual vectorN_t const * get(void) override final;
-        virtual matrixN_t getAll(void) override final;
+        virtual Eigen::Ref<vectorN_t const> get(void) const override final;
         virtual hresult_t setAll(float64_t                   const & t,
                                  Eigen::Ref<vectorN_t const> const & q,
                                  Eigen::Ref<vectorN_t const> const & v,
@@ -467,7 +465,7 @@ namespace jiminy
                                  vectorN_t                   const & uMotor) override final;
 
     protected:
-        using AbstractSensorBase::data;
+        virtual Eigen::Ref<vectorN_t> get(void) override final;
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
@@ -475,8 +473,8 @@ namespace jiminy
                                  SensorSharedDataHolder_t * sharedHolder) override final;
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;
-        using AbstractSensorBase::updateDataBuffer;
-        virtual hresult_t updateDataBuffer(void) override final;
+        virtual hresult_t interpolateData(void) override final;
+        virtual hresult_t generateMeasurementAll(void) override final;
         void clearDataBuffer(void);
 
     public:
@@ -488,10 +486,9 @@ namespace jiminy
         static bool_t const areFieldnamesGrouped_;
 
     protected:
-        int32_t sensorId_;
+        int32_t sensorIdx_;
 
     private:
-        using AbstractSensorBase::data_;
         SensorSharedDataHolder_t * sharedHolder_;
     };
 }

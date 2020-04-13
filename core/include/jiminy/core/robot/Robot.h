@@ -115,26 +115,17 @@ namespace jiminy
                                 Eigen::Ref<vectorN_t const> const & v);
 
         /// \brief Get jacobian of the constraints.
-        inline matrixN_t const & getConstraintsJacobian()
-        {
-            return constraintsJacobian_;
-        }
+        matrixN_t const & getConstraintsJacobian(void) const;
 
         /// \brief Get drift of the constraints.
-        inline vectorN_t const & getConstraintsDrift()
-        {
-            return constraintsDrift_;
-        }
+        vectorN_t const & getConstraintsDrift(void) const;
+
         /// \brief Returns true if at least one constraint is active on the robot.
-        inline bool_t hasConstraint()
-        {
-            return !constraintsHolder_.empty();
-        }
+        bool_t hasConstraint(void) const;
 
         sensorsDataMap_t getSensorsData(void) const;
-        matrixN_t getSensorsData(std::string const & sensorType) const;
-        vectorN_t getSensorData(std::string const & sensorType,
-                                std::string const & motorName) const;
+        Eigen::Ref<vectorN_t const> getSensorData(std::string const & sensorType,
+                                                  std::string const & sensorName) const;
 
         hresult_t setOptions(configHolder_t const & robotOptions);
         configHolder_t getOptions(void) const;

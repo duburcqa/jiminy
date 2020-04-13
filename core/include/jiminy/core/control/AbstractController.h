@@ -280,6 +280,7 @@ namespace jiminy
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
+        sensorsDataMap_t sensorsData_;
 
     private:
         static_map_t<std::string, float64_t const *> registeredVariables_;    ///< Vector of dynamically registered telemetry variables

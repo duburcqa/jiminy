@@ -60,17 +60,6 @@ namespace jiminy
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
-        /// \brief      Set the parameters of the controller.
-        ///
-        /// \param[in]  robot   Robot
-        ///
-        /// \return     Return code to determine whether the execution of the method was successful.
-        ///
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(Robot const * robot) override;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        ///
         /// \brief      Compute the command.
         ///
         /// \details    It assumes that the robot internal state (including sensors) is consistent
@@ -110,10 +99,9 @@ namespace jiminy
     private:
         // std::conditional_t enables to use both functors and lambdas
         std::conditional_t<std::is_function<F1>::value,
-                           std::add_pointer_t<F1>, F1> commandFct_;             // 'Callable' computing the command
+                           std::add_pointer_t<F1>, F1> commandFct_;             ///< 'Callable' computing the command
         std::conditional_t<std::is_function<F2>::value,
-                           std::add_pointer_t<F2>, F2> internalDynamicsFct_;    // 'Callable' computing the internal dynamics
-        sensorsDataMap_t sensorsData_;                                          // Vector of the data associated with type of sensors
+                           std::add_pointer_t<F2>, F2> internalDynamicsFct_;    ///< 'Callable' computing the internal dynamics
     };
 }
 

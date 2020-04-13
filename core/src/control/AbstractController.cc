@@ -16,6 +16,7 @@ namespace jiminy
     isTelemetryConfigured_(false),
     ctrlOptionsHolder_(),
     telemetrySender_(),
+    sensorsData_(),
     registeredVariables_(),
     registeredConstants_()
     {
@@ -31,6 +32,7 @@ namespace jiminy
         }
 
         robot_ = robot;
+        sensorsData_ = robot_->getSensorsData();
 
         try
         {
@@ -75,6 +77,11 @@ namespace jiminy
             removeEntries();
         }
 
+        /* Refresh the sensor data proxy.
+           Note that it is necessary to do so since sensors may have been added ore removed. */
+        sensorsData_ = robot_->getSensorsData();
+
+        // Update the telemetry flag
         isTelemetryConfigured_ = false;
     }
 

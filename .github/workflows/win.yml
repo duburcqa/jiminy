@@ -15,7 +15,11 @@ jobs:
     
     env:
       BUILD_TYPE: "Release"
-
+      
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7', '3.8']
+    
     steps:
     - name: Checkout boost
       uses: actions/checkout@v2
@@ -87,7 +91,7 @@ jobs:
     - name: Configure Python
       uses: actions/setup-python@v1
       with:
-        python-version: '3.8'
+        python-version: ${{ matrix.python-version }}
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
@@ -152,7 +156,7 @@ jobs:
     - name: Generating Python pip wheel
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
-        Set-Location -Path $RootDir\jiminy\build
+        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\build
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
     - name: Publishing jiminy_py Python Packages to PyPI
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'

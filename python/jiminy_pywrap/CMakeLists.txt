@@ -5,21 +5,6 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(Boost QUIET REQUIRED)
-if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
-    find_package(Boost REQUIRED COMPONENTS
-                 "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
-                 "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
-    set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
-else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
-    if(${PYTHON_VERSION_MAJOR} EQUAL 3)
-        set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
-    else(${PYTHON_VERSION_MAJOR} EQUAL 3)
-        set(BOOST_PYTHON_LIB "boost_numpy;boost_python")
-    endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
-endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
-message("-- Boost Python Libs: ${Boost_LIBRARIES}")
-
 if(WIN32)
     find_package(eigenpy 2.0.3 REQUIRED NO_MODULE) # It adds target include lib eigenpy::eigenpy
     message("-- Found eigenpy: version ${eigenpy_VERSION}")
@@ -36,7 +21,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     SUFFIX ${PYTHON_EXT_SUFFIX}
     OUTPUT_NAME "${PROJECT_NAME}"
 )
-  
+
 # Substitute Docstring @copydoc flags with C++ Doxygen documentations
 pythonDocstingSubstitution()
 

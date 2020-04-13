@@ -122,45 +122,46 @@ namespace jiminy
     using configHolder_t = std::unordered_map<std::string, configField_t>;
 
     // Sensor data holder
-    struct sensorDataTypePair_t {
+    struct sensorDataTypePair_t
+    {
         // Disable the copy of the class
         sensorDataTypePair_t(sensorDataTypePair_t const & sensorDataPairIn) = delete;
         sensorDataTypePair_t & operator = (sensorDataTypePair_t const & other) = delete;
 
-        sensorDataTypePair_t(std::string const & nameIn,
-                             int32_t     const & idIn,
-                             vectorN_t   const * valueIn) :
+        sensorDataTypePair_t(std::string                 const & nameIn,
+                             int32_t                     const & idIn,
+                             Eigen::Ref<vectorN_t const> const & valueIn) :
         name(nameIn),
-        id(idIn),
+        idx(idIn),
         value(valueIn)
         {
-            // Empty.
+            // Empty on purpose.
         };
 
         ~sensorDataTypePair_t(void) = default;
 
         sensorDataTypePair_t(sensorDataTypePair_t && other) :
         name(other.name),
-        id(other.id),
+        idx(other.idx),
         value(other.value)
         {
-            // Empty.
+            // Empty on purpose.
         };
 
         std::string name;
-        int32_t id;
-        vectorN_t const * value;
+        int32_t idx;
+        Eigen::Ref<vectorN_t const> value;
     };
 
     using namespace boost::multi_index;
     struct IndexByName {};
-    struct IndexById {};
+    struct IndexByIdx {};
     using sensorDataTypeMap_t = multi_index_container<
         sensorDataTypePair_t,
         indexed_by<
             ordered_unique<
-                tag<IndexById>,
-                member<sensorDataTypePair_t, int32_t, &sensorDataTypePair_t::id>,
+                tag<IndexByIdx>,
+                member<sensorDataTypePair_t, int32_t, &sensorDataTypePair_t::idx>,
                 std::less<int32_t> // Ordering by ascending order
             >,
             hashed_unique<
