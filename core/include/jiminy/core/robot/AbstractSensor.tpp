@@ -127,7 +127,7 @@ namespace jiminy
     template <typename T>
     void AbstractSensorTpl<T>::resetAll(void)
     {
-        // Clear the data buffer
+        // Clear the shared data buffers
         sharedHolder_->time_.resize(2);
         std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
         sharedHolder_->time_.back() = 0;
@@ -138,14 +138,15 @@ namespace jiminy
         }
         sharedHolder_->dataMeasured_.setZero();
 
-        // Refresh proxies that are robot-dependent
+        // Update sensor scope information
         for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
         {
+            // Refresh proxies that are robot-dependent
             sensor->refreshProxies();
-        }
 
-        // Reset the telemetry state
-        isTelemetryConfigured_ = false;
+            // Reset the telemetry state
+            sensor->isTelemetryConfigured_ = false;
+        }
     }
 
     template <typename T>

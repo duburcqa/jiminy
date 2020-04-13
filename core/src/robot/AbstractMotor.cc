@@ -105,11 +105,15 @@ namespace jiminy
 
     void AbstractMotorBase::resetAll(void)
     {
-        // Clear the data buffer
+        // Clear the shared data buffer
         sharedHolder_->data_.setZero();
 
-        // Refresh proxies that are robot-dependent
-        refreshProxies();
+        // Update motor scope information
+        for (AbstractMotorBase * motor : sharedHolder_->motors_)
+        {
+            // Refresh proxies that are robot-dependent
+            motor->refreshProxies();
+        }
     }
 
     hresult_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
