@@ -14,7 +14,6 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
-      BOOST_MINOR_VERSION: "71"
 
     strategy:
       matrix:
@@ -25,8 +24,6 @@ jobs:
     steps:
     - name: Checkout jiminy
       uses: actions/checkout@v2
-      with:
-        path: 'jiminy'
 
     #####################################################################################
 
@@ -43,7 +40,7 @@ jobs:
         python -m pip install numpy wheel
     - name: Build project dependencies
       run: |
-        & "${Env:GITHUB_WORKSPACE}\jiminy\build_tools\build_install_deps_windows.ps1"
+        & "./build_tools/build_install_deps_windows.ps1"
 
     #####################################################################################
 
@@ -60,32 +57,32 @@ jobs:
           Remove-Item Env:/Boost_ROOT
         }
 
-        if (-not (Test-Path -PathType Container $RootDir\jiminy\build)) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build"
+        if (-not (Test-Path -PathType Container $RootDir/build)) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }
-        Set-Location -Path $RootDir\jiminy\build
+        Set-Location -Path $RootDir/build
         $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
         $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
         cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1.71.0" `
               -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
+              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" "$RootDir"
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
-        if (-not (Test-Path -PathType Container "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core")) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         }
-        Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\boost_numpy*.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\boost_python*.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\site-packages\*" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
+        Copy-Item -Path "$InstallDir/bin/eigenpy.dll" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        Copy-Item -Path "$InstallDir/lib/site-packages\*" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -97,8 +94,8 @@ jobs:
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        & "${Env:GITHUB_WORKSPACE}\jiminy\build\unit\${Env:BUILD_TYPE}\unit.exe"
-        Set-Location -Path "${Env:GITHUB_WORKSPACE}\jiminy\unit_py"
+        & "./build/unit\${Env:BUILD_TYPE}/unit.exe"
+        Set-Location -Path "./unit_py"
         python -m unittest discover -v
 
     #####################################################################################
@@ -106,5 +103,5 @@ jobs:
     - name: Generating Python pip wheel
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
-        Set-Location -Path "${Env:GITHUB_WORKSPACE}\jiminy\build"
+        Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake

@@ -1,0 +1,107 @@
+name: Linux CI (Build from source dependencies)
+
+on:
+  # Trigger the workflow on push on the master branch, or for any pull request
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-test-and-deploy:
+    name: "Build and install project, then run unit tests"
+    runs-on: ubuntu-18.04
+
+    env:
+      BUILD_TYPE: "Release"
+
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7', '3.8']
+
+    #####################################################################################
+
+    steps:
+    - name: Checkout jiminy
+      uses: actions/checkout@v2
+
+    #####################################################################################
+
+    - name: Configure Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: 'x64'
+    - name: Setup minimal build environment
+      run: |
+        python -m pip install twine wheel
+        python -m pip install auditwheel numpy
+        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
+    - name: Build project dependencies
+      run: sudo ./build_tools/build_install_deps_linux.sh
+
+    #####################################################################################
+
+    - name: Build and install Jiminy
+      run: |
+        $RootDir = "${Env:GITHUB_WORKSPACE}"
+        $InstallDir = "$RootDir/install"
+
+        unset Boost_ROOT
+
+        mkdir "${GITHUB_WORKSPACE}/build"
+        cd "${GITHUB_WORKSPACE}/build"
+        $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/"
+        cmake -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/install" \
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1.71.0" \
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
+              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" "${GITHUB_WORKSPACE}"
+        make install -j2
+
+    #####################################################################################
+
+    - name: Run unit tests
+      run: |
+        ./build/unit/unit
+        cd unit_py
+        python -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Generate Python pip wheel
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        cd build
+        cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+    - name: Publish jiminy_py Python Packages to PyPI
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/pypi/jiminy_py/dist/
+    - name: Publish gym_jiminy Python Packages to PyPI
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/pypi/gym_jiminy/dist/
+
+    #####################################################################################
+
+    - name: Generate and install Doxygen documentation
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        cd build
+        cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
+    - name: Deploy to GitHub Pages
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: crazy-max/ghaction-github-pages@v1
+      with:
+        target_branch: gh-pages
+        build_dir: docs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}
