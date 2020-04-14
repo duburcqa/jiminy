@@ -45,7 +45,7 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t SimpleMotor::setOptions(configHolder_t motorOptions)
+    hresult_t SimpleMotor::setOptions(configHolder_t const & motorOptions)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

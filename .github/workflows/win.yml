@@ -1,8 +1,7 @@
 name: Windows CI
 
 on:
-  # Trigger the workflow on push on the master branch,
-  # or for any pull request
+  # Trigger the workflow on push on the master branch, or for any pull request
   push:
     branches:
       - master
@@ -88,6 +87,9 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: 'jiminy'
+
+    #####################################################################################
+
     - name: Configure Python
       uses: actions/setup-python@v1
       with:
@@ -102,6 +104,9 @@ jobs:
     - name: Build project dependencies
       run: |
         & './jiminy/build_tools/setup.ps1'
+
+    #####################################################################################
+
     - name: Configure and build jiminy
       shell: pwsh
       run: |
@@ -143,6 +148,8 @@ jobs:
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 
+    #####################################################################################
+
     - name: Running unit tests
       shell: pwsh
       run: |
@@ -153,22 +160,10 @@ jobs:
         Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\unit_py
         python -m unittest discover -v
 
+    #####################################################################################
+
     - name: Generating Python pip wheel
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
         Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\build
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
-    - name: Publishing jiminy_py Python Packages to PyPI
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: jiminy/build/pypi/jiminy_py/dist/
-    - name: Publishing gym_jiminy Python Packages to PyPI
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: jiminy/build/pypi/gym_jiminy/dist/
