@@ -12,9 +12,6 @@ import time
 import numpy as np
 from collections import OrderedDict
 
-from pinocchio import libpinocchio_pywrap as pin
-from pinocchio.robot_wrapper import RobotWrapper
-
 from . import core as jiminy
 from .viewer import Viewer
 
@@ -61,10 +58,10 @@ class EngineAsynchronous(object):
         self.viewer_backend = viewer_backend
         self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
-        
+
         ## Real time rendering management
         self.step_dt_prev = -1
-        
+
         ## Flag to determine if the simulation is running, and if the state is theoretical
         self._is_running = False
         self._is_state_theoretical = False
@@ -183,7 +180,7 @@ class EngineAsynchronous(object):
                                       window_name='jiminy', scene_name=scene_name)
                 self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
                                                 rotation=[np.pi/2, 0.0, np.pi])
-    
+
             # Refresh viewer
             self._viewer.refresh()
 

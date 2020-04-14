@@ -17,7 +17,7 @@ apt install -y sudo python3-setuptools python3-pip python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
 update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
 sudo -u $(id -nu $SUDO_UID) pip install twine wheel && \
-sudo -u $(id -nu $SUDO_UID) pip install auditwheel numpy ipython
+sudo -u $(id -nu $SUDO_UID) pip install numpy ipython
 
 # Install standard linux utilities and boost tools suite
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev # libeigen3-dev
@@ -39,7 +39,7 @@ if ! [-d "/opt/openrobots/lib/python3.6/site-packages/" ] ; then
     apt update && \
     apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 robotpkg-hpp-fcl=1.3.0 robotpkg-py36-hpp-fcl=1.3.0 \
                    robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy=2.0.2 robotpkg-py36-pinocchio=2.2.2 && \
-    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib' >> $HOME/.bashrc && \
+    echo 'export LD_LIBRARY_PATH="/opt/openrobots/lib"' >> $HOME/.bashrc && \
     sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
     sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \
     echo "/opt/openrobots/lib/python3.6/site-packages/" > $HOME/.local/lib/python3.6/site-packages/openrobots.pth

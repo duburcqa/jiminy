@@ -12,6 +12,10 @@ jobs:
     name: "Build project on Windows"
     runs-on: [windows-2019]
 
+    defaults:
+      run:
+        shell: pwsh
+
     env:
       BUILD_TYPE: "Release"
 
@@ -34,8 +38,7 @@ jobs:
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-PSDebug -Trace 1
+        git config --global advice.detachedHead false
         choco install pkgconfiglite -y
         python -m pip install numpy wheel
     - name: Build project dependencies
@@ -45,7 +48,6 @@ jobs:
     #####################################################################################
 
     - name: Configure and build jiminy
-      shell: pwsh
       run: |
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
@@ -61,15 +63,13 @@ jobs:
           New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }
         Set-Location -Path $RootDir/build
-        $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
-        $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
-        cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-              -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+        cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_MODULE_PATH="$InstallDir" `
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1.71.0" `
               -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" "$RootDir"
+              -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
@@ -81,7 +81,7 @@ jobs:
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
-        Copy-Item -Path "$InstallDir/lib/site-packages\*" `
+        Copy-Item -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
@@ -89,11 +89,7 @@ jobs:
     #####################################################################################
 
     - name: Running unit tests
-      shell: pwsh
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-PSDebug -Trace 1
-
         & "./build/unit\${Env:BUILD_TYPE}/unit.exe"
         Set-Location -Path "./unit_py"
         python -m unittest discover -v

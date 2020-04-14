@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 Set-PSDebug -Trace 1
 
 ### Get the fullpath of Jiminy project
-$RootDir = (Split-Path -Parent (Split-Path -Parent "$PSScriptRoot"))
+$RootDir = (Split-Path -Parent "$PSScriptRoot")
 $RootDir = "$RootDir" -replace '\\', '/' # Force cmake compliant path delimiter
 
 ### Set the fullpath of the install directory, then creates it
@@ -33,7 +33,7 @@ $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 #   and eigen < 3.3 build fails on windows because of a cmake error
 git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 Set-Location -Path "$RootDir/boost"
-git submodule update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
@@ -41,7 +41,7 @@ git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir
 ### Checkout eigenpy and its submodules
 git clone -b "v2.1.2" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 Set-Location -Path "$RootDir/eigenpy"
-git submodule update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
@@ -56,9 +56,9 @@ git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdo
 git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 
 ### Checkout pinocchio and its submodules (sbarthelemy fork for windows compatibility - based on 2.1.11)
-git clone -b "master" https://github.com/sbarthelemy/pinocchio.git "$RootDir/pinocchio"
+git clone -b "sbarth_action" https://github.com/sbarthelemy/pinocchio.git "$RootDir/pinocchio"
 Set-Location -Path "$RootDir/pinocchio"
-git submodule update --init --recursive --jobs 8
+git submodule --quiet update --init --recursive --jobs 8
 
 ################################### Build and install boost ############################################
 
@@ -117,8 +117,8 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --without-timer --without-chrono --without-atomic --without-graph_parallel `
          --without-type_erasure --without-container --without-exception --without-locale `
          --without-log --without-program_options --without-random --without-iostreams `
-         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi -q -d0 -j2 `
-         architecture=x86 address-model=64 link=shared runtime-link=shared install
+         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi --layout=system `
+         architecture=x86 address-model=64 link=shared runtime-link=shared install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -141,9 +141,10 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1.71.0" `
-      -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF `
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
+      -DBUILD_TESTING=OFF `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -175,8 +176,8 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 }
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_SHARED_LIBS=OFF `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
+      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
@@ -195,8 +196,8 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
 }
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_SHARED_LIBS=OFF `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
+      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install urdfdom_headers ######################################
@@ -249,7 +250,7 @@ $Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | 
 Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
 Set-PSDebug -Trace 1
 
-### Must patch /urdf_parser/CMakeLists.txt to disable library type enforced STATIC
+### Must patch /urdf_parser/CMakeLists.txt to disable library type enforced SHARED
 (Get-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt").replace('SHARED ', '') | `
 Set-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
 
@@ -259,9 +260,9 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DBUILD_SHARED_LIBS=OFF `
+      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
@@ -376,9 +377,10 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1.71.0" `
-      -DBoost_USE_STATIC_LIBS=OFF  -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+      -DBoost_USE_STATIC_LIBS=OFF  -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
+      -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2

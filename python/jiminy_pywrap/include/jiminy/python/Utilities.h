@@ -2,7 +2,7 @@
 #define JIMINY_PYTHON_UTILITIES_H
 
 // Make sure that the Python C API does not get redefined separately
-#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+#define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
 #define NO_IMPORT_ARRAY
 
 #include <boost/python.hpp>

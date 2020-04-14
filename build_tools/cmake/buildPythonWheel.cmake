@@ -32,9 +32,6 @@ function(buildPythonWheel TARGET_PATH)
                       execute_process(COMMAND python setup.py sdist bdist_wheel
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}
                       )
-                      file(GLOB PYTHON_WHEEL_FILENAME \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist/*.whl\")
-                      string(REPLACE \"-linux_\" \"-manylinux1_\" PYTHON_WHEEL_FILENAME_FIXED \"\${PYTHON_WHEEL_FILENAME}\")
-                      file(RENAME \"\${PYTHON_WHEEL_FILENAME}\" \"\${PYTHON_WHEEL_FILENAME_FIXED}\")
                       "
                 COMPONENT pypi
                 EXCLUDE_FROM_ALL
