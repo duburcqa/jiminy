@@ -14,75 +14,15 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      BOOST_MINOR_VERSION: "71"
 
     strategy:
       matrix:
         python-version: ['3.6', '3.7', '3.8']
 
+    #####################################################################################
+
     steps:
-    - name: Checkout boost
-      uses: actions/checkout@v2
-      with:
-        repository: 'boostorg/boost'
-        ref: 'boost-1.71.0' # 1.72.0 is not properly supported by FindBoost on Cmake 3.16.1 and older.
-        path: 'boost_1_71_0'
-    - name: Checkout boost submodules
-      run: |
-        cd boost_1_71_0
-        git submodule update --init --recursive --jobs 8
-        echo "::set-env name=BOOST_MINOR_VERSION::71"
-    - name: Checkout eigen
-      uses: actions/checkout@v2
-      with:
-        repository: 'eigenteam/eigen-git-mirror'
-        ref: '3.3.7'
-        path: 'eigen3'
-    - name: Checkout tinyxml (robotology fork for cmake compatibility)
-      uses: actions/checkout@v2
-      with:
-        repository: 'robotology-dependencies/tinyxml'
-        ref: 'master'
-        path: 'tinyxml'
-    - name: Checkout console_bridge
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/console_bridge'
-        ref: '0.4.4'
-        path: 'console_bridge'
-    - name: Checkout urdfdom_headers
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/urdfdom_headers'
-        ref: '1.0.3'
-        path: 'urdfdom_headers'
-    - name: Checkout urdfdom
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/urdfdom'
-        ref: '1.0.3'
-        path: 'urdfdom'
-    - name: Checkout eigenpy
-      uses: actions/checkout@v2
-      with:
-        repository: 'stack-of-tasks/eigenpy'
-        ref: 'v2.1.2'
-        path: 'eigenpy'
-    - name: Checkout eigenpy submodules
-      run: |
-        cd eigenpy
-        git submodule update --init --recursive
-    - name: Checkout pinocchio (sbarthelemy fork for windows compatibility - based on 2.1.11)
-      uses: actions/checkout@v2
-      with:
-        repository: 'sbarthelemy/pinocchio'
-        ref: 'f1831c3fc0384035ed6f1d8e05b748a3766fd599'
-        path: 'pinocchio'
-    - name: Checkout pinocchio submodules
-      run: |
-        cd pinocchio
-        git submodule update --init --recursive
-        cd cmake
-        git checkout 52fd08980365
     - name: Checkout jiminy
       uses: actions/checkout@v2
       with:

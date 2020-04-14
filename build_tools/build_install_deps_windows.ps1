@@ -1,4 +1,3 @@
-
 ################################## Configure the environment ###########################################
 
 ### Enable stop-on-error and debug print mode
@@ -32,6 +31,38 @@ if (Test-Path Env:/Boost_ROOT) {
 
 ### cmake put them under .\lib\pkgconfig or .\share\pkgconfig
 $Env:PKG_CONFIG_PATH = "$InstallDir\lib\pkgconfig;$InstallDir\share\pkgconfig"
+
+################################## Checkout the dependencies ###########################################
+
+### Checkout boost and its submodules
+git clone -b "boost-1.${Env:BOOST_MINOR_VERSION}.0" https://github.com/boostorg/boost.git "$RootDir/boost_1_${Env:BOOST_MINOR_VERSION}_0"
+cd "$RootDir/boost_1_${Env:BOOST_MINOR_VERSION}_0"
+git submodule update --init --recursive --jobs 8
+
+### Checkout eigen3
+git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
+
+### Checkout eigenpy and its submodules
+git clone -b "v2.1.2" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+cd "$RootDir/eigenpy"
+git submodule update --init --recursive --jobs 8
+
+### Checkout tinyxml (robotology fork for cmake compatibility)
+git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
+
+### Checkout console_bridge
+git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+
+### Checkout urdfdom_headers
+git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+
+### Checkout urdfdom
+git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+
+### Checkout pinocchio and its submodules (sbarthelemy fork for windows compatibility - based on 2.1.11)
+git clone -b "f1831c3fc0384035ed6f1d8e05b748a3766fd599" https://github.com/sbarthelemy/pinocchio.git "$RootDir/pinocchio"
+cd "$RootDir/pinocchio"
+git submodule update --init --recursive --jobs 8
 
 ################################### Build and install boost ############################################
 
