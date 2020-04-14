@@ -225,7 +225,7 @@ class Viewer:
     @staticmethod
     def close():
         if Viewer._backend_proc is not None:
-            if Viewer._backend_proc.poll() is not None:
+            if Viewer._backend_proc.poll() is None:
                 Viewer._backend_proc.terminate()
             Viewer._backend_proc = None
         Viewer._backend_obj = None
