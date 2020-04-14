@@ -9,14 +9,14 @@ class BinaryDistribution(dist.Distribution):
 
 
 setup(name = 'jiminy_py',
-      version = '1.2.17',
+      version = '1.2.18',
       license = 'MIT',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url = 'https://github.com/Wandercraft/jiminy',
-      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.2.17.tar.gz',
+      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.2.18.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd']},

@@ -68,8 +68,10 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     $<BUILD_INTERFACE:${SOURCE_DIR}/include>
 )
 
-# Link with other libraries (in such a way to avoid any warnings compiling them)
+# Include headers from other libraries (in such a way to avoid any warnings compiling them)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}" "${Boost_INCLUDE_DIRS}")
+
+# Linking with other libraries (in such a way to avoid any warnings compiling them)
 target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} urdfdom_model)
