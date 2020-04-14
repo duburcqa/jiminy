@@ -1,4 +1,4 @@
-name: Windows CI
+name: Windows CI (Build from source dependencies)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -74,15 +74,15 @@ jobs:
     - name: Checkout pinocchio (sbarthelemy fork for windows compatibility - based on 2.1.11)
       uses: actions/checkout@v2
       with:
-        repository: 'sbarthelemy/pinocchio' #'stack-of-tasks/pinocchio' #'sbarthelemy/pinocchio'
-        ref: 'f1831c3fc0384035ed6f1d8e05b748a3766fd599' #'v2.3.1' #'f1831c3fc0384035ed6f1d8e05b748a3766fd599'
+        repository: 'sbarthelemy/pinocchio'
+        ref: 'f1831c3fc0384035ed6f1d8e05b748a3766fd599'
         path: 'pinocchio'
     - name: Checkout pinocchio submodules
       run: |
         cd pinocchio
         git submodule update --init --recursive
         cd cmake
-        git checkout 52fd08980365 #65e7f52151c93dd3bf4e0017a44c170d0547d060 #52fd08980365 # 31f4a95 # To use the same version as for eigenpy v2.0.3
+        git checkout 52fd08980365
     - name: Checkout jiminy
       uses: actions/checkout@v2
       with:
@@ -103,7 +103,7 @@ jobs:
         python -m pip install numpy wheel
     - name: Build project dependencies
       run: |
-        & './jiminy/build_tools/setup.ps1'
+        & "${Env:GITHUB_WORKSPACE}\jiminy\build_tools\build_install_deps_windows.ps1"
 
     #####################################################################################
 
@@ -113,7 +113,7 @@ jobs:
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        $RootDir = $Env:GITHUB_WORKSPACE -replace '\\', '/'
+        $RootDir = "${Env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
         if (Test-Path Env:/Boost_ROOT) {
@@ -126,15 +126,16 @@ jobs:
         Set-Location -Path $RootDir\jiminy\build
         $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
         $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
-        cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                                   -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-                                                   -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
-                                                   -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
-                                                   -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-                                                   -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
+        cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
+              -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
-        if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
+        if (-not (Test-Path -PathType Container "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
         }
         Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
@@ -157,7 +158,7 @@ jobs:
         Set-PSDebug -Trace 1
 
         & "${Env:GITHUB_WORKSPACE}\jiminy\build\unit\${Env:BUILD_TYPE}\unit.exe"
-        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\unit_py
+        Set-Location -Path "${Env:GITHUB_WORKSPACE}\jiminy\unit_py"
         python -m unittest discover -v
 
     #####################################################################################
@@ -165,5 +166,5 @@ jobs:
     - name: Generating Python pip wheel
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
-        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\build
+        Set-Location -Path "${Env:GITHUB_WORKSPACE}\jiminy\build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake

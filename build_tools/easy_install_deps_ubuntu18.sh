@@ -1,4 +1,6 @@
-# Setup script for Ubuntu 18
+#!/bin/bash
+
+# Script for Ubuntu 18 installing pre-compiled binaries of the required dependencies through apt-get
 
 # Eigen > 3.3.0 is not compatible with Boost < 1.71 because of odeint module
 # The latest version of Boost available using apt-get is 1.65, and currently
@@ -15,7 +17,7 @@ apt install -y sudo python3-setuptools python3-pip python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
 update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
 sudo -u $(id -nu $SUDO_UID) pip install twine wheel && \
-sudo -u $(id -nu $SUDO_UID) pip install numpy ipython
+sudo -u $(id -nu $SUDO_UID) pip install auditwheel numpy ipython
 
 # Install standard linux utilities and boost tools suite
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev # libeigen3-dev
