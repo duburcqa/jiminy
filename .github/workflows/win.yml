@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy:
+  build-and-test:
     name: "Build project on Windows"
     runs-on: [windows-2019]
 
@@ -94,8 +94,49 @@ jobs:
 
     #####################################################################################
 
-    - name: Generating Python pip wheel
+    - name: Generating the Python pip wheels
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
         Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+
+    - name: Upload the wheel for Jiminy_py
+      uses: actions/upload-artifact@v1
+      with:
+        name: jiminy_py-wheel
+        path: ./build/pypi/jiminy_py/dist
+    - name: Upload the wheel for Gym Jiminy
+      uses: actions/upload-artifact@v1
+      with:
+        name: gym_jiminy-wheel
+        path: ./build/pypi/gym_jiminy/dist
+
+#########################################################################################
+
+  publish-pypi:
+    needs: build-and-test
+    name: "Deploy the Python pip wheels for Windows"
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download the wheel for Jiminy_py
+      uses: actions/download-artifact@v1
+      with:
+        name: jiminy_py-wheel
+        path: wheelhouse
+    - name: Download the wheel for Gym Jiminy
+      uses: actions/download-artifact@v1
+      with:
+        name: gym_jiminy-wheel
+        path: wheelhouse
+
+    ####################################################################################
+
+    - name: Publish jiminy_py Python Packages to PyPI
+      if:  github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/wheelhouse/
+

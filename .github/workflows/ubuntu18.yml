@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy:
+  build-test-and-deploy-doc:
     name: "Build and install project, then run unit tests"
     runs-on: ubuntu-18.04
 

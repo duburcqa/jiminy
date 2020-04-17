@@ -27,15 +27,13 @@ function(buildPythonWheel TARGET_PATH)
             COMPONENT pypi
             EXCLUDE_FROM_ALL
     )
-    if(NOT WIN32)
-        install(CODE "file(REMOVE_RECURSE \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist\")
-                      execute_process(COMMAND python setup.py sdist bdist_wheel
-                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}
-                      )
-                      "
-                COMPONENT pypi
-                EXCLUDE_FROM_ALL
-        )
-    endif()
+    install(CODE "file(REMOVE_RECURSE \"${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}/dist\")
+                  execute_process(COMMAND python setup.py sdist bdist_wheel
+                                  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}
+                  )
+                  "
+            COMPONENT pypi
+            EXCLUDE_FROM_ALL
+    )
     set_directory_properties(PROPERTIES "${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME}" ADDITIONAL_MAKE_CLEAN_FILES)
 endfunction()

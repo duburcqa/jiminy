@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy:
+  build-test-and-publish-pypi:
     name: "Build and install project, then run unit tests"
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2010_x86_64
