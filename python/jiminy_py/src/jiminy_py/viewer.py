@@ -483,7 +483,7 @@ class Viewer:
 
 
 def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
-                      backend=None, window_name='python-pinocchio', scene_name='world',
+                      start_paused=False, backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
     @brief      Display robot evolution in choosen viewer (gepetto-gui or meshcat) at stable speed.
@@ -534,6 +534,9 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
 
     if (xyz_offset is None):
         xyz_offset = len(trajectory_data) * (None,)
+
+    if start_paused and not Viewer._is_notebook():
+        input("Press Enter to continue...")
 
     threads = []
     for i in range(len(trajectory_data)):
