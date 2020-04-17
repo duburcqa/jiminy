@@ -1,0 +1,71 @@
+name: Ubuntu 18 CI (Easy install dependencies)
+
+on:
+  # Trigger the workflow on push on the master branch, or for any pull request
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-test-and-deploy-doc:
+    name: "Build and install project, then run unit tests"
+    runs-on: ubuntu-18.04
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      BUILD_TYPE: "Release"
+
+    #####################################################################################
+
+    steps:
+    - name: Checkout branch
+      uses: actions/checkout@v2
+
+    #####################################################################################
+
+    - name: Installing requirements
+      run: sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu18.sh"
+
+    #####################################################################################
+
+    - name: Build and install Jiminy
+      run: |
+        RootDir="${GITHUB_WORKSPACE}"
+        InstallDir="$RootDir/install"
+
+        mkdir "$RootDir/build" "$InstallDir"
+
+        cd "$RootDir/build"
+        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+              -DBoost_NO_SYSTEM_PATHS=OFF \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
+              -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+        make install -j2
+
+    #####################################################################################
+
+    - name: Run unit tests
+      run: |
+        "${GITHUB_WORKSPACE}/build/unit/unit"
+        cd "${GITHUB_WORKSPACE}/unit_py"
+        python -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Generate and install Doxygen documentation
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      run: |
+        cd build
+        cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
+    - name: Deploy to GitHub Pages
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: crazy-max/ghaction-github-pages@v1
+      with:
+        target_branch: gh-pages
+        build_dir: docs
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}

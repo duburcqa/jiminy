@@ -17,9 +17,9 @@ TOLERANCE = 1e-7
 
 
 class SimulateSimplePendulum(unittest.TestCase):
-    '''
+    """
     @brief Simulate the motion of a pendulum, comparing against python integration.
-    '''
+    """
     def setUp(self):
         # Load URDF, create model.
         self.urdf_path = "data/simple_pendulum.urdf"
@@ -30,9 +30,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
 
     def test_rotor_inertia(self):
-        '''
+        """
         @brief Verify the dynamics of the system when adding  rotor inertia.
-        '''
+        """
         # No controller
         def computeCommand(t, q, v, sensor_data, u):
             u[:] = 0.0
@@ -81,14 +81,14 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_pendulum_integration(self):
-        '''
+        """
         @brief   Compare pendulum motion, as simulated by Jiminy, against an
                  equivalent simulation done in python.
 
         @details Since we don't have a simple analytical expression for the solution
                  of a (nonlinear) pendulum motion, we perform the simulation in
                  python, with the same integrator, and compare both results.
-        '''
+        """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
         engine.initialize(self.robot)
@@ -119,12 +119,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
 
     def test_pendulum_force_impulse(self):
-        '''
+        """
         @brief   Validate the impulse-momentum theorem
 
         @details The analytical expression for the solution is exact for
                  impulse of force that are perfect dirac functions.
-        '''
+        """
         # Create an engine: no controller and no internal dynamics
         engine = jiminy.Engine()
         engine.initialize(self.robot)
@@ -239,14 +239,14 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_flexibility_rotor_inertia(self):
-        '''
+        """
         @brief Test the addition of a flexibility in the system.
 
         @details This test asserts that, by adding a flexibility and a rotor inertia,
                  the output is 'sufficiently close' to a SEA system:
                  see 'note_on_flexibli_model.pdf' for more information as to why this
                  is not a true equality.
-        '''
+        """
         # Controller: PD controller on motor.
         k_control = 100.0
         nu_control = 1.0
@@ -332,9 +332,9 @@ class SimulateSimplePendulum(unittest.TestCase):
 
 
     def test_fixed_body_constraint_rotor_inertia(self):
-        '''
+        """
         @brief Test fixed body constraint together with rotor inertia.
-        '''
+        """
         # Create robot with freeflyer, set rotor inertia.
         self.robot = load_urdf_default(self.urdf_path, ["PendulumJoint"])
         J = 0.1

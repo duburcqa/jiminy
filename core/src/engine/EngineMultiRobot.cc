@@ -861,6 +861,7 @@ namespace jiminy
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
+        float64_t tEnd;
         if (returnCode == hresult_t::SUCCESS)
         {
             // Check if there is something wrong with the integration
@@ -882,7 +883,6 @@ namespace jiminy
                controller update period if discrete-time, otherwise
                it uses the sensor update period if discrete-time,
                otherwise it uses the user-defined parameter dtMax. */
-            float64_t tEnd;
             if (stepSize < EPS)
             {
                 float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
@@ -1113,18 +1113,16 @@ namespace jiminy
                                 dt -= dtResidual;
                             }
                         }
+                        
+                        // Break the loop if dt is getting too small. Don't worry it will be catched later.
+                        if (dt < STEPPER_MIN_TIMESTEP)
+                        {
+                            break;
+                        }
 
                         /* A breakpoint has been reached dt has been decreased
                            wrt the largest possible dt within integration tol. */
                         isBreakpointReached = (stepperState_.dtLargest > dt);
-
-                        // Make sure that the timestep is not getting too small
-                        if (dt < STEPPER_MIN_TIMESTEP)
-                        {
-                            std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
-                                         "Impossible to integrate physics further in time." << std::endl;
-                            returnCode = hresult_t::ERROR_GENERIC;
-                        }
 
                         // Set the timestep to be tried by the stepper
                         dtLargest = dt;
@@ -1266,8 +1264,20 @@ namespace jiminy
                         dt = dtLargest;
                     }
                 }
-            }
 
+                // Make sure that the timestep is not getting too small
+                if (dt < STEPPER_MIN_TIMESTEP)
+                {
+                    std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
+                                 "Impossible to integrate physics further in time." << std::endl;
+                    returnCode = hresult_t::ERROR_GENERIC;
+                    break;
+                }
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
             /* Update the final time and dt to make sure it corresponds
                to the desired values and avoid compounding of error.
                Anyway the user asked for a step of exactly stepSize,

@@ -4,10 +4,8 @@
 ///
 ////////////////////////////////////////////////////////////////////////////////
 
-// Manually import the Python C API to avoid relying on eigenpy to do so, to be compatible with any version.
-// The PY_ARRAY_UNIQUE_SYMBOL cannot be changed, since its value is enforced by boost::numpy without checking
-// if already defined... Luckily, eigenpy is more clever and does the check on its side so that they can work together.
-#define PY_ARRAY_UNIQUE_SYMBOL BOOST_NUMPY_ARRAY_API
+// Manually import the Python C API to avoid relying on eigenpy and boost::numpy to do so.
+#define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "numpy/arrayobject.h"
 #define NO_IMPORT_ARRAY
@@ -22,7 +20,6 @@
 #include <eigenpy/eigenpy.hpp>
 
 
-#ifdef _WIN32
 #if PY_MAJOR_VERSION == 2
 static void initNumpy()
 {
@@ -34,7 +31,6 @@ static void * initNumpy()
     import_array();
     return NULL;
 }
-#endif
 #endif
 
 
@@ -64,17 +60,13 @@ namespace python
 
     BOOST_PYTHON_MODULE(jiminy_pywrap)
     {
-        // Required to initialized Python C API
+        // Initialized C API of Python, required to handle raw Python native object
         Py_Initialize();
-        #ifdef _WIN32
-        // Required to handle raw numpy::ndarray object (it loads Python C API of Numpy)
-        // Note that, in principle, it is unecessary to call this method manually, 
-        // but it is not working properly on Windows for some reasons...
-        initNumpy(); 
-        #endif
-        // Required to handle boost::pyhton::numpy::ndarray object
+        // Initialized C API of Numpy, required to handle raw numpy::ndarray object
+        initNumpy();
+        // Initialized boost::python::numpy, required to handle boost::python::numpy::ndarray object
         bp::numpy::initialize();
-        // Required and create PyArrays<->Eigen automatic converters.
+        // Initialized EigenPy, enabling PyArrays<->Eigen automatic converters
         eigenpy::enableEigenPy();
 
         // Expose the version

@@ -1,0 +1,112 @@
+name: Manylinux2010 CI (PyPi deploy)
+
+on:
+  # Trigger the workflow on push on the master branch, or for any pull request
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build-test-and-publish-pypi:
+    name: "Build and install project, then run unit tests"
+    runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux2010_x86_64
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      BUILD_TYPE: "Release"
+
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7', '3.8']
+
+    #####################################################################################
+
+    steps:
+    - name: Checkout jiminy
+      uses: actions/checkout@v1 # Cannot use v2 in manylinux2010 container because it relies on node+javascript
+
+    #####################################################################################
+
+    - name: Setup minimal build environment
+      run: |
+        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "*${{ matrix.python-version }}*" | sed -e 's/\.//g')" -print -quit)
+        echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
+        source $HOME/.bashrc
+        update-alternatives --install /usr/bin/python python "${pythonLocation}/bin/python${{ matrix.python-version }}" 1
+        ln -s "${pythonLocation}/include/python${{ matrix.python-version }}m" "${pythonLocation}/include/python${{ matrix.python-version }}"
+        git config --global advice.detachedHead false
+        python -m pip install twine wheel
+        python -m pip install cmake numpy
+    - name: Build project dependencies
+      run: |
+        source $HOME/.bashrc
+        ./build_tools/build_install_deps_linux.sh
+
+    #####################################################################################
+
+    - name: Build and install Jiminy
+      run: |
+        source $HOME/.bashrc
+
+        RootDir="${GITHUB_WORKSPACE}"
+        InstallDir="$RootDir/install"
+
+        unset Boost_ROOT
+
+        mkdir "$RootDir/build"
+        cd "$RootDir/build"
+        cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+              -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+        make -j2
+
+        mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+        cp -r "$InstallDir/lib/python${{ matrix.python-version }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+
+        make install
+
+    - name: Generate and install Python Pip wheels
+      run: |
+        source $HOME/.bashrc
+
+        RootDir="${GITHUB_WORKSPACE}"
+        InstallDir="$RootDir/install"
+
+        cd "$RootDir/build"
+        cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+        LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib" auditwheel repair pypi/jiminy_py/dist/*.whl
+        python -m pip install --force-reinstall --no-deps wheelhouse/*.whl
+
+    #####################################################################################
+
+    - name: Run unit tests
+      run: |
+        source $HOME/.bashrc
+        LD_LIBRARY_PATH="/home/install/lib:/usr/local/lib" ./build/unit/unit
+        cd unit_py
+        python -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Publish jiminy_py Python Packages to PyPI
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/wheelhouse/
+    - name: Publish gym_jiminy Python Packages to PyPI
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/pypi/gym_jiminy/dist/

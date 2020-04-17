@@ -15,27 +15,38 @@ from PIL import Image
 
 import pinocchio as pnc
 from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio import libpinocchio_pywrap as pin
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix
 
-# Determine if Gepetto-Viewer is available
-try:
-    import gepetto as _gepetto
-    is_gepetto_available = True
-except ImportError:
-    is_gepetto_available = False
-
 from .state import State
 
+
+# Determine if the various backends are available
+backends_available = []
+import platform
+if platform.system() == 'Linux':
+    try:
+        import gepetto as _gepetto
+        import omniORB as _omniORB
+        backends_available.append('gepetto-gui')
+    except ImportError:
+        pass
+try:
+    import meshcat as _meshcat
+    backends_available.append('meshcat')
+except ImportError:
+    pass
+
+
+
 def sleep(dt):
-    '''
+    """
         @brief   Function to provide cross-plateform time sleep with maximum accuracy.
 
         @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
                  As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure
                  accurate delay on a non-real-time systems such as Windows 10.
-    '''
+    """
     _ = time.perf_counter() + dt
     while time.perf_counter() < _:
         pass
@@ -55,7 +66,7 @@ class Viewer:
                  mesh_root_path = None,
                  urdf_rgba=None, robot_index=0,
                  backend=None, window_name='python-pinocchio', scene_name='world'):
-        '''
+        """
         @brief Constructor.
 
         @param robot The jiminy.Robot to display.
@@ -66,7 +77,7 @@ class Viewer:
         @param backend Optional, either 'gepetto-gui' or 'meshcat'.
         @param window_name Window name, used only when gepetto-gui is used as backend.
         @param scene_name Scene name, used only when gepetto-gui is used as backend.
-        '''
+        """
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.scene_name = scene_name
@@ -84,12 +95,15 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if Viewer._is_notebook() or not is_gepetto_available:
+                if Viewer._is_notebook() or (not 'gepetto-gui' in backends_available):
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
             else:
                 backend = Viewer.backend
+        else:
+            if not backend in backends_available:
+                raise ValueError("%s backend not available." % backend)
 
         # Update the backend currently running, if any
         if (Viewer.backend != backend) and \
@@ -144,12 +158,12 @@ class Viewer:
             else:
                 alpha = 1.0
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
-        collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
+        collision_model = pnc.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                                 root_path,
-                                                pin.GeometryType.COLLISION)
-        visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
+                                                pnc.GeometryType.COLLISION)
+        visual_model = pnc.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                              root_path,
-                                             pin.GeometryType.VISUAL)
+                                             pnc.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=collision_model,
                                 visual_model=visual_model)
@@ -260,7 +274,7 @@ class Viewer:
 
         color_string = "%.3f_%.3f_%.3f_1.0" % rgb
         color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % rgb # don't close tag with '>', in order to handle <color/> and <color></color>
-        colorized_tmp_path = os.path.join("/tmp", "colorized_urdf_rgba_" + color_string)
+        colorized_tmp_path = os.path.join(tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
         colorized_urdf_path = os.path.join(colorized_tmp_path, os.path.basename(urdf_path))
         if not os.path.exists(colorized_tmp_path):
             os.makedirs(colorized_tmp_path)
@@ -306,7 +320,7 @@ class Viewer:
             except:
                 if (open_if_needed):
                     FNULL = open(os.devnull, 'w')
-                    proc = subprocess.Popen(['gepetto-gui'],
+                    proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
                                             shell=False,
                                             stdout=FNULL,
                                             stderr=FNULL)
@@ -348,14 +362,14 @@ class Viewer:
 
         @param[in]  geometry_object     Geometry object from which to get the node
         @param[in]  geometry_type       Geometry type. It must be either
-                                        pin.GeometryType.VISUAL or pin.GeometryType.COLLISION
+                                        pnc.GeometryType.VISUAL or pnc.GeometryType.COLLISION
                                         for display and collision, respectively.
 
         @return     Full path of the associated node.
         """
-        if geometry_type is pin.GeometryType.VISUAL:
+        if geometry_type is pnc.GeometryType.VISUAL:
             return self._rb.viz.viewerVisualGroupName + '/' + geometry_object.name
-        elif geometry_type is pin.GeometryType.COLLISION:
+        elif geometry_type is pnc.GeometryType.COLLISION:
             return self._rb.viz.viewerCollisionGroupName + '/' + geometry_object.name
 
     def _updateGeometryPlacements(self, visual=False):
@@ -375,7 +389,7 @@ class Viewer:
             geom_model = self._rb.collision_model
             geom_data = self._rb.collision_data
 
-        pin.updateGeometryPlacements(self.pinocchio_model,
+        pnc.updateGeometryPlacements(self.pinocchio_model,
                                      self.pinocchio_data,
                                      geom_model, geom_data)
 
@@ -421,9 +435,9 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             if self._rb.displayCollisions:
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
+                    [self._getViewerNodeName(collision, pnc.GeometryType.COLLISION)
                     for collision in self._rb.collision_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
+                    [pnc.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
                         self._rb.collision_model.getGeometryId(collision.name)])
                     for collision in self._rb.collision_model.geometryObjects]
                 )
@@ -431,9 +445,9 @@ class Viewer:
             if self._rb.displayVisuals:
                 self._updateGeometryPlacements(visual=True)
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
+                    [self._getViewerNodeName(visual, pnc.GeometryType.VISUAL)
                         for visual in self._rb.visual_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
+                    [pnc.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
                         self._rb.visual_model.getGeometryId(visual.name)])
                         for visual in self._rb.visual_model.geometryObjects]
                 )
@@ -445,7 +459,7 @@ class Viewer:
                 T = self._rb.visual_data.oMg[\
                     self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
-                    self._getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
+                    self._getViewerNodeName(visual, pnc.GeometryType.VISUAL)].set_transform(T)
 
     def display(self, evolution_robot, speed_ratio, xyz_offset=None):
         t = [s.t for s in evolution_robot]
@@ -536,14 +550,14 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
 
 
 def play_logfiles(robots, log_datas, **kwargs):
-    '''
+    """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
 
     @param robots jiminy.Robot: either a single robot, or a list of robot for each log data.
     @param log_datas Either a single dictionnary, or a list of dictionnaries of simulation data log.
     @param kwargs Keyword arguments for play_trajectories method.
-    '''
+    """
     # Reformat everything as lists.
     if not(isinstance(log_datas, list)):
         log_datas = [log_datas]

@@ -1,4 +1,6 @@
-# Setup script for Ubuntu 18
+#!/bin/bash
+
+# Script for Ubuntu 18 installing pre-compiled binaries of the required dependencies through apt-get
 
 # Eigen > 3.3.0 is not compatible with Boost < 1.71 because of odeint module
 # The latest version of Boost available using apt-get is 1.65, and currently
@@ -37,7 +39,7 @@ if ! [-d "/opt/openrobots/lib/python3.6/site-packages/" ] ; then
     apt update && \
     apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 robotpkg-hpp-fcl=1.3.0 robotpkg-py36-hpp-fcl=1.3.0 \
                    robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy=2.0.2 robotpkg-py36-pinocchio=2.2.2 && \
-    echo 'export LD_LIBRARY_PATH=/opt/openrobots/lib' >> $HOME/.bashrc && \
+    echo 'export LD_LIBRARY_PATH="/opt/openrobots/lib"' >> $HOME/.bashrc && \
     sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
     sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \
     echo "/opt/openrobots/lib/python3.6/site-packages/" > $HOME/.local/lib/python3.6/site-packages/openrobots.pth

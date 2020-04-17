@@ -65,7 +65,7 @@ robot.add_contact_points(contact_points)
 # Extract some constant
 iPos = robot.motors_position_idx[0]
 iVel = robot.motors_velocity_idx[0]
-axisCom = 0
+axisCom = 1
 
 # Constants
 m = 75
@@ -75,24 +75,24 @@ omega = np.sqrt(g/l)
 
 # Initial values
 q0 = 0.0
-dq0 = -0.0
+dq0 = 0.0
 x0 = np.zeros((robot.nq + robot.nv, ))
 x0[:robot.nq] = pnc.neutral(robot.pinocchio_model_th)
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
 # Compute com dcm references
-nTimes = int(tf * 1e3) + 1
+nTimes = int(tf * 1.0e3) + 1
 deltaStabilization = 0.5e3
 deltaSlope = 1.0
 deltaCom = 0.041
 comRef = np.zeros(nTimes)
-comRef[int(deltaStabilization):(int(deltaStabilization + deltaSlope * 1e3) + 1)] = \
-    np.linspace(0, deltaCom, int(deltaSlope * 1e3) + 1, endpoint=False)
-comRef[(int(deltaStabilization + deltaSlope * 1e3) + 1):] = deltaCom
+comRef[int(deltaStabilization):(int(deltaStabilization + deltaSlope * 1.0e3) + 1)] = \
+    np.linspace(0, deltaCom, int(deltaSlope * 1.0e3) + 1, endpoint=False)
+comRef[(int(deltaStabilization + deltaSlope * 1.0e3) + 1):] = deltaCom
 zmpRef = comRef
 dcomRef = np.zeros(nTimes)
-dcomRef[int(deltaStabilization):(int(deltaStabilization + deltaSlope * 1e3) + 1)] = deltaCom/deltaSlope
+dcomRef[int(deltaStabilization):(int(deltaStabilization + deltaSlope * 1.0e3) + 1)] = deltaCom / deltaSlope
 ddcomRef = np.zeros(nTimes)
 
 if args.targetsFB:
@@ -123,7 +123,7 @@ else:
     # Gains admittance
     Acom = 60.0
 # Gains position control
-Kp = (m * l**2) * 1e3
+Kp = (m * (l ** 2)) * 1.0e3
 Kd = 0.0 * Kp
 
 # Perturbation
@@ -142,9 +142,10 @@ def get_frame_placement(robot, data, name):
 # Logging: create global variables to make sure they never get deleted
 com = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0)
 vcom = robot.pinocchio_data_th.vcom[0]
-dcm = com + vcom/omega
+dcm = com + vcom / omega
 totalWrench = pnc.Force.Zero()
-zmp = np.array([zmpRef[0], 0])
+zmp = np.zeros((2,))
+zmp[axisCom] = zmpRef[0]
 zmp_cmd = zmp.copy()
 state_target = np.array([0.0, 0.0])
 
@@ -169,27 +170,29 @@ def updateState(robot, q, v, sensor_data):
     comOut = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
     vcomOut = robot.pinocchio_data_th.vcom[0]
     dcmOut = comOut + vcomOut / omega
+
     # Create zmp from forces
     forces = np.asarray(sensor_data[ForceSensor.type])
     newWrench = pnc.Force.Zero()
     for i,name in enumerate(contact_points):
         update_frame(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
         placement = get_frame_placement(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
-        wrench = pnc.Force(np.concatenate([[0.0, 0.0, forces[2, i]], np.zeros(3)]).T)
+        wrench = pnc.Force(np.array([0.0, 0.0, forces[2, i]]), np.zeros(3))
         newWrench += placement.act(wrench)
     totalWrenchOut = newWrench
-    if totalWrench.linear[2] != 0:
+    if totalWrenchOut.linear[2] > 0:
         zmpOut = [-totalWrenchOut.angular[1] / totalWrenchOut.linear[2],
                    totalWrenchOut.angular[0] / totalWrenchOut.linear[2]]
     else:
         zmpOut = zmp_log
+
     return comOut, vcomOut, dcmOut, zmpOut, totalWrenchOut
 
 def computeCommand(t, q, v, sensor_data, u):
     global com, dcm, zmp, zmp_cmd, totalWrench, qi, dqi, ddqi, t_1, u_1, integral_
 
     # Get trajectory
-    i = int(t * 1e3) + 1
+    i = int(t * 1.0e3) + 1
     if t > taux :
         p = paux
     else:
@@ -197,7 +200,7 @@ def computeCommand(t, q, v, sensor_data, u):
     z = zmpRef[i] + p
     c = comRef[i] + p
     vc = dcomRef[i]
-    d = c + vc/omega
+    d = c + vc / omega
 
     # Update state
     com, vcom, dcm, zmp, totalWrench = updateState(robot, q, v, sensor_data)
@@ -209,10 +212,10 @@ def computeCommand(t, q, v, sensor_data, u):
     zmp_log[:] = zmp
     com_log[:] = com
     vcom_log[:] = vcom
-    dcmRef_log[0] = d
-    zmpRef_log[0] = z
-    comRef_log[0] = c
-    vcomRef_log[0] = vc
+    dcmRef_log[axisCom] = d
+    zmpRef_log[axisCom] = z
+    comRef_log[axisCom] = c
+    vcomRef_log[axisCom] = vc
     dcmTarget_log[:] = dcmTarget
     zmpTarget_log[:] = zmpTarget
     comTarget_log[:] = comTarget
@@ -221,8 +224,7 @@ def computeCommand(t, q, v, sensor_data, u):
     totalWrench_linear_log[:] = totalWrench.linear
 
     # Update targets at HLC frequency
-    if int(t * 1e3) % int(1e3 / fHLC) == 0:
-
+    if int(t * 1.0e3) % int(1.0e3 / fHLC) == 0:
         # Compute zmp command (DCM control)
         if args.targetsFB:
             zi = zmpTarget
@@ -233,6 +235,7 @@ def computeCommand(t, q, v, sensor_data, u):
         else:
             zi = zmp
             di = dcm
+
         # KpKdKi dcm
         integral_ = (1 - decay) * integral_ + (t - t_1) * (d - di[axisCom])
         t_1 = t
@@ -243,22 +246,23 @@ def computeCommand(t, q, v, sensor_data, u):
 
         # Compute joint acceleration from ZMP command
         # Zmp-> com admittance -> com acceleration
-        ax = ddcomRef[i] + Acom * (zi[axisCom] - zmp_cmd)
+        ax = ddcomRef[i] - Acom * (zi[axisCom] - zmp_cmd)
         # Com acceleration -> joint acceleration
-        ddqi[iVel] = (ax / (l * np.cos(q[iPos]))) + (v[iVel]**2) * np.tan(q[iPos])
+        ddqi[iVel] = (ax / (l * np.cos(q[iPos]))) + (v[iVel] ** 2) * np.tan(q[iPos])
 
         # Compute joint torque from joint acceleration (ID)
         if acceleration_control:
-            u_1 = m * (l**2) * ((ax / (l * np.cos(q[iPos]))) \
-                + (v[iVel]**2) * np.tan(q[iPos]) - g * np.sin(q[iPos]) / l)
+            u_1 = m * (l ** 2) * ((ax / (l * np.cos(q[iPos]))) \
+                + (v[iVel] ** 2) * np.tan(q[iPos]) - g * np.sin(q[iPos]) / l)
 
     # Send last joint torque command
     if acceleration_control:
         u[0] = u_1
+
     # Integrate last joint acceleration + position control
     elif position_control:
-        dqi[iVel] = dqi[iVel] + ddqi[iVel] * 1e-3
-        qi[iPos] = qi[iPos] + dqi[iVel] * 1e-3
+        dqi[iVel] += ddqi[iVel] * 1.0e-3
+        qi[iPos] += dqi[iVel] * 1.0e-3
         u[0] = -(Kp * (q[iPos] - qi[iPos]) + Kd * (v[iVel] - dqi[iVel]))
 
     # Update logs (only the value stored by the registered variables using [:])
@@ -272,7 +276,7 @@ def internalDynamics(t, q, v, sensor_data, u):
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)
 controller.register_variable(["targetPositionPendulum", "targetVelocityPendulum"], state_target_log)
-controller.register_variable(["zmpCmdX"], zmp_cmd_log)
+controller.register_variable(["zmpCmdY"], zmp_cmd_log)
 controller.register_variable(["zmp" + axis for axis in ["X", "Y"]], zmp_log)
 controller.register_variable(["dcm" + axis for axis in SPATIAL_COORDS], dcm_log)
 controller.register_variable(["com" + axis for axis in SPATIAL_COORDS], com_log)
@@ -345,7 +349,7 @@ engine_options["stepper"]["logInternalStepperSteps"] = False
 engine_options["stepper"]["randomSeed"] = 0
 
 engine_options['contacts']['stiffness'] = 1.0e6
-engine_options['contacts']['damping'] = 2000.0*2.0
+engine_options['contacts']['damping'] = 2000.0 * 2.0
 engine_options['contacts']['frictionDry'] = 5.0
 engine_options['contacts']['frictionViscous'] = 5.0
 engine_options['contacts']['frictionStictionVel'] = 0.01
@@ -376,89 +380,89 @@ engine.write_log(os.path.join(tempfile.gettempdir(), "log.data"), True)
 
 if args.plot:
     if args.targetsFB:
-        plt.figure("ZMP X")
+        plt.figure("ZMP Y")
         plt.plot(
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpTargetX'],'b',
+                 log_data['HighLevelController.zmpTargetY'],'b',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpCmdX'],'g',
+                 log_data['HighLevelController.zmpCmdY'],'g',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpReferenceX'], 'r',
+                 log_data['HighLevelController.zmpReferenceY'], 'r',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.comReferenceX'], 'm')
+                 log_data['HighLevelController.comReferenceY'], 'm')
         plt.legend((
-                    "ZMP X (Targets)",
-                    "ZMP CMD X",
-                    "ZMP Reference X",
-                    "COM Reference X"))
-        plt.figure("DCM X")
+                    "ZMP Y (Targets)",
+                    "ZMP CMD Y",
+                    "ZMP Reference Y",
+                    "COM Reference Y"))
+        plt.figure("DCM Y")
         plt.plot(
                  log_data['Global.Time'],
-                 log_data['HighLevelController.dcmTargetX'],
+                 log_data['HighLevelController.dcmTargetY'],
                  log_data['Global.Time'],
-                 log_data['HighLevelController.dcmReferenceX'])
-        plt.legend(("DCM X (Targets)", "DCM Reference X"))
+                 log_data['HighLevelController.dcmReferenceY'])
+        plt.legend(("DCM Y (Targets)", "DCM Reference Y"))
     else:
-        plt.figure("ZMP X")
+        plt.figure("ZMP Y")
         plt.plot(
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpX'],'b',
+                 log_data['HighLevelController.zmpY'],'b',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpCmdX'],'g',
+                 log_data['HighLevelController.zmpCmdY'],'g',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.zmpReferenceX'], 'r',
+                 log_data['HighLevelController.zmpReferenceY'], 'r',
                  log_data['Global.Time'],
-                 log_data['HighLevelController.comReferenceX'], 'm')
+                 log_data['HighLevelController.comReferenceY'], 'm')
         plt.legend((
-                    "ZMP X",
-                    "ZMP CMD X",
-                    "ZMP Reference X",
-                    "COM Reference X"))
-        plt.figure("DCM X")
+                    "ZMP Y",
+                    "ZMP CMD Y",
+                    "ZMP Reference Y",
+                    "COM Reference Y"))
+        plt.figure("DCM Y")
         plt.plot(
                  log_data['Global.Time'],
-                 log_data['HighLevelController.dcmX'],
+                 log_data['HighLevelController.dcmY'],
                  log_data['Global.Time'],
-                 log_data['HighLevelController.dcmReferenceX'])
-        plt.legend(("DCM X", "DCM Reference X"))
-    fig = plt.figure("COM X")
+                 log_data['HighLevelController.dcmReferenceY'])
+        plt.legend(("DCM Y", "DCM Reference Y"))
+    fig = plt.figure("COM Y")
     ax = plt.subplot()
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.comX'],
-            label = "COM X")
+            log_data['HighLevelController.comY'],
+            label = "COM Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.comReferenceX'],
-            label = "COM Ref X")
+            log_data['HighLevelController.comReferenceY'],
+            label = "COM Ref Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.comTargetX'],
-            label = "COM X (Targets)")
+            log_data['HighLevelController.comTargetY'],
+            label = "COM Y (Targets)")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.vcomX'],
-            label = "VCOM X")
+            log_data['HighLevelController.vcomY'],
+            label = "VCOM Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.vcomReferenceX'],
-            label = "VCOM Ref X")
+            log_data['HighLevelController.vcomReferenceY'],
+            label = "VCOM Ref Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.vcomTargetX'],
-            label = "VCOM X (Targets)")
+            log_data['HighLevelController.vcomTargetY'],
+            label = "VCOM Y (Targets)")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.vcomX']/omega,
-            label = "VCOM/omega X")
+            log_data['HighLevelController.vcomY']/omega,
+            label = "VCOM/omega Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.vcomTargetX']/omega,
-            label = "VCOM/omega X (Targets)")
+            log_data['HighLevelController.vcomTargetY']/omega,
+            label = "VCOM/omega Y (Targets)")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.dcmX'],
-            label = "DCM X")
+            log_data['HighLevelController.dcmY'],
+            label = "DCM Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.dcmReferenceX'],
-            label = "DCM Ref X")
+            log_data['HighLevelController.dcmReferenceY'],
+            label = "DCM Ref Y")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.dcmTargetX'],
-            label = "DCM X (Targets)")
+            log_data['HighLevelController.dcmTargetY'],
+            label = "DCM Y (Targets)")
     ax.plot(log_data['Global.Time'],
-            log_data['HighLevelController.comTargetX'] + log_data['HighLevelController.vcomTargetX']/omega,
-            label = "DCM X (Mixed)")
+            log_data['HighLevelController.comTargetY'] + log_data['HighLevelController.vcomTargetY']/omega,
+            label = "DCM Y (Mixed)")
     leg = interactive_legend(fig)
     plt.show()
 

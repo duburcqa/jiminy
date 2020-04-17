@@ -60,6 +60,18 @@ namespace python
     }
 
     template<typename T>
+    T * createInternalBuffer(void)
+    {
+        return (new T());
+    }
+
+    template<>
+    pinocchio::Force * createInternalBuffer<pinocchio::Force>(void)
+    {
+        return (new pinocchio::Force(vector6_t::Zero()));
+    }
+
+    template<typename T>
     bp::handle<> FctPyWrapperArgToPython(T const & arg) = delete; // Do NOT provide default implementation
 
     template<>
@@ -93,7 +105,7 @@ namespace python
     public:
         FctPyWrapper(bp::object const & objPy) :
         funcPyPtr_(objPy),
-        outPtr_(new OutputArg),
+        outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
@@ -103,7 +115,7 @@ namespace python
         // Copy constructor, same as the normal constructor
         FctPyWrapper(FctPyWrapper const & other) :
         funcPyPtr_(other.funcPyPtr_),
-        outPtr_(new OutputArg),
+        outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
@@ -333,7 +345,7 @@ namespace python
         }
 
         static bp::tuple eval(heatMapFunctor_t       & self,
-                              vectorN_t        const & posFrame) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                              vector3_t        const & posFrame)
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
@@ -1626,7 +1638,7 @@ namespace python
                                          std::string      const & frameName,
                                          float64_t        const & t,
                                          float64_t        const & dt,
-                                         vectorN_t        const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                                         vector6_t        const & F)
         {
             self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
         }
@@ -1899,7 +1911,7 @@ namespace python
                                          std::string const & frameName,
                                          float64_t   const & t,
                                          float64_t   const & dt,
-                                         vectorN_t   const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                                         vector6_t   const & F)
         {
             self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }

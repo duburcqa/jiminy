@@ -1,4 +1,4 @@
-name: Windows CI
+name: Windows CI (Build from source dependencies)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -8,9 +8,13 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy:
+  build-and-test:
     name: "Build project on Windows"
     runs-on: [windows-2019]
+
+    defaults:
+      run:
+        shell: pwsh
 
     env:
       BUILD_TYPE: "Release"
@@ -19,74 +23,11 @@ jobs:
       matrix:
         python-version: ['3.6', '3.7', '3.8']
 
+    #####################################################################################
+
     steps:
-    - name: Checkout boost
-      uses: actions/checkout@v2
-      with:
-        repository: 'boostorg/boost'
-        ref: 'boost-1.71.0' # 1.72.0 is not properly supported by FindBoost on Cmake 3.16.1 and older.
-        path: 'boost_1_71_0'
-    - name: Checkout boost submodules
-      run: |
-        cd boost_1_71_0
-        git submodule update --init --recursive --jobs 8
-        echo "::set-env name=BOOST_MINOR_VERSION::71"
-    - name: Checkout eigen
-      uses: actions/checkout@v2
-      with:
-        repository: 'eigenteam/eigen-git-mirror'
-        ref: '3.3.7'
-        path: 'eigen3'
-    - name: Checkout tinyxml (robotology fork for cmake compatibility)
-      uses: actions/checkout@v2
-      with:
-        repository: 'robotology-dependencies/tinyxml'
-        ref: 'master'
-        path: 'tinyxml'
-    - name: Checkout console_bridge
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/console_bridge'
-        ref: '0.4.4'
-        path: 'console_bridge'
-    - name: Checkout urdfdom_headers
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/urdfdom_headers'
-        ref: '1.0.3'
-        path: 'urdfdom_headers'
-    - name: Checkout urdfdom
-      uses: actions/checkout@v2
-      with:
-        repository: 'ros/urdfdom'
-        ref: '1.0.3'
-        path: 'urdfdom'
-    - name: Checkout eigenpy
-      uses: actions/checkout@v2
-      with:
-        repository: 'stack-of-tasks/eigenpy'
-        ref: 'v2.1.2'
-        path: 'eigenpy'
-    - name: Checkout eigenpy submodules
-      run: |
-        cd eigenpy
-        git submodule update --init --recursive
-    - name: Checkout pinocchio (sbarthelemy fork for windows compatibility - based on 2.1.11)
-      uses: actions/checkout@v2
-      with:
-        repository: 'sbarthelemy/pinocchio' #'stack-of-tasks/pinocchio' #'sbarthelemy/pinocchio'
-        ref: 'f1831c3fc0384035ed6f1d8e05b748a3766fd599' #'v2.3.1' #'f1831c3fc0384035ed6f1d8e05b748a3766fd599'
-        path: 'pinocchio'
-    - name: Checkout pinocchio submodules
-      run: |
-        cd pinocchio
-        git submodule update --init --recursive
-        cd cmake
-        git checkout 52fd08980365 #65e7f52151c93dd3bf4e0017a44c170d0547d060 #52fd08980365 # 31f4a95 # To use the same version as for eigenpy v2.0.3
     - name: Checkout jiminy
       uses: actions/checkout@v2
-      with:
-        path: 'jiminy'
 
     #####################################################################################
 
@@ -97,73 +38,109 @@ jobs:
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-PSDebug -Trace 1
+        git config --global advice.detachedHead false
         choco install pkgconfiglite -y
         python -m pip install numpy wheel
     - name: Build project dependencies
       run: |
-        & './jiminy/build_tools/setup.ps1'
+        & "./build_tools/build_install_deps_windows.ps1"
 
     #####################################################################################
 
     - name: Configure and build jiminy
-      shell: pwsh
       run: |
         $ErrorActionPreference = "Stop"
         Set-PSDebug -Trace 1
 
-        $RootDir = $Env:GITHUB_WORKSPACE -replace '\\', '/'
+        $RootDir = "${Env:GITHUB_WORKSPACE}" -replace '\\', '/'
         $InstallDir = "$RootDir/install"
 
         if (Test-Path Env:/Boost_ROOT) {
           Remove-Item Env:/Boost_ROOT
         }
+        
+        $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 
-        if (-not (Test-Path -PathType Container $RootDir\jiminy\build)) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build"
+        if (-not (Test-Path -PathType Container $RootDir/build)) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }
-        Set-Location -Path $RootDir\jiminy\build
-        $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
-        $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
-        cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                                   -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-                                                   -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include/boost-1_${Env:BOOST_MINOR_VERSION}" `
-                                                   -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
-                                                   -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-                                                   -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
+        Set-Location -Path $RootDir/build
+        cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+              -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_MODULE_PATH="$InstallDir" `
+              -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
+              -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
+              -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
-        if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
+        if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         }
-        Copy-Item -Path "$InstallDir\bin\eigenpy.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\boost_numpy*.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\boost_python*.dll" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-        Copy-Item -Path "$InstallDir\lib\site-packages\*" `
-                  -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
+        Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        Copy-Item -Path "$InstallDir/lib/site-packages/*" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 
     #####################################################################################
 
     - name: Running unit tests
-      shell: pwsh
       run: |
-        $ErrorActionPreference = "Stop"
-        Set-PSDebug -Trace 1
-
-        & "${Env:GITHUB_WORKSPACE}\jiminy\build\unit\${Env:BUILD_TYPE}\unit.exe"
-        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\unit_py
+        & "./build/unit\${Env:BUILD_TYPE}/unit.exe"
+        Set-Location -Path "./unit_py"
         python -m unittest discover -v
 
     #####################################################################################
 
-    - name: Generating Python pip wheel
+    - name: Generating the Python pip wheels
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
-        Set-Location -Path ${Env:GITHUB_WORKSPACE}\jiminy\build
+        Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
+
+    - name: Upload the wheel for Jiminy_py
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v1
+      with:
+        name: jiminy_py-wheel
+        path: ./build/pypi/jiminy_py/dist
+    - name: Upload the wheel for Gym Jiminy
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      uses: actions/upload-artifact@v1
+      with:
+        name: gym_jiminy-wheel
+        path: ./build/pypi/gym_jiminy/dist
+
+#########################################################################################
+
+  publish-pypi:
+    name: "Deploy the Python pip wheels for Windows"
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    steps:
+    - name: Download the wheel for Jiminy_py
+      uses: actions/download-artifact@v1
+      with:
+        name: jiminy_py-wheel
+        path: wheelhouse
+    - name: Download the wheel for Gym Jiminy
+      uses: actions/download-artifact@v1
+      with:
+        name: gym_jiminy-wheel
+        path: wheelhouse
+
+    ####################################################################################
+
+    - name: Publish jiminy_py Python Packages to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_DEPLOY }}
+        packages_dir: build/wheelhouse/
+

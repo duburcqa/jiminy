@@ -7,7 +7,7 @@ from jiminy_py import core as jiminy
 
 
 def load_urdf_default(urdf_path, motor_names, has_freeflyer = False):
-    '''
+    """
     @brief Create a jiminy.Robot from a URDF with several simplying hypothesis.
 
     @details The goal of this function is to ease creation of jiminy.Robot
@@ -18,7 +18,7 @@ def load_urdf_default(urdf_path, motor_names, has_freeflyer = False):
     @param[in] urdf_path Path to the URDF file
     @param[in] motor_names Name of the motors
     @param[in] has_freeflyer Optional, set the use of a freeflyer joint.
-    '''
+    """
     robot = jiminy.Robot()
     robot.initialize(urdf_path, has_freeflyer = has_freeflyer)
     for joint_name in motor_names:
@@ -40,7 +40,7 @@ def load_urdf_default(urdf_path, motor_names, has_freeflyer = False):
     return robot
 
 def integrate_dynamics(time, x0, dynamics):
-    '''
+    """
     @brief Integrate the dynamics funciton f(t, x) over timesteps time.
     @details This function solves an initial value problem, similar to
              scipy.solve_ivp, with specified stop points: namely, it solves
@@ -55,7 +55,7 @@ def integrate_dynamics(time, x0, dynamics):
     @param[in] x0 Initial starting position.
     @param[in] dynamics Dynamics function, will signature dynamics(t,x) -> dx
     @return A len(time) x dim(x0) array: each line is the solution x at time time[i]
-    '''
+    """
     solver = ode(dynamics)
     solver.set_initial_value(x0, t = time[0])
     solver.set_integrator("dopri5")

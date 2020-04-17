@@ -1,91 +1,33 @@
-# Easy-install procedure on Linux
+# Easy-install procedure on Ubuntu 18
 
-## Jiminy dependencies
+## Jiminy dependencies installation
 
-### Automatic installation
-
-Just run the setup script already available.
+Just run the bash script already available.
 
 ```bash
-sudo ./jiminy/build_tools/setup.sh
+sudo ./jiminy/build_tools/easy_install_deps_ubuntu18.sh
 ```
 
-### Manual installation
-
-#### Boost Python library
-
-```bash
-sudo apt install -y libboost-all-dev
-```
-
-#### Robotpkg
-
-##### Ubuntu 18.04 Bionic
-
-###### Add the repository
-
-```bash
-sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
-curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
-sudo apt update
-```
-
-###### Install some C++ libraries and binaries
-
-```bash
-sudo apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
-                    robotpkg-gepetto-viewer=4.4.0
-```
-
-###### Install some Python packages (Python 2.7 only)
-
-```bash
-sudo apt install -y robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy \
-                    robotpkg-py27-eigenpy robotpkg-py27-pinocchio
-```
-
-###### Install some Python packages (Python 3 only)
-
-```bash
-sudo apt install -y robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
-                    robotpkg-py36-eigenpy robotpkg-py36-pinocchio
-```
-
-##### Other distributions
-
-Robotpkg is also available for Ubuntu 14.04, Ubuntu 16.04, Ubuntu 19.04, Debian 8, and Debian 9.
-
-One can install Python bindings for Pinocchio using Conda:
-```bash
-conda install pinocchio --channel conda-forge
-```
-
-Yet, it is not helpful for compiling C++ code with Pinocchio dependency. If so, then one must compile it from sources. For Debian 10, please follow the advanced instruction in the next section.
-
-#### Python dependencies
-
-##### Installation procedure (Python 3 only)
-
-```bash
-sudo apt install -y python3-tk
-```
-
-### Jiminy learning dependencies (Python 3 only)
+### Gym Jiminy dependencies (Python 3 only)
 
 #### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
-Amazing tutorial: https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070
+
+Amazing tutorial: <https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070>
 
 #### Open AI Gym along with some toy models
+
 ```bash
 pip install gym[atari,box2d,classic_control]
 ```
 
 #### Open AI Gym Stable-Baseline
+
 ```bash
 pip install stable-baselines[mpi]
 ```
 
 #### Coach dependencies
+
 ```bash
 sudo apt install -y python-opencv
 sudo apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
@@ -105,136 +47,67 @@ pip install jiminy-py
 pip install gym-jiminy
 ```
 
+## [optional] Build Jiminy from source
+
+```bash
+RootDir=".... The location of jiminy repository ...."
+
+BUILD_TYPE="Release"
+InstallDir="$RootDir/install"
+
+mkdir "$RootDir/build" "$InstallDir"
+cd "$RootDir/build"
+cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DBoost_NO_SYSTEM_PATHS=OFF \
+      -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+```
+
 ___
 
 
 # Building from source on Linux
 
-## Prerequisites (optional if using the script setup.sh)
+## Prerequisites
 
 ```bash
-sudo apt install -y libeigen3-dev doxygen libtinyxml-dev cmake git
+sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
+python -m pip install numpy
 ```
 
-### Custom Boost version
+## Jiminy dependencies build and install
 
-If for some reasons you want to use a specific version of Boost, use the following installation procedure:
-
-```bash
-wget http://dl.bintray.com/boostorg/release/1.65.1/source/boost_1_65_1.tar.bz2 && \
-sudo tar --bzip2 -xf boost_1_65_1.tar.bz2 && \
-cd boost_1_65_1 && sudo ./bootstrap.sh && \
-sudo ./b2 --architecture=x86 --address-model=64 -j8 install && \
-cd .. && rm boost_1_65_1.tar.bz2
-```
-
-If using Conda venv for Python, do not forget to update Python location in `boost_1_65_1/project-config.jam`. For instance:
+Just run the bash script already available.
 
 ```bash
-import python ;
-if ! [ python.configured ]
-{
-    using python : 3.5 : /home/aduburcq/anaconda3/envs/py35 : /home/aduburcq/anaconda3/envs/py35/include/python3.5m/ ;
-}
-```
-
-At least for Boost 1.65.1, it is necessary to [fix Boost Numpy](https://github.com/boostorg/python/pull/218/commits/0fce0e589353d772ceda4d493b147138406b22fd). Update `wrap_import_array` method in `boost_1_65_1/libs/python/src/numpy/numpy.cpp`:
-```bash
-static void * wrap_import_array()
-{
-  import_array();
-  return NULL;
-}
-```
-
-Finally, add the following lines in your `.bashrc`:
-
-```bash
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-```
-
-In addition, make sure to be using `numpy>=1.16.0`.
-
-### Install Eigenpy
-
-```bash
-git clone --recursive https://github.com/stack-of-tasks/eigenpy.git && \
-cd eigenpy && mkdir -p build && cd build && \
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/usr/local \
-         -DPYTHON_EXECUTABLE:FILEPATH=/home/aduburcq/anaconda3/envs/py35/bin/python \
-         -DBOOST_ROOT:PATHNAME=/usr/local/ && \
-sudo make install -j8 && \
-cd .. && rm -f eigenpy
-```
-
-### Install Urdfdom 0.3.0 (soversion 0.2.0)
-
-```bash
-git clone git://github.com/ros/console_bridge.git && \
-cd console_bridge && git checkout 0.2.7 && \
-mkdir -p build && cd build && \
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/usr/local && \
-sudo make install -j8 && \
-cd .. && rm -f console_bridge
-```
-
-```bash
-git clone git://github.com/ros/urdfdom_headers.git && \
-cd urdfdom_headers && git checkout 0.3.0 && \
-mkdir -p build && cd build && \
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/usr/local && \
-sudo make install -j8 && \
-cd .. && rm -f urdfdom_headers
-```
-
-```bash
-git clone git://github.com/ros/urdfdom.git && \
-cd urdfdom && git checkout 0.3.0 && \
-mkdir -p build && cd build && \
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/usr/local && \
-sudo make install -j8 && \
-cd .. && rm -f urdfdom
-```
-
-At least for Urdfdom 0.3.0, it is necessary to fix Python Array API initialization and code Python 2.7 only:
-update `DuckTypedFactory` method in `urdf_parser_py/src/urdf_parser_py/xml_reflection/core.py` to replace `except Exception, e` by `except Exception as e:`, and
-`install` call in `urdf_parser_py/CMakeLists.txt` to remove `--install-layout deb`.
-
-### Install Pinocchio v2.1.10 (lower versions are not supported)
-
-```bash
-git clone --recursive https://github.com/stack-of-tasks/pinocchio && \
-cd pinocchio && git checkout v2.1.10 && \
-mkdir -p build && cd build && \
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-         -DCMAKE_INSTALL_PREFIX=/usr/local \
-         -DPYTHON_EXECUTABLE:FILEPATH=/home/aduburcq/anaconda3/envs/py35/bin/python \
-         -DBOOST_ROOT:PATHNAME=/usr/local/ \
-         -DPROJECT_URL="http://github.com/stack-of-tasks/pinocchio" && \
-sudo make install -j8 && \
-cd .. && rm -f pinocchio
-```
-
-### Configure .bashrc
-
-Add the following lines:
-
-```bash
-export PKG_CONFIG_PATH=/opt/openrobots/lib/pkgconfig:$PKG_CONFIG_PATH
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-export PYTHONPATH=/usr/local/lib/pythonXXX/site-packages:$PYTHONPATH
+BUILD_TYPE="Release" ./build_tools/build_install_deps_linux.sh
 ```
 
 ## Build Procedure
 
 ```bash
-mkdir jiminy && cd jiminy
-cmake $HOME/src/jiminy -DBoost_NO_SYSTEM_PATHS=OFF -DCMAKE_CXX_FLAGS="-isystem\ /usr/include/eigen3" -DCMAKE_INSTALL_PREFIX=$HOME/install
-make && make install
+RootDir=".... The location of jiminy repository ...."
+PythonVer=".... Your version X.Y of Python, for instance 3.8 ...."
+
+BUILD_TYPE="Release"
+InstallDir="$RootDir/install"
+
+unset Boost_ROOT
+
+mkdir "$RootDir/build"
+cd "$RootDir/build"
+cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="$PythonVer" \
+      -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+mkdir -p "$HOME/.local/lib/python${PythonVer}/site-packages"
+echo "$InstallDir/lib/python${PythonVer}/site-packages" \
+> "$HOME/.local/lib/python${PythonVer}/site-packages/user_site.pth"
 ```
 
 ___
@@ -244,54 +117,58 @@ ___
 
 ## Prerequisites
 
-You have to preinstall by yourself the MSVC toolchain (automated build script only compatible with this exact version so far), `chocolatey` and `python3`. Then, install `Numpy` and `Pkg-Config` using
+You have to preinstall by yourself the (free) MSVC 2019 toolchain, `chocolatey` and `python3` (available on Microsoft store). Then, install `Numpy` and `Pkg-Config` using
 
 ```pwsh
-    choco install pkgconfiglite -y
-    python -m pip install numpy
+choco install pkgconfiglite -y
+python -m pip install numpy wheel
 ```
 
-## Automatic dependency installation
+## Jiminy dependencies build and install
 
-Now you can simply run the setup script already available.
+Now you can simply run the powershell script already available.
 
 ```pwsh
-    & './jiminy/build_tools/setup.ps1'
+$Env:BUILD_TYPE = "Release"
+& './build_tools/build_install_deps_windows.ps1'
 ```
 
 ## Build Procedure
 
 You are finally ready to build Jiminy itself
 ```pwsh
-    $RootDir = ...
-    $InstallDir = "$RootDir\install"
-    $BuildType = "Release" # Must be the same flag as in setup.ps1 if used to compile the dependencies
+$RootDir = ".... The location of jiminy repository ...."
 
-    if (Test-Path Env:/Boost_ROOT) {
-        Remove-Item Env:/Boost_ROOT
-    }
+$Env:BUILD_TYPE = "Release"
+$RootDir = $RootDir -replace '\\', '/'
+$InstallDir = "$RootDir/install"
 
-    if (-not (Test-Path -PathType Container $RootDir\jiminy\build)) {
-        New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build"
-    }
-    Set-Location -Path $RootDir\jiminy\build
-    $CmakeModulePath = "$InstallDir/share/eigen3/cmake/;$InstallDir/lib/cmake/eigenpy/;$InstallDir/CMake/" -replace '\\', '/'
-    $CmakeCxxFlags = "/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
-    cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-                                               -DBOOST_ROOT="$InstallDir" -DBoost_USE_STATIC_LIBS=OFF `
-                                               -DBoost_NO_BOOST_CMAKE=FALSE -DBoost_NO_SYSTEM_PATHS=TRUE `
-                                               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-                                               -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
-    cmake --build . --config "$BuildType" --parallel 2
-    
-    if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
-      New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-    }
-    Copy-Item "$InstallDir\bin\eigenpy.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-    Copy-Item "$InstallDir\lib\urdfdom_model.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-    Copy-Item "$InstallDir\lib\boost_numpy38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-    Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
-    Copy-Item -Path "$InstallDir\lib\site-packages\*" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
-    
-    cmake --build . --target INSTALL --config "$BuildType" --parallel 2
+if (Test-Path Env:/Boost_ROOT) {
+  Remove-Item Env:/Boost_ROOT
+}
+
+if (-not (Test-Path -PathType Container $RootDir/build)) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/build"
+}
+Set-Location -Path $RootDir/build
+cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_MODULE_PATH="$InstallDir" `
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
+      -DBoost_USE_STATIC_LIBS=OFF `
+      -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
+      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
+cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
+
+if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+}
+Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
+          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
+          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+Copy-Item -Path "$InstallDir/lib/site-packages/*" `
+          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
+
+cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 ```

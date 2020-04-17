@@ -14,14 +14,14 @@ TOLERANCE = 1e-7
 
 
 class SimulateTwoMasses(unittest.TestCase):
-    '''
+    """
     @brief Simulate the motion of two masses held together by a spring damper,
            and compare with the analytical solution.
 
     @details The system simulated can be represented as such:
                   k1   M1   k2   M2
              //| <><> |__| <><> |__|
-    '''
+    """
     def setUp(self):
         # Load URDF, create robot.
         self.urdf_path = "data/linear_two_masses.urdf"
@@ -49,9 +49,9 @@ class SimulateTwoMasses(unittest.TestCase):
                            [ self.k[0] / m[0],   -self.k[1] * I,  self.nu[0] / m[0],  -self.nu[1] * I]])
 
     def test_continuous_simulation(self):
-        '''
+        """
         @brief Test simulation of this system using a continuous time controller.
-        '''
+        """
         def compute_command(t, q, v, sensor_data, u):
             u[:] = - self.k * q - self.nu * v
 
@@ -85,10 +85,10 @@ class SimulateTwoMasses(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_discrete_simulation(self):
-        '''
+        """
         @brief Test simulation of this system using internal dynamics using a
                discrete time controller.
-        '''
+        """
         def compute_command(t, q, v, sensor_data, u):
             u[:] = 0.0
 
@@ -122,9 +122,9 @@ class SimulateTwoMasses(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_external_force_profile(self):
-        '''
+        """
         @brief Test adding an external force profile function to the system.
-        '''
+        """
         # Set same springs as usual
         def compute_command(t, q, v, sensor_data, u):
             u[:] = 0.0
@@ -162,9 +162,9 @@ class SimulateTwoMasses(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_fixed_body_constraint(self):
-        '''
+        """
         @brief Test kinematic constraint: fixed second mass with a constaint.
-        '''
+        """
         # Set same spings as usual
         def compute_command(t, q, v, sensor_data, u):
             u[:] = 0.0
@@ -201,13 +201,13 @@ class SimulateTwoMasses(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
     def test_freeflyer_multiple_constraints(self):
-        '''
+        """
         @brief Test having several constraints at once.
         @details This test features:
                      - a freeflyer with a fixed body constraint on the freeflyer
                     (this gives a non-trivial constraint to solve to effectively cancel the freeflyer)
                      - a fixed body constaint on the output mass.
-        '''
+        """
         # Rebuild the model with a freeflyer.
         self.robot = load_urdf_default(self.urdf_path, self.motor_names, has_freeflyer = True)
 
@@ -264,7 +264,7 @@ class SimulateTwoMasses(unittest.TestCase):
         self.assertTrue(np.allclose(x_jiminy[:, [7,8,15,16]], x_analytical, atol=TOLERANCE))
 
     def test_constraint_external_force(self):
-        '''
+        """
         @brief Test support of external force applied with constraints.
         @details To provide a non-trivial test case with an external force non-colinear
                  to the constraints, simulate two masses oscillating, one along
@@ -280,7 +280,7 @@ class SimulateTwoMasses(unittest.TestCase):
                      ^         \<>\
                    [O (f)] <><> [M_11] <><> [M_12 (f)]
 
-        '''
+        """
         # Build two robots with freeflyers, with a freeflyer and a fixed second body constraint.
         # Rebuild the model with a freeflyer.
         robots = []
