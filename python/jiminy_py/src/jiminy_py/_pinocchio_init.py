@@ -18,25 +18,25 @@ def npToTuple(M):
         return npToTTuple(M)
 
 def rotate(axis, ang):
-    '''
+    """
     # Transformation Matrix corresponding to a rotation about x,y or z
     eg. T = rot('x', pi / 4): rotate pi/4 rad about x axis
-    '''
+    """
     cood = {'x': 0, 'y': 1, 'z': 2}
     u = np.zeros((3,), dtype=np.double)
     u[cood[axis]] = 1.0
     return np.asmatrix(pin.AngleAxis(ang, u).matrix())
 
 def rpyToMatrix(rpy):
-    '''
+    """
     # Convert from Roll, Pitch, Yaw to transformation Matrix
-    '''
+    """
     return rotate('z', float(rpy[2])) * rotate('y', float(rpy[1])) * rotate('x', float(rpy[0]))
 
 def matrixToRpy(M):
-    '''
+    """
     # Convert from Transformation Matrix to Roll, Pitch, Yaw
-    '''
+    """
     m = sqrt(M[2, 1] ** 2 + M[2, 2] ** 2)
     p = atan2(-M[2, 0], m)
 

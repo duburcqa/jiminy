@@ -40,13 +40,13 @@ except ImportError:
 
 
 def sleep(dt):
-    '''
+    """
         @brief   Function to provide cross-plateform time sleep with maximum accuracy.
 
         @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
                  As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure
                  accurate delay on a non-real-time systems such as Windows 10.
-    '''
+    """
     _ = time.perf_counter() + dt
     while time.perf_counter() < _:
         pass
@@ -66,7 +66,7 @@ class Viewer:
                  mesh_root_path = None,
                  urdf_rgba=None, robot_index=0,
                  backend=None, window_name='python-pinocchio', scene_name='world'):
-        '''
+        """
         @brief Constructor.
 
         @param robot The jiminy.Robot to display.
@@ -77,7 +77,7 @@ class Viewer:
         @param backend Optional, either 'gepetto-gui' or 'meshcat'.
         @param window_name Window name, used only when gepetto-gui is used as backend.
         @param scene_name Scene name, used only when gepetto-gui is used as backend.
-        '''
+        """
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.scene_name = scene_name
@@ -550,14 +550,14 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
 
 
 def play_logfiles(robots, log_datas, **kwargs):
-    '''
+    """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
 
     @param robots jiminy.Robot: either a single robot, or a list of robot for each log data.
     @param log_datas Either a single dictionnary, or a list of dictionnaries of simulation data log.
     @param kwargs Keyword arguments for play_trajectories method.
-    '''
+    """
     # Reformat everything as lists.
     if not(isinstance(log_datas, list)):
         log_datas = [log_datas]

@@ -73,7 +73,7 @@ sudo apt install -y python3-tk
 ### Jiminy learning dependencies (Python 3 only)
 
 #### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
-Amazing tutorial: https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070
+Amazing tutorial: <https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070>
 
 #### Open AI Gym along with some toy models
 ```bash
@@ -283,7 +283,7 @@ You are finally ready to build Jiminy itself
                                                -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
                                                -DCMAKE_MODULE_PATH="$CmakeModulePath" -DCMAKE_CXX_FLAGS="$CmakeCxxFlags" $RootDir\jiminy
     cmake --build . --config "$BuildType" --parallel 2
-    
+
     if (-not (Test-Path -PathType Container $RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core)) {
       New-Item -ItemType "directory" -Force -Path "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
     }
@@ -292,6 +292,6 @@ You are finally ready to build Jiminy itself
     Copy-Item "$InstallDir\lib\boost_numpy38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
     Copy-Item "$InstallDir\lib\boost_python38-vc142-mt-x64-1_72.dll" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py\core"
     Copy-Item -Path "$InstallDir\lib\site-packages\*" -Destination "$RootDir\jiminy\build\pypi\jiminy_py\src\jiminy_py" -Recurse
-    
+
     cmake --build . --target INSTALL --config "$BuildType" --parallel 2
 ```

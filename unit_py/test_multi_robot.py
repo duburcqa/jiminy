@@ -15,7 +15,7 @@ TOLERANCE = 1e-7
 
 class SimulateMultiRobot(unittest.TestCase):
     def test_multi_robot(self):
-        '''
+        """
         @brief Simulate interaction between two robots.
 
         @details The system simulated can be represented as such: each system is a single mass
@@ -25,7 +25,7 @@ class SimulateMultiRobot(unittest.TestCase):
                              k2         |  |
                 //| <><> <><> <><> <><> |__|
 
-        '''
+        """
         # Load URDF, create robot.
         urdf_path = "data/linear_single_mass.urdf"
 

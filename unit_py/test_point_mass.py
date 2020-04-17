@@ -34,13 +34,13 @@ class SimulatePointMass(unittest.TestCase):
         force_sensor.initialize('MassBody')
 
     def test_contact_point_dynamics(self):
-        '''
+        """
         @brief Validate the contact dynamics.
 
         @details The energy is expected to decrease slowly when penetrating into the ground,
                  but should stay constant otherwise. Then, the equilibrium point must also
                  match the physics. Note that the friction model is not assessed here.
-        '''
+        """
         # Create the engine
         engine = jiminy.Engine()
         engine.initialize(self.robot)
@@ -92,12 +92,12 @@ class SimulatePointMass(unittest.TestCase):
         self.assertTrue(np.allclose(self.k_contact * x_jiminy[-1, 2], mass * gravity, atol=TOLERANCE))
 
     def test_friction_model(self):
-        '''
+        """
         @brief Validate the friction model.
 
         @details The transition between dry, dry-viscous, and viscous friction is assessed.
                  The energy variation and the steady state are also compared to the theoretical model.
-        '''
+        """
 
         # Create the engine
         engine = jiminy.Engine()
