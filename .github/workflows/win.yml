@@ -58,6 +58,8 @@ jobs:
         if (Test-Path Env:/Boost_ROOT) {
           Remove-Item Env:/Boost_ROOT
         }
+        
+        $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 
         if (-not (Test-Path -PathType Container $RootDir/build)) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build"
@@ -101,11 +103,13 @@ jobs:
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
     - name: Upload the wheel for Jiminy_py
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py-wheel
         path: ./build/pypi/jiminy_py/dist
     - name: Upload the wheel for Gym Jiminy
+      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
         name: gym_jiminy-wheel
@@ -114,9 +118,10 @@ jobs:
 #########################################################################################
 
   publish-pypi:
-    needs: build-and-test
     name: "Deploy the Python pip wheels for Windows"
+    needs: build-and-test
     runs-on: ubuntu-latest
+    if: github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     steps:
     - name: Download the wheel for Jiminy_py
@@ -133,7 +138,6 @@ jobs:
     ####################################################################################
 
     - name: Publish jiminy_py Python Packages to PyPI
-      if:  github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
