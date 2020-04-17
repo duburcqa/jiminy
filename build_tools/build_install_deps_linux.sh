@@ -1,5 +1,10 @@
 ################################## Configure the environment ###########################################
 
+### Set the build type to "Release" if undefined
+if [ -z ${var+x} ]; then
+  BUILD_TYPE="Release"
+fi
+
 ### Get the fullpath of Jiminy project
 ScriptDir="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
 RootDir="$(dirname $ScriptDir)"

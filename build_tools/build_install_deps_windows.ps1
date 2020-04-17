@@ -4,6 +4,11 @@
 $ErrorActionPreference = "Stop"
 Set-PSDebug -Trace 1
 
+### Set the build type to "Release" if undefined
+if (-not (Test-Path Env:BUILD_TYPE)) {
+  $Env:BUILD_TYPE = "Release"
+}
+
 ### Get the fullpath of Jiminy project
 $RootDir = (Split-Path -Parent "$PSScriptRoot")
 $RootDir = "$RootDir" -replace '\\', '/' # Force cmake compliant path delimiter

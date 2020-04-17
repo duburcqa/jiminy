@@ -138,7 +138,6 @@ $Env:BUILD_TYPE = "Release"
 You are finally ready to build Jiminy itself
 ```pwsh
 $RootDir = ".... The location of jiminy repository ...."
-$PythonVer = ".... Your version X.Y of Python, for instance 3.8 ...."
 
 $Env:BUILD_TYPE = "Release"
 $RootDir = $RootDir -replace '\\', '/'
@@ -156,7 +155,7 @@ cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM
       -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_MODULE_PATH="$InstallDir" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="$PythonVer" `
+      -DBoost_USE_STATIC_LIBS=OFF `
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
 cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
