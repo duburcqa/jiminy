@@ -18,14 +18,26 @@ from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix
 
-# Determine if Gepetto-Viewer is available
-try:
-    import gepetto as _gepetto
-    is_gepetto_available = True
-except ImportError:
-    is_gepetto_available = False
-
 from .state import State
+
+
+# Determine if the various backends are available
+backends_available = []
+import platform
+if platform.system() == 'Linux':
+    try:
+        import gepetto as _gepetto
+        import omniORB as _omniORB
+        backends_available.append('gepetto-gui')
+    except ImportError:
+        pass
+try:
+    import meshcat as _meshcat
+    backends_available.append('meshcat')
+except ImportError:
+    pass
+
+
 
 def sleep(dt):
     '''
@@ -83,12 +95,15 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if Viewer._is_notebook() or not is_gepetto_available:
+                if Viewer._is_notebook() or (not 'gepetto-gui' in backends_available):
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
             else:
                 backend = Viewer.backend
+        else:
+            if not backend in backends_available:
+                raise ValueError("%s backend not available." % backend)
 
         # Update the backend currently running, if any
         if (Viewer.backend != backend) and \
@@ -259,7 +274,7 @@ class Viewer:
 
         color_string = "%.3f_%.3f_%.3f_1.0" % rgb
         color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % rgb # don't close tag with '>', in order to handle <color/> and <color></color>
-        colorized_tmp_path = os.path.join("/tmp", "colorized_urdf_rgba_" + color_string)
+        colorized_tmp_path = os.path.join(tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
         colorized_urdf_path = os.path.join(colorized_tmp_path, os.path.basename(urdf_path))
         if not os.path.exists(colorized_tmp_path):
             os.makedirs(colorized_tmp_path)
@@ -305,7 +320,7 @@ class Viewer:
             except:
                 if (open_if_needed):
                     FNULL = open(os.devnull, 'w')
-                    proc = subprocess.Popen(['gepetto-gui'],
+                    proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
                                             shell=False,
                                             stdout=FNULL,
                                             stderr=FNULL)

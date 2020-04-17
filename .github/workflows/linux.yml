@@ -69,7 +69,10 @@ jobs:
 
     - name: Run unit tests
       run: |
-        export LD_LIBRARY_PATH="/opt/openrobots/lib:/home/install/lib/"
+        RootDir="${GITHUB_WORKSPACE}"
+        InstallDir="$RootDir/install"
+
+        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/"
         ./build/unit/unit
         cd unit_py
         python -m unittest discover -v
