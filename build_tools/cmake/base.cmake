@@ -57,8 +57,8 @@ option(BUILD_EXAMPLES "Build the C++ examples" ON)
 # TODO: Remove after support of find_package for Eigen and Pinocchio,
 # namely after moving to Eigen 3.3.7, Boost 1.71, and Pinocchio 2.3.0
 if(NOT WIN32)
-    link_directories("/opt/openrobots/lib")
-    link_directories("/opt/install/pc/lib")
+    link_directories("/opt/openrobots/lib/")
+    link_directories("/opt/install/pc/lib/")
     include_directories(SYSTEM "/opt/openrobots/include/")
     include_directories(SYSTEM "/opt/install/pc/include/")
     include_directories(SYSTEM "/opt/install/pc/include/eigen3/")
