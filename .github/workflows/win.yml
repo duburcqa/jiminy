@@ -75,8 +75,6 @@ jobs:
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         }
-        Copy-Item -Path "$InstallDir/bin/eigenpy.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `

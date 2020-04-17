@@ -333,7 +333,7 @@ namespace python
         }
 
         static bp::tuple eval(heatMapFunctor_t       & self,
-                              vectorN_t        const & posFrame) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                              vector3_t        const & posFrame)
         {
             std::pair<float64_t, vector3_t> ground = self(posFrame);
             return bp::make_tuple(std::move(std::get<0>(ground)), std::move(std::get<1>(ground)));
@@ -1626,7 +1626,7 @@ namespace python
                                          std::string      const & frameName,
                                          float64_t        const & t,
                                          float64_t        const & dt,
-                                         vectorN_t        const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                                         vector6_t        const & F)
         {
             self.registerForceImpulse(systemName, frameName, t, dt, pinocchio::Force(F));
         }
@@ -1899,7 +1899,7 @@ namespace python
                                          std::string const & frameName,
                                          float64_t   const & t,
                                          float64_t   const & dt,
-                                         vectorN_t   const & F) // Casting numpy array into fixed-size Eigen matrix is not properly supported on Windows
+                                         vector6_t   const & F)
         {
             self.registerForceImpulse(frameName, t, dt, pinocchio::Force(F));
         }

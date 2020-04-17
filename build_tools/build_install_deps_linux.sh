@@ -185,7 +185,7 @@ if ( rpm -q centos-release >/dev/null 2>&1 ) ; then
     "$RootDir/pinocchio/cmake/python.cmake"
 fi
 
-### Remove line 73 of boost.cmake to  disable library type enforced SHARED
+### Remove line 73 of boost.cmake to disable library type enforced SHARED
 sed -i '73s/.*/ /' "$RootDir/pinocchio/cmake/boost.cmake"
 
 ### Must patch /src/CMakefile.txt to disable library type enforced SHARED
@@ -195,7 +195,7 @@ sed -i 's/SHARED //g' "$RootDir/pinocchio/src/CMakeLists.txt"
 sed -i '117s/.*/'"\
 "'SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES '"\
 "'PREFIX "" '"\
-"'SUFFIX ${PYTHON_EXT_SUFFIX} '"\
+"'SUFFIX "${PYTHON_EXT_SUFFIX}" '"\
 "'OUTPUT_NAME "${PYWRAP}") /' \
 "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
 

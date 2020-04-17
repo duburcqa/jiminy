@@ -134,7 +134,19 @@ cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
 
-###
+### Remove line 73 of boost.cmake to disable library type enforced SHARED
+$LineNumber = 73
+$Contents = Get-Content "$RootDir/eigenpy/cmake/boost.cmake"
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
+Out-File -Encoding ASCII "$RootDir/eigenpy/cmake/boost.cmake"
+Set-PSDebug -Trace 1
+
+### Must patch /CMakefile.txt to disable library type enforced SHARED
+$Contents = Get-Content "$RootDir/eigenpy/CMakeLists.txt"
+($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/eigenpy/CMakeLists.txt"
+
+### Build eigenpy
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
@@ -145,7 +157,7 @@ cmake "$RootDir/eigenpy" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBUILD_TESTING=OFF `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ### Must patch line 18 of $InstallDir/lib/pkgconfig/eigenpy.pc because if the list of library includes in ill-formated on Windows.
@@ -164,8 +176,6 @@ Set-Content "$InstallDir/lib/pkgconfig/eigenpy.pc"
 Set-Content "$InstallDir/lib/pkgconfig/eigenpy.pc"
 
 ### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/bin/eigenpy.dll" `
-          -Destination "$InstallDir/lib/site-packages/eigenpy"
 Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
           -Destination "$InstallDir/lib/site-packages/eigenpy"
 
@@ -252,7 +262,7 @@ Set-PSDebug -Trace 1
 
 ### Must patch /urdf_parser/CMakeLists.txt to disable library type enforced SHARED
 (Get-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt").replace('SHARED ', '') | `
-Set-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
+Out-File -Encoding ASCII "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
@@ -306,15 +316,65 @@ TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/console_bridge.lib"
 Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
 Set-PSDebug -Trace 1
 
+### Remove line 66 of boost.cmake to disable library type enforced SHARED
+$LineNumber = 66
+$Contents = Get-Content "$RootDir/pinocchio/cmake/boost.cmake"
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
+Out-File -Encoding ASCII "$RootDir/pinocchio/cmake/boost.cmake"
+Set-PSDebug -Trace 1
+
+### Must patch /src/CMakefile.txt to disable library type enforced SHARED
+$Contents = Get-Content "$RootDir/pinocchio/src/CMakeLists.txt"
+($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/pinocchio/src/CMakeLists.txt"
+
+### Must patch line 148 of bindings/python/CMakeLists.txt to use the right Python library name
+$LineNumber = 148
+$Contents = Get-Content "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES
+                       PREFIX ""
+                       SUFFIX "${PYTHON_EXT_SUFFIX}"
+                       OUTPUT_NAME "${PYWRAP}")
+'
+} else {$_} ; $n++ } | `
+Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
+Set-PSDebug -Trace 1
+
+### Replace recursively in all files the Python library name by the right one
+$configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.py, *.cpp -Recurse
+Set-PSDebug -Trace 0
+Foreach ($file in $configFiles)
+{
+  (Get-Content $file.PSPath) | `
+  Foreach-Object { $_ -replace 'libpinocchio_pywrap', 'pinocchio_pywrap' } | `
+  Out-File -Encoding ASCII $file.PSPath
+}
+Set-PSDebug -Trace 1
+
+### Remove every std::vector bindings, since it makes absolutely no sense to bind such ambiguous types
+$configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.hpp -Recurse
+Set-PSDebug -Trace 0
+Foreach ($file in $configFiles)
+{
+  (Get-Content $file.PSPath) | `
+  Where-Object {$_ -notmatch 'StdVectorPythonVisitor<'} | `
+  Set-Content $file.PSPath
+}
+Set-PSDebug -Trace 1
+
 ### For some reason, the preprocessor directive `PINOCCHIO_EIGEN_PLAIN_TYPE((...))` is not properly generated. Expending it manually
 #   in src/algorithm/joint-configuration.hpp and src/algorithm/joint-configuration.hxx
 $FileNames = @("$RootDir/pinocchio/src/algorithm/joint-configuration.hpp", "$RootDir/pinocchio/src/algorithm/joint-configuration.hxx")
 $DirectiveOrign = 'PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))'
 $DirectiveAfter = 'Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type'
+Set-PSDebug -Trace 0
 Foreach ($file in $FileNames)
 {
   (Get-Content $file).replace($DirectiveOrign, $DirectiveAfter) | Set-Content $file
 }
+Set-PSDebug -Trace 1
 
 ### C-style overloading disambiguation is not working properly with MSVC when it requires double template substitution.
 #   Must patch line at 31 of bindings/python/algorithm/expose-geometry.cpp
@@ -357,19 +417,6 @@ $Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
 Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/multibody/joint/joint-derived.hpp"
 Set-PSDebug -Trace 1
 
-### Patch /bindings/python/module.cpp to add PY_ARRAY_UNIQUE_SYMBOL
-$LineNumber = 5
-$Contents = Get-Content "$RootDir/pinocchio/bindings/python/module.cpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'#define PY_ARRAY_UNIQUE_SYMBOL EIGENPY_ARRAY_API
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include "numpy/ndarrayobject.h"
-#define NO_IMPORT_ARRAY'
-} ; $_ ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/module.cpp"
-Set-PSDebug -Trace 1
-
 ### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
@@ -382,18 +429,10 @@ cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATO
       -DBoost_USE_STATIC_LIBS=OFF  -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-### Fix wrong Python library dll naming convention for Windows
-$PYTHON_EXT_SUFFIX = ( python -c "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))" )
-Remove-Item -Force -Path "$InstallDir/lib/site-packages/pinocchio/pinocchio_pywrap.lib"
-Rename-Item -Force -Path "$InstallDir/lib/site-packages/pinocchio/pinocchio_pywrap.dll" `
-                   -NewName "$InstallDir/lib/site-packages/pinocchio/libpinocchio_pywrap${PYTHON_EXT_SUFFIX}"
-
 ### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/bin/eigenpy.dll" `
-          -Destination "$InstallDir/lib/site-packages/pinocchio"
 Copy-Item -Path "$InstallDir/lib/boost_filesystem*.dll" `
           -Destination "$InstallDir/lib/site-packages/pinocchio"
 Copy-Item -Path "$InstallDir/lib/boost_serialization*.dll" `
