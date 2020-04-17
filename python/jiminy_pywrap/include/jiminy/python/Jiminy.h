@@ -60,6 +60,18 @@ namespace python
     }
 
     template<typename T>
+    T * createInternalBuffer(void)
+    {
+        return (new T());
+    }
+
+    template<>
+    pinocchio::Force * createInternalBuffer<pinocchio::Force>(void)
+    {
+        return (new pinocchio::Force(vector6_t::Zero()));
+    }
+
+    template<typename T>
     bp::handle<> FctPyWrapperArgToPython(T const & arg) = delete; // Do NOT provide default implementation
 
     template<>
@@ -93,7 +105,7 @@ namespace python
     public:
         FctPyWrapper(bp::object const & objPy) :
         funcPyPtr_(objPy),
-        outPtr_(new OutputArg),
+        outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
@@ -103,7 +115,7 @@ namespace python
         // Copy constructor, same as the normal constructor
         FctPyWrapper(FctPyWrapper const & other) :
         funcPyPtr_(other.funcPyPtr_),
-        outPtr_(new OutputArg),
+        outPtr_(createInternalBuffer<OutputArg>()),
         outData_(setDataInternalBuffer(outPtr_)),
         outPyPtr_(nullptr)
         {
