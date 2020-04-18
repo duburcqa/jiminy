@@ -72,25 +72,25 @@ namespace python
     }
 
     template<typename T>
-    bp::handle<> FctPyWrapperArgToPython(T const & arg) = delete; // Do NOT provide default implementation
-
-    template<>
-    bp::handle<> FctPyWrapperArgToPython<float64_t>(float64_t const & arg)
+    enable_if_t<std::is_arithmetic<T>::value, T>
+    FctPyWrapperArgToPython(T const & arg)
     {
-        return bp::handle<>(PyFloat_FromDouble(arg));
+        return arg;
     }
 
-    template<>
-    bp::handle<> FctPyWrapperArgToPython<vectorN_t>(vectorN_t const & arg)
-    {
-        return bp::handle<>(getNumpyReference(const_cast<vectorN_t &>(arg)));
-    }
-
-    template<>
-    bp::handle<> FctPyWrapperArgToPython<Eigen::Ref<vectorN_t const> >(Eigen::Ref<vectorN_t const> const & arg)
+    template<typename T>
+    enable_if_t<is_eigen<T>::value, bp::handle<> >
+    FctPyWrapperArgToPython(T const & arg)
     {
         // Pass the arguments by reference (be careful const qualifiers are lost)
-        return bp::handle<>(getNumpyReference(arg));
+        return bp::handle<>(getNumpyReference(const_cast<T &>(arg)));
+    }
+
+    template<typename T>
+    enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
+    FctPyWrapperArgToPython(T const & arg)
+    {
+        return boost::ref(arg);
     }
 
     template<typename OutputArg, typename ... InputArgs>
@@ -192,6 +192,29 @@ namespace python
                                                     Eigen::Ref<vectorN_t const> /* v1 */,
                                                     Eigen::Ref<vectorN_t const> /* q2 */,
                                                     Eigen::Ref<vectorN_t const> /* v2 */ >;
+
+    // **************************** FctInOutPyWrapper *******************************
+
+    template<typename OutputArg, typename ... InputArgs>
+    struct FctInOutPyWrapper
+    {
+    public:
+        FctInOutPyWrapper(bp::object const & objPy) : funcPyPtr_(objPy) {}
+        void operator() (InputArgs const & ... argsIn,
+                         vectorN_t       &     argOut)
+        {
+            funcPyPtr_(FctPyWrapperArgToPython(argsIn)...,
+                       FctPyWrapperArgToPython(argOut));
+        }
+    private:
+        bp::object funcPyPtr_;
+    };
+
+    using ControllerFctWrapper = FctInOutPyWrapper<vectorN_t /* OutputType */,
+                                                   float64_t /* t */,
+                                                   Eigen::Ref<vectorN_t const> /* q */,
+                                                   Eigen::Ref<vectorN_t const> /* v */,
+                                                   sensorsDataMap_t /* sensorsData*/>;
 
     // ************************** HeatMapFunctorPyWrapper ******************************
 
@@ -521,28 +544,6 @@ namespace python
                        boost::noncopyable>("sensorsData", bp::no_init)
                 .def(SensorsDataMapVisitor());
         }
-    };
-
-    // **************************** ControllerFctWrapper *******************************
-
-    struct ControllerFctWrapper
-    {
-    public:
-        ControllerFctWrapper(bp::object const & objPy) : funcPyPtr_(objPy) {}
-        void operator() (float64_t        const & t,
-                         vectorN_t        const & q,
-                         vectorN_t        const & v,
-                         sensorsDataMap_t const & sensorsData,
-                         vectorN_t              & uCommand)
-        {
-            // Pass the arguments by reference (be careful const qualifiers are lost).
-            bp::handle<> qPy(getNumpyReference(const_cast<vectorN_t &>(q)));
-            bp::handle<> vPy(getNumpyReference(const_cast<vectorN_t &>(v)));
-            bp::handle<> uCommandPy(getNumpyReference(const_cast<vectorN_t &>(uCommand)));
-            funcPyPtr_(t, qPy, vPy, boost::ref(sensorsData), uCommandPy);
-        }
-    private:
-        bp::object funcPyPtr_;
     };
 
     // ***************************** PyMotorVisitor ***********************************
