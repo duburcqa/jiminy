@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-publish-pypi:
-    name: "Build and install project, then run unit tests"
+  build-test-and-publish-pypi-manylinux:
+    name: (manylinux2010) Build and run the unit tests. Then generate and publish the wheels on PyPi.
     runs-on: ubuntu-latest
     container: quay.io/pypa/manylinux2010_x86_64
 
@@ -96,14 +96,14 @@ jobs:
 
     #####################################################################################
 
-    - name: Publish jiminy_py Python Packages to PyPI
+    - name: Publish on PyPi the wheel for Linux of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/wheelhouse/
-    - name: Publish gym_jiminy Python Packages to PyPI
+    - name: Publish on PyPi the wheel of Jiminy_py (Any platform / Any python3 version)
       if: success() && matrix.python-version == '3.6' && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:

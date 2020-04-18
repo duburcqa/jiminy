@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    name: "Build and install project, then run unit tests"
+  build-and-test-linux:
+    name: (Linux) Build the dependencies. Build the project and run the unit tests.
     runs-on: ubuntu-18.04
 
     defaults:

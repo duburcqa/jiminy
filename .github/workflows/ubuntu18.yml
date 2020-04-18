@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy-doc:
-    name: "Build and install project, then run unit tests"
+  build-test-and-deploy-doc-ubuntu18:
+    name: (Ubuntu 18) Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
     runs-on: ubuntu-18.04
 
     defaults:

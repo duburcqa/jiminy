@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    name: "Build project on Windows"
+  build-and-test-win10:
+    name: (Windows) Build the dependencies. Build the project and run the unit tests.
     runs-on: [windows-2019]
 
     defaults:
@@ -96,30 +96,24 @@ jobs:
 
     #####################################################################################
 
-    - name: Generating the Python pip wheels
+    - name: Generating the Python Pip wheels
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
         Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-    - name: Upload the wheel for Jiminy_py
+    - name: Upload the wheel for Windows of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
         path: ./build/pypi/jiminy_py/dist
-    - name: Upload the wheel for Gym Jiminy
-      if: success() && matrix.python-version == '3.6' && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
-      uses: actions/upload-artifact@v1
-      with:
-        name: gym_jiminy-wheel
-        path: ./build/pypi/gym_jiminy/dist
 
 #########################################################################################
 
-  publish-pypi:
-    name: "Deploy the Jiminy_py wheels for Windows"
-    needs: build-and-test
+  publish-pypi-win10:
+    name: (Windows) Publish on PyPi the wheel for Windows of Jiminy_py
+    needs: build-and-test-win
     runs-on: ubuntu-latest
     if: github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
 
@@ -128,21 +122,15 @@ jobs:
         python-version: ['3.6', '3.7', '3.8']
 
     steps:
-    - name: Download the wheel for Jiminy_py
+    - name: Download the wheel previously generated
       uses: actions/download-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
         path: wheelhouse
-    - name: Download the wheel for Gym Jiminy
-      if: matrix.python-version == '3.6'
-      uses: actions/download-artifact@v1
-      with:
-        name: gym_jiminy-wheel
-        path: wheelhouse
 
     ####################################################################################
 
-    - name: Publish jiminy_py Python Packages to PyPI
+    - name: Publish the wheel
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
