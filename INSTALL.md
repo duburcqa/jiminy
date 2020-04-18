@@ -36,18 +36,18 @@ pip install rl_coach
 
 ## Install Jiminy Python package
 
-The project is available on Pypi and therefore can be install easily using `pip`.
-```bash
-pip install jiminy-py
+The project is available on PyPi and therefore can be install easily using `pip`.
+```
+python -m pip install jiminy-py
 ```
 
 ## Install Jiminy learning Python package
 
-```bash
-pip install gym-jiminy
+```
+python -m pip install gym-jiminy
 ```
 
-## [optional] Build Jiminy from source
+## (optional) Build Jiminy from source
 
 ```bash
 RootDir=".... The location of jiminy repository ...."
@@ -62,6 +62,31 @@ cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
+```
+
+# Easy-install procedure on Windows (Python 3 only)
+
+## Jiminy dependencies installation
+
+Install the [Microsoft Visual C++ Redistributable for Visual Studio 2015, 2017 and 2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads).
+
+### Gym Jiminy dependencies
+
+#### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
+
+See this tutorial: <https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781>
+
+## Install Jiminy Python package
+
+The project is available on PyPi and therefore can be install easily using `pip`.
+```
+python -m pip install jiminy-py
+```
+
+## Install Jiminy learning Python package
+
+```
+python -m pip install gym-jiminy
 ```
 
 ___
@@ -160,15 +185,15 @@ cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
 cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
-if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+if (-not (Test-Path -PathType Container "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
 }
 Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
-          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
 Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py/core"
 Copy-Item -Path "$InstallDir/lib/site-packages/*" `
-          -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
+          -Destination "$RootDir/build/PyPi/jiminy_py/src/jiminy_py" -Recurse
 
 cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 ```
