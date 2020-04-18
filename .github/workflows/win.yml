@@ -58,7 +58,7 @@ jobs:
         if (Test-Path Env:/Boost_ROOT) {
           Remove-Item Env:/Boost_ROOT
         }
-        
+
         $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 
         if (-not (Test-Path -PathType Container $RootDir/build)) {
@@ -106,10 +106,10 @@ jobs:
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
-        name: jiminy_py-wheel
+        name: jiminy_py${{ matrix.python-version }}-wheel
         path: ./build/pypi/jiminy_py/dist
     - name: Upload the wheel for Gym Jiminy
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && matrix.python-version == '3.6' && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
       with:
         name: gym_jiminy-wheel
@@ -118,18 +118,23 @@ jobs:
 #########################################################################################
 
   publish-pypi:
-    name: "Deploy the Python pip wheels for Windows"
+    name: "Deploy the Jiminy_py wheels for Windows"
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    strategy:
+      matrix:
+        python-version: ['3.6', '3.7', '3.8']
 
     steps:
     - name: Download the wheel for Jiminy_py
       uses: actions/download-artifact@v1
       with:
-        name: jiminy_py-wheel
+        name: jiminy_py${{ matrix.python-version }}-wheel
         path: wheelhouse
     - name: Download the wheel for Gym Jiminy
+      if: matrix.python-version == '3.6'
       uses: actions/download-artifact@v1
       with:
         name: gym_jiminy-wheel
@@ -142,5 +147,4 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: build/wheelhouse/
-
+        packages_dir: wheelhouse

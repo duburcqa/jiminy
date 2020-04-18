@@ -468,4 +468,4 @@ if args.plot:
 
 if args.show:
     # Display the simulation trajectory and the reference
-    play_trajectories([trajectory_data_log], speed_ratio=0.5)
+    play_trajectories([trajectory_data_log], replay_speed=0.5)
