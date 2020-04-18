@@ -68,7 +68,7 @@ make install -j2
 
 ## Jiminy dependencies installation
 
-Install the [Microsoft Visual C++ Redistributable for Visual Studio 2015, 2017 and 2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads).
+Install `python3` 3.6/3.7/3.8 (available on [Microsoft store](https://www.microsoft.com/en-us/p/python-38/9mssztt1n39l)), and [Microsoft Visual C++ Redistributable for Visual Studio 2015, 2017 and 2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads).
 
 ### Gym Jiminy dependencies
 
@@ -142,8 +142,9 @@ ___
 
 ## Prerequisites
 
-You have to preinstall by yourself the (free) MSVC 2019 toolchain, `chocolatey` and `python3` (available on Microsoft store). Then, install `Numpy` and `Pkg-Config` using
+You have to preinstall by yourself the (free) MSVC 2019 toolchain, `chocolatey` and `python`.
 
+Then, install `Numpy` and `Pkg-Config` using
 ```pwsh
 choco install pkgconfiglite -y
 python -m pip install numpy wheel
