@@ -1,19 +1,22 @@
 from setuptools import setup, dist, find_packages
+from setuptools.command.install import install
+
 
 # Force setuptools to recognize that this is actually a binary distribution
 class BinaryDistribution(dist.Distribution):
     def is_pure(self):
         return False
-    def has_ext_modules(foo):
+
+    def has_ext_modules(self):
         return True
 
 # Force setuptools to not consider shared libraries as purelib
-from setuptools.command.install import install
 class InstallPlatlib(install):
     def finalize_options(self):
         install.finalize_options(self)
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
+
 
 setup(name = 'jiminy_py',
       version = '1.2.20',
