@@ -16,14 +16,14 @@ class InstallPlatlib(install):
             self.install_lib = self.install_platlib
 
 setup(name = 'jiminy_py',
-      version = '1.2.19',
+      version = '1.2.20',
       license = 'MIT',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url = 'https://github.com/Wandercraft/jiminy',
-      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.2.19.tar.gz',
+      download_url = 'https://github.com/Wandercraft/jiminy/archive/1.2.20.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd']},
