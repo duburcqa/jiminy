@@ -461,7 +461,7 @@ class Viewer:
                 self._client.viewer[\
                     self._getViewerNodeName(visual, pnc.GeometryType.VISUAL)].set_transform(T)
 
-    def display(self, evolution_robot, speed_ratio, xyz_offset=None):
+    def display(self, evolution_robot, replay_speed, xyz_offset=None):
         t = [s.t for s in evolution_robot]
         i = 0
         init_time = time.time()
@@ -477,12 +477,12 @@ class Viewer:
                     self._rb.display(q)
                 except Viewer._backend_exception:
                     break
-            t_simu = (time.time() - init_time) * speed_ratio
+            t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
 
 
-def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, speed_ratio=1.0,
+def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, replay_speed=1.0,
                       start_paused=False, backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
@@ -499,7 +499,7 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
-    @param[in]  speed_ratio         Speed ratio of the simulation
+    @param[in]  replay_speed        Speed ratio of the simulation
     @param[in]  backend             Backend, one of 'meshcat' or 'gepetto-gui'. By default 'meshcat' is used
                                     in notebook environment and 'gepetto-gui' otherwise.
     @param[in]  window_name         Name of the Gepetto-viewer's window in which to display the robot.
@@ -542,7 +542,7 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
     for i in range(len(trajectory_data)):
         threads.append(Thread(target=robots[i].display,
                               args=(trajectory_data[i]['evolution_robot'],
-                                    speed_ratio, xyz_offset[i])))
+                                    replay_speed, xyz_offset[i])))
     for i in range(len(trajectory_data)):
         threads[i].start()
     for i in range(len(trajectory_data)):
