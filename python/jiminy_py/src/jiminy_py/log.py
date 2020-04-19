@@ -3,7 +3,7 @@
 ## @file jiminy_py/log.py
 
 import numpy as np
-from pandas import read_csv
+from csv import DictReader
 import typing as tp
 
 from .state import State
@@ -54,7 +54,7 @@ def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
         - A dictionnary containing the logged values, and a dictionnary
         containing the constants.
     """
-    if is_binary(filename):
+    if is_log_binary(filename):
         # Read binary file using C++ parser.
         data_dict, constants_dict = Engine.read_log_binary(filename)
     else:
@@ -66,19 +66,26 @@ def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
                 c_split = c.split('=')
                 # Remove line end for last constant.
                 constants_dict[c_split[0]] = c_split[1].strip('\n')
-        # Read data from the log file, skipping the first line (the constants).
-        data = read_csv(filename, skiprows=1).to_dict(orient='list')
+            # Read data from the log file, skipping the first line (the constants).
+            data = {}
+            reader = DictReader(log)
+            for key, value in reader.__next__().items():
+                data[key] = [value]
+            for row in reader:
+                for key, value in row.items():
+                    data[key].append(value)
+            for key, value in data.items():
+                data[key] = np.array(value, dtype=np.float64)
         # Convert every element to array to provide same API as the C++ parser,
         # removing spaces present before the keys.
         data_dict = {k.strip() : np.array(v) for k,v in data.items()}
     return data_dict, constants_dict
 
-def is_binary(filename):
+def is_log_binary(filename):
     """
     From https://stackoverflow.com/a/11301631/4820605.
     Return true if the given filename appears to be binary.
     File is considered to be binary if it contains a NULL byte.
-    FIXME: This approach incorrectly reports UTF-16 as binary.
     """
     with open(filename, 'rb') as f:
         for block in f:

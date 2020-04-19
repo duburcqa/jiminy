@@ -17,7 +17,6 @@ setup(name = 'gym_jiminy',
             'stable_baselines',
             'jiminy-py~=1.2',
             'numpy',
-            'pandas',
             'matplotlib'
       ]
 )
