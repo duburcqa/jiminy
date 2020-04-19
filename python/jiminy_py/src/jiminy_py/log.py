@@ -10,11 +10,10 @@ from .state import State
 from .core import Engine, Robot
 
 def extract_state_from_simulation_log(log_data:tp.Dict, robot:Robot):
-    """
-    @brief      Extract a trajectory object using from raw simulation data.
+    """ Extract a trajectory object using from raw simulation data.
 
     @details    Extract time, joint positions and velocities evolution from log.
-    .
+
     @remark     Note that the quaternion angular velocity vectors are expressed
                 it body frame rather than world frame.
 
@@ -44,8 +43,7 @@ def extract_state_from_simulation_log(log_data:tp.Dict, robot:Robot):
 
 
 def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
-    """
-    Read a logfile from jiminy. This function supports both text (csv)
+    """ Read a logfile from jiminy. This function supports both text (csv)
     and binary log.
 
     Parameters:
@@ -82,8 +80,7 @@ def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
     return data_dict, constants_dict
 
 def is_log_binary(filename):
-    """
-    From https://stackoverflow.com/a/11301631/4820605.
+    """ From https://stackoverflow.com/a/11301631/4820605.
     Return true if the given filename appears to be binary.
     File is considered to be binary if it contains a NULL byte.
     """
