@@ -3,7 +3,7 @@
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from fnmatch import filter
+import fnmatch
 
 from jiminy_py.log import read_log
 
@@ -34,7 +34,7 @@ def main():
         # Expand each element according to regular expression.
         matching_headers = []
         for h in headers:
-            matching_headers.append(sorted(filter(log_data.keys(), h)))
+            matching_headers.append(sorted(fnmatch.filter(log_data.keys(), h)))
         # Get minimum size for number of subplots.
         n_subplots = min([len(l) for l in matching_headers])
         for i in range(n_subplots):
@@ -50,7 +50,7 @@ def main():
         n_rows = n_rows + 1
         n_cols = np.ceil(n_plot / (1.0 * n_rows))
 
-    fig, axs = plt.subplots(nrows=int(n_rows), ncols=int(n_cols), sharex = True)
+    _, axs = plt.subplots(nrows=int(n_rows), ncols=int(n_cols), sharex = True)
 
     if n_plot == 1:
         axs = np.array([axs])

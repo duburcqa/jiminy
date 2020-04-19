@@ -7,9 +7,9 @@ from csv import DictReader
 import typing as tp
 
 from .state import State
-from .core import Engine
+from .core import Engine, Robot
 
-def extract_state_from_simulation_log(log_data:tp.Dict, robot:"jiminy_py.core.Robot"):
+def extract_state_from_simulation_log(log_data:tp.Dict, robot:Robot):
     """
     @brief      Extract a trajectory object using from raw simulation data.
 
