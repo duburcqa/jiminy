@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(name = 'gym_jiminy',
-      version = '1.2.23',
+      version = '1.2.24',
       license = 'MIT',
       description = 'Python-native interface between OpenAI Gym and Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
@@ -15,6 +15,9 @@ setup(name = 'gym_jiminy',
       install_requires = [
             'gym',
             'stable_baselines',
-            'jiminy-py~=1.2'
+            'jiminy-py~=1.2',
+            'numpy',
+            'pandas',
+            'matplotlib'
       ]
 )

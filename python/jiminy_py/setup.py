@@ -19,7 +19,7 @@ class InstallPlatlib(install):
 
 
 setup(name = 'jiminy_py',
-      version = '1.2.23',
+      version = '1.2.24',
       license = 'MIT',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',

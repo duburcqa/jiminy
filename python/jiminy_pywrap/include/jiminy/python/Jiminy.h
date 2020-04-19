@@ -1497,8 +1497,8 @@ namespace python
                 .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
                                   (bp::arg("self"), "filename",
                                    bp::arg("isModeBinary") = true))
-                .def("read_log", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
-                .staticmethod("read_log")
+                .def("read_log_binary", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
+                .staticmethod("read_log_binary")
 
                 .def("register_force_impulse", &PyEngineMultiRobotVisitor::registerForceImpulse,
                                                (bp::arg("self"), "system_name",

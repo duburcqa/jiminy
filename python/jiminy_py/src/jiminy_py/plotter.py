@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fnmatch import filter
 
-from jiminy_py.core import Engine
+import jiminy_py
 
 def main():
     description_str = "Plot data from a jiminy log file using matplotlib.\n" + \
@@ -18,7 +18,7 @@ def main():
     main_arguments, plotting_commands = parser.parse_known_args()
 
     # Load log file.
-    log_data, _ = Engine.read_log(main_arguments.input)
+    log_data, _ = jiminy_py.read_log(main_arguments.input)
 
     # If no plotting commands, display the list of headers instead.
     if len(plotting_commands) == 0:
@@ -62,9 +62,10 @@ def main():
     for i in range(n_plot):
         for name in plotted_elements[i]:
             axs[i].plot(t, log_data[name], label = name)
-    # Add legend to upper left corner.
+    # Add legend and grid.
     for ax in axs:
-        ax.legend(bbox_to_anchor=(1.0, 1.0), loc = 1)
+        ax.set_xlabel('time (s)')
+        ax.legend()
         ax.grid()
     plt.subplots_adjust(bottom=0.05, top=0.98, left=0.06, right=0.98, wspace=0.1, hspace=0.05)
     plt.show()
