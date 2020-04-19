@@ -1,11 +1,22 @@
-# Easy-install procedure on Ubuntu 18
+# Easy-install procedure on Ubuntu 14/16/18/19, and Debian 8/9
 
 ## Jiminy dependencies installation
 
-Just run the bash script already available.
+
+There is not requirement to install `jiminy_py` on linux if one does not want to build it. Nevertheless, this package does not provide the backend viewer `gepetto-gui` (still, the backend `meshcat` is available).
+
+The first step to install `gepetto-gui` is to setup the APT repository `robotpkg` to have access to compiled binaries.
 
 ```bash
-sudo ./jiminy/build_tools/easy_install_deps_ubuntu18.sh
+sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
+curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
+sudo apt update
+```
+
+Once done, it is straightforward to install the required package;
+
+```bash
+sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy
 ```
 
 ### Gym Jiminy dependencies (Python 3 only)
@@ -48,6 +59,14 @@ python -m pip install gym-jiminy
 ```
 
 ## (optional) Build Jiminy from source
+
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically.
+
+```bash
+sudo ./jiminy/build_tools/easy_install_deps_ubuntu18.sh
+```
+
+You are now ready to build and install Jiminy itself.
 
 ```bash
 RootDir=".... The location of jiminy repository ...."

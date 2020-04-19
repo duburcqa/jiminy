@@ -563,26 +563,26 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
         Viewer.close()
 
 
-def play_logfiles(robots, log_datas, **kwargs):
+def play_logfiles(robots, logs_data, **kwargs):
     """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
 
-    @param robots jiminy.Robot: either a single robot, or a list of robot for each log data.
-    @param log_datas Either a single dictionnary, or a list of dictionnaries of simulation data log.
-    @param kwargs Keyword arguments for play_trajectories method.
+    @param robots    jiminy.Robot: either a single robot, or a list of robot for each log data.
+    @param logs_data Either a single dictionnary, or a list of dictionaries of simulation data log.
+    @param kwargs    Keyword arguments for play_trajectories method.
     """
     # Reformat everything as lists.
-    if not(isinstance(log_datas, list)):
-        log_datas = [log_datas]
+    if not(isinstance(logs_data, list)):
+        logs_data = [logs_data]
     if not(isinstance(robots, list)):
-        robots = [robots] * len(log_datas)
+        robots = [robots] * len(logs_data)
 
     # For each pair (robot, log), create a dictionnary for play_trajectories.
     trajectories = []
     for i in range(len(robots)):
         robot = robots[i]
-        log_data = log_datas[i]
+        log_data = logs_data[i]
 
         # Get the current robot model options
         model_options = robot.get_model_options()
@@ -610,10 +610,9 @@ def play_logfiles(robots, log_datas, **kwargs):
         for i in range(len(t)):
             evolution_robot.append(State(qe[i].T, None, None, t[i]))
 
-        traj = {'evolution_robot': evolution_robot,
-                'robot': robot,
-                'use_theoretical_model': use_theoretical_model}
-        trajectories.append(traj)
+        trajectories.append({'evolution_robot': evolution_robot,
+                             'robot': robot,
+                             'use_theoretical_model': use_theoretical_model})
 
     # Finally, play the trajectories.
     play_trajectories(trajectories, **kwargs)

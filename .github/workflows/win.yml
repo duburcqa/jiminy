@@ -101,9 +101,7 @@ jobs:
       run: |
         Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
-        if ("${{ matrix.python-version }}" -ne "3.6") {
-          Remove-Item -Path "./pypi/jiminy_py/dist/*" -Include *.tar.gz
-        }
+        Remove-Item -Path "./pypi/jiminy_py/dist/*" -Include *.tar.gz
     - name: Upload the wheel for Windows of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: actions/upload-artifact@v1
