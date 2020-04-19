@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from fnmatch import filter
 
-import jiminy_py
+from jiminy_py.log import read_log
 
 def main():
     description_str = "Plot data from a jiminy log file using matplotlib.\n" + \
@@ -18,7 +18,7 @@ def main():
     main_arguments, plotting_commands = parser.parse_known_args()
 
     # Load log file.
-    log_data, _ = jiminy_py.read_log(main_arguments.input)
+    log_data, _ = read_log(main_arguments.input)
 
     # If no plotting commands, display the list of headers instead.
     if len(plotting_commands) == 0:

@@ -15,5 +15,3 @@ except ImportError:
 
 # Import core submodule
 from . import core
-
-from .utils import read_log
