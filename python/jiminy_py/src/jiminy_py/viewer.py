@@ -15,7 +15,7 @@ from PIL import Image
 
 import pinocchio as pnc
 from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio import Quaternion, SE3, se3ToXYZQUAT
+from pinocchio import Quaternion, SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix
 
 from .state import State
@@ -124,6 +124,7 @@ class Viewer:
         try:
             if (Viewer.backend == 'gepetto-gui'):
                 import omniORB
+
                 Viewer._backend_exception = omniORB.CORBA.COMM_FAILURE
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
@@ -132,6 +133,20 @@ class Viewer:
                     self._client = Viewer._backend_obj.gui
                 else:
                     raise RuntimeError("Impossible to open Gepetto-viewer.")
+
+                if not scene_name in self._client.getSceneList():
+                    self._client.createSceneWithFloor(scene_name)
+                if not window_name in self._client.getWindowList():
+                    self._window_id = self._client.createWindow(window_name)
+                    self._client.addSceneToWindow(scene_name, self._window_id)
+                    self._client.createGroup(scene_name + '/' + scene_name)
+                    self._client.addLandmark(scene_name + '/' + scene_name, 0.1)
+                    self.setCameraTransform(translation=[3.7, 0.0, 0.7],
+                                            rotation=[0.18, 0.0, -np.pi/2],
+                                            relative=True)
+                else:
+                    self._window_id = int(np.where(
+                        [name == window_name for name in self._client.getWindowList()])[0][0])
             else:
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
@@ -175,14 +190,6 @@ class Viewer:
         if (Viewer.backend == 'gepetto-gui'):
             if not scene_name in self._client.getSceneList():
                 self._client.createSceneWithFloor(scene_name)
-            if not window_name in self._client.getWindowList():
-                self._window_id = self._client.createWindow(window_name)
-                self._client.addSceneToWindow(scene_name, self._window_id)
-                self._client.createGroup(scene_name + '/' + scene_name)
-                self._client.addLandmark(scene_name + '/' + scene_name, 0.1)
-            else:
-                self._window_id = int(np.where([name == window_name
-                                            for name in self._client.getWindowList()])[0][0])
             self._rb.initViewer(windowName=window_name, sceneName=scene_name, loadModel=False)
             self._rb.loadViewerModel(robot_name)
             self._client.setFloatProperty(scene_name + '/' + robot_name,
@@ -393,16 +400,20 @@ class Viewer:
                                      self.pinocchio_data,
                                      geom_model, geom_data)
 
-    def setCameraTransform(self, translation, rotation):
+    def setCameraTransform(self, translation=np.zeros(3), rotation=np.zeros(3), relative=False):
         # translation : [Px, Py, Pz],
         # rotation : [Roll, Pitch, Yaw]
 
         R_pnc = rpyToMatrix(np.array(rotation))
         if Viewer.backend == 'gepetto-gui':
-            T_pnc = np.array(translation)
-            T_R = SE3(R_pnc, T_pnc)
-            self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(T_R).tolist())
+            H_abs = SE3(R_pnc, np.array(translation))
+            if relative:
+                H_orig = XYZQUATToSe3(self._client.getCameraTransform(self._window_id))
+                H_abs = H_abs * H_orig
+            self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
         else:
+            if relative:
+                raise RuntimeError("'relative'=True not available with meshcat.")
             import meshcat.transformations as tf
             # Transformation of the camera object
             T_meshcat = tf.translation_matrix(translation)
@@ -552,26 +563,26 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
         Viewer.close()
 
 
-def play_logfiles(robots, log_datas, **kwargs):
+def play_logfiles(robots, logs_data, **kwargs):
     """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
 
-    @param robots jiminy.Robot: either a single robot, or a list of robot for each log data.
-    @param log_datas Either a single dictionnary, or a list of dictionnaries of simulation data log.
-    @param kwargs Keyword arguments for play_trajectories method.
+    @param robots    jiminy.Robot: either a single robot, or a list of robot for each log data.
+    @param logs_data Either a single dictionnary, or a list of dictionaries of simulation data log.
+    @param kwargs    Keyword arguments for play_trajectories method.
     """
     # Reformat everything as lists.
-    if not(isinstance(log_datas, list)):
-        log_datas = [log_datas]
+    if not(isinstance(logs_data, list)):
+        logs_data = [logs_data]
     if not(isinstance(robots, list)):
-        robots = [robots] * len(log_datas)
+        robots = [robots] * len(logs_data)
 
     # For each pair (robot, log), create a dictionnary for play_trajectories.
     trajectories = []
     for i in range(len(robots)):
         robot = robots[i]
-        log_data = log_datas[i]
+        log_data = logs_data[i]
 
         # Get the current robot model options
         model_options = robot.get_model_options()
@@ -599,10 +610,9 @@ def play_logfiles(robots, log_datas, **kwargs):
         for i in range(len(t)):
             evolution_robot.append(State(qe[i].T, None, None, t[i]))
 
-        traj = {'evolution_robot': evolution_robot,
-                'robot': robot,
-                'use_theoretical_model': use_theoretical_model}
-        trajectories.append(traj)
+        trajectories.append({'evolution_robot': evolution_robot,
+                             'robot': robot,
+                             'use_theoretical_model': use_theoretical_model})
 
     # Finally, play the trajectories.
     play_trajectories(trajectories, **kwargs)

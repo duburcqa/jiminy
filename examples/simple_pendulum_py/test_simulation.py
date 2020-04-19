@@ -140,7 +140,7 @@ def get_frame_placement(robot, data, name):
     return data.oMf[frame_id]
 
 # Logging: create global variables to make sure they never get deleted
-com = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0)
+com = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0[:robot.nq], x0[robot.nq:])
 vcom = robot.pinocchio_data_th.vcom[0]
 dcm = com + vcom / omega
 totalWrench = pnc.Force.Zero()
