@@ -100,12 +100,18 @@ def read_log(filename):
 def plot_log():
     description_str = \
         "Plot data from a jiminy log file using matplotlib.\n" + \
-        "Simply specify a list of fields to plot, separated by a colon for plotting on the same subplot.\n" +\
-        "Example: h1 h2:h3 generates two subplots, one with h1, one with h2 and h3.\n" + \
-        "Regular expressions can be used. Enter no plot command (only the file name) to view the list of fields available inside the file."
+        "Specify a list of fields to plot, separated by a colon for plotting on the same subplot.\n\n" + \
+        "Example: h1 h2:h3:h4 generates two subplots, one with h1, one with h2, h3, and h4.\n" + \
+        "Wildcard token '*' can be used. In such a case:\n" + \
+        "- If *h2* matches several fields : each field will be plotted individually in subplots. \n" + \
+        "- If :*h2* matches several fields : each field will be plotted in the same subplot. \n" + \
+        "- If *h2*:*h3*:*h4* matches several fields : each match of h2, h3, and h4 will be plotted jointly in subplots.\n" + \
+        "  Note that if the number of matches for h2, h3, h4 differs, only the minimum number will be plotted.\n" + \
+        "\nEnter no plot command (only the file name) to view the list of fields available inside the file."
 
-    parser = argparse.ArgumentParser(description = description_str, formatter_class = argparse.RawTextHelpFormatter)
-    parser.add_argument("input", help = "Input logfile.")
+    parser = argparse.ArgumentParser(description=description_str,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("input", help="Input logfile.")
     main_arguments, plotting_commands = parser.parse_known_args()
 
     # Load log file.
@@ -121,7 +127,8 @@ def plot_log():
     plotted_elements = []
     for cmd in plotting_commands:
         # Check that the command is valid, i.e. that all elements exits. If it is the case, add it to the list.
-        headers = cmd.split(":")
+        same_subplot = (cmd[0] == ':')
+        headers = cmd.strip(':').split(':')
 
         # Expand each element according to a regular expression.
         matching_headers = []
@@ -136,15 +143,16 @@ def plot_log():
     # Create figure.
     n_plot = len(plotted_elements)
 
+    print(plotted_elements)
+
     # Arrange plot in rectangular fashion: don't allow for n_cols to be more than n_rows + 2
     n_cols = n_plot
     n_rows = 1
     while n_cols > n_rows + 2:
         n_rows = n_rows + 1
-        n_cols = int(np.ceil(n_plot / (1.0 * n_rows)))
+        n_cols = int(np.ceil(n_plot / float(n_rows)))
 
     _, axs = plt.subplots(nrows=n_rows, ncols=n_cols, sharex = True)
-
     if n_plot == 1:
         axs = np.array([axs])
     axs = axs.flatten()
