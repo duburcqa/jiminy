@@ -2,14 +2,17 @@
 
 ## @file jiminy_py/log.py
 
+import argparse
+import fnmatch
 import numpy as np
+import matplotlib.pyplot as plt
 from csv import DictReader
-import typing as tp
 
 from .state import State
 from .core import Engine, Robot
 
-def extract_state_from_simulation_log(log_data:tp.Dict, robot:Robot):
+
+def extract_state_from_simulation_log(log_data, robot):
     """
     @brief      Extract a trajectory object using from raw simulation data.
 
@@ -42,8 +45,20 @@ def extract_state_from_simulation_log(log_data:tp.Dict, robot:Robot):
             'robot': robot,
             'use_theoretical_model': False}
 
+def is_log_binary(filename):
+    """
+    @brief   Return True if the given filename appears to be binary log file.
 
-def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
+    @details File is considered to be binary log if it contains a NULL byte.
+             From https://stackoverflow.com/a/11301631/4820605.
+    """
+    with open(filename, 'rb') as f:
+        for block in f:
+            if b'\0' in block:
+                return True
+    return False
+
+def read_log(filename):
     """
     Read a logfile from jiminy. This function supports both text (csv)
     and binary log.
@@ -54,6 +69,7 @@ def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
         - A dictionnary containing the logged values, and a dictionnary
         containing the constants.
     """
+
     if is_log_binary(filename):
         # Read binary file using C++ parser.
         data_dict, constants_dict = Engine.read_log_binary(filename)
@@ -81,14 +97,70 @@ def read_log(filename:str) -> tp.Tuple[tp.Dict, tp.Dict]:
         data_dict = {k.strip() : np.array(v) for k,v in data.items()}
     return data_dict, constants_dict
 
-def is_log_binary(filename):
-    """
-    Return true if the given filename appears to be binary.
-    From https://stackoverflow.com/a/11301631/4820605.
-    File is considered to be binary if it contains a NULL byte.
-    """
-    with open(filename, 'rb') as f:
-        for block in f:
-            if b'\0' in block:
-                return True
-    return False
+def plot_log():
+    description_str = \
+        "Plot data from a jiminy log file using matplotlib.\n" + \
+        "Simply specify a list of fields to plot, separated by a colon for plotting on the same subplot.\n" +\
+        "Example: h1 h2:h3 generates two subplots, one with h1, one with h2 and h3.\n" + \
+        "Regular expressions can be used. Enter no plot command (only the file name) to view the list of fields available inside the file."
+
+    parser = argparse.ArgumentParser(description = description_str, formatter_class = argparse.RawTextHelpFormatter)
+    parser.add_argument("input", help = "Input logfile.")
+    main_arguments, plotting_commands = parser.parse_known_args()
+
+    # Load log file.
+    log_data, _ = read_log(main_arguments.input)
+
+    # If no plotting commands, display the list of headers instead.
+    if len(plotting_commands) == 0:
+        print("Available data:")
+        print("\n - ".join(log_data.keys()))
+        exit(0)
+
+    # Parse plotting arguments.
+    plotted_elements = []
+    for cmd in plotting_commands:
+        # Check that the command is valid, i.e. that all elements exits. If it is the case, add it to the list.
+        headers = cmd.split(":")
+
+        # Expand each element according to a regular expression.
+        matching_headers = []
+        for h in headers:
+            matching_headers.append(sorted(fnmatch.filter(log_data.keys(), h)))
+
+        # Get minimum size for number of subplots.
+        n_subplots = min([len(l) for l in matching_headers])
+        for i in range(n_subplots):
+            plotted_elements.append([l[i] for l in matching_headers])
+
+    # Create figure.
+    n_plot = len(plotted_elements)
+
+    # Arrange plot in rectangular fashion: don't allow for n_cols to be more than n_rows + 2
+    n_cols = n_plot
+    n_rows = 1
+    while n_cols > n_rows + 2:
+        n_rows = n_rows + 1
+        n_cols = int(np.ceil(n_plot / (1.0 * n_rows)))
+
+    _, axs = plt.subplots(nrows=n_rows, ncols=n_cols, sharex = True)
+
+    if n_plot == 1:
+        axs = np.array([axs])
+    axs = axs.flatten()
+
+    plt.gcf().canvas.set_window_title(main_arguments.input)
+    t = log_data['Global.Time']
+
+    # Plot each element.
+    for i in range(n_plot):
+        for name in plotted_elements[i]:
+            axs[i].plot(t, log_data[name], label = name)
+
+    # Add legend and grid.
+    for ax in axs:
+        ax.set_xlabel('time (s)')
+        ax.legend()
+        ax.grid()
+    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.06, right=0.98, wspace=0.1, hspace=0.05)
+    plt.show()
