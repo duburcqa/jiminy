@@ -75,7 +75,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -84,6 +84,11 @@ namespace jiminy
     std::string const & ImuSensor::getFrameName(void) const
     {
         return frameName_;
+    }
+
+    int32_t const & ImuSensor::getFrameIdx(void) const
+    {
+        return frameIdx_;
     }
 
     hresult_t ImuSensor::set(float64_t                   const & t,
@@ -172,7 +177,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -181,6 +186,11 @@ namespace jiminy
     std::string const & ForceSensor::getFrameName(void) const
     {
         return frameName_;
+    }
+
+    int32_t const & ForceSensor::getFrameIdx(void) const
+    {
+        return frameIdx_;
     }
 
     hresult_t ForceSensor::set(float64_t                   const & t,
@@ -263,12 +273,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
+            returnCode = ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
+            ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
         }
 
         return returnCode;
@@ -277,6 +287,16 @@ namespace jiminy
     std::string const & EncoderSensor::getJointName(void) const
     {
         return jointName_;
+    }
+
+    int32_t const & EncoderSensor::getJointPositionIdx(void)  const
+    {
+
+        return jointPositionIdx_;
+    }
+    int32_t const & EncoderSensor::getJointVelocityIdx(void)  const
+    {
+        return jointVelocityIdx_;
     }
 
     hresult_t EncoderSensor::set(float64_t                   const & t,
@@ -372,6 +392,11 @@ namespace jiminy
     std::string const & TorqueSensor::getMotorName(void) const
     {
         return motorName_;
+    }
+
+    int32_t const & TorqueSensor::getMotorIdx(void) const
+    {
+        return motorIdx_;
     }
 
     hresult_t TorqueSensor::set(float64_t                   const & t,

@@ -23,6 +23,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t                   const & t,
@@ -49,6 +50,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t                   const & t,
@@ -75,6 +77,8 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getJointName(void) const;
+        int32_t const & getJointPositionIdx(void) const;
+        int32_t const & getJointVelocityIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t                   const & t,
@@ -102,6 +106,7 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getMotorName(void) const;
+        int32_t const & getMotorIdx(void) const;
 
     private:
         virtual hresult_t set(float64_t                   const & t,

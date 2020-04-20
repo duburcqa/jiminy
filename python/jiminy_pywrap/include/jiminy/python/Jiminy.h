@@ -730,8 +730,22 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
+            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+
+                cl
+                    .add_property("type", bp::make_function(&AbstractSensorBase::getType,
+                                          bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
+                                                bp::return_value_policy<bp::return_by_value>()))
+                    ;
+            }
+
+            template<class Q = TSensor>
+            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
+            visitBasicSensors(PyClass& cl)
             {
                 visitAbstract(cl);
 
@@ -744,16 +758,50 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
+            static enable_if_t<std::is_same<Q, ImuSensor>::value
+                            || std::is_same<Q, ForceSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
+                visitBasicSensors(cl);
 
                 cl
-                    .add_property("type", bp::make_function(&AbstractSensorBase::getType,
-                                          bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("fieldnames", bp::make_function(&AbstractSensorBase::getFieldnames,
-                                                bp::return_value_policy<bp::return_by_value>()))
+                    .add_property("frame_name", bp::make_function(&TSensor::getFrameName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    ;
+            }
+
+            template<class Q = TSensor>
+            static enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+                visitBasicSensors(cl);
+
+                cl
+                    .add_property("joint_name", bp::make_function(&EncoderSensor::getJointName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_position_idx", bp::make_function(&EncoderSensor::getJointPositionIdx,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_velocity_idx", bp::make_function(&EncoderSensor::getJointVelocityIdx,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    ;
+            }
+
+            template<class Q = TSensor>
+            static enable_if_t<std::is_same<Q, TorqueSensor>::value, void>
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+                visitBasicSensors(cl);
+
+                cl
+                    .add_property("motor_name", bp::make_function(&TorqueSensor::getMotorName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("motor_idx", bp::make_function(&TorqueSensor::getMotorIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
         };
@@ -801,6 +849,11 @@ namespace python
             bp::class_<EncoderSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<EncoderSensor>,
                        boost::noncopyable>("EncoderSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
+
+            bp::class_<TorqueSensor, bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<TorqueSensor>,
+                       boost::noncopyable>("TorqueSensor", bp::init<std::string>())
                 .def(PySensorVisitor());
         }
     };
@@ -973,8 +1026,6 @@ namespace python
                                           (bp::arg("self"), "name"))
 
                 .add_property("sensors_data", &PyRobotVisitor::getSensorsData)
-                .add_property("motors_torques", bp::make_function(&Robot::getMotorsTorques,
-                                                bp::return_value_policy<bp::copy_const_reference>()))
 
                 .def("set_options", &PyRobotVisitor::setOptions,
                                     (bp::arg("self"), "robot_options"))
@@ -999,11 +1050,7 @@ namespace python
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
-                .add_property("sensors_names", bp::make_function(
-                    static_cast<
-                        std::unordered_map<std::string, std::vector<std::string> > const & (Robot::*)(void) const
-                    >(&Robot::getSensorsNames),
-                    bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
                 .add_property("torque_limit", &Robot::getTorqueLimit)
                 .add_property("motor_inertia", &Robot::getMotorInertia)
