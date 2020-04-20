@@ -2,17 +2,15 @@ import os
 import time
 
 import gym
+from gym_jiminy.common import SubprocVecEnvLock
 
-from gym.wrappers import FlattenDictWrapper
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines import PPO2
 
-import jiminy_py
-from gym_jiminy.common import SubprocVecEnvLock
 
 ### Create a multiprocess environment
-nb_cpu = 4
-env = SubprocVecEnvLock([lambda: gym.make("gym_jiminy:jiminy-acrobot-v0") for _ in range(nb_cpu)])
+n_thread = 4
+env = SubprocVecEnvLock([lambda: gym.make("gym_jiminy:jiminy-acrobot-v0") for _ in range(n_thread)])
 
 ### Create the model or load one
 

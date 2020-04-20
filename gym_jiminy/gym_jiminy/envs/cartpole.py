@@ -13,6 +13,8 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 from ..common.robots import RobotJiminyEnv
 
+DT = 2.0e-3      ## Stepper update period
+MAX_FORCE = 40.0 ## Max force of the motor
 
 class JiminyCartPoleEnv(RobotJiminyEnv):
     """
@@ -92,70 +94,58 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
-        self._model = jiminy.Robot()
-        self._model.initialize(urdf_path)
+        self._robot = jiminy.Robot()
+        self._robot.initialize(urdf_path)
 
-        motor_joint_names = ("slider_to_cart",)
+        motor_joint_name = "slider_to_cart"
         encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
-        for joint_name in motor_joint_names:
-            motor = jiminy.SimpleMotor(joint_name)
-            self._model.attach_motor(motor)
-            motor.initialize(joint_name)
+        motor = jiminy.SimpleMotor(motor_joint_name)
+        self._robot.attach_motor(motor)
+        motor.initialize(motor_joint_name)
         for sensor_name, joint_name in encoder_sensors_def.items():
             encoder = jiminy.EncoderSensor(sensor_name)
-            self._model.attach_sensor(encoder)
+            self._robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(self._model)
+        engine_py = EngineAsynchronous(self._robot)
 
         # ############################### Configure Jiminy #####################################
 
-        robot_options = self._model.get_options()
-        engine_options = engine_py.get_engine_options()
-        ctrl_options = engine_py.get_controller_options()
+        robot_options = self._robot.get_options()
 
-        robot_options["telemetry"]["enableEncoderSensors"] = False
-        engine_options["telemetry"]["enableConfiguration"] = False
-        engine_options["telemetry"]["enableVelocity"] = False
-        engine_options["telemetry"]["enableAcceleration"] = False
-        engine_options["telemetry"]["enableTorque"] = False
-        engine_options["telemetry"]["enableEnergy"] = False
+        # Set the torque limits of the motor
+        robot_options["motors"][motor_joint_name]["torqueLimitFromUrdf"] = False
+        robot_options["motors"][motor_joint_name]["torqueLimit"] = MAX_FORCE
 
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
-
-        self._model.set_options(robot_options)
-        engine_py.set_engine_options(engine_options)
-        engine_py.set_controller_options(ctrl_options)
+        self._robot.set_options(robot_options)
 
         # ##################### Define some problem-specific variables #########################
 
-        ## Torque magnitude of the action
-        self.force_mag = 40.0
+        ## Map between discrete actions and actual motor force
+        self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
 
         ## Maximum absolute angle of the pole before considering the episode failed
         self.theta_threshold_radians = 25 * pi / 180
+
         ## Maximum absolute position of the cart before considering the episode failed
         self.x_threshold = 0.75
 
         # ####################### Configure the learning environment ###########################
 
-        # The time step of the 'step' method
-        dt = 2.0e-3
+        super().__init__("cartpole", engine_py, DT)
 
-        super(JiminyCartPoleEnv, self).__init__("cartpole", engine_py, dt)
+        # #################### Overwrite some problem-generic variables ########################
 
-        # ##################### Define some problem-specific variables #########################
-
-        # Bounds of the observation space.
-        # Note that the Angle limit set to 2 * theta_threshold_radians
-        # so failing observation is still within bounds
+        # Replace the observation space, which is the spa space instead of the sensor space.
+        # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
+        # failure are still within bounds.
         high = np.array([self.x_threshold * 2,
                          self.theta_threshold_radians * 2,
-                         np.finfo(np.float64).max,
-                         np.finfo(np.float64).max])
+                         *self._robot.velocity_limit])
 
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
 
+        # Bounds of the hypercube associated with the initial state of the robot
         self.state_random_high = np.array([0.5, 0.15, 0.1, 0.1])
         self.state_random_low = -self.state_random_high
 
@@ -167,18 +157,18 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         @brief      Run a simulation step for a given.
 
         @param[in]  action  The action to perform (in the action space rather than
-                            the original torque space).
+                            the original force space).
 
         @return     The next state, the reward, the status of the simulation (done or not),
                     and an empty dictionary for compatibility with Gym OpenAI.
         """
-        assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+
+        # Compute the force to apply
+        force = self.AVAIL_FORCE[action]
 
         # Bypass 'action' setter and use direct assignment to max out the performances
-        if action == 1:
-            self.engine_py._action[0] = self.force_mag
-        else:
-            self.engine_py._action[0] = -self.force_mag
+        self.engine_py._action[0] = force
         self.engine_py.step(dt_desired=self.dt)
         self.state = self.engine_py.state
 
@@ -196,6 +186,14 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             self.steps_beyond_done += 1
 
         return self.state, reward, done, {}
+
+
+    def _sample_state(self):
+        """
+        @brief      Returns a random valid initial state.
+        """
+        return self.np_random.uniform(low=self.state_random_low,
+                                      high=self.state_random_high)
 
 
     def _get_obs(self):
@@ -222,7 +220,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         @return     Boolean flag
         """
-        x, theta, x_dot, theta_dot = self.state
+        x, theta, _, _ = self.state
         return        x < -self.x_threshold \
                or     x >  self.x_threshold \
                or theta < -self.theta_threshold_radians \

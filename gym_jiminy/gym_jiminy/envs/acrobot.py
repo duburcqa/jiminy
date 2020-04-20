@@ -13,6 +13,10 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 from ..common.robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
+DT = 2.0e-3         ## Stepper update period
+MAX_VEL = 4 * pi    ## Max velocity of the joints
+MAX_TORQUE = 10.0   ## Max torque of the motor
+ACTION_NOISE = 0.0  ## Standard deviation of the noise added to the action
 
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
     """
@@ -87,101 +91,83 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
 
-        self._model = jiminy.Robot() # Robot has to be an attribute of the class to avoid being garbage collected
-        self._model.initialize(urdf_path)
+        self._robot = jiminy.Robot() # Robot has to be an attribute of the class to avoid being garbage collected
+        self._robot.initialize(urdf_path)
 
-        motor_joint_names = ("SecondPendulumJoint",)
+        motor_joint_name = "SecondPendulumJoint"
         encoder_joint_names = ("PendulumJoint", "SecondPendulumJoint")
-        for joint_name in motor_joint_names:
-            motor = jiminy.SimpleMotor(joint_name)
-            self._model.attach_motor(motor)
-            motor.initialize(joint_name)
+        motor = jiminy.SimpleMotor(motor_joint_name)
+        self._robot.attach_motor(motor)
+        motor.initialize(motor_joint_name)
         for joint_name in encoder_joint_names:
             encoder = jiminy.EncoderSensor(joint_name)
-            self._model.attach_sensor(encoder)
+            self._robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(self._model)
+        engine_py = EngineAsynchronous(self._robot)
 
         # ############################### Configure Jiminy #####################################
 
-        robot_options = self._model.get_options()
-        engine_options = engine_py.get_engine_options()
-        ctrl_options = engine_py.get_controller_options()
+        robot_options = self._robot.get_options()
 
-        robot_options["telemetry"]["enableEncoderSensors"] = False
-        engine_options["telemetry"]["enableConfiguration"] = False
-        engine_options["telemetry"]["enableVelocity"] = False
-        engine_options["telemetry"]["enableAcceleration"] = False
-        engine_options["telemetry"]["enableTorque"] = False
-        engine_options["telemetry"]["enableEnergy"] = False
+        # Set the position and velocity bounds of the robot
+        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
+        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
 
-        engine_options["stepper"]["solver"] = "runge_kutta_dopri5" # ["runge_kutta_dopri5", "explicit_euler"]
+        # Set the torque limits of the motors
+        robot_options["motors"][motor_joint_name]["torqueLimitFromUrdf"] = False
+        robot_options["motors"][motor_joint_name]["torqueLimit"] = MAX_TORQUE
 
-        self._model.set_options(robot_options)
-        engine_py.set_engine_options(engine_options)
-        engine_py.set_controller_options(ctrl_options)
+        self._robot.set_options(robot_options)
 
         # ##################### Define some problem-specific variables #########################
 
-        ## Max velocity of joint 1
-        self.MAX_VEL_1 = 4 * pi
-        ## Max velocity of joint 2
-        self.MAX_VEL_2 = 4 * pi
-
         if not self.continuous:
-            ## Torque magnitude of the action
-            self.AVAIL_TORQUE = [-1.0, 0.0, +1.0]
-
-        ## Force mag of the action
-        self.torque_mag = np.array([10.0])
-
-        ## Noise standard deviation added to the action
-        self.torque_noise_max = 0.0
+            ## Map between discrete actions and actual motor torque
+            self.AVAIL_TORQUE = [-MAX_TORQUE, 0.0, MAX_TORQUE]
 
         ## Angle at which to fail the episode
         self.theta_threshold_radians = 25 * pi / 180
+
         ## Position at which to fail the episode
         self.x_threshold = 0.75
 
-        # Internal parameters to generate sample goals and compute the terminal condition
+        # Internal parameters use to generate sample goals and compute the terminal condition
         self._tipIdx = engine_py._engine.robot.pinocchio_model.getFrameId("SecondPendulumMass")
         self._tipPosZMax = engine_py._engine.robot.pinocchio_data.oMf[self._tipIdx].translation[2]
 
         # ####################### Configure the learning environment ###########################
 
-        # The time step of the 'step' method
-        dt = 2.0e-3
-
-        super(JiminyAcrobotGoalEnv, self).__init__("acrobot", engine_py, dt)
+        super().__init__("acrobot", engine_py, DT)
 
         # #################### Overwrite some problem-generic variables ########################
 
-        # Update the velocity bounds of the robot
-        model_options = self._model.get_model_options()
-        model_options["joints"]["velocityLimit"] = [self.MAX_VEL_1, self.MAX_VEL_2]
-        model_options["joints"]["velocityLimitFromUrdf"] = False
-        self._model.set_model_options(model_options)
+        # Replace the observation space, which is NOT the sensor space in this case,
+        # for consistency with the official gym acrobot-v1 (https://gym.openai.com/envs/Acrobot-v1/)
+        obs_high = np.array([1.0, 1.0, 1.0, 1.0, MAX_VEL, MAX_VEL])
 
-        # Update the goal spaces and the observation space (which is different from the state space in this case)
+        # Set bounds to the goal spaces, since they are known in this case (infinite by default)
         goal_high = np.array([self._tipPosZMax])
-        obs_high = np.array([1.0, 1.0, 1.0, 1.0, self.MAX_VEL_1, self.MAX_VEL_2])
 
-        self.observation_space = spaces.Dict(dict(
+        self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
             achieved_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
-            observation=spaces.Box(low=-obs_high, high=obs_high, dtype=np.float64)
-        ))
+            observation=spaces.Box(low=-obs_high, high=obs_high, dtype=np.float64))
 
+        # Bounds of the hypercube associated with the initial state of the robot
         self.state_random_high = np.array([ 0.2 - pi,  0.2,  1.0,  1.0])
         self.state_random_low  = np.array([-0.2 - pi, -0.2, -1.0, -1.0])
 
-        if self.continuous:
-            self.action_space = spaces.Box(low=-self.torque_mag,
-                                           high=self.torque_mag,
-                                           dtype=np.float64)
-        else:
+        if not self.continuous:
             self.action_space = spaces.Discrete(3)
+
+
+    def _sample_state(self):
+        """
+        @brief      Returns a random valid initial state.
+        """
+        return self.np_random.uniform(low=self.state_random_low,
+                                      high=self.state_random_high)
 
 
     def _sample_goal(self):
@@ -199,27 +185,30 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         @return     Sample goal.
         """
-        return self.np_random.uniform(low=-0.2*self._tipPosZMax, high=0.98*self._tipPosZMax, size=(1,))
+        return self.np_random.uniform(low=-0.2*self._tipPosZMax,
+                                      high=0.98*self._tipPosZMax,
+                                      size=(1,))
 
 
-    def step(self, a):
+    def step(self, action):
         """
         @brief      Run a simulation step for a given.
 
-        @param[in]  a       The action to perform (in the action space rather than
-                            the original torque space).
+        @param[in]  action   The action to perform (in the action space rather than
+                             the original torque space).
 
         @return     The next observation, the reward, the status of the simulation
                     (done or not), and a dictionary of extra information
         """
-        if self.continuous:
-            torque = a
-        else:
-            torque = self.AVAIL_TORQUE[a] * self.torque_mag
 
-        # Add noise to the force action
-        if self.torque_noise_max > 0:
-            torque += self.np_random.uniform(-self.torque_noise_max, self.torque_noise_max)
+        # Compute the torque to apply
+        if self.continuous:
+            torque = action
+        else:
+            torque = self.AVAIL_TORQUE[action]
+
+        if ACTION_NOISE > 0:
+            torque += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
 
         # Bypass 'self.engine_py.step' method and use direct assignment to max out the performances
         self.engine_py._action[0] = torque
@@ -332,8 +321,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
                     and desired goal.
         """
         theta1, theta2, theta1_dot, theta2_dot  = self.state
-        theta1_dot = min(max(theta1_dot, -self.MAX_VEL_1), self.MAX_VEL_1)
-        theta2_dot = min(max(theta2_dot, -self.MAX_VEL_2), self.MAX_VEL_2)
         observation = np.array([cos(theta1 + pi),
                                 sin(theta1 + pi),
                                 cos(theta2 + pi),
@@ -378,7 +365,7 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         ## Flag to determine if the goal is enable
         self.enableGoalEnv = enableGoalEnv
 
-        super(JiminyAcrobotEnv, self).__init__(continuous)
+        super().__init__(continuous)
 
         if not self.enableGoalEnv:
             self.observation_space = self.observation_space['observation']
@@ -397,9 +384,9 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         @return     Sample goal.
         """
         if self.enableGoalEnv:
-            return super(JiminyAcrobotEnv, self)._sample_goal()
+            return super()._sample_goal()
         else:
-            return np.array([0.95*self._tipPosZMax])
+            return np.array([0.95 * self._tipPosZMax])
 
 
     def reset(self):
@@ -410,7 +397,7 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
 
         @return     Initial state of the simulation
         """
-        obs = super(JiminyAcrobotEnv, self).reset()
+        obs = super().reset()
         if self.enableGoalEnv:
             return obs
         else:
@@ -429,7 +416,7 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         @return     The next observation, the reward, the status of the simulation
                     (done or not), and a dictionary of extra information
         """
-        obs, reward, done, info = super(JiminyAcrobotEnv, self).step(a)
+        obs, reward, done, info = super().step(a)
         if self.enableGoalEnv:
             return obs, reward, done, info
         else:

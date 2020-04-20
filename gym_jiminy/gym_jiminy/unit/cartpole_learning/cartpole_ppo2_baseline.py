@@ -2,12 +2,11 @@ import os
 import time
 
 import gym
+from gym_jiminy.common import SubprocVecEnvLock
 
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines import PPO2
 
-import jiminy_py
-from gym_jiminy.common import SubprocVecEnvLock
 
 ### Create a multiprocess environment
 n_thread = 4
