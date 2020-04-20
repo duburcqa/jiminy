@@ -104,7 +104,7 @@ def plot_log():
         "Example: h1 h2:h3:h4 generates two subplots, one with h1, one with h2, h3, and h4.\n" + \
         "Wildcard token '*' can be used. In such a case:\n" + \
         "- If *h2* matches several fields : each field will be plotted individually in subplots. \n" + \
-        "- If :*h2* matches several fields : each field will be plotted in the same subplot. \n" + \
+        "- If :*h2* or :*h2*:*h3*:*h4* matches several fields : each field will be plotted in the same subplot. \n" + \
         "- If *h2*:*h3*:*h4* matches several fields : each match of h2, h3, and h4 will be plotted jointly in subplots.\n" + \
         "  Note that if the number of matches for h2, h3, h4 differs, only the minimum number will be plotted.\n" + \
         "\nEnter no plot command (only the file name) to view the list of fields available inside the file."
@@ -130,20 +130,21 @@ def plot_log():
         same_subplot = (cmd[0] == ':')
         headers = cmd.strip(':').split(':')
 
-        # Expand each element according to a regular expression.
+        # Expand each element if wildcard tokens are present.
         matching_headers = []
         for h in headers:
             matching_headers.append(sorted(fnmatch.filter(log_data.keys(), h)))
 
         # Get minimum size for number of subplots.
-        n_subplots = min([len(l) for l in matching_headers])
-        for i in range(n_subplots):
-            plotted_elements.append([l[i] for l in matching_headers])
+        if same_subplot:
+            plotted_elements.append([e for l_sub in matching_headers for e in l_sub])
+        else:
+            n_subplots = min([len(l) for l in matching_headers])
+            for i in range(n_subplots):
+                plotted_elements.append([l[i] for l in matching_headers])
 
     # Create figure.
     n_plot = len(plotted_elements)
-
-    print(plotted_elements)
 
     # Arrange plot in rectangular fashion: don't allow for n_cols to be more than n_rows + 2
     n_cols = n_plot
