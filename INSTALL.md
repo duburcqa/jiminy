@@ -38,7 +38,9 @@ Amazing tutorial for Ubuntu 18: <https://medium.com/better-programming/install-t
 pip install stable-baselines[mpi]
 ```
 
-#### (optional) Coach dependencies for Ubuntu 18
+#### (optional) Install RL Coach for Ubuntu 18
+
+Installing the Python package `rl_coach` is required to run the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
 apt install -y python-opencv
