@@ -115,7 +115,16 @@ class Viewer:
 
         # Check if the backend is still available, if any
         if Viewer._backend_obj is not None and Viewer._backend_proc is not None:
+            is_backend_running = True
             if Viewer._backend_proc.poll() is not None:
+                is_backend_running = False
+            if (Viewer.backend == 'gepetto-gui'):
+                from omniORB.CORBA import TRANSIENT as gepetto_server_error
+                try:
+                    Viewer._backend_obj.gui.refresh()
+                except gepetto_server_error:
+                    is_backend_running = False
+            if not is_backend_running:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
