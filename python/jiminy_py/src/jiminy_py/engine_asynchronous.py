@@ -12,8 +12,11 @@ import time
 import numpy as np
 from collections import OrderedDict
 
+from pinocchio import neutral
+
 from . import core as jiminy
 from .viewer import Viewer
+from .dynamics import update_quantities
 
 
 class EngineAsynchronous(object):
@@ -58,6 +61,7 @@ class EngineAsynchronous(object):
         self.viewer_backend = viewer_backend
         self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
+        self._is_viewer_available = False
 
         ## Real time rendering management
         self.step_dt_prev = -1
@@ -66,7 +70,9 @@ class EngineAsynchronous(object):
         self._is_running = False
         self._is_state_theoretical = False
 
-        self.reset(np.zeros(robot.nx))
+        x0 = np.concatenate((neutral(robot.pinocchio_model),
+                             np.zeros(robot.nv)))
+        self.reset(x0)
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -116,7 +122,20 @@ class EngineAsynchronous(object):
 
         @param[in]  x0    Desired initial state
         """
+        # Stop the simulation
         self._engine.stop()
+
+        # Call update_quantities in order to the frame placement for rendering
+        if is_state_theoretical:
+            x0_flex = self._engine.robot.get_flexible_state_from_rigid(x0)
+        else:
+            x0_flex = x0
+        q0 = x0_flex[:self._engine.robot.nq]
+        update_quantities(self._engine.robot, q0,
+                          update_physics=True,
+                          use_theoretical_model=False)
+
+        # Reset the flags
         self._is_running = False
         self._state = x0
         self.step_dt_prev = -1
@@ -183,12 +202,17 @@ class EngineAsynchronous(object):
 
             # Refresh viewer
             self._viewer.refresh()
+            self._is_viewer_available = True
 
             # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
         except:
+            self.close()
             self._viewer = None
+            if self._is_viewer_available:
+                self._is_viewer_available = False
+                return self.render(return_rgb_array, lock)
         finally:
             if (lock is not None):
                 lock.release()
