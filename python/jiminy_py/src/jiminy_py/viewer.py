@@ -59,7 +59,7 @@ class Viewer:
     _backend_exception = None
     _backend_proc = None
     ## Unique threading.Lock for every simulation.
-    # It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
+    #  It is required for parallel rendering since some backends may not support multiple connection simultaneously (e.g. corbasever).
     _lock = Lock()
 
     def __init__(self, robot, use_theoretical_model=False,
