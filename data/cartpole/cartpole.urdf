@@ -47,7 +47,7 @@
     <origin xyz="0.0 0.0 0.0"/>
     <parent link="slideBar"/>
     <child link="cart"/>
-    <limit effort="1000.0" lower="-5" upper="5" velocity="1000"/>
+    <limit effort="1000.0" velocity="100.0" lower="-5.0" upper="5.0"/>
   </joint>
 
   <link name="pole">
@@ -80,7 +80,7 @@
     <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
     <parent link="cart"/>
     <child link="pole"/>
-    <limit effort="1000.0" lower="-10" upper="10" velocity="1000"/>
+    <limit effort="1000.0" velocity="100.0" lower="-10.0" upper="10.0"/>
   </joint>
 
 </robot>

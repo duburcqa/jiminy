@@ -59,7 +59,7 @@ class Viewer:
     _backend_exception = None
     _backend_proc = None
     ## Unique threading.Lock for every simulation.
-    # It is required for parallel rendering since corbaserver does not support multiple connection simultaneously.
+    #  It is required for parallel rendering since some backends may not support multiple connection simultaneously (e.g. corbasever).
     _lock = Lock()
 
     def __init__(self, robot, use_theoretical_model=False,
@@ -115,7 +115,16 @@ class Viewer:
 
         # Check if the backend is still available, if any
         if Viewer._backend_obj is not None and Viewer._backend_proc is not None:
+            is_backend_running = True
             if Viewer._backend_proc.poll() is not None:
+                is_backend_running = False
+            if (Viewer.backend == 'gepetto-gui'):
+                from omniORB.CORBA import TRANSIENT as gepetto_server_error
+                try:
+                    Viewer._backend_obj.gui.refresh()
+                except gepetto_server_error:
+                    is_backend_running = False
+            if not is_backend_running:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
@@ -363,9 +372,7 @@ class Viewer:
         @brief      Get the full path of a node associated with a given geometry
                     object and geometry type.
 
-        @remark     This is a hidden function that is not automatically imported
-                    using 'from wdc_jiminy_py import *'. It is not intended to
-                    be called manually.
+        @remark     This is a hidden function not intended to be called manually.
 
         @param[in]  geometry_object     Geometry object from which to get the node
         @param[in]  geometry_type       Geometry type. It must be either
@@ -383,9 +390,7 @@ class Viewer:
         """
         @brief      Update the generalized position of a geometry object.
 
-        @remark     This is a hidden function that is not automatically imported
-                    using 'from wdc_jiminy_py import *'. It is not intended to
-                    be called manually.
+        @remark     This is a hidden function not intended to be called manually.
 
         @param[in]  visual      Wether it is a visual or collision update
         """
@@ -497,10 +502,12 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
                       start_paused=False, backend=None, window_name='python-pinocchio', scene_name='world',
                       close_backend=None):
     """!
-    @brief      Display robot evolution in choosen viewer (gepetto-gui or meshcat) at stable speed.
+    @brief      Display a robot trajectory in a viewer.
 
-    @remark     The speed is independent of the machine, and more
-                specifically of CPU power.
+    @details    The ratio between the replay and the simulation time is kept constant to the desired ratio.
+                One can choose between several backend (gepetto-gui or meshcat).
+
+    @remark     The speed is independent of the plateform and the CPU power.
 
     @param[in]  trajectory_data     Trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time

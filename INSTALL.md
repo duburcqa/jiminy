@@ -2,65 +2,68 @@
 
 ## Jiminy dependencies installation
 
-
 There is not requirement to install `jiminy_py` on linux if one does not want to build it. Nevertheless, this package does not provide the backend viewer `gepetto-gui` (still, the backend `meshcat` is available).
 
 The first step to install `gepetto-gui` is to setup the APT repository `robotpkg` to have access to compiled binaries.
 
 ```bash
-sudo sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
+sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
 curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key add -
-sudo apt update
+apt update
 ```
 
-Once done, it is straightforward to install the required package;
+Once done, it is straightforward to install the required package for Python 2.7 or 3.6.
+
+For Python 2.7
 
 ```bash
 sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy
 ```
 
-### Gym Jiminy dependencies (Python 3 only)
-
-#### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
-
-Amazing tutorial: <https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070>
-
-#### Open AI Gym along with some toy models
+For Python 3.6
 
 ```bash
-pip install gym[atari,box2d,classic_control]
+sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy
 ```
 
-#### Open AI Gym Stable-Baseline
+### Gym Jiminy dependencies (Python 3 only)
+
+#### Tensorflow>=1.13 (stable_baselines requires <= 1.14) with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
+
+Amazing tutorial for Ubuntu 18: <https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070>
+
+#### (optional) Add MPI capability to stable_baselines
 
 ```bash
 pip install stable-baselines[mpi]
 ```
 
-#### Coach dependencies
+#### (optional) Coach dependencies for Ubuntu 18
 
 ```bash
-sudo apt install -y python-opencv
-sudo apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
+apt install -y python-opencv
+apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
+
 pip install rl_coach
 ```
 
 ## Install Jiminy Python package
 
 The project is available on PyPi and therefore can be install easily using `pip`.
-```
+
+```bash
 python -m pip install jiminy-py
 ```
 
 ## Install Jiminy learning Python package
 
-```
+```bash
 python -m pip install gym-jiminy
 ```
 
 ## (optional) Build Jiminy from source
 
-First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically.
+First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available.
 
 ```bash
 sudo ./jiminy/build_tools/easy_install_deps_ubuntu18.sh

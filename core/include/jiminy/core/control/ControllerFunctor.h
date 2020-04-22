@@ -68,7 +68,7 @@ namespace jiminy
         /// \param[in]  t       Current time
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
-        /// \param[out] u       Output torque vector
+        /// \param[out] u       Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
@@ -86,7 +86,7 @@ namespace jiminy
         /// \param[in]  t       Current time
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
-        /// \param[in]  u       Output torque vector
+        /// \param[in]  u       Output effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///

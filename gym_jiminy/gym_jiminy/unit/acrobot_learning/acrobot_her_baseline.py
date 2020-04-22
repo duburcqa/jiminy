@@ -3,18 +3,14 @@ import time
 
 import gym
 
-from stable_baselines.her import GoalSelectionStrategy
+from stable_baselines.her import HER, GoalSelectionStrategy
 from stable_baselines.sac.policies import FeedForwardPolicy
-from stable_baselines import HER, DQN, SAC, TD3, #DDPG
+from stable_baselines import SAC
 
-import jiminy_py
-
-# Select the model class
-model_class = SAC
 
 # Create a single-process environment
 env = gym.make("gym_jiminy:jiminy-acrobot-v0",
-               continuous=model_class in [SAC, TD3],#, DDPG],
+               continuous=True,
                enableGoalEnv=True)
 
 ### Create the model or load one
@@ -25,9 +21,9 @@ class CustomPolicy(FeedForwardPolicy):
     __module__ = None
 
     def __init__(self, *args, **_kwargs):
-        super(CustomPolicy, self).__init__(*args, **_kwargs,
-                                           layers=[64, 64],
-                                           feature_extraction="mlp")
+        super().__init__(*args, **_kwargs,
+                         layers=[64, 64],
+                         feature_extraction="mlp")
 
 # Define a custom linear scheduler for the learning rate
 class LinearSchedule(object):
@@ -48,7 +44,7 @@ n_sampled_goal = 4
 tensorboard_data_path = os.path.dirname(os.path.realpath(__file__))
 
 # Create the 'model' according to the chosen algorithm
-model = HER(CustomPolicy, env, model_class,
+model = HER(CustomPolicy, env, SAC,
             n_sampled_goal=n_sampled_goal,
             goal_selection_strategy=GoalSelectionStrategy.FUTURE, buffer_size=1000000,
             learning_rate=learning_rate_scheduler.value, target_update_interval=256,

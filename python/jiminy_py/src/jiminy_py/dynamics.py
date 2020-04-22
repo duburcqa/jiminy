@@ -149,7 +149,8 @@ def get_body_world_transform(robot, body_name, use_theoretical_model=True):
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    body_id, body_is_fixed = get_body_index_and_fixedness(robot, body_name)
+    body_id, body_is_fixed = get_body_index_and_fixedness(
+        robot, body_name, use_theoretical_model)
     if body_is_fixed:
         transform_in_parent_frame = pnc_model.frames[body_id].placement
         last_moving_parent_id = pnc_model.frames[body_id].parent
@@ -181,7 +182,8 @@ def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    body_id, body_is_fixed = get_body_index_and_fixedness(robot, body_name)
+    body_id, body_is_fixed = get_body_index_and_fixedness(
+        robot, body_name, use_theoretical_model)
     if body_is_fixed:
         last_moving_parent_id = pnc_model.frames[body_id].parent
         parent_transform_in_world = pnc_data.oMi[last_moving_parent_id]
@@ -216,7 +218,8 @@ def get_body_world_acceleration(robot, body_name, use_theoretical_model=True):
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    body_id, body_is_fixed = get_body_index_and_fixedness(robot, body_name)
+    body_id, body_is_fixed = get_body_index_and_fixedness(
+        robot, body_name, use_theoretical_model)
 
     if body_is_fixed:
         last_moving_parent_id = pnc_model.frames[body_id].parent
@@ -269,18 +272,21 @@ def compute_freeflyer_state_from_fixed_body(robot, fixed_body_name, position,
     pnc.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
     pnc.framesForwardKinematics(pnc_model, pnc_data, position)
 
-    ff_M_fixed_body = get_body_world_transform(robot, fixed_body_name)
+    ff_M_fixed_body = get_body_world_transform(
+        robot, fixed_body_name, use_theoretical_model)
     w_M_ff = ff_M_fixed_body.inverse()
     base_link_translation = w_M_ff.translation
     base_link_quaternion = Quaternion(w_M_ff.rotation)
     position[:3] = base_link_translation
     position[3:7] = base_link_quaternion.coeffs()
 
-    ff_v_fixed_body = get_body_world_velocity(robot, fixed_body_name)
+    ff_v_fixed_body = get_body_world_velocity(
+        robot, fixed_body_name, use_theoretical_model)
     base_link_velocity = - ff_v_fixed_body
     velocity[:6] = base_link_velocity.vector
 
-    ff_a_fixedBody = get_body_world_acceleration(robot, fixed_body_name)
+    ff_a_fixedBody = get_body_world_acceleration(
+        robot, fixed_body_name, use_theoretical_model)
     base_link_acceleration = - ff_a_fixedBody
     acceleration[:6] = base_link_acceleration.vector
 
@@ -295,8 +301,8 @@ def retrieve_freeflyer(trajectory_data, roll_angle=0.0, pitch_angle=0.0):
         q, v, a = s.q.squeeze(), s.v.squeeze(), s.a.squeeze()
 
         # Compute freeflyer using support foot as reference frame.
-        compute_freeflyer_state_from_fixed_body(robot, s.support_foot,
-                                           q, v, a, use_theoretical_model)
+        compute_freeflyer_state_from_fixed_body(
+            robot, s.support_foot, q, v, a, use_theoretical_model)
 
         # Move freeflyer to take the foot angle into account.
         # w: world frame, st: support foot frame, ff: freeflyer frame.

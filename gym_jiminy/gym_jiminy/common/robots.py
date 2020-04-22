@@ -18,6 +18,18 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 from . import RenderOutMock
 
 
+# Define universal bounds for the observation space
+FREEFLYER_POS_TRANS_UNIVERSAL_MAX = np.inf
+FREEFLYER_VEL_LIN_UNIVERSAL_MAX = 1000.0
+FREEFLYER_VEL_ANG_UNIVERSAL_MAX = 10000.0
+JOINT_POS_UNIVERSAL_MAX = np.inf
+JOINT_VEL_UNIVERSAL_MAX = 100.0
+MOTOR_EFFORT_MAX = 1000.0
+SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
+SENSOR_GYRO_UNIVERSAL_MAX = 100.0
+SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
+
+
 class RobotJiminyEnv(core.Env):
     """
     @brief      Base class to train a robot in Gym OpenAI using a user-specified
@@ -49,52 +61,143 @@ class RobotJiminyEnv(core.Env):
         @return     Instance of the environment.
         """
 
-        # ##################### Configure the learning environment ############################
+        # ###################### Configure the learning environment ######################
 
         ## Name of the robot
         self.robot_name = robot_name
+
         ## Jiminy engine associated with the robot. It is used for physics computations.
         self.engine_py = engine_py
+
         ## Update period of the simulation
         self.dt = dt
 
-        ## Extract some information from the robot
-        motors_position_idx = self.engine_py._engine.robot.motors_position_idx
-        joint_position_limit_upper = self.engine_py._engine.robot.position_limit_upper
-        joint_position_limit_lower = self.engine_py._engine.robot.position_limit_lower
-        joint_velocity_limit = self.engine_py._engine.robot.velocity_limit
+        ## Configure the action and observation spaces
+        self.action_space = None
+        self.observation_space = None
+        self._refresh_learning_spaces()
 
-        ## Action space
-        action_high = joint_position_limit_upper[motors_position_idx]
-        action_low = joint_position_limit_lower[motors_position_idx]
-        self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
-
-        ## Observation space
-        obs_high = np.concatenate((joint_position_limit_upper, joint_velocity_limit))
-        obs_low = np.concatenate((joint_position_limit_lower, -joint_velocity_limit))
-        self.observation_space = spaces.Box(low=obs_low, high=obs_high, dtype=np.float64)
-
-        ## Higher bound of the hypercube associated with the initial state of the robot
-        self.state_random_high = 0.1 * np.ones(self.observation_space.shape)
-        ## Lower bound of the hypercube associated with the initial state of the robot
-        self.state_random_low = -self.state_random_high
         ## State of the robot
         self.state = None
         self._viewer = None
+
         ## Number of simulation steps performed after having met the stopping criterion
         self.steps_beyond_done = None
 
         self.seed()
 
-        # ##################### Enforce some options of the engine ############################
+        # ######### Enforce some options by default for the robot and the engine #########
 
+        robot_options = self.engine_py._engine.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        engine_options["stepper"]["iterMax"] = -1 # Infinite number of iterations
+        # Disable completely the telemetry to speed up the simulation
+        for field in robot_options["telemetry"].keys():
+            robot_options["telemetry"][field] = False
+        for field in engine_options["telemetry"].keys():
+            engine_options["telemetry"][field] = False
+
+        # Set the position and velocity bounds of the robot
+        robot_options["model"]["joints"]["enablePositionLimit"] = True
+        robot_options["model"]["joints"]["enableVelocityLimit"] = True
+
+        # Set the effort limits of the motors
+        for motor_name in robot_options["motors"].keys():
+            robot_options["motors"][motor_name]["enableEffortLimit"] = True
+
+        # Configure the stepper update period and disable max number of iterations
+        engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
 
+        self.engine_py._engine.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
+
+    def _refresh_learning_spaces(self):
+        ## Define some proxies for convenience
+        robot = self.engine_py._engine.robot
+        enc_t = jiminy.EncoderSensor.type
+        effort_t = jiminy.EffortSensor.type
+        force_t = jiminy.ForceSensor.type
+        imu_t = jiminy.ImuSensor.type
+
+        ## Extract some information from the robot
+        position_limit_upper = robot.position_limit_upper
+        position_limit_lower = robot.position_limit_lower
+        velocity_limit = robot.velocity_limit
+        if robot.has_freeflyer:
+            position_limit_lower[:3] = -FREEFLYER_POS_TRANS_UNIVERSAL_MAX
+            position_limit_upper[:3] = FREEFLYER_POS_TRANS_UNIVERSAL_MAX
+            velocity_limit[:3] = FREEFLYER_VEL_LIN_UNIVERSAL_MAX
+
+        ## Action space
+        action_low = -robot.effort_limit[robot.motors_velocity_idx]
+        action_high = robot.effort_limit[robot.motors_velocity_idx]
+
+        self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
+
+        ## Observation space
+        sensor_data = robot.sensors_data
+
+        obs_space_dict_raw = {key: {'min': np.full(value.shape, -np.inf),
+                                    'max': np.full(value.shape, np.inf)}
+                              for key, value in robot.sensors_data.items()}
+
+        obs_space_dict_raw['state'] = {'min': np.concatenate((position_limit_lower, -velocity_limit)),
+                                       'max': np.concatenate((position_limit_upper, velocity_limit))}
+
+        if enc_t in sensor_data.keys(): # Special treatment for the Encoder sensors
+            sensor_list = robot.sensors_names[enc_t]
+            for sensor_name in sensor_list:
+                sensor_idx = robot.get_sensor(enc_t, sensor_name).idx
+                if robot.get_model_options()['joints']['enablePositionLimit']:
+                    joint_pos_idx = robot.get_sensor(enc_t, sensor_name).joint_position_idx
+                    obs_space_dict_raw[enc_t]['min'][0, sensor_idx] = position_limit_lower[joint_pos_idx]
+                    obs_space_dict_raw[enc_t]['max'][0, sensor_idx] = position_limit_upper[joint_pos_idx]
+                else:
+                    obs_space_dict_raw[enc_t]['min'][1, :] = -JOINT_POS_UNIVERSAL_MAX
+                    obs_space_dict_raw[enc_t]['max'][1, :] = JOINT_POS_UNIVERSAL_MAX
+                if robot.get_model_options()['joints']['enableVelocityLimit']:
+                    joint_vel_idx = robot.get_sensor(enc_t, sensor_name).joint_velocity_idx
+                    obs_space_dict_raw[enc_t]['min'][1, sensor_idx] = -velocity_limit[joint_vel_idx]
+                    obs_space_dict_raw[enc_t]['max'][1, sensor_idx] = velocity_limit[joint_vel_idx]
+                else:
+                    obs_space_dict_raw[enc_t]['min'][1, :] = -JOINT_VEL_UNIVERSAL_MAX
+                    obs_space_dict_raw[enc_t]['max'][1, :] = JOINT_VEL_UNIVERSAL_MAX
+
+        if effort_t in sensor_data.keys(): # Special treatment for the Effort sensors
+            sensor_list = robot.sensors_names[effort_t]
+            for sensor_name in sensor_list:
+                sensor_idx = robot.get_sensor(effort_t, sensor_name).idx
+                motor_idx = robot.get_sensor(effort_t, sensor_name).motor_idx
+                if not np.isinf(action_low[motor_idx]):
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = action_low[motor_idx]
+                    obs_space_dict_raw[effort_t]['max'][0, sensor_idx] = action_high[motor_idx]
+                else:
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = -MOTOR_EFFORT_MAX
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = MOTOR_EFFORT_MAX
+
+        if force_t in sensor_data.keys(): # Special treatment for the Force sensors
+            obs_space_dict_raw[force_t]['min'][:, :] = -SENSOR_FORCE_UNIVERSAL_MAX
+            obs_space_dict_raw[force_t]['max'][:, :] = SENSOR_FORCE_UNIVERSAL_MAX
+
+        if imu_t in sensor_data.keys(): # Special treatment for the IMU sensors
+            # The quaternion is normalized
+            quat_imu_indices = ['Quat' in field for field in jiminy.ImuSensor.fieldnames]
+            obs_space_dict_raw[imu_t]['min'][quat_imu_indices, :] = -1.0
+            obs_space_dict_raw[imu_t]['max'][quat_imu_indices, :] = 1.0
+
+            gyro_imu_indices = ['Gyro' in field for field in jiminy.ImuSensor.fieldnames]
+            obs_space_dict_raw[imu_t]['min'][gyro_imu_indices, :] = -SENSOR_GYRO_UNIVERSAL_MAX
+            obs_space_dict_raw[imu_t]['max'][gyro_imu_indices, :] = SENSOR_GYRO_UNIVERSAL_MAX
+
+            accel_imu_indices = ['Accel' in field for field in jiminy.ImuSensor.fieldnames]
+            obs_space_dict_raw[imu_t]['min'][accel_imu_indices, :] = -SENSOR_ACCEL_UNIVERSAL_MAX
+            obs_space_dict_raw[imu_t]['max'][accel_imu_indices, :] = SENSOR_ACCEL_UNIVERSAL_MAX
+
+        self.observation_space = spaces.Dict(
+            {key: spaces.Box(low=value["min"], high=value["max"], dtype=np.float64)
+             for key, value in obs_space_dict_raw.items()})
 
     def seed(self, seed=None):
         """
@@ -114,22 +217,21 @@ class RobotJiminyEnv(core.Env):
         self.state = self.engine_py.state
         return [seed]
 
+    def _sample_state(self):
+        """
+        @brief      Returns a random valid initial state.
+        """
+        raise NotImplementedError()
+
     def reset(self):
         """
         @brief      Reset the simulation.
 
-        @details    The initial state is randomly sampled using a uniform
-                    distribution between `self.state_random_low` and
-                    `self.state_random_high`.
-
-        @remark    `self.state_random_low` and `self.state_random_high` can be
-                    overwritten. They are obtained by default by extracting the
-                    information from the URDF file.
+        @details    The initial state is randomly sampled.
 
         @return     Initial state of the simulation
         """
-        self.state = self.np_random.uniform(low=self.state_random_low,
-                                            high=self.state_random_high)
+        self.state = self._sample_state()
         self.engine_py.reset(self.state)
         self.steps_beyond_done = None
         return self._get_obs()
@@ -193,17 +295,16 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         ## @var observation_space
         # @copydoc RobotJiminyEnv::observation_space
 
-        super(RobotJiminyGoalEnv, self).__init__(robot_name, engine_py, dt)
+        super().__init__(robot_name, engine_py, dt)
 
         ## Current goal
         self.goal = self._sample_goal()
 
         obs = self._get_obs()
-        self.observation_space = spaces.Dict(dict(
+        self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype=np.float64),
             achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype=np.float64),
-            observation=self.observation_space
-        ))
+            observation=self.observation_space)
 
     def reset(self):
         """
@@ -216,7 +317,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         @return     Initial state of the simulation
         """
         self.goal = self._sample_goal().copy()
-        return super(RobotJiminyGoalEnv, self).reset()
+        return super().reset()
 
     def _sample_goal(self):
         """

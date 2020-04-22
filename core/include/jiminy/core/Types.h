@@ -58,9 +58,10 @@ namespace jiminy
 
     // *************** Constant of the universe ******************
 
-    // Define some constant of the universe
+    // Define some aliases for convenience
     float64_t const INF = std::numeric_limits<float64_t>::infinity();
     float64_t const EPS = std::numeric_limits<float64_t>::epsilon();
+    float64_t const qNAN = std::numeric_limits<float64_t>::quiet_NaN();
 
     // *************** Jiminy-specific definitions ***************
 
@@ -71,6 +72,19 @@ namespace jiminy
         ERROR_GENERIC = -1,
         ERROR_BAD_INPUT = -2,
         ERROR_INIT_FAILED = -3
+    };
+
+    // Pinocchio joint types
+    enum class joint_t : uint8_t
+    {
+        // CYLINDRICAL are not available so far
+
+        NONE = 0,
+        LINEAR = 1,
+        ROTARY = 2,
+        PLANAR = 3,
+        SPHERICAL = 4,
+        FREE = 5,
     };
 
     /* Ground profile signature.

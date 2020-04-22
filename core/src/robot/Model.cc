@@ -432,35 +432,65 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            if (mdlOptions_->joints.positionLimitFromUrdf)
+            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
+            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
             {
-                uint8_t const numRigidJoints = rigidJointsPositionIdx_.size();
-                positionLimitMin_.resize(numRigidJoints);
-                positionLimitMax_.resize(numRigidJoints);
-                for (uint32_t i=0; i < numRigidJoints; ++i)
+                joint_t jointType(joint_t::NONE);
+                getJointTypeFromIdx(pncModel_, i, jointType);
+                // The "position" of spherical joints is bounded between -1.0 and 1.0 since it corresponds to normalized quaternions
+                if (jointType == joint_t::SPHERICAL)
                 {
-                    positionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
-                    positionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
+                }
+                if (jointType == joint_t::FREE)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
                 }
             }
-            else
+
+            if (mdlOptions_->joints.enablePositionLimit)
             {
-                positionLimitMin_ = mdlOptions_->joints.positionLimitMin;
-                positionLimitMax_ = mdlOptions_->joints.positionLimitMax;
+                if (mdlOptions_->joints.positionLimitFromUrdf)
+                {
+                    for (int32_t & positionIdx : rigidJointsPositionIdx_)
+                    {
+                        positionLimitMin_[positionIdx] = pncModel_.lowerPositionLimit[positionIdx];
+                        positionLimitMax_[positionIdx] = pncModel_.upperPositionLimit[positionIdx];
+                    }
+                }
+                else
+                {
+                    for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); i++)
+                    {
+                        positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
+                        positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                    }
+                }
             }
 
             // Get the joint velocity limits from the URDF or the user options
-            if (mdlOptions_->joints.velocityLimitFromUrdf)
+            velocityLimit_ = vectorN_t::Constant(pncModel_.nv, +INF);
+            if (mdlOptions_->joints.enableVelocityLimit)
             {
-                velocityLimit_.resize(rigidJointsVelocityIdx_.size());
-                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                if (mdlOptions_->joints.velocityLimitFromUrdf)
                 {
-                    velocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
+                    for (int32_t & velocityIdx : rigidJointsVelocityIdx_)
+                    {
+                        velocityLimit_[velocityIdx] = pncModel_.velocityLimit[velocityIdx];
+                    }
                 }
-            }
-            else
-            {
-                velocityLimit_ = mdlOptions_->joints.velocityLimit;
+                else
+                {
+                    for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); i++)
+                    {
+                        velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                    }
+                }
             }
         }
 
@@ -504,33 +534,33 @@ namespace jiminy
                 boost::get<configHolder_t>(modelOptions.at("joints"));
             if (!boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf")))
             {
-                vectorN_t & positionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
-                if ((int32_t) rigidJointsPositionIdx_.size() != positionLimitMin.size())
+                vectorN_t & jointsPositionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
+                if ((int32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMin.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t positionLimitMinDiff = positionLimitMin - mdlOptions_->joints.positionLimitMin;
-                internalBuffersMustBeUpdated |= (positionLimitMinDiff.array().abs() >= EPS).all();
-                vectorN_t & positionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
-                if ((uint32_t) rigidJointsPositionIdx_.size() != positionLimitMax.size())
+                vectorN_t jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
+                internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
+                vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
+                if ((uint32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMax.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t positionLimitMaxDiff = positionLimitMax - mdlOptions_->joints.positionLimitMax;
-                internalBuffersMustBeUpdated |= (positionLimitMaxDiff.array().abs() >= EPS).all();
+                vectorN_t jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
+                internalBuffersMustBeUpdated |= (jointsPositionLimitMaxDiff.array().abs() >= EPS).all();
             }
             if (!boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf")))
             {
-                vectorN_t & velocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
-                if ((int32_t) rigidJointsVelocityIdx_.size() != velocityLimit.size())
+                vectorN_t & jointsVelocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
+                if ((int32_t) rigidJointsVelocityIdx_.size() != jointsVelocityLimit.size())
                 {
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t velocityLimitDiff = velocityLimit - mdlOptions_->joints.velocityLimit;
-                internalBuffersMustBeUpdated |= (velocityLimitDiff.array().abs() >= EPS).all();
+                vectorN_t jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
+                internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
             }
 
             // Check if the flexible model and its associated proxies must be regenerated

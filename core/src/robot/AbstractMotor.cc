@@ -16,9 +16,10 @@ namespace jiminy
     motorIdx_(-1),
     jointName_(),
     jointModelIdx_(-1),
+    jointType_(joint_t::NONE),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
-    torqueLimit_(0.0),
+    effortLimit_(0.0),
     rotorInertia_(0.0),
     sharedHolder_(nullptr)
     {
@@ -122,13 +123,13 @@ namespace jiminy
         bool_t internalBuffersMustBeUpdated = false;
         if (isInitialized_)
         {
-            bool_t const & torqueLimitFromUrdf = boost::get<bool_t>(motorOptions.at("torqueLimitFromUrdf"));
-            if (!torqueLimitFromUrdf)
+            bool_t const & effortLimitFromUrdf = boost::get<bool_t>(motorOptions.at("effortLimitFromUrdf"));
+            if (!effortLimitFromUrdf)
             {
-                float64_t const & torqueLimit = boost::get<float64_t>(motorOptions.at("torqueLimit"));
-                internalBuffersMustBeUpdated |= std::abs(torqueLimit - baseMotorOptions_->torqueLimit) > EPS;
+                float64_t const & effortLimit = boost::get<float64_t>(motorOptions.at("effortLimit"));
+                internalBuffersMustBeUpdated |= std::abs(effortLimit - baseMotorOptions_->effortLimit) > EPS;
             }
-            internalBuffersMustBeUpdated |= (baseMotorOptions_->torqueLimitFromUrdf != torqueLimitFromUrdf);
+            internalBuffersMustBeUpdated |= (baseMotorOptions_->effortLimitFromUrdf != effortLimitFromUrdf);
         }
 
         // Update the motor's options
@@ -136,7 +137,7 @@ namespace jiminy
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
         // Refresh the proxies if the robot is initialized
-        if (isAttached_ && internalBuffersMustBeUpdated && robot_->getIsInitialized())
+        if (internalBuffersMustBeUpdated && robot_->getIsInitialized() && isAttached_)
         {
             refreshProxies();
         }
@@ -175,17 +176,32 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            returnCode = getJointTypeFromIdx(robot_->pncModel_, jointModelIdx_, jointType_);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Motors are only supported for linear and rotary joints
+            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY)
+            {
+                std::cout << "Error - AbstractMotorBase::refreshProxies - A motor can only be associated with a linear or rotary joint." << std::endl;
+                returnCode =  hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
             ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
             ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
 
-            // Get the motor torque limits from the URDF or the user options.
-            if (baseMotorOptions_->torqueLimitFromUrdf)
+            // Get the motor effort limits from the URDF or the user options.
+            if (baseMotorOptions_->effortLimitFromUrdf)
             {
-                torqueLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_];
+                effortLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_];
             }
             else
             {
-                torqueLimit_ = baseMotorOptions_->torqueLimit;
+                effortLimit_ = baseMotorOptions_->effortLimit;
             }
 
             // Get the rotor inertia
@@ -257,6 +273,11 @@ namespace jiminy
         return jointModelIdx_;
     }
 
+    joint_t const & AbstractMotorBase::getJointType(void) const
+    {
+        return jointType_;
+    }
+
     int32_t const & AbstractMotorBase::getJointPositionIdx(void) const
     {
         return jointPositionIdx_;
@@ -267,9 +288,9 @@ namespace jiminy
         return jointVelocityIdx_;
     }
 
-    float64_t const & AbstractMotorBase::getTorqueLimit(void) const
+    float64_t const & AbstractMotorBase::getEffortLimit(void) const
     {
-        return torqueLimit_;
+        return effortLimit_;
     }
 
     float64_t const & AbstractMotorBase::getRotorInertia(void) const
@@ -290,7 +311,7 @@ namespace jiminy
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                // Compute the actual torque
+                // Compute the actual effort
                 returnCode = motor->computeEffort(t,
                                                   q[motor->getJointPositionIdx()],
                                                   v[motor->getJointVelocityIdx()],

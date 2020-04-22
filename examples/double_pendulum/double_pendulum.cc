@@ -91,7 +91,7 @@ int main(int argc, char_t * argv[])
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableConfiguration")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableVelocity")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableAcceleration")) = true;
-    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableTorque")) = true;
+    boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEffort")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("telemetry")).at("enableEnergy")) = true;
     boost::get<vectorN_t>(boost::get<configHolder_t>(simuOptions.at("world")).at("gravity"))(2) = -9.81;
     boost::get<std::string>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("odeSolver")) = std::string("runge_kutta_dopri5");

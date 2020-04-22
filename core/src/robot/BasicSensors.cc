@@ -75,7 +75,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -84,6 +84,11 @@ namespace jiminy
     std::string const & ImuSensor::getFrameName(void) const
     {
         return frameName_;
+    }
+
+    int32_t const & ImuSensor::getFrameIdx(void) const
+    {
+        return frameIdx_;
     }
 
     hresult_t ImuSensor::set(float64_t                   const & t,
@@ -172,7 +177,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -181,6 +186,11 @@ namespace jiminy
     std::string const & ForceSensor::getFrameName(void) const
     {
         return frameName_;
+    }
+
+    int32_t const & ForceSensor::getFrameIdx(void) const
+    {
+        return frameIdx_;
     }
 
     hresult_t ForceSensor::set(float64_t                   const & t,
@@ -263,12 +273,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
+            returnCode = ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
+            ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
         }
 
         return returnCode;
@@ -277,6 +287,16 @@ namespace jiminy
     std::string const & EncoderSensor::getJointName(void) const
     {
         return jointName_;
+    }
+
+    int32_t const & EncoderSensor::getJointPositionIdx(void)  const
+    {
+
+        return jointPositionIdx_;
+    }
+    int32_t const & EncoderSensor::getJointVelocityIdx(void)  const
+    {
+        return jointVelocityIdx_;
     }
 
     hresult_t EncoderSensor::set(float64_t                   const & t,
@@ -297,16 +317,16 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    // ===================== TorqueSensor =========================
+    // ===================== EffortSensor =========================
 
     template<>
-    std::string const AbstractSensorTpl<TorqueSensor>::type_("TorqueSensor");
+    std::string const AbstractSensorTpl<EffortSensor>::type_("EffortSensor");
     template<>
-    bool_t const AbstractSensorTpl<TorqueSensor>::areFieldnamesGrouped_(true);
+    bool_t const AbstractSensorTpl<EffortSensor>::areFieldnamesGrouped_(true);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<TorqueSensor>::fieldNames_({"U"});
+    std::vector<std::string> const AbstractSensorTpl<EffortSensor>::fieldNames_({"U"});
 
-    TorqueSensor::TorqueSensor(std::string const & name) :
+    EffortSensor::EffortSensor(std::string const & name) :
     AbstractSensorTpl(name),
     motorName_(),
     motorIdx_(0)
@@ -314,13 +334,13 @@ namespace jiminy
         // Empty.
     }
 
-    hresult_t TorqueSensor::initialize(std::string const & motorName)
+    hresult_t EffortSensor::initialize(std::string const & motorName)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isAttached_)
         {
-            std::cout << "Error - TorqueSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            std::cout << "Error - EffortSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -339,19 +359,19 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t TorqueSensor::refreshProxies(void)
+    hresult_t EffortSensor::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - TorqueSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - EffortSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - TorqueSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            std::cout << "Error - EffortSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -369,12 +389,17 @@ namespace jiminy
         return returnCode;
     }
 
-    std::string const & TorqueSensor::getMotorName(void) const
+    std::string const & EffortSensor::getMotorName(void) const
     {
         return motorName_;
     }
 
-    hresult_t TorqueSensor::set(float64_t                   const & t,
+    int32_t const & EffortSensor::getMotorIdx(void) const
+    {
+        return motorIdx_;
+    }
+
+    hresult_t EffortSensor::set(float64_t                   const & t,
                                 Eigen::Ref<vectorN_t const> const & q,
                                 Eigen::Ref<vectorN_t const> const & v,
                                 Eigen::Ref<vectorN_t const> const & a,
@@ -382,7 +407,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - TorqueSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            std::cout << "Error - EffortSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 

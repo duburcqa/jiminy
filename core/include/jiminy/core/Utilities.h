@@ -252,19 +252,6 @@ namespace jiminy
 
     // ******************** Pinocchio utilities *********************
 
-    // Pinocchio joint types
-    enum class joint_t : uint8_t
-    {
-        // CYLINDRICAL are not available so far
-
-        NONE = 0,
-        LINEAR = 1,
-        ROTARY = 2,
-        PLANAR = 3,
-        SPHERICAL = 4,
-        FREE = 5,
-    };
-
     hresult_t computePositionDerivative(pinocchio::Model            const & model,
                                         Eigen::Ref<vectorN_t const> const & q,
                                         Eigen::Ref<vectorN_t const> const & v,
