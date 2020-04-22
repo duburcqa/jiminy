@@ -18,6 +18,18 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 from . import RenderOutMock
 
 
+# Define universal bounds for the observation space
+FREEFLYER_POS_TRANS_UNIVERSAL_MAX = np.inf
+FREEFLYER_VEL_LIN_UNIVERSAL_MAX = 1000.0
+FREEFLYER_VEL_ANG_UNIVERSAL_MAX = 10000.0
+JOINT_POS_UNIVERSAL_MAX = np.inf
+JOINT_VEL_UNIVERSAL_MAX = 100.0
+MOTOR_EFFORT_MAX = 1000.0
+SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
+SENSOR_GYRO_UNIVERSAL_MAX = 100.0
+SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
+
+
 class RobotJiminyEnv(core.Env):
     """
     @brief      Base class to train a robot in Gym OpenAI using a user-specified
@@ -89,7 +101,7 @@ class RobotJiminyEnv(core.Env):
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        # Set the torque limits of the motors
+        # Set the effort limits of the motors
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
@@ -105,7 +117,7 @@ class RobotJiminyEnv(core.Env):
         ## Define some proxies for convenience
         robot = self.engine_py._engine.robot
         enc_t = jiminy.EncoderSensor.type
-        torque_t = jiminy.TorqueSensor.type
+        effort_t = jiminy.EffortSensor.type
         force_t = jiminy.ForceSensor.type
         imu_t = jiminy.ImuSensor.type
 
@@ -114,20 +126,26 @@ class RobotJiminyEnv(core.Env):
         position_limit_lower = robot.position_limit_lower
         velocity_limit = robot.velocity_limit
         if robot.has_freeflyer:
-            position_limit_lower = np.concatenate((np.full((7,), np.nan), position_limit_lower))
-            position_limit_upper = np.concatenate((np.full((7,), np.nan), position_limit_upper))
-            velocity_limit = np.concatenate((np.full((6,), np.nan), velocity_limit))
+            position_limit_lower[:3] = -FREEFLYER_POS_TRANS_UNIVERSAL_MAX
+            position_limit_upper[:3] = FREEFLYER_POS_TRANS_UNIVERSAL_MAX
+            velocity_limit[:3] = FREEFLYER_VEL_LIN_UNIVERSAL_MAX
 
         ## Action space
-        action_low = robot.torque_limit[robot.motors_velocity_idx]
-        action_high = robot.torque_limit[robot.motors_velocity_idx]
+        action_low = -robot.effort_limit[robot.motors_velocity_idx]
+        action_high = robot.effort_limit[robot.motors_velocity_idx]
+
         self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
 
         ## Observation space
         sensor_data = robot.sensors_data
+
         obs_space_dict_raw = {key: {'min': np.full(value.shape, -np.inf),
                                     'max': np.full(value.shape, np.inf)}
                               for key, value in robot.sensors_data.items()}
+
+        obs_space_dict_raw['state'] = {'min': np.concatenate((position_limit_lower, -velocity_limit)),
+                                       'max': np.concatenate((position_limit_upper, velocity_limit))}
+
         if enc_t in sensor_data.keys(): # Special treatment for the Encoder sensors
             sensor_list = robot.sensors_names[enc_t]
             for sensor_name in sensor_list:
@@ -136,39 +154,47 @@ class RobotJiminyEnv(core.Env):
                     joint_pos_idx = robot.get_sensor(enc_t, sensor_name).joint_position_idx
                     obs_space_dict_raw[enc_t]['min'][0, sensor_idx] = position_limit_lower[joint_pos_idx]
                     obs_space_dict_raw[enc_t]['max'][0, sensor_idx] = position_limit_upper[joint_pos_idx]
+                else:
+                    obs_space_dict_raw[enc_t]['min'][1, :] = -JOINT_POS_UNIVERSAL_MAX
+                    obs_space_dict_raw[enc_t]['max'][1, :] = JOINT_POS_UNIVERSAL_MAX
                 if robot.get_model_options()['joints']['enableVelocityLimit']:
                     joint_vel_idx = robot.get_sensor(enc_t, sensor_name).joint_velocity_idx
                     obs_space_dict_raw[enc_t]['min'][1, sensor_idx] = -velocity_limit[joint_vel_idx]
                     obs_space_dict_raw[enc_t]['max'][1, sensor_idx] = velocity_limit[joint_vel_idx]
                 else:
-                    obs_space_dict_raw[enc_t]['min'][1, :] = -50.0
-                    obs_space_dict_raw[enc_t]['max'][1, :] = 50.0
+                    obs_space_dict_raw[enc_t]['min'][1, :] = -JOINT_VEL_UNIVERSAL_MAX
+                    obs_space_dict_raw[enc_t]['max'][1, :] = JOINT_VEL_UNIVERSAL_MAX
 
-        if torque_t in sensor_data.keys(): # Special treatment for the Torque sensors
-            sensor_list = robot.sensors_names[torque_t]
+        if effort_t in sensor_data.keys(): # Special treatment for the Effort sensors
+            sensor_list = robot.sensors_names[effort_t]
             for sensor_name in sensor_list:
-                sensor_idx = robot.get_sensor(torque_t, sensor_name).idx
-                motor_idx = robot.get_sensor(torque_t, sensor_name).motor_idx
-                if action_low[motor_idx] > 0.0:
-                    obs_space_dict_raw[torque_t]['min'][0, sensor_idx] = action_low[motor_idx]
-                    obs_space_dict_raw[torque_t]['max'][0, sensor_idx] = action_high[motor_idx]
+                sensor_idx = robot.get_sensor(effort_t, sensor_name).idx
+                motor_idx = robot.get_sensor(effort_t, sensor_name).motor_idx
+                if not np.isinf(action_low[motor_idx]):
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = action_low[motor_idx]
+                    obs_space_dict_raw[effort_t]['max'][0, sensor_idx] = action_high[motor_idx]
+                else:
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = -MOTOR_EFFORT_MAX
+                    obs_space_dict_raw[effort_t]['min'][0, sensor_idx] = MOTOR_EFFORT_MAX
+
         if force_t in sensor_data.keys(): # Special treatment for the Force sensors
-            # The force should never exceed 10000N
-            obs_space_dict_raw[force_t]['min'][:, :] = -10000.0
-            obs_space_dict_raw[force_t]['max'][:, :] = 10000.0
+            obs_space_dict_raw[force_t]['min'][:, :] = -SENSOR_FORCE_UNIVERSAL_MAX
+            obs_space_dict_raw[force_t]['max'][:, :] = SENSOR_FORCE_UNIVERSAL_MAX
+
         if imu_t in sensor_data.keys(): # Special treatment for the IMU sensors
             # The quaternion is normalized
             quat_imu_indices = ['Quat' in field for field in jiminy.ImuSensor.fieldnames]
             obs_space_dict_raw[imu_t]['min'][quat_imu_indices, :] = -1.0
             obs_space_dict_raw[imu_t]['max'][quat_imu_indices, :] = 1.0
-            # The angular velocity should never exceed 10 rad.s-1
+
             gyro_imu_indices = ['Gyro' in field for field in jiminy.ImuSensor.fieldnames]
-            obs_space_dict_raw[imu_t]['min'][gyro_imu_indices, :] = -50.0
-            obs_space_dict_raw[imu_t]['max'][gyro_imu_indices, :] = 50.0
-            # The linear acceleration should never exceed 300 m.s-2
+            obs_space_dict_raw[imu_t]['min'][gyro_imu_indices, :] = -SENSOR_GYRO_UNIVERSAL_MAX
+            obs_space_dict_raw[imu_t]['max'][gyro_imu_indices, :] = SENSOR_GYRO_UNIVERSAL_MAX
+
             accel_imu_indices = ['Accel' in field for field in jiminy.ImuSensor.fieldnames]
-            obs_space_dict_raw[imu_t]['min'][accel_imu_indices, :] = -500.0
-            obs_space_dict_raw[imu_t]['max'][accel_imu_indices, :] = 500.0
+            obs_space_dict_raw[imu_t]['min'][accel_imu_indices, :] = -SENSOR_ACCEL_UNIVERSAL_MAX
+            obs_space_dict_raw[imu_t]['max'][accel_imu_indices, :] = SENSOR_ACCEL_UNIVERSAL_MAX
+
         self.observation_space = spaces.Dict(
             {key: spaces.Box(low=value["min"], high=value["max"], dtype=np.float64)
              for key, value in obs_space_dict_raw.items()})
