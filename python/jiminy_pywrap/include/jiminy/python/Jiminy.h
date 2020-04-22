@@ -920,9 +920,9 @@ namespace python
                 .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
 
-                .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMin,
+                .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMax,
+                .add_property("position_limit_upper", bp::make_function(&Model::getPositionLimitMax,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("velocity_limit", bp::make_function(&Model::getVelocityLimit,
                                                 bp::return_value_policy<bp::copy_const_reference>()))

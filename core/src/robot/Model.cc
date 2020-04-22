@@ -432,25 +432,64 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            positionLimitMin_ = pncModel_.lowerPositionLimit;
-            positionLimitMax_ = pncModel_.upperPositionLimit;
-            if (!mdlOptions_->joints.positionLimitFromUrdf)
+            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
+            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
             {
-                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); i++)
+                joint_t jointType(joint_t::NONE);
+                getJointTypeFromIdx(pncModel_, i, jointType);
+                // The "position" of spherical joints is bounded between -1.0 and 1.0 since it corresponds to normalized quaternions
+                if (jointType == joint_t::SPHERICAL)
                 {
-                    positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
-                    positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
                 }
+                if (jointType == joint_t::FREE)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
+                }
+            }
 
+            if (mdlOptions_->joints.enablePositionLimit)
+            {
+                if (mdlOptions_->joints.positionLimitFromUrdf)
+                {
+                    for (int32_t & positionIdx : rigidJointsPositionIdx_)
+                    {
+                        positionLimitMin_[positionIdx] = pncModel_.lowerPositionLimit[positionIdx];
+                        positionLimitMax_[positionIdx] = pncModel_.upperPositionLimit[positionIdx];
+                    }
+                }
+                else
+                {
+                    for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); i++)
+                    {
+                        positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
+                        positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
+                    }
+                }
             }
 
             // Get the joint velocity limits from the URDF or the user options
-            velocityLimit_ = pncModel_.velocityLimit;
-            if (!mdlOptions_->joints.velocityLimitFromUrdf)
+            velocityLimit_ = vectorN_t::Constant(pncModel_.nv, +INF);
+            if (mdlOptions_->joints.enableVelocityLimit)
             {
-                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); i++)
+                if (mdlOptions_->joints.velocityLimitFromUrdf)
                 {
-                    velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                    for (int32_t & velocityIdx : rigidJointsVelocityIdx_)
+                    {
+                        velocityLimit_[velocityIdx] = pncModel_.velocityLimit[velocityIdx];
+                    }
+                }
+                else
+                {
+                    for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); i++)
+                    {
+                        velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
+                    }
                 }
             }
         }

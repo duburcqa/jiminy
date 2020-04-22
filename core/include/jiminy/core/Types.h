@@ -58,9 +58,10 @@ namespace jiminy
 
     // *************** Constant of the universe ******************
 
-    // Define some constant of the universe
+    // Define some aliases for convenience
     float64_t const INF = std::numeric_limits<float64_t>::infinity();
     float64_t const EPS = std::numeric_limits<float64_t>::epsilon();
+    float64_t const qNAN = std::numeric_limits<float64_t>::quiet_NaN();
 
     // *************** Jiminy-specific definitions ***************
 

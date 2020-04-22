@@ -190,13 +190,13 @@ namespace jiminy
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
-        std::vector<std::string> motorsNames_;              ///< Name of the motors of the robot
+        std::vector<std::string> motorsNames_;                                      ///< Name of the motors of the robot
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
-        std::vector<std::string> motorEffortFieldnames_;    ///< Fieldnames of the efforts of the motors
+        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the efforts of the motors
 
         std::vector<robotConstraint_t> constraintsHolder_;
-        matrixN_t constraintsJacobian_; ///< Matrix holding the jacobian of the constraints.
-        vectorN_t constraintsDrift_;    ///< Vector holding the drift of the constraints.
+        matrixN_t constraintsJacobian_;                                             ///< Matrix holding the jacobian of the constraints.
+        vectorN_t constraintsDrift_;                                                ///< Vector holding the drift of the constraints.
 
     private:
         MutexLocal mutexLocal_;
