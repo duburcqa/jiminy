@@ -147,9 +147,9 @@ namespace jiminy
         std::vector<std::string> const & getFlexibleJointsNames(void) const;
         std::vector<int32_t> const & getFlexibleJointsModelIdx(void) const;
 
-        vectorN_t const & getJointsPositionLimitMin(void) const;
-        vectorN_t const & getJointsPositionLimitMax(void) const;
-        vectorN_t const & getJointsVelocityLimit(void) const;
+        vectorN_t const & getPositionLimitMin(void) const;
+        vectorN_t const & getPositionLimitMax(void) const;
+        vectorN_t const & getVelocityLimit(void) const;
 
         std::vector<std::string> const & getPositionFieldnames(void) const;
         std::vector<std::string> const & getVelocityFieldnames(void) const;
@@ -186,14 +186,14 @@ namespace jiminy
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot
-        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the robot
-        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the robot
+        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
+        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
         std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
         std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
-        vectorN_t jointsPositionLimitMin_;
-        vectorN_t jointsPositionLimitMax_;
-        vectorN_t jointsVelocityLimit_;
+        vectorN_t positionLimitMin_;                        ///< Upper position limit of the whole configuration vector (INF for "virtual" joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMax_;                        ///< Lower position limit of the whole configuration vector (INF for "virtual" joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t velocityLimit_;                           ///< Maximum absolute velocity of the whole velocity vector (INF for "virtual" joints, ie flexibility joints and freeflyer, if any)
 
         std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
         std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot

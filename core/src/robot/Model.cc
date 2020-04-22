@@ -35,9 +35,9 @@ namespace jiminy
     rigidJointsVelocityIdx_(),
     flexibleJointsNames_(),
     flexibleJointsModelIdx_(),
-    jointsPositionLimitMin_(),
-    jointsPositionLimitMax_(),
-    jointsVelocityLimit_(),
+    positionLimitMin_(),
+    positionLimitMax_(),
+    velocityLimit_(),
     positionFieldnames_(),
     velocityFieldnames_(),
     accelerationFieldnames_(),
@@ -432,35 +432,26 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            if (mdlOptions_->joints.positionLimitFromUrdf)
+            positionLimitMin_ = pncModel_.lowerPositionLimit;
+            positionLimitMax_ = pncModel_.upperPositionLimit;
+            if (!mdlOptions_->joints.positionLimitFromUrdf)
             {
-                uint8_t const numRigidJoints = rigidJointsPositionIdx_.size();
-                jointsPositionLimitMin_.resize(numRigidJoints);
-                jointsPositionLimitMax_.resize(numRigidJoints);
-                for (uint32_t i=0; i < numRigidJoints; ++i)
+                for (uint32_t i=0; i < rigidJointsPositionIdx_.size(); i++)
                 {
-                    jointsPositionLimitMin_[i] = pncModel_.lowerPositionLimit[rigidJointsPositionIdx_[i]];
-                    jointsPositionLimitMax_[i] = pncModel_.upperPositionLimit[rigidJointsPositionIdx_[i]];
+                    positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
+                    positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
                 }
-            }
-            else
-            {
-                jointsPositionLimitMin_ = mdlOptions_->joints.positionLimitMin;
-                jointsPositionLimitMax_ = mdlOptions_->joints.positionLimitMax;
+
             }
 
             // Get the joint velocity limits from the URDF or the user options
-            if (mdlOptions_->joints.velocityLimitFromUrdf)
+            velocityLimit_ = pncModel_.velocityLimit;
+            if (!mdlOptions_->joints.velocityLimitFromUrdf)
             {
-                jointsVelocityLimit_.resize(rigidJointsVelocityIdx_.size());
-                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); ++i)
+                for (uint32_t i=0; i < rigidJointsVelocityIdx_.size(); i++)
                 {
-                    jointsVelocityLimit_[i] = pncModel_.velocityLimit[rigidJointsVelocityIdx_[i]];
+                    velocityLimit_[rigidJointsVelocityIdx_[i]] = mdlOptions_->joints.velocityLimit[i];
                 }
-            }
-            else
-            {
-                jointsVelocityLimit_ = mdlOptions_->joints.velocityLimit;
             }
         }
 
@@ -742,14 +733,14 @@ namespace jiminy
         return positionFieldnames_;
     }
 
-    vectorN_t const & Model::getJointsPositionLimitMin(void) const
+    vectorN_t const & Model::getPositionLimitMin(void) const
     {
-        return jointsPositionLimitMin_;
+        return positionLimitMin_;
     }
 
-    vectorN_t const & Model::getJointsPositionLimitMax(void) const
+    vectorN_t const & Model::getPositionLimitMax(void) const
     {
-        return jointsPositionLimitMax_;
+        return positionLimitMax_;
     }
 
     std::vector<std::string> const & Model::getVelocityFieldnames(void) const
@@ -757,9 +748,9 @@ namespace jiminy
         return velocityFieldnames_;
     }
 
-    vectorN_t const & Model::getJointsVelocityLimit(void) const
+    vectorN_t const & Model::getVelocityLimit(void) const
     {
-        return jointsVelocityLimit_;
+        return velocityLimit_;
     }
 
     std::vector<std::string> const & Model::getAccelerationFieldnames(void) const

@@ -1764,25 +1764,22 @@ namespace jiminy
         auto const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
 
-        // Enforce the position limit (do not support spherical joints)
+        // Enforce the position limit for the rigid joints only (TODO: does not support spherical joints)
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
-            std::vector<int32_t> const & rigidIdx = system.robot->getRigidJointsModelIdx();
-            vectorN_t const & jointsPositionLimitMin = system.robot->getJointsPositionLimitMin();
-            vectorN_t const & jointsPositionLimitMax = system.robot->getJointsPositionLimitMax();
-            uint32_t idxOffset = 0;
-            for (uint32_t i = 0; i < rigidIdx.size(); i++)
+            vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
+            vectorN_t const & positionLimitMax = system.robot->getPositionLimitMax();
+            for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
-                uint32_t const & positionIdx = pncModel.joints[rigidIdx[i]].idx_q();
-                uint32_t const & velocityIdx = pncModel.joints[rigidIdx[i]].idx_v();
-
-                int32_t const & jointDof = pncModel.joints[rigidIdx[i]].nq();
+                uint32_t const & positionIdx = pncModel.joints[rigidIdx].idx_q();
+                uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
+                int32_t const & jointDof = pncModel.joints[rigidIdx].nq();
                 for (int32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & qJoint = q[positionIdx + j];
                     float64_t const & vJoint = v[velocityIdx + j];
-                    float64_t const & qJointMin = jointsPositionLimitMin[idxOffset];
-                    float64_t const & qJointMax = jointsPositionLimitMax[idxOffset];
+                    float64_t const & qJointMin = positionLimitMin[positionIdx + j];
+                    float64_t const & qJointMax = positionLimitMax[positionIdx + j];
 
                     float64_t forceJoint = 0;
                     float64_t qJointError = 0;
@@ -1806,9 +1803,8 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
+                    // Clamp the resulting force for the sake of numerical stability
                     u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
-
-                    idxOffset++;
                 }
             }
         }
@@ -1816,20 +1812,16 @@ namespace jiminy
         // Enforce the velocity limit (do not support spherical joints)
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
-            std::vector<int32_t> const & rigidIdx = system.robot->getRigidJointsModelIdx();
-            vectorN_t const & jointsVelocityLimitMax = system.robot->getJointsVelocityLimit();
-
-            uint32_t idxOffset = 0U;
-            for (uint32_t i = 0; i < rigidIdx.size(); i++)
+            vectorN_t const & velocityLimitMax = system.robot->getVelocityLimit();
+            for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
-                uint32_t const & velocityIdx = pncModel.joints[rigidIdx[i]].idx_v();
-                uint32_t const & jointDof = pncModel.joints[rigidIdx[i]].nq();
-
+                uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
+                uint32_t const & jointDof = pncModel.joints[rigidIdx].nq();
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & vJoint = v[velocityIdx + j];
-                    float64_t const & vJointMin = -jointsVelocityLimitMax[idxOffset];
-                    float64_t const & vJointMax = jointsVelocityLimitMax[idxOffset];
+                    float64_t const & vJointMin = -velocityLimitMax[velocityIdx + j];
+                    float64_t const & vJointMax = velocityLimitMax[velocityIdx + j];
 
                     float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
@@ -1851,9 +1843,8 @@ namespace jiminy
                         forceJoint *= blendingLaw;
                     }
 
+                    // Clamp the resulting force for the sake of numerical stability
                     u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
-
-                    idxOffset++;
                 }
             }
         }
