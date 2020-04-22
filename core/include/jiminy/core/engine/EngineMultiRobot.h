@@ -246,7 +246,7 @@ namespace jiminy
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;
         std::vector<std::string> accelerationFieldnames;
-        std::vector<std::string> motorTorqueFieldnames;
+        std::vector<std::string> motorEffortFieldnames;
         std::string energyFieldname;
 
     private:
@@ -324,7 +324,7 @@ namespace jiminy
             config["enableConfiguration"] = true;
             config["enableVelocity"] = true;
             config["enableAcceleration"] = true;
-            config["enableTorque"] = true;
+            config["enableEffort"] = true;
             config["enableEnergy"] = true;
             return config;
         };
@@ -429,14 +429,14 @@ namespace jiminy
             bool_t const enableConfiguration;
             bool_t const enableVelocity;
             bool_t const enableAcceleration;
-            bool_t const enableTorque;
+            bool_t const enableEffort;
             bool_t const enableEnergy;
 
             telemetryOptions_t(configHolder_t const & options) :
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
-            enableTorque(boost::get<bool_t>(options.at("enableTorque"))),
+            enableEffort(boost::get<bool_t>(options.at("enableEffort"))),
             enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
             {
                 // Empty.
@@ -680,7 +680,7 @@ namespace jiminy
         /// \param[in] system System for which to compute the dynamics.
         /// \param[in] q Joint position.
         /// \param[in] v Joint velocity.
-        /// \param[in] u Joint torque.
+        /// \param[in] u Joint effort.
         /// \param[in] fext External forces applied on the system.
         /// \return System acceleration.
         vectorN_t computeAcceleration(systemDataHolder_t & system,

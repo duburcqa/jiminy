@@ -98,17 +98,17 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - SimpleMotor::computeEffort - Motor not initialized. Impossible to compute actual motor torque." << std::endl;
+            std::cout << "Error - SimpleMotor::computeEffort - Motor not initialized. Impossible to compute actual motor effort." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Bypass
         data() = uCommand;
 
-        // Enforce the torque limits
-        if (motorOptions_->enableTorqueLimit)
+        // Enforce the effort limits
+        if (motorOptions_->enableEffortLimit)
         {
-            data() = clamp(data(), -getTorqueLimit(), getTorqueLimit());
+            data() = clamp(data(), -getEffortLimit(), getEffortLimit());
         }
 
         // Add friction to the joints associated with the motor if enable

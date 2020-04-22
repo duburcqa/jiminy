@@ -49,7 +49,7 @@ TEST(EngineSanity, EnergyConservation)
     // Double pendulum model
     std::string const dataDirPath(UNIT_TEST_DATA_DIR);
     auto const urdfPath = dataDirPath + "/double_pendulum_rigid.urdf";
-    
+
     // All joints actuated.
     std::vector<std::string> motorJointNames{"PendulumJoint", "SecondPendulumJoint"};
 
@@ -73,7 +73,7 @@ TEST(EngineSanity, EnergyConservation)
     for (auto & options : motorsOptions)
     {
         configHolder_t & motorOptions = boost::get<configHolder_t>(options.second);
-        boost::get<bool_t>(motorOptions.at("enableTorqueLimit")) = false;
+        boost::get<bool_t>(motorOptions.at("enableEffortLimit")) = false;
     }
     robot->setMotorsOptions(motorsOptions);
 

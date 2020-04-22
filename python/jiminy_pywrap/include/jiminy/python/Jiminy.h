@@ -583,7 +583,7 @@ namespace python
                                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,
                                                         bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("torque_limit", bp::make_function(&AbstractMotorBase::getTorqueLimit,
+                    .add_property("effort_limit", bp::make_function(&AbstractMotorBase::getEffortLimit,
                                                   bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("rotor_inertia", bp::make_function(&AbstractMotorBase::getRotorInertia,
                                                    bp::return_value_policy<bp::copy_const_reference>()))
@@ -791,16 +791,16 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, TorqueSensor>::value, void>
+            static enable_if_t<std::is_same<Q, EffortSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
                 visitBasicSensors(cl);
 
                 cl
-                    .add_property("motor_name", bp::make_function(&TorqueSensor::getMotorName,
+                    .add_property("motor_name", bp::make_function(&EffortSensor::getMotorName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("motor_idx", bp::make_function(&TorqueSensor::getMotorIdx,
+                    .add_property("motor_idx", bp::make_function(&EffortSensor::getMotorIdx,
                                                bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
@@ -851,9 +851,9 @@ namespace python
                        boost::noncopyable>("EncoderSensor", bp::init<std::string>())
                 .def(PySensorVisitor());
 
-            bp::class_<TorqueSensor, bp::bases<AbstractSensorBase>,
-                       std::shared_ptr<TorqueSensor>,
-                       boost::noncopyable>("TorqueSensor", bp::init<std::string>())
+            bp::class_<EffortSensor, bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<EffortSensor>,
+                       boost::noncopyable>("EffortSensor", bp::init<std::string>())
                 .def(PySensorVisitor());
         }
     };
@@ -1052,10 +1052,10 @@ namespace python
                 .add_property("motors_velocity_idx", &Robot::getMotorsVelocityIdx)
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
-                .add_property("torque_limit", &Robot::getTorqueLimit)
+                .add_property("effort_limit", &Robot::getEffortLimit)
                 .add_property("motor_inertia", &Robot::getMotorInertia)
 
-                .add_property("logfile_motor_torque_headers", bp::make_function(&Robot::getMotorTorqueFieldnames,
+                .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }

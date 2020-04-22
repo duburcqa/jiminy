@@ -28,7 +28,7 @@ namespace jiminy
     sensorTelemetryOptions_(),
     motorsNames_(),
     sensorsNames_(),
-    motorTorqueFieldnames_(),
+    motorEffortFieldnames_(),
     constraintsHolder_(),
     constraintsJacobian_(),
     constraintsDrift_(),
@@ -644,8 +644,8 @@ namespace jiminy
                                return elem->getName();
                            });
 
-            // Generate the fieldnames associated with the motor torques
-            motorTorqueFieldnames_ = addCircumfix(motorsNames_, JOINT_PREFIX_BASE + "Torque");
+            // Generate the fieldnames associated with the motor efforts
+            motorEffortFieldnames_ = addCircumfix(motorsNames_, JOINT_PREFIX_BASE + "Torque"); // Add "Torque" suffix instead of "Effort" for compatibility with Wandercraft proprietary log analyzer.
         }
 
         return returnCode;
@@ -1251,7 +1251,7 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsTorques(float64_t            const  & t,
+    void Robot::computeMotorsEfforts(float64_t            const  & t,
                                      Eigen::Ref<vectorN_t const> const & q,
                                      Eigen::Ref<vectorN_t const> const & v,
                                      vectorN_t                   const & a,
@@ -1263,21 +1263,21 @@ namespace jiminy
         }
     }
 
-    vectorN_t const & Robot::getMotorsTorques(void) const
+    vectorN_t const & Robot::getMotorsEfforts(void) const
     {
-        static vectorN_t const motorsTorquesEmpty;
+        static vectorN_t const motorsEffortsEmpty;
 
         if (!motorsHolder_.empty())
         {
             return (*motorsHolder_.begin())->getAll();
         }
 
-        return motorsTorquesEmpty;
+        return motorsEffortsEmpty;
     }
 
-    float64_t const & Robot::getMotorTorque(std::string const & motorName) const
+    float64_t const & Robot::getMotorEffort(std::string const & motorName) const
     {
-        static float64_t const motorTorqueEmpty = -1;
+        static float64_t const motorEffortEmpty = -1;
 
         auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
                                     [&motorName](auto const & elem)
@@ -1289,7 +1289,7 @@ namespace jiminy
             return (*motorIt)->get();
         }
 
-        return motorTorqueEmpty;
+        return motorEffortEmpty;
     }
 
     void Robot::setSensorsData(float64_t                   const & t,
@@ -1471,19 +1471,19 @@ namespace jiminy
         }
     }
 
-    vectorN_t Robot::getTorqueLimit(void) const
+    vectorN_t Robot::getEffortLimit(void) const
     {
-        vectorN_t torqueLimit = vectorN_t::Constant(pncModel_.nv, -1);
+        vectorN_t effortLimit = vectorN_t::Constant(pncModel_.nv, -1);
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            if (motorOptions->enableTorqueLimit)
+            if (motorOptions->enableEffortLimit)
             {
-                torqueLimit[motorsVelocityIdx] = motor->getTorqueLimit();
+                effortLimit[motorsVelocityIdx] = motor->getEffortLimit();
             }
         }
-        return torqueLimit;
+        return effortLimit;
     }
 
     vectorN_t Robot::getMotorInertia(void) const
@@ -1497,9 +1497,9 @@ namespace jiminy
         return motorInertia;
     }
 
-    std::vector<std::string> const & Robot::getMotorTorqueFieldnames(void) const
+    std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
     {
-        return motorTorqueFieldnames_;
+        return motorEffortFieldnames_;
     }
 
     /// \brief Get jacobian of the constraints.

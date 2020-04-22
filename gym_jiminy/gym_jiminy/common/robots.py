@@ -91,7 +91,7 @@ class RobotJiminyEnv(core.Env):
 
         # Set the torque limits of the motors
         for motor_name in robot_options["motors"].keys():
-            robot_options["motors"][motor_name]["enableTorqueLimit"] = True
+            robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
         # Configure the stepper update period and disable max number of iterations
         engine_options["stepper"]["iterMax"] = -1

@@ -114,8 +114,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         robot_options = self._robot.get_options()
 
         # Set the torque limits of the motor
-        robot_options["motors"][motor_joint_name]["torqueLimitFromUrdf"] = False
-        robot_options["motors"][motor_joint_name]["torqueLimit"] = MAX_FORCE
+        robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
+        robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_FORCE
 
         self._robot.set_options(robot_options)
 

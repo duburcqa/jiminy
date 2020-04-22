@@ -59,7 +59,7 @@ namespace jiminy
     positionFieldnames(),
     velocityFieldnames(),
     accelerationFieldnames(),
-    motorTorqueFieldnames(),
+    motorEffortFieldnames(),
     energyFieldname(),
     robotLock(nullptr),
     state(),
@@ -323,8 +323,8 @@ namespace jiminy
                 system.accelerationFieldnames =
                     addCircumfix(system.robot->getAccelerationFieldnames(),
                                  system.name, "", TELEMETRY_DELIMITER);
-                system.motorTorqueFieldnames =
-                    addCircumfix(system.robot->getMotorTorqueFieldnames(),
+                system.motorEffortFieldnames =
+                    addCircumfix(system.robot->getMotorEffortFieldnames(),
                                  system.name, "", TELEMETRY_DELIMITER);
                 system.energyFieldname =
                     addCircumfix("energy",
@@ -360,10 +360,10 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    if (engineOptions_->telemetry.enableTorque)
+                    if (engineOptions_->telemetry.enableEffort)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            system.motorTorqueFieldnames,
+                            system.motorEffortFieldnames,
                             system.state.uMotor);
                     }
                 }
@@ -430,9 +430,9 @@ namespace jiminy
                 telemetrySender_.updateValue(system.accelerationFieldnames,
                                              system.state.a);
             }
-            if (engineOptions_->telemetry.enableTorque)
+            if (engineOptions_->telemetry.enableEffort)
             {
-                telemetrySender_.updateValue(system.motorTorqueFieldnames,
+                telemetrySender_.updateValue(system.motorEffortFieldnames,
                                              system.state.uMotor);
             }
             if (engineOptions_->telemetry.enableEnergy)
@@ -706,17 +706,17 @@ namespace jiminy
                 // Initialize the sensor data
                 system.robot->setSensorsData(t, q, v, a, uMotor);
 
-                // Compute the actual motor torque
+                // Compute the actual motor effort
                 computeCommand(system, t, q, v, uCommand);
 
-                // Compute the actual motor torque
-                system.robot->computeMotorsTorques(t, q, v, a, uCommand);
-                uMotor = system.robot->getMotorsTorques();
+                // Compute the actual motor effort
+                system.robot->computeMotorsEfforts(t, q, v, a, uCommand);
+                uMotor = system.robot->getMotorsEfforts();
 
                 // Compute the internal dynamics
                 computeInternalDynamics(system, t, q, v, uInternal);
 
-                // Compute the total torque vector
+                // Compute the total effort vector
                 u = uInternal;
                 for (auto const & motor : system.robot->getMotors())
                 {
@@ -734,7 +734,7 @@ namespace jiminy
                 // Compute the forward kinematics once again, with the updated acceleration
                 computeForwardKinematics(system, q, v, a);
 
-                // Update the sensor data once again, with the updated torque and acceleration
+                // Update the sensor data once again, with the updated effort and acceleration
                 system.robot->setSensorsData(t, q, v, a, uMotor);
             }
 
@@ -1170,7 +1170,7 @@ namespace jiminy
                                  instead of SO3^2.
                                - dtLargestPrev is used to restore the largest step
                                  size in case of a breakpoint requiring lowering it.
-                               - the acceleration and torque at the last successful
+                               - the acceleration and effort at the last successful
                                  iteration is used to update the sensors' data in
                                  case of continuous sensing. */
                             stepperState_.tPrev = t;
@@ -1754,7 +1754,7 @@ namespace jiminy
                                                    Eigen::Ref<vectorN_t const> const & v,
                                                    vectorN_t                         & u) const
     {
-        // Reinitialize the internal torque vector
+        // Reinitialize the internal effort vector
         u.setZero();
 
         // Compute the user-defined internal dynamics
@@ -2053,7 +2053,7 @@ namespace jiminy
 
             /* Update the sensor data if necessary (only for infinite update frequency).
                Note that it is impossible to have access to the current accelerations
-               and torques since they depend on the sensor values themselves. */
+               and efforts since they depend on the sensor values themselves. */
             if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
                 systemIt->robot->setSensorsData(t, q, v, aPrev, uMotorPrev);
@@ -2066,17 +2066,17 @@ namespace jiminy
                 computeCommand(*systemIt, t, q, v, uCommand);
             }
 
-            /* Compute the actual motor torque.
+            /* Compute the actual motor effort.
                Note that it is impossible to have access to the current accelerations. */
-            systemIt->robot->computeMotorsTorques(t, q, v, aPrev, uCommand);
-            uMotor = systemIt->robot->getMotorsTorques();
+            systemIt->robot->computeMotorsEfforts(t, q, v, aPrev, uCommand);
+            uMotor = systemIt->robot->getMotorsEfforts();
 
             /* Compute the internal dynamics.
                Make sure that the sensor state has been updated beforehand since
                the user-defined internal dynamics may rely on it. */
             computeInternalDynamics(*systemIt, t, q, v, uInternal);
 
-            // Compute the total torque vector
+            // Compute the total effort vector
             u = uInternal;
             for (auto const & motor : systemIt->robot->getMotors())
             {

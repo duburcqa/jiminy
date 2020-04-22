@@ -23,7 +23,7 @@ class State:
         @param[in]  f       Forces on the different bodies of the robot. Dictionary whose keys represent
                             a given foot orientation. For each orientation, a dictionary contains the
                             6D-force for each body (1D numpy array).
-        @param[in]  tau     Joint torques. Dictionary whose keys represent a given foot orientation.
+        @param[in]  tau     Joint efforts. Dictionary whose keys represent a given foot orientation.
         @param[in]  f_ext   External forces represented in the frame of the Henke ankle. Dictionary
                             whose keys represent a given foot orientation.
 
@@ -41,7 +41,7 @@ class State:
         self.f = {}
         if f is not None:
             self.f = deepcopy(f)
-        ## Torque vector
+        ## Effort vector
         self.tau = {}
         if tau is not None:
             self.tau = deepcopy(tau)

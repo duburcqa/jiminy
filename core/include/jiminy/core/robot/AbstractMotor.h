@@ -41,7 +41,7 @@ namespace jiminy
 
         ~MotorSharedDataHolder_t(void) = default;
 
-        vectorN_t data_;                            ///< Buffer with current actual motor torque
+        vectorN_t data_;                            ///< Buffer with current actual motor effort
         std::vector<AbstractMotorBase *> motors_;   ///< Vector of pointers to the motors
         int32_t num_;                               ///< Number of motors
     };
@@ -58,9 +58,9 @@ namespace jiminy
         virtual configHolder_t getDefaultMotorOptions(void)
         {
             configHolder_t config;
-            config["enableTorqueLimit"] = true;
-            config["torqueLimitFromUrdf"] = true;
-            config["torqueLimit"] = 0.0;
+            config["enableEffortLimit"] = true;
+            config["effortLimitFromUrdf"] = true;
+            config["effortLimit"] = 0.0;
             config["enableRotorInertia"] = false;
             config["rotorInertia"] = 0.0;
 
@@ -70,16 +70,16 @@ namespace jiminy
     public:
         struct abstractMotorOptions_t
         {
-            bool_t    const enableTorqueLimit;
-            bool_t    const torqueLimitFromUrdf;
-            float64_t const torqueLimit;
+            bool_t    const enableEffortLimit;
+            bool_t    const effortLimitFromUrdf;
+            float64_t const effortLimit;
             bool_t    const enableRotorInertia;
             float64_t const rotorInertia;
 
             abstractMotorOptions_t(configHolder_t const & options) :
-            enableTorqueLimit(boost::get<bool_t>(options.at("enableTorqueLimit"))),
-            torqueLimitFromUrdf(boost::get<bool_t>(options.at("torqueLimitFromUrdf"))),
-            torqueLimit(boost::get<float64_t>(options.at("torqueLimit"))),
+            enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
+            effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
+            effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
             enableRotorInertia(boost::get<bool_t>(options.at("enableRotorInertia"))),
             rotorInertia(boost::get<float64_t>(options.at("rotorInertia")))
             {
@@ -129,12 +129,12 @@ namespace jiminy
         configHolder_t getOptions(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual torque of the motor at the current time.
+        /// \brief      Get the actual effort of the motor at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t const & get(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get the actual torque of all the motors at the current time.
+        /// \brief      Get the actual effort of all the motors at the current time.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         vectorN_t const & getAll(void) const;
 
@@ -202,11 +202,11 @@ namespace jiminy
         int32_t const & getJointVelocityIdx(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get torqueLimit_.
+        /// \brief      Get effortLimit_.
         ///
-        /// \details    It is the maximum torque of the motor.
+        /// \details    It is the maximum effort of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        float64_t const & getTorqueLimit(void) const;
+        float64_t const & getEffortLimit(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get rotorInertia_.
@@ -216,7 +216,7 @@ namespace jiminy
         float64_t const & getRotorInertia(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Request the motor to update its actual torque based of the input data.
+        /// \brief      Request the motor to update its actual effort based of the input data.
         ///
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
@@ -225,7 +225,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration of the motor
         /// \param[in]  v       Current velocity of the motor
         /// \param[in]  a       Current acceleration of the motor
-        /// \param[in]  u       Current command torque of the motor
+        /// \param[in]  u       Current command effort of the motor
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t computeEffort(float64_t const & t,
@@ -235,7 +235,7 @@ namespace jiminy
                                         float64_t const & uCommand) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Request every motors to update their actual torque based of the input data.
+        /// \brief      Request every motors to update their actual effort based of the input data.
         ///
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
@@ -247,7 +247,7 @@ namespace jiminy
         /// \param[in]  q       Current configuration vector
         /// \param[in]  v       Current velocity vector
         /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current command torque vector
+        /// \param[in]  u       Current command effort vector
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +259,7 @@ namespace jiminy
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Get a reference to the last data buffer corresponding to the actual torque
+        /// \brief      Get a reference to the last data buffer corresponding to the actual effort
         ///             of the motor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         float64_t & data(void);
@@ -292,7 +292,7 @@ namespace jiminy
         int32_t jointModelIdx_;
         int32_t jointPositionIdx_;
         int32_t jointVelocityIdx_;
-        float64_t torqueLimit_;
+        float64_t effortLimit_;
         float64_t rotorInertia_;
 
     private:

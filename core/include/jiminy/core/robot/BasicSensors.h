@@ -93,11 +93,11 @@ namespace jiminy
         int32_t jointVelocityIdx_;
     };
 
-    class TorqueSensor : public AbstractSensorTpl<TorqueSensor>
+    class EffortSensor : public AbstractSensorTpl<EffortSensor>
     {
     public:
-        TorqueSensor(std::string const & name);
-        ~TorqueSensor(void) = default;
+        EffortSensor(std::string const & name);
+        ~EffortSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 

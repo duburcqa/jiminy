@@ -32,7 +32,7 @@ def load_urdf_default(urdf_path, motor_names, has_freeflyer = False):
     model_options["joints"]["enablePositionLimit"] = False
     model_options["joints"]["enableVelocityLimit"] = False
     for m in motor_options:
-        motor_options[m]['enableTorqueLimit'] = False
+        motor_options[m]['enableEffortLimit'] = False
         motor_options[m]['enableRotorInertia'] = False
     robot.set_model_options(model_options)
     robot.set_motors_options(motor_options)

@@ -115,8 +115,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
 
         # Set the torque limits of the motors
-        robot_options["motors"][motor_joint_name]["torqueLimitFromUrdf"] = False
-        robot_options["motors"][motor_joint_name]["torqueLimit"] = MAX_TORQUE
+        robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
+        robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_TORQUE
 
         self._robot.set_options(robot_options)
 
