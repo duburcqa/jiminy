@@ -1113,7 +1113,7 @@ namespace jiminy
                                 dt -= dtResidual;
                             }
                         }
-                        
+
                         // Break the loop if dt is getting too small. Don't worry it will be catched later.
                         if (dt < STEPPER_MIN_TIMESTEP)
                         {
@@ -1768,8 +1768,8 @@ namespace jiminy
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
             std::vector<int32_t> const & rigidIdx = system.robot->getRigidJointsModelIdx();
-            vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
-            vectorN_t const & positionLimitMax = system.robot->getPositionLimitMax();
+            vectorN_t const & jointsPositionLimitMin = system.robot->getJointsPositionLimitMin();
+            vectorN_t const & jointsPositionLimitMax = system.robot->getJointsPositionLimitMax();
             uint32_t idxOffset = 0;
             for (uint32_t i = 0; i < rigidIdx.size(); i++)
             {
@@ -1781,8 +1781,8 @@ namespace jiminy
                 {
                     float64_t const & qJoint = q[positionIdx + j];
                     float64_t const & vJoint = v[velocityIdx + j];
-                    float64_t const & qJointMin = positionLimitMin[idxOffset];
-                    float64_t const & qJointMax = positionLimitMax[idxOffset];
+                    float64_t const & qJointMin = jointsPositionLimitMin[idxOffset];
+                    float64_t const & qJointMax = jointsPositionLimitMax[idxOffset];
 
                     float64_t forceJoint = 0;
                     float64_t qJointError = 0;
@@ -1817,7 +1817,7 @@ namespace jiminy
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
             std::vector<int32_t> const & rigidIdx = system.robot->getRigidJointsModelIdx();
-            vectorN_t const & velocityLimitMax = system.robot->getVelocityLimit();
+            vectorN_t const & jointsVelocityLimitMax = system.robot->getJointsVelocityLimit();
 
             uint32_t idxOffset = 0U;
             for (uint32_t i = 0; i < rigidIdx.size(); i++)
@@ -1828,8 +1828,8 @@ namespace jiminy
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & vJoint = v[velocityIdx + j];
-                    float64_t const & vJointMin = -velocityLimitMax[idxOffset];
-                    float64_t const & vJointMax = velocityLimitMax[idxOffset];
+                    float64_t const & vJointMin = -jointsVelocityLimitMax[idxOffset];
+                    float64_t const & vJointMax = jointsVelocityLimitMax[idxOffset];
 
                     float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
