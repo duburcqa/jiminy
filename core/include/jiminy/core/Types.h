@@ -73,6 +73,19 @@ namespace jiminy
         ERROR_INIT_FAILED = -3
     };
 
+    // Pinocchio joint types
+    enum class joint_t : uint8_t
+    {
+        // CYLINDRICAL are not available so far
+
+        NONE = 0,
+        LINEAR = 1,
+        ROTARY = 2,
+        PLANAR = 3,
+        SPHERICAL = 4,
+        FREE = 5,
+    };
+
     /* Ground profile signature.
        Note that it is impossible to use function pointer since it does not support functors. */
     using heatMapFunctor_t = std::function<std::pair<float64_t, vector3_t>(vector3_t const & /*pos*/)>;

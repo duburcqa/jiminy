@@ -645,7 +645,21 @@ namespace jiminy
                            });
 
             // Generate the fieldnames associated with the motor efforts
-            motorEffortFieldnames_ = addCircumfix(motorsNames_, JOINT_PREFIX_BASE + "Torque"); // Add "Torque" suffix instead of "Effort" for compatibility with Wandercraft proprietary log analyzer.
+            motorEffortFieldnames_.clear();
+            motorEffortFieldnames_.reserve(motorsHolder_.size());
+            std::transform(motorsHolder_.begin(), motorsHolder_.end(),
+                           std::back_inserter(motorEffortFieldnames_),
+                           [](auto const & elem) -> std::string
+                           {
+                               if (elem->getJointType() == joint_t::LINEAR)
+                               {
+                                   return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Force");
+                               }
+                               else
+                               {
+                                   return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Torque");
+                               }
+                           });
         }
 
         return returnCode;

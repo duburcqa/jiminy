@@ -80,6 +80,15 @@ namespace python
         .value("ERROR_BAD_INPUT",   hresult_t::ERROR_BAD_INPUT)
         .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
 
+        // Interfaces for joint_t enum
+        bp::enum_<joint_t>("joint_t")
+        .value("NONE",      joint_t::NONE)
+        .value("LINEAR",    joint_t::LINEAR)
+        .value("ROTARY",    joint_t::ROTARY)
+        .value("PLANAR",    joint_t::PLANAR)
+        .value("SPHERICAL", joint_t::SPHERICAL)
+        .value("FREE",      joint_t::FREE);
+
         // Interfaces for heatMapType_t enum
         bp::enum_<heatMapType_t>("heatMapType_t")
         .value("CONSTANT", heatMapType_t::CONSTANT)

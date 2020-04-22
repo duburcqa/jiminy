@@ -579,6 +579,8 @@ namespace python
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_idx", bp::make_function(&AbstractMotorBase::getJointModelIdx,
                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_type", bp::make_function(&AbstractMotorBase::getJointType,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_position_idx", bp::make_function(&AbstractMotorBase::getJointPositionIdx,
                                                         bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_velocity_idx", bp::make_function(&AbstractMotorBase::getJointVelocityIdx,

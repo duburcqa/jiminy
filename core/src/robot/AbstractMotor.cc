@@ -16,6 +16,7 @@ namespace jiminy
     motorIdx_(-1),
     jointName_(),
     jointModelIdx_(-1),
+    jointType_(joint_t::NONE),
     jointPositionIdx_(-1),
     jointVelocityIdx_(-1),
     effortLimit_(0.0),
@@ -136,7 +137,7 @@ namespace jiminy
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
         // Refresh the proxies if the robot is initialized
-        if (isAttached_ && internalBuffersMustBeUpdated && robot_->getIsInitialized())
+        if (internalBuffersMustBeUpdated && robot_->getIsInitialized() && isAttached_)
         {
             refreshProxies();
         }
@@ -171,6 +172,21 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = ::jiminy::getJointModelIdx(robot_->pncModel_, jointName_, jointModelIdx_);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getJointTypeFromIdx(robot_->pncModel_, jointModelIdx_, jointType_);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Motors are only supported for linear and rotary joints
+            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY)
+            {
+                std::cout << "Error - AbstractMotorBase::refreshProxies - A motor can only be associated with a linear or rotary joint." << std::endl;
+                returnCode =  hresult_t::ERROR_BAD_INPUT;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -255,6 +271,11 @@ namespace jiminy
     int32_t const & AbstractMotorBase::getJointModelIdx(void) const
     {
         return jointModelIdx_;
+    }
+
+    joint_t const & AbstractMotorBase::getJointType(void) const
+    {
+        return jointType_;
     }
 
     int32_t const & AbstractMotorBase::getJointPositionIdx(void) const
