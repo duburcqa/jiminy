@@ -477,7 +477,10 @@ namespace jiminy
         }
 
         // Make sure the simulation is properly stopped
-        stop();
+        if (isSimulationRunning_)
+        {
+            stop();
+        }
     }
 
     void EngineMultiRobot::reset(bool_t const & resetDynamicForceRegister)
@@ -490,6 +493,16 @@ namespace jiminy
                                       bool_t const & resetDynamicForceRegister)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
+
+        /* Make sure that no simulation is running.
+           Note that one must return early to avoid configuring multiple times the telemetry
+           and stopping the simulation because of the unsuccessful returnCode. */
+        if (isSimulationRunning_)
+        {
+            std::cout << "Error - EngineMultiRobot::start - A simulation is already running. Stop it before starting again." << std::endl;
+            returnCode = hresult_t::ERROR_GENERIC;
+            return returnCode;
+        }
 
         if (systemsDataHolder_.empty())
         {
@@ -565,6 +578,9 @@ namespace jiminy
             reset(resetRandomNumbers, resetDynamicForceRegister);
         }
 
+        // At this point, consider that the simulation is running
+        isSimulationRunning_ = true;
+
         for (auto & system : systemsDataHolder_)
         {
             if (returnCode == hresult_t::SUCCESS)
@@ -582,9 +598,6 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Consider that the simulation is running
-            isSimulationRunning_ = true;
-
             // Initialize the ode solver
             if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
             {
@@ -833,7 +846,7 @@ namespace jiminy
 
             // Perform a single integration step up to tEnd, stopping at stepperUpdatePeriod_ to log.
             float64_t stepSize;
-            if (stepperUpdatePeriod_ > 0)
+            if (stepperUpdatePeriod_ > EPS)
             {
                 stepSize = min(stepperUpdatePeriod_ , tEnd - stepperState_.t);
             }
@@ -1298,23 +1311,26 @@ namespace jiminy
     void EngineMultiRobot::stop(void)
     {
         // Make sure that a simulation running
-        if (isSimulationRunning_)
+        if (!isSimulationRunning_)
         {
-            // Release the lock on the robots
-            for (auto & system : systemsDataHolder_)
-            {
-                system.robotLock.reset(nullptr);
-            }
-
-            /* Reset the telemetry. Note that calling `reset` does NOT clear the
-               internal data buffer of telemetryRecorder_. Clearing is done at init
-               time, so that it remains accessible until the next initialization. */
-            telemetryRecorder_->reset();
-            telemetryData_->reset();
-            isTelemetryConfigured_ = false;
-
-            isSimulationRunning_ = false;
+            return;
         }
+
+        // Release the lock on the robots
+        for (auto & system : systemsDataHolder_)
+        {
+            system.robotLock.reset(nullptr);
+        }
+
+        /* Reset the telemetry. Note that calling `reset` does NOT clear the
+            internal data buffer of telemetryRecorder_. Clearing is done at init
+            time, so that it remains accessible until the next initialization. */
+        telemetryRecorder_->reset();
+        telemetryData_->reset();
+
+        // Update some internal flags
+        isTelemetryConfigured_ = false;
+        isSimulationRunning_ = false;
     }
 
     hresult_t EngineMultiRobot::registerForceImpulse(std::string      const & systemName,
