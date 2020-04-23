@@ -913,12 +913,16 @@ namespace python
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_idx", bp::make_function(&Model::getRigidJointsModelIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("flexible_joints_idx", bp::make_function(&Model::getFlexibleJointsModelIdx,
+                                                     bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
