@@ -12,11 +12,13 @@ import numpy as np
 from gym import core, spaces
 from gym.utils import seeding
 
+from pinocchio import neutral
 from jiminy_py import core as jiminy
 from jiminy_py.core import EncoderSensor as enc, \
                            EffortSensor as effort, \
                            ForceSensor as force, \
                            ImuSensor as imu
+from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 from . import RenderOutMock
@@ -71,8 +73,9 @@ class RobotJiminyEnv(core.Env):
         ## Name of the robot
         self.robot_name = robot_name
 
-        ## Jiminy engine associated with the robot. It is used for physics computations.
+        ## Jiminy engine associated with the robot (used for physics computations)
         self.engine_py = engine_py
+        self.robot = engine_py.robot
 
         ## Update period of the simulation
         self.dt = dt
@@ -84,6 +87,7 @@ class RobotJiminyEnv(core.Env):
 
         ## State of the robot
         self.state = None
+        self.sensor_data = None
         self._viewer = None
 
         ## Number of simulation steps performed after having met the stopping criterion
@@ -93,7 +97,7 @@ class RobotJiminyEnv(core.Env):
 
         # ######### Enforce some options by default for the robot and the engine #########
 
-        robot_options = self.engine_py._engine.robot.get_options()
+        robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
         # Disable completely the telemetry to speed up the simulation
@@ -115,49 +119,51 @@ class RobotJiminyEnv(core.Env):
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
 
-        self.engine_py._engine.robot.set_options(robot_options)
+        self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-        robot = self.engine_py._engine.robot
-        sensor_data = robot.sensors_data
-        model_options = robot.get_model_options()
+
+        sensor_data = self.robot.sensors_data
+        model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
-        position_limit_upper = robot.position_limit_upper
-        position_limit_lower = robot.position_limit_lower
-        velocity_limit = robot.velocity_limit
-        effort_limit = robot.effort_limit
+
+        position_limit_upper = self.robot.position_limit_upper
+        position_limit_lower = self.robot.position_limit_lower
+        velocity_limit = self.robot.velocity_limit
+        effort_limit = self.robot.effort_limit
 
         # Replace inf bounds by the appropriate universal bound for the state space
-        if robot.has_freeflyer:
+        if self.robot.has_freeflyer:
             position_limit_lower[:3] = -FREEFLYER_POS_TRANS_UNIVERSAL_MAX
             position_limit_upper[:3] = +FREEFLYER_POS_TRANS_UNIVERSAL_MAX
             velocity_limit[:3] = FREEFLYER_VEL_LIN_UNIVERSAL_MAX
             velocity_limit[3:6] = FREEFLYER_VEL_ANG_UNIVERSAL_MAX
 
-        for jointIdx in robot.flexible_joints_idx:
-            jointVelIdx = robot.pinocchio_model.joints[jointIdx].idx_v
+        for jointIdx in self.robot.flexible_joints_idx:
+            jointVelIdx = self.robot.pinocchio_model.joints[jointIdx].idx_v
             velocity_limit[jointVelIdx + np.arange(3)] = FLEX_VEL_ANG_UNIVERSAL_MAX
 
         if not model_options['joints']['enablePositionLimit']:
-            position_limit_lower[robot.rigid_joints_position_idx] = -JOINT_POS_UNIVERSAL_MAX
-            position_limit_upper[robot.rigid_joints_position_idx] = +JOINT_POS_UNIVERSAL_MAX
+            position_limit_lower[self.robot.rigid_joints_position_idx] = -JOINT_POS_UNIVERSAL_MAX
+            position_limit_upper[self.robot.rigid_joints_position_idx] = +JOINT_POS_UNIVERSAL_MAX
 
         if not model_options['joints']['enableVelocityLimit']:
-            velocity_limit[robot.rigid_joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
+            velocity_limit[self.robot.rigid_joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
 
         # Replace inf bounds by the appropriate universal bound for the action space
-        for motor_name in robot.motors_names:
-            motor = robot.get_motor(motor_name)
+        for motor_name in self.robot.motors_names:
+            motor = self.robot.get_motor(motor_name)
             motor_options = motor.get_options()
             if not motor_options["enableEffortLimit"]:
                 effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
 
         ## Action space
-        action_low  = -effort_limit[robot.motors_velocity_idx]
-        action_high = +effort_limit[robot.motors_velocity_idx]
+
+        action_low  = -effort_limit[self.robot.motors_velocity_idx]
+        action_high = +effort_limit[self.robot.motors_velocity_idx]
 
         self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
 
@@ -165,26 +171,26 @@ class RobotJiminyEnv(core.Env):
 
         sensor_space_raw = {key: {'min': np.full(value.shape, -np.inf),
                                   'max': np.full(value.shape, np.inf)}
-                            for key, value in robot.sensors_data.items()}
+                            for key, value in self.robot.sensors_data.items()}
 
         # Replace inf bounds by the appropriate universal bound for the Encoder sensors
         if enc.type in sensor_data.keys():
-            sensor_list = robot.sensors_names[enc.type]
+            sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
-                sensor_idx = robot.get_sensor(enc.type, sensor_name).idx
-                pos_idx = robot.get_sensor(enc.type, sensor_name).joint_position_idx
+                sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
+                pos_idx = self.robot.get_sensor(enc.type, sensor_name).joint_position_idx
                 sensor_space_raw[enc.type]['min'][0, sensor_idx] = position_limit_lower[pos_idx]
                 sensor_space_raw[enc.type]['max'][0, sensor_idx] = position_limit_upper[pos_idx]
-                vel_idx = robot.get_sensor(enc.type, sensor_name).joint_velocity_idx
+                vel_idx = self.robot.get_sensor(enc.type, sensor_name).joint_velocity_idx
                 sensor_space_raw[enc.type]['min'][1, sensor_idx] = -velocity_limit[vel_idx]
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] = +velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
         if effort.type in sensor_data.keys():
-            sensor_list = robot.sensors_names[effort.type]
+            sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
-                sensor_idx = robot.get_sensor(effort.type, sensor_name).idx
-                motor_idx = robot.get_sensor(effort.type, sensor_name).motor_idx
+                sensor_idx = self.robot.get_sensor(effort.type, sensor_name).idx
+                motor_idx = self.robot.get_sensor(effort.type, sensor_name).motor_idx
                 sensor_space_raw[effort.type]['min'][0, sensor_idx] = action_low[motor_idx]
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = action_high[motor_idx]
 
@@ -236,13 +242,28 @@ class RobotJiminyEnv(core.Env):
         self.np_random, seed = seeding.np_random(seed)
         self.engine_py.seed(seed)
         self.state = self.engine_py.state
+        self.sensor_data = self.engine_py.sensor_data
         return [seed]
 
     def _sample_state(self):
         """
         @brief      Returns a random valid initial state.
+
+        @details    The default implementation only return the neural configuration,
+                    with offsets on the freeflyer to enforce that the frame associated
+                    with the first contact point is aligned with the canonical frame
+                    and touches the ground.
         """
-        raise NotImplementedError()
+        q0 = neutral(self.robot.nq)
+        if self.robot.has_freeflyer:
+            compute_freeflyer_state_from_fixed_body(
+                self.robot, self.robot.contact_frames_names[0], q0,
+                use_theoretical_model=False)
+            groundFct = self.engine_py._engine.get_options()['world']['groundProfile']
+            q0[2] += groundFct(np.zeros(3))[0]
+        v0 = np.zeros(self.robot.nv)
+        x0 = np.concatenate((q0, v0))
+        return x0
 
     def reset(self):
         """
@@ -253,6 +274,7 @@ class RobotJiminyEnv(core.Env):
         @return     Initial state of the simulation
         """
         self.state = self._sample_state()
+        self.sensor_data = None
         self.engine_py.reset(self.state)
         self.steps_beyond_done = None
         return self._get_obs()
@@ -285,8 +307,10 @@ class RobotJiminyEnv(core.Env):
     def _get_obs(self):
         """
         @brief      Returns the observation.
+
+        @details    By default, it corresponds to the state and the sensors' data.
         """
-        raise NotImplementedError()
+        return (self.state, self.sensor_data)
 
 
 class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):

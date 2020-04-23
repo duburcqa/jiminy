@@ -19,7 +19,7 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
-class EngineAsynchronous(object):
+class EngineAsynchronous:
     """
     @brief      Wrapper of Jiminy enabling to update of the command and run simulation
                 steps asynchronously. Convenient helper methods are available to set the
@@ -34,32 +34,36 @@ class EngineAsynchronous(object):
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, robot, viewer_backend=None, viewer_use_theoretical_model=False):
+    def __init__(self, robot, use_theoretical_model=False, viewer_backend=None):
         """
         @brief      Constructor
 
-        @param[in]  robot   Jiminy robot properly setup (eg sensors already added)
+        @param[in]  robot                   Jiminy robot properly setup (eg sensors already added)
+        @param[in]  use_theoretical_model   Whether the state corresponds to the theoretical model
+        @param[in]  viewer_backend          Backend of the viewer (gepetto-gui or meshcat)
 
         @return     Instance of the wrapper.
         """
+        # Backup the user arguments
+        self.robot = robot # For convenience, since the engine will manage its lifetime anyway
+        self.use_theoretical_model = use_theoretical_model
+        self.viewer_backend = viewer_backend
 
         # Make sure that the sensors have already been added to the robot !
         self._sensors_types = robot.get_sensors_options().keys()
-        self._state = np.zeros((robot.nx,))
-        self._observation = OrderedDict((sensor_type,[]) for sensor_type in self._sensors_types)
-        self._action = np.zeros((len(robot.motors_names),))
+        self._state = None
+        self._sensor_data = None
+        self._action = None
 
         # Instantiate the Jiminy controller
         self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
         self._controller.initialize(robot)
 
-        # Instantiate the Jiminy engine (robot and controller are pass-by-reference)
+        # Instantiate the Jiminy engine
         self._engine = jiminy.Engine()
         self._engine.initialize(robot, self._controller)
 
         ## Viewer management
-        self.viewer_backend = viewer_backend
-        self.viewer_use_theoretical_model = viewer_use_theoretical_model
         self._viewer = None
         self._is_viewer_available = False
 
@@ -68,7 +72,6 @@ class EngineAsynchronous(object):
 
         ## Flag to determine if the simulation is running, and if the state is theoretical
         self._is_running = False
-        self._is_state_theoretical = False
 
         x0 = np.concatenate((neutral(robot.pinocchio_model),
                              np.zeros(robot.nv)))
@@ -85,8 +88,7 @@ class EngineAsynchronous(object):
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        for sensor_type in self._sensors_types:
-            self._observation[sensor_type] = sensor_data[sensor_type]
+        self._sensor_data = sensor_data
         uCommand[:] = self._action
 
     def _internal_dynamics(self, t, q, v, sensor_data, uCommand):
@@ -116,30 +118,39 @@ class EngineAsynchronous(object):
         self._engine.reset()
         self._is_running = False
 
-    def reset(self, x0, is_state_theoretical=False):
+    def reset(self, x0, is_state_theoretical=None):
         """
         @brief      Reset the simulation.
 
         @param[in]  x0    Desired initial state
         """
+        # Handling of default argument(s)
+        if is_state_theoretical is None:
+            is_state_theoretical = self.use_theoretical_model
+
         # Stop the simulation
         self._engine.stop()
 
         # Call update_quantities in order to the frame placement for rendering
         if is_state_theoretical:
-            x0_flex = self._engine.robot.get_flexible_state_from_rigid(x0)
+            x0_rigid = x0
+            if self.robot.is_flexible:
+                x0 = self.robot.get_rigid_state_from_flexible(x0_rigid)
         else:
-            x0_flex = x0
-        q0 = x0_flex[:self._engine.robot.nq]
-        update_quantities(self._engine.robot, q0,
+            if self.robot.is_flexible and self.use_theoretical_model:
+                x0_rigid = self.robot.get_flexible_state_from_rigid(x0)
+
+        update_quantities(self.robot,
+                          x0[:self.robot.nq],
                           update_physics=True,
                           use_theoretical_model=False)
 
         # Reset the flags
         self._is_running = False
-        self._state = x0
+        self._state = x0_rigid if self.use_theoretical_model else x0
+        self._sensor_data = None
+        self._action = None
         self.step_dt_prev = -1
-        self._is_state_theoretical = is_state_theoretical
 
     def step(self, action_next=None, dt_desired=-1):
         """
@@ -156,14 +167,14 @@ class EngineAsynchronous(object):
         @return     Final state of the simulation
         """
         if (not self._is_running):
-            flag = self._engine.start(self._state, self._is_state_theoretical)
+            flag = self._engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
                 raise ValueError("Failed to start the simulation")
             self._is_running = True
 
         if (action_next is not None):
             self.action = action_next
-        self._state = None
+        self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         return_code = self._engine.step(dt_desired)
         self.step_dt_prev = self._engine.stepper_state.dt
         return return_code
@@ -193,9 +204,9 @@ class EngineAsynchronous(object):
             # Instantiate the robot and viewer client if necessary
             if (self._viewer is None):
                 scene_name = next(tempfile._get_candidate_names())
-                self._viewer = Viewer(self._engine.robot,
+                self._viewer = Viewer(self.robot,
                                       backend=self.viewer_backend,
-                                      use_theoretical_model=self.viewer_use_theoretical_model,
+                                      use_theoretical_model=False,
                                       window_name='jiminy', scene_name=scene_name)
                 self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
                                                 rotation=[np.pi/2, 0.0, np.pi])
@@ -236,24 +247,24 @@ class EngineAsynchronous(object):
         @return     State of the robot
         """
         if (self._state is None):
-            self._state = self._engine.stepper_state.x
-            self._is_state_theoretical = False
-        else:
-            if (self._is_state_theoretical):
-                raise RuntimeError("Impossible to get the current state since the initial state \
-                                    was theoretical and no steps were performed ever since.")
+            x = self._engine.stepper_state.x
+            if self.robot.is_flexible and self.use_theoretical_model:
+                self._state = self.robot.get_rigid_state_from_flexible(x)
+            else:
+                self._state = x
         return self._state
 
     @property
-    def observation(self):
+    def sensor_data(self):
         """
-        @brief      Getter of the current state of the sensors.
+        @brief      Getter of the current sensor data of the robot.
 
-        @return     Dictionary whose the keys are the different class of sensors
-                    available.
-                    (row: data, column: sensor).
+        @return     Sensor data of the robot
         """
-        return self._observation
+        if (self._sensor_data is None):
+            raise RuntimeError("Impossible to get the current sensor data because \
+                                no steps has been performed since last engine reset.")
+        return self._sensor_data
 
     @property
     def action(self):
@@ -262,6 +273,9 @@ class EngineAsynchronous(object):
 
         @return     Command
         """
+        if (self._action is None):
+            raise RuntimeError("Impossible to get the current action because \
+                                no steps has been performed since last engine reset.")
         return self._action
 
     @action.setter
@@ -271,9 +285,10 @@ class EngineAsynchronous(object):
 
         @param[in]  action_next     Updated command
         """
-        if (not isinstance(action_next, (np.ndarray, np.generic))
-                or action_next.size != self._action.size):
-            raise ValueError("The action must be a numpy array of the right dimension.")
+        if (not isinstance(action_next, np.ndarray)
+                or action_next.shape != (self.robot.nmotors,)):
+            raise ValueError("The action must be a 1D numpy array \
+                              whose length matches the number of motors.")
         self._action[:] = action_next
 
     def get_engine_options(self):
