@@ -9,7 +9,7 @@
 import os
 import numpy as np
 
-from gym import core, spaces
+from gym import core, spaces, logger
 from gym.utils import seeding
 
 from pinocchio import neutral
@@ -85,15 +85,17 @@ class RobotJiminyEnv(core.Env):
         self.observation_space = None
         self._refresh_learning_spaces()
 
-        ## State of the robot
-        self.state = None
-        self.sensor_data = None
+        ## Current observation of the robot
+        self.observation = {'state': None, 'sensors': None}
+
+        ## Information about the learning process
+        self.learning_info = {'is_success': False}
+
+        ## Internal buffer(s)
         self._viewer = None
 
         ## Number of simulation steps performed after having met the stopping criterion
-        self.steps_beyond_done = None
-
-        self.seed()
+        self._steps_beyond_done = None
 
         # ######### Enforce some options by default for the robot and the engine #########
 
@@ -121,6 +123,12 @@ class RobotJiminyEnv(core.Env):
 
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
+
+        # ############################# Initialize the engine ############################
+
+        ## Set the seed of the simulation and reset the simulation
+        self.seed()
+        self.reset()
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
@@ -223,26 +231,7 @@ class RobotJiminyEnv(core.Env):
 
         self.observation_space = spaces.Dict(
             state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
-            sensor = sensor_space)
-
-    def seed(self, seed=None):
-        """
-        @brief      Specify the seed of the simulation.
-
-        @details    One must reset the simulation after updating the seed because
-                    otherwise the behavior is undefined as it is not part of the
-                    specification for Python Jiminy engines.
-
-        @param[in]  seed    Desired seed as a Unsigned Integer 32bit
-                            Optional: The seed will be randomly generated using np if omitted.
-
-        @return     Updated seed of the simulation
-        """
-        self.np_random, seed = seeding.np_random(seed)
-        self.engine_py.seed(seed)
-        self.state = self.engine_py.state
-        self.sensor_data = self.engine_py.sensor_data
-        return [seed]
+            sensors = sensor_space)
 
     def _sample_state(self):
         """
@@ -253,7 +242,7 @@ class RobotJiminyEnv(core.Env):
                     with the first contact point is aligned with the canonical frame
                     and touches the ground.
         """
-        q0 = neutral(self.robot.nq)
+        q0 = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
             compute_freeflyer_state_from_fixed_body(
                 self.robot, self.robot.contact_frames_names[0], q0,
@@ -264,19 +253,108 @@ class RobotJiminyEnv(core.Env):
         x0 = np.concatenate((q0, v0))
         return x0
 
+    def _update_observation(self):
+        """
+        @brief      Update the observation based on the current state of the robot.
+
+        @remark     This is a hidden function that is not listed as part of the
+                    member methods of the class. It is not intended to be called
+                    manually.
+        """
+        self.observation['state'] = self.engine_py.state
+        if self.engine_py._is_running:
+            self.observation['sensors'] = self.engine_py.sensor_data
+        else:
+            self.observation['sensors'] = None
+
+    def _is_done(self):
+        """
+        @brief      Determine whether the episode is over
+
+        @details    By default, it always returns False.
+
+        @remark     This is a hidden function that is not listed as part of the
+                    member methods of the class. It is not intended to be called
+                    manually.
+
+        @return     Boolean flag
+        """
+        return False
+
+    def _compute_reward(self):
+        """
+        @brief      Compute the reward at the current episode state.
+
+        @details    By default it always return 0.0.
+
+        @return     The computed reward.
+        """
+        return 0.0
+
+    def seed(self, seed=None):
+        """
+        @brief      Specify the seed of the environment.
+
+        @details    One must reset the environment after updating the seed because
+                    otherwise the behavior is undefined as it is not part of the
+                    specification for Python Jiminy engines.
+
+        @param[in]  seed    Desired seed as a numpy unsigned integer 32 bit
+                            Optional: The seed will be randomly generated using numpy if omitted.
+
+        @return     Updated seed of the environment
+        """
+        self.np_random, seed = seeding.np_random(seed)
+        self.engine_py.seed(seed)
+        return [seed]
+
     def reset(self):
         """
-        @brief      Reset the simulation.
+        @brief      Reset the environment.
 
         @details    The initial state is randomly sampled.
 
-        @return     Initial state of the simulation
+        @return     Initial state of the episode
         """
-        self.state = self._sample_state()
-        self.sensor_data = None
-        self.engine_py.reset(self.state)
-        self.steps_beyond_done = None
-        return self._get_obs()
+        self.engine_py.reset(self._sample_state())
+        self._steps_beyond_done = None
+        self._update_observation()
+        return self.observation
+
+    def step(self, action):
+        """
+        @brief      Run a simulation step for a given.
+
+        @param[in]  action   The action to perform in the action space
+
+        @return     The next observation, the reward, the status of the episode
+                    (done or not), and a dictionary of extra information
+        """
+
+        # Bypass 'self.engine_py.action' setter and use
+        # direct assignment to max out the performances
+        self.engine_py._action[:] = action
+        self.engine_py.step(dt_desired=self.dt)
+
+        # Extract information about the current simulation state
+        self._update_observation()
+        done = self._is_done()
+        self.learning_info = {'is_success': done}
+
+        reward = self._compute_reward()
+
+        # Make sure the simulation is not already over
+        if done:
+            if self._steps_beyond_done is None:
+                self._steps_beyond_done = 0
+            else:
+                if self._steps_beyond_done == 0:
+                    logger.warn("You are calling 'step()' even though this environment has already \
+                                 returned done = True. You should always call 'reset()' once you \
+                                 receive 'done = True' -- any further steps are undefined behavior.")
+                self._steps_beyond_done += 1
+
+        return self.observation, reward, done, self.learning_info
 
     def render(self, mode=None, lock=None, **kwargs):
         """
@@ -287,7 +365,7 @@ class RobotJiminyEnv(core.Env):
                     Gepetto viewer.
 
         @param[in]  mode    Unused. Defined for compatibility with Gym OpenAI.
-        @param[in]  lock    Unique threading.Lock for every simulation
+        @param[in]  lock    Unique threading.Lock for every environment.
                             Optional: Only required for parallel rendering
 
         @return     Fake output for compatibility with Gym OpenAI.
@@ -302,14 +380,6 @@ class RobotJiminyEnv(core.Env):
                     compatibility with Gym OpenAI.
         """
         self.engine_py.close()
-
-    def _get_obs(self):
-        """
-        @brief      Returns the observation.
-
-        @details    By default, it corresponds to the state and the sensors' data.
-        """
-        return (self.state, self.sensor_data)
 
 
 class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
@@ -341,30 +411,69 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
 
         super().__init__(robot_name, engine_py, dt)
 
-        ## Current goal
+        ## Sample a new goal
         self.goal = self._sample_goal()
 
-        obs = self._get_obs()
+        ## Append default desired and achieved goal spaces to the observation space
         self.observation_space = spaces.Dict(
-            desired_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype=np.float64),
-            achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs['achieved_goal'].shape, dtype=np.float64),
+            desired_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
+            achieved_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
             observation=self.observation_space)
-
-    def reset(self):
-        """
-        @brief      Reset the simulation.
-
-        @details    Sample a new goal, then call `RobotJiminyEnv.reset`.
-        .
-        @remark     See documentation of `RobotJiminyEnv` for details.
-
-        @return     Initial state of the simulation
-        """
-        self.goal = self._sample_goal().copy()
-        return super().reset()
 
     def _sample_goal(self):
         """
         @brief      Samples a new goal and returns it.
         """
         raise NotImplementedError()
+
+    def _get_achieved_goal(self):
+        """
+        @brief      Compute the achieved goal based on the current state of the robot.
+
+        @remark     This is a hidden function that is not listed as part of the
+                    member methods of the class. It is not intended to be called
+                    manually.
+
+        @return     The currently achieved goal
+        """
+        raise NotImplementedError()
+
+    def _update_observation(self):
+        # @copydoc RobotJiminyEnv::_update_observation
+        self.observation = {'observation': super()._update_observation(),
+                            'achieved_goal': self._get_achieved_goal(),
+                            'desired_goal': self.goal.copy()}
+
+    def _is_done(self, achieved_goal, desired_goal):
+        """
+        @brief      Determine whether a desired goal has been achieved.
+
+        @param[in]  achieved_goal   Achieved goal
+        @param[in]  desired_goal    Desired goal
+
+        @remark     This is a hidden function that is not listed as part of the
+                    member methods of the class. It is not intended to be called
+                    manually.
+
+        @return     Boolean flag
+        """
+        raise NotImplementedError()
+
+    def compute_reward(self, achieved_goal, desired_goal, info):
+        """
+        @brief      Compute the reward for any given episode state.
+
+        @param[in]  achieved_goal   Achieved goal
+        @param[in]  desired_goal    Desired goal
+        @param[in]  info            Dictionary of extra information
+                                    (must NOT be used, since not available using HER)
+
+        @return     The computed reward.
+        """
+        # Must NOT use info, since it is not available while using HER (Experience Replay)
+        raise NotImplementedError()
+
+    def reset(self):
+        # @copydoc RobotJiminyEnv::reset
+        self.goal = self._sample_goal()
+        return super().reset()

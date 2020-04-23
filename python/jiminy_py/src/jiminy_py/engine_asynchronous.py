@@ -53,7 +53,7 @@ class EngineAsynchronous:
         self._sensors_types = robot.get_sensors_options().keys()
         self._state = None
         self._sensor_data = None
-        self._action = None
+        self._action = np.zeros((robot.nmotors,))
 
         # Instantiate the Jiminy controller
         self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
@@ -73,9 +73,10 @@ class EngineAsynchronous:
         ## Flag to determine if the simulation is running, and if the state is theoretical
         self._is_running = False
 
-        x0 = np.concatenate((neutral(robot.pinocchio_model),
-                             np.zeros(robot.nv)))
-        self.reset(x0)
+        # Initialize the low-level jiminy engine
+        q0 = neutral(robot.pinocchio_model)
+        v0 = np.zeros(robot.nv)
+        self.reset(np.concatenate((q0, v0)))
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -103,7 +104,7 @@ class EngineAsynchronous:
         """
         pass
 
-    def seed(self, seed):
+    def seed(self, seed : np.uint32):
         """
         @brief      Set the seed of the simulation and reset the simulation.
 
@@ -149,7 +150,7 @@ class EngineAsynchronous:
         self._is_running = False
         self._state = x0_rigid if self.use_theoretical_model else x0
         self._sensor_data = None
-        self._action = None
+        self._action[:] = 0.0
         self.step_dt_prev = -1
 
     def step(self, action_next=None, dt_desired=-1):
@@ -273,9 +274,6 @@ class EngineAsynchronous:
 
         @return     Command
         """
-        if (self._action is None):
-            raise RuntimeError("Impossible to get the current action because \
-                                no steps has been performed since last engine reset.")
         return self._action
 
     @action.setter
