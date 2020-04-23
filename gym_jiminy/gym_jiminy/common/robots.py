@@ -225,7 +225,6 @@ class RobotJiminyEnv(core.Env):
             state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
             sensor = sensor_space)
 
-
     def seed(self, seed=None):
         """
         @brief      Specify the seed of the simulation.

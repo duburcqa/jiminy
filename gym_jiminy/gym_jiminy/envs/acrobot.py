@@ -161,14 +161,12 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         if not self.continuous:
             self.action_space = spaces.Discrete(3)
 
-
     def _sample_state(self):
         """
         @brief      Returns a random valid initial state.
         """
         return self.np_random.uniform(low=self.state_random_low,
                                       high=self.state_random_high)
-
 
     def _sample_goal(self):
         """
@@ -188,7 +186,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         return self.np_random.uniform(low=-0.2*self._tipPosZMax,
                                       high=0.98*self._tipPosZMax,
                                       size=(1,))
-
 
     def step(self, action):
         """
@@ -233,7 +230,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         return obs, reward, done, info
 
-
     def _get_info(self):
         """
         @brief      Get the observation associated with the current state of the robot,
@@ -256,7 +252,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         info = {'is_success': done}
 
         return info, obs
-
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """
@@ -282,7 +277,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         return reward
 
-
     def _get_achieved_goal(self):
         """
         @brief      Compute the achieved goal based on the current state of the robot.
@@ -295,7 +289,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         """
         return self.engine_py._engine.robot.pinocchio_data.oMf[self._tipIdx].translation[[2]]
 
-
     def _is_success(self, achieved_goal, desired_goal):
         """
         @brief      Determine whether the desired goal has been achieved.
@@ -307,7 +300,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         @return     Boolean flag
         """
         return bool(achieved_goal > desired_goal)
-
 
     def _get_obs(self):
         """
@@ -370,7 +362,6 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         if not self.enableGoalEnv:
             self.observation_space = self.observation_space['observation']
 
-
     def _sample_goal(self):
         """
         @brief      Samples a new goal and returns it.
@@ -388,7 +379,6 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         else:
             return np.array([0.95 * self._tipPosZMax])
 
-
     def reset(self):
         """
         @brief      Reset the simulation.
@@ -403,20 +393,19 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
         else:
             return obs['observation']
 
-
-    def step(self, a):
+    def step(self, action):
         """
         @brief      Run a simulation step for a given.
 
         @remark     See documentation of `JiminyAcrobotGoalEnv` for details.
 
-        @param[in]  a       The action to perform (in the action space rather than
+        @param[in]  action  The action to perform (in the action space rather than
                             the original torque space).
 
         @return     The next observation, the reward, the status of the simulation
                     (done or not), and a dictionary of extra information
         """
-        obs, reward, done, info = super().step(a)
+        obs, reward, done, info = super().step(action)
         if self.enableGoalEnv:
             return obs, reward, done, info
         else:

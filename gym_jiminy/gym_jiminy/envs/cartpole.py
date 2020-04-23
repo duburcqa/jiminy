@@ -151,7 +151,6 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         self.action_space = spaces.Discrete(2) # Force using a discrete action space
 
-
     def step(self, action):
         """
         @brief      Run a simulation step for a given.
@@ -187,14 +186,12 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         return self.state, reward, done, {}
 
-
     def _sample_state(self):
         """
         @brief      Returns a random valid initial state.
         """
         return self.np_random.uniform(low=self.state_random_low,
                                       high=self.state_random_high)
-
 
     def _get_obs(self):
         """
@@ -208,7 +205,6 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         @return     The current state of the robot
         """
         return self.state
-
 
     def _is_success(self):
         """
