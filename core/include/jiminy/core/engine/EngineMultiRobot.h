@@ -570,8 +570,9 @@ namespace jiminy
                             systemDataHolder_t const * & system) const;
         hresult_t getSystem(std::string        const   & systemName,
                             systemDataHolder_t       * & system);
-        stepperState_t const & getStepperState(void) const;
         systemState_t const & getSystemState(std::string const & systemName) const;
+        stepperState_t const & getStepperState(void) const;
+        bool_t const & getIsSimulationRunning(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,

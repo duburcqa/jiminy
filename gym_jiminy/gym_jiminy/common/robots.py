@@ -262,7 +262,7 @@ class RobotJiminyEnv(core.Env):
                     manually.
         """
         self.observation['state'] = self.engine_py.state
-        if self.engine_py._is_running:
+        if self.engine_py._engine.is_simulation_running:
             self.observation['sensors'] = self.engine_py.sensor_data
         else:
             self.observation['sensors'] = None

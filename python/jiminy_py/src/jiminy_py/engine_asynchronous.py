@@ -70,9 +70,6 @@ class EngineAsynchronous:
         ## Real time rendering management
         self.step_dt_prev = -1
 
-        ## Flag to determine if the simulation is running, and if the state is theoretical
-        self._is_running = False
-
         # Initialize the low-level jiminy engine
         q0 = neutral(robot.pinocchio_model)
         v0 = np.zeros(robot.nv)
@@ -117,7 +114,6 @@ class EngineAsynchronous:
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
         self._engine.set_options(engine_options)
         self._engine.reset()
-        self._is_running = False
 
     def reset(self, x0, is_state_theoretical=None):
         """
@@ -147,7 +143,6 @@ class EngineAsynchronous:
                           use_theoretical_model=False)
 
         # Reset the flags
-        self._is_running = False
         self._state = x0_rigid if self.use_theoretical_model else x0
         self._sensor_data = None
         self._action[:] = 0.0
@@ -167,18 +162,20 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
-        if (not self._is_running):
+        if (not self._engine.is_simulation_running):
             flag = self._engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
-                raise ValueError("Failed to start the simulation")
-            self._is_running = True
+                raise ValueError("Failed to start the simulation.")
 
         if (action_next is not None):
             self.action = action_next
-        self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
+
         return_code = self._engine.step(dt_desired)
+        if (return_code != jiminy.hresult_t.SUCCESS):
+            raise ValueError("Failed to perform the simulation step.")
+
+        self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self._engine.stepper_state.dt
-        return return_code
 
     def render(self, return_rgb_array=False, lock=None):
         """

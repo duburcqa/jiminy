@@ -1585,6 +1585,11 @@ namespace jiminy
         return stepperState_;
     }
 
+    bool_t const & EngineMultiRobot::getIsSimulationRunning(void) const
+    {
+        return isSimulationRunning_;
+    }
+
     // ========================================================
     // ================ Core physics utilities ================
     // ========================================================
