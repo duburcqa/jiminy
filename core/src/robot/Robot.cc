@@ -29,6 +29,7 @@ namespace jiminy
     motorsNames_(),
     sensorsNames_(),
     motorEffortFieldnames_(),
+    nmotors_(-1),
     constraintsHolder_(),
     constraintsJacobian_(),
     constraintsDrift_(),
@@ -634,9 +635,12 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Determine the number of motors
+            nmotors_ = motorsHolder_.size();
+
             // Extract the motor names
             motorsNames_.clear();
-            motorsNames_.reserve(motorsHolder_.size());
+            motorsNames_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                            std::back_inserter(motorsNames_),
                            [](auto const & elem) -> std::string
@@ -646,7 +650,7 @@ namespace jiminy
 
             // Generate the fieldnames associated with the motor efforts
             motorEffortFieldnames_.clear();
-            motorEffortFieldnames_.reserve(motorsHolder_.size());
+            motorEffortFieldnames_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                            std::back_inserter(motorEffortFieldnames_),
                            [](auto const & elem) -> std::string
@@ -1429,7 +1433,7 @@ namespace jiminy
     std::vector<int32_t> Robot::getMotorsModelIdx(void) const
     {
         std::vector<int32_t> motorsModelIdx;
-        motorsModelIdx.reserve(motorsHolder_.size());
+        motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
                        [](auto const & elem) -> int32_t
@@ -1442,7 +1446,7 @@ namespace jiminy
     std::vector<int32_t> Robot::getMotorsPositionIdx(void) const
     {
         std::vector<int32_t> motorsPositionIdx;
-        motorsPositionIdx.reserve(motorsHolder_.size());
+        motorsPositionIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsPositionIdx),
                        [](auto const & elem) -> int32_t
@@ -1455,7 +1459,7 @@ namespace jiminy
     std::vector<int32_t> Robot::getMotorsVelocityIdx(void) const
     {
         std::vector<int32_t> motorsVelocityIdx;
-        motorsVelocityIdx.reserve(motorsHolder_.size());
+        motorsVelocityIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsVelocityIdx),
                        [](auto const & elem) -> int32_t
@@ -1519,6 +1523,11 @@ namespace jiminy
     std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
     {
         return motorEffortFieldnames_;
+    }
+
+    int32_t const & Robot::nmotors(void) const
+    {
+        return nmotors_;
     }
 
     /// \brief Get jacobian of the constraints.

@@ -1048,6 +1048,8 @@ namespace python
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
+                .add_property("nmotors", bp::make_function(&Robot::nmotors,
+                                         bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
