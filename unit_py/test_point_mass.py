@@ -80,7 +80,9 @@ class SimulatePointMass(unittest.TestCase):
 
         # Check that the total energy never increases
         # One must use a specific, less restrictive, tolerance, because of numerical differentiation error of float32.
-        TOLERANCE_diff = 5e-2
+        TOLERANCE_diff = 1.0e-1
+        np.set_printoptions(threshold=np.inf, linewidth=200)
+        print(E_diff_tot)
         self.assertTrue(np.all(E_diff_tot < TOLERANCE_diff))
 
         # Check that the energy of robot only increases when the robot is moving upward while still in the ground.

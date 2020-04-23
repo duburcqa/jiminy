@@ -2,14 +2,21 @@ __import__('eigenpy').switchToNumpyArray()
 
 # Patching pinocchio to fix support of numpy.array
 
+# Note that `__version__` attribute exists since 2.1.1, but not properly maintained.
+# On the contrary, `printVersion` has always been available and maintained.
+
 import numpy as np
 from pkg_resources import parse_version as version
 from math import atan2, pi, sqrt
 
 import pinocchio as pin
 
+## Patch Pinocchio util `npToTuple` method
 
-from pinocchio.rpy import npToTTuple
+if version(pin.printVersion()) < version("2.3.0"):
+    from pinocchio.rpy import npToTTuple
+else:
+    from pinocchio.utils import npToTTuple
 
 def npToTuple(M):
     if M.ndim == 1:
@@ -21,10 +28,13 @@ def npToTuple(M):
             return tuple(M.T.tolist()[0])
         return npToTTuple(M)
 
-pin.rpy.npToTuple = npToTuple
+if version(pin.printVersion()) < version("2.3.0"):
+    pin.rpy.npToTuple = npToTuple
+else:
+    pin.utils.npToTuple = npToTuple
 
-# `__version__` attribute exists since 2.1.1, but not properly maintained (2.4.0 and 2.4.1 are missing it...).
-# On the contrary, `printVersion` has always been available and maintained.
+## Patch Pinocchio rpy module if necessary
+
 if version(pin.printVersion()) < version("2.3.0"):
     def rotate(axis, ang):
         """
@@ -62,6 +72,7 @@ if version(pin.printVersion()) < version("2.3.0"):
     pin.rpy.rpyToMatrix = rpyToMatrix
     pin.rpy.matrixToRpy = matrixToRpy
 
+## Patch Meshcat viewer interface
 
 def display(self, q):
     """Display the robot at configuration q in the viewer by placing all the bodies."""
