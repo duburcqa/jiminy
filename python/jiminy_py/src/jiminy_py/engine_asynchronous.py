@@ -73,7 +73,7 @@ class EngineAsynchronous:
         # Initialize the low-level jiminy engine
         q0 = neutral(robot.pinocchio_model)
         v0 = np.zeros(robot.nv)
-        self.reset(np.concatenate((q0, v0)))
+        self.reset(np.concatenate((q0, v0)), is_state_theoretical=False)
 
     def _send_command(self, t, q, v, sensor_data, uCommand):
         """
@@ -105,8 +105,8 @@ class EngineAsynchronous:
         """
         @brief      Set the seed of the simulation and reset the simulation.
 
-        @details    The initial state is zero. Execute the method `reset` manually
-                    afterward to specify a different initial state.
+        @details    Note that it also resets the low-level jiminy Engine.
+                    One must call the `reset` method manually afterward.
 
         @param[in]  seed    Desired seed (Unsigned integer 32 bits)
         """
@@ -125,8 +125,9 @@ class EngineAsynchronous:
         if is_state_theoretical is None:
             is_state_theoretical = self.use_theoretical_model
 
-        # Stop the simulation
-        self._engine.stop()
+        # Reset the simulation. Do NOT start a new one at this point,
+        # to avoid locking the robot and the telemetry too early.
+        self._engine.reset()
 
         # Call update_quantities in order to the frame placement for rendering
         if is_state_theoretical:

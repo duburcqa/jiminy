@@ -295,9 +295,7 @@ class RobotJiminyEnv(core.Env):
         """
         @brief      Specify the seed of the environment.
 
-        @details    One must reset the environment after updating the seed because
-                    otherwise the behavior is undefined as it is not part of the
-                    specification for Python Jiminy engines.
+        @details    Note that it also resets the low-level Jiminy engine.
 
         @param[in]  seed    Desired seed as a numpy unsigned integer 32 bit
                             Optional: The seed will be randomly generated using numpy if omitted.
@@ -306,6 +304,8 @@ class RobotJiminyEnv(core.Env):
         """
         self.np_random, seed = seeding.np_random(seed)
         self.engine_py.seed(seed)
+        self._steps_beyond_done = None
+        self._update_observation()
         return [seed]
 
     def reset(self):
