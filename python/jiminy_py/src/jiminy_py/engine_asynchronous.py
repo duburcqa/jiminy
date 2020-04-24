@@ -101,7 +101,7 @@ class EngineAsynchronous:
         """
         pass
 
-    def seed(self, seed : np.uint32):
+    def seed(self, seed):
         """
         @brief      Set the seed of the simulation and reset the simulation.
 
@@ -110,6 +110,8 @@ class EngineAsynchronous:
 
         @param[in]  seed    Desired seed (Unsigned integer 32 bits)
         """
+        assert isinstance(seed, np.uint32),  "'seed' must have type np.uint32."
+
         engine_options = self._engine.get_options()
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
         self._engine.set_options(engine_options)

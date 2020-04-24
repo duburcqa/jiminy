@@ -23,8 +23,9 @@ def npToTuple(M):
 
 pin.rpy.npToTuple = npToTuple
 
-
-if version(pin.__version__) < version("2.3.0"):
+# `__version__` attribute exists since 2.1.1, but not properly maintained (2.4.0 and 2.4.1 are missing it...).
+# On the contrary, `printVersion` has always been available and maintained.
+if version(pin.printVersion()) < version("2.3.0"):
     def rotate(axis, ang):
         """
         # Transformation Matrix corresponding to a rotation about x,y or z

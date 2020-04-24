@@ -10,7 +10,7 @@ The visualisation relies on the open-source client [Gepetto-Viewer](https://gith
 
 The data of the simulation can be exported in CSV, raw binary format, or read directly from the RAM memory to avoid any disk access. The complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
-Python2 and Python3 bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python). Yet, it is recommended to use Python3 over Python2 since support will be dropped in the future.
+Python bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python). It supports both Python2 and Python3, yet it is recommended to use Python3 over Python2 since support will be dropped in the future.
 
 **The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`. **
 
@@ -40,4 +40,4 @@ ___
 
 # Getting started
 
-Jiminy is compatible with Linux and Windows It supports both Python2.7 and Python3.5+. Jiminy is distributed on PyPi for Python 2.7/3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. The complete installation instructions are available [here](./INSTALL.md).
+Jiminy is compatible with Linux and Windows It supports both Python2.7 and Python3.5+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. The complete installation instructions are available [here](./INSTALL.md).
