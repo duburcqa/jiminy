@@ -913,12 +913,16 @@ namespace python
                                                     bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_names", bp::make_function(&Model::getRigidJointsNames,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("rigid_joints_idx", bp::make_function(&Model::getRigidJointsModelIdx,
+                                                  bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_position_idx", bp::make_function(&Model::getRigidJointsPositionIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("rigid_joints_velocity_idx", bp::make_function(&Model::getRigidJointsVelocityIdx,
                                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("flexible_joints_names", bp::make_function(&Model::getFlexibleJointsNames,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("flexible_joints_idx", bp::make_function(&Model::getFlexibleJointsModelIdx,
+                                                     bp::return_value_policy<bp::copy_const_reference>()))
 
                 .add_property("position_limit_lower", bp::make_function(&Model::getPositionLimitMin,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
@@ -1048,6 +1052,8 @@ namespace python
                                               (bp::arg("self"), "telemetry_options"))
                 .def("get_telemetry_options", &Robot::getTelemetryOptions)
 
+                .add_property("nmotors", bp::make_function(&Robot::nmotors,
+                                         bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_names", bp::make_function(&Robot::getMotorsNames,
                                               bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("motors_position_idx", &Robot::getMotorsPositionIdx)
@@ -1569,6 +1575,8 @@ namespace python
                                          (bp::arg("self"), "system_name")))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
+                .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
+                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 

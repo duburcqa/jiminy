@@ -12,3 +12,5 @@ register(
     max_episode_steps=12000,
     reward_threshold=-3000.0
 )
+
+import jiminy_py # Preload jiminy to force import of eigenpy and pinocchio

@@ -76,15 +76,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         @return     Instance of the environment.
         """
 
-        ## @var steps_beyond_done
-        # @copydoc RobotJiminyEnv::steps_beyond_done
-        ## @var state
-        # @copydoc RobotJiminyEnv::state
-        ## @var action_space
-        #  @copydoc RobotJiminyEnv::action_space
-        ## @var observation_space
-        # @copydoc RobotJiminyEnv::observation_space
-        ## @var state_random_high
+        #  @copydoc RobotJiminyEnv::__init__
+        # ## @var state_random_high
         #  @copydoc RobotJiminyEnv::state_random_high
         ## @var state_random_low
         #  @copydoc RobotJiminyEnv::state_random_low
@@ -94,30 +87,30 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
         urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
 
-        self._robot = jiminy.Robot()
-        self._robot.initialize(urdf_path)
+        robot = jiminy.Robot()
+        robot.initialize(urdf_path)
 
         motor_joint_name = "slider_to_cart"
         encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
         motor = jiminy.SimpleMotor(motor_joint_name)
-        self._robot.attach_motor(motor)
+        robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
         for sensor_name, joint_name in encoder_sensors_def.items():
             encoder = jiminy.EncoderSensor(sensor_name)
-            self._robot.attach_sensor(encoder)
+            robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(self._robot)
+        engine_py = EngineAsynchronous(robot)
 
         # ############################### Configure Jiminy #####################################
 
-        robot_options = self._robot.get_options()
+        robot_options = robot.get_options()
 
         # Set the effort limit of the motor
         robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
         robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_FORCE
 
-        self._robot.set_options(robot_options)
+        robot.set_options(robot_options)
 
         # ##################### Define some problem-specific variables #########################
 
@@ -130,6 +123,10 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         ## Maximum absolute position of the cart before considering the episode failed
         self.x_threshold = 0.75
 
+        # Bounds of the hypercube associated with the initial state of the robot
+        self.state_random_high = np.array([0.5, 0.15, 0.1, 0.1])
+        self.state_random_low = -self.state_random_high
+
         # ####################### Configure the learning environment ###########################
 
         super().__init__("cartpole", engine_py, DT)
@@ -141,87 +138,47 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         # failure are still within bounds.
         high = np.array([self.x_threshold * 2,
                          self.theta_threshold_radians * 2,
-                         *self._robot.velocity_limit])
+                         *robot.velocity_limit])
 
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
 
-        # Bounds of the hypercube associated with the initial state of the robot
-        self.state_random_high = np.array([0.5, 0.15, 0.1, 0.1])
-        self.state_random_low = -self.state_random_high
-
         self.action_space = spaces.Discrete(2) # Force using a discrete action space
 
-
-    def step(self, action):
-        """
-        @brief      Run a simulation step for a given.
-
-        @param[in]  action  The action to perform (in the action space rather than
-                            the original force space).
-
-        @return     The next state, the reward, the status of the simulation (done or not),
-                    and an empty dictionary for compatibility with Gym OpenAI.
-        """
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
-
-        # Compute the force to apply
-        force = self.AVAIL_FORCE[action]
-
-        # Bypass 'action' setter and use direct assignment to max out the performances
-        self.engine_py._action[0] = force
-        self.engine_py.step(dt_desired=self.dt)
-        self.state = self.engine_py.state
-
-        # Check the terminal condition and compute reward
-        done = self._is_success()
-        reward = 0.0
-        if not done:
-            reward += 1.0
-        elif self.steps_beyond_done is None:
-            self.steps_beyond_done = 0
-            reward += 1.0
-        else:
-            if self.steps_beyond_done == 0:
-                logger.warn("You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior.")
-            self.steps_beyond_done += 1
-
-        return self.state, reward, done, {}
-
-
     def _sample_state(self):
-        """
-        @brief      Returns a random valid initial state.
-        """
+        # @copydoc RobotJiminyEnv::_sample_state
         return self.np_random.uniform(low=self.state_random_low,
                                       high=self.state_random_high)
 
+    def _update_observation(self):
+        # @copydoc RobotJiminyEnv::_update_observation
+        self.observation = self.engine_py.state
 
-    def _get_obs(self):
-        """
-        @brief      Get the current observation based on the current state of the robot.
-                    Mostly defined for compatibility with Gym OpenAI.
-
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
-        @return     The current state of the robot
-        """
-        return self.state
-
-
-    def _is_success(self):
-        """
-        @brief      Determine whether the desired goal has been achieved.
-
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
-        @return     Boolean flag
-        """
-        x, theta, _, _ = self.state
+    def _is_done(self):
+        # @copydoc RobotJiminyEnv::_is_done
+        x, theta, _, _ = self.observation
         return        x < -self.x_threshold \
                or     x >  self.x_threshold \
                or theta < -self.theta_threshold_radians \
                or theta >  self.theta_threshold_radians
+
+    def _compute_reward(self):
+        # @copydoc RobotJiminyEnv::_compute_reward
+
+        # Add a small positive reward as long as the terminal condition
+        # has never been reached during the same episode.
+        reward = 0.0
+        if self._steps_beyond_done is None:
+            done = self._is_done()
+            if not done:
+                reward += 1.0
+        return reward
+
+    def step(self, action):
+        # @copydoc RobotJiminyEnv::step
+        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+
+        # Compute the force to apply
+        action = self.AVAIL_FORCE[action]
+
+        # Perform the step
+        return super().step(action)

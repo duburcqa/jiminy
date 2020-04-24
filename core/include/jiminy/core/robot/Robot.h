@@ -173,6 +173,8 @@ namespace jiminy
         vectorN_t getMotorInertia(void) const;
 
         std::vector<std::string> const & getMotorEffortFieldnames(void) const;
+        // Getters without 'get' prefix for consistency with pinocchio C++ API
+        int32_t const & nmotors(void) const;
 
         hresult_t getLock(std::unique_ptr<MutexLocal::LockGuardLocal> & lock);
         bool_t const & getIsLocked(void) const;
@@ -190,9 +192,10 @@ namespace jiminy
         motorsHolder_t motorsHolder_;
         sensorsGroupHolder_t sensorsGroupHolder_;
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
-        std::vector<std::string> motorsNames_;                                      ///< Name of the motors of the robot
-        std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///<Name of the sensors of the robot
-        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the efforts of the motors
+        std::vector<std::string> motorsNames_;                                      ///< Name of the motors
+        std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
+        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the efforts
+        int32_t nmotors_;                                                           ///< The number of motors
 
         std::vector<robotConstraint_t> constraintsHolder_;
         matrixN_t constraintsJacobian_;                                             ///< Matrix holding the jacobian of the constraints.
