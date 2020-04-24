@@ -130,7 +130,7 @@ namespace jiminy
         // Clear the shared data buffers
         sharedHolder_->time_.resize(2);
         std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
-        sharedHolder_->time_.back() = 0;
+        sharedHolder_->time_.back() = 0.0;
         sharedHolder_->data_.resize(2);
         for (matrixN_t & data : sharedHolder_->data_)
         {
@@ -358,7 +358,7 @@ namespace jiminy
         // Internal buffer memory management
         if (t + EPS > sharedHolder_->time_.back())
         {
-            if (sharedHolder_->time_[0] < 0 || timeMin > sharedHolder_->time_[1])
+            if (sharedHolder_->time_[0] < 0.0 || timeMin > sharedHolder_->time_[1])
             {
                 // Remove some unecessary extra elements if appropriate
                 if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED

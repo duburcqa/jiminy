@@ -68,9 +68,8 @@ namespace jiminy
 
     void Robot::reset(void)
     {
-        // Reset the model and the telemetry
+        // Reset the model
         Model::reset();
-        isTelemetryConfigured_ = false;
 
         // Reset the motors
         if (!motorsHolder_.empty())
@@ -86,6 +85,9 @@ namespace jiminy
                 (*sensorGroup.second.begin())->resetAll();
             }
         }
+
+        // Reset the telemetry flag
+        isTelemetryConfigured_ = false;
     }
 
     hresult_t Robot::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,

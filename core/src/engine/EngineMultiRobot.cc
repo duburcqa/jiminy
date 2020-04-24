@@ -30,7 +30,7 @@ namespace jiminy
     void systemState_t::initialize(Robot const * robot)
     {
         robot_ = robot;
-        q = vectorN_t::Zero(robot_->nq());
+        q = pinocchio::neutral(robot->pncModel_);
         v = vectorN_t::Zero(robot_->nv());
         qDot = vectorN_t::Zero(robot_->nq());
         a = vectorN_t::Zero(robot_->nv());
@@ -451,6 +451,12 @@ namespace jiminy
     void EngineMultiRobot::reset(bool_t const & resetRandomNumbers,
                                  bool_t const & resetDynamicForceRegister)
     {
+        // Make sure the simulation is properly stopped
+        if (isSimulationRunning_)
+        {
+            stop();
+        }
+
         // Reset the dynamic force register if requested
         if (resetDynamicForceRegister)
         {
@@ -474,12 +480,6 @@ namespace jiminy
         {
             system.robot->reset();
             system.controller->reset();
-        }
-
-        // Make sure the simulation is properly stopped
-        if (isSimulationRunning_)
-        {
-            stop();
         }
     }
 
@@ -593,6 +593,12 @@ namespace jiminy
 
                 // Lock the robot. At this point it is no longer possible to change the robot anymore.
                 returnCode = system.robot->getLock(system.robotLock);
+
+                /* Reinitialize the system state buffers, since the robot kinematic may have changed.
+                   For example, it may happens if one activates or deactivates the flexibility between
+                   two successive simulations. */
+                system.state.initialize(system.robot.get());
+                system.statePrev.initialize(system.robot.get());
             }
         }
 
@@ -1127,7 +1133,7 @@ namespace jiminy
                             }
                         }
 
-                        // Break the loop if dt is getting too small. Don't worry it will be catched later.
+                        // Break the loop if dt is getting too small. Don't worry it will be caught later.
                         if (dt < STEPPER_MIN_TIMESTEP)
                         {
                             break;
@@ -1322,9 +1328,9 @@ namespace jiminy
             system.robotLock.reset(nullptr);
         }
 
-        /* Reset the telemetry. Note that calling `reset` does NOT clear the
-            internal data buffer of telemetryRecorder_. Clearing is done at init
-            time, so that it remains accessible until the next initialization. */
+        /* Reset the telemetry. Note that calling ``stop` or `reset` does NOT clear
+           the internal data buffer of telemetryRecorder_. Clearing is done at init
+           time, so that it remains accessible until the next initialization. */
         telemetryRecorder_->reset();
         telemetryData_->reset();
 

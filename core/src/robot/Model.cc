@@ -224,7 +224,7 @@ namespace jiminy
                     returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
                 }
 
-                // Add joints to model.
+                // Add joints to model
                 if (returnCode == hresult_t::SUCCESS)
                 {
                     std::string newName =
@@ -299,7 +299,7 @@ namespace jiminy
             // Initialize Pinocchio Data internal state
             pncData_ = pinocchio::Data(pncModel_);
             pinocchio::forwardKinematics(pncModel_, pncData_,
-                                         vectorN_t::Zero(pncModel_.nq),
+                                         pinocchio::neutral(pncModel_),
                                          vectorN_t::Zero(pncModel_.nv));
             pinocchio::updateFramePlacements(pncModel_, pncData_);
         }
@@ -573,8 +573,8 @@ namespace jiminy
             if (mdlOptions_
             && (flexibilityConfig.size() != mdlOptions_->dynamics.flexibilityConfig.size()
                 || !std::equal(flexibilityConfig.begin(),
-                                flexibilityConfig.end(),
-                                mdlOptions_->dynamics.flexibilityConfig.begin())))
+                               flexibilityConfig.end(),
+                               mdlOptions_->dynamics.flexibilityConfig.begin())))
             {
                 isFlexibleModelInvalid = true;
             }
@@ -735,7 +735,7 @@ namespace jiminy
         for (; idxFlex < pncModelFlexibleOrig_.njoints; idxRigid++, idxFlex++)
         {
             std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
-            std::string const & jointFlexName = pncModelRigidOrig_.names[idxFlex];
+            std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
             if (jointRigidName == jointFlexName)
             {
                 auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
