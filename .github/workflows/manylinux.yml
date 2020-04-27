@@ -103,7 +103,7 @@ jobs:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/wheelhouse/
-    - name: Publish on PyPi the wheel of Jiminy_py (Any platform / Any python3 version)
+    - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: matrix.python-version == '3.6' && success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
