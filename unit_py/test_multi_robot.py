@@ -96,7 +96,7 @@ class SimulateMultiRobot(unittest.TestCase):
                       [    k[2] / m[1],     nu[2] / m[1], -k_eq [1]/ m[1], -nu_eq[1] / m[1]]])
 
         # Compute analytical solution
-        x_analytical = np.stack([expm(A * t) @ x_jiminy[0, :] for t in time], axis=0)
+        x_analytical = np.stack([expm(A * t).dot(x_jiminy[0, :]) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))

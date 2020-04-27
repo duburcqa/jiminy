@@ -76,7 +76,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         I_eq = I + J
         A = np.array([[               0, 1],
                       [-k_spring / I_eq, 0]])
-        x_analytical = np.stack([expm(A * t) @ x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(A * t).dot(x0) for t in time], axis=0)
 
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
@@ -142,7 +142,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                     pos = length * np.array([-np.cos(q - np.pi / 2), 0.0, np.sin(q - np.pi / 2)])
                     n = pos / np.linalg.norm(pos)
                     d = np.cross(axis, n)
-                    F_proj = F_register[i]["F"][:3].T @ d
+                    F_proj = F_register[i]["F"][:3].T.dot(d)
                     v_delta = ((F_proj + F_register[i]["F"][4] / length) * min(F_register[i]["dt"], t - F_register[i]["t"])) / mass
                     if (i < len(F_register) - 1):
                         q += (v + v_delta) * max(0, min(t, F_register[i+1]["t"]) - (F_register[i]["t"] + F_register[i]["dt"]))
@@ -322,7 +322,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                       [0,                 0,                0,                                  1],
                       [-k * (1 / I + 1 / J), k_control / J, -nu * (1 / I + 1 / J), nu_control / J],
                       [               k / J,-k_control / J,                nu / J,-nu_control / J]])
-        x_analytical = np.stack([expm(A * t) @ x_jiminy_extract[0] for t in time], axis=0)
+        x_analytical = np.stack([expm(A * t).dot(x_jiminy_extract[0]) for t in time], axis=0)
 
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
@@ -384,7 +384,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         I_eq = I + J
         A = np.array([[               0, 1],
                       [-k_spring / I_eq, 0]])
-        x_analytical = np.stack([expm(A * t) @ x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(A * t).dot(x0) for t in time], axis=0)
 
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 

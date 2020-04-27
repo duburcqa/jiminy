@@ -79,7 +79,7 @@ class SimulateTwoMasses(unittest.TestCase):
                                       self.robot.logfile_velocity_headers], axis=-1)
 
         # Compute analytical solution
-        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(self.A * t).dot(self.x0) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
@@ -116,7 +116,7 @@ class SimulateTwoMasses(unittest.TestCase):
                                       self.robot.logfile_velocity_headers], axis=-1)
 
         # Compute analytical solution
-        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(self.A * t).dot(self.x0) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
@@ -156,7 +156,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Add extra external force to second mass.
         m = self.robot.pinocchio_model_th.inertias[2].mass
         self.A[3, :] += np.array([-k_ext / m, -k_ext / m, 0, 0])
-        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(self.A * t).dot(self.x0) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
@@ -195,7 +195,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # mass is the opposite of that of the first mass to provide a constant
         # output position.
         self.A[3, :] = -self.A[2, :]
-        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(self.A * t).dot(self.x0) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
@@ -258,7 +258,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Compute analytical solution - the acceleration of the second mass should
         # be the opposite of that of the first.
         self.A[3, :] = -self.A[2, :]
-        x_analytical = np.stack([expm(self.A * t) @ self.x0 for t in time], axis=0)
+        x_analytical = np.stack([expm(self.A * t).dot(self.x0) for t in time], axis=0)
 
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy[:, [7,8,15,16]], x_analytical, atol=TOLERANCE))

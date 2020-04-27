@@ -13,7 +13,7 @@ from bisect import bisect_right
 from threading import Thread, Lock
 from PIL import Image
 
-import pinocchio as pnc
+import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix
@@ -182,12 +182,12 @@ class Viewer:
             else:
                 alpha = 1.0
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
-        collision_model = pnc.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
+        collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                                 root_path,
-                                                pnc.GeometryType.COLLISION)
-        visual_model = pnc.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
+                                                pin.GeometryType.COLLISION)
+        visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                              root_path,
-                                             pnc.GeometryType.VISUAL)
+                                             pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=collision_model,
                                 visual_model=visual_model)
@@ -376,14 +376,14 @@ class Viewer:
 
         @param[in]  geometry_object     Geometry object from which to get the node
         @param[in]  geometry_type       Geometry type. It must be either
-                                        pnc.GeometryType.VISUAL or pnc.GeometryType.COLLISION
+                                        pin.GeometryType.VISUAL or pin.GeometryType.COLLISION
                                         for display and collision, respectively.
 
         @return     Full path of the associated node.
         """
-        if geometry_type is pnc.GeometryType.VISUAL:
+        if geometry_type is pin.GeometryType.VISUAL:
             return self._rb.viz.viewerVisualGroupName + '/' + geometry_object.name
-        elif geometry_type is pnc.GeometryType.COLLISION:
+        elif geometry_type is pin.GeometryType.COLLISION:
             return self._rb.viz.viewerCollisionGroupName + '/' + geometry_object.name
 
     def _updateGeometryPlacements(self, visual=False):
@@ -401,7 +401,7 @@ class Viewer:
             geom_model = self._rb.collision_model
             geom_data = self._rb.collision_data
 
-        pnc.updateGeometryPlacements(self.pinocchio_model,
+        pin.updateGeometryPlacements(self.pinocchio_model,
                                      self.pinocchio_data,
                                      geom_model, geom_data)
 
@@ -451,9 +451,9 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             if self._rb.displayCollisions:
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(collision, pnc.GeometryType.COLLISION)
+                    [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
                     for collision in self._rb.collision_model.geometryObjects],
-                    [pnc.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
+                    [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
                         self._rb.collision_model.getGeometryId(collision.name)])
                     for collision in self._rb.collision_model.geometryObjects]
                 )
@@ -461,9 +461,9 @@ class Viewer:
             if self._rb.displayVisuals:
                 self._updateGeometryPlacements(visual=True)
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(visual, pnc.GeometryType.VISUAL)
+                    [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
                         for visual in self._rb.visual_model.geometryObjects],
-                    [pnc.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
+                    [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
                         self._rb.visual_model.getGeometryId(visual.name)])
                         for visual in self._rb.visual_model.geometryObjects]
                 )
@@ -475,7 +475,7 @@ class Viewer:
                 T = self._rb.visual_data.oMg[\
                     self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
-                    self._getViewerNodeName(visual, pnc.GeometryType.VISUAL)].set_transform(T)
+                    self._getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
 
     def display(self, evolution_robot, replay_speed, xyz_offset=None):
         t = [s.t for s in evolution_robot]

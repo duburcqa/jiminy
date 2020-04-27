@@ -53,7 +53,7 @@ git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdo
 git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 
 ### Checkout pinocchio and its submodules
-git clone -b "v2.4.0" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+git clone -b "v2.4.2" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 cd "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
 

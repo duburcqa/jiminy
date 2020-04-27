@@ -4,8 +4,7 @@
 
 import numpy as np
 
-import pinocchio as pnc
-from pinocchio import FrameType, Quaternion, SE3, XYZQUATToSe3
+import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 
@@ -16,7 +15,7 @@ def se3ToXYZRPY(M):
     return p
 
 def XYZRPYToSe3(xyzrpy):
-    return SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
+    return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
 
 def update_quantities(robot,
                       position,
@@ -69,38 +68,38 @@ def update_quantities(robot,
     if (update_physics and update_com and \
         update_energy and update_jacobian and \
         velocity is not None):
-        pnc.computeAllTerms(pnc_model, pnc_data, position, velocity)
+        pin.computeAllTerms(pnc_model, pnc_data, position, velocity)
     else:
         if update_physics:
             if velocity is not None:
-                pnc.nonLinearEffects(pnc_model, pnc_data, position, velocity)
-            pnc.crba(pnc_model, pnc_data, position)
+                pin.nonLinearEffects(pnc_model, pnc_data, position, velocity)
+            pin.crba(pnc_model, pnc_data, position)
 
         if update_jacobian:
             # if update_com:
-            #     pnc.getJacobianComFromCrba(pnc_model, pnc_data)
-            pnc.computeJointJacobians(pnc_model, pnc_data)
+            #     pin.getJacobianComFromCrba(pnc_model, pnc_data)
+            pin.computeJointJacobians(pnc_model, pnc_data)
 
         if update_com:
             if velocity is None:
-                pnc.centerOfMass(pnc_model, pnc_data, position)
+                pin.centerOfMass(pnc_model, pnc_data, position)
             elif acceleration is None:
-                pnc.centerOfMass(pnc_model, pnc_data, position, velocity)
+                pin.centerOfMass(pnc_model, pnc_data, position, velocity)
             else:
-                pnc.centerOfMass(pnc_model, pnc_data, position, velocity, acceleration)
+                pin.centerOfMass(pnc_model, pnc_data, position, velocity, acceleration)
         else:
             if velocity is None:
-                pnc.forwardKinematics(pnc_model, pnc_data, position)
+                pin.forwardKinematics(pnc_model, pnc_data, position)
             elif acceleration is None:
-                pnc.forwardKinematics(pnc_model, pnc_data, position, velocity)
+                pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
             else:
-                pnc.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
-            pnc.framesForwardKinematics(pnc_model, pnc_data, position)
+                pin.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
+            pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
         if update_energy:
             if velocity is not None:
-                pnc.kineticEnergy(pnc_model, pnc_data, position, velocity, False)
-            pnc.potentialEnergy(pnc_model, pnc_data, position, False)
+                pin.kineticEnergy(pnc_model, pnc_data, position, velocity, False)
+            pin.potentialEnergy(pnc_model, pnc_data, position, False)
 
 def get_body_index_and_fixedness(robot, body_name, use_theoretical_model=True):
     """
@@ -122,7 +121,7 @@ def get_body_index_and_fixedness(robot, body_name, use_theoretical_model=True):
     frame_id = pnc_model.getFrameId(body_name)
     parent_frame_id = pnc_model.frames[frame_id].previousFrame
     parent_frame_type = pnc_model.frames[parent_frame_id].type
-    is_body_fixed = (parent_frame_type == FrameType.FIXED_JOINT)
+    is_body_fixed = (parent_frame_type == pin.FrameType.FIXED_JOINT)
     if is_body_fixed:
         body_id = frame_id
     else:
@@ -269,14 +268,14 @@ def compute_freeflyer_state_from_fixed_body(robot, fixed_body_name, position,
     else:
         acceleration = np.zeros((pnc_model.nv,))
 
-    pnc.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
-    pnc.framesForwardKinematics(pnc_model, pnc_data, position)
+    pin.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
+    pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
     ff_M_fixed_body = get_body_world_transform(
         robot, fixed_body_name, use_theoretical_model)
     w_M_ff = ff_M_fixed_body.inverse()
     base_link_translation = w_M_ff.translation
-    base_link_quaternion = Quaternion(w_M_ff.rotation)
+    base_link_quaternion = pin.Quaternion(w_M_ff.rotation)
     position[:3] = base_link_translation
     position[3:7] = base_link_quaternion.coeffs()
 
@@ -289,73 +288,3 @@ def compute_freeflyer_state_from_fixed_body(robot, fixed_body_name, position,
         robot, fixed_body_name, use_theoretical_model)
     base_link_acceleration = - ff_a_fixedBody
     acceleration[:6] = base_link_acceleration.vector
-
-def retrieve_freeflyer(trajectory_data, roll_angle=0.0, pitch_angle=0.0):
-    """
-    @brief   Retrieves the freeflyer positions and velocities. The reference frame is the support foot.
-    """
-    robot = trajectory_data['robot']
-    use_theoretical_model = trajectory_data['use_theoretical_model']
-    for s in trajectory_data['evolution_robot']:
-        # Extract the current position, velocity and acceleration
-        q, v, a = s.q.squeeze(), s.v.squeeze(), s.a.squeeze()
-
-        # Compute freeflyer using support foot as reference frame.
-        compute_freeflyer_state_from_fixed_body(
-            robot, s.support_foot, q, v, a, use_theoretical_model)
-
-        # Move freeflyer to take the foot angle into account.
-        # w: world frame, st: support foot frame, ff: freeflyer frame.
-        w_M_sf = XYZRPYToSe3(np.array([roll_angle, pitch_angle, 0.0, 0.0, 0.0, 0.0]))
-        sf_M_ff = XYZQUATToSe3(s.q[:7]) # Px, Py, Pz, Qx, Qy, Qz, Qw
-        w_M_ff = w_M_sf.act(sf_M_ff)
-        q[:3] = w_M_ff.translation
-        q[3:7] = Quaternion(w_M_ff.rotation).coeffs()
-
-def compute_efforts(trajectory_data, index=(0, 0)):
-    """
-    @brief   Compute the efforts in the trajectory using RNEA method.
-
-    @param   trajectory_data Sequence of States for which to compute the efforts.
-    @param   index Index under which the efforts will be saved in the trajectory_data
-             (usually the couple of (roll, pitch) angles of the support foot).
-    """
-    robot = trajectory_data['robot']
-    use_theoretical_model = trajectory_data['use_theoretical_model']
-    if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
-    else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
-
-    ## Compute the efforts at each time step
-    root_joint_idx = pnc_model.getJointId('root_joint')
-    for s in trajectory_data['evolution_robot']:
-        # Apply a first run of rnea without explicit external forces
-        pnc.computeJointJacobians(pnc_model, pnc_data, s.q)
-        pnc.rnea(pnc_model, pnc_data, s.q, s.v, s.a)
-
-        # Initialize vector of exterior forces to 0
-        fs = pnc.StdVec_Force()
-        fs.extend(len(pnc_model.names) * (pnc.Force.Zero(),))
-
-        # Compute the force at the henkle level
-        support_foot_idx = pnc_model.frames[pnc_model.getBodyId(s.support_foot)].parent
-        fs[support_foot_idx] = pnc_data.oMi[support_foot_idx]\
-            .actInv(pnc_data.oMi[root_joint_idx]).act(pnc_data.f[root_joint_idx])
-
-        # Recompute the efforts with RNEA and the correct external forces
-        s.tau[index] = pnc.rnea(pnc_model, pnc_data, s.q, s.v, s.a, fs)
-        s.f_ext[index] = fs[support_foot_idx].copy()
-
-        # Add the force to the structure
-        s.f[index] = dict(list(zip(pnc_model.names, [f_ind.copy() for f_ind in pnc_data.f])))
-
-        # Add the external force applied at the soles as if the floor was a parent of the soles
-        for joint in ['LeftSole', 'RightSole']:
-            ha_M_s = pnc_model.frames[pnc_model.getBodyId(joint)].placement
-            if s.support_foot == joint:
-                s.f[index][joint] = ha_M_s.actInv(s.f_ext[index])
-            else:
-                s.f[index][joint] = pnc.Force.Zero()
