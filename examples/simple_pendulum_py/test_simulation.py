@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 from jiminy_py import core as jiminy
-from jiminy_py.log import extract_state_from_simulation_log
+from jiminy_py.log import extract_viewer_data_from_log
 from jiminy_py.viewer import play_trajectories
 from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
 import pinocchio as pin
@@ -371,7 +371,7 @@ print("Simulation time: %03.0fms" % ((end - start) * 1.0e3))
 
 log_data, log_constants = engine.get_log()
 
-trajectory_data_log = extract_state_from_simulation_log(log_data, robot)
+trajectory_data_log = extract_viewer_data_from_log(log_data, robot)
 
 # Save the log in CSV
 engine.write_log(os.path.join(tempfile.gettempdir(), "log.data"), True)

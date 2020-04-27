@@ -12,38 +12,53 @@ from .state import State
 from .core import Engine, Robot
 
 
-def extract_state_from_simulation_log(log_data, robot):
+def extract_viewer_data_from_log(log_data, robot):
     """
-    @brief      Extract a trajectory object using from raw simulation data.
+    @brief      Extract the minimal required information from raw log data in
+                order to replay the simulation in a viewer.
 
-    @details    Extract time, joint positions and velocities evolution from log.
+    @details    It extracts the time and joint positions evolution.
     .
     @remark     Note that the quaternion angular velocity vectors are expressed
                 it body frame rather than world frame.
 
-    @param[in]  log_data          Data from the log file, in a dictionnary.
-    @param[in]  robot             Jiminy robot.
+    @param[in]  log_data    Data from the log file, in a dictionnary.
+    @param[in]  robot       Jiminy robot.
 
     @return     Trajectory dictionary. The actual trajectory corresponds to
                 the field "evolution_robot" and it is a list of State object.
                 The other fields are additional information.
     """
-    t = log_data['Global.Time']
-    qe = np.array([log_data[field] for field in log_data.keys()
-                                   if 'currentFreeflyerPosition' in field or 'currentPosition' in field])
-    dqe = np.array([log_data[field] for field in log_data.keys()
-                                   if 'currentFreeflyerVelocity' in field or 'currentVelocity' in field])
-    ddqe = np.array([log_data[field] for field in log_data.keys()
-                                   if 'currentFreeflyerAcceleration' in field or 'currentAcceleration' in field])
+
+    # Get the current robot model options
+    model_options = robot.get_model_options()
+
+    # Extract the joint positions time evolution
+    t = log_data["Global.Time"]
+    try:
+        qe = np.stack([log_data["HighLevelController." + s]
+                       for s in robot.logfile_position_headers], axis=-1)
+    except:
+        model_options['dynamics']['enableFlexibleModel'] = not robot.is_flexible
+        robot.set_model_options(model_options)
+        qe = np.stack([log_data["HighLevelController." + s]
+                       for s in robot.logfile_position_headers], axis=-1)
+
+    # Determine whether the theoretical model of the flexible one must be used
+    use_theoretical_model = not robot.is_flexible
+
+    # Make sure that the flexibilities are enabled
+    model_options['dynamics']['enableFlexibleModel'] = True
+    robot.set_model_options(model_options)
 
     # Create state sequence
     evolution_robot = []
     for i in range(len(t)):
-        evolution_robot.append(State(qe[:, i], dqe[:, i], ddqe[:, i], t[i]))
+        evolution_robot.append(State(qe[i].T, None, None, t[i]))
 
     return {'evolution_robot': evolution_robot,
             'robot': robot,
-            'use_theoretical_model': False}
+            'use_theoretical_model': use_theoretical_model}
 
 def is_log_binary(filename):
     """
