@@ -10,7 +10,7 @@ from jiminy_py import core as jiminy
 from jiminy_py.log import extract_state_from_simulation_log
 from jiminy_py.viewer import play_trajectories
 from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
-import pinocchio as pnc
+import pinocchio as pin
 
 from interactive_plot_util import interactive_legend
 
@@ -77,7 +77,7 @@ omega = np.sqrt(g/l)
 q0 = 0.0
 dq0 = 0.0
 x0 = np.zeros((robot.nq + robot.nv, ))
-x0[:robot.nq] = pnc.neutral(robot.pinocchio_model_th)
+x0[:robot.nq] = pin.neutral(robot.pinocchio_model_th)
 x0[iPos] = q0
 x0[iPos+iVel] = dq0
 
@@ -133,17 +133,17 @@ taux = 6.0
 # Utilities
 def update_frame(robot, data, name):
     frame_id = robot.getFrameId(name)
-    pnc.updateFramePlacement(robot, data, frame_id)
+    pin.updateFramePlacement(robot, data, frame_id)
 
 def get_frame_placement(robot, data, name):
     frame_id = robot.getFrameId(name)
     return data.oMf[frame_id]
 
 # Logging: create global variables to make sure they never get deleted
-com = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0[:robot.nq], x0[robot.nq:])
+com = pin.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, x0[:robot.nq], x0[robot.nq:])
 vcom = robot.pinocchio_data_th.vcom[0]
 dcm = com + vcom / omega
-totalWrench = pnc.Force.Zero()
+totalWrench = pin.Force.Zero()
 zmp = np.zeros((2,))
 zmp[axisCom] = zmpRef[0]
 zmp_cmd = zmp.copy()
@@ -166,18 +166,18 @@ dqi = np.zeros((robot.nv, ))
 ddqi = np.zeros((robot.nv, ))
 def updateState(robot, q, v, sensor_data):
     # Get dcm from current state
-    pnc.forwardKinematics(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
-    comOut = pnc.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
+    pin.forwardKinematics(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
+    comOut = pin.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
     vcomOut = robot.pinocchio_data_th.vcom[0]
     dcmOut = comOut + vcomOut / omega
 
     # Create zmp from forces
     forces = np.asarray(sensor_data[ForceSensor.type])
-    newWrench = pnc.Force.Zero()
+    newWrench = pin.Force.Zero()
     for i,name in enumerate(contact_points):
         update_frame(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
         placement = get_frame_placement(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
-        wrench = pnc.Force(np.array([0.0, 0.0, forces[2, i]]), np.zeros(3))
+        wrench = pin.Force(np.array([0.0, 0.0, forces[2, i]]), np.zeros(3))
         newWrench += placement.act(wrench)
     totalWrenchOut = newWrench
     if totalWrenchOut.linear[2] > 0:
