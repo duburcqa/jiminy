@@ -5,8 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from jiminy_py import core as jiminy
-from jiminy_py.viewer import play_trajectories
-from jiminy_py.log import extract_viewer_data_from_log
+from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
 
 
 # ################################ User parameters #######################################
@@ -105,4 +104,5 @@ plt.grid()
 plt.show()
 
 # Display the simulation trajectory and the reference
-play_trajectories([trajectory_data_log], replay_speed=0.5)
+play_trajectories([trajectory_data_log], replay_speed=0.5,
+                  camera_xyzrpy=[0.0, 7.0, 0.0, np.pi/2, 0.0, np.pi])

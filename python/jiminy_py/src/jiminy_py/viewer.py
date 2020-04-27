@@ -18,6 +18,7 @@ from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio import Quaternion, SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix
 
+from.dynamics import XYZRPYToSe3
 from .state import State
 
 
@@ -36,6 +37,10 @@ try:
     backends_available.append('meshcat')
 except ImportError:
     pass
+
+
+DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
+                                                 1.4, 0.0, np.pi/2])
 
 
 
@@ -128,6 +133,8 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
                 Viewer._backend_exception = None
+        else:
+            is_backend_running = False
 
         # Access the current backend or create one if none is available
         try:
@@ -150,12 +157,14 @@ class Viewer:
                     self._client.addSceneToWindow(scene_name, self._window_id)
                     self._client.createGroup(scene_name + '/' + scene_name)
                     self._client.addLandmark(scene_name + '/' + scene_name, 0.1)
-                    self.setCameraTransform(translation=[3.7, 0.0, 0.7],
-                                            rotation=[0.18, 0.0, -np.pi/2],
-                                            relative=True)
                 else:
                     self._window_id = int(np.where(
                         [name == window_name for name in self._client.getWindowList()])[0][0])
+
+                # Set the default camera pose if the viewer is not running before
+                if not is_backend_running:
+                    self.setCameraTransform(translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
+                                            rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
@@ -498,9 +507,57 @@ class Viewer:
             sleep(s.t - t_simu)
 
 
-def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, urdf_rgba=None, replay_speed=1.0,
-                      start_paused=False, backend=None, window_name='python-pinocchio', scene_name='world',
-                      close_backend=None):
+def extract_viewer_data_from_log(log_data, robot):
+    """
+    @brief      Extract the minimal required information from raw log data in
+                order to replay the simulation in a viewer.
+
+    @details    It extracts the time and joint positions evolution.
+    .
+    @remark     Note that the quaternion angular velocity vectors are expressed
+                it body frame rather than world frame.
+
+    @param[in]  log_data    Data from the log file, in a dictionnary.
+    @param[in]  robot       Jiminy robot.
+
+    @return     Trajectory dictionary. The actual trajectory corresponds to
+                the field "evolution_robot" and it is a list of State object.
+                The other fields are additional information.
+    """
+
+    # Get the current robot model options
+    model_options = robot.get_model_options()
+
+    # Extract the joint positions time evolution
+    t = log_data["Global.Time"]
+    try:
+        qe = np.stack([log_data["HighLevelController." + s]
+                       for s in robot.logfile_position_headers], axis=-1)
+    except:
+        model_options['dynamics']['enableFlexibleModel'] = not robot.is_flexible
+        robot.set_model_options(model_options)
+        qe = np.stack([log_data["HighLevelController." + s]
+                       for s in robot.logfile_position_headers], axis=-1)
+
+    # Determine whether the theoretical model of the flexible one must be used
+    use_theoretical_model = not robot.is_flexible
+
+    # Make sure that the flexibilities are enabled
+    model_options['dynamics']['enableFlexibleModel'] = True
+    robot.set_model_options(model_options)
+
+    # Create state sequence
+    evolution_robot = []
+    for i in range(len(t)):
+        evolution_robot.append(State(qe[i].T, None, None, t[i]))
+
+    return {'evolution_robot': evolution_robot,
+            'robot': robot,
+            'use_theoretical_model': use_theoretical_model}
+
+def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
+                      start_paused=False, camera_xyzrpy=None, xyz_offset=None, urdf_rgba=None,
+                      backend=None, window_name='python-pinocchio', scene_name='world', close_backend=None):
     """!
     @brief      Display a robot trajectory in a viewer.
 
@@ -531,24 +588,27 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
         close_backend = Viewer._backend_obj is None
 
     # Load robots in gepetto viewer
-    robots = []
+    viewers = []
     for i in range(len(trajectory_data)):
         robot = trajectory_data[i]['robot']
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        robot = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
-                       urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
-                       backend=backend, window_name=window_name, scene_name=scene_name)
-
+        viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
+                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
+                        backend=backend, window_name=window_name, scene_name=scene_name)
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q
         try:
-            robot._rb.display(q)
+            viewer._rb.display(q)
         except Viewer._backend_exception:
             break
-        robots.append(robot)
+        viewers.append(viewer)
+
+    if camera_xyzrpy is not None:
+        viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
+                                      rotation=camera_xyzrpy[3:])
 
     if (xyz_offset is None):
         xyz_offset = len(trajectory_data) * (None,)
@@ -558,7 +618,7 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
 
     threads = []
     for i in range(len(trajectory_data)):
-        threads.append(Thread(target=robots[i].display,
+        threads.append(Thread(target=viewers[i].display,
                               args=(trajectory_data[i]['evolution_robot'],
                                     replay_speed, xyz_offset[i])))
     for i in range(len(trajectory_data)):
@@ -569,57 +629,24 @@ def play_trajectories(trajectory_data, mesh_root_path = None, xyz_offset=None, u
     if close_backend:
         Viewer.close()
 
-
 def play_logfiles(robots, logs_data, **kwargs):
     """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
 
     @param robots    jiminy.Robot: either a single robot, or a list of robot for each log data.
-    @param logs_data Either a single dictionnary, or a list of dictionaries of simulation data log.
+    @param logs_data Either a single dictionary, or a list of dictionaries of simulation data log.
     @param kwargs    Keyword arguments for play_trajectories method.
     """
-    # Reformat everything as lists.
-    if not(isinstance(logs_data, list)):
+    # Reformat everything as lists
+    if not isinstance(logs_data, list):
         logs_data = [logs_data]
-    if not(isinstance(robots, list)):
+    if not isinstance(robots, list):
         robots = [robots] * len(logs_data)
 
-    # For each pair (robot, log), create a dictionnary for play_trajectories.
-    trajectories = []
-    for i in range(len(robots)):
-        robot = robots[i]
-        log_data = logs_data[i]
+    # For each pair (log, robot), extract a trajectory object for play_trajectories
+    trajectories = [extract_viewer_data_from_log(log, robot)
+                    for log, robot in zip(logs_data, robots)]
 
-        # Get the current robot model options
-        model_options = robot.get_model_options()
-        # Extract the joint positions time evolution - automatically switching
-        # between rigid and flexible model based on log content.
-        t = log_data["Global.Time"]
-        try:
-            qe = np.stack([log_data["HighLevelController." + s]
-                        for s in robot.logfile_position_headers], axis=-1)
-        except:
-            model_options['dynamics']['enableFlexibleModel'] = not robot.is_flexible
-            robot.set_model_options(model_options)
-            qe = np.stack([log_data["HighLevelController." + s]
-                        for s in robot.logfile_position_headers], axis=-1)
-
-        # Determine whether the theoretical model of the flexible one must be used
-        use_theoretical_model = not robot.is_flexible
-
-        # Make sure that the flexibilities are enabled
-        model_options['dynamics']['enableFlexibleModel'] = True
-        robot.set_model_options(model_options)
-
-        # Create state sequence
-        evolution_robot = []
-        for i in range(len(t)):
-            evolution_robot.append(State(qe[i].T, None, None, t[i]))
-
-        trajectories.append({'evolution_robot': evolution_robot,
-                             'robot': robot,
-                             'use_theoretical_model': use_theoretical_model})
-
-    # Finally, play the trajectories.
+    # Finally, play the trajectories
     play_trajectories(trajectories, **kwargs)

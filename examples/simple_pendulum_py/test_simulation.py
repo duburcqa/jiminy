@@ -7,8 +7,7 @@ import matplotlib.pyplot as plt
 
 
 from jiminy_py import core as jiminy
-from jiminy_py.log import extract_viewer_data_from_log
-from jiminy_py.viewer import play_trajectories
+from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
 from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
 import pinocchio as pin
 
