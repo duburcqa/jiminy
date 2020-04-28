@@ -12,43 +12,37 @@ class State:
     @brief      Object that contains the kinematics and dynamics state of the
                 robot at a given time.
     """
-    def __init__(self, q, v, a, t=None, f=None, tau=None, f_ext=None, **kwargs):
+    def __init__(self, t, q, v=None, a=None, tau=None, contact_frame=None, f_ext=None, copy=False, **kwargs):
         """
         @brief      Constructor
 
-        @param[in]  q       Configuration vector (with freeflyer if any) (1D numpy array)
-        @param[in]  v       Velocity vector (1D numpy array)
-        @param[in]  a       Acceleration vector (1D numpy array)
+        @param[in]  q       Configuration vector
+        @param[in]  v       Velocity vector
+        @param[in]  a       Acceleration vector
         @param[in]  t       Time
-        @param[in]  f       Forces on the different bodies of the robot. Dictionary whose keys represent
-                            a given foot orientation. For each orientation, a dictionary contains the
-                            6D-force for each body (1D numpy array).
-        @param[in]  tau     Joint efforts. Dictionary whose keys represent a given foot orientation.
-        @param[in]  f_ext   External forces represented in the frame of the Henke ankle. Dictionary
-                            whose keys represent a given foot orientation.
+        @param[in]  tau     Joint efforts
+        @param[in]  contact_frame  Name of the contact frame.
+        @param[in]  f_ext   External forces in the contact frame.
+        @param[in]  copy    Force to copy the arguments
 
         @return     Instance of a state.
         """
         ## Time
-        self.t = copy(t)
+        self.t = t
         ## Configuration vector
-        self.q = copy(q)
+        self.q = copy(q) if copy else q
         ## Velocity vector
-        self.v = copy(v)
+        self.v = copy(v) if copy else v
         ## Acceleration vector
-        self.a = copy(a)
-        ## Forces on the different bodies of the robot
-        self.f = {}
-        if f is not None:
-            self.f = deepcopy(f)
+        self.a = copy(a) if copy else a
         ## Effort vector
-        self.tau = {}
-        if tau is not None:
-            self.tau = deepcopy(tau)
-        ## External forces represented in the frame of the Henke ankle
-        self.f_ext = {}
+        self.tau = copy(tau) if copy else tau
+        ## Frame name of the contact point, if nay
+        self.contact_frame = contact_frame
+        ## External forces
+        self.f_ext = None
         if f_ext is not None:
-            self.f_ext = deepcopy(f_ext)
+            self.f_ext = deepcopy(f_ext) if copy else f_ext
 
     @staticmethod
     def todict(state_list):
@@ -61,13 +55,13 @@ class State:
         @return     Kinematics and dynamics state as a dictionary. Each property
                     is a 2D numpy array (row: state, column: time)
         """
-        state_dict = dict()
+        state_dict = {}
+        state_dict['t'] = np.array([s.t for s in state_list])
         state_dict['q'] = np.stack([s.q for s in state_list], axis=-1)
         state_dict['v'] = np.stack([s.v for s in state_list], axis=-1)
         state_dict['a'] = np.stack([s.a for s in state_list], axis=-1)
-        state_dict['t'] = np.array([s.t for s in state_list])
-        state_dict['f'] = [s.f for s in state_list]
         state_dict['tau'] = [s.tau for s in state_list]
+        state_dict['contact_frame'] = [s.contact_frame for s in state_list]
         state_dict['f_ext'] = [s.f_ext for s in state_list]
         return state_dict
 
@@ -82,18 +76,24 @@ class State:
 
         @return     List of State object
         """
-        _state_dict = defaultdict(lambda: [None for i in range(state_dict['q'].shape[-1])], state_dict)
+        _state_dict = defaultdict(lambda: [None for i in range(len(state_dict['t']))], state_dict)
         state_list = []
-        for i in range(state_dict['q'].shape[1]):
+        for i in range(len(state_dict['t'])):
             state_list.append(cls(**{k: v[..., i] if isinstance(v, np.ndarray) else v[i]
                                      for k,v in _state_dict.items()}))
         return state_list
 
-    def __repr__(self):
+    def __str__(self):
         """
         @brief      Convert the kinematics and dynamics properties into string
 
         @return     The kinematics and dynamics properties as a string
         """
-        return "State(q=\n{!r},\nv=\n{!r},\na=\n{!r},\nt=\n{!r},\nf=\n{!r},\nf_ext=\n{!r})".format(
-            self.q, self.v, self.a, self.t, self.f, self.f_ext)
+        msg = ""
+        for key, val in self.__dict__.items():
+            if val is not None:
+                msg += f"{key} : {val}\n"
+        return msg
+
+    def __repr__(self):
+        return self.__str__()

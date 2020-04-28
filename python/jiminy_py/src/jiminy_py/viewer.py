@@ -549,7 +549,7 @@ def extract_viewer_data_from_log(log_data, robot):
     # Create state sequence
     evolution_robot = []
     for i in range(len(t)):
-        evolution_robot.append(State(qe[i].T, None, None, t[i]))
+        evolution_robot.append(State(t=t[i], q=qe[i]))
 
     return {'evolution_robot': evolution_robot,
             'robot': robot,
