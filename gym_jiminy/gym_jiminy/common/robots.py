@@ -86,7 +86,8 @@ class RobotJiminyEnv(core.Env):
         self._refresh_learning_spaces()
 
         ## Current observation of the robot
-        self.observation = {'state': None, 'sensors': None}
+        self.is_running = False
+        self.observation = {'t': None, 'state': None, 'sensors': None}
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
@@ -238,22 +239,19 @@ class RobotJiminyEnv(core.Env):
         @brief      Returns a random valid initial state.
 
         @details    The default implementation only return the neural configuration,
-                    with offsets on the freeflyer to enforce that the frame associated
-                    with the first contact point is aligned with the canonical frame
-                    and touches the ground.
+                    with offsets on the freeflyer to ensure no contact points are
+                    going through the ground and a single one is touching it.
         """
         q0 = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
+            ground_fun = self.engine_py._engine.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, self.robot.contact_frames_names[0], q0,
-                use_theoretical_model=False)
-            groundFct = self.engine_py._engine.get_options()['world']['groundProfile']
-            q0[2] += groundFct(np.zeros(3))[0]
+                self.robot, q0, ground_profile=ground_fun, use_theoretical_model=False)
         v0 = np.zeros(self.robot.nv)
         x0 = np.concatenate((q0, v0))
         return x0
 
-    def _update_observation(self):
+    def _update_observation(self, obs):
         """
         @brief      Update the observation based on the current state of the robot.
 
@@ -261,11 +259,9 @@ class RobotJiminyEnv(core.Env):
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        self.observation['state'] = self.engine_py.state
-        if self.engine_py._engine.is_simulation_running:
-            self.observation['sensors'] = self.engine_py.sensor_data
-        else:
-            self.observation['sensors'] = None
+        obs['t'] = self.engine_py.t
+        obs['state'] = self.engine_py.state
+        obs['sensors'] = self.engine_py.sensor_data
 
     def _is_done(self):
         """
@@ -324,8 +320,9 @@ class RobotJiminyEnv(core.Env):
         @return     Initial state of the episode
         """
         self.engine_py.reset(self._sample_state())
+        self.is_running = False
         self._steps_beyond_done = None
-        self._update_observation()
+        self._update_observation(self.observation)
         return self.observation
 
     def step(self, action):
@@ -342,9 +339,10 @@ class RobotJiminyEnv(core.Env):
         # direct assignment to max out the performances
         self.engine_py._action[:] = action
         self.engine_py.step(dt_desired=self.dt)
+        self.is_running = True
 
         # Extract information about the current simulation state
-        self._update_observation()
+        self._update_observation(self.observation)
         done = self._is_done()
         self.learning_info = {'is_success': done}
 
@@ -427,6 +425,11 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
             achieved_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
             observation=self.observation_space)
 
+        ## Current observation of the robot
+        self.observation = {'observation': {'t': None, 'state': None, 'sensors': None},
+                            'achieved_goal': None,
+                            'desired_goal': None}
+
     def _sample_goal(self):
         """
         @brief      Samples a new goal and returns it.
@@ -445,11 +448,11 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         """
         raise NotImplementedError()
 
-    def _update_observation(self):
+    def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
-        self.observation = {'observation': super()._update_observation(),
-                            'achieved_goal': self._get_achieved_goal(),
-                            'desired_goal': self.goal.copy()}
+        super()._update_observation(obs['observation'])
+        obs['achieved_goal'] = self._get_achieved_goal(),
+        obs['desired_goal'] = self.goal.copy()
 
     def _is_done(self, achieved_goal, desired_goal):
         """
