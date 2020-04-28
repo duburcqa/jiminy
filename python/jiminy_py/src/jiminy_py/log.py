@@ -8,8 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from csv import DictReader
 
-from .state import State
-from .core import Engine, Robot
+from .core import Engine
 
 
 def is_log_binary(filename):
@@ -44,8 +43,8 @@ def read_log(filename):
         # Read text csv file.
         constants_dict = {}
         with open(filename, 'r') as log:
-            consts = next(log).split(', ')
-            for c in consts:
+            constants_str = next(log).split(', ')
+            for c in constants_str:
                 c_split = c.split('=')
                 # Remove line end for last constant.
                 constants_dict[c_split[0]] = c_split[1].strip('\n')
