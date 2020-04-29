@@ -131,21 +131,20 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         super().__init__("cartpole", engine_py, DT)
 
-        # #################### Overwrite some problem-generic variables ########################
-
-        # Replace the observation space, which is the spa space instead of the sensor space.
+    def _refresh_learning_spaces(self):
+        # Replace the observation space, which is the state space instead of the sensor space.
         # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
         # failure are still within bounds.
+
+        # Force using a discrete action space
+        self.action_space = spaces.Discrete(2)
+
         high = np.array([self.x_threshold * 2,
                          self.theta_threshold_radians * 2,
-                         *robot.velocity_limit])
+                         *self.robot.velocity_limit])
 
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
-
-        self.action_space = spaces.Discrete(2) # Force using a discrete action space
-
-        ## Current observation of the robot
-        self.observation = None
+        self.observation = np.zeros(self.observation_space.shape)
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
@@ -154,7 +153,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
-        obs = self.engine_py.state
+        obs[:] = self.engine_py.state
 
     def _is_done(self):
         # @copydoc RobotJiminyEnv::_is_done

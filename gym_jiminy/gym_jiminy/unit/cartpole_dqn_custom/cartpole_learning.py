@@ -24,14 +24,6 @@ EXPLORATION_MIN = 0.01
 EXPLORATION_DECAY = 0.999
 
 
-if (sys.version_info < (3, 0)):
-    import __builtin__
-    print_function = getattr(__builtin__, 'print')
-else:
-    import builtins
-    print_function = builtins.print
-
-
 class DQNSolver:
     def __init__(self, observation_space, action_space):
         self.exploration_rate = EXPLORATION_MAX
@@ -82,34 +74,18 @@ def cartpole():
         state = np.reshape(state, [1, observation_space]) # Reshape BY REFERENCE !
         step = 0
         while True:
-            # elapsed = []
             step += 1
-            # env.render()
-            # tf = time.time()
             action = dqn_solver.act(state)
-            # t0 = tf
-            # tf = time.time()
-            # elapsed.append(int((tf - t0) * 1e6))
-            state_next, reward, terminal, info = env.step(action)
-            # t0 = tf
-            # tf = time.time()
-            # elapsed.append(int((tf - t0) * 1e6))
+            state_next, reward, terminal, _ = env.step(action)
             reward = reward if not terminal else -reward
             state_next = np.reshape(state_next, [1, observation_space]) # Reshape BY REFERENCE !
             dqn_solver.remember(state, action, reward, state_next, terminal)
-            # t0 = tf
-            # tf = time.time()
-            # elapsed.append(int((tf - t0) * 1e6))
             state = state_next
             if terminal:
                 print("Run: " + str(run) + ", exploration: " + str(dqn_solver.exploration_rate) + ", score: " + str(step))
                 score_logger.add_score(step, run)
                 break
             dqn_solver.experience_replay()
-            # t0 = tf
-            # tf = time.time()
-            # elapsed.append(int((tf - t0) * 1e6))
-            # print_function("Elasped time: ", end="") ; print_function(*elapsed, sep=" - ")
 
 
 if __name__ == "__main__":

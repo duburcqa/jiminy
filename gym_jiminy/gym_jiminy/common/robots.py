@@ -83,11 +83,10 @@ class RobotJiminyEnv(core.Env):
         ## Configure the action and observation spaces
         self.action_space = None
         self.observation_space = None
-        self._refresh_learning_spaces()
 
         ## Current observation of the robot
         self.is_running = False
-        self.observation = {'t': None, 'state': None, 'sensors': None}
+        self.observation = None
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
@@ -133,12 +132,10 @@ class RobotJiminyEnv(core.Env):
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-
         sensor_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
-
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
@@ -170,14 +167,12 @@ class RobotJiminyEnv(core.Env):
                 effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
 
         ## Action space
-
         action_low  = -effort_limit[self.robot.motors_velocity_idx]
         action_high = +effort_limit[self.robot.motors_velocity_idx]
 
         self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
 
         ## Sensor space
-
         sensor_space_raw = {key: {'min': np.full(value.shape, -np.inf),
                                   'max': np.full(value.shape, np.inf)}
                             for key, value in self.robot.sensors_data.items()}
@@ -233,6 +228,8 @@ class RobotJiminyEnv(core.Env):
         self.observation_space = spaces.Dict(
             state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
             sensors = sensor_space)
+
+        self.observation = {'t': None, 'state': None, 'sensors': None}
 
     def _sample_state(self):
         """
@@ -320,6 +317,7 @@ class RobotJiminyEnv(core.Env):
         @return     Initial state of the episode
         """
         self.engine_py.reset(self._sample_state())
+        self._refresh_learning_spaces()
         self.is_running = False
         self._steps_beyond_done = None
         self._update_observation(self.observation)
@@ -419,6 +417,9 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         ## Sample a new goal
         self.goal = self._sample_goal()
 
+    def _refresh_learning_spaces(self):
+        super()._refresh_learning_spaces()
+
         ## Append default desired and achieved goal spaces to the observation space
         self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
@@ -426,7 +427,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
             observation=self.observation_space)
 
         ## Current observation of the robot
-        self.observation = {'observation': {'t': None, 'state': None, 'sensors': None},
+        self.observation = {'observation': self.observation,
                             'achieved_goal': None,
                             'desired_goal': None}
 
