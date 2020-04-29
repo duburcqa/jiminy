@@ -151,8 +151,14 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
             achieved_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
             observation=spaces.Box(low=-obs_high, high=obs_high, dtype=np.float64))
 
+        # Replace the action space if necessary
         if not self.continuous:
             self.action_space = spaces.Discrete(3)
+
+        ## Current observation of the robot
+        self.observation = {'observation': None,
+                            'achieved_goal': None,
+                            'desired_goal': None}
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
@@ -169,43 +175,20 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # @copydoc RobotJiminyGoalEnv::_get_achieved_goal
         return self.robot.pinocchio_data.oMf[self._tipIdx].translation[[2]].copy()
 
-    def _get_gym_state(self):
-        """
-        @brief      Get the official gym acrobot state based on the current state of the robot.
-
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
-        @return     Dictionary with the current observation, achieved goal,
-                    and desired goal.
-        """
-
-        # @copydoc RobotJiminyEnv::_update_observation
-        theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
-        observation = np.array([cos(theta1 + pi),
-                                sin(theta1 + pi),
-                                cos(theta2 + pi),
-                                sin(theta2 + pi),
-                                theta1_dot,
-                                theta2_dot])
-        return observation
-
-    def _update_observation(self):
+    def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
 
         # Compute the official gym acrobot state based on the robot state
         theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
-        state_gym_acrobot = np.array([cos(theta1 + pi),
-                                      sin(theta1 + pi),
-                                      cos(theta2 + pi),
-                                      sin(theta2 + pi),
-                                      theta1_dot,
-                                      theta2_dot])
+        obs['observation'] = np.array([cos(theta1 + pi),
+                                       sin(theta1 + pi),
+                                       cos(theta2 + pi),
+                                       sin(theta2 + pi),
+                                       theta1_dot,
+                                       theta2_dot])
 
-        self.observation = {'observation': state_gym_acrobot,
-                            'achieved_goal': self._get_achieved_goal(),
-                            'desired_goal': self.goal.copy()}
+        obs['achieved_goal'] = self._get_achieved_goal()
+        obs['desired_goal'] = self.goal.copy()
 
     def _is_done(self, achieved_goal=None, desired_goal=None):
         # @copydoc RobotJiminyGoalEnv::_is_done

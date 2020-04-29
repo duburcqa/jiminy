@@ -47,7 +47,7 @@ robot.set_options(robot_options)
 engine_py.set_engine_options(engine_options)
 engine_py.set_controller_options(ctrl_options)
 
-engine_py.seed(0)
+engine_py.seed(np.uint32(0))
 engine_py.reset(np.zeros(robot.nx))
 
 refresh_time_prev = time.time()

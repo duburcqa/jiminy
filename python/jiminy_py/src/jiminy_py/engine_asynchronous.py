@@ -51,6 +51,7 @@ class EngineAsynchronous:
 
         # Make sure that the sensors have already been added to the robot !
         self._sensors_types = robot.get_sensors_options().keys()
+        self._t = -1
         self._state = None
         self._sensor_data = None
         self._action = np.zeros((robot.nmotors,))
@@ -121,7 +122,15 @@ class EngineAsynchronous:
         """
         @brief      Reset the simulation.
 
+        @remark    It does NOT start the simulation immediately but rather wait for the
+                   first 'step' call. At this point, the sensors data are zeroed, until
+                   the simulation actually starts.
+                   Note that once the simulations starts, it is no longer possible to
+                   changed the robot (included options).
+
         @param[in]  x0    Desired initial state
+        @param[in]  is_state_theoretical    Wether the provided initial state is associated
+                                            with the theoretical or actual model
         """
         # Handling of default argument(s)
         if is_state_theoretical is None:
@@ -140,14 +149,16 @@ class EngineAsynchronous:
             if self.robot.is_flexible and self.use_theoretical_model:
                 x0_rigid = self.robot.get_flexible_state_from_rigid(x0)
 
+        # Update the frames placement, for proper rendering
         update_quantities(self.robot,
                           x0[:self.robot.nq],
                           update_physics=True,
                           use_theoretical_model=False)
 
         # Reset the flags
+        self._t = 0.0
         self._state = x0_rigid if self.use_theoretical_model else x0
-        self._sensor_data = None
+        self._sensor_data = self.robot.sensors_data
         self._action[:] = 0.0
         self.step_dt_prev = -1
 
@@ -177,6 +188,7 @@ class EngineAsynchronous:
         if (return_code != jiminy.hresult_t.SUCCESS):
             raise ValueError("Failed to perform the simulation step.")
 
+        self._t = self._engine.stepper_state.t
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self._engine.stepper_state.dt
 
@@ -241,6 +253,15 @@ class EngineAsynchronous:
             self._viewer = None
 
     @property
+    def t(self):
+        """
+        @brief      Getter of the current time of the simulation.
+
+        @return     Time of the simulation
+        """
+        return self._t
+
+    @property
     def state(self):
         """
         @brief      Getter of the current state of the robot.
@@ -262,9 +283,6 @@ class EngineAsynchronous:
 
         @return     Sensor data of the robot
         """
-        if (self._sensor_data is None):
-            raise RuntimeError("Impossible to get the current sensor data because \
-                                no steps has been performed since last engine reset.")
         return self._sensor_data
 
     @property

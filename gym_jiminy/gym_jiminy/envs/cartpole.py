@@ -144,14 +144,17 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         self.action_space = spaces.Discrete(2) # Force using a discrete action space
 
+        ## Current observation of the robot
+        self.observation = None
+
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
         return self.np_random.uniform(low=self.state_random_low,
                                       high=self.state_random_high)
 
-    def _update_observation(self):
+    def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
-        self.observation = self.engine_py.state
+        obs = self.engine_py.state
 
     def _is_done(self):
         # @copydoc RobotJiminyEnv::_is_done
