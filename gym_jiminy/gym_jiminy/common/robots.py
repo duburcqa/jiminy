@@ -35,6 +35,7 @@ MOTOR_EFFORT_MAX = 1000.0
 SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
 SENSOR_GYRO_UNIVERSAL_MAX = 100.0
 SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
+T_UNIVERSAL_MAX = 10000.0
 
 
 class RobotJiminyEnv(core.Env):
@@ -227,8 +228,10 @@ class RobotJiminyEnv(core.Env):
         state_limit_upper = np.concatenate((position_limit_upper, +velocity_limit))
 
         self.observation_space = spaces.Dict(
+            t = spaces.Box(low=0.0, high=T_UNIVERSAL_MAX, shape=(1,), dtype=np.float64),
             state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
-            sensors = sensor_space)
+            sensors = sensor_space
+        )
 
         self.observation = {'t': None, 'state': None, 'sensors': None}
 
