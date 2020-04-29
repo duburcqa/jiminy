@@ -55,7 +55,7 @@ class RobotJiminyEnv(core.Env):
         'render.modes': ['human']
     }
 
-    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
+    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float, debug : bool = False):
         """
         @brief      Constructor
 
@@ -102,11 +102,11 @@ class RobotJiminyEnv(core.Env):
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        # Disable completely the telemetry to speed up the simulation
+        # Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
-            robot_options["telemetry"][field] = False
+            robot_options["telemetry"][field] = debug
         for field in engine_options["telemetry"].keys():
-            engine_options["telemetry"][field] = False
+            engine_options["telemetry"][field] = debug
 
         # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
@@ -120,6 +120,7 @@ class RobotJiminyEnv(core.Env):
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
+        engine_options["stepper"]["logInternalStepperSteps"] = debug
 
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
