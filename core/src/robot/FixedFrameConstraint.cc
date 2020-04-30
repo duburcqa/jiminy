@@ -68,6 +68,8 @@ namespace jiminy
 
     hresult_t FixedFrameConstraint::refreshProxies()
     {
+        // Resize the jacobian to the model dimension.
+        jacobian_.resize(6, model_->pncModel_.nv);
         return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 }
