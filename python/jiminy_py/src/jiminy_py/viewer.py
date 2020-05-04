@@ -43,7 +43,6 @@ DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
                                                  1.4, 0.0, np.pi/2])
 
 
-
 def sleep(dt):
     """
         @brief   Function to provide cross-plateform time sleep with maximum accuracy.
@@ -63,31 +62,39 @@ class Viewer:
     _backend_obj = None
     _backend_exception = None
     _backend_proc = None
-    ## Unique threading.Lock for every simulation.
-    #  It is required for parallel rendering since some backends may not support multiple connection simultaneously (e.g. corbasever).
-    _lock = Lock()
+    _lock = Lock() # Unique threading.Lock for every simulations (in the same thread ONLY!)
 
     def __init__(self, robot, use_theoretical_model=False,
-                 mesh_root_path = None,
-                 urdf_rgba=None, robot_index=0,
-                 backend=None, window_name='python-pinocchio', scene_name='world'):
+                 mesh_root_path = None, urdf_rgba=None, lock=None, backend=None,
+                 robot_name="robot", window_name='jiminy', scene_name='world'):
         """
         @brief Constructor.
 
-        @param robot The jiminy.Robot to display.
-        @param use_theoretical_model Whether to use the theoretical (rigid) model or the flexible model for this robot.
+        @param robot          The jiminy.Robot to display.
+        @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible model for this robot.
         @param mesh_root_path Optional, path to the folder containing the URDF meshes.
-        @param urdf_rgba Color to use to display this robot (rgba).
-        @param robot_index Unique robot index, to identify each robot in the viewer.
-        @param backend Optional, either 'gepetto-gui' or 'meshcat'.
-        @param window_name Window name, used only when gepetto-gui is used as backend.
-        @param scene_name Scene name, used only when gepetto-gui is used as backend.
+        @param urdf_rgba      Color to use to display this robot (rgba).
+-       @param lock           Custom threading.Lock
+-                             Optional: Only required for parallel rendering using multiprocessing.
+                              It is required since some backends does not support multiple
+                              simultaneous connections (e.g. corbasever).
+        @param backend        The name of the desired backend to use for rendering.
+                              Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+        @param robot_name     Unique robot name, to identify each robot in the viewer.
+        @param scene_name     Scene name, used only when gepetto-gui is used as backend.
+        @param window_name    Window name, used only when gepetto-gui is used as backend.
+                              Note that it is not allowed to be equal to the window name.
         """
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
+        self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
+        self._lock = lock if lock is not None else Viewer._lock
+
+        if self.scene_name == self.window_name:
+            raise ValueError("Please, choose a different name for the scene and the window.")
 
         # Extract the right Pinocchio model
         if self.use_theoretical_model:
@@ -145,6 +152,7 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_gepetto_client(True)
+                    is_backend_running = Viewer._backend_proc is None
                 if  Viewer._backend_obj is not None:
                     self._client = Viewer._backend_obj.gui
                 else:
@@ -183,9 +191,8 @@ class Viewer:
 
         # Create a RobotWrapper
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
-        robot_name = "robot_" + str(robot_index)
         if (Viewer.backend == 'gepetto-gui'):
-            Viewer._delete_gepetto_nodes_viewer(scene_name + '/' + robot_name)
+            Viewer._delete_gepetto_nodes_viewer(scene_name + '/' + self.robot_name)
             if (urdf_rgba is not None):
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3], root_path)
@@ -206,18 +213,16 @@ class Viewer:
 
         # Load robot in the backend viewer
         if (Viewer.backend == 'gepetto-gui'):
-            if not scene_name in self._client.getSceneList():
-                self._client.createSceneWithFloor(scene_name)
             self._rb.initViewer(windowName=window_name, sceneName=scene_name, loadModel=False)
-            self._rb.loadViewerModel(robot_name)
-            self._client.setFloatProperty(scene_name + '/' + robot_name,
+            self._rb.loadViewerModel(self.robot_name)
+            self._client.setFloatProperty(scene_name + '/' + self.robot_name,
                                           'Transparency', 1 - alpha)
         else:
             self._client.collision_model = collision_model
             self._client.visual_model = visual_model
             self._client.data, self._client.collision_data, self._client.visual_data = \
                 createDatas(self.pinocchio_model, collision_model, visual_model)
-            self._client.loadViewerModel(rootNodeName=robot_name, color=urdf_rgba)
+            self._client.loadViewerModel(rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
 
     @staticmethod
@@ -327,41 +332,43 @@ class Viewer:
         return colorized_urdf_path
 
     @staticmethod
-    def _get_gepetto_client(open_if_needed=False):
+    def _get_gepetto_client(create_if_needed=False, create_timeout=2000):
         """
         @brief      Get a pointer to the running process of Gepetto-Viewer.
 
         @details    This method can be used to open a new process if necessary.
         .
-        @param[in]  open_if_needed      Whether a new process must be opened if
+        @param[in]  create_if_needed    Whether a new process must be created if
                                         no running process is found.
                                         Optional: False by default
+        @param[in]  create_timeout      Wait some millisecond before considering
+                                        creating new viewer as failed.
+                                        Optional: 1s by default
 
         @return     A pointer to the running Gepetto-viewer Client and its PID.
         """
 
+        from gepetto.corbaserver.client import Client as gepetto_client
+
         try:
-            from gepetto.corbaserver.client import Client
-            return Client(), None
+            return gepetto_client(), None
         except:
             try:
-                return Client(), None
+                return gepetto_client(), None
             except:
-                if (open_if_needed):
+                if (create_if_needed):
                     FNULL = open(os.devnull, 'w')
                     proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
                                             shell=False,
                                             stdout=FNULL,
                                             stderr=FNULL)
-                    time.sleep(1.0)
-                    try:
-                        return Client(), proc
-                    except:
+                    for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
+                        time.sleep(0.2)
                         try:
-                            return Client(), proc
+                            return gepetto_client(), proc
                         except:
-                            print("Impossible to open Gepetto-viewer")
-
+                            pass
+                    print("Impossible to open Gepetto-viewer")
         return None, None
 
     def _delete_gepetto_nodes_viewer(self, *nodes_path):
@@ -462,26 +469,27 @@ class Viewer:
             raise RuntimeError("'Refresh' method only available if 'use_theoretical_model'=False.")
 
         if Viewer.backend == 'gepetto-gui':
-            if self._rb.displayCollisions:
-                self._client.applyConfigurations(
-                    [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
-                    for collision in self._rb.collision_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
-                        self._rb.collision_model.getGeometryId(collision.name)])
-                    for collision in self._rb.collision_model.geometryObjects]
-                )
+            with self._lock:
+                if self._rb.displayCollisions:
+                    self._client.applyConfigurations(
+                        [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
+                         for collision in self._rb.collision_model.geometryObjects],
+                        [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
+                            self._rb.collision_model.getGeometryId(collision.name)])
+                         for collision in self._rb.collision_model.geometryObjects]
+                    )
 
-            if self._rb.displayVisuals:
-                self._updateGeometryPlacements(visual=True)
-                self._client.applyConfigurations(
-                    [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
-                        for visual in self._rb.visual_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
-                        self._rb.visual_model.getGeometryId(visual.name)])
-                        for visual in self._rb.visual_model.geometryObjects]
-                )
+                if self._rb.displayVisuals:
+                    self._updateGeometryPlacements(visual=True)
+                    self._client.applyConfigurations(
+                        [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
+                         for visual in self._rb.visual_model.geometryObjects],
+                        [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
+                            self._rb.visual_model.getGeometryId(visual.name)])
+                         for visual in self._rb.visual_model.geometryObjects]
+                    )
 
-            self._client.refresh()
+                self._client.refresh()
         else:
             self._updateGeometryPlacements(visual=True)
             for visual in self._rb.visual_model.geometryObjects:
@@ -501,9 +509,12 @@ class Viewer:
                 q[:3] += xyz_offset
             else:
                 q = s.q
-            with Viewer._lock: # It is necessary to use Lock since corbaserver does not support multiple connection simultaneously.omniORB
                 try:
-                    self._rb.display(q)
+                    if Viewer.backend == 'gepetto-gui':
+                        with self._lock:
+                            self._rb.display(q)
+                    else:
+                        self._rb.display(q)
                 except Viewer._backend_exception:
                     break
             t_simu = (time.time() - init_time) * replay_speed
@@ -592,13 +603,15 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
         close_backend = Viewer._backend_obj is None
 
     # Load robots in gepetto viewer
+    lock = Lock()
     viewers = []
     for i in range(len(trajectory_data)):
         robot = trajectory_data[i]['robot']
+        robot_name = "_".join(("robot", i))
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
         viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
-                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_index=i,
-                        backend=backend, window_name=window_name, scene_name=scene_name)
+                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
+                        lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]

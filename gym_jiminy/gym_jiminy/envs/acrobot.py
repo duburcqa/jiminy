@@ -140,6 +140,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
     def _refresh_learning_spaces(self):
         # Replace the observation space, which is NOT the sensor space in this case,
         # for consistency with the official gym acrobot-v1 (https://gym.openai.com/envs/Acrobot-v1/)
+        super()._refresh_learning_spaces()
 
         # Replace the action space if necessary
         if not self.continuous:

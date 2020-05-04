@@ -192,7 +192,7 @@ class EngineAsynchronous:
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self._engine.stepper_state.dt
 
-    def render(self, return_rgb_array=False, lock=None):
+    def render(self, return_rgb_array=False):
         """
         @brief      Render the current state of the simulation. One can display it
                     in Gepetto-viewer or return an RGB array.
@@ -204,23 +204,21 @@ class EngineAsynchronous:
 
         @param[in]  return_rgb_array    Updated command
                                         Optional: Use the value in the internal buffer otherwise
-        @param[in]  lock                Unique threading.Lock for every simulation
-                                        Optional: Only required for parallel rendering
 
         @return     Low-resolution rendering as an RGB array (3D numpy array)
         """
         rgb_array = None
 
-        if (lock is not None):
-            lock.acquire()
         try:
             # Instantiate the robot and viewer client if necessary
             if (self._viewer is None):
-                scene_name = next(tempfile._get_candidate_names())
+                uniq_id = next(tempfile._get_candidate_names())
                 self._viewer = Viewer(self.robot,
-                                      backend=self.viewer_backend,
                                       use_theoretical_model=False,
-                                      window_name='jiminy', scene_name=scene_name)
+                                      backend=self.viewer_backend,
+                                      robot_name="_".join(("robot", uniq_id)),
+                                      scene_name="_".join(("scene", uniq_id)),
+                                      window_name="_".join(("window", uniq_id)))
                 self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
                                                 rotation=[np.pi/2, 0.0, np.pi])
 
@@ -236,10 +234,8 @@ class EngineAsynchronous:
             self._viewer = None
             if self._is_viewer_available:
                 self._is_viewer_available = False
-                return self.render(return_rgb_array, lock)
+                return self.render(return_rgb_array)
         finally:
-            if (lock is not None):
-                lock.release()
             return rgb_array
 
     def close(self):

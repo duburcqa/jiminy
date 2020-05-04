@@ -92,9 +92,6 @@ class RobotJiminyEnv(core.Env):
         ## Information about the learning process
         self.learning_info = {'is_success': False}
 
-        ## Internal buffer(s)
-        self._viewer = None
-
         ## Number of simulation steps performed after having met the stopping criterion
         self._steps_beyond_done = None
 
@@ -363,22 +360,19 @@ class RobotJiminyEnv(core.Env):
 
         return self.observation, reward, done, self.learning_info
 
-    def render(self, mode=None, lock=None, **kwargs):
+    def render(self, mode=None, **kwargs):
         """
-        @brief      Render the current state of the robot in Gepetto-viewer.
+        @brief      Render the current state of the robot.
 
         @details    Do not suport Multi-Rendering RGB output because it is not
-                    possible to create window in new tabs programmatically in
-                    Gepetto viewer.
+                    possible to create window in new tabs programmatically.
 
         @param[in]  mode    Unused. Defined for compatibility with Gym OpenAI.
-        @param[in]  lock    Unique threading.Lock for every environment.
-                            Optional: Only required for parallel rendering
 
         @return     Fake output for compatibility with Gym OpenAI.
         """
 
-        self.engine_py.render(return_rgb_array=False, lock=lock, **kwargs)
+        self.engine_py.render(return_rgb_array=False, **kwargs)
         return RenderOutMock()
 
     def close(self):
