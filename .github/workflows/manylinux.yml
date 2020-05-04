@@ -51,11 +51,10 @@ jobs:
 
     - name: Build and install Jiminy
       run: |
-        source $HOME/.bashrc
-
         RootDir="${GITHUB_WORKSPACE}"
         InstallDir="$RootDir/install"
 
+        source $HOME/.bashrc
         unset Boost_ROOT
 
         mkdir "$RootDir/build"
@@ -75,22 +74,27 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        source $HOME/.bashrc
-
         RootDir="${GITHUB_WORKSPACE}"
         InstallDir="$RootDir/install"
 
+        source $HOME/.bashrc
+        export LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib"
+
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
-        LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib" auditwheel repair pypi/jiminy_py/dist/*.whl
+        auditwheel repair pypi/jiminy_py/dist/*.whl
         python -m pip install --force-reinstall --no-deps wheelhouse/*.whl
 
     #####################################################################################
 
     - name: Run unit tests
       run: |
+        RootDir="${GITHUB_WORKSPACE}"
+        InstallDir="$RootDir/install"
+
         source $HOME/.bashrc
-        LD_LIBRARY_PATH="/home/install/lib:/usr/local/lib" ./build/unit/unit
+
+        LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib" ./build/unit/unit
         cd unit_py
         python -m unittest discover -v
 
