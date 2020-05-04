@@ -259,11 +259,10 @@ def _compute_closest_contact_frame(robot, ground_profile=None, use_theoretical_m
     # Compute the transform of the ground at these points
     if ground_profile is not None:
         contact_ground_transform = []
-        ground_pos, ground_rot = np.zeros(3), np.empty((3, 3))
+        ground_pos = np.zeros(3)
         for frame_transform in contact_frames_transform:
-            ground_pos[2], ground_rot[2] = ground_profile(frame_transform.translation)
-            ground_rot[1] = np.cross(ground_rot[2], np.array([1.0, 0.0, 0.0]))
-            ground_rot[0] = np.cross(ground_rot[1], ground_rot[2])
+            ground_pos[2], normal = ground_profile(frame_transform.translation)
+            ground_rot = pin.Quaternion.FromTwoVectors(np.array([0.0, 0.0, 1.0]), normal).matrix()
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
     else:
         contact_ground_transform = len(contact_frames_transform) * [pin.SE3.Identity()]
@@ -345,19 +344,15 @@ def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acce
         robot, fixed_body_name, use_theoretical_model)
 
     if ground_profile is not None:
-        ground_translation, ground_rotation = np.zeros(3), np.empty((3, 3))
-        ground_translation[2], ground_rotation[2] = ground_profile(ff_M_fixed_body.translation)
-        ground_rotation[1] = np.cross(ground_rotation[2], np.array([1.0, 0.0, 0.0]))
-        ground_rotation[0] = np.cross(ground_rotation[1], ground_rotation[2])
-        ground_transform = pin.SE3(ground_rotation, ground_translation)
+        ground_translation = np.zeros(3)
+        ground_translation[2], normal = ground_profile(frame_transform.translation)
+        ground_rotation = pin.Quaternion.FromTwoVectors(np.array([0.0, 0.0, 1.0]), normal).matrix()
+        w_M_ground = pin.SE3(ground_rotation, ground_translation)
     else:
-        ground_transform = pin.SE3.Identity()
+        w_M_ground = pin.SE3.Identity()
 
-    w_M_ff = ff_M_fixed_body.actInv(ground_transform)
-    base_link_translation = w_M_ff.translation
-    base_link_quat = pin.Quaternion(w_M_ff.rotation)
-    position[:3] = base_link_translation
-    position[3:7] = base_link_quat.coeffs()
+    w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
+    position[:7] = pnc.se3ToXYZQUAT(w_M_ff)
 
     if velocity is not None:
         ff_v_fixed_body = get_body_world_velocity(
@@ -381,11 +376,9 @@ def compute_efforts_from_fixed_body(robot, position, velocity, acceleration,
     @note This function modifies internal data.
 
     @param robot            The jiminy robot
-    @param[inout] position  Must contain current articular data. The rootjoint data can
-                            contain any value, it will be ignored and replaced.
-                            The method fills in rootjoint data.
-    @param[inout] velocity  See position
-    @param[inout] acceleration  See position
+    @param position         Joint position vector
+    @param velocity         See position
+    @param acceleration     See position
     @param fixed_body_name  The name of the body frame on which to apply the external forces
     """
     if use_theoretical_model:
