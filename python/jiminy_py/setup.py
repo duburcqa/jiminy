@@ -17,16 +17,15 @@ class InstallPlatlib(install):
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
 
-version = '1.2.31'
 setup(name = 'jiminy_py',
-      version = version,
+      version = '@PROJECT_VERSION@',
       license = 'MIT',
       description = 'Python-native helper methods and wrapping classes for Jiminy open-source simulator.',
       author = 'Alexis Duburcq',
       author_email = 'alexis.duburcq@wandercraft.eu',
       maintainer = 'Wandercraft',
       url = 'https://github.com/Wandercraft/jiminy',
-      download_url = f'https://github.com/Wandercraft/jiminy/archive/{version}.tar.gz',
+      download_url = 'https://github.com/Wandercraft/jiminy/archive/@PROJECT_VERSION@.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd']},

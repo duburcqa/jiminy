@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
-version = '1.2.31'
+
+version = __import__('jiminy_py').__version__
 setup(name = 'gym_jiminy',
       version = version,
       license = 'MIT',
