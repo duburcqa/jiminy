@@ -2,6 +2,7 @@ from setuptools import setup, find_packages
 
 
 version = __import__('jiminy_py').__version__
+version_required = '.'.join(version.split('.')[:2])
 setup(name = 'gym_jiminy',
       version = version,
       license = 'MIT',
@@ -17,6 +18,8 @@ setup(name = 'gym_jiminy',
       install_requires = [
             'gym',
             'stable_baselines',
-            'jiminy-py~=1.2'
-      ]
+            f'jiminy-py~={version_required}'
+      ],
+      python_requires='>3.6'
 )
+

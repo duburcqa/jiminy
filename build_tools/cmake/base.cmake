@@ -194,8 +194,8 @@ if(BUILD_PYTHON_INTERFACE)
     endfunction()
 
     function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "EXECUTE_PROCESS (COMMAND pip install ${PYTHON_INSTALL_FLAGS} -e .
-                                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
+        install (CODE "execute_process(COMMAND pip install ${PYTHON_INSTALL_FLAGS} -e .
+                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endfunction()
 endif()
 

@@ -137,23 +137,24 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         super().__init__("acrobot", engine_py, DT)
 
-        # #################### Overwrite some problem-generic variables ########################
-
+    def _refresh_learning_spaces(self):
         # Replace the observation space, which is NOT the sensor space in this case,
         # for consistency with the official gym acrobot-v1 (https://gym.openai.com/envs/Acrobot-v1/)
-        obs_high = np.array([1.0, 1.0, 1.0, 1.0, MAX_VEL, MAX_VEL])
+        super()._refresh_learning_spaces()
+
+        # Replace the action space if necessary
+        if not self.continuous:
+            self.action_space = spaces.Discrete(3)
 
         # Set bounds to the goal spaces, since they are known in this case (infinite by default)
         goal_high = np.array([self._tipPosZMax])
+
+        obs_high = np.array([1.0, 1.0, 1.0, 1.0, MAX_VEL, MAX_VEL])
 
         self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
             achieved_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
             observation=spaces.Box(low=-obs_high, high=obs_high, dtype=np.float64))
-
-        # Replace the action space if necessary
-        if not self.continuous:
-            self.action_space = spaces.Discrete(3)
 
         ## Current observation of the robot
         self.observation = {'observation': None,
@@ -167,7 +168,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _sample_goal(self):
         # @copydoc RobotJiminyGoalEnv::_sample_goal
-        return self.np_random.uniform(low=-0.2*self._tipPosZMax,
+        return self.np_random.uniform(low=-0.20*self._tipPosZMax,
                                       high=0.98*self._tipPosZMax,
                                       size=(1,))
 
@@ -177,8 +178,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
-
-        # Compute the official gym acrobot state based on the robot state
         theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
         obs['observation'] = np.array([cos(theta1 + pi),
                                        sin(theta1 + pi),
@@ -186,7 +185,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
                                        sin(theta2 + pi),
                                        theta1_dot,
                                        theta2_dot])
-
         obs['achieved_goal'] = self._get_achieved_goal()
         obs['desired_goal'] = self.goal.copy()
 
@@ -248,6 +246,8 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
 
         super().__init__(continuous)
 
+    def _refresh_learning_spaces(self):
+        super()._refresh_learning_spaces()
         if not self.enableGoalEnv:
             self.observation_space = self.observation_space['observation']
 

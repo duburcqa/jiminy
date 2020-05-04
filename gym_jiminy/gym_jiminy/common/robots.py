@@ -35,6 +35,7 @@ MOTOR_EFFORT_MAX = 1000.0
 SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
 SENSOR_GYRO_UNIVERSAL_MAX = 100.0
 SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
+T_UNIVERSAL_MAX = 10000.0
 
 
 class RobotJiminyEnv(core.Env):
@@ -55,7 +56,7 @@ class RobotJiminyEnv(core.Env):
         'render.modes': ['human']
     }
 
-    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
+    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float, debug : bool = False):
         """
         @brief      Constructor
 
@@ -83,17 +84,13 @@ class RobotJiminyEnv(core.Env):
         ## Configure the action and observation spaces
         self.action_space = None
         self.observation_space = None
-        self._refresh_learning_spaces()
 
         ## Current observation of the robot
         self.is_running = False
-        self.observation = {'t': None, 'state': None, 'sensors': None}
+        self.observation = None
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
-
-        ## Internal buffer(s)
-        self._viewer = None
 
         ## Number of simulation steps performed after having met the stopping criterion
         self._steps_beyond_done = None
@@ -103,11 +100,11 @@ class RobotJiminyEnv(core.Env):
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        # Disable completely the telemetry to speed up the simulation
+        # Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
-            robot_options["telemetry"][field] = False
+            robot_options["telemetry"][field] = debug
         for field in engine_options["telemetry"].keys():
-            engine_options["telemetry"][field] = False
+            engine_options["telemetry"][field] = debug
 
         # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
@@ -121,6 +118,7 @@ class RobotJiminyEnv(core.Env):
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
+        engine_options["stepper"]["logInternalStepperSteps"] = debug
 
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
@@ -133,12 +131,10 @@ class RobotJiminyEnv(core.Env):
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-
         sensor_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
-
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
@@ -170,14 +166,12 @@ class RobotJiminyEnv(core.Env):
                 effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
 
         ## Action space
-
         action_low  = -effort_limit[self.robot.motors_velocity_idx]
         action_high = +effort_limit[self.robot.motors_velocity_idx]
 
         self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
 
         ## Sensor space
-
         sensor_space_raw = {key: {'min': np.full(value.shape, -np.inf),
                                   'max': np.full(value.shape, np.inf)}
                             for key, value in self.robot.sensors_data.items()}
@@ -231,8 +225,12 @@ class RobotJiminyEnv(core.Env):
         state_limit_upper = np.concatenate((position_limit_upper, +velocity_limit))
 
         self.observation_space = spaces.Dict(
+            t = spaces.Box(low=0.0, high=T_UNIVERSAL_MAX, shape=(1,), dtype=np.float64),
             state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
-            sensors = sensor_space)
+            sensors = sensor_space
+        )
+
+        self.observation = {'t': None, 'state': None, 'sensors': None}
 
     def _sample_state(self):
         """
@@ -320,6 +318,7 @@ class RobotJiminyEnv(core.Env):
         @return     Initial state of the episode
         """
         self.engine_py.reset(self._sample_state())
+        self._refresh_learning_spaces()
         self.is_running = False
         self._steps_beyond_done = None
         self._update_observation(self.observation)
@@ -361,22 +360,19 @@ class RobotJiminyEnv(core.Env):
 
         return self.observation, reward, done, self.learning_info
 
-    def render(self, mode=None, lock=None, **kwargs):
+    def render(self, mode=None, **kwargs):
         """
-        @brief      Render the current state of the robot in Gepetto-viewer.
+        @brief      Render the current state of the robot.
 
         @details    Do not suport Multi-Rendering RGB output because it is not
-                    possible to create window in new tabs programmatically in
-                    Gepetto viewer.
+                    possible to create window in new tabs programmatically.
 
         @param[in]  mode    Unused. Defined for compatibility with Gym OpenAI.
-        @param[in]  lock    Unique threading.Lock for every environment.
-                            Optional: Only required for parallel rendering
 
         @return     Fake output for compatibility with Gym OpenAI.
         """
 
-        self.engine_py.render(return_rgb_array=False, lock=lock, **kwargs)
+        self.engine_py.render(return_rgb_array=False, **kwargs)
         return RenderOutMock()
 
     def close(self):
@@ -419,6 +415,9 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         ## Sample a new goal
         self.goal = self._sample_goal()
 
+    def _refresh_learning_spaces(self):
+        super()._refresh_learning_spaces()
+
         ## Append default desired and achieved goal spaces to the observation space
         self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
@@ -426,7 +425,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
             observation=self.observation_space)
 
         ## Current observation of the robot
-        self.observation = {'observation': {'t': None, 'state': None, 'sensors': None},
+        self.observation = {'observation': self.observation,
                             'achieved_goal': None,
                             'desired_goal': None}
 
