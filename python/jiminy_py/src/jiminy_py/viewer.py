@@ -182,15 +182,15 @@ class Viewer:
             raise RuntimeError("Impossible to load backend.")
 
         # Create a RobotWrapper
+        root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
         robot_name = "robot_" + str(robot_index)
         if (Viewer.backend == 'gepetto-gui'):
             Viewer._delete_gepetto_nodes_viewer(scene_name + '/' + robot_name)
             if (urdf_rgba is not None):
                 alpha = urdf_rgba[3]
-                self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3])
+                self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3], root_path)
             else:
                 alpha = 1.0
-        root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
         collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
                                                 root_path,
                                                 pin.GeometryType.COLLISION)
@@ -284,7 +284,7 @@ class Viewer:
             return False      # Probably standard Python interpreter
 
     @staticmethod
-    def _get_colorized_urdf(urdf_path, rgb, custom_mesh_search_path=None):
+    def _get_colorized_urdf(urdf_path, rgb, root_path=None):
         """
         @brief      Generate a unique colorized URDF.
 
@@ -293,6 +293,7 @@ class Viewer:
 
         @param[in]  urdf_path     Full path of the URDF file
         @param[in]  rgb           RGB code defining the color of the model. It is the same for each link.
+        @param[in]  root_path     Root path of the meshes.
 
         @return     Full path of the colorized URDF file.
         """
@@ -308,6 +309,9 @@ class Viewer:
             colorized_contents = urdf_file.read()
 
         for mesh_fullpath in re.findall('<mesh filename="(.*)"', colorized_contents):
+            # Replace package path by root_path.
+            if mesh_fullpath.startswith('package://'):
+                mesh_fullpath = root_path + mesh_fullpath[len("package:/"):]
             colorized_mesh_fullpath = os.path.join(colorized_tmp_path, mesh_fullpath[1:])
             colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
             if not os.access(colorized_mesh_path, os.F_OK):

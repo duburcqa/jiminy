@@ -27,3 +27,4 @@ from . import _pinocchio_init as _patch
 
 # Import core submodule
 from . import core
+from .core import __version__, __raw_version__
