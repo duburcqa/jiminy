@@ -1,7 +1,5 @@
-from multiprocessing import Lock
 from gym.envs.registration import register
 
-global_lock = Lock()
 
 register(
     id='jiminy-cartpole-v0',

@@ -352,7 +352,7 @@ def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acce
         w_M_ground = pin.SE3.Identity()
 
     w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
-    position[:7] = pnc.se3ToXYZQUAT(w_M_ff)
+    position[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
     if velocity is not None:
         ff_v_fixed_body = get_body_world_velocity(
@@ -411,7 +411,7 @@ def compute_efforts_from_fixed_body(robot, position, velocity, acceleration,
 #################### State sequence wrappers #########################
 ######################################################################
 
-def retrieve_freeflyer(trajectory_data):
+def retrieve_freeflyer(trajectory_data, freeflyer_continuity=True):
     """
     @brief   Retrieves the freeflyer positions and velocities.
              The reference frame is the support foot.
@@ -430,17 +430,21 @@ def retrieve_freeflyer(trajectory_data):
             robot, s.q, s.v, s.a, s.contact_frame,
             None, use_theoretical_model)
 
-        w_M_ff = pin.XYZQUATToSe3(s.q[:7])
-        if contact_frame_prev is not None \
-                and contact_frame_prev != s.contact_frame:
-            w_M_ff_offset = w_M_ff_offset * w_M_ff_prev * w_M_ff.inverse()
-        contact_frame_prev = s.contact_frame
-        w_M_ff_prev = w_M_ff
+        # Move freeflyer to ensure continuity over time, if requested
+        if freeflyer_continuity:
+            # Extract the current freeflyer transform
+            w_M_ff = pin.XYZQUATToSe3(s.q[:7])
 
-        # Move freeflyer to ensure continuity over time
-        w_M_ff = w_M_ff_offset * w_M_ff
-        s.q[:3] = w_M_ff.translation
-        s.q[3:7] = pin.Quaternion(w_M_ff.rotation).coeffs()
+            # Update the internal buffer of the freeflyer transform
+            if contact_frame_prev is not None \
+                    and contact_frame_prev != s.contact_frame:
+                w_M_ff_offset = w_M_ff_offset * w_M_ff_prev * w_M_ff.inverse()
+            contact_frame_prev = s.contact_frame
+            w_M_ff_prev = w_M_ff
+
+            # Add the appropriate offset to the freeflyer
+            w_M_ff = w_M_ff_offset * w_M_ff
+            s.q[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
 def compute_efforts(trajectory_data):
     """
