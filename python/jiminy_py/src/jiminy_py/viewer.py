@@ -607,7 +607,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
     viewers = []
     for i in range(len(trajectory_data)):
         robot = trajectory_data[i]['robot']
-        robot_name = "_".join(("robot", i))
+        robot_name = "_".join(("robot", str(i)))
         use_theoretical_model = trajectory_data[i]['use_theoretical_model']
         viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
                         urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
