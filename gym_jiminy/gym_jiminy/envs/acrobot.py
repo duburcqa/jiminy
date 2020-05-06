@@ -216,14 +216,15 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def step(self, action):
         # @copydoc RobotJiminyEnv::step
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+        if action is not None:
+            # Make sure that the action is within bounds
+            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        # Compute the torque to apply
-        if not self.continuous:
-            action = self.AVAIL_TORQUE[action]
-
-        if ACTION_NOISE > 0.0:
-            action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
+            # Compute the actual torque to apply
+            if not self.continuous:
+                action = self.AVAIL_TORQUE[action]
+            if ACTION_NOISE > 0.0:
+                action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
 
         # Perform the step
         return super().step(action)

@@ -155,6 +155,16 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         # @copydoc RobotJiminyEnv::_update_observation
         obs[:] = self.engine_py.state
 
+    @staticmethod
+    def _key_to_action(key):
+        if key == "Left":
+            return 1
+        elif key == "Right":
+            return 0
+        else:
+            print(f"Key {key} is not bound to any action.")
+            return None
+
     def _is_done(self):
         # @copydoc RobotJiminyEnv::_is_done
         x, theta, _, _ = self.observation
@@ -177,10 +187,12 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def step(self, action):
         # @copydoc RobotJiminyEnv::step
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+        if action is not None:
+            # Make sure that the action is within bounds
+            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        # Compute the force to apply
-        action = self.AVAIL_FORCE[action]
+            # Compute the actual force to apply
+            action = self.AVAIL_FORCE[action]
 
         # Perform the step
         return super().step(action)
