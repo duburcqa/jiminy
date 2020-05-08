@@ -205,7 +205,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # Get a negative reward till success
         reward = 0.0
         if not done:
-            reward += -1.0
+            reward += -self.dt
         return reward
 
     def _compute_reward(self):

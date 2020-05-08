@@ -182,7 +182,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         if self._steps_beyond_done is None:
             done = self._is_done()
             if not done:
-                reward += 1.0
+                reward += self.dt
         return reward
 
     def step(self, action):
