@@ -116,6 +116,7 @@ class RobotJiminyEnv(core.Env):
 
         # Configure the stepper update period and disable max number of iterations
         engine_options["stepper"]["iterMax"] = -1
+        engine_options["stepper"]["dtMax"] = self.dt
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = debug
