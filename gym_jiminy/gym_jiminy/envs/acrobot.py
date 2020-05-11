@@ -149,7 +149,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # Set bounds to the goal spaces, since they are known in this case (infinite by default)
         goal_high = np.array([self._tipPosZMax])
 
-        obs_high = np.array([1.0, 1.0, 1.0, 1.0, MAX_VEL, MAX_VEL])
+        obs_high = np.array([1.0, 1.0, 1.0, 1.0, 1.5 * MAX_VEL, 1.5 * MAX_VEL])
 
         self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),

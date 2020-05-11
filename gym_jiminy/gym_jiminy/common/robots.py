@@ -187,11 +187,11 @@ class RobotJiminyEnv(core.Env):
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
                 pos_idx = self.robot.get_sensor(enc.type, sensor_name).joint_position_idx
-                sensor_space_raw[enc.type]['min'][0, sensor_idx] = position_limit_lower[pos_idx]
-                sensor_space_raw[enc.type]['max'][0, sensor_idx] = position_limit_upper[pos_idx]
+                sensor_space_raw[enc.type]['min'][0, sensor_idx] = 1.5 * position_limit_lower[pos_idx]
+                sensor_space_raw[enc.type]['max'][0, sensor_idx] = 1.5 * position_limit_upper[pos_idx]
                 vel_idx = self.robot.get_sensor(enc.type, sensor_name).joint_velocity_idx
-                sensor_space_raw[enc.type]['min'][1, sensor_idx] = -velocity_limit[vel_idx]
-                sensor_space_raw[enc.type]['max'][1, sensor_idx] = +velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['min'][1, sensor_idx] = -1.5 * velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
         if effort.type in sensor_data.keys():
@@ -226,8 +226,8 @@ class RobotJiminyEnv(core.Env):
              for key, value in sensor_space_raw.items()})
 
         ## Observation space
-        state_limit_lower = np.concatenate((position_limit_lower, -velocity_limit))
-        state_limit_upper = np.concatenate((position_limit_upper, +velocity_limit))
+        state_limit_lower = 1.5 * np.concatenate((position_limit_lower, -velocity_limit))
+        state_limit_upper = 1.5 * np.concatenate((position_limit_upper, +velocity_limit))
 
         self.observation_space = spaces.Dict(
             t = spaces.Box(low=0.0, high=T_UNIVERSAL_MAX, shape=(1,), dtype=np.float64),

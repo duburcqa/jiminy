@@ -147,8 +147,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         if not self.continuous:
             self.action_space = spaces.Discrete(2)
 
-        high = np.array([self.x_threshold * 2,
-                         self.theta_threshold_radians * 2,
+        high = np.array([1.5 * self.x_threshold,
+                         1.5 * self.theta_threshold_radians,
                          *self.robot.velocity_limit])
 
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
