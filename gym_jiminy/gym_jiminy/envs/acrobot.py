@@ -205,14 +205,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # Get a negative reward till success
         reward = 0.0
         if not done:
-            reward += -self.dt
+            reward += -1.0 #-self.dt # For the cumulative reward to be invariant wrt the simulation timestep
         return reward
-
-    def _compute_reward(self):
-        # @copydoc RobotJiminyEnv::_compute_reward
-        return self.compute_reward(self.observation['achieved_goal'],
-                                   self.observation['desired_goal'],
-                                   self.learning_info)
 
     def step(self, action):
         # @copydoc RobotJiminyEnv::step

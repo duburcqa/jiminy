@@ -494,6 +494,12 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         """
         raise NotImplementedError()
 
+    def _compute_reward(self):
+        # @copydoc RobotJiminyEnv::_compute_reward
+        return self.compute_reward(self.observation['achieved_goal'],
+                                   self.observation['desired_goal'],
+                                   self.learning_info)
+
     def compute_reward(self, achieved_goal, desired_goal, info):
         """
         @brief      Compute the reward for any given episode state.

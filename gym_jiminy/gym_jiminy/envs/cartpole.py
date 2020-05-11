@@ -182,7 +182,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         if self._steps_beyond_done is None:
             done = self._is_done()
             if not done:
-                reward += self.dt
+                reward += 1.0 #self.dt # For the cumulative reward to be invariant wrt the simulation timestep
         return reward
 
     def step(self, action):
