@@ -69,7 +69,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         'render.modes': ['human']
     }
 
-    def __init__(self):
+    def __init__(self, continuous=False):
         """
         @brief      Constructor
 
@@ -81,6 +81,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         #  @copydoc RobotJiminyEnv::state_random_high
         ## @var state_random_low
         #  @copydoc RobotJiminyEnv::state_random_low
+
+        # ########################## Backup the input arguments ################################
+
+        ## Flag to determine if the action space is continuous
+        self.continuous = continuous
 
         # ############################### Initialize Jiminy ####################################
 
@@ -114,8 +119,9 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ##################### Define some problem-specific variables #########################
 
-        ## Map between discrete actions and actual motor force
-        self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
+        if not self.continuous:
+            ## Map between discrete actions and actual motor force
+            self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
 
         ## Maximum absolute angle of the pole before considering the episode failed
         self.theta_threshold_radians = 25 * pi / 180
@@ -135,9 +141,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         # Replace the observation space, which is the state space instead of the sensor space.
         # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
         # failure are still within bounds.
+        super()._refresh_learning_spaces()
 
         # Force using a discrete action space
-        self.action_space = spaces.Discrete(2)
+        if not self.continuous:
+            self.action_space = spaces.Discrete(2)
 
         high = np.array([self.x_threshold * 2,
                          self.theta_threshold_radians * 2,
@@ -192,7 +200,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
             # Compute the actual force to apply
-            action = self.AVAIL_FORCE[action]
+            if not self.continuous:
+                action = self.AVAIL_FORCE[action]
 
         # Perform the step
         return super().step(action)

@@ -57,7 +57,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         'render.modes': ['human'],
     }
 
-    def __init__(self, continuous=True):
+    def __init__(self, continuous=False):
         """
         @brief      Constructor
 
@@ -117,7 +117,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         if not self.continuous:
             ## Map between discrete actions and actual motor torque
-            self.AVAIL_TORQUE = [-MAX_TORQUE, 0.0, MAX_TORQUE]
+            self.AVAIL_TORQUE = [-MAX_TORQUE, MAX_TORQUE]
 
         ## Angle at which to fail the episode
         self.theta_threshold_radians = 25 * pi / 180
@@ -144,7 +144,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # Replace the action space if necessary
         if not self.continuous:
-            self.action_space = spaces.Discrete(3)
+            self.action_space = spaces.Discrete(2)
 
         # Set bounds to the goal spaces, since they are known in this case (infinite by default)
         goal_high = np.array([self._tipPosZMax])
