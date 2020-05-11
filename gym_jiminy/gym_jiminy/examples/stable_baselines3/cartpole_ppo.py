@@ -9,7 +9,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 
 
 ### Create a multiprocess environment
-n_thread = 4
+n_thread = 8
 env = SubprocVecEnv(
     [lambda: gym.make("gym_jiminy:jiminy-cartpole-v0", continuous=False)
      for _ in range(n_thread)],
