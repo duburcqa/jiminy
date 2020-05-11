@@ -30,7 +30,7 @@ if not 'tb' in locals().keys():
 
 # Define a custom MLP policy with two hidden layers of size 64
 class CustomPolicy(PPOPolicy):
-    # Necessary to avoid having to specify the policy when loading a model
+    # Necessary to avoid having to specify the policy when loading a agent
     __module__ = None
 
     def __init__(self, *args, **_kwargs):
@@ -40,7 +40,7 @@ class CustomPolicy(PPOPolicy):
                          activation_fn=nn.Tanh)
 
 # Define a custom linear scheduler for the learning rate
-class LinearSchedule(object):
+class LinearSchedule:
     def __init__(self, initial_p, final_p):
         self.final_p = final_p
         self.initial_p = initial_p

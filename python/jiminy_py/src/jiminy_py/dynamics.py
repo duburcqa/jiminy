@@ -345,7 +345,7 @@ def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acce
 
     if ground_profile is not None:
         ground_translation = np.zeros(3)
-        ground_translation[2], normal = ground_profile(frame_transform.translation)
+        ground_translation[2], normal = ground_profile(ff_M_fixed_body.translation)
         ground_rotation = pin.Quaternion.FromTwoVectors(np.array([0.0, 0.0, 1.0]), normal).matrix()
         w_M_ground = pin.SE3(ground_rotation, ground_translation)
     else:
