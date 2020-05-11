@@ -32,21 +32,27 @@ sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py36-qt4-gepetto-view
 
 Amazing tutorial for Ubuntu 18: <https://medium.com/better-programming/install-tensorflow-1-13-on-ubuntu-18-04-with-gpu-support-239b36d29070>
 
-#### (optional) Add MPI capability to stable_baselines
+#### (optional) stable_baselines3
+
+Installing the Python packages `stable_baselines3` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
-pip install stable-baselines[mpi]
+python -m pip install stable-baselines3[extra]
 ```
+
+#### (optional) Ray
+
+Installing the Python packages `ray==0.9.0.dev0` are required to run some of the provided examples, though it is not required to use gym_jiminy. It can be easily installed using `pip` for any OS and Python 3.6/3.7/3.8. The installation instructions are available [here](https://docs.ray.io/en/master/installation.html).
 
 #### (optional) Install RL Coach for Ubuntu 18
 
-Installing the Python package `rl_coach` is required to run the provided examples, though it is not required to use gym_jiminy.
+Installing the Python package `rl_coach` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
 apt install -y python-opencv
 apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
 
-pip install rl_coach
+python -m pip install rl_coach
 ```
 
 ## Install Jiminy Python package
@@ -99,6 +105,15 @@ Install `python3` 3.6/3.7/3.8 (available on [Microsoft store](https://www.micros
 #### Tensorflow>=1.13 with GPU support dependencies (Cuda 10.1 and CuDNN 7.6)
 
 See this tutorial: <https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781>
+
+#### (optional) stable_baselines3 / Ray
+
+Installing the Python packages `stable_baselines3`, `ray==0.9.0.dev0` are required to run some of the provided examples, though they are not required to use gym_jiminy.
+
+```bash
+python -m pip install stable-baselines3[extra]
+python -m pip install https://ray-wheels.s3-us-west-2.amazonaws.com/master/{COMMIT_HASH}/ray-0.9.0.dev0-{PYTHON_VERSION}-win_amd64.whl
+```
 
 ## Install Jiminy Python package
 
