@@ -41,7 +41,7 @@ jobs:
 
         cd "$RootDir/build"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DBoost_NO_SYSTEM_PATHS=OFF \
+              -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_REQUIRED_VERSION="3.6" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
               -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make install -j2
