@@ -28,7 +28,9 @@ ___
 
 The Machine Learning library [Open AI Gym](https://github.com/openai/gym) is fully supported. Abstract environments and a few for toy models are provided: a [cartpole](https://gym.openai.com/envs/CartPole-v1/), an [acrobot](https://gym.openai.com/envs/Acrobot-v1/), and a [pendulum](https://gym.openai.com/envs/Pendulum-v0/).
 
-Gym Jiminy is only compatible with Python3. Although Python3 is not required to use openAI Gym strictly speaking, most of the Reinforcement Learning packages implementing standard algorithms does not support Python2. For instance, [openAI Gym Baseline](https://github.com/hill-a/stable-baselines) or [Coach](https://github.com/NervanaSystems/coach). They both use the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend optimizer, but [Pytorch](https://pytorch.org/) is equally supported. A few learning examples are also provided. Most are based on those packages, but one implements a dqn algorithm from scratch using Pytorch.
+Gym Jiminy is only compatible with Python3. Although Python3 is not required to use openAI Gym strictly speaking, most of the Reinforcement Learning packages implementing standard algorithms does not support Python2. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Rllib](https://github.com/ray-project/ray). `RL Coach` requires the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` uses its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. Note that `Stable Baselines 3` and `Rllib` are compatible with Linux, Mac OS and Windows.
+
+A few learning examples are provided. Most of them rely on those packages, but one implements the DQN algorithm from scratch using Pytorch.
 
 ## Demo
 

@@ -62,13 +62,13 @@ TEST(EngineSanity, EnergyConservation)
         motor->initialize(jointName);
     }
 
-    // Disable velocity and position limits.
+    // Disable velocity and position limits
     configHolder_t modelOptions = robot->getModelOptions();
     boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("enablePositionLimit")) = false;
     boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("enableVelocityLimit")) = false;
     robot->setModelOptions(modelOptions);
 
-    // Disable torque limits.
+    // Disable torque limits
     configHolder_t motorsOptions = robot->getMotorsOptions();
     for (auto & options : motorsOptions)
     {
@@ -83,9 +83,15 @@ TEST(EngineSanity, EnergyConservation)
     >(controllerZeroTorque, internalDynamics);
     controller->initialize(robot.get());
 
-    // Continuous simulation
+    // Create engine
     auto engine = std::make_shared<Engine>();
     engine->initialize(robot, controller, callback);
+
+    // Configure engine: High accuracy + Continuous-time integration
+    configHolder_t simuOptions = engine->getDefaultEngineOptions();
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-10;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-10;
+    engine->setOptions(simuOptions);
 
     // Run simulation
     vectorN_t x0 = vectorN_t::Zero(4);
@@ -95,30 +101,32 @@ TEST(EngineSanity, EnergyConservation)
     // Run simulation
     engine->simulate(tf, x0);
 
-    // Get system energy.
+    // Get system energy
     std::vector<std::string> header;
     matrixN_t data;
     engine->getLogData(header, data);
     auto energyCont = getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energyCont.size(), 0);
 
-    // Check that energy is constant.
+    // Check that energy is constant
     float64_t const deltaEnergyCont = energyCont.maxCoeff() - energyCont.minCoeff();
     ASSERT_NEAR(0.0, deltaEnergyCont, std::numeric_limits<float64_t>::epsilon());
 
-    // Discrete-time simulation
-    configHolder_t simuOptions = engine->getOptions();
+    // Configure engine: Default accuracy + Discrete-time simulation
+    simuOptions = engine->getDefaultEngineOptions();
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
     engine->setOptions(simuOptions);
+
+    // Run simulation
     engine->simulate(tf, x0);
 
-    // Get system energy.
+    // Get system energy
     engine->getLogData(header, data);
     auto energyDisc = getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energyDisc.size(), 0);
 
-    // Check that energy is constant.
+    // Check that energy is constant
     float64_t const deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
     ASSERT_NEAR(0.0, deltaEnergyDisc, std::numeric_limits<float64_t>::epsilon());
 

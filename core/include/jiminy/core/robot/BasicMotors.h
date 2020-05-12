@@ -9,7 +9,7 @@ namespace jiminy
 {
     class SimpleMotor : public AbstractMotorBase
     {
-    protected:
+    public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct motorOptions_t : public abstractMotorOptions_t
         {
             bool_t    const enableFriction;             ///< Flag to enable the joint friction. It is always negative.

@@ -47,6 +47,8 @@ def sleep(dt):
     """
         @brief   Function to provide cross-plateform time sleep with maximum accuracy.
 
+        @param   dt   sleep duration in seconds.
+
         @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
                  As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure
                  accurate delay on a non-real-time systems such as Windows 10.

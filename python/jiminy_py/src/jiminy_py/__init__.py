@@ -23,6 +23,9 @@ if (is_package_available("pinocchio")):
 else:
     from . import pinocchio
     _sys.modules["pinocchio"] = pinocchio
+    from .pinocchio.pinocchio_pywrap import rpy as _rpy
+    _sys.modules["pinocchio.pinocchio_pywrap.rpy"] = _rpy
+    pinocchio.pinocchio_pywrap.StdVec_StdString = list
 from . import _pinocchio_init as _patch
 
 # Import core submodule

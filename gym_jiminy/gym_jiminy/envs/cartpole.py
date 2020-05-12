@@ -69,7 +69,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         'render.modes': ['human']
     }
 
-    def __init__(self):
+    def __init__(self, continuous=False):
         """
         @brief      Constructor
 
@@ -81,6 +81,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         #  @copydoc RobotJiminyEnv::state_random_high
         ## @var state_random_low
         #  @copydoc RobotJiminyEnv::state_random_low
+
+        # ########################## Backup the input arguments ################################
+
+        ## Flag to determine if the action space is continuous
+        self.continuous = continuous
 
         # ############################### Initialize Jiminy ####################################
 
@@ -114,8 +119,9 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ##################### Define some problem-specific variables #########################
 
-        ## Map between discrete actions and actual motor force
-        self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
+        if not self.continuous:
+            ## Map between discrete actions and actual motor force
+            self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
 
         ## Maximum absolute angle of the pole before considering the episode failed
         self.theta_threshold_radians = 25 * pi / 180
@@ -135,12 +141,14 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         # Replace the observation space, which is the state space instead of the sensor space.
         # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
         # failure are still within bounds.
+        super()._refresh_learning_spaces()
 
         # Force using a discrete action space
-        self.action_space = spaces.Discrete(2)
+        if not self.continuous:
+            self.action_space = spaces.Discrete(2)
 
-        high = np.array([self.x_threshold * 2,
-                         self.theta_threshold_radians * 2,
+        high = np.array([1.5 * self.x_threshold,
+                         1.5 * self.theta_threshold_radians,
                          *self.robot.velocity_limit])
 
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
@@ -154,6 +162,16 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
         obs[:] = self.engine_py.state
+
+    @staticmethod
+    def _key_to_action(key):
+        if key == "Left":
+            return 1
+        elif key == "Right":
+            return 0
+        else:
+            print(f"Key {key} is not bound to any action.")
+            return None
 
     def _is_done(self):
         # @copydoc RobotJiminyEnv::_is_done
@@ -172,15 +190,18 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         if self._steps_beyond_done is None:
             done = self._is_done()
             if not done:
-                reward += 1.0
+                reward += 1.0 #self.dt # For the cumulative reward to be invariant wrt the simulation timestep
         return reward
 
     def step(self, action):
         # @copydoc RobotJiminyEnv::step
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+        if action is not None:
+            # Make sure that the action is within bounds
+            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        # Compute the force to apply
-        action = self.AVAIL_FORCE[action]
+            # Compute the actual force to apply
+            if not self.continuous:
+                action = self.AVAIL_FORCE[action]
 
         # Perform the step
         return super().step(action)

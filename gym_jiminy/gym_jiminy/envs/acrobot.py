@@ -57,7 +57,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         'render.modes': ['human'],
     }
 
-    def __init__(self, continuous=True):
+    def __init__(self, continuous=False):
         """
         @brief      Constructor
 
@@ -117,7 +117,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         if not self.continuous:
             ## Map between discrete actions and actual motor torque
-            self.AVAIL_TORQUE = [-MAX_TORQUE, 0.0, MAX_TORQUE]
+            self.AVAIL_TORQUE = [-MAX_TORQUE, MAX_TORQUE]
 
         ## Angle at which to fail the episode
         self.theta_threshold_radians = 25 * pi / 180
@@ -144,12 +144,12 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # Replace the action space if necessary
         if not self.continuous:
-            self.action_space = spaces.Discrete(3)
+            self.action_space = spaces.Discrete(2)
 
         # Set bounds to the goal spaces, since they are known in this case (infinite by default)
         goal_high = np.array([self._tipPosZMax])
 
-        obs_high = np.array([1.0, 1.0, 1.0, 1.0, MAX_VEL, MAX_VEL])
+        obs_high = np.array([1.0, 1.0, 1.0, 1.0, 1.5 * MAX_VEL, 1.5 * MAX_VEL])
 
         self.observation_space = spaces.Dict(
             desired_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
@@ -205,25 +205,20 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # Get a negative reward till success
         reward = 0.0
         if not done:
-            reward += -1.0
+            reward += -1.0 #-self.dt # For the cumulative reward to be invariant wrt the simulation timestep
         return reward
-
-    def _compute_reward(self):
-        # @copydoc RobotJiminyEnv::_compute_reward
-        return self.compute_reward(self.observation['achieved_goal'],
-                                   self.observation['desired_goal'],
-                                   self.learning_info)
 
     def step(self, action):
         # @copydoc RobotJiminyEnv::step
-        assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+        if action is not None:
+            # Make sure that the action is within bounds
+            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
-        # Compute the torque to apply
-        if not self.continuous:
-            action = self.AVAIL_TORQUE[action]
-
-        if ACTION_NOISE > 0.0:
-            action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
+            # Compute the actual torque to apply
+            if not self.continuous:
+                action = self.AVAIL_TORQUE[action]
+            if ACTION_NOISE > 0.0:
+                action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
 
         # Perform the step
         return super().step(action)

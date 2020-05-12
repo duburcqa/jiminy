@@ -6,6 +6,7 @@
 #include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Types.h"
+#include "jiminy/core/Constants.h"
 
 #include "jiminy/core/engine/Steppers.h"
 
@@ -262,7 +263,7 @@ namespace jiminy
 
     class EngineMultiRobot
     {
-    protected:
+    public:
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
@@ -308,7 +309,7 @@ namespace jiminy
             config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "explicit_euler", "bulirsch_stoer"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
-            config["dtMax"] = 1.0e-3;
+            config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["iterMax"] = 1000000; // -1: infinity
             config["sensorsUpdatePeriod"] = 0.0;
@@ -341,7 +342,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct contactOptions_t
         {
             float64_t const frictionViscous;

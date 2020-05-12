@@ -12,8 +12,6 @@ namespace jiminy
     class Model
     {
     public:
-
-    protected:
         virtual configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;
@@ -51,7 +49,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct jointOptions_t
         {
             bool_t    const enablePositionLimit;

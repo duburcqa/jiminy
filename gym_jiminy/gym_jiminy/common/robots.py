@@ -7,6 +7,7 @@
 """
 
 import os
+import time
 import numpy as np
 
 from gym import core, spaces, logger
@@ -20,8 +21,10 @@ from jiminy_py.core import EncoderSensor as enc, \
                            ImuSensor as imu
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.viewer import sleep
 
-from . import RenderOutMock
+from .render_out_mock import RenderOutMock
+from .play import loop_interactive
 
 
 # Define universal bounds for the observation space
@@ -88,6 +91,7 @@ class RobotJiminyEnv(core.Env):
         ## Current observation of the robot
         self.is_running = False
         self.observation = None
+        self.action_prev = None
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
@@ -116,6 +120,7 @@ class RobotJiminyEnv(core.Env):
 
         # Configure the stepper update period and disable max number of iterations
         engine_options["stepper"]["iterMax"] = -1
+        engine_options["stepper"]["dtMax"] = self.dt
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = debug
@@ -182,11 +187,11 @@ class RobotJiminyEnv(core.Env):
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
                 pos_idx = self.robot.get_sensor(enc.type, sensor_name).joint_position_idx
-                sensor_space_raw[enc.type]['min'][0, sensor_idx] = position_limit_lower[pos_idx]
-                sensor_space_raw[enc.type]['max'][0, sensor_idx] = position_limit_upper[pos_idx]
+                sensor_space_raw[enc.type]['min'][0, sensor_idx] = 1.5 * position_limit_lower[pos_idx]
+                sensor_space_raw[enc.type]['max'][0, sensor_idx] = 1.5 * position_limit_upper[pos_idx]
                 vel_idx = self.robot.get_sensor(enc.type, sensor_name).joint_velocity_idx
-                sensor_space_raw[enc.type]['min'][1, sensor_idx] = -velocity_limit[vel_idx]
-                sensor_space_raw[enc.type]['max'][1, sensor_idx] = +velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['min'][1, sensor_idx] = -1.5 * velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
         if effort.type in sensor_data.keys():
@@ -221,8 +226,8 @@ class RobotJiminyEnv(core.Env):
              for key, value in sensor_space_raw.items()})
 
         ## Observation space
-        state_limit_lower = np.concatenate((position_limit_lower, -velocity_limit))
-        state_limit_upper = np.concatenate((position_limit_upper, +velocity_limit))
+        state_limit_lower = 1.5 * np.concatenate((position_limit_lower, -velocity_limit))
+        state_limit_upper = 1.5 * np.concatenate((position_limit_upper, +velocity_limit))
 
         self.observation_space = spaces.Dict(
             t = spaces.Box(low=0.0, high=T_UNIVERSAL_MAX, shape=(1,), dtype=np.float64),
@@ -321,14 +326,16 @@ class RobotJiminyEnv(core.Env):
         self._refresh_learning_spaces()
         self.is_running = False
         self._steps_beyond_done = None
+        self.action_prev = 0 * self.action_space.sample()
         self._update_observation(self.observation)
         return self.observation
 
     def step(self, action):
         """
-        @brief      Run a simulation step for a given.
+        @brief      Run a simulation step for a given action.
 
         @param[in]  action   The action to perform in the action space
+                             Set to None to NOT update the action.
 
         @return     The next observation, the reward, the status of the episode
                     (done or not), and a dictionary of extra information
@@ -336,9 +343,12 @@ class RobotJiminyEnv(core.Env):
 
         # Bypass 'self.engine_py.action' setter and use
         # direct assignment to max out the performances
+        if action is None:
+            action = self.action_prev
         self.engine_py._action[:] = action
         self.engine_py.step(dt_desired=self.dt)
         self.is_running = True
+        self.action_prev = action
 
         # Extract information about the current simulation state
         self._update_observation(self.observation)
@@ -374,6 +384,22 @@ class RobotJiminyEnv(core.Env):
 
         self.engine_py.render(return_rgb_array=False, **kwargs)
         return RenderOutMock()
+
+    @staticmethod
+    def _key_to_action(key):
+        raise NotImplementedError()
+
+    @loop_interactive()
+    def play_interactive(self, key=None):
+        t_init = time.time()
+        if key is not None:
+            action = self._key_to_action(key)
+        else:
+            action = None
+        _, _, done, _ = self.step(action)
+        self.render()
+        sleep(self.dt - (time.time() - t_init))
+        return done
 
     def close(self):
         """
@@ -467,6 +493,12 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         @return     Boolean flag
         """
         raise NotImplementedError()
+
+    def _compute_reward(self):
+        # @copydoc RobotJiminyEnv::_compute_reward
+        return self.compute_reward(self.observation['achieved_goal'],
+                                   self.observation['desired_goal'],
+                                   self.learning_info)
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """

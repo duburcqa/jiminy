@@ -74,7 +74,7 @@ namespace jiminy
         template<typename T>
         friend class AbstractSensorTpl;
 
-    protected:
+    public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between sensors
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +89,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct abstractSensorOptions_t
         {
             vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor

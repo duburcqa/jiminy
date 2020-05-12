@@ -17,7 +17,6 @@ setup(name = 'gym_jiminy',
       include_package_data = True, # make sure the data folder is included
       install_requires = [
             'gym',
-            'stable_baselines',
             f'jiminy-py~={version_required}'
       ],
       python_requires='>3.6'
