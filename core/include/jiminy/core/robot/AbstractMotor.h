@@ -51,7 +51,7 @@ namespace jiminy
         /* AKA AbstractSensorBase */
         friend Robot;
 
-    protected:
+    public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Dictionary gathering the configuration options shared between motors
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -67,7 +67,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct abstractMotorOptions_t
         {
             bool_t    const enableEffortLimit;

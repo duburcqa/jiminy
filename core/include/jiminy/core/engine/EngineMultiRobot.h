@@ -263,7 +263,7 @@ namespace jiminy
 
     class EngineMultiRobot
     {
-    protected:
+    public:
         configHolder_t getDefaultContactOptions()
         {
             configHolder_t config;
@@ -342,7 +342,6 @@ namespace jiminy
             return config;
         };
 
-    public:
         struct contactOptions_t
         {
             float64_t const frictionViscous;
