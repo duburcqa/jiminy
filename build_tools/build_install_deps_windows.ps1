@@ -358,7 +358,7 @@ Foreach ($file in $configFiles)
 }
 Set-PSDebug -Trace 1
 
-### Remove every std::vector bindings, since it makes absolutely no sense to bind such ambiguous types
+### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
 $configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.hpp -Recurse
 Set-PSDebug -Trace 0
 Foreach ($file in $configFiles)

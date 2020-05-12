@@ -89,8 +89,8 @@ TEST(EngineSanity, EnergyConservation)
 
     // Configure engine: High accuracy + Continuous-time integration
     configHolder_t simuOptions = engine->getDefaultEngineOptions();
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-7;
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-6;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-10;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-10;
     engine->setOptions(simuOptions);
 
     // Run simulation
