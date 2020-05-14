@@ -512,10 +512,7 @@ class Viewer:
             else:
                 q = s.q
                 try:
-                    if Viewer.backend == 'gepetto-gui':
-                        with self._lock:
-                            self._rb.display(q)
-                    else:
+                    with self._lock:
                         self._rb.display(q)
                 except Viewer._backend_exception:
                     break
