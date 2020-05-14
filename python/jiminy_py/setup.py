@@ -39,6 +39,7 @@ setup(name = 'jiminy_py',
           'scipy',
           'numpy',
           'matplotlib',
-          'tqdm'
+          'tqdm',
+          'xmltodict'
       ]
 )
