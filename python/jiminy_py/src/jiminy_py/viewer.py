@@ -201,11 +201,9 @@ class Viewer:
             else:
                 alpha = 1.0
         collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                                root_path,
-                                                pin.GeometryType.COLLISION)
+                                                root_path, pin.GeometryType.COLLISION)
         visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                             root_path,
-                                             pin.GeometryType.VISUAL)
+                                             root_path, pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=collision_model,
                                 visual_model=visual_model)
@@ -353,10 +351,16 @@ class Viewer:
         from gepetto.corbaserver.client import Client as gepetto_client
 
         try:
-            return gepetto_client(), None
+            # Get the existing Gepetto client
+            client = gepetto_client()
+            # Try to fetch the list of scenes to make sure that the Gepetto client is responding
+            client.getSceneList()
+            return client, None
         except:
             try:
-                return gepetto_client(), None
+                client = gepetto_client()
+                client.getSceneList()
+                return client, None
             except:
                 if (create_if_needed):
                     FNULL = open(os.devnull, 'w')

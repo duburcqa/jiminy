@@ -13,8 +13,10 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 from ..common.robots import RobotJiminyEnv
 
+
 DT = 2.0e-3      ## Stepper update period
 MAX_FORCE = 40.0 ## Max force of the motor
+
 
 class JiminyCartPoleEnv(RobotJiminyEnv):
     """
