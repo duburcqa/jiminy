@@ -208,7 +208,7 @@ sed -i '117s/.*/'"\
 find "$RootDir/pinocchio" -type f \( -name "*.py" -o -name "*.cpp" \) \
 -exec sed -i'' -e 's/libpinocchio_pywrap/pinocchio_pywrap/g' {} +
 
-### Remove every std::vector bindings, since it makes absolutely no sense to bind such ambiguous types
+### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
 find "$RootDir/pinocchio" -type f -name "*.hpp" -exec ex -sc "g/StdVectorPythonVisitor</d" -cx {} ';'
 
 ### Build and install pinocchio, finally !

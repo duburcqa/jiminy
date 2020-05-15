@@ -683,6 +683,7 @@ namespace jiminy
                 {
                     pinocchio::Force fextInFrame;
                     fextInFrame = computeContactDynamics(system, contactFramesIdx[i]);
+                    //TODO: One should rather use something like 10 * m * g instead of a fix threshold
                     if (fextInFrame.linear().norm() > 1e5)
                     {
                         std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
