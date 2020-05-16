@@ -327,6 +327,7 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableEffort"] = true;
             config["enableEnergy"] = true;
+            config["timeUnit"] = 1e6;
             return config;
         };
 
@@ -431,13 +432,15 @@ namespace jiminy
             bool_t const enableAcceleration;
             bool_t const enableEffort;
             bool_t const enableEnergy;
+            float64_t const timeUnit;
 
             telemetryOptions_t(configHolder_t const & options) :
             enableConfiguration(boost::get<bool_t>(options.at("enableConfiguration"))),
             enableVelocity(boost::get<bool_t>(options.at("enableVelocity"))),
             enableAcceleration(boost::get<bool_t>(options.at("enableAcceleration"))),
             enableEffort(boost::get<bool_t>(options.at("enableEffort"))),
-            enableEnergy(boost::get<bool_t>(options.at("enableEnergy")))
+            enableEnergy(boost::get<bool_t>(options.at("enableEnergy"))),
+            timeUnit(boost::get<float64_t>(options.at("timeUnit")))
             {
                 // Empty.
             }

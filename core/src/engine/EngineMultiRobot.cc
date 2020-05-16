@@ -766,7 +766,7 @@ namespace jiminy
         configureTelemetry();
 
         // Write the header: this locks the registration of new variables
-        telemetryRecorder_->initialize(telemetryData_.get());
+        telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
         // Log current buffer content as first point of the log data.
         updateTelemetry();
@@ -1115,9 +1115,8 @@ namespace jiminy
                     while (tNext - t > EPS)
                     {
                         /* Adjust stepsize to end up exactly at the next breakpoint,
-                           prevent steps larger than dtMax, and make sure that dt is
-                           multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
-                           it is possible, to reduce rounding errors of logged data. */
+                           prevent steps larger than dtMax, trying to reach multiples of
+                           STEPPER_MIN_TIMESTEP whenever possible. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {
