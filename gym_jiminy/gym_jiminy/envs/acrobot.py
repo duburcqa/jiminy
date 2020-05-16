@@ -13,10 +13,12 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 
 from ..common.robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
+
 DT = 2.0e-3         ## Stepper update period
 MAX_VEL = 4 * pi    ## Max velocity of the joints
 MAX_TORQUE = 10.0   ## Max torque of the motor
 ACTION_NOISE = 0.0  ## Standard deviation of the noise added to the action
+
 
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
     """

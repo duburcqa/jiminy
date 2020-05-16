@@ -34,7 +34,7 @@ class EngineAsynchronous:
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, robot, use_theoretical_model=False, viewer_backend=None):
+    def __init__(self, robot, controller=None, use_theoretical_model=False, viewer_backend=None):
         """
         @brief      Constructor
 
@@ -56,8 +56,11 @@ class EngineAsynchronous:
         self._sensor_data = None
         self._action = np.zeros((robot.nmotors,))
 
-        # Instantiate the Jiminy controller
-        self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
+        # Instantiate the Jiminy controller if necessary, then initialize it
+        if controller is not None:
+            self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
+        else:
+            self._controller = controller
         self._controller.initialize(robot)
 
         # Instantiate the Jiminy engine

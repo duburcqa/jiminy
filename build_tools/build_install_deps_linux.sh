@@ -53,7 +53,7 @@ git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdo
 git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 
 ### Checkout pinocchio and its submodules
-git clone -b "v2.4.3" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+git clone -b "v2.4.4" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 cd "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -208,7 +208,7 @@ sed -i '117s/.*/'"\
 find "$RootDir/pinocchio" -type f \( -name "*.py" -o -name "*.cpp" \) \
 -exec sed -i'' -e 's/libpinocchio_pywrap/pinocchio_pywrap/g' {} +
 
-### Remove every std::vector bindings, since it makes absolutely no sense to bind such ambiguous types
+### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
 find "$RootDir/pinocchio" -type f -name "*.hpp" -exec ex -sc "g/StdVectorPythonVisitor</d" -cx {} ';'
 
 ### Build and install pinocchio, finally !
