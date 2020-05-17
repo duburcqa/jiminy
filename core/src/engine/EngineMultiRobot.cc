@@ -808,6 +808,15 @@ namespace jiminy
             returnCode = start(xInit, true, false);
         }
 
+        // Now that telemetry has been initialized, check simulation duration.
+        if (tEnd > telemetryRecorder_->getMaximumLogTime())
+        {
+            std::cout << "Error - EngineMultiRobot::simulate - Time overflow: with the current precision ";
+            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
         while (returnCode == hresult_t::SUCCESS)
         {
@@ -884,7 +893,7 @@ namespace jiminy
         float64_t tEnd;
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Check if there is something wrong with the integration
+            // Check if there is somethiERROR_BAD_INPUTng wrong with the integration
             if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
             {
                 std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "\
@@ -940,6 +949,15 @@ namespace jiminy
             float64_t stepSize_true = stepSize - stepperState_.tError;
             tEnd = stepperState_.t + stepSize_true;
             stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
+
+            // Check that tEnd is not too large for the current logging precision.
+            if (tEnd > telemetryRecorder_->getMaximumLogTime())
+            {
+                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
+                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
 
             // Get references to some internal stepper buffers
             float64_t & t = stepperState_.t;

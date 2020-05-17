@@ -92,6 +92,11 @@ namespace jiminy
         return returnCode;
     }
 
+    float64_t TelemetryRecorder::getMaximumLogTime() const
+    {
+        return std::numeric_limits<int32_t>::max() / timeLoggingPrecision_;
+    }
+
     bool_t const & TelemetryRecorder::getIsInitialized(void)
     {
         return isInitialized_;
@@ -260,15 +265,13 @@ namespace jiminy
 
                 // In header, look for timeUnit constant - if not found, use default time unit.
                 float64_t timeUnit = TELEMETRY_DEFAULT_TIME_UNIT;
-                // Get constants
-                int32_t const lastConstantIdx = std::distance(
-                    header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
-                for (int32_t i = 1; i < lastConstantIdx; i++)
+                auto const lastConstantIt = std::find(header.begin(), header.end(), START_COLUMNS);
+                for (auto constantIt = header.begin() ; constantIt != lastConstantIt ; constantIt++)
                 {
-                    int32_t const delimiter = header[i].find("=");
-                    if (header[i].substr(0, delimiter) == TIME_UNIT)
+                    int32_t const delimiter = constantIt->find("=");
+                    if (constantIt->substr(0, delimiter) == TIME_UNIT)
                     {
-                        timeUnit = std::stof(header[i].substr(delimiter + 1));
+                        timeUnit = std::stof(constantIt->substr(delimiter + 1));
                         break;
                     }
                 }

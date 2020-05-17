@@ -38,6 +38,10 @@ namespace jiminy
 
         bool_t const & getIsInitialized(void);
 
+        /// \brief Get the maximum time that can be logged with the current precision.
+        /// \return Max time, in second.
+        float64_t getMaximumLogTime() const;
+
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
         ////////////////////////////////////////////////////////////////////////
