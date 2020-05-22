@@ -57,7 +57,7 @@ class EngineAsynchronous:
         self._action = np.zeros((robot.nmotors,))
 
         # Instantiate the Jiminy controller if necessary, then initialize it
-        if controller is not None:
+        if controller is None:
             self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
         else:
             self._controller = controller
