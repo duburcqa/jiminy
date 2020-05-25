@@ -893,7 +893,7 @@ namespace jiminy
         float64_t tEnd;
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Check if there is somethiERROR_BAD_INPUTng wrong with the integration
+            // Check if there is something wrong with the integration
             if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
             {
                 std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "\
@@ -1134,7 +1134,11 @@ namespace jiminy
                     {
                         /* Adjust stepsize to end up exactly at the next breakpoint,
                            prevent steps larger than dtMax, trying to reach multiples of
-                           STEPPER_MIN_TIMESTEP whenever possible. */
+                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to reach
+                           only multiples of 1us, making logging easier, given that, in robotics,
+                           1us can be consider an 'infinitesimal' time. This arbitrary threshold
+                           many not be suited for simulating different, faster dynamics, that require
+                           sub-microsecond precision. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {
