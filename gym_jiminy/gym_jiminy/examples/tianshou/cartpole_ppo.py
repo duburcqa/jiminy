@@ -13,10 +13,10 @@ from typing import Dict, List, Union, Callable, Optional
 
 from tianshou.env import VectorEnv, SubprocVectorEnv
 from tianshou.policy import BasePolicy, PPOPolicy
+from tianshou.policy.utils import DiagGaussian
 from tianshou.trainer import test_episode, gather_info
 from tianshou.data import Collector, ReplayBuffer
 from tianshou.utils import tqdm_config, MovAvg
-
 
 #  User parameters
 GYM_ENV_NAME = "gym_jiminy:jiminy-cartpole-v0"
@@ -25,6 +25,7 @@ TARGET_EPISODE_STEPS = 5000
 MAX_EPISODE_STEPS = 10000
 SEED = 0
 N_THREADS = 8
+VF_SHARE_LAYERS = False
 
 # Define some hyper-parameters:
 env_creator = lambda *args, **kwargs: TimeLimit(gym.make(GYM_ENV_NAME, **GYM_ENV_KWARGS), MAX_EPISODE_STEPS)
@@ -78,24 +79,42 @@ class Net(nn.Module):
             nn.Linear(64, 64), nn.Tanh()
         ])
 
-    def forward(self, s, state=None, info={}):
-        if not isinstance(s, torch.Tensor):
+    def forward(self, obs, state=None, info={}):
+        if not isinstance(obs, torch.Tensor):
             device = next(self.model.parameters()).device
-            s = torch.tensor(s, device=device, dtype=torch.float32)
-        logits = self.model(s)
+            obs = torch.tensor(obs, device=device, dtype=torch.float32)
+        logits = self.model(obs)
         return logits, state
 
 class Actor(nn.Module):
-    def __init__(self, preprocess_net, action_space):
+    def __init__(self, preprocess_net, action_space, free_log_std=True):
         super().__init__()
-        n_output = np.prod(action_space.n)
         self.preprocess = preprocess_net
-        self.last = nn.Linear(64, n_output)
+        self.is_action_space_discrete = isinstance(action_space, gym.spaces.Discrete)
+        self.free_log_std = free_log_std
+        if self.is_action_space_discrete:
+            n_output = np.prod(action_space.n)
+            self.onehot = nn.Linear(64, n_output)
+        else:
+            n_output = np.prod(action_space.shape)
+            self.mu = nn.Linear(64, n_output)
+            if self.free_log_std:
+                self.sigma = nn.Parameter(torch.zeros(n_output, 1))
+            else:
+                self.sigma = nn.Linear(64, n_output)
 
-    def forward(self, s, state=None, info={}):
-        logits, h = self.preprocess(s, state)
-        logits = nn.functional.softmax(self.last(logits), dim=-1)
-        return logits, h
+    def forward(self, obs, state=None, info={}):
+        logits, h = self.preprocess(obs, state)
+        if self.is_action_space_discrete:
+            logits = nn.functional.softmax(self.onehot(logits), dim=-1)
+            return logits, h
+        else:
+            mu = self.mu(logits)
+            if self.free_log_std:
+                sigma = self.sigma.expand(mu.shape).exp()
+            else:
+                sigma = torch.exp(self.sigma(logits))
+            return (mu, sigma), None
 
 class Critic(nn.Module):
     def __init__(self, preprocess_net):
@@ -103,16 +122,20 @@ class Critic(nn.Module):
         self.preprocess = preprocess_net
         self.last = nn.Linear(64, 1)
 
-    def forward(self, s, **kwargs):
-        logits, h = self.preprocess(s, state=kwargs.get('state', None))
+    def forward(self, obs, **kwargs):
+        logits, _ = self.preprocess(obs, state=kwargs.get('state', None))
         logits = self.last(logits)
         return logits
 
 ### Instantiate the models
 env = env_creator()
-net = Net(env.observation_space)
-actor = Actor(net, env.action_space).to('cuda')
-critic = Critic(net).to('cuda')
+if VF_SHARE_LAYERS:
+    net = Net(env.observation_space)
+    actor = Actor(net, env.action_space).to('cuda')
+    critic = Critic(net).to('cuda')
+else:
+    actor = Actor(Net(env.observation_space), env.action_space).to('cuda')
+    critic = Critic(Net(env.observation_space)).to('cuda')
 optim = torch.optim.Adam(list(actor.parameters()) + list(critic.parameters()), lr=lr)
 
 ### orthogonal initialization
@@ -121,8 +144,15 @@ for m in list(actor.modules()) + list(critic.modules()):
         torch.nn.init.orthogonal_(m.weight)
         torch.nn.init.zeros_(m.bias)
 
+### Set the probability distribution
+if isinstance(env.action_space, gym.spaces.Discrete):
+    dist_fn = torch.distributions.Categorical
+else:
+    dist_fn = DiagGaussian
+    ppo_config["action_range"] = [float(env.action_space.low),
+                                  float(env.action_space.high)]
+
 # Setup policy and collectors:
-dist_fn = torch.distributions.Categorical
 policy = PPOPolicy(actor, critic, optim, dist_fn, **ppo_config)
 train_collector = Collector(policy, train_envs, ReplayBuffer(buffer_size))
 test_collector = Collector(policy, test_envs)
