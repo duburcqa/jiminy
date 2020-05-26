@@ -948,16 +948,18 @@ namespace jiminy
                numerical precision, thus avoiding it to grows unbounded. */
             float64_t stepSize_true = stepSize - stepperState_.tError;
             tEnd = stepperState_.t + stepSize_true;
-            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
 
-            // Check that tEnd is not too large for the current logging precision.
-            if (tEnd > telemetryRecorder_->getMaximumLogTime())
+            // Check that tEnd is not too large for the current logging precision,
+            // otherwise abort integration.
+            if (stepperState_.t + stepSize_true > telemetryRecorder_->getMaximumLogTime())
             {
                 std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
                 std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
                 std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
                 return hresult_t::ERROR_GENERIC;
             }
+            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
+
 
             // Get references to some internal stepper buffers
             float64_t & t = stepperState_.t;
