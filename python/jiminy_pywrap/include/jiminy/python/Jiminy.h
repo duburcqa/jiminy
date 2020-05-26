@@ -1397,7 +1397,21 @@ namespace python
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("dxdt", bp::make_getter(&stepperState_t::dxdt,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
+                .def("__repr__", &PyStepperStateVisitor::repr)
                 ;
+        }
+
+        static std::string repr(stepperState_t self)
+        {
+            std::stringstream s;
+            Eigen::IOFormat HeavyFmt(5, 1, ", ", ",\n    ", "[", "]", "    [", "]");
+            s << "iter: \n    " << self.iter;
+            s << "\n - iter_failed: \n    " << self.iterFailed;
+            s << "\n - t: \n    " << self.t;
+            s << "\n - dt: \n    " << self.dt;
+            s << "\n - x: \n" << self.x.transpose().format(HeavyFmt);
+            s << "\n - dxdt: \n" << self.dxdt.transpose().format(HeavyFmt);
+            return s.str();
         }
 
         ///////////////////////////////////////////////////////////////////////////////
