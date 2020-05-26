@@ -766,7 +766,7 @@ namespace jiminy
         configureTelemetry();
 
         // Write the header: this locks the registration of new variables
-        telemetryRecorder_->initialize(telemetryData_.get());
+        telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
         // Log current buffer content as first point of the log data.
         updateTelemetry();
@@ -806,6 +806,15 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = start(xInit, true, false);
+        }
+
+        // Now that telemetry has been initialized, check simulation duration.
+        if (tEnd > telemetryRecorder_->getMaximumLogTime())
+        {
+            std::cout << "Error - EngineMultiRobot::simulate - Time overflow: with the current precision ";
+            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
@@ -939,7 +948,18 @@ namespace jiminy
                numerical precision, thus avoiding it to grows unbounded. */
             float64_t stepSize_true = stepSize - stepperState_.tError;
             tEnd = stepperState_.t + stepSize_true;
+
+            // Check that tEnd is not too large for the current logging precision,
+            // otherwise abort integration.
+            if (stepperState_.t + stepSize_true > telemetryRecorder_->getMaximumLogTime())
+            {
+                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
+                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
             stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
+
 
             // Get references to some internal stepper buffers
             float64_t & t = stepperState_.t;
@@ -1115,9 +1135,12 @@ namespace jiminy
                     while (tNext - t > EPS)
                     {
                         /* Adjust stepsize to end up exactly at the next breakpoint,
-                           prevent steps larger than dtMax, and make sure that dt is
-                           multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
-                           it is possible, to reduce rounding errors of logged data. */
+                           prevent steps larger than dtMax, trying to reach multiples of
+                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to reach
+                           only multiples of 1us, making logging easier, given that, in robotics,
+                           1us can be consider an 'infinitesimal' time. This arbitrary threshold
+                           many not be suited for simulating different, faster dynamics, that require
+                           sub-microsecond precision. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {

@@ -20,12 +20,11 @@ namespace jiminy
     std::string const NUM_INTS("NumIntEntries=");        ///< Number of integers in the data section.
     std::string const NUM_FLOATS("NumFloatEntries=");    ///< Number of floats in the data section.
     std::string const GLOBAL_TIME("Global.Time");        ///< Special column
+    std::string const TIME_UNIT("Global.TIME_UNIT");          ///< Special constant
     std::string const START_CONSTANTS("StartConstants"); ///< Marker of the beginning the constants section.
     std::string const START_COLUMNS("StartColumns");     ///< Marker of the beginning the columns section.
     std::string const START_LINE_TOKEN("StartLine");     ///< Marker of the beginning of a line of data.
     std::string const START_DATA("StartData");           ///< Marker of the beginning of the data section.
-    std::string const START_INPUT_FRAME("INPUT_START");  ///< Marker of the beginning of a input ethercat frame.
-    std::string const START_OUTPUT_FRAME("OUTPUT_START");///< Marker of the beginning of a output ethercat frame.
 
     std::size_t const CONSTANTS_MEM_SIZE = 16U * 1024U;
     std::size_t const INTEGERS_MEM_SIZE  = 32U * 1024U;

@@ -27,7 +27,8 @@ namespace jiminy
     integersAddress_(),
     integerSectionSize_(0),
     floatsAddress_(),
-    floatSectionSize_(0)
+    floatSectionSize_(0),
+    timeLoggingPrecision_(0.0)
     {
         // Empty on purpose
     }
@@ -40,7 +41,8 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData const * telemetryData)
+    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData,
+                                            float64_t const& timeLoggingPrecision)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -49,6 +51,9 @@ namespace jiminy
             std::cout << "Error - TelemetryRecorder::initialize - TelemetryRecorder already initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
+        // Log the time unit as constant.
+        timeLoggingPrecision_ = timeLoggingPrecision;
+        telemetryData->registerConstant(TIME_UNIT, std::to_string(timeLoggingPrecision_));
 
         std::vector<char_t> header;
         if (returnCode == hresult_t::SUCCESS)
@@ -85,6 +90,11 @@ namespace jiminy
         }
 
         return returnCode;
+    }
+
+    float64_t TelemetryRecorder::getMaximumLogTime(void) const
+    {
+        return std::numeric_limits<int32_t>::max() / timeLoggingPrecision_;
     }
 
     bool_t const & TelemetryRecorder::getIsInitialized(void)
@@ -149,7 +159,7 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int32_t>(std::round(timestamp * TELEMETRY_TIME_DISCRETIZATION_FACTOR)));
+            flows_.back().write(static_cast<int32_t>(std::round(timestamp * timeLoggingPrecision_)));
 
             // Write data, integers first
             flows_.back().write(reinterpret_cast<uint8_t const*>(integersAddress_), integerSectionSize_);
@@ -253,6 +263,19 @@ namespace jiminy
                     isReadingHeaderDone = true;
                 }
 
+                // In header, look for timeUnit constant - if not found, use default time unit.
+                float64_t timeUnit = TELEMETRY_DEFAULT_TIME_UNIT;
+                auto const lastConstantIt = std::find(header.begin(), header.end(), START_COLUMNS);
+                for (auto constantIt = header.begin() ; constantIt != lastConstantIt ; constantIt++)
+                {
+                    int32_t const delimiter = constantIt->find("=");
+                    if (constantIt->substr(0, delimiter) == TIME_UNIT)
+                    {
+                        timeUnit = std::stof(constantIt->substr(delimiter + 1));
+                        break;
+                    }
+                }
+
                 // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
                 if (recordedBytesDataLine > 0)
                 {
@@ -275,7 +298,7 @@ namespace jiminy
                         break;
                     }
 
-                    timestamps.emplace_back(static_cast<float64_t>(timestamp / TELEMETRY_TIME_DISCRETIZATION_FACTOR));
+                    timestamps.emplace_back(static_cast<float64_t>(timestamp / timeUnit));
                     intData.emplace_back(intDataLine);
                     floatData.emplace_back(floatDataLine);
                 }
