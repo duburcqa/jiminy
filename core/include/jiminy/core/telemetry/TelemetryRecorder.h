@@ -33,8 +33,8 @@ namespace jiminy
         /// \param[in] timeUnit Unit with which the time will be logged
         ///                     (note that time is logged as an int).
         ////////////////////////////////////////////////////////////////////////
-        hresult_t initialize(TelemetryData * telemetryData,
-                             float64_t const& timeLoggingPrecision);
+        hresult_t initialize(TelemetryData       * telemetryData,
+                             float64_t     const & timeLoggingPrecision);
 
         bool_t const & getIsInitialized(void);
 

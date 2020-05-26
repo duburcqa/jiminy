@@ -933,6 +933,31 @@ namespace jiminy
                 }
             }
 
+            // Check that tEnd is not too large for the current logging precision,
+            // otherwise abort integration.
+            if (stepperState_.t + stepSize > telemetryRecorder_->getMaximumLogTime())
+            {
+                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
+                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
+
+            /* Avoid compounding of error using Kahan algorithm. It
+               consists in keeping track of the cumulative rounding error
+               to add it back to the sum when it gets larger than the
+               numerical precision, thus avoiding it to grows unbounded. */
+            float64_t stepSize_true = stepSize - stepperState_.tError;
+            tEnd = stepperState_.t + stepSize_true;
+            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
+
+            // Get references to some internal stepper buffers
+            float64_t & t = stepperState_.t;
+            float64_t & dt = stepperState_.dt;
+            float64_t & dtLargest = stepperState_.dtLargest;
+            vectorN_t & x = stepperState_.x;
+            vectorN_t & dxdt = stepperState_.dxdt;
+
             // Define the stepper iterators.
             auto systemOde =
                 [this](vectorN_t const & xIn,
@@ -941,32 +966,6 @@ namespace jiminy
                 {
                     this->computeSystemDynamics(tIn, xIn, dxdtIn);
                 };
-
-            /* Avoid compounding of error using Kahan algorithm. It
-               consists in keeping track of the cumulative rounding error
-               to add it back to the sum when it gets larger than the
-               numerical precision, thus avoiding it to grows unbounded. */
-            float64_t stepSize_true = stepSize - stepperState_.tError;
-            tEnd = stepperState_.t + stepSize_true;
-
-            // Check that tEnd is not too large for the current logging precision,
-            // otherwise abort integration.
-            if (stepperState_.t + stepSize_true > telemetryRecorder_->getMaximumLogTime())
-            {
-                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
-                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
-                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
-                return hresult_t::ERROR_GENERIC;
-            }
-            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
-
-
-            // Get references to some internal stepper buffers
-            float64_t & t = stepperState_.t;
-            float64_t & dt = stepperState_.dt;
-            float64_t & dtLargest = stepperState_.dtLargest;
-            vectorN_t & x = stepperState_.x;
-            vectorN_t & dxdt = stepperState_.dxdt;
 
             // Define a failure checker for the stepper
             failed_step_checker fail_checker;
@@ -1136,11 +1135,11 @@ namespace jiminy
                     {
                         /* Adjust stepsize to end up exactly at the next breakpoint,
                            prevent steps larger than dtMax, trying to reach multiples of
-                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to reach
-                           only multiples of 1us, making logging easier, given that, in robotics,
-                           1us can be consider an 'infinitesimal' time. This arbitrary threshold
-                           many not be suited for simulating different, faster dynamics, that require
-                           sub-microsecond precision. */
+                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
+                           reach only multiples of 1us, making logging easier, given that,
+                           in robotics, 1us can be consider an 'infinitesimal' time. This
+                           arbitrary threshold many not be suited for simulating different,
+                           faster dynamics, that require sub-microsecond precision. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {

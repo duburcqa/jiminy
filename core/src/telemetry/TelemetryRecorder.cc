@@ -41,8 +41,8 @@ namespace jiminy
         }
     }
 
-    hresult_t TelemetryRecorder::initialize(TelemetryData * telemetryData,
-                                            float64_t const& timeLoggingPrecision)
+    hresult_t TelemetryRecorder::initialize(TelemetryData       * telemetryData,
+                                            float64_t     const & timeLoggingPrecision)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
