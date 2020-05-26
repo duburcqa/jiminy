@@ -29,10 +29,18 @@ namespace jiminy
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
+        /// \param[in] telmetryData Data to log.
+        /// \param[in] timeUnit Unit with which the time will be logged
+        ///                     (note that time is logged as an int).
         ////////////////////////////////////////////////////////////////////////
-        hresult_t initialize(TelemetryData const * telemetryData);
+        hresult_t initialize(TelemetryData       * telemetryData,
+                             float64_t     const & timeLoggingPrecision);
 
         bool_t const & getIsInitialized(void);
+
+        /// \brief Get the maximum time that can be logged with the current precision.
+        /// \return Max time, in second.
+        float64_t getMaximumLogTime(void) const;
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -89,6 +97,7 @@ namespace jiminy
 
         char_t const * floatsAddress_;      ///< Address of the float data section.
         int64_t floatSectionSize_;          ///< Size in byte of the float data section.
+        float64_t timeLoggingPrecision_;    ///< Precision to use when logging the time.
     };
 }
 

@@ -28,7 +28,7 @@ ___
 
 The Machine Learning library [Open AI Gym](https://github.com/openai/gym) is fully supported. Abstract environments and a few for toy models are provided: a [cartpole](https://gym.openai.com/envs/CartPole-v1/), an [acrobot](https://gym.openai.com/envs/Acrobot-v1/), and a [pendulum](https://gym.openai.com/envs/Pendulum-v0/).
 
-Gym Jiminy is only compatible with Python3. Although Python3 is not required to use openAI Gym strictly speaking, most of the Reinforcement Learning packages implementing standard algorithms does not support Python2. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Rllib](https://github.com/ray-project/ray). `RL Coach` requires the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` uses its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. Note that `Stable Baselines 3` and `Rllib` are compatible with Linux, Mac OS and Windows.
+Gym Jiminy is only compatible with Python3. Although Python3 is not required to use openAI Gym strictly speaking, most of the Reinforcement Learning packages implementing standard algorithms does not support Python2. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). `RL Coach` leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` and  `Tianshou` use its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. Note that `Stable Baselines 3`, `Tianshou` and `Rllib` are compatible with Linux, Mac OS and Windows.
 
 A few learning examples are provided. Most of them rely on those packages, but one implements the DQN algorithm from scratch using Pytorch.
 
@@ -42,4 +42,4 @@ ___
 
 # Getting started
 
-Jiminy is compatible with Linux and Windows It supports both Python2.7 and Python3.5+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. The complete installation instructions are available [here](./INSTALL.md).
+Jiminy is compatible with Linux and Windows It supports both Python2.7 and Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. The complete installation instructions are available [here](./INSTALL.md).

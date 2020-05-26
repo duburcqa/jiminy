@@ -40,7 +40,15 @@ Installing the Python packages `stable_baselines3` is required to run some of th
 python -m pip install stable-baselines3[extra]
 ```
 
-#### (optional) Ray
+#### (optional) tianshou
+
+Installing the Python packages `tianshou` is required to run some of the provided examples, though it is not required to use gym_jiminy.
+
+```bash
+python -m pip install tianshou
+```
+
+#### (optional) Ray[Rllib]
 
 Installing the Python packages `ray==0.9.0.dev0` are required to run some of the provided examples, though it is not required to use gym_jiminy. It can be easily installed using `pip` for any OS and Python 3.6/3.7/3.8. The installation instructions are available [here](https://docs.ray.io/en/master/installation.html).
 
@@ -106,12 +114,13 @@ Install `python3` 3.6/3.7/3.8 (available on [Microsoft store](https://www.micros
 
 See this tutorial: <https://towardsdatascience.com/installing-tensorflow-with-cuda-cudnn-and-gpu-support-on-windows-10-60693e46e781>
 
-#### (optional) stable_baselines3 / Ray
+#### (optional) stable_baselines3 / Ray[Rllib] / Tianshou
 
-Installing the Python packages `stable_baselines3`, `ray==0.9.0.dev0` are required to run some of the provided examples, though they are not required to use gym_jiminy.
+Installing the Python packages `stable_baselines3`, `tianshou`, `ray==0.9.0.dev0` are required to run all the provided examples, though they are not required to use gym_jiminy. THey can easily be installed using `pip`. Pick the one you prefer!
 
 ```bash
 python -m pip install stable-baselines3[extra]
+python -m pip install tianshou
 python -m pip install https://ray-wheels.s3-us-west-2.amazonaws.com/master/{COMMIT_HASH}/ray-0.9.0.dev0-{PYTHON_VERSION}-win_amd64.whl
 ```
 

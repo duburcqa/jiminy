@@ -766,7 +766,7 @@ namespace jiminy
         configureTelemetry();
 
         // Write the header: this locks the registration of new variables
-        telemetryRecorder_->initialize(telemetryData_.get());
+        telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
         // Log current buffer content as first point of the log data.
         updateTelemetry();
@@ -806,6 +806,15 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = start(xInit, true, false);
+        }
+
+        // Now that telemetry has been initialized, check simulation duration.
+        if (tEnd > telemetryRecorder_->getMaximumLogTime())
+        {
+            std::cout << "Error - EngineMultiRobot::simulate - Time overflow: with the current precision ";
+            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
@@ -924,14 +933,15 @@ namespace jiminy
                 }
             }
 
-            // Define the stepper iterators.
-            auto systemOde =
-                [this](vectorN_t const & xIn,
-                       vectorN_t       & dxdtIn,
-                       float64_t const & tIn)
-                {
-                    this->computeSystemDynamics(tIn, xIn, dxdtIn);
-                };
+            // Check that tEnd is not too large for the current logging precision,
+            // otherwise abort integration.
+            if (stepperState_.t + stepSize > telemetryRecorder_->getMaximumLogTime())
+            {
+                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
+                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
 
             /* Avoid compounding of error using Kahan algorithm. It
                consists in keeping track of the cumulative rounding error
@@ -947,6 +957,15 @@ namespace jiminy
             float64_t & dtLargest = stepperState_.dtLargest;
             vectorN_t & x = stepperState_.x;
             vectorN_t & dxdt = stepperState_.dxdt;
+
+            // Define the stepper iterators.
+            auto systemOde =
+                [this](vectorN_t const & xIn,
+                       vectorN_t       & dxdtIn,
+                       float64_t const & tIn)
+                {
+                    this->computeSystemDynamics(tIn, xIn, dxdtIn);
+                };
 
             // Define a failure checker for the stepper
             failed_step_checker fail_checker;
@@ -982,7 +1001,6 @@ namespace jiminy
             while (tEnd - t > STEPPER_MIN_TIMESTEP)
             {
                 float64_t tNext = t;
-
 
                 // Update the active set and get the next breakpoint of impulse forces
                 float64_t tForceImpulseNext = INF;
@@ -1115,9 +1133,12 @@ namespace jiminy
                     while (tNext - t > EPS)
                     {
                         /* Adjust stepsize to end up exactly at the next breakpoint,
-                           prevent steps larger than dtMax, and make sure that dt is
-                           multiple of TELEMETRY_TIME_DISCRETIZATION_FACTOR whenever
-                           it is possible, to reduce rounding errors of logged data. */
+                           prevent steps larger than dtMax, trying to reach multiples of
+                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
+                           reach only multiples of 1us, making logging easier, given that,
+                           in robotics, 1us can be consider an 'infinitesimal' time. This
+                           arbitrary threshold many not be suited for simulating different,
+                           faster dynamics, that require sub-microsecond precision. */
                         dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
                         if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
                         {
@@ -1499,11 +1520,18 @@ namespace jiminy
 
         // Make sure the joints options are fine
         configHolder_t jointsOptions = boost::get<configHolder_t>(engineOptions.at("joints"));
-        float64_t const & jointsTransitionEps =
-            boost::get<float64_t>(jointsOptions.at("transitionEps"));
-        if (jointsTransitionEps < 0.0)
+        float64_t const & jointsTransitionPositionEps =
+            boost::get<float64_t>(jointsOptions.at("transitionPositionEps"));
+        if (jointsTransitionPositionEps < EPS)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionEps' must be positive." << std::endl;
+            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionPositionEps' must be strictly positive." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & jointsTransitionVelocityEps =
+            boost::get<float64_t>(jointsOptions.at("transitionVelocityEps"));
+        if (jointsTransitionVelocityEps < EPS)
+        {
+            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionVelocityEps' must be strictly positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1792,7 +1820,7 @@ namespace jiminy
         auto const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
 
-        // Enforce the position limit for the rigid joints only (TODO: does not support spherical joints)
+        // Enforce the position limit for the rigid joints only (TODO: Add support of spherical and planar joints)
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
@@ -1809,30 +1837,24 @@ namespace jiminy
                     float64_t const & qJointMin = positionLimitMin[positionIdx + j];
                     float64_t const & qJointMax = positionLimitMax[positionIdx + j];
 
-                    float64_t forceJoint = 0;
-                    float64_t qJointError = 0;
+                    float64_t qJointError = 0.0;
+                    float64_t vJointError = 0.0;
                     if (qJoint > qJointMax)
                     {
                         qJointError = qJoint - qJointMax;
-                        float64_t const damping = -jointOptions.boundDamping * std::max(vJoint, 0.0);
-                        forceJoint = -jointOptions.boundStiffness * qJointError + damping;
+                        vJointError = std::max(vJoint, 0.0);
                     }
                     else if (qJoint < qJointMin)
                     {
-                        qJointError = qJointMin - qJoint;
-                        float64_t const damping = -jointOptions.boundDamping * std::min(vJoint, 0.0);
-                        forceJoint = jointOptions.boundStiffness * qJointError + damping;
+                        qJointError = qJoint - qJointMin;
+                        vJointError = std::min(vJoint, 0.0);
                     }
+                    float64_t const blendingFactor = std::abs(qJointError - jointOptions.transitionPositionEps *
+                        std::tanh(qJointError / jointOptions.transitionPositionEps));
+                    float64_t const forceJoint = - jointOptions.boundStiffness * qJointError
+                                                 - jointOptions.boundDamping * blendingFactor * vJointError;
 
-                    if (jointOptions.transitionEps > EPS)
-                    {
-                        float64_t const blendingFactor = qJointError / jointOptions.transitionEps;
-                        float64_t const blendingLaw = std::tanh(2 * blendingFactor);
-                        forceJoint *= blendingLaw;
-                    }
-
-                    // Clamp the resulting force for the sake of numerical stability
-                    u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
+                    u[velocityIdx + j] += forceJoint;
                 }
             }
         }
@@ -1851,28 +1873,19 @@ namespace jiminy
                     float64_t const & vJointMin = -velocityLimitMax[velocityIdx + j];
                     float64_t const & vJointMax = velocityLimitMax[velocityIdx + j];
 
-                    float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
                     if (vJoint > vJointMax)
                     {
                         vJointError = vJoint - vJointMax;
-                        forceJoint = -jointOptions.boundDamping * vJointError;
                     }
                     else if (vJoint < vJointMin)
                     {
-                        vJointError = vJointMin - vJoint;
-                        forceJoint = jointOptions.boundDamping * vJointError;
+                        vJointError = vJoint - vJointMin;
                     }
+                    float64_t forceJoint = - jointOptions.boundDamping *
+                        std::tanh(vJointError / jointOptions.transitionVelocityEps);
 
-                    if (jointOptions.transitionEps > EPS)
-                    {
-                        float64_t const blendingFactor = vJointError / jointOptions.transitionEps;
-                        float64_t const blendingLaw = std::tanh(2 * blendingFactor);
-                        forceJoint *= blendingLaw;
-                    }
-
-                    // Clamp the resulting force for the sake of numerical stability
-                    u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
+                    u[velocityIdx + j] += forceJoint;
                 }
             }
         }
