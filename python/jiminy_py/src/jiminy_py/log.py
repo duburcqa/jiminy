@@ -111,10 +111,16 @@ def plot_log():
         same_subplot = (cmd[0] == ':')
         headers = cmd.strip(':').split(':')
 
-        # Expand each element according to regular expression.
+        # Expand each element according to wildcard expression.
         matching_headers = []
         for h in headers:
-            matching_headers.append(sorted(fnmatch.filter(log_data.keys(), h)))
+            match = sorted(fnmatch.filter(log_data.keys(), h))
+            if len(match) > 0:
+                matching_headers.append(match)
+            else:
+                print(f"No matching headers for expression {h}")
+        if len(matching_headers) == 0:
+            continue
 
         # Compute number of subplots.
         if same_subplot:
@@ -127,18 +133,26 @@ def plot_log():
     # Create figure.
     n_plot = len(plotted_elements)
 
-    # Arrange plot in rectangular fashion: don't allow for n_cols to be more than n_rows + 2
+    if n_plot == 0:
+        print(f"Nothing to plot. Exiting...")
+        return
+
+    fig = plt.figure()
+
+    # Create subplots, arranging them in a rectangular fashion.
+    # Do not allow for n_cols to be more than n_rows + 2
     n_cols = n_plot
     n_rows = 1
     while n_cols > n_rows + 2:
         n_rows = n_rows + 1
         n_cols = np.ceil(n_plot / (1.0 * n_rows))
 
-    fig, axs = plt.subplots(nrows=int(n_rows), ncols=int(n_cols), sharex = True)
-
-    if n_plot == 1:
-        axs = np.array([axs])
-    axs = axs.flatten()
+    axs = []
+    for i in range(n_plot):
+        ax = fig.add_subplot(int(n_rows), int(n_cols), i+1)
+        if i > 0:
+            ax.get_shared_x_axes().join(axs[0], ax)
+        axs.append(ax)
 
     # Store lines in dictionnary fine_name -> plotted lines, to toggle visibility.
     main_name = os.path.basename(main_arguments.input)
@@ -149,14 +163,14 @@ def plot_log():
     plt.gcf().canvas.set_window_title(main_arguments.input)
     t = log_data['Global.Time']
     # Plot each element.
-    for i in range(n_plot):
-        for name in plotted_elements[i]:
-            line = axs[i].plot(t, log_data[name], label = name)
+    for ax, plotted_elem in zip(axs, plotted_elements):
+        for name in plotted_elem:
+            line = ax.plot(t, log_data[name], label = name)
             plotted_lines[main_name].append(line[0])
 
             linecycler = cycle(linestyles)
             for c in compare_data:
-                l = axs[i].plot(compare_data[c]['Global.Time'], compare_data[c][name], next(linecycler), color=line[0].get_color())
+                l = ax.plot(compare_data[c]['Global.Time'], compare_data[c][name], next(linecycler), color=line[0].get_color())
                 plotted_lines[os.path.basename(c)].append(l[0])
 
     # Add legend and grid for each plot.
@@ -166,7 +180,7 @@ def plot_log():
         ax.grid()
 
     # If a compare plot is present, add overall legend specifying line types.
-    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.06, right=0.98, wspace=0.1, hspace=0.05)
+    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.06, right=0.98, wspace=0.1, hspace=0.12)
     if len(compare_data) > 0:
         linecycler = cycle(linestyles)
 
@@ -190,11 +204,12 @@ def plot_log():
         legend_height = legend.get_window_extent().inverse_transformed(fig.transFigure).height
         plt.subplots_adjust(top = 0.98 - legend_height)
 
+        # Make legend interactive
         def legend_clicked(event):
             file_name = picker_to_name[event.artist]
             for line in plotted_lines[file_name]:
                 line.set_visible(not line.get_visible())
             fig.canvas.draw()
-        # Make legend interactive
         fig.canvas.mpl_connect('pick_event', legend_clicked)
+
     plt.show()
