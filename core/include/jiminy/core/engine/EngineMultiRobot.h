@@ -273,7 +273,7 @@ namespace jiminy
             config["frictionStictionRatio"] = 0.5;
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
-            config["transitionEps"] = 1.0e-3;
+            config["transitionEps"] = 1.0e-3; // [m]
 
             return config;
         };
@@ -282,8 +282,9 @@ namespace jiminy
         {
             configHolder_t config;
             config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 1.0e4;
-            config["transitionEps"] = 1.0e-2; // about 0.55 degrees
+            config["boundDamping"] = 2.0e3;
+            config["transitionPositionEps"] = 2.0e-3; // [rad] 2.0e-3 ~= 0.1 degrees
+            config["transitionVelocityEps"] = 1.0e+1; // [rad.s-1]
 
             return config;
         };
@@ -370,12 +371,14 @@ namespace jiminy
         {
             float64_t const boundStiffness;
             float64_t const boundDamping;
-            float64_t const transitionEps;
+            float64_t const transitionPositionEps;
+            float64_t const transitionVelocityEps;
 
             jointOptions_t(configHolder_t const & options) :
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
             boundDamping(boost::get<float64_t>(options.at("boundDamping"))),
-            transitionEps(boost::get<float64_t>(options.at("transitionEps")))
+            transitionPositionEps(boost::get<float64_t>(options.at("transitionPositionEps"))),
+            transitionVelocityEps(boost::get<float64_t>(options.at("transitionVelocityEps")))
             {
                 // Empty.
             }

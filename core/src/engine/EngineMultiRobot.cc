@@ -1002,7 +1002,6 @@ namespace jiminy
             {
                 float64_t tNext = t;
 
-
                 // Update the active set and get the next breakpoint of impulse forces
                 float64_t tForceImpulseNext = INF;
                 for (auto & system : systemsDataHolder_)
@@ -1521,11 +1520,18 @@ namespace jiminy
 
         // Make sure the joints options are fine
         configHolder_t jointsOptions = boost::get<configHolder_t>(engineOptions.at("joints"));
-        float64_t const & jointsTransitionEps =
-            boost::get<float64_t>(jointsOptions.at("transitionEps"));
-        if (jointsTransitionEps < 0.0)
+        float64_t const & jointsTransitionPositionEps =
+            boost::get<float64_t>(jointsOptions.at("transitionPositionEps"));
+        if (jointsTransitionPositionEps < EPS)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionEps' must be positive." << std::endl;
+            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionPositionEps' must be strictly positive." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+        float64_t const & jointsTransitionVelocityEps =
+            boost::get<float64_t>(jointsOptions.at("transitionVelocityEps"));
+        if (jointsTransitionVelocityEps < EPS)
+        {
+            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionVelocityEps' must be strictly positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1814,7 +1820,7 @@ namespace jiminy
         auto const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
 
-        // Enforce the position limit for the rigid joints only (TODO: does not support spherical joints)
+        // Enforce the position limit for the rigid joints only (TODO: Add support of spherical and planar joints)
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
@@ -1831,30 +1837,24 @@ namespace jiminy
                     float64_t const & qJointMin = positionLimitMin[positionIdx + j];
                     float64_t const & qJointMax = positionLimitMax[positionIdx + j];
 
-                    float64_t forceJoint = 0;
-                    float64_t qJointError = 0;
+                    float64_t qJointError = 0.0;
+                    float64_t vJointError = 0.0;
                     if (qJoint > qJointMax)
                     {
                         qJointError = qJoint - qJointMax;
-                        float64_t const damping = -jointOptions.boundDamping * std::max(vJoint, 0.0);
-                        forceJoint = -jointOptions.boundStiffness * qJointError + damping;
+                        vJointError = std::max(vJoint, 0.0);
                     }
                     else if (qJoint < qJointMin)
                     {
-                        qJointError = qJointMin - qJoint;
-                        float64_t const damping = -jointOptions.boundDamping * std::min(vJoint, 0.0);
-                        forceJoint = jointOptions.boundStiffness * qJointError + damping;
+                        qJointError = qJoint - qJointMin;
+                        vJointError = std::min(vJoint, 0.0);
                     }
+                    float64_t const blendingFactor = std::abs(qJointError - jointOptions.transitionPositionEps *
+                        std::tanh(qJointError / jointOptions.transitionPositionEps));
+                    float64_t const forceJoint = - jointOptions.boundStiffness * qJointError
+                                                 - jointOptions.boundDamping * blendingFactor * vJointError;
 
-                    if (jointOptions.transitionEps > EPS)
-                    {
-                        float64_t const blendingFactor = qJointError / jointOptions.transitionEps;
-                        float64_t const blendingLaw = std::tanh(2 * blendingFactor);
-                        forceJoint *= blendingLaw;
-                    }
-
-                    // Clamp the resulting force for the sake of numerical stability
-                    u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
+                    u[velocityIdx + j] += forceJoint;
                 }
             }
         }
@@ -1873,28 +1873,19 @@ namespace jiminy
                     float64_t const & vJointMin = -velocityLimitMax[velocityIdx + j];
                     float64_t const & vJointMax = velocityLimitMax[velocityIdx + j];
 
-                    float64_t forceJoint = 0.0;
                     float64_t vJointError = 0.0;
                     if (vJoint > vJointMax)
                     {
                         vJointError = vJoint - vJointMax;
-                        forceJoint = -jointOptions.boundDamping * vJointError;
                     }
                     else if (vJoint < vJointMin)
                     {
-                        vJointError = vJointMin - vJoint;
-                        forceJoint = jointOptions.boundDamping * vJointError;
+                        vJointError = vJoint - vJointMin;
                     }
+                    float64_t forceJoint = - jointOptions.boundDamping *
+                        std::tanh(vJointError / jointOptions.transitionVelocityEps);
 
-                    if (jointOptions.transitionEps > EPS)
-                    {
-                        float64_t const blendingFactor = vJointError / jointOptions.transitionEps;
-                        float64_t const blendingLaw = std::tanh(2 * blendingFactor);
-                        forceJoint *= blendingLaw;
-                    }
-
-                    // Clamp the resulting force for the sake of numerical stability
-                    u[velocityIdx + j] += clamp(forceJoint, -1e5, 1e5);
+                    u[velocityIdx + j] += forceJoint;
                 }
             }
         }
