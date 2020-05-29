@@ -1368,7 +1368,6 @@ namespace jiminy
                                  sensorConst.getIdx(),
                                  sensorConst.get());
             }
-
             data.emplace(sensorGroup.first, std::move(dataType));
         }
         return data;
