@@ -207,9 +207,10 @@ namespace python
     template<typename T>
     enable_if_t<!is_vector<T>::value
              && !is_map<T>::value
+             && !is_eigen<T>::value
              && !std::is_same<T, int32_t>::value
              && !std::is_same<T, uint32_t>::value
-             && !is_eigen<T>::value, T>
+             && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         return bp::extract<T>(dataPy);
@@ -242,41 +243,53 @@ namespace python
     enable_if_t<is_eigen<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
+        using Scalar = typename T::Scalar;
+
         std::string const optionTypePyStr =
             bp::extract<std::string>(dataPy.attr("__class__").attr("__name__"));
         if (optionTypePyStr == "ndarray")
         {
             np::ndarray dataNumpy = bp::extract<np::ndarray>(dataPy);
-            dataNumpy = dataNumpy.astype(np::dtype::get_builtin<float64_t>());
-            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
-            Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if (std::is_same<T, vectorN_t>::value)
+            if (dataNumpy.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                return Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
+                throw std::string("Scalar type of eigen object does not match dtype of numpy object.");
+            }
+            Scalar * dataPtr = reinterpret_cast<Scalar *>(dataNumpy.get_data());
+            Py_intptr_t const * dataShape = dataNumpy.get_shape();
+            if (is_eigen_vector<T>::value)
+            {
+                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
+                    dataPtr, dataShape[0]);
             }
             else
             {
-                return Eigen::Map<matrixN_t>(dataPtr, dataShape[0], dataShape[1]);
+                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> >(
+                    dataPtr, dataShape[0], dataShape[1]);
             }
         }
         else if (optionTypePyStr == "matrix")
         {
             np::matrix dataMatrix = bp::extract<np::matrix>(dataPy);
-            np::ndarray dataNumpy = dataMatrix.astype(np::dtype::get_builtin<float64_t>());
-            float64_t * dataPtr = reinterpret_cast<float64_t *>(dataNumpy.get_data());
-            Py_intptr_t const * dataShape = dataNumpy.get_shape();
-            if (std::is_same<T, vectorN_t>::value)
+            if (dataMatrix.get_dtype() != np::dtype::get_builtin<Scalar>())
             {
-                return Eigen::Map<vectorN_t>(dataPtr, dataShape[0]);
+                throw std::string("Scalar type of eigen object does not match dtype of numpy object.");
+            }
+            Scalar * dataPtr = reinterpret_cast<Scalar *>(dataMatrix.get_data());
+            Py_intptr_t const * dataShape = dataMatrix.get_shape();
+            if (is_eigen_vector<T>::value)
+            {
+                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, 1> >(
+                    dataPtr, dataShape[0]);
             }
             else
             {
-                return Eigen::Map<matrixN_t>(dataPtr, dataShape[0], dataShape[1]);
+                return Eigen::Map<Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> >(
+                    dataPtr, dataShape[0], dataShape[1]);
             }
         }
         else
         {
-            if (std::is_same<T, vectorN_t>::value)
+            if (is_eigen_vector<T>::value)
             {
                 return listPyToEigenVector(bp::extract<bp::list>(dataPy));
             }
@@ -316,7 +329,33 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_map<T>::value, T>
+    enable_if_t<std::is_same<T, sensorsDataMap_t>::value, T>
+    convertFromPython(bp::object const & dataPy)
+    {
+        sensorsDataMap_t data;
+        bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
+        bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
+        for (bp::ssize_t i=0; i < bp::len(sensorsGroupsNamesPy); i++)
+        {
+            sensorDataTypeMap_t sensorGroupData;
+            std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
+            bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsPy[sensorGroupName]);
+            bp::list sensorsNamesPy = sensorsDataPy.keys();
+            for (bp::ssize_t j=0; j < bp::len(sensorsNamesPy); j++)
+            {
+                std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
+                np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsDataPy[sensorName]);
+                auto sensorData = convertFromPython<Eigen::Ref<vectorN_t const> >(sensorDataNumpy);
+                sensorGroupData.emplace(sensorName, j, sensorData);
+            }
+            data.emplace(sensorGroupName, std::move(sensorGroupData));
+        }
+        return data;
+    }
+
+    template<typename T>
+    enable_if_t<is_map<T>::value
+            && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         using K = typename T::key_type;
@@ -330,7 +369,6 @@ namespace python
             K const key = bp::extract<K>(keysPy[i]);
             map[key] = convertFromPython<V>(dictPy[key]);
         }
-
         return map;
     }
 

@@ -404,6 +404,8 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("__init__", bp::make_constructor(&SensorsDataMapVisitor::factory,
+                                 bp::default_call_policies(), (bp::arg("sensor_data_dict"))))
                 .def("__len__", &SensorsDataMapVisitor::len,
                                 (bp::arg("self")))
                 .def("__getitem__", &SensorsDataMapVisitor::getItem,
@@ -415,6 +417,7 @@ namespace python
                 .def("__iter__", bp::iterator<sensorsDataMap_t>())
                 .def("__contains__", &SensorsDataMapVisitor::contains,
                                      (bp::arg("self"), "key"))
+                .def("__repr__", &SensorsDataMapVisitor::repr)
                 .def("keys", &SensorsDataMapVisitor::keys,
                              (bp::arg("self")))
                 .def("keys", &SensorsDataMapVisitor::keysSensorType,
@@ -453,25 +456,41 @@ namespace python
             }
             catch (...)
             {
-                PyErr_SetString(PyExc_KeyError, "The key does not exist.");
+                PyErr_SetString(PyExc_KeyError, "This combination of keys does not exist.");
                 return bp::object();
             }
         }
 
-        static matrixN_t getSub(sensorsDataMap_t       & self,
-                                std::string      const & sensorType)
+        static bp::object getSub(sensorsDataMap_t       & self,
+                                 std::string      const & sensorType)
         {
-            matrixN_t data;
-            auto const & sensorsDataType = self.at(sensorType);
-            auto sensorDataIt = sensorsDataType.begin();
-            data.resize(sensorDataIt->value.size(), sensorsDataType.size());
-            data.col(sensorDataIt->idx) = sensorDataIt->value;
-            sensorDataIt++;
-            for (; sensorDataIt != sensorsDataType.end(); sensorDataIt++)
+            try
             {
-                data.col(sensorDataIt->idx) = sensorDataIt->value;
+                auto & sensorsDataType = self.at(sensorType);
+                auto sensorDataIt = sensorsDataType.begin();
+
+                npy_intp dims[2] = {npy_intp(sensorDataIt->value.size()),
+                                    npy_intp(sensorsDataType.size())};
+                PyObject * dataPyPtr = PyArray_SimpleNew(2, dims, NPY_FLOAT64);
+                float64_t * dataPyDataPtr = reinterpret_cast<float64_t *>(
+                    PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPyPtr)));
+
+                for (; sensorDataIt != sensorsDataType.end(); sensorDataIt++)
+                {
+                    for (uint32_t i=0 ; i < dims[0] ; i++)
+                    {
+                        auto dataIdxOffset = i * dims[1] + sensorDataIt->idx;
+                        *(dataPyDataPtr + dataIdxOffset) = sensorDataIt->value[i];
+                    }
+                }
+
+                return bp::object(bp::handle<>(dataPyPtr));
             }
-            return data;
+            catch (...)
+            {
+                PyErr_SetString(PyExc_KeyError, "This key does not exist.");
+                return bp::object();
+            }
         }
 
         static bool_t contains(sensorsDataMap_t       & self,
@@ -532,6 +551,33 @@ namespace python
                                                     getSub(self, sensorDataType.first)));
             }
             return sensorsDataPy;
+        }
+
+        static std::string repr(sensorsDataMap_t & self)
+        {
+            std::stringstream s;
+            Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
+
+            for (auto const & sensorDataType : self)
+            {
+                std::string const & sensorTypeName = sensorDataType.first;
+                s << sensorTypeName << ": \n";
+                for (auto const & sensorData : sensorDataType.second)
+                {
+                    std::string const & sensorName = sensorData.name;
+                    int32_t const & sensorIdx = sensorData.idx;
+                    Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorData.value;
+                    s << "    " << sensorName << " (" << sensorIdx << "): "
+                      << sensorDataValue.transpose().format(HeavyFmt);
+                }
+            }
+            return s.str();
+        }
+
+        static std::shared_ptr<sensorsDataMap_t> factory(bp::object & sensorDataPy)
+        {
+            auto sensorData = convertFromPython<sensorsDataMap_t>(sensorDataPy);
+            return std::make_shared<sensorsDataMap_t>(std::move(sensorData));
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1401,7 +1447,7 @@ namespace python
                 ;
         }
 
-        static std::string repr(stepperState_t self)
+        static std::string repr(stepperState_t & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", ",\n    ", "[", "]", "    [", "]");
