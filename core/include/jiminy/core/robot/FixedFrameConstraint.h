@@ -41,7 +41,7 @@ namespace jiminy
         /// \brief    Compute and return the jacobian of the constraint.
         ///
         /// \note     To avoid duplicate kinematic computation, it is assumed that
-        ///           computeJointJacobians and framesForwardKinematics has already
+        ///           computeJointJacobians and framesForwardKinematics have already
         ///           been called on model->pncModel_.
         ///
         /// \param[in] q    Current joint position.
@@ -53,7 +53,8 @@ namespace jiminy
         /// \brief    Compute and return the drift of the constraint.
         ///
         /// \note     To avoid duplicate kinematic computation, it is assumed that forward kinematics
-        ///           and jacobian computation has already been done on model->pncModel_.
+        ///           on position, velocity, and zero acceleration, and jacobian computation
+        ///           have already been done on model->pncModel_.
         ///
         /// \param[in] q    Current joint position.
         /// \param[in] v    Current joint velocity.

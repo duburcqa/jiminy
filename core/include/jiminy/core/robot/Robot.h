@@ -205,6 +205,7 @@ namespace jiminy
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
         std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
+        vectorN_t zeroAccelerationVector_; ///< A vector of zeros of the dimension the size of the velocity vector - for computing constraints.
     };
 }
 
