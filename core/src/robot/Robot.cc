@@ -1323,6 +1323,10 @@ namespace jiminy
                                Eigen::Ref<vectorN_t const> const & a,
                                vectorN_t                   const & u)
     {
+        // Update kinematic quantities before updating sensors.
+        // There is no need to update frame placement as this has already been done
+        // before.
+        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
             if (!sensorGroup.second.empty())

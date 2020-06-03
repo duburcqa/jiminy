@@ -7,7 +7,7 @@ from scipy.integrate import ode
 
 from jiminy_py import core as jiminy
 from pinocchio import Quaternion
-from pinocchio.rpy import matrixToRpy
+from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
 from utilities import load_urdf_default, integrate_dynamics
 
@@ -117,6 +117,68 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
+
+    def test_imu_sensor(self):
+        """
+        @brief   Test IMU sensor on pendulum motion.
+
+        @details Since we don't have a simple analytical expression for the solution
+                 of a (nonlinear) pendulum motion, we perform the simulation in
+                 python, with the same integrator, and compare both results.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        x0 = np.array([0.1, 0.1])
+        tf = 2.0
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        accel_jiminy = np.stack([log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']])
+        gyro_jiminy = np.stack([log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']])
+        quat_jiminy = np.stack([log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']])
+
+        # System dynamics: get length and inertia.
+        l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
+        g = self.robot.pinocchio_model.gravity.linear[2]
+
+        # Pendulum dynamics
+        def dynamics(t, x):
+            return np.array([x[1], g / l * np.sin(x[0])])
+
+        # Integrate this non-linear dynamics.
+        x_rk_python = integrate_dynamics(time, x0, dynamics)
+
+        # Compute sensor acceleration, i.e. acceleration in polar coordinates.
+        theta = np.array(x_rk_python[:, 0])
+        dtheta = np.array(x_rk_python[:, 1])
+
+        # Acceleration: to resolve algebraic loop (current acceleration is funciton of
+        # input which itself is function of sensor signal, sensor data is computed using
+        # q_t, v_t, a_(t-1)
+        ddtheta = np.array([0] + [dynamics(0, x)[1] for x in x_rk_python][:-1])
+
+        expected_accel = np.array([- l * ddtheta - g * np.sin(theta),
+                                   np.zeros(len(theta)),
+                                   l * dtheta**2 + g * np.cos(theta)])
+        expected_gyro= np.array([np.zeros(len(theta)),
+                                 dtheta,
+                                 np.zeros(len(theta))])
+
+        expected_quat = np.array([Quaternion(rpyToMatrix(np.array([0., t, 0.]))).coeffs() for t in theta]).T
+
+        # Compare sensor signal, ignoring first iterations that correspond to system initialization.
+        self.assertTrue(np.allclose(expected_accel[:, 2:], accel_jiminy[:, 2:], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_gyro[:, 2:], gyro_jiminy[:, 2:], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_quat[:, 2:], quat_jiminy[:, 2:], atol=TOLERANCE))
 
     def test_pendulum_force_impulse(self):
         """
