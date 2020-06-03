@@ -166,9 +166,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         # q_t, v_t, a_(t-1)
         ddtheta = np.array([0] + [dynamics(0, x)[1] for x in x_rk_python][:-1])
 
-        expected_accel = np.array([- l * ddtheta - g * np.sin(theta),
+        expected_accel = np.array([- l * ddtheta + g * np.sin(theta),
                                    np.zeros(len(theta)),
-                                   l * dtheta**2 + g * np.cos(theta)])
+                                   l * dtheta**2 - g * np.cos(theta)])
         expected_gyro= np.array([np.zeros(len(theta)),
                                  dtheta,
                                  np.zeros(len(theta))])

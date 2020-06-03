@@ -115,7 +115,7 @@ namespace jiminy
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(robot_->pncModel_, robot_->pncData_, frameIdx_);
         // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity.
         data().tail<3>() = acceleration.linear() +
-                           velocity.angular().cross(velocity.linear()) +
+                           velocity.angular().cross(velocity.linear()) -
                            quat.conjugate() * robot_->pncModel_.gravity.linear();
 
 
