@@ -303,7 +303,7 @@ class RobotJiminyEnv(core.Env):
         @return     Updated seed of the environment
         """
         # Generate a 8 bytes (uint64) seed using gym utils
-        self.np_random, seed = seeding.np_random(seed)
+        self.rg, seed = seeding.np_random(seed)
 
         # Convert it into a 4 bytes uint32 seed.
         # Note that hashing is used to get rid off possible
