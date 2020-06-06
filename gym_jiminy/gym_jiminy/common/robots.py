@@ -118,8 +118,9 @@ class RobotJiminyEnv(core.Env):
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        # Configure the stepper update period and disable max number of iterations
+        # Configure the stepper update period, and disable max number of iterations and timeout
         engine_options["stepper"]["iterMax"] = -1
+        engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["dtMax"] = self.dt
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt

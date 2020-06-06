@@ -61,7 +61,7 @@ namespace jiminy
     Timer::Timer(void) :
     t0(),
     tf(),
-    dt(0)
+    dt(0.0)
     {
         tic();
     }
@@ -69,6 +69,7 @@ namespace jiminy
     void Timer::tic(void)
     {
         t0 = Time::now();
+        dt = 0.0;
     }
 
     void Timer::toc(void)
