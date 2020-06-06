@@ -7,13 +7,13 @@ from scipy.integrate import ode
 
 from jiminy_py import core as jiminy
 from pinocchio import Quaternion
-from pinocchio.rpy import matrixToRpy
+from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
 from utilities import load_urdf_default, integrate_dynamics
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
-TOLERANCE = 1e-7
+TOLERANCE = 1.0e-7
 
 
 class SimulateSimplePendulum(unittest.TestCase):
@@ -117,6 +117,88 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Compare the numerical and numerical integration of analytical model using scipy
         self.assertTrue(np.allclose(x_jiminy, x_rk_python, atol=TOLERANCE))
+
+    def test_imu_sensor(self):
+        """
+        @brief   Test IMU sensor on pendulum motion.
+
+        @details Note that the actual expected solution of the pendulum motion is
+                 used to compute the expected IMU data, instead of the result of
+                 the simulation done by jiminy itself. So this test is checking at
+                 the same time that the result of the simulation matches the
+                 solution, and that the sensor IMU data are valid. Though it is
+                 redundant, it validates that an IMU mounted on a pendulum gives
+                 the signal one would expect from an IMU on a pendulum, which is
+                 what a user would expect. Moreover, Jiminy output log does not
+                 feature the acceleration - to this test is indirectly checking
+                 that the acceleration computed by jiminy is valid.
+
+        @remark  Since we don't have a simple analytical expression for the
+                 solution of a (nonlinear) pendulum motion, we perform the
+                 simulation in python, with the same integrator.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        x0 = np.array([0.1, 0.1])
+        tf = 2.0
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        accel_jiminy = np.stack([
+            log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
+        ], axis=-1)
+        gyro_jiminy = np.stack([
+            log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
+        ], axis=-1)
+        quat_jiminy = np.stack([
+            log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
+        ], axis=-1)
+
+        # System dynamics: get length and inertia.
+        l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
+        g = self.robot.pinocchio_model.gravity.linear[2]
+
+        # Pendulum dynamics
+        def dynamics(t, x):
+            return np.stack([x[..., 1], g / l * np.sin(x[..., 0])], axis=-1)
+
+        # Integrate this non-linear dynamics.
+        x_rk_python = integrate_dynamics(time, x0, dynamics)
+
+        # Compute sensor acceleration, i.e. acceleration in polar coordinates.
+        theta = x_rk_python[:, 0]
+        dtheta = x_rk_python[:, 1]
+
+        # Acceleration: to resolve algebraic loop (current acceleration is funciton of
+        # input which itself is function of sensor signal, sensor data is computed using
+        # q_t, v_t, a_(t-1)
+        ddtheta = np.concatenate((np.zeros(1), dynamics(0.0, x_rk_python)[:-1, 1]))
+
+        expected_accel = np.stack([- l * ddtheta + g * np.sin(theta),
+                                   np.zeros_like(theta),
+                                   l * dtheta ** 2 - g * np.cos(theta)], axis=-1)
+        expected_gyro = np.stack([np.zeros_like(theta),
+                                  dtheta,
+                                  np.zeros_like(theta)], axis=-1)
+
+        expected_quat = np.stack([
+            Quaternion(rpyToMatrix(np.array([0., t, 0.]))).coeffs()
+            for t in theta
+        ], axis=0)
+
+        # Compare sensor signal, ignoring first iterations that correspond to system initialization.
+        self.assertTrue(np.allclose(expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_quat[2:, :], quat_jiminy[2:, :], atol=TOLERANCE))
 
     def test_pendulum_force_impulse(self):
         """
