@@ -129,27 +129,30 @@ namespace jiminy
         // Add bias
         if (baseSensorOptions_->bias.size())
         {
-            // Accel + gyroscope: simply add additive bias.
-            get().tail<6>() += baseSensorOptions_->bias.tail<6>();
-            // Quaternion: interpret bias as angle-axis representation of a sensor rotation bias R_b,
-            // such that w_R_sensor = w_R_imu R_b.
+            /* Quaternion: interpret bias as angle-axis representation of a
+               sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b. */
             get().head<4>() = (quaternion_t(get().head<4>()) *
                                quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()))).coeffs();
 
+            // Accel + gyroscope: simply add additive bias.
+            get().tail<6>() += baseSensorOptions_->bias.tail<6>();
         }
 
         // Add white noise
         if (baseSensorOptions_->noiseStd.size())
         {
-            // Accel + gyroscope: simply apply additive noise.
-            get().tail<6>() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
-            // Quaternion: interpret noise as a random rotation vector applied as an extra bias to the right,
-            // i.e. w_R_sensor = w_R_imu R_noise.
-            // Note that R_noise = exp3(gaussian(noiseStd)): this means the rotation vector follows a
-            // gaussian probability law, but doesn't say much in general about the rotation. However in practice
-            // we expect the standard deviation to be small, and thus the approximation to be valid.
+            /* Quaternion: interpret noise as a random rotation vector applied
+               as an extra bias to the right, i.e. w_R_sensor = w_R_imu R_noise.
+               Note that R_noise = exp3(gaussian(noiseStd)): this means the
+               rotation vector follows a gaussian probability law, but doesn't
+               say much in general about the rotation. However in practice we
+               expect the standard deviation to be small, and thus the
+               approximation to be valid. */
             get().head<4>() = (quaternion_t(get().head<4>()) *
                                quaternion_t(pinocchio::exp3(randVectorNormal(baseSensorOptions_->noiseStd.head<3>())))).coeffs();
+
+            // Accel + gyroscope: simply apply additive noise.
+            get().tail<6>() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
         }
 
     }
