@@ -851,8 +851,8 @@ namespace jiminy
             }
 
             // Stop the simulation if the max number of integration steps is reached
-            if (engineOptions_->stepper.iterMax > 0
-            && stepperState_.iter >= (uint32_t) engineOptions_->stepper.iterMax)
+            if (0 < engineOptions_->stepper.iterMax
+                && (uint32_t) engineOptions_->stepper.iterMax <= stepperState_.iter)
             {
                 if (engineOptions_->stepper.verbose)
                 {
@@ -1164,8 +1164,8 @@ namespace jiminy
                     /* Break the loop in case of timeout.
                        Don't worry, an exception will be raised later. */
                     timer_.toc();
-                    if (0 < engineOptions_->stepper.timeout &&
-                            engineOptions_->stepper.timeout < timer_.dt)
+                    if (EPS < engineOptions_->stepper.timeout
+                        && engineOptions_->stepper.timeout < timer_.dt)
                     {
                         break;
                     }
@@ -1326,8 +1326,8 @@ namespace jiminy
             }
 
             timer_.toc();
-            if (0 < engineOptions_->stepper.timeout &&
-                    engineOptions_->stepper.timeout < timer_.dt)
+            if (EPS < engineOptions_->stepper.timeout
+                && engineOptions_->stepper.timeout < timer_.dt)
             {
                 std::cout << "Error - EngineMultiRobot::step - Step computation timeout." << std::endl;
                 return hresult_t::ERROR_GENERIC;

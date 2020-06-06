@@ -15,8 +15,8 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
-    float64_t const CONSTRAINT_INVERSION_DAMPING = 1e-12; ///< Damping factor used to perform matrix pseudo-inverse
-                                                          /// when computing forward dynamics with constraints.
+    float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12; ///< Damping factor used to perform matrix pseudo-inverse
+                                                            /// when computing forward dynamics with constraints.
 
     class AbstractController;
     class TelemetryData;
@@ -312,8 +312,8 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
-            config["iterMax"] = 1000000; // -1: disable
-            config["timeout"] = -1; // -1: disable
+            config["iterMax"] = -1; // <= 0: disable
+            config["timeout"] = 0.0; // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
             config["logInternalStepperSteps"] = false;
@@ -329,7 +329,7 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableEffort"] = true;
             config["enableEnergy"] = true;
-            config["timeUnit"] = 1e6;
+            config["timeUnit"] = 1.0e6;
             return config;
         };
 
