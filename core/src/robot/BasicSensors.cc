@@ -102,25 +102,40 @@ namespace jiminy
             std::cout << "Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
-        // Compute quaternion.
+
+        // Compute quaternion
         matrix3_t const & rot = robot_->pncData_.oMf[frameIdx_].rotation();
         quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
         data().head<4>() = quat.coeffs(); // (x,y,z,w)
 
-        // Compute gyroscope signal.
+        // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(robot_->pncModel_, robot_->pncData_, frameIdx_);
         data().segment<3>(4) = velocity.angular();
 
-        // Compute accelerometer signal.
+        // Compute accelerometer signal
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(robot_->pncModel_, robot_->pncData_, frameIdx_);
-        // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity.
+
+        // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
         data().tail<3>() = acceleration.linear() +
                            velocity.angular().cross(velocity.linear()) -
                            quat.conjugate() * robot_->pncModel_.gravity.linear();
 
-
-
         return hresult_t::SUCCESS;
+    }
+
+    void ImuSensor::skewMeasurement(void)
+    {
+        // Add white noise
+        if (baseSensorOptions_->noiseStd.size())
+        {
+            get() += randVectorNormal(baseSensorOptions_->noiseStd);
+        }
+
+        // Add bias
+        if (baseSensorOptions_->bias.size())
+        {
+            get() += baseSensorOptions_->bias;
+        }
     }
 
     // ===================== ForceSensor =========================

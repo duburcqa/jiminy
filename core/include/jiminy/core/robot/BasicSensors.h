@@ -31,6 +31,7 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
                               vectorN_t                   const & uMotor) final override;
+        virtual void skewMeasurement(void) final override;
 
     private:
         std::string frameName_;

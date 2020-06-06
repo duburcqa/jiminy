@@ -4,6 +4,7 @@ import unittest
 import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import ode
+from scipy.interpolate import interp1d
 
 from jiminy_py import core as jiminy
 from pinocchio import Quaternion
@@ -199,6 +200,126 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.assertTrue(np.allclose(expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
         self.assertTrue(np.allclose(expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
         self.assertTrue(np.allclose(expected_quat[2:, :], quat_jiminy[2:, :], atol=TOLERANCE))
+
+    def test_sensor_skew(self):
+        """
+        @brief   Test sensor noise, bias and delay for an IMU sensor on a simple pendulum.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        # Configure the engine: No gravity + Continuous time simulation
+        engine_options = engine.get_options()
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
+        engine.set_options(engine_options)
+
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 0
+        imu_options['delay'] = 0.0
+        imu_options['noiseStd'] = np.zeros(10)
+        imu_options['bias'] = np.zeros(10)
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        imu_jiminy = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+        imu_jiminy_shifted_0 = interp1d(
+            time, imu_jiminy, kind='zero',
+            bounds_error=False, fill_value=imu_jiminy[0], axis=0
+        )(time - 1.0e-2)
+        imu_jiminy_shifted_1 = interp1d(
+            time, imu_jiminy,
+            kind='linear', bounds_error=False, fill_value=imu_jiminy[0], axis=0
+        )(time - 1.0e-2)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 0
+        imu_options['delay'] = 1.0e-2
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        imu_jiminy_delayed_0 = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 1
+        imu_options['delay'] = 1.0e-2
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        imu_jiminy_delayed_1 = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+
+        # Compare sensor signals
+        self.assertTrue(np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0) < 1.0e-5)
+        self.assertTrue(np.allclose(imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
+
+    def test_sensor_noise_bias(self):
+        """
+        @brief   Test sensor noise and biasfor an IMU sensor on a simple pendulum in static pose.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        x0 = np.array([0.0, 0.0])
+        tf = 100.0
+
+        # Configure the engine: No gravity
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine.set_options(engine_options)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 0
+        imu_options['delay'] = 0.0
+        imu_options['noiseStd'] = np.linspace(0.0, 1.0, 10)
+        imu_options['bias'] = np.linspace(-1.0, 1.0, 10)
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        imu_jiminy = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+
+        # Estimate the sensor noise and bias
+        imu_std = np.std(imu_jiminy, axis=0)
+        imu_bias = np.mean(imu_jiminy, axis=0)
+        imu_bias[[f == 'Quatw' for f in jiminy.ImuSensor.fieldnames]] -= 1
+
+        # Compare sensor signal, ignoring first iterations that correspond to system initialization.
+        self.assertTrue(np.allclose(imu_options['noiseStd'], imu_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['bias'], imu_bias, atol=1.0e-2))
 
     def test_pendulum_force_impulse(self):
         """

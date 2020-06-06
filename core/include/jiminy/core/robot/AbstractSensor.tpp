@@ -304,15 +304,29 @@ namespace jiminy
         }
         else
         {
-            if (sharedHolder_->time_[0] >= 0.0 || baseSensorOptions_->delay < EPS)
+            if (baseSensorOptions_->delay > EPS)
             {
-                // Return the most recent value
-                get() = sharedHolder_->data_.back().col(sensorIdx_);
+                // Return the oldest value since the buffer is not fully initialized yet
+                auto it = std::find_if(sharedHolder_->time_.begin(), sharedHolder_->time_.end(),
+                                    [] (float64_t const & t)
+                                    {
+                                        return t > 0;
+                                    });
+                if (it != sharedHolder_->time_.end())
+                {
+                    int32_t ind = std::distance(sharedHolder_->time_.begin(), it);
+                    ind = std::max(0, ind - 1);
+                    get() = sharedHolder_->data_[ind].col(sensorIdx_);
+                }
+                else
+                {
+                    get() = sharedHolder_->data_.back().col(sensorIdx_);
+                }
             }
             else
             {
-                // Return Zero since the sensor is not fully initialized yet
-                get() = sharedHolder_->data_.front().col(sensorIdx_);
+                // Return the most recent value available
+                get() = sharedHolder_->data_.back().col(sensorIdx_);
             }
         }
 
