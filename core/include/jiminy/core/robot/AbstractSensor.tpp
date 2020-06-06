@@ -308,10 +308,10 @@ namespace jiminy
             {
                 // Return the oldest value since the buffer is not fully initialized yet
                 auto it = std::find_if(sharedHolder_->time_.begin(), sharedHolder_->time_.end(),
-                                    [] (float64_t const & t)
-                                    {
-                                        return t > 0;
-                                    });
+                                       [] (float64_t const & t)
+                                       {
+                                           return t > 0;
+                                       });
                 if (it != sharedHolder_->time_.end())
                 {
                     int32_t ind = std::distance(sharedHolder_->time_.begin(), it);
