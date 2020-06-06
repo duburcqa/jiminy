@@ -7,7 +7,7 @@ from scipy.integrate import ode
 from scipy.interpolate import interp1d
 
 from jiminy_py import core as jiminy
-from pinocchio import Quaternion, log3
+from pinocchio import Quaternion, log3, exp3
 from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
 from utilities import load_urdf_default, integrate_dynamics
@@ -315,15 +315,22 @@ class SimulateSimplePendulum(unittest.TestCase):
             log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
         ], axis=-1)
 
+        # Convert quaternion to a rotation vector.
+        rot_vector = np.stack([log3(Quaternion(q).matrix())
+                             for q in quat_jiminy], axis=0)
+
+        # Remove sensor rotation bias from gyro / accel data.
+        Rb = exp3(imu_options['bias'][:3])
+        gyro_jiminy = np.vstack([Rb @ v for v in gyro_jiminy])
+        accel_jiminy = np.vstack([Rb @ v for v in accel_jiminy])
+
         # Estimate the sensor noise and bias
-        # Because the IMU rotation is identy, the resulting rotation will simply be R_b R_noise.
+        # Because the IMU rotation is identityy, the resulting rotation will simply be R_b R_noise.
         # Since R_noise is a small rotation, we can consider that the resulting rotation is simply
         # the rotation resulting from the sum of the rotation vector (this is only true at the first order)
         # and thus directly compare mean and standard deviation like for additive noise elsewhere.
-        quat_rpy = np.stack([log3(Quaternion(q).matrix())
-                             for q in quat_jiminy], axis=0)
-        quat_bias = np.mean(quat_rpy, axis=0)
-        quat_std = np.std(quat_rpy, axis=0)
+        quat_bias = np.mean(rot_vector, axis=0)
+        quat_std = np.std(rot_vector, axis=0)
         gyro_std = np.std(gyro_jiminy, axis=0)
         gyro_bias = np.mean(gyro_jiminy, axis=0)
         accel_std = np.std(accel_jiminy, axis=0)

@@ -25,7 +25,8 @@ namespace jiminy
     ImuSensor::ImuSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
-    frameIdx_(0)
+    frameIdx_(0),
+    sensorRotationBias_()
     {
         // Empty.
     }
@@ -79,6 +80,38 @@ namespace jiminy
             returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            sensorRotationBias_ = quaternion_t(0.0, 0.0, 0.0, 1.0);
+
+            // Check that bias / noise is of the correct size
+            if (baseSensorOptions_->bias.size())
+            {
+                if (baseSensorOptions_->bias.size() != 9)
+                {
+                    std::cout << "Error - ImuSensor::refreshProxies - Wrong bias vector size. Bias vector should contain 9 coordinates: " << std::endl;
+                    std::cout << "\t- the first three are the angle-axis representation of a rotation bias applied to all sensor signal." << std::endl;
+                    std::cout << "\t- the next six are respecitvely gyroscope and accelerometer additive bias." << std::endl;
+                    returnCode = hresult_t::ERROR_INIT_FAILED;
+                }
+                else
+                {
+                    // Convert first three components of bias to quaternion.
+                    sensorRotationBias_ = quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()));
+                }
+            }
+            if (baseSensorOptions_->noiseStd.size())
+            {
+                if (baseSensorOptions_->noiseStd.size() != 9)
+                {
+                    std::cout << "Error - ImuSensor::refreshProxies - Wrong noise vector size. Noise vector should contain 9 coordinates: " << std::endl;
+                    std::cout << "\t- the first three are used to generate a random rotation vector for the quaternion." << std::endl;
+                    std::cout << "\t- the next six are respecitvely gyroscope and accelerometer additive bias." << std::endl;
+                    returnCode = hresult_t::ERROR_INIT_FAILED;
+                }
+            }
+        }
+
         return returnCode;
     }
 
@@ -129,14 +162,15 @@ namespace jiminy
         // Add bias
         if (baseSensorOptions_->bias.size())
         {
-            /* Quaternion: interpret bias as angle-axis representation of a
-               sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b. */
-            vector3_t const biasAxis = baseSensorOptions_->bias.head<3>();
-            get().head<4>() = (quaternion_t(get().head<4>()) *
-                               quaternion_t(pinocchio::exp3(biasAxis))).coeffs();
-
             // Accel + gyroscope: simply add additive bias.
             get().tail<6>() += baseSensorOptions_->bias.tail<6>();
+            // Quaternion: interpret bias as angle-axis representation of a sensor rotation bias R_b,
+            // such that w_R_sensor = w_R_imu R_b.
+            get().head<4>() = (quaternion_t(get().head<4>()) * sensorRotationBias_).coeffs();
+
+            // Apply the same bias to the accelerometer / gyroscope output.
+            get().segment<3>(4) = sensorRotationBias_.conjugate() * get().segment<3>(4);
+            get().tail<3>() = sensorRotationBias_.conjugate() *get().tail<3>();
         }
 
         // Add white noise
