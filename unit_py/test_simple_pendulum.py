@@ -7,7 +7,7 @@ from scipy.integrate import ode
 from scipy.interpolate import interp1d
 
 from jiminy_py import core as jiminy
-from pinocchio import Quaternion
+from pinocchio import Quaternion, log3
 from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
 from utilities import load_urdf_default, integrate_dynamics
@@ -301,8 +301,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         imu_options = imu_sensor.get_options()
         imu_options['delayInterpolationOrder'] = 0
         imu_options['delay'] = 0.0
-        imu_options['noiseStd'] = np.linspace(0.0, 1.0, 10)
-        imu_options['bias'] = np.linspace(-1.0, 1.0, 10)
+        imu_options['noiseStd'] = np.linspace(0.0, 0.2, 9)
+        imu_options['bias'] = np.linspace(0.0, 1.0, 9)
         imu_sensor.set_options(imu_options)
 
         # Run simulation
@@ -312,10 +312,18 @@ class SimulateSimplePendulum(unittest.TestCase):
             log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
         ], axis=-1)
 
+        # Convert quaternion to angle-axis representation.
+        imu_jiminy = np.hstack(
+                        (np.array([log3(Quaternion(d[:4].astype(float, copy=False)).matrix()) for d in imu_jiminy]),
+                        imu_jiminy[:, 4:]))
+
         # Estimate the sensor noise and bias
+        # Because the IMU rotation is identy, the resulting rotation will simply be R_b R_noise.
+        # Since R_noise is a small rotation, we can consider that the resulting rotation is simply
+        # the rotation resulting from the sum of the rotation vector (this is only true at the first order)
+        # and thus directly compare mean and standard deviation like for additive noise elsewhere.
         imu_std = np.std(imu_jiminy, axis=0)
         imu_bias = np.mean(imu_jiminy, axis=0)
-        imu_bias[[f == 'Quatw' for f in jiminy.ImuSensor.fieldnames]] -= 1
 
         # Compare sensor signal, ignoring first iterations that correspond to system initialization.
         self.assertTrue(np.allclose(imu_options['noiseStd'], imu_std, atol=1.0e-2))
