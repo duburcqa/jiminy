@@ -55,7 +55,7 @@ ppo_config = dict(
 
 ### Optimizer parameters
 lr = 1.0e-3
-buffer_size = 128 * N_THREADS
+buffer_size = trainer_config["collect_per_step"]
 
 # Instantiate the gym environment
 train_envs = VectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
@@ -67,13 +67,13 @@ torch.manual_seed(SEED)
 train_envs.seed(SEED)
 test_envs.seed(SEED)
 
-# Crate the models
+# Create the models
 
 ### Define the models
 class Net(nn.Module):
-    def __init__(self, state_space):
+    def __init__(self, obs_space):
         super().__init__()
-        n_input = np.prod(state_space.shape)
+        n_input = np.prod(obs_space.shape)
         self.model = nn.Sequential(*[
             nn.Linear(n_input, 64), nn.Tanh(),
             nn.Linear(64, 64), nn.Tanh()

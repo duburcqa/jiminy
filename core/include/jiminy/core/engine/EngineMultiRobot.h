@@ -15,8 +15,8 @@ namespace jiminy
 {
     std::string const ENGINE_OBJECT_NAME("HighLevelController");
 
-    float64_t const CONSTRAINT_INVERSION_DAMPING = 1e-12; ///< Damping factor used to perform matrix pseudo-inverse
-                                                          /// when computing forward dynamics with constraints.
+    float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12; ///< Damping factor used to perform matrix pseudo-inverse
+                                                            /// when computing forward dynamics with constraints.
 
     class AbstractController;
     class TelemetryData;
@@ -312,7 +312,8 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
-            config["iterMax"] = 1000000; // -1: infinity
+            config["iterMax"] = -1; // <= 0: disable
+            config["timeout"] = 0.0; // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
             config["logInternalStepperSteps"] = false;
@@ -328,7 +329,7 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableEffort"] = true;
             config["enableEnergy"] = true;
-            config["timeUnit"] = 1e6;
+            config["timeUnit"] = 1.0e6;
             return config;
         };
 
@@ -407,6 +408,7 @@ namespace jiminy
             float64_t   const dtMax;
             float64_t   const dtRestoreThresholdRel;
             int32_t     const iterMax;
+            float64_t   const timeout;
             float64_t   const sensorsUpdatePeriod;
             float64_t   const controllerUpdatePeriod;
             bool_t      const logInternalStepperSteps;
@@ -420,6 +422,7 @@ namespace jiminy
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
+            timeout(boost::get<float64_t>(options.at("timeout"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
             controllerUpdatePeriod(boost::get<float64_t>(options.at("controllerUpdatePeriod"))),
             logInternalStepperSteps(boost::get<bool_t>(options.at("logInternalStepperSteps")))
@@ -709,6 +712,7 @@ namespace jiminy
         TelemetrySender telemetrySender_;
         std::shared_ptr<TelemetryData> telemetryData_;
         std::unique_ptr<TelemetryRecorder> telemetryRecorder_;
+        Timer timer_;
         stepper_t stepper_;
         float64_t stepperUpdatePeriod_;
         stepperState_t stepperState_;

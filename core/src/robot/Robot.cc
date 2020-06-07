@@ -35,7 +35,8 @@ namespace jiminy
     constraintsDrift_(),
     mutexLocal_(),
     motorsSharedHolder_(nullptr),
-    sensorsSharedHolder_()
+    sensorsSharedHolder_(),
+    zeroAccelerationVector_(vectorN_t::Zero(0))
     {
         // Empty on purpose
     }
@@ -572,6 +573,7 @@ namespace jiminy
             returnCode = refreshSensorsProxies();
         }
 
+
         return returnCode;
     }
 
@@ -580,6 +582,9 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
         vectorN_t q = pinocchio::neutral(pncModel_);
         vectorN_t v = vectorN_t::Zero(pncModel_.nv);
+
+        // Resize zeroAccelerationVector_ to the right size
+        zeroAccelerationVector_ = vectorN_t::Zero(pncModel_.nv);
 
         int constraintSize = 0;
         for (auto & constraint : constraintsHolder_)
@@ -1318,6 +1323,10 @@ namespace jiminy
                                Eigen::Ref<vectorN_t const> const & a,
                                vectorN_t                   const & u)
     {
+        // Update kinematic quantities before updating sensors.
+        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
+        pinocchio::updateFramePlacements(pncModel_, pncData_);
+
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
             if (!sensorGroup.second.empty())
@@ -1332,6 +1341,7 @@ namespace jiminy
     {
         // Compute joint jacobian.
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
+        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, zeroAccelerationVector_);
 
         uint32_t currentRow = 0;
         for (auto & constraint : constraintsHolder_)
@@ -1368,7 +1378,6 @@ namespace jiminy
                                  sensorConst.getIdx(),
                                  sensorConst.get());
             }
-
             data.emplace(sensorGroup.first, std::move(dataType));
         }
         return data;

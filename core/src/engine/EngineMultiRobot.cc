@@ -99,6 +99,7 @@ namespace jiminy
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
+    timer_(),
     stepper_(),
     stepperUpdatePeriod_(-1),
     stepperState_(),
@@ -850,8 +851,8 @@ namespace jiminy
             }
 
             // Stop the simulation if the max number of integration steps is reached
-            if (engineOptions_->stepper.iterMax > 0
-            && stepperState_.iter >= (uint32_t) engineOptions_->stepper.iterMax)
+            if (0 < engineOptions_->stepper.iterMax
+                && (uint32_t) engineOptions_->stepper.iterMax <= stepperState_.iter)
             {
                 if (engineOptions_->stepper.verbose)
                 {
@@ -881,459 +882,473 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::step(float64_t stepSize)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
             std::cout << "Error - EngineMultiRobot::step - No simulation running. Please start it before using step method." << std::endl;
-            returnCode = hresult_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
-        float64_t tEnd;
-        if (returnCode == hresult_t::SUCCESS)
+        // Check if there is something wrong with the integration
+        if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
         {
-            // Check if there is something wrong with the integration
-            if ((stepperState_.x.array() != stepperState_.x.array()).any()) // isnan if NOT equal to itself
-            {
-                std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "\
-                             "Consider increasing the stepper accuracy." << std::endl;
-                return hresult_t::ERROR_GENERIC;
-            }
+            std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "\
+                            "Consider increasing the stepper accuracy." << std::endl;
+            return hresult_t::ERROR_GENERIC;
+        }
 
-            // Check if the desired step size is suitable
-            if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
-            {
-                std::cout << "Error - EngineMultiRobot::step - The requested step size is out of bounds." << std::endl;
-                return hresult_t::ERROR_BAD_INPUT;
-            }
+        // Check if the desired step size is suitable
+        if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
+        {
+            std::cout << "Error - EngineMultiRobot::step - The requested step size is out of bounds." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
 
-            /* Set end time: The default step size is equal to the
-               controller update period if discrete-time, otherwise
-               it uses the sensor update period if discrete-time,
-               otherwise it uses the user-defined parameter dtMax. */
-            if (stepSize < EPS)
+        /* Set end time: The default step size is equal to the
+           controller update period if discrete-time, otherwise
+           it uses the sensor update period if discrete-time,
+           otherwise it uses the user-defined parameter dtMax. */
+        if (stepSize < EPS)
+        {
+            float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+            if (controllerUpdatePeriod > EPS)
             {
-                float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
-                if (controllerUpdatePeriod > EPS)
+                stepSize = controllerUpdatePeriod;
+            }
+            else
+            {
+                float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+                if (sensorsUpdatePeriod > EPS)
                 {
-                    stepSize = controllerUpdatePeriod;
+                    stepSize = sensorsUpdatePeriod;
                 }
                 else
+                {
+                    stepSize = engineOptions_->stepper.dtMax;
+                }
+            }
+        }
+
+        /* Check that end time is not too large for the current
+           logging precision, otherwise abort integration. */
+        if (stepperState_.t + stepSize > telemetryRecorder_->getMaximumLogTime())
+        {
+            std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
+            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
+            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        /* Avoid compounding of error using Kahan algorithm. It
+           consists in keeping track of the cumulative rounding error
+           to add it back to the sum when it gets larger than the
+           numerical precision, thus avoiding it to grows unbounded. */
+        float64_t stepSize_true = stepSize - stepperState_.tError;
+        float64_t tEnd = stepperState_.t + stepSize_true;
+        stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
+
+        // Get references to some internal stepper buffers
+        float64_t & t = stepperState_.t;
+        float64_t & dt = stepperState_.dt;
+        float64_t & dtLargest = stepperState_.dtLargest;
+        vectorN_t & x = stepperState_.x;
+        vectorN_t & dxdt = stepperState_.dxdt;
+
+        // Define the stepper iterators.
+        auto systemOde =
+            [this](vectorN_t const & xIn,
+                    vectorN_t       & dxdtIn,
+                    float64_t const & tIn)
+            {
+                this->computeSystemDynamics(tIn, xIn, dxdtIn);
+            };
+
+        // Define a failure checker for the stepper
+        failed_step_checker fail_checker;
+
+        /* Flag monitoring if the current time step depends of a breakpoint
+           or the integration tolerance. It will be used by the restoration
+           mechanism, if dt gets very small to reach a breakpoint, in order
+           to avoid having to perform several steps to stabilize again the
+           estimation of the optimal time step. */
+        bool_t isBreakpointReached = false;
+
+        /* Flag monitoring if the dynamics has changed because of impulse
+           forces or the command (only in the case of discrete control).
+
+           `try_step(rhs, x, dxdt, t, dt)` method of error controlled boost
+           steppers leverage the FSAL (first same as last) principle. It is
+           implemented by considering at the value of (x, dxdt) in argument
+           have been initialized by the user with the system dynamics at
+           current time t. Thus, if the system dynamics is discontinuous,
+           one has to manually integrate up to t-, then update dxdt to take
+           into the acceleration at t+.
+
+           Note that ONLY the acceleration part of dxdt must be updated since
+           the  projection of the velocity on the state space is not supposed
+           to have changed, and on top of that tPrev is invalid at this point
+           because it has been updated just after the last successful step.
+
+           Note that the estimated dt is no longer very meaningful since the
+           dynamics has changed. Maybe dt should be reschedule... */
+        bool_t hasDynamicsChanged = false;
+
+        // Start the timer used for timeout handling
+        timer_.tic();
+
+        // Perform the integration. Do not simulate extremely small time steps.
+        while (tEnd - t > STEPPER_MIN_TIMESTEP)
+        {
+            float64_t tNext = t;
+
+            // Update the active set and get the next breakpoint of impulse forces
+            float64_t tForceImpulseNext = INF;
+            for (auto & system : systemsDataHolder_)
+            {
+                /* Update the active set: activate an impulse force as soon as
+                   the current time gets close enough of the application time,
+                   and deactivate it once the following the same reasoning.
+
+                   Note that breakpoints at the begining and the end of every
+                   impulse force at already enforced, so that the forces
+                   cannot get activated/desactivate too late. */
+                auto forcesImpulseActiveIt = system.forcesImpulseActive.begin();
+                auto forcesImpulseIt = system.forcesImpulse.begin();
+                for ( ; forcesImpulseIt != system.forcesImpulse.end() ;
+                    forcesImpulseActiveIt++, forcesImpulseIt++)
+                {
+                    float64_t const & tForceImpulse = forcesImpulseIt->t;
+                    float64_t const & dtForceImpulse = forcesImpulseIt->dt;
+
+                    if (t > tForceImpulse - STEPPER_MIN_TIMESTEP)
+                    {
+                        *forcesImpulseActiveIt = true;
+                        hasDynamicsChanged = true;
+                    }
+                    if (t > tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
+                    {
+                        *forcesImpulseActiveIt = false;
+                        hasDynamicsChanged = true;
+                    }
+                }
+
+                // Update the breakpoint time iterator if necessary
+                auto & tBreakNextIt = system.forcesImpulseBreakNextIt;
+                if (tBreakNextIt != system.forcesImpulseBreaks.end())
+                {
+                    if (t > *tBreakNextIt - STEPPER_MIN_TIMESTEP)
+                    {
+                        // The current breakpoint is behind in time. Switching to the next one.
+                        tBreakNextIt++;
+                    }
+                }
+
+                // Get the next breakpoint time if any
+                if (tBreakNextIt != system.forcesImpulseBreaks.end())
+                {
+                    tForceImpulseNext = min(tForceImpulseNext, *tBreakNextIt);
+                }
+            }
+
+            if (stepperUpdatePeriod_ > EPS)
+            {
+                // Update the sensor data if necessary (only for finite update frequency)
+                if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
                 {
                     float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                    if (sensorsUpdatePeriod > EPS)
+                    float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
+                    if (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                    || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                     {
-                        stepSize = sensorsUpdatePeriod;
+                        for (auto & system : systemsDataHolder_)
+                        {
+                            vectorN_t const & q = system.state.q;
+                            vectorN_t const & v = system.state.v;
+                            vectorN_t const & a = system.state.a;
+                            vectorN_t const & uMotor = system.state.uMotor;
+                            system.robot->setSensorsData(t, q, v, a, uMotor);
+                        }
                     }
-                    else
+                }
+
+                // Update the controller command if necessary (only for finite update frequency)
+                if (engineOptions_->stepper.controllerUpdatePeriod > EPS)
+                {
+                    float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+                    float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
+                    if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
+                    || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                     {
-                        stepSize = engineOptions_->stepper.dtMax;
+                        for (auto & system : systemsDataHolder_)
+                        {
+                            vectorN_t const & q = system.state.q;
+                            vectorN_t const & v = system.state.v;
+                            vectorN_t & uCommand = system.state.uCommand;
+                            computeCommand(system, t, q, v, uCommand);
+                        }
+                        hasDynamicsChanged = true;
                     }
                 }
             }
 
-            // Check that tEnd is not too large for the current logging precision,
-            // otherwise abort integration.
-            if (stepperState_.t + stepSize > telemetryRecorder_->getMaximumLogTime())
+            // Fix the FSAL issue if the dynamics has changed
+            if (hasDynamicsChanged)
             {
-                std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
-                std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
-                std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                computeSystemDynamics(t, x, dxdt);
+                syncSystemsStateWithStepper();
             }
 
-            /* Avoid compounding of error using Kahan algorithm. It
-               consists in keeping track of the cumulative rounding error
-               to add it back to the sum when it gets larger than the
-               numerical precision, thus avoiding it to grows unbounded. */
-            float64_t stepSize_true = stepSize - stepperState_.tError;
-            tEnd = stepperState_.t + stepSize_true;
-            stepperState_.tError = (tEnd - stepperState_.t) - stepSize_true;
-
-            // Get references to some internal stepper buffers
-            float64_t & t = stepperState_.t;
-            float64_t & dt = stepperState_.dt;
-            float64_t & dtLargest = stepperState_.dtLargest;
-            vectorN_t & x = stepperState_.x;
-            vectorN_t & dxdt = stepperState_.dxdt;
-
-            // Define the stepper iterators.
-            auto systemOde =
-                [this](vectorN_t const & xIn,
-                       vectorN_t       & dxdtIn,
-                       float64_t const & tIn)
-                {
-                    this->computeSystemDynamics(tIn, xIn, dxdtIn);
-                };
-
-            // Define a failure checker for the stepper
-            failed_step_checker fail_checker;
-
-            /* Flag monitoring if the current time step depends of a breakpoint
-               or the integration tolerance. It will be used by the restoration
-               mechanism, if dt gets very small to reach a breakpoint, in order
-               to avoid having to perform several steps to stabilize again the
-               estimation of the optimal time step. */
-            bool_t isBreakpointReached = false;
-
-            /* Flag monitoring if the dynamics has changed because of impulse
-               forces or the command (only in the case of discrete control).
-
-               `try_step(rhs, x, dxdt, t, dt)` method of error controlled boost
-               steppers leverage the FSAL (first same as last) principle. It is
-               implemented by considering at the value of (x, dxdt) in argument
-               have been initialized by the user with the system dynamics at
-               current time t. Thus, if the system dynamics is discontinuous,
-               one has to manually integrate up to t-, then update dxdt to take
-               into the acceleration at t+.
-
-               Note that ONLY the acceleration part of dxdt must be updated since
-               the  projection of the velocity on the state space is not supposed
-               to have changed, and on top of that tPrev is invalid at this point
-               because it has been updated just after the last successful step.
-
-               Note that the estimated dt is no longer very meaningful since the
-               dynamics has changed. Maybe dt should be reschedule... */
-            bool_t hasDynamicsChanged = false;
-
-            // Perform the integration. Do not simulate extremely small time steps
-            while (tEnd - t > STEPPER_MIN_TIMESTEP)
+            if (stepperUpdatePeriod_ > EPS)
             {
-                float64_t tNext = t;
-
-                // Update the active set and get the next breakpoint of impulse forces
-                float64_t tForceImpulseNext = INF;
-                for (auto & system : systemsDataHolder_)
+                /* Get the time of the next breakpoint for the ODE solver:
+                   a breakpoint occurs if we reached tEnd, if an external force
+                   is applied, or if we need to update the sensors / controller. */
+                float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
+                float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
-                    /* Update the active set: activate an impulse force as soon as
-                       the current time gets close enough of the application time,
-                       and deactivate it once the following the same reasoning.
-
-                       Note that breakpoints at the begining and the end of every
-                       impulse force at already enforced, so that the forces
-                       cannot get activated/desactivate too late. */
-                    auto forcesImpulseActiveIt = system.forcesImpulseActive.begin();
-                    auto forcesImpulseIt = system.forcesImpulse.begin();
-                    for ( ; forcesImpulseIt != system.forcesImpulse.end() ;
-                        forcesImpulseActiveIt++, forcesImpulseIt++)
-                    {
-                        float64_t const & tForceImpulse = forcesImpulseIt->t;
-                        float64_t const & dtForceImpulse = forcesImpulseIt->dt;
-
-                        if (t > tForceImpulse - STEPPER_MIN_TIMESTEP)
-                        {
-                            *forcesImpulseActiveIt = true;
-                            hasDynamicsChanged = true;
-                        }
-                        if (t > tForceImpulse + dtForceImpulse - STEPPER_MIN_TIMESTEP)
-                        {
-                            *forcesImpulseActiveIt = false;
-                            hasDynamicsChanged = true;
-                        }
-                    }
-
-                    // Update the breakpoint time iterator if necessary
-                    auto & tBreakNextIt = system.forcesImpulseBreakNextIt;
-                    if (tBreakNextIt != system.forcesImpulseBreaks.end())
-                    {
-                        if (t > *tBreakNextIt - STEPPER_MIN_TIMESTEP)
-                        {
-                            // The current breakpoint is behind in time. Switching to the next one.
-                            tBreakNextIt++;
-                        }
-                    }
-
-                    // Get the next breakpoint time if any
-                    if (tBreakNextIt != system.forcesImpulseBreaks.end())
-                    {
-                        tForceImpulseNext = min(tForceImpulseNext, *tBreakNextIt);
-                    }
-                }
-
-                if (stepperUpdatePeriod_ > EPS)
-                {
-                    // Update the sensor data if necessary (only for finite update frequency)
-                    if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
-                    {
-                        float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                        float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                        if (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                        || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-                        {
-                            for (auto & system : systemsDataHolder_)
-                            {
-                                vectorN_t const & q = system.state.q;
-                                vectorN_t const & v = system.state.v;
-                                vectorN_t const & a = system.state.a;
-                                vectorN_t const & uMotor = system.state.uMotor;
-                                system.robot->setSensorsData(t, q, v, a, uMotor);
-                            }
-                        }
-                    }
-
-                    // Update the controller command if necessary (only for finite update frequency)
-                    if (engineOptions_->stepper.controllerUpdatePeriod > EPS)
-                    {
-                        float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
-                        float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                        if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                        || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-                        {
-                            for (auto & system : systemsDataHolder_)
-                            {
-                                vectorN_t const & q = system.state.q;
-                                vectorN_t const & v = system.state.v;
-                                vectorN_t & uCommand = system.state.uCommand;
-                                computeCommand(system, t, q, v, uCommand);
-                            }
-                            hasDynamicsChanged = true;
-                        }
-                    }
-                }
-
-                // Fix the FSAL issue if the dynamics has changed
-                if (hasDynamicsChanged)
-                {
-                    computeSystemDynamics(t, x, dxdt);
-                    syncSystemsStateWithStepper();
-                }
-
-                if (stepperUpdatePeriod_ > EPS)
-                {
-                    /* Get the time of the next breakpoint for the ODE solver:
-                       a breakpoint occurs if we reached tEnd, if an external force
-                       is applied, or if we need to update the sensors / controller. */
-                    float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
-                    float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
-                    if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-                    {
-                        /* Step to reach next sensors/controller update is too short:
-                           skip one controller update and jump to the next one.
-                           Note that in this case, the sensors have already been
-                           updated in anticipation in previous loop. */
-                        dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
-                                           tForceImpulseNext - t);
-                    }
-                    else
-                    {
-                        dtNextGlobal = min(dtNextUpdatePeriod, tForceImpulseNext - t);
-                    }
-
-                    /* Check if the next dt to about equal to the time difference
-                       between the current time (it can only be smaller) and
-                       enforce next dt to exactly match this value in such a case. */
-                    if (tEnd - t - STEPPER_MIN_TIMESTEP < dtNextGlobal)
-                    {
-                        dtNextGlobal = tEnd - t;
-                    }
-                    tNext += dtNextGlobal;
-
-                    // Compute the next step using adaptive step method
-                    while (tNext - t > EPS)
-                    {
-                        /* Adjust stepsize to end up exactly at the next breakpoint,
-                           prevent steps larger than dtMax, trying to reach multiples of
-                           STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
-                           reach only multiples of 1us, making logging easier, given that,
-                           in robotics, 1us can be consider an 'infinitesimal' time. This
-                           arbitrary threshold many not be suited for simulating different,
-                           faster dynamics, that require sub-microsecond precision. */
-                        dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
-                        if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
-                        {
-                            dt = tNext - t;
-                        }
-                        if (dt > SIMULATION_MIN_TIMESTEP)
-                        {
-                            float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
-                            if (dtResidual > STEPPER_MIN_TIMESTEP
-                             && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
-                             && dt - dtResidual > STEPPER_MIN_TIMESTEP)
-                            {
-                                dt -= dtResidual;
-                            }
-                        }
-
-                        // Break the loop if dt is getting too small. Don't worry it will be caught later.
-                        if (dt < STEPPER_MIN_TIMESTEP)
-                        {
-                            break;
-                        }
-
-                        /* A breakpoint has been reached dt has been decreased
-                           wrt the largest possible dt within integration tol. */
-                        isBreakpointReached = (stepperState_.dtLargest > dt);
-
-                        // Set the timestep to be tried by the stepper
-                        dtLargest = dt;
-
-                        if (try_step(stepper_, systemOde, x, dxdt, t, dtLargest))
-                        {
-                            // reset the fail counter
-                            fail_checker.reset();
-
-                            // Synchronize the individual system states
-                            syncSystemsStateWithStepper();
-
-                            // Increment the iteration counter only for successful steps
-                            stepperState_.iter++;
-
-                            // Log every stepper state only if the user asked for
-                            if (engineOptions_->stepper.logInternalStepperSteps)
-                            {
-                                updateTelemetry();
-                            }
-
-                            /* Restore the step size dt if it has been significantly
-                               decreased to because of a breakpoint. It is set
-                               equal to the last available largest dt to be known,
-                               namely the second to last successfull step. */
-                            if (isBreakpointReached)
-                            {
-                                /* Restore the step size if and only if:
-                                   - the next estimated largest step size is larger than
-                                     the requested one for the current (successful) step.
-                                   - the next estimated largest step size is significantly
-                                     smaller than the estimated largest step size for the
-                                     previous step. */
-                                float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
-                                    engineOptions_->stepper.dtRestoreThresholdRel;
-                                if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
-                                {
-                                    dtLargest = stepperState_.dtLargestPrev;
-                                }
-                            }
-
-                            /* Backup the stepper and systems' state on success only:
-                               - t at last successful iteration is used to compute dt,
-                                 which is project the accelation in the state space
-                                 instead of SO3^2.
-                               - dtLargestPrev is used to restore the largest step
-                                 size in case of a breakpoint requiring lowering it.
-                               - the acceleration and effort at the last successful
-                                 iteration is used to update the sensors' data in
-                                 case of continuous sensing. */
-                            stepperState_.tPrev = t;
-                            stepperState_.dtLargestPrev = stepperState_.dtLargest;
-                            for (auto & system : systemsDataHolder_)
-                            {
-                                system.statePrev = system.state;
-                            }
-                        }
-                        else
-                        {
-                            // check for possible overflow of failed steps in step size adjustment
-                            fail_checker();
-
-                            // Increment the failed iteration counter
-                            stepperState_.iterFailed++;
-                        }
-
-                        // Initialize the next dt
-                        dt = dtLargest;
-                    }
+                    /* Step to reach next sensors/controller update is too short:
+                       skip one controller update and jump to the next one.
+                       Note that in this case, the sensors have already been
+                       updated in anticipation in previous loop. */
+                    dtNextGlobal = min(dtNextUpdatePeriod + stepperUpdatePeriod_,
+                                        tForceImpulseNext - t);
                 }
                 else
                 {
-                    // Make sure it ends exactly at the tEnd, never exceeds dtMax, and stop to apply impulse forces
-                    dt = min(dt,
-                             engineOptions_->stepper.dtMax,
-                             tEnd - t,
-                             tForceImpulseNext - t);
+                    dtNextGlobal = min(dtNextUpdatePeriod, tForceImpulseNext - t);
+                }
+
+                /* Check if the next dt to about equal to the time difference
+                   between the current time (it can only be smaller) and
+                   enforce next dt to exactly match this value in such a case. */
+                if (tEnd - t - STEPPER_MIN_TIMESTEP < dtNextGlobal)
+                {
+                    dtNextGlobal = tEnd - t;
+                }
+                tNext += dtNextGlobal;
+
+                // Compute the next step using adaptive step method
+                while (tNext - t > EPS)
+                {
+                    /* Adjust stepsize to end up exactly at the next breakpoint,
+                       prevent steps larger than dtMax, trying to reach multiples of
+                       STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
+                       reach only multiples of 1us, making logging easier, given that,
+                       in robotics, 1us can be consider an 'infinitesimal' time. This
+                       arbitrary threshold many not be suited for simulating different,
+                       faster dynamics, that require sub-microsecond precision. */
+                    dt = min(dt, tNext - t, engineOptions_->stepper.dtMax);
+                    if (tNext - (t + dt) < STEPPER_MIN_TIMESTEP)
+                    {
+                        dt = tNext - t;
+                    }
+                    if (dt > SIMULATION_MIN_TIMESTEP)
+                    {
+                        float64_t const dtResidual = std::fmod(dt, SIMULATION_MIN_TIMESTEP);
+                        if (dtResidual > STEPPER_MIN_TIMESTEP
+                            && dtResidual < SIMULATION_MIN_TIMESTEP - STEPPER_MIN_TIMESTEP
+                            && dt - dtResidual > STEPPER_MIN_TIMESTEP)
+                        {
+                            dt -= dtResidual;
+                        }
+                    }
+
+                    /* Break the loop if dt is getting too small.
+                       Don't worry, an exception will be raised later. */
+                    if (dt < STEPPER_MIN_TIMESTEP)
+                    {
+                        break;
+                    }
+
+                    /* Break the loop in case of timeout.
+                       Don't worry, an exception will be raised later. */
+                    timer_.toc();
+                    if (EPS < engineOptions_->stepper.timeout
+                        && engineOptions_->stepper.timeout < timer_.dt)
+                    {
+                        break;
+                    }
 
                     /* A breakpoint has been reached dt has been decreased
                        wrt the largest possible dt within integration tol. */
                     isBreakpointReached = (stepperState_.dtLargest > dt);
 
-                    // Compute the next step using adaptive step method
-                    bool_t isStepSuccessful = false;
-                    while (!isStepSuccessful)
+                    // Set the timestep to be tried by the stepper
+                    dtLargest = dt;
+
+                    if (try_step(stepper_, systemOde, x, dxdt, t, dtLargest))
                     {
-                        // Set the timestep to be tried by the stepper
-                        dtLargest = dt;
+                        // Reset the fail counter
+                        fail_checker.reset();
 
-                        // Try to do a step
-                        isStepSuccessful = try_step(stepper_, systemOde, x, dxdt, t, dtLargest);
+                        // Synchronize the individual system states
+                        syncSystemsStateWithStepper();
 
-                        if (isStepSuccessful)
+                        // Increment the iteration counter only for successful steps
+                        stepperState_.iter++;
+
+                        // Log every stepper state only if the user asked for
+                        if (engineOptions_->stepper.logInternalStepperSteps)
                         {
-                            // reset the fail counter
-                            fail_checker.reset();
-
-                            // Synchronize the individual system states
-                            syncSystemsStateWithStepper();
-
-                            // Increment the iteration counter
-                            stepperState_.iter++;
-
-                            // Log every stepper state only if the user asked for
-                            if (engineOptions_->stepper.logInternalStepperSteps)
-                            {
-                                updateTelemetry();
-                            }
-
-                            // Restore the step size if necessary
-                            if (isBreakpointReached)
-                            {
-                                float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
-                                    engineOptions_->stepper.dtRestoreThresholdRel;
-                                if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
-                                {
-                                    dtLargest = stepperState_.dtLargestPrev;
-                                }
-                            }
-
-                            // Backup the stepper and systems' state
-                            stepperState_.tPrev = t;
-                            stepperState_.dtLargestPrev = dtLargest;
-                            for (auto & system : systemsDataHolder_)
-                            {
-                                system.statePrev = system.state;
-                            }
-                        }
-                        else
-                        {
-                            // check for possible overflow of failed steps in step size adjustment
-                            fail_checker();
-
-                            // Increment the failed iteration counter
-                            stepperState_.iterFailed++;
+                            updateTelemetry();
                         }
 
-                        // Initialize the next dt
-                        dt = dtLargest;
+                        /* Restore the step size dt if it has been significantly
+                           decreased to because of a breakpoint. It is set
+                           equal to the last available largest dt to be known,
+                           namely the second to last successfull step. */
+                        if (isBreakpointReached)
+                        {
+                            /* Restore the step size if and only if:
+                               - the next estimated largest step size is larger than
+                                 the requested one for the current (successful) step.
+                               - the next estimated largest step size is significantly
+                                 smaller than the estimated largest step size for the
+                                 previous step. */
+                            float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
+                                engineOptions_->stepper.dtRestoreThresholdRel;
+                            if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
+                            {
+                                dtLargest = stepperState_.dtLargestPrev;
+                            }
+                        }
+
+                        /* Backup the stepper and systems' state on success only:
+                           - t at last successful iteration is used to compute dt,
+                             which is project the accelation in the state space
+                             instead of SO3^2.
+                           - dtLargestPrev is used to restore the largest step
+                             size in case of a breakpoint requiring lowering it.
+                           - the acceleration and effort at the last successful
+                             iteration is used to update the sensors' data in
+                             case of continuous sensing. */
+                        stepperState_.tPrev = t;
+                        stepperState_.dtLargestPrev = stepperState_.dtLargest;
+                        for (auto & system : systemsDataHolder_)
+                        {
+                            system.statePrev = system.state;
+                        }
                     }
-                }
+                    else
+                    {
+                        /* Check for possible overflow of failed steps
+                           in step size adjustment. */
+                        fail_checker();
 
-                // Make sure that the timestep is not getting too small
-                if (dt < STEPPER_MIN_TIMESTEP)
-                {
-                    std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
-                                 "Impossible to integrate physics further in time." << std::endl;
-                    returnCode = hresult_t::ERROR_GENERIC;
-                    break;
+                        // Increment the failed iteration counter
+                        stepperState_.iterFailed++;
+                    }
+
+                    // Initialize the next dt
+                    dt = dtLargest;
                 }
             }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            /* Update the final time and dt to make sure it corresponds
-               to the desired values and avoid compounding of error.
-               Anyway the user asked for a step of exactly stepSize,
-               so he is expecting this value to be reached. */
-            stepperState_.t = tEnd;
-            stepperState_.dt = stepSize;
-
-            // Monitor current iteration number, and log the current time, state, command, and sensors data
-            if (!engineOptions_->stepper.logInternalStepperSteps)
+            else
             {
-                updateTelemetry();
+                /* Make sure it ends exactly at the tEnd, never exceeds
+                   dtMax, and stop to apply impulse forces. */
+                dt = min(dt,
+                            engineOptions_->stepper.dtMax,
+                            tEnd - t,
+                            tForceImpulseNext - t);
+
+                /* A breakpoint has been reached dt has been decreased
+                   wrt the largest possible dt within integration tol. */
+                isBreakpointReached = (stepperState_.dtLargest > dt);
+
+                // Compute the next step using adaptive step method
+                bool_t isStepSuccessful = false;
+                while (!isStepSuccessful)
+                {
+                    // Set the timestep to be tried by the stepper
+                    dtLargest = dt;
+
+                    // Try to do a step
+                    isStepSuccessful = try_step(stepper_, systemOde, x, dxdt, t, dtLargest);
+
+                    if (isStepSuccessful)
+                    {
+                        // Reset the fail counter
+                        fail_checker.reset();
+
+                        // Synchronize the individual system states
+                        syncSystemsStateWithStepper();
+
+                        // Increment the iteration counter
+                        stepperState_.iter++;
+
+                        // Log every stepper state only if required
+                        if (engineOptions_->stepper.logInternalStepperSteps)
+                        {
+                            updateTelemetry();
+                        }
+
+                        // Restore the step size if necessary
+                        if (isBreakpointReached)
+                        {
+                            float64_t dtRestoreThresholdAbs = stepperState_.dtLargestPrev *
+                                engineOptions_->stepper.dtRestoreThresholdRel;
+                            if (dt < dtLargest && dtLargest < dtRestoreThresholdAbs)
+                            {
+                                dtLargest = stepperState_.dtLargestPrev;
+                            }
+                        }
+
+                        // Backup the stepper and systems' state
+                        stepperState_.tPrev = t;
+                        stepperState_.dtLargestPrev = dtLargest;
+                        for (auto & system : systemsDataHolder_)
+                        {
+                            system.statePrev = system.state;
+                        }
+                    }
+                    else
+                    {
+                        /* check for possible overflow of failed steps
+                           in step size adjustment. */
+                        fail_checker();
+
+                        // Increment the failed iteration counter
+                        stepperState_.iterFailed++;
+                    }
+
+                    // Initialize the next dt
+                    dt = dtLargest;
+                }
+            }
+
+            if (dt < STEPPER_MIN_TIMESTEP)
+            {
+                std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
+                             "Impossible to integrate physics further in time." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
+
+            timer_.toc();
+            if (EPS < engineOptions_->stepper.timeout
+                && engineOptions_->stepper.timeout < timer_.dt)
+            {
+                std::cout << "Error - EngineMultiRobot::step - Step computation timeout." << std::endl;
+                return hresult_t::ERROR_GENERIC;
             }
         }
 
-        return returnCode;
+        /* Update the final time and dt to make sure it corresponds
+           to the desired values and avoid compounding of error.
+           Anyway the user asked for a step of exactly stepSize,
+           so he is expecting this value to be reached. */
+        stepperState_.t = tEnd;
+        stepperState_.dt = stepSize;
+
+        /* Monitor current iteration number, and log the current time,
+           state, command, and sensors data. */
+        if (!engineOptions_->stepper.logInternalStepperSteps)
+        {
+            updateTelemetry();
+        }
+
+        return hresult_t::SUCCESS;
     }
 
     void EngineMultiRobot::stop(void)
@@ -1350,9 +1365,11 @@ namespace jiminy
             system.robotLock.reset(nullptr);
         }
 
-        /* Reset the telemetry. Note that calling ``stop` or `reset` does NOT clear
-           the internal data buffer of telemetryRecorder_. Clearing is done at init
-           time, so that it remains accessible until the next initialization. */
+        /* Reset the telemetry.
+           Note that calling ``stop` or  `reset` does NOT clear
+           the internal data buffer of telemetryRecorder_.
+           Clearing is done at init time, so that it remains
+           accessible until the next initialization. */
         telemetryRecorder_->reset();
         telemetryData_->reset();
 
