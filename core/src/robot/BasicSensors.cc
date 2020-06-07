@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "pinocchio/spatial/explog.hpp"
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
 
@@ -24,7 +25,8 @@ namespace jiminy
     ImuSensor::ImuSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
-    frameIdx_(0)
+    frameIdx_(0),
+    sensorRotationBias_()
     {
         // Empty.
     }
@@ -54,6 +56,29 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t ImuSensor::setOptions(configHolder_t const & sensorOptions)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Check that bias / std is of the correct size
+        vectorN_t const & bias = boost::get<vectorN_t>(sensorOptions.at("bias"));
+        vectorN_t const & noiseStd = boost::get<vectorN_t>(sensorOptions.at("noiseStd"));
+        if ((bias.size() && bias.size() != 9) || (noiseStd.size() && noiseStd.size() != 9))
+        {
+            std::cout << "Error - ImuSensor::refreshProxies - Wrong bias or std vector size. Bias vector should contain 9 coordinates:\n"\
+                            "  - the first three are the angle-axis representation of a rotation bias applied to all sensor signal.\n"\
+                            "  - the next six are respectively gyroscope and accelerometer additive bias." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
+        }
+
+        return returnCode;
+    }
+
     hresult_t ImuSensor::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -76,6 +101,19 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (baseSensorOptions_->bias.size())
+            {
+                // Convert first three components of bias to quaternion
+                sensorRotationBias_ = quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()));
+            }
+            else
+            {
+                sensorRotationBias_ = quaternion_t(0.0, 0.0, 0.0, 1.0);
+            }
         }
 
         return returnCode;
@@ -102,25 +140,62 @@ namespace jiminy
             std::cout << "Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
         }
-        // Compute quaternion.
+
+        // Compute quaternion
         matrix3_t const & rot = robot_->pncData_.oMf[frameIdx_].rotation();
         quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
         data().head<4>() = quat.coeffs(); // (x,y,z,w)
 
-        // Compute gyroscope signal.
+        // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(robot_->pncModel_, robot_->pncData_, frameIdx_);
         data().segment<3>(4) = velocity.angular();
 
-        // Compute accelerometer signal.
+        // Compute accelerometer signal
         pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(robot_->pncModel_, robot_->pncData_, frameIdx_);
-        // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity.
+
+        // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
         data().tail<3>() = acceleration.linear() +
                            velocity.angular().cross(velocity.linear()) -
                            quat.conjugate() * robot_->pncModel_.gravity.linear();
 
-
-
         return hresult_t::SUCCESS;
+    }
+
+    void ImuSensor::skewMeasurement(void)
+    {
+        // Add bias
+        if (baseSensorOptions_->bias.size())
+        {
+            // Accel + gyroscope: simply add additive bias
+            get().tail<6>() += baseSensorOptions_->bias.tail<6>();
+
+            // Quaternion: interpret bias as angle-axis representation of a
+            // sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b.
+            get().head<4>() = (quaternion_t(get().head<4>()) * sensorRotationBias_).coeffs();
+
+            // Apply the same bias to the accelerometer / gyroscope output.
+            get().segment<3>(4) = sensorRotationBias_.conjugate() * get().segment<3>(4);
+            get().tail<3>() = sensorRotationBias_.conjugate() * get().tail<3>();
+        }
+
+        // Add white noise
+        if (baseSensorOptions_->noiseStd.size())
+        {
+            /* Quaternion: interpret noise as a random rotation vector applied
+               as an extra bias to the right, i.e. w_R_sensor = w_R_imu R_noise.
+               Note that R_noise = exp3(gaussian(noiseStd)): this means the
+               rotation vector follows a gaussian probability law, but doesn't
+               say much in general about the rotation. However in practice we
+               expect the standard deviation to be small, and thus the
+               approximation to be valid. */
+            vector3_t const randAxis = randVectorNormal(baseSensorOptions_->noiseStd.head<3>());
+            get().head<4>() = (quaternion_t(get().head<4>()) *
+                               quaternion_t(pinocchio::exp3(randAxis))).coeffs();
+
+            // Accel + gyroscope: simply apply additive noise.
+            get().tail<6>() += randVectorNormal(baseSensorOptions_->noiseStd.tail<6>());
+        }
+
     }
 
     // ===================== ForceSensor =========================

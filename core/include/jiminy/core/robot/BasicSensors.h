@@ -20,6 +20,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & frameName);
 
+        virtual hresult_t setOptions(configHolder_t const & sensorOptions) final override;
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
@@ -31,10 +32,12 @@ namespace jiminy
                               Eigen::Ref<vectorN_t const> const & v,
                               Eigen::Ref<vectorN_t const> const & a,
                               vectorN_t                   const & uMotor) final override;
+        virtual void skewMeasurement(void) final override;
 
     private:
         std::string frameName_;
         int32_t frameIdx_;
+        quaternion_t sensorRotationBias_; ///< Sensor rotation bias.
     };
 
     class ForceSensor : public AbstractSensorTpl<ForceSensor>

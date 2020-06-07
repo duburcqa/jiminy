@@ -4,9 +4,10 @@ import unittest
 import numpy as np
 from scipy.linalg import expm
 from scipy.integrate import ode
+from scipy.interpolate import interp1d
 
 from jiminy_py import core as jiminy
-from pinocchio import Quaternion
+from pinocchio import Quaternion, log3, exp3
 from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
 from utilities import load_urdf_default, integrate_dynamics
@@ -37,7 +38,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         def computeCommand(t, q, v, sensor_data, u):
             u[:] = 0.0
 
-        # Dynamics: simulate a spring of stifness k
+        # Dynamics: simulate a spring of stiffness k
         k_spring = 500
         def internalDynamics(t, q, v, sensor_data, u):
             u[:] = - k_spring * q[:]
@@ -60,6 +61,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         x0 = np.array([0.1, 0.0])
         tf = 2.0
+
         # Run simulation
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
@@ -68,7 +70,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
-        # Analytical solution: a simple mass on a spring.
+        # Analytical solution: a simple mass on a spring
         pnc_model = self.robot.pinocchio_model_th
         I = pnc_model.inertias[1].mass * pnc_model.inertias[1].lever[2] ** 2
 
@@ -104,7 +106,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                              for s in self.robot.logfile_position_headers + \
                                       self.robot.logfile_velocity_headers], axis=-1)
 
-        # System dynamics: get length and inertia.
+        # System dynamics: get length and inertia
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
         g = self.robot.pinocchio_model.gravity.linear[2]
 
@@ -112,7 +114,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         def dynamics(t, x):
             return np.array([x[1], g / l * np.sin(x[0])])
 
-        # Integrate this non-linear dynamics.
+        # Integrate this non-linear dynamics
         x_rk_python = integrate_dynamics(time, x0, dynamics)
 
         # Compare the numerical and numerical integration of analytical model using scipy
@@ -137,7 +139,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                  solution of a (nonlinear) pendulum motion, we perform the
                  simulation in python, with the same integrator.
         """
-        # Add IMU.
+        # Add IMU
         imu_sensor = jiminy.ImuSensor("PendulumLink")
         self.robot.attach_sensor(imu_sensor)
         imu_sensor.initialize("PendulumLink")
@@ -153,17 +155,17 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine.simulate(tf, x0)
         log_data, _ = engine.get_log()
         time = log_data['Global.Time']
-        accel_jiminy = np.stack([
-            log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
+        quat_jiminy = np.stack([
+            log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
         ], axis=-1)
         gyro_jiminy = np.stack([
             log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
         ], axis=-1)
-        quat_jiminy = np.stack([
-            log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
+        accel_jiminy = np.stack([
+            log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
         ], axis=-1)
 
-        # System dynamics: get length and inertia.
+        # System dynamics: get length and inertia
         l = -self.robot.pinocchio_model_th.inertias[1].lever[2]
         g = self.robot.pinocchio_model.gravity.linear[2]
 
@@ -171,16 +173,16 @@ class SimulateSimplePendulum(unittest.TestCase):
         def dynamics(t, x):
             return np.stack([x[..., 1], g / l * np.sin(x[..., 0])], axis=-1)
 
-        # Integrate this non-linear dynamics.
+        # Integrate this non-linear dynamics
         x_rk_python = integrate_dynamics(time, x0, dynamics)
 
-        # Compute sensor acceleration, i.e. acceleration in polar coordinates.
+        # Compute sensor acceleration, i.e. acceleration in polar coordinates
         theta = x_rk_python[:, 0]
         dtheta = x_rk_python[:, 1]
 
-        # Acceleration: to resolve algebraic loop (current acceleration is funciton of
-        # input which itself is function of sensor signal, sensor data is computed using
-        # q_t, v_t, a_(t-1)
+        # Acceleration: to resolve algebraic loop (current acceleration is
+        # function of input which itself is function of sensor signal, sensor
+        # data is computed using q_t, v_t, a_(t-1)
         ddtheta = np.concatenate((np.zeros(1), dynamics(0.0, x_rk_python)[:-1, 1]))
 
         expected_accel = np.stack([- l * ddtheta + g * np.sin(theta),
@@ -195,10 +197,155 @@ class SimulateSimplePendulum(unittest.TestCase):
             for t in theta
         ], axis=0)
 
-        # Compare sensor signal, ignoring first iterations that correspond to system initialization.
-        self.assertTrue(np.allclose(expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
-        self.assertTrue(np.allclose(expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
+        # Compare sensor signal, ignoring first iterations that correspond to system initialization
         self.assertTrue(np.allclose(expected_quat[2:, :], quat_jiminy[2:, :], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_gyro[2:, :], gyro_jiminy[2:, :], atol=TOLERANCE))
+        self.assertTrue(np.allclose(expected_accel[2:, :], accel_jiminy[2:, :], atol=TOLERANCE))
+
+    def test_sensor_delay(self):
+        """
+        @brief   Test sensor delay for an IMU sensor on a simple pendulum.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        # Configure the engine: No gravity + Continuous time simulation
+        engine_options = engine.get_options()
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
+        engine.set_options(engine_options)
+
+        x0 = np.array([0.1, 0.0])
+        tf = 2.0
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 0
+        imu_options['delay'] = 0.0
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        time = log_data['Global.Time']
+        imu_jiminy = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+        imu_jiminy_shifted_0 = interp1d(
+            time, imu_jiminy, kind='zero',
+            bounds_error=False, fill_value=imu_jiminy[0], axis=0
+        )(time - 1.0e-2)
+        imu_jiminy_shifted_1 = interp1d(
+            time, imu_jiminy,
+            kind='linear', bounds_error=False, fill_value=imu_jiminy[0], axis=0
+        )(time - 1.0e-2)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 0
+        imu_options['delay'] = 1.0e-2
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        imu_jiminy_delayed_0 = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['delayInterpolationOrder'] = 1
+        imu_options['delay'] = 1.0e-2
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        imu_jiminy_delayed_1 = np.stack([
+            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        ], axis=-1)
+
+        # Compare sensor signals
+        self.assertTrue(np.mean(imu_jiminy_delayed_0 - imu_jiminy_shifted_0) < 1.0e-5)
+        self.assertTrue(np.allclose(imu_jiminy_delayed_1, imu_jiminy_shifted_1, atol=TOLERANCE))
+
+    def test_sensor_noise_bias(self):
+        """
+        @brief   Test sensor noise and bias for an IMU sensor on a simple pendulum in static pose.
+        """
+        # Add IMU.
+        imu_sensor = jiminy.ImuSensor("PendulumLink")
+        self.robot.attach_sensor(imu_sensor)
+        imu_sensor.initialize("PendulumLink")
+
+        # Create an engine: no controller and no internal dynamics
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        x0 = np.array([0.0, 0.0])
+        tf = 200.0
+
+        # Configure the engine: No gravity
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine.set_options(engine_options)
+
+        # Configure the IMU
+        imu_options = imu_sensor.get_options()
+        imu_options['noiseStd'] = np.linspace(0.0, 0.2, 9)
+        imu_options['bias'] = np.linspace(0.0, 1.0, 9)
+        imu_sensor.set_options(imu_options)
+
+        # Run simulation
+        engine.simulate(tf, x0)
+        log_data, _ = engine.get_log()
+        quat_jiminy = np.stack([
+            log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
+        ], axis=-1)
+        gyro_jiminy = np.stack([
+            log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
+        ], axis=-1)
+        accel_jiminy = np.stack([
+            log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
+        ], axis=-1)
+
+        # Convert quaternion to a rotation vector.
+        quat_axis = np.stack([log3(Quaternion(q[:, np.newaxis]).matrix())
+                              for q in quat_jiminy], axis=0)
+
+        # Estimate the quaternion noise and bias
+        # Because the IMU rotation is identity, the resulting rotation will
+        # simply be R_b R_noise. Since R_noise is a small rotation, we can
+        # consider that the resulting rotation is simply the rotation resulting
+        # from the sum of the rotation vector (this is only true at the first
+        # order) and thus directly recover the unbiased sensor data.
+        quat_axis_bias = np.mean(quat_axis, axis=0)
+        quat_axis_std = np.std(quat_axis, axis=0)
+
+        # Remove sensor rotation bias from gyro / accel data
+        quat_rot_bias = exp3(quat_axis_bias)
+        gyro_jiminy = np.vstack([quat_rot_bias @ v for v in gyro_jiminy])
+        accel_jiminy = np.vstack([quat_rot_bias @ v for v in accel_jiminy])
+
+        # Estimate the gyroscope and accelerometer noise and bias
+        gyro_std = np.std(gyro_jiminy, axis=0)
+        gyro_bias = np.mean(gyro_jiminy, axis=0)
+        accel_std = np.std(accel_jiminy, axis=0)
+        accel_bias = np.mean(accel_jiminy, axis=0)
+
+        # Compare estimated sensor noise and bias with the configuration
+        self.assertTrue(np.allclose(imu_options['noiseStd'][:3], quat_axis_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['bias'][:3], quat_axis_bias, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['noiseStd'][3:-3], gyro_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['bias'][3:-3], gyro_bias, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['noiseStd'][-3:], accel_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['bias'][-3:], accel_bias, atol=1.0e-2))
 
     def test_pendulum_force_impulse(self):
         """
