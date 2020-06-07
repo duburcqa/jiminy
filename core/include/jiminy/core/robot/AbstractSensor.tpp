@@ -152,9 +152,16 @@ namespace jiminy
     template <typename T>
     hresult_t AbstractSensorTpl<T>::setOptions(configHolder_t const & sensorOptions)
     {
-        AbstractSensorBase::setOptions(sensorOptions);
-        sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
-        return hresult_t::SUCCESS;
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        returnCode = AbstractSensorBase::setOptions(sensorOptions);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_, baseSensorOptions_->delay);
+        }
+
+        return returnCode;
     }
 
     template <typename T>

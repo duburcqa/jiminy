@@ -180,9 +180,9 @@ class SimulateSimplePendulum(unittest.TestCase):
         theta = x_rk_python[:, 0]
         dtheta = x_rk_python[:, 1]
 
-        # Acceleration: to resolve algebraic loop (current acceleration is funciton of
-        # input which itself is function of sensor signal, sensor data is computed using
-        # q_t, v_t, a_(t-1)
+        # Acceleration: to resolve algebraic loop (current acceleration is
+        # function of input which itself is function of sensor signal, sensor
+        # data is computed using q_t, v_t, a_(t-1)
         ddtheta = np.concatenate((np.zeros(1), dynamics(0.0, x_rk_python)[:-1, 1]))
 
         expected_accel = np.stack([- l * ddtheta + g * np.sin(theta),
@@ -316,29 +316,32 @@ class SimulateSimplePendulum(unittest.TestCase):
         ], axis=-1)
 
         # Convert quaternion to a rotation vector.
-        rot_vector = np.stack([log3(Quaternion(q).matrix())
-                             for q in quat_jiminy], axis=0)
+        quat_axis = np.stack([log3(Quaternion(q).matrix())
+                              for q in quat_jiminy], axis=0)
 
-        # Remove sensor rotation bias from gyro / accel data.
-        Rb = exp3(imu_options['bias'][:3])
-        gyro_jiminy = np.vstack([Rb @ v for v in gyro_jiminy])
-        accel_jiminy = np.vstack([Rb @ v for v in accel_jiminy])
+        # Estimate the quaternion noise and bias
+        # Because the IMU rotation is identity, the resulting rotation will
+        # simply be R_b R_noise. Since R_noise is a small rotation, we can
+        # consider that the resulting rotation is simply the rotation resulting
+        # from the sum of the rotation vector (this is only true at the first
+        # order) and thus directly recover the unbiased sensor data.
+        quat_axis_bias = np.mean(quat_axis, axis=0)
+        quat_axis_std = np.std(quat_axis, axis=0)
 
-        # Estimate the sensor noise and bias
-        # Because the IMU rotation is identityy, the resulting rotation will simply be R_b R_noise.
-        # Since R_noise is a small rotation, we can consider that the resulting rotation is simply
-        # the rotation resulting from the sum of the rotation vector (this is only true at the first order)
-        # and thus directly compare mean and standard deviation like for additive noise elsewhere.
-        quat_bias = np.mean(rot_vector, axis=0)
-        quat_std = np.std(rot_vector, axis=0)
+        # Remove sensor rotation bias from gyro / accel data
+        quat_rot_bias = exp3(quat_axis_bias)
+        gyro_jiminy = np.vstack([quat_rot_bias @ v for v in gyro_jiminy])
+        accel_jiminy = np.vstack([quat_rot_bias @ v for v in accel_jiminy])
+
+        # Estimate the gyroscope and accelerometer noise and bias
         gyro_std = np.std(gyro_jiminy, axis=0)
         gyro_bias = np.mean(gyro_jiminy, axis=0)
         accel_std = np.std(accel_jiminy, axis=0)
         accel_bias = np.mean(accel_jiminy, axis=0)
 
         # Compare estimated sensor noise and bias with the configuration
-        self.assertTrue(np.allclose(imu_options['noiseStd'][:3], quat_std, atol=1.0e-2))
-        self.assertTrue(np.allclose(imu_options['bias'][:3], quat_bias, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['noiseStd'][:3], quat_axis_std, atol=1.0e-2))
+        self.assertTrue(np.allclose(imu_options['bias'][:3], quat_axis_bias, atol=1.0e-2))
         self.assertTrue(np.allclose(imu_options['noiseStd'][3:-3], gyro_std, atol=1.0e-2))
         self.assertTrue(np.allclose(imu_options['bias'][3:-3], gyro_bias, atol=1.0e-2))
         self.assertTrue(np.allclose(imu_options['noiseStd'][-3:], accel_std, atol=1.0e-2))

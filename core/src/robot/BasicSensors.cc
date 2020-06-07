@@ -56,6 +56,29 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t ImuSensor::setOptions(configHolder_t const & sensorOptions)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Check that bias / std is of the correct size
+        vectorN_t const & bias = boost::get<vectorN_t>(sensorOptions.at("bias"));
+        vectorN_t const & noiseStd = boost::get<vectorN_t>(sensorOptions.at("noiseStd"));
+        if ((bias.size() && bias.size() != 9) || (noiseStd.size() && noiseStd.size() != 9))
+        {
+            std::cout << "Error - ImuSensor::refreshProxies - Wrong bias or std vector size. Bias vector should contain 9 coordinates:\n"\
+                            "  - the first three are the angle-axis representation of a rotation bias applied to all sensor signal.\n"\
+                            "  - the next six are respectively gyroscope and accelerometer additive bias." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = AbstractSensorTpl<ImuSensor>::setOptions(sensorOptions);
+        }
+
+        return returnCode;
+    }
+
     hresult_t ImuSensor::refreshProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -82,33 +105,14 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            sensorRotationBias_ = quaternion_t(0.0, 0.0, 0.0, 1.0);
-
-            // Check that bias / noise is of the correct size
             if (baseSensorOptions_->bias.size())
             {
-                if (baseSensorOptions_->bias.size() != 9)
-                {
-                    std::cout << "Error - ImuSensor::refreshProxies - Wrong bias vector size. Bias vector should contain 9 coordinates: " << std::endl;
-                    std::cout << "\t- the first three are the angle-axis representation of a rotation bias applied to all sensor signal." << std::endl;
-                    std::cout << "\t- the next six are respecitvely gyroscope and accelerometer additive bias." << std::endl;
-                    returnCode = hresult_t::ERROR_INIT_FAILED;
-                }
-                else
-                {
-                    // Convert first three components of bias to quaternion.
-                    sensorRotationBias_ = quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()));
-                }
+                // Convert first three components of bias to quaternion
+                sensorRotationBias_ = quaternion_t(pinocchio::exp3(baseSensorOptions_->bias.head<3>()));
             }
-            if (baseSensorOptions_->noiseStd.size())
+            else
             {
-                if (baseSensorOptions_->noiseStd.size() != 9)
-                {
-                    std::cout << "Error - ImuSensor::refreshProxies - Wrong noise vector size. Noise vector should contain 9 coordinates: " << std::endl;
-                    std::cout << "\t- the first three are used to generate a random rotation vector for the quaternion." << std::endl;
-                    std::cout << "\t- the next six are respecitvely gyroscope and accelerometer additive bias." << std::endl;
-                    returnCode = hresult_t::ERROR_INIT_FAILED;
-                }
+                sensorRotationBias_ = quaternion_t(0.0, 0.0, 0.0, 1.0);
             }
         }
 
@@ -162,15 +166,16 @@ namespace jiminy
         // Add bias
         if (baseSensorOptions_->bias.size())
         {
-            // Accel + gyroscope: simply add additive bias.
+            // Accel + gyroscope: simply add additive bias
             get().tail<6>() += baseSensorOptions_->bias.tail<6>();
-            // Quaternion: interpret bias as angle-axis representation of a sensor rotation bias R_b,
-            // such that w_R_sensor = w_R_imu R_b.
+
+            // Quaternion: interpret bias as angle-axis representation of a
+            // sensor rotation bias R_b, such that w_R_sensor = w_R_imu R_b.
             get().head<4>() = (quaternion_t(get().head<4>()) * sensorRotationBias_).coeffs();
 
             // Apply the same bias to the accelerometer / gyroscope output.
             get().segment<3>(4) = sensorRotationBias_.conjugate() * get().segment<3>(4);
-            get().tail<3>() = sensorRotationBias_.conjugate() *get().tail<3>();
+            get().tail<3>() = sensorRotationBias_.conjugate() * get().tail<3>();
         }
 
         // Add white noise

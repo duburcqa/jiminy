@@ -20,6 +20,7 @@ namespace jiminy
 
         hresult_t initialize(std::string const & frameName);
 
+        virtual hresult_t setOptions(configHolder_t const & sensorOptions) final override;
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getFrameName(void) const;
