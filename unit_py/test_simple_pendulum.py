@@ -316,7 +316,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         ], axis=-1)
 
         # Convert quaternion to a rotation vector.
-        quat_axis = np.stack([log3(Quaternion(q).matrix())
+        quat_axis = np.stack([log3(Quaternion(q[:, np.newaxis]).matrix())
                               for q in quat_jiminy], axis=0)
 
         # Estimate the quaternion noise and bias
