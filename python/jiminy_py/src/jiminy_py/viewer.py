@@ -354,12 +354,12 @@ class Viewer:
             # Get the existing Gepetto client
             client = gepetto_client()
             # Try to fetch the list of scenes to make sure that the Gepetto client is responding
-            client.getSceneList()
+            client.gui.getSceneList()
             return client, None
         except:
             try:
                 client = gepetto_client()
-                client.getSceneList()
+                client.gui.getSceneList()
                 return client, None
             except:
                 if (create_if_needed):
