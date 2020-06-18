@@ -59,7 +59,11 @@ class RobotJiminyEnv(core.Env):
         'render.modes': ['human']
     }
 
-    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float, debug : bool = False):
+    def __init__(self,
+                 robot_name : str,
+                 engine_py : EngineAsynchronous,
+                 dt : float,
+                 debug : bool = False):
         """
         @brief      Constructor
 
@@ -79,10 +83,9 @@ class RobotJiminyEnv(core.Env):
 
         ## Jiminy engine associated with the robot (used for physics computations)
         self.engine_py = engine_py
-        self.robot = engine_py.robot
-
-        ## Update period of the simulation
+        self.seed = None
         self.dt = dt
+        self.debug = debug
 
         ## Configure the action and observation spaces
         self.action_space = None
@@ -106,9 +109,9 @@ class RobotJiminyEnv(core.Env):
 
         # Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
-            robot_options["telemetry"][field] = debug
+            robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
-            engine_options["telemetry"][field] = debug
+            engine_options["telemetry"][field] = self.debug
 
         # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
@@ -124,7 +127,7 @@ class RobotJiminyEnv(core.Env):
         engine_options["stepper"]["dtMax"] = self.dt
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
-        engine_options["stepper"]["logInternalStepperSteps"] = debug
+        engine_options["stepper"]["logInternalStepperSteps"] = self.debug
 
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
@@ -135,9 +138,17 @@ class RobotJiminyEnv(core.Env):
         self.seed()
         self.reset()
 
+    @property
+    def robot(self):
+        return self.engine_py.robot
+
+    @property
+    def engine(self):
+        return self.engine_py.engine
+
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-        sensor_data = self.robot.sensors_data
+        sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
@@ -183,7 +194,7 @@ class RobotJiminyEnv(core.Env):
                             for key, value in self.robot.sensors_data.items()}
 
         # Replace inf bounds by the appropriate universal bound for the Encoder sensors
-        if enc.type in sensor_data.keys():
+        if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
@@ -195,7 +206,7 @@ class RobotJiminyEnv(core.Env):
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
-        if effort.type in sensor_data.keys():
+        if effort.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(effort.type, sensor_name).idx
@@ -204,12 +215,12 @@ class RobotJiminyEnv(core.Env):
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = action_high[motor_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Force sensors
-        if force.type in sensor_data.keys():
+        if force.type in sensors_data.keys():
             sensor_space_raw[force.type]['min'][:, :] = -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[force.type]['max'][:, :] = +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds by the appropriate universal bound for the IMU sensors
-        if imu.type in sensor_data.keys():
+        if imu.type in sensors_data.keys():
             quat_imu_indices = ['Quat' in field for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][quat_imu_indices, :] = -1.0
             sensor_space_raw[imu.type]['max'][quat_imu_indices, :] = 1.0
@@ -248,7 +259,7 @@ class RobotJiminyEnv(core.Env):
         """
         q0 = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
-            ground_fun = self.engine_py._engine.get_options()['world']['groundProfile']
+            ground_fun = self.engine.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
                 self.robot, q0, ground_profile=ground_fun, use_theoretical_model=False)
         v0 = np.zeros(self.robot.nv)
@@ -265,7 +276,7 @@ class RobotJiminyEnv(core.Env):
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
-        obs['sensors'] = self.engine_py.sensor_data
+        obs['sensors'] = self.engine_py.sensors_data
 
     def _is_done(self):
         """
@@ -304,16 +315,17 @@ class RobotJiminyEnv(core.Env):
         @return     Updated seed of the environment
         """
         # Generate a 8 bytes (uint64) seed using gym utils
-        self.rg, seed = seeding.np_random(seed)
+        self.rg, self.seed = seeding.np_random(seed)
 
         # Convert it into a 4 bytes uint32 seed.
         # Note that hashing is used to get rid off possible
         # correlation in the presence of concurrency.
-        seed = np.uint32(seeding._int_list_from_bigint(seeding.hash_seed(seed))[0])
+        self.seed = np.uint32(
+            seeding._int_list_from_bigint(seeding.hash_seed(self.seed))[0])
 
         # Reset the seed of Jiminy Engine
-        self.engine_py.seed(seed)
-        return [seed]
+        self.engine_py.seed(self.seed)
+        return [self.seed]
 
     def reset(self):
         """

@@ -7,6 +7,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 #include "pinocchio/algorithm/kinematics.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/center-of-mass.hpp"
 
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
@@ -63,6 +64,17 @@ namespace jiminy
             // Backup the original model and data
             pncModelRigidOrig_ = pncModel_;
             pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
+
+            // Initialize Pinocchio data internal state, including
+            // stuffs as simple as the mass of the bodies.
+            pinocchio::forwardKinematics(pncModelRigidOrig_,
+                                         pncDataRigidOrig_,
+                                         pinocchio::neutral(pncModelRigidOrig_),
+                                         vectorN_t::Zero(pncModelRigidOrig_.nv));
+            pinocchio::updateFramePlacements(pncModelRigidOrig_, pncDataRigidOrig_);
+            pinocchio::centerOfMass(pncModelRigidOrig_,
+                                    pncDataRigidOrig_,
+                                    pinocchio::neutral(pncModelRigidOrig_));
 
             /* Get the list of joint names of the rigid model and
                remove the 'universe' and 'root' if any, since they
@@ -302,6 +314,8 @@ namespace jiminy
                                          pinocchio::neutral(pncModel_),
                                          vectorN_t::Zero(pncModel_.nv));
             pinocchio::updateFramePlacements(pncModel_, pncData_);
+            pinocchio::centerOfMass(pncModel_, pncData_,
+                                    pinocchio::neutral(pncModel_));
         }
 
         if (returnCode == hresult_t::SUCCESS)
