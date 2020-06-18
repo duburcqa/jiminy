@@ -53,7 +53,7 @@ class EngineAsynchronous:
         self._sensors_types = robot.get_sensors_options().keys()
         self._t = -1
         self._state = None
-        self._sensor_data = None
+        self._sensors_data = None
         self._action = np.zeros((robot.nmotors,))
 
         # Instantiate the Jiminy controller if necessary, then initialize it
@@ -79,7 +79,7 @@ class EngineAsynchronous:
         v0 = np.zeros(robot.nv)
         self.reset(np.concatenate((q0, v0)), is_state_theoretical=False)
 
-    def _send_command(self, t, q, v, sensor_data, uCommand):
+    def _send_command(self, t, q, v, sensors_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the command. In practice, it only updates a
@@ -90,10 +90,10 @@ class EngineAsynchronous:
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        self._sensor_data = sensor_data
+        self._sensors_data = sensors_data
         uCommand[:] = self._action
 
-    def _internal_dynamics(self, t, q, v, sensor_data, uCommand):
+    def _internal_dynamics(self, t, q, v, sensors_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the internal dynamics. In practice, it does
@@ -161,7 +161,7 @@ class EngineAsynchronous:
         # Reset the flags
         self._t = 0.0
         self._state = x0_rigid if self.use_theoretical_model else x0
-        self._sensor_data = self.robot.sensors_data
+        self._sensors_data = self.robot.sensors_data
         self._action[:] = 0.0
         self.step_dt_prev = -1
 
@@ -276,13 +276,13 @@ class EngineAsynchronous:
         return self._state
 
     @property
-    def sensor_data(self):
+    def sensors_data(self):
         """
         @brief      Getter of the current sensor data of the robot.
 
         @return     Sensor data of the robot
         """
-        return self._sensor_data
+        return self._sensors_data
 
     @property
     def action(self):

@@ -41,10 +41,10 @@ class SimulateMultiRobot(unittest.TestCase):
                 self.k = k
                 self.nu = nu
 
-            def compute_command(self, t, q, v, sensor_data, u):
+            def compute_command(self, t, q, v, sensors_data, u):
                 u[:] = 0
 
-            def internal_dynamics(self, t, q, v, sensor_data, u):
+            def internal_dynamics(self, t, q, v, sensors_data, u):
                 u[:] = - self.k * q - self.nu * v
 
         # Define initial state (for both systems) and simulation duration

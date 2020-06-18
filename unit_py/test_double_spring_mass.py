@@ -52,10 +52,10 @@ class SimulateTwoMasses(unittest.TestCase):
         """
         @brief Test simulation of this system using a continuous time controller.
         """
-        def compute_command(t, q, v, sensor_data, u):
+        def compute_command(t, q, v, sensors_data, u):
             u[:] = - self.k * q - self.nu * v
 
-        def internal_dynamics(t, q, v, sensor_data, u):
+        def internal_dynamics(t, q, v, sensors_data, u):
             u[:] = 0.0
 
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
@@ -89,10 +89,10 @@ class SimulateTwoMasses(unittest.TestCase):
         @brief Test simulation of this system using internal dynamics using a
                discrete time controller.
         """
-        def compute_command(t, q, v, sensor_data, u):
+        def compute_command(t, q, v, sensors_data, u):
             u[:] = 0.0
 
-        def internal_dynamics(t, q, v, sensor_data, u):
+        def internal_dynamics(t, q, v, sensors_data, u):
             u[:] = - self.k * q - self.nu * v
 
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
@@ -126,10 +126,10 @@ class SimulateTwoMasses(unittest.TestCase):
         @brief Test adding an external force profile function to the system.
         """
         # Set same springs as usual
-        def compute_command(t, q, v, sensor_data, u):
+        def compute_command(t, q, v, sensors_data, u):
             u[:] = 0.0
 
-        def internal_dynamics(t, q, v, sensor_data, u):
+        def internal_dynamics(t, q, v, sensors_data, u):
             u[:] = - self.k * q - self.nu * v
 
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
@@ -166,10 +166,10 @@ class SimulateTwoMasses(unittest.TestCase):
         @brief Test kinematic constraint: fixed second mass with a constaint.
         """
         # Set same spings as usual
-        def compute_command(t, q, v, sensor_data, u):
+        def compute_command(t, q, v, sensors_data, u):
             u[:] = 0.0
 
-        def internal_dynamics(t, q, v, sensor_data, u):
+        def internal_dynamics(t, q, v, sensors_data, u):
             u[:] = - self.k * q - self.nu * v
 
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
@@ -212,10 +212,10 @@ class SimulateTwoMasses(unittest.TestCase):
         self.robot = load_urdf_default(self.urdf_path, self.motor_names, has_freeflyer = True)
 
         # Set same spings as usual
-        def compute_command(t, q, v, sensor_data, u):
+        def compute_command(t, q, v, sensors_data, u):
             u[:] = 0.0
 
-        def internal_dynamics(t, q, v, sensor_data, u):
+        def internal_dynamics(t, q, v, sensors_data, u):
             u[6:] = - self.k * q[7:] - self.nu * v[6:]
 
         controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
@@ -296,10 +296,10 @@ class SimulateTwoMasses(unittest.TestCase):
                 self.k = k
                 self.nu = nu
 
-            def compute_command(self, t, q, v, sensor_data, u):
+            def compute_command(self, t, q, v, sensors_data, u):
                 u[:] = 0
 
-            def internal_dynamics(self, t, q, v, sensor_data, u):
+            def internal_dynamics(self, t, q, v, sensors_data, u):
                 u[6:] = - self.k * q[7:] - self.nu * v[6:]
 
         for i in range(2):

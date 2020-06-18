@@ -137,7 +137,7 @@ class RobotJiminyEnv(core.Env):
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-        sensor_data = self.robot.sensors_data
+        sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
@@ -183,7 +183,7 @@ class RobotJiminyEnv(core.Env):
                             for key, value in self.robot.sensors_data.items()}
 
         # Replace inf bounds by the appropriate universal bound for the Encoder sensors
-        if enc.type in sensor_data.keys():
+        if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
@@ -195,7 +195,7 @@ class RobotJiminyEnv(core.Env):
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
-        if effort.type in sensor_data.keys():
+        if effort.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor_idx = self.robot.get_sensor(effort.type, sensor_name).idx
@@ -204,12 +204,12 @@ class RobotJiminyEnv(core.Env):
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = action_high[motor_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Force sensors
-        if force.type in sensor_data.keys():
+        if force.type in sensors_data.keys():
             sensor_space_raw[force.type]['min'][:, :] = -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[force.type]['max'][:, :] = +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds by the appropriate universal bound for the IMU sensors
-        if imu.type in sensor_data.keys():
+        if imu.type in sensors_data.keys():
             quat_imu_indices = ['Quat' in field for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][quat_imu_indices, :] = -1.0
             sensor_space_raw[imu.type]['max'][quat_imu_indices, :] = 1.0
@@ -265,7 +265,7 @@ class RobotJiminyEnv(core.Env):
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
-        obs['sensors'] = self.engine_py.sensor_data
+        obs['sensors'] = self.engine_py.sensors_data
 
     def _is_done(self):
         """

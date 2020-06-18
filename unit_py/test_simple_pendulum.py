@@ -35,12 +35,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         @brief Verify the dynamics of the system when adding  rotor inertia.
         """
         # No controller
-        def computeCommand(t, q, v, sensor_data, u):
+        def computeCommand(t, q, v, sensors_data, u):
             u[:] = 0.0
 
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500
-        def internalDynamics(t, q, v, sensor_data, u):
+        def internalDynamics(t, q, v, sensors_data, u):
             u[:] = - k_spring * q[:]
 
         controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
@@ -479,10 +479,10 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Controller: PD controller on motor.
         k_control = 100.0
         nu_control = 1.0
-        def computeCommand(t, q, v, sensor_data, u):
+        def computeCommand(t, q, v, sensors_data, u):
             u[:] = -k_control * q[4] - nu_control * v[3]
 
-        def internalDynamics(t, q, v, sensor_data, u):
+        def internalDynamics(t, q, v, sensors_data, u):
             u[:] = 0.0
 
         # Physical parameters: rotor inertia, spring stiffness and damping.
@@ -573,12 +573,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         self.robot.set_motors_options(motor_options)
 
         # No controller
-        def computeCommand(t, q, v, sensor_data, u):
+        def computeCommand(t, q, v, sensors_data, u):
             u[:] = 0.0
 
         # Dynamics: simulate a spring of stifness k
         k_spring = 500
-        def internalDynamics(t, q, v, sensor_data, u):
+        def internalDynamics(t, q, v, sensors_data, u):
             u[:] = - k_spring * q[:]
 
         controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)

@@ -163,7 +163,7 @@ u_1 = 0.0
 qi = np.zeros((robot.nq, ))
 dqi = np.zeros((robot.nv, ))
 ddqi = np.zeros((robot.nv, ))
-def updateState(robot, q, v, sensor_data):
+def updateState(robot, q, v, sensors_data):
     # Get dcm from current state
     pin.forwardKinematics(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
     comOut = pin.centerOfMass(robot.pinocchio_model_th, robot.pinocchio_data_th, q, v)
@@ -171,7 +171,7 @@ def updateState(robot, q, v, sensor_data):
     dcmOut = comOut + vcomOut / omega
 
     # Create zmp from forces
-    forces = np.asarray(sensor_data[ForceSensor.type])
+    forces = np.asarray(sensors_data[ForceSensor.type])
     newWrench = pin.Force.Zero()
     for i,name in enumerate(contact_points):
         update_frame(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
@@ -187,7 +187,7 @@ def updateState(robot, q, v, sensor_data):
 
     return comOut, vcomOut, dcmOut, zmpOut, totalWrenchOut
 
-def computeCommand(t, q, v, sensor_data, u):
+def computeCommand(t, q, v, sensors_data, u):
     global com, dcm, zmp, zmp_cmd, totalWrench, qi, dqi, ddqi, t_1, u_1, integral_
 
     # Get trajectory
@@ -202,9 +202,9 @@ def computeCommand(t, q, v, sensor_data, u):
     d = c + vc / omega
 
     # Update state
-    com, vcom, dcm, zmp, totalWrench = updateState(robot, q, v, sensor_data)
+    com, vcom, dcm, zmp, totalWrench = updateState(robot, q, v, sensors_data)
     comTarget, vcomTarget, dcmTarget, zmpTarget, totalWrenchTarget = \
-        updateState(robot, qi, dqi, sensor_data)
+        updateState(robot, qi, dqi, sensors_data)
 
     # Update logs (only the value stored by the registered variables using [:])
     dcm_log[:] = dcm
@@ -268,7 +268,7 @@ def computeCommand(t, q, v, sensor_data, u):
     zmp_cmd_log[:] = zmp_cmd
     state_target_log[0], state_target_log[1] = qi[iPos], dqi[iVel]
 
-def internalDynamics(t, q, v, sensor_data, u):
+def internalDynamics(t, q, v, sensors_data, u):
     pass
 
 
