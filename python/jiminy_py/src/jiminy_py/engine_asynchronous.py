@@ -34,7 +34,7 @@ class EngineAsynchronous:
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, robot, controller=None, use_theoretical_model=False, viewer_backend=None):
+    def __init__(self, robot, controller=None, engine=None, use_theoretical_model=False, viewer_backend=None):
         """
         @brief      Constructor
 
@@ -49,11 +49,10 @@ class EngineAsynchronous:
         self.use_theoretical_model = use_theoretical_model
         self.viewer_backend = viewer_backend
 
-        # Make sure that the sensors have already been added to the robot !
-        self._sensors_types = robot.get_sensors_options().keys()
+        # Initialize some internal buffers
         self._t = -1
         self._state = None
-        self._sensor_data = None
+        self._sensors_data = None
         self._action = np.zeros((robot.nmotors,))
 
         # Instantiate the Jiminy controller if necessary, then initialize it
@@ -64,8 +63,11 @@ class EngineAsynchronous:
         self._controller.initialize(robot)
 
         # Instantiate the Jiminy engine
-        self._engine = jiminy.Engine()
-        self._engine.initialize(robot, self._controller)
+        if controller is None:
+            self.engine = jiminy.Engine()
+        else:
+            self.engine = engine
+        self.engine.initialize(robot, self._controller)
 
         ## Viewer management
         self._viewer = None
@@ -79,7 +81,7 @@ class EngineAsynchronous:
         v0 = np.zeros(robot.nv)
         self.reset(np.concatenate((q0, v0)), is_state_theoretical=False)
 
-    def _send_command(self, t, q, v, sensor_data, uCommand):
+    def _send_command(self, t, q, v, sensors_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the command. In practice, it only updates a
@@ -90,10 +92,10 @@ class EngineAsynchronous:
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        self._sensor_data = sensor_data
+        self._sensors_data = sensors_data
         uCommand[:] = self._action
 
-    def _internal_dynamics(self, t, q, v, sensor_data, uCommand):
+    def _internal_dynamics(self, t, q, v, sensors_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
                     Controller to get the internal dynamics. In practice, it does
@@ -116,10 +118,10 @@ class EngineAsynchronous:
         """
         assert isinstance(seed, np.uint32),  "'seed' must have type np.uint32."
 
-        engine_options = self._engine.get_options()
+        engine_options = self.engine.get_options()
         engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
-        self._engine.set_options(engine_options)
-        self._engine.reset()
+        self.engine.set_options(engine_options)
+        self.engine.reset()
 
     def reset(self, x0, is_state_theoretical=None):
         """
@@ -141,7 +143,7 @@ class EngineAsynchronous:
 
         # Reset the simulation. Do NOT start a new one at this point,
         # to avoid locking the robot and the telemetry too early.
-        self._engine.reset()
+        self.engine.reset()
 
         # Call update_quantities in order to the frame placement for rendering
         if is_state_theoretical:
@@ -161,7 +163,7 @@ class EngineAsynchronous:
         # Reset the flags
         self._t = 0.0
         self._state = x0_rigid if self.use_theoretical_model else x0
-        self._sensor_data = self.robot.sensors_data
+        self._sensors_data = self.robot.sensors_data
         self._action[:] = 0.0
         self.step_dt_prev = -1
 
@@ -179,21 +181,21 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
-        if (not self._engine.is_simulation_running):
-            flag = self._engine.start(self._state, self.use_theoretical_model)
+        if (not self.engine.is_simulation_running):
+            flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
                 raise ValueError("Failed to start the simulation.")
 
         if (action_next is not None):
             self.action = action_next
 
-        return_code = self._engine.step(dt_desired)
+        return_code = self.engine.step(dt_desired)
         if (return_code != jiminy.hresult_t.SUCCESS):
             raise ValueError("Failed to perform the simulation step.")
 
-        self._t = self._engine.stepper_state.t
+        self._t = self.engine.stepper_state.t
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
-        self.step_dt_prev = self._engine.stepper_state.dt
+        self.step_dt_prev = self.engine.stepper_state.dt
 
     def render(self, return_rgb_array=False):
         """
@@ -268,7 +270,7 @@ class EngineAsynchronous:
         @return     State of the robot
         """
         if (self._state is None):
-            x = self._engine.stepper_state.x
+            x = self.engine.stepper_state.x
             if self.robot.is_flexible and self.use_theoretical_model:
                 self._state = self.robot.get_rigid_state_from_flexible(x)
             else:
@@ -276,13 +278,13 @@ class EngineAsynchronous:
         return self._state
 
     @property
-    def sensor_data(self):
+    def sensors_data(self):
         """
         @brief      Getter of the current sensor data of the robot.
 
         @return     Sensor data of the robot
         """
-        return self._sensor_data
+        return self._sensors_data
 
     @property
     def action(self):
@@ -312,7 +314,7 @@ class EngineAsynchronous:
 
         @return     Dictionary of options.
         """
-        return self._engine.get_options()
+        return self.engine.get_options()
 
     def set_engine_options(self, options):
         """
@@ -320,7 +322,7 @@ class EngineAsynchronous:
 
         @param[in]  options     Dictionary of options
         """
-        self._engine.set_options(options)
+        self.engine.set_options(options)
 
     def get_controller_options(self):
         """

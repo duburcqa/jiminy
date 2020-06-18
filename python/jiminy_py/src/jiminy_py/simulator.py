@@ -98,13 +98,13 @@ class BasicSimulator(object):
         pass
 
 
-    def _compute_command_wrapper(self, t, q, v, sensor_data, u):
+    def _compute_command_wrapper(self, t, q, v, sensors_data, u):
         """
         @brief Internal controller callback, should not be called directly.
         """
         if self._pbar is not None:
             self._pbar.update(t - self._t_pbar)
-        self.controller_handle(t, q, v, sensor_data, u)
+        self.controller_handle(t, q, v, sensors_data, u)
         self._t_pbar = t
 
     def get_log(self):
