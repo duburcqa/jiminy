@@ -155,7 +155,7 @@ def get_body_world_transform(robot, body_name, use_theoretical_model=True):
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    return pnc_data.oMf[pnc_model.getFrameId(body_name)]
+    return pnc_data.oMf[pnc_model.getFrameId(body_name)].copy()
 
 def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
     """
