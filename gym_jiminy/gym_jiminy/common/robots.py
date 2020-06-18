@@ -83,7 +83,8 @@ class RobotJiminyEnv(core.Env):
 
         ## Jiminy engine associated with the robot (used for physics computations)
         self.engine_py = engine_py
-        self.seed = None
+        self.rg = np.random.RandomState()
+        self._seed = None
         self.dt = dt
         self.debug = debug
 
@@ -111,7 +112,8 @@ class RobotJiminyEnv(core.Env):
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
-            engine_options["telemetry"][field] = self.debug
+            if field[:6] == 'enable':
+                engine_options["telemetry"][field] = self.debug
 
         # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
@@ -315,17 +317,17 @@ class RobotJiminyEnv(core.Env):
         @return     Updated seed of the environment
         """
         # Generate a 8 bytes (uint64) seed using gym utils
-        self.rg, self.seed = seeding.np_random(seed)
+        self.rg, self._seed = seeding.np_random(seed)
 
         # Convert it into a 4 bytes uint32 seed.
         # Note that hashing is used to get rid off possible
         # correlation in the presence of concurrency.
-        self.seed = np.uint32(
-            seeding._int_list_from_bigint(seeding.hash_seed(self.seed))[0])
+        self._seed = np.uint32(
+            seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
 
         # Reset the seed of Jiminy Engine
-        self.engine_py.seed(self.seed)
-        return [self.seed]
+        self.engine_py.seed(self._seed)
+        return [self._seed]
 
     def reset(self):
         """
@@ -339,7 +341,7 @@ class RobotJiminyEnv(core.Env):
         self._refresh_learning_spaces()
         self.is_running = False
         self._steps_beyond_done = None
-        self.action_prev = 0 * self.action_space.sample()
+        self.action_prev = None
         self._update_observation(self.observation)
         return self.observation
 
@@ -357,7 +359,10 @@ class RobotJiminyEnv(core.Env):
         # Bypass 'self.engine_py.action' setter and use
         # direct assignment to max out the performances
         if action is None:
-            action = self.action_prev
+            if self.is_running:
+                action = self.action_prev
+            else:
+                ValueError("At least the first action of the episode must be specified.")
         self.engine_py._action[:] = action
         self.engine_py.step(dt_desired=self.dt)
         self.is_running = True
