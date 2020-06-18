@@ -136,7 +136,7 @@ def get_body_index_and_fixedness(robot, body_name, use_theoretical_model=True):
 
     return body_id, is_body_fixed
 
-def get_body_world_transform(robot, body_name, use_theoretical_model=True):
+def get_body_world_transform(robot, body_name, use_theoretical_model=True, copy=True):
     """
     @brief Get the transform from world frame to body frame for a given body.
 
@@ -155,7 +155,10 @@ def get_body_world_transform(robot, body_name, use_theoretical_model=True):
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    return pnc_data.oMf[pnc_model.getFrameId(body_name)].copy()
+    transform = pnc_data.oMf[pnc_model.getFrameId(body_name)]
+    if copy:
+        transform = transform.copy()
+    return transform
 
 def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
     """
@@ -341,7 +344,7 @@ def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acce
             robot, ground_profile, use_theoretical_model)
 
     ff_M_fixed_body = get_body_world_transform(
-        robot, fixed_body_name, use_theoretical_model)
+        robot, fixed_body_name, use_theoretical_model, copy=False)
 
     if ground_profile is not None:
         ground_translation = np.zeros(3)
