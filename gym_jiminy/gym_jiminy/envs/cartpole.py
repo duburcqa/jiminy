@@ -161,8 +161,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
-        return self.np_random.uniform(low=self.state_random_low,
-                                      high=self.state_random_high)
+        return self.rg.uniform(low=self.state_random_low,
+                               high=self.state_random_high)
 
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
@@ -209,4 +209,10 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                 action = self.AVAIL_FORCE[action]
 
         # Perform the step
-        return super().step(action)
+        obs, reward, done, info = super().step(action)
+
+        # Update success flag, since in this case success actually
+        # means never reaching terminal condition.
+        info['is_success'] = not done
+
+        return obs, reward, done, info

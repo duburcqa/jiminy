@@ -168,14 +168,14 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
-        return self.np_random.uniform(low=self.state_random_low,
-                                      high=self.state_random_high)
+        return self.rg.uniform(low=self.state_random_low,
+                               high=self.state_random_high)
 
     def _sample_goal(self):
         # @copydoc RobotJiminyGoalEnv::_sample_goal
-        return self.np_random.uniform(low=-0.20*self._tipPosZMax,
-                                      high=0.98*self._tipPosZMax,
-                                      size=(1,))
+        return self.rg.uniform(low=-0.20*self._tipPosZMax,
+                               high=0.98*self._tipPosZMax,
+                               size=(1,))
 
     def _get_achieved_goal(self):
         # @copydoc RobotJiminyGoalEnv::_get_achieved_goal
@@ -223,7 +223,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
             if not self.continuous:
                 action = self.AVAIL_TORQUE[action]
             if ACTION_NOISE > 0.0:
-                action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
+                action += self.rg.uniform(-ACTION_NOISE, ACTION_NOISE)
 
         # Perform the step
         return super().step(action)
