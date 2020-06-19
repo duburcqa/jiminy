@@ -103,27 +103,34 @@ class RobotJiminyEnv(core.Env):
         ## Number of simulation steps performed after having met the stopping criterion
         self._steps_beyond_done = None
 
-        # ######### Enforce some options by default for the robot and the engine #########
+        # ############################# Initialize the engine ############################
+
+        ## Set the seed of the simulation and reset the simulation
+        self.seed()
+        self.reset()
+
+    def _setup_environment(self):
+        # Enforce some options by default for the robot and the engine
 
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        # Disable completely the telemetry in non debug mode to speed up the simulation
+        ### Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
             if field[:6] == 'enable':
                 engine_options["telemetry"][field] = self.debug
 
-        # Set the position and velocity bounds of the robot
+        ### Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        # Set the effort limits of the motors
+        ### Set the effort limits of the motors
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        # Configure the stepper update period, and disable max number of iterations and timeout
+        ### Configure the stepper update period, and disable max number of iterations and timeout
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["dtMax"] = self.dt
@@ -131,22 +138,11 @@ class RobotJiminyEnv(core.Env):
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
 
+        ### Set the seed
+        engine_options["stepper"]["randomSeed"] = self._seed
+
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
-
-        # ############################# Initialize the engine ############################
-
-        ## Set the seed of the simulation and reset the simulation
-        self.seed()
-        self.reset()
-
-    @property
-    def robot(self):
-        return self.engine_py.robot
-
-    @property
-    def engine(self):
-        return self.engine_py.engine
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
@@ -325,8 +321,10 @@ class RobotJiminyEnv(core.Env):
         self._seed = np.uint32(
             seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
 
-        # Reset the seed of Jiminy Engine
-        self.engine_py.seed(self._seed)
+        # Reset the seed of Jiminy Engine, if available
+        if self.engine_py is not None:
+            self.engine_py.seed(self._seed)
+
         return [self._seed]
 
     def reset(self):
@@ -337,12 +335,21 @@ class RobotJiminyEnv(core.Env):
 
         @return     Initial state of the episode
         """
+        # Make sure the environment is properly setup
+        self._setup_environment()
+
+        # Reset the low-level engine
         self.engine_py.reset(self._sample_state())
+
+        # Refresh the observation and action spaces
         self._refresh_learning_spaces()
+
+        # Reset some internal buffers
         self.is_running = False
         self._steps_beyond_done = None
         self.action_prev = None
         self._update_observation(self.observation)
+
         return self.observation
 
     def step(self, action):
@@ -425,6 +432,14 @@ class RobotJiminyEnv(core.Env):
                     compatibility with Gym OpenAI.
         """
         self.engine_py.close()
+
+    @property
+    def robot(self):
+        return self.engine_py.robot
+
+    @property
+    def engine(self):
+        return self.engine_py.engine
 
 
 class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
