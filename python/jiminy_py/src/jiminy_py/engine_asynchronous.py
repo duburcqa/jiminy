@@ -76,10 +76,8 @@ class EngineAsynchronous:
         ## Real time rendering management
         self.step_dt_prev = -1
 
-        # Initialize the low-level jiminy engine
-        q0 = neutral(robot.pinocchio_model)
-        v0 = np.zeros(robot.nv)
-        self.reset(np.concatenate((q0, v0)), is_state_theoretical=False)
+        # Reset the low-level jiminy engine
+        self.engine.reset()
 
     def _send_command(self, t, q, v, sensors_data, uCommand):
         """
@@ -141,31 +139,39 @@ class EngineAsynchronous:
         if is_state_theoretical is None:
             is_state_theoretical = self.use_theoretical_model
 
-        # Reset the simulation. Do NOT start a new one at this point,
-        # to avoid locking the robot and the telemetry too early.
+        # Reset the simulation
         self.engine.reset()
 
         # Call update_quantities in order to the frame placement for rendering
         if is_state_theoretical:
             x0_rigid = x0
             if self.robot.is_flexible:
-                x0 = self.robot.get_rigid_state_from_flexible(x0_rigid)
+                x0 = self.robot.get_flexible_state_from_rigid(x0_rigid)
         else:
             if self.robot.is_flexible and self.use_theoretical_model:
-                x0_rigid = self.robot.get_flexible_state_from_rigid(x0)
+                x0_rigid = self.robot.get_rigid_state_from_flexible(x0)
 
-        # Update the frames placement, for proper rendering
-        update_quantities(self.robot,
-                          x0[:self.robot.nq],
-                          update_physics=True,
-                          use_theoretical_model=False)
-
-        # Reset the flags
-        self._t = 0.0
+        # Start the engine, in order to initialize the sensors data
         self._state = x0_rigid if self.use_theoretical_model else x0
-        self._sensors_data = self.robot.sensors_data
-        self._action[:] = 0.0
+        self.engine.start(self._state, self.use_theoretical_model)
+
+        # Backup the sensor data by doing a deep copy manually
+        self._sensors_data = jiminy.sensorsData({
+            _type: {
+                name: self.robot.sensors_data[_type, name].copy()
+                for name in self.robot.sensors_data.keys(_type)
+            }
+            for _type in self.robot.sensors_data.keys()
+        })
+
+        # Initialize some internal buffers
+        self._t = 0.0
         self.step_dt_prev = -1
+
+        # Stop the engine, to avoid locking the robot and the telemetry
+        # too early, so that it remains possible to register external
+        # forces, register log variables, change the options...etc.
+        self.engine.reset()
 
     def step(self, action_next=None, dt_desired=-1):
         """
