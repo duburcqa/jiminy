@@ -101,20 +101,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         engine_py = EngineAsynchronous(robot)
 
-        # ############################### Configure Jiminy #####################################
-
-        robot_options = robot.get_options()
-
-        # Set the position and velocity bounds of the robot
-        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
-        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
-
-        # Set the effort limit of the motor
-        robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
-        robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_TORQUE
-
-        robot.set_options(robot_options)
-
         # ##################### Define some problem-specific variables #########################
 
         if not self.continuous:
@@ -138,6 +124,23 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # ####################### Configure the learning environment ###########################
 
         super().__init__("acrobot", engine_py, DT)
+
+    def _setup_environment(self):
+        super()._setup_environment()
+
+        # Override some options of the robot and engine
+        robot_options = self.robot.get_options()
+
+        ### Set the position and velocity bounds of the robot
+        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
+        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
+
+        ### Set the effort limit of the motor
+        motor_name = self.robot.motors_names[0]
+        robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
+        robot_options["motors"][motor_name]["effortLimit"] = MAX_TORQUE
+
+        self.robot.set_options(robot_options)
 
     def _refresh_learning_spaces(self):
         # Replace the observation space, which is NOT the sensor space in this case,
