@@ -276,7 +276,7 @@ class RobotJiminyEnv(core.Env):
         obs['state'] = self.engine_py.state
         obs['sensors'] = {
             _type: {
-                name: self.engine_py.sensors_data[_type, name].copy()
+                name: self.engine_py.sensors_data[_type, name]
                 for name in self.engine_py.sensors_data.keys(_type)
             }
             for _type in self.engine_py.sensors_data.keys()
