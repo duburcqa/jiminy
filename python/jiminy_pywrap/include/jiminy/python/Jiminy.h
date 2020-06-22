@@ -404,8 +404,9 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .def("__init__", bp::make_constructor(&SensorsDataMapVisitor::factory,
-                                 bp::default_call_policies(), (bp::arg("sensor_data_dict"))))
+                .def("__init__", &SensorsDataMapVisitor::factoryWrapper,
+                                 bp::with_custodian_and_ward_postcall<1, 2>(),
+                                 (bp::arg("self"), "sensors_data_dict")) // with_custodian_and_ward_postcall is used to tie the lifetime of the Python object with the one of the C++ reference, so that the Python object does not get deleted while the C++ object is not
                 .def("__len__", &SensorsDataMapVisitor::len,
                                 (bp::arg("self")))
                 .def("__getitem__", &SensorsDataMapVisitor::getItem,
@@ -578,6 +579,12 @@ namespace python
         {
             auto sensorData = convertFromPython<sensorsDataMap_t>(sensorDataPy);
             return std::make_shared<sensorsDataMap_t>(std::move(sensorData));
+        }
+
+        static void factoryWrapper(bp::object & self, bp::object & sensorDataPy)
+        {
+            auto constructor = bp::make_constructor(&SensorsDataMapVisitor::factory);
+            constructor(self, sensorDataPy);
         }
 
         ///////////////////////////////////////////////////////////////////////////////

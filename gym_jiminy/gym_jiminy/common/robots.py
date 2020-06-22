@@ -275,11 +275,8 @@ class RobotJiminyEnv(core.Env):
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
         obs['sensors'] = {
-            _type: {
-                name: self.engine_py.sensors_data[_type, name]
-                for name in self.engine_py.sensors_data.keys(_type)
-            }
-            for _type in self.engine_py.sensors_data.keys()
+            sensor_type: self.engine_py.sensors_data[sensor_type]
+            for sensor_type in self.engine_py.sensors_data.keys()
         }
 
     def _is_done(self):

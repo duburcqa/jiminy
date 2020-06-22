@@ -11,9 +11,9 @@ from torch.utils.tensorboard import SummaryWriter
 from tensorboard.program import TensorBoard
 from typing import Dict, List, Union, Callable, Optional
 
-from tianshou.env import VectorEnv, SubprocVectorEnv
+from tianshou.env import SubprocVectorEnv
 from tianshou.policy import BasePolicy, PPOPolicy
-from tianshou.policy.utils import DiagGaussian
+from tianshou.policy.dist import DiagGaussian
 from tianshou.trainer import test_episode, gather_info
 from tianshou.data import Collector, ReplayBuffer
 from tianshou.utils import tqdm_config, MovAvg
@@ -58,8 +58,8 @@ lr = 1.0e-3
 buffer_size = trainer_config["collect_per_step"]
 
 # Instantiate the gym environment
-train_envs = VectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
-test_envs = VectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
+train_envs = SubprocVectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
+test_envs = SubprocVectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
 
 # Set the seed
 np.random.seed(SEED)

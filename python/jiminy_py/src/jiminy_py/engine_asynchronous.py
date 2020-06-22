@@ -90,7 +90,7 @@ class EngineAsynchronous:
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        self._sensors_data = sensors_data
+        self._sensors_data = sensors_data # It is already a snapshot copy of robot.sensors_data
         uCommand[:] = self._action
 
     def _internal_dynamics(self, t, q, v, sensors_data, uCommand):
@@ -187,7 +187,7 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
-        if (not self.engine.is_simulation_running):
+        if not self.engine.is_simulation_running:
             flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
                 raise ValueError("Failed to start the simulation.")
