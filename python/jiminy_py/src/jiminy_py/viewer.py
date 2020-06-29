@@ -159,7 +159,7 @@ class Viewer:
                 if  Viewer._backend_obj is not None:
                     self._client = Viewer._backend_obj.gui
                 else:
-                    raise RuntimeError("Impossible to open Gepetto-viewer.")
+                    raise RuntimeError
 
                 if not scene_name in self._client.getSceneList():
                     self._client.createSceneWithFloor(scene_name)
@@ -191,7 +191,10 @@ class Viewer:
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
         except:
-            raise RuntimeError("Impossible to load backend.")
+            raise RuntimeError("Impossible to create or connect to backend.")
+
+        # Backup the backend subprocess if it is the parent, which will be required for closing
+        self._backend_proc = Viewer._backend_proc if self.is_backend_parent else None
 
         # Create a RobotWrapper
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
@@ -272,13 +275,15 @@ class Viewer:
             raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
     def close(self=None):
-        if self is None or self.is_backend_parent:
-            if Viewer._backend_proc is not None:
-                if Viewer._backend_proc.poll() is None:
-                    Viewer._backend_proc.terminate()
-                Viewer._backend_proc = None
+        if self is None:
+            self = Viewer
+        if self._backend_proc is not None:
+            if self._backend_proc.poll() is None:
+                self._backend_proc.terminate()
+        if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
             Viewer._backend_exception = None
+        self._backend_proc = None
 
     @staticmethod
     def _is_notebook():
@@ -477,7 +482,10 @@ class Viewer:
         """
 
         if self.use_theoretical_model:
-            raise RuntimeError("'Refresh' method only available if 'use_theoretical_model'=False.")
+            raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
+
+        if Viewer._backend_obj is None:
+            raise RuntimeError("No backend available. Please start one before calling this method.")
 
         if Viewer.backend == 'gepetto-gui':
             with self._lock:
@@ -666,7 +674,8 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
 
     # Close backend if needed
     if close_backend:
-        Viewer.close()
+        for viewer in viewers:
+            viewer.close()
 
     return viewers
 

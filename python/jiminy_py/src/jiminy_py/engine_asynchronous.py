@@ -222,7 +222,7 @@ class EngineAsynchronous:
 
         try:
             # Instantiate the robot and viewer client if necessary
-            if (self._viewer is None):
+            if not self._is_viewer_available:
                 uniq_id = next(tempfile._get_candidate_names())
                 self._viewer = Viewer(self.robot,
                                       use_theoretical_model=False,
@@ -241,12 +241,14 @@ class EngineAsynchronous:
             # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
-        except:
-            self.close()
+        except RuntimeError:
+            Viewer.close()
             self._viewer = None
             if self._is_viewer_available:
                 self._is_viewer_available = False
-                return self.render(return_rgb_array)
+                rgb_array = self.render(return_rgb_array)
+            else:
+                RuntimeError("Impossible to create or connect to backend.")
         finally:
             return rgb_array
 
