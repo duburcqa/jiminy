@@ -146,6 +146,7 @@ class Viewer:
             is_backend_running = False
 
         # Access the current backend or create one if none is available
+        self.is_backend_parent = False
         try:
             if (Viewer.backend == 'gepetto-gui'):
                 import omniORB
@@ -154,7 +155,7 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_gepetto_client(True)
-                    is_backend_running = Viewer._backend_proc is None
+                    self.is_backend_parent = Viewer._backend_proc is not None
                 if  Viewer._backend_obj is not None:
                     self._client = Viewer._backend_obj.gui
                 else:
@@ -172,7 +173,7 @@ class Viewer:
                         [name == window_name for name in self._client.getWindowList()])[0][0])
 
                 # Set the default camera pose if the viewer is not running before
-                if not is_backend_running:
+                if self.is_backend_parent:
                     self.setCameraTransform(translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
                                             rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
@@ -185,6 +186,7 @@ class Viewer:
                         Viewer.display_jupyter_cell()
                     else:
                         Viewer._backend_obj.open()
+                    self.is_backend_parent = True
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
@@ -224,6 +226,9 @@ class Viewer:
                 createDatas(self.pinocchio_model, collision_model, visual_model)
             self._client.loadViewerModel(rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
+
+    def __del__(self):
+        self.close()
 
     @staticmethod
     def _create_meshcat_backend():
@@ -266,14 +271,14 @@ class Viewer:
         else:
             raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
-    @staticmethod
-    def close():
-        if Viewer._backend_proc is not None:
-            if Viewer._backend_proc.poll() is None:
-                Viewer._backend_proc.terminate()
-            Viewer._backend_proc = None
-        Viewer._backend_obj = None
-        Viewer._backend_exception = None
+    def close(self=None):
+        if self is None or self.is_backend_parent:
+            if Viewer._backend_proc is not None:
+                if Viewer._backend_proc.poll() is None:
+                    Viewer._backend_proc.terminate()
+                Viewer._backend_proc = None
+            Viewer._backend_obj = None
+            Viewer._backend_exception = None
 
     @staticmethod
     def _is_notebook():
@@ -324,7 +329,7 @@ class Viewer:
             shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
             colorized_contents = colorized_contents.replace('"' + mesh_fullpath + '"',
                                                             '"' + colorized_mesh_fullpath + '"', 1)
-        colorized_contents = re.sub("<color rgba=\"[\d. ]*\"", color_tag, colorized_contents)
+        colorized_contents = re.sub(r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
 
         with open(colorized_urdf_path, 'w') as colorized_urdf_file:
             colorized_urdf_file.write(colorized_contents)
