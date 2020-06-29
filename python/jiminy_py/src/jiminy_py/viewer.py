@@ -247,7 +247,7 @@ class Viewer:
                 if force_create_backend:
                     Viewer._create_meshcat_backend()
                 else:
-                    raise ValueError("No meshcat backend available and 'force_create_backend' is set to False.")
+                    raise RuntimeError("No meshcat backend available and 'force_create_backend' is set to False.")
 
             viewer_url = Viewer._backend_obj.url()
             if Viewer.port_forwarding is not None:
@@ -264,7 +264,7 @@ class Viewer:
 
             ipython_display(HTML(jupyter_html))
         else:
-            raise ValueError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
+            raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
     @staticmethod
     def close():

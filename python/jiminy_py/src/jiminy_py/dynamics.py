@@ -317,7 +317,7 @@ def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acce
     @param ground_profile   The ground profile callback
     """
     if not robot.has_freeflyer:
-        raise ValueError("The robot does not have a freeflyer.")
+        raise RuntimeError("The robot does not have a freeflyer.")
 
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th

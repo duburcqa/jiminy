@@ -190,14 +190,14 @@ class EngineAsynchronous:
         if not self.engine.is_simulation_running:
             flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
-                raise ValueError("Failed to start the simulation.")
+                raise RuntimeError("Failed to start the simulation.")
 
         if (action_next is not None):
             self.action = action_next
 
         return_code = self.engine.step(dt_desired)
         if (return_code != jiminy.hresult_t.SUCCESS):
-            raise ValueError("Failed to perform the simulation step.")
+            raise RuntimeError("Failed to perform the simulation step.")
 
         self._t = self.engine.stepper_state.t
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
