@@ -230,8 +230,9 @@ class EngineAsynchronous:
                                       robot_name="_".join(("robot", uniq_id)),
                                       scene_name="_".join(("scene", uniq_id)),
                                       window_name="_".join(("window", uniq_id)))
-                self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
-                                                rotation=[np.pi/2, 0.0, np.pi])
+                if self._viewer._backend_proc.poll() is None:
+                    self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
+                                                    rotation=[np.pi/2, 0.0, np.pi])
 
             # Refresh viewer
             self._viewer.refresh()
