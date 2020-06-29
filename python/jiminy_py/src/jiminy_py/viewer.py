@@ -642,6 +642,17 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
         if not isinstance(viewers, list):
             viewers = [viewers]
 
+        # Make sure the viewers are still running
+        is_backend_running = True
+        for viewer in viewers:
+            if viewer.is_backend_parent:
+                if viewer._backend_proc.poll() is not None:
+                    is_backend_running = False
+        if Viewer._backend_obj is None:
+            is_backend_running = False
+        if not is_backend_running:
+            raise RuntimeError("Viewers backend not available.")
+
     # Load robots in gepetto viewer
     if (xyz_offset is None):
         xyz_offset = len(trajectory_data) * (None,)
