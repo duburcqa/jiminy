@@ -146,6 +146,7 @@ class Viewer:
             is_backend_running = False
 
         # Access the current backend or create one if none is available
+        self.is_backend_parent = False
         try:
             if (Viewer.backend == 'gepetto-gui'):
                 import omniORB
@@ -154,11 +155,11 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_gepetto_client(True)
-                    is_backend_running = Viewer._backend_proc is None
+                    self.is_backend_parent = Viewer._backend_proc is not None
                 if  Viewer._backend_obj is not None:
                     self._client = Viewer._backend_obj.gui
                 else:
-                    raise RuntimeError("Impossible to open Gepetto-viewer.")
+                    raise RuntimeError
 
                 if not scene_name in self._client.getSceneList():
                     self._client.createSceneWithFloor(scene_name)
@@ -172,7 +173,7 @@ class Viewer:
                         [name == window_name for name in self._client.getWindowList()])[0][0])
 
                 # Set the default camera pose if the viewer is not running before
-                if not is_backend_running:
+                if self.is_backend_parent:
                     self.setCameraTransform(translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
                                             rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
@@ -185,11 +186,15 @@ class Viewer:
                         Viewer.display_jupyter_cell()
                     else:
                         Viewer._backend_obj.open()
+                    self.is_backend_parent = True
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
         except:
-            raise RuntimeError("Impossible to load backend.")
+            raise RuntimeError("Impossible to create or connect to backend.")
+
+        # Backup the backend subprocess if it is the parent, which will be required for closing
+        self._backend_proc = Viewer._backend_proc if self.is_backend_parent else None
 
         # Create a RobotWrapper
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
@@ -225,6 +230,9 @@ class Viewer:
             self._client.loadViewerModel(rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
 
+    def __del__(self):
+        self.close()
+
     @staticmethod
     def _create_meshcat_backend():
         import meshcat
@@ -247,7 +255,7 @@ class Viewer:
                 if force_create_backend:
                     Viewer._create_meshcat_backend()
                 else:
-                    raise ValueError("No meshcat backend available and 'force_create_backend' is set to False.")
+                    raise RuntimeError("No meshcat backend available and 'force_create_backend' is set to False.")
 
             viewer_url = Viewer._backend_obj.url()
             if Viewer.port_forwarding is not None:
@@ -264,16 +272,18 @@ class Viewer:
 
             ipython_display(HTML(jupyter_html))
         else:
-            raise ValueError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
+            raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
-    @staticmethod
-    def close():
-        if Viewer._backend_proc is not None:
-            if Viewer._backend_proc.poll() is None:
-                Viewer._backend_proc.terminate()
-            Viewer._backend_proc = None
-        Viewer._backend_obj = None
-        Viewer._backend_exception = None
+    def close(self=None):
+        if self is None:
+            self = Viewer
+        if self._backend_proc is not None:
+            if self._backend_proc.poll() is None:
+                self._backend_proc.terminate()
+        if self._backend_proc is Viewer._backend_proc:
+            Viewer._backend_obj = None
+            Viewer._backend_exception = None
+        self._backend_proc = None
 
     @staticmethod
     def _is_notebook():
@@ -324,7 +334,7 @@ class Viewer:
             shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
             colorized_contents = colorized_contents.replace('"' + mesh_fullpath + '"',
                                                             '"' + colorized_mesh_fullpath + '"', 1)
-        colorized_contents = re.sub("<color rgba=\"[\d. ]*\"", color_tag, colorized_contents)
+        colorized_contents = re.sub(r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
 
         with open(colorized_urdf_path, 'w') as colorized_urdf_file:
             colorized_urdf_file.write(colorized_contents)
@@ -472,7 +482,10 @@ class Viewer:
         """
 
         if self.use_theoretical_model:
-            raise RuntimeError("'Refresh' method only available if 'use_theoretical_model'=False.")
+            raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
+
+        if Viewer._backend_obj is None:
+            raise RuntimeError("No backend available. Please start one before calling this method.")
 
         if Viewer.backend == 'gepetto-gui':
             with self._lock:
@@ -573,7 +586,7 @@ def extract_viewer_data_from_log(log_data, robot):
             'robot': robot,
             'use_theoretical_model': use_theoretical_model}
 
-def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
+def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, viewers=None,
                       start_paused=False, camera_xyzrpy=None, xyz_offset=None, urdf_rgba=None,
                       backend=None, window_name='python-pinocchio', scene_name='world', close_backend=None):
     """!
@@ -599,43 +612,67 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
-    """
 
-    if (close_backend is None):
-        # Close backend if it was not available beforehand
-        close_backend = Viewer._backend_obj is None
+    @return     The viewers used to play the trajectories.
+    """
+    if viewers is None:
+        # Create new viewer instances
+        viewers = []
+        lock = Lock()
+        for i in range(len(trajectory_data)):
+            robot = trajectory_data[i]['robot']
+            robot_name = "_".join(("robot",  str(i)))
+            use_theoretical_model = trajectory_data[i]['use_theoretical_model']
+            viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path=mesh_root_path,
+                            urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
+                            lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
+            viewers.append(viewer)
+
+        if viewers[0].is_backend_parent:
+            # Initialize camera pose
+            if camera_xyzrpy is not None:
+                viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
+                                            rotation=camera_xyzrpy[3:])
+
+            # Close backend by default if it was not available beforehand
+            if (close_backend is None):
+                close_backend = True
+    else:
+        # Make sure that viewers is a list
+        if not isinstance(viewers, list):
+            viewers = [viewers]
+
+        # Make sure the viewers are still running
+        is_backend_running = True
+        for viewer in viewers:
+            if viewer.is_backend_parent:
+                if viewer._backend_proc.poll() is not None:
+                    is_backend_running = False
+        if Viewer._backend_obj is None:
+            is_backend_running = False
+        if not is_backend_running:
+            raise RuntimeError("Viewers backend not available.")
 
     # Load robots in gepetto viewer
-    lock = Lock()
-    viewers = []
+    if (xyz_offset is None):
+        xyz_offset = len(trajectory_data) * (None,)
+
     for i in range(len(trajectory_data)):
-        robot = trajectory_data[i]['robot']
-        robot_name = "_".join(("robot",  str(i)))
-        use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
-                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
-                        lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q
         try:
-            viewer._rb.display(q)
+            viewers[i]._rb.display(q)
         except Viewer._backend_exception:
             break
-        viewers.append(viewer)
 
-    if camera_xyzrpy is not None:
-        viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
-                                      rotation=camera_xyzrpy[3:])
-
-    if (xyz_offset is None):
-        xyz_offset = len(trajectory_data) * (None,)
-
+    # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
+    # Replay the trajectory
     threads = []
     for i in range(len(trajectory_data)):
         threads.append(Thread(target=viewers[i].display,
@@ -646,8 +683,12 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
     for i in range(len(trajectory_data)):
         threads[i].join()
 
+    # Close backend if needed
     if close_backend:
-        Viewer.close()
+        for viewer in viewers:
+            viewer.close()
+
+    return viewers
 
 def play_logfiles(robots, logs_data, **kwargs):
     """
@@ -669,4 +710,4 @@ def play_logfiles(robots, logs_data, **kwargs):
                     for log, robot in zip(logs_data, robots)]
 
     # Finally, play the trajectories
-    play_trajectories(trajectories, **kwargs)
+    return play_trajectories(trajectories, **kwargs)

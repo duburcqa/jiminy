@@ -87,8 +87,8 @@ class BasicSimulator(object):
             self.controller_handle = controller_handle
             self._is_controller_handle_init = True
         except:
-            raise ValueError("The controller handle has a wrong signature. It is expected " + \
-                             "controller_handle(t, y, dy, sensorsData, u_command)")
+            raise RuntimeError("The controller handle has a wrong signature. It is expected " + \
+                               "controller_handle(t, y, dy, sensorsData, u_command)")
 
     @staticmethod
     def callback(t, q, v, out):
