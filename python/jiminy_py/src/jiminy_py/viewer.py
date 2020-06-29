@@ -578,7 +578,7 @@ def extract_viewer_data_from_log(log_data, robot):
             'robot': robot,
             'use_theoretical_model': use_theoretical_model}
 
-def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
+def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, viewers=None,
                       start_paused=False, camera_xyzrpy=None, xyz_offset=None, urdf_rgba=None,
                       backend=None, window_name='python-pinocchio', scene_name='world', close_backend=None):
     """!
@@ -604,43 +604,56 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
-    """
 
-    if (close_backend is None):
-        # Close backend if it was not available beforehand
-        close_backend = Viewer._backend_obj is None
+    @return     The viewers used to play the trajectories.
+    """
+    if viewers is None:
+        # Create new viewer instances
+        viewers = []
+        lock = Lock()
+        for i in range(len(trajectory_data)):
+            robot = trajectory_data[i]['robot']
+            robot_name = "_".join(("robot",  str(i)))
+            use_theoretical_model = trajectory_data[i]['use_theoretical_model']
+            viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path=mesh_root_path,
+                            urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
+                            lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
+            viewers.append(viewer)
+
+        if viewers[0].is_backend_parent:
+            # Initialize camera pose
+            if camera_xyzrpy is not None:
+                viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
+                                            rotation=camera_xyzrpy[3:])
+
+            # Close backend by default if it was not available beforehand
+            if (close_backend is None):
+                close_backend = True
+    else:
+        # Make sure that viewers is a list
+        if not isinstance(viewers, list):
+            viewers = [viewers]
 
     # Load robots in gepetto viewer
-    lock = Lock()
-    viewers = []
+    if (xyz_offset is None):
+        xyz_offset = len(trajectory_data) * (None,)
+
     for i in range(len(trajectory_data)):
-        robot = trajectory_data[i]['robot']
-        robot_name = "_".join(("robot",  str(i)))
-        use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-        viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path = mesh_root_path,
-                        urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
-                        lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
         if (xyz_offset is not None and xyz_offset[i] is not None):
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
             q = trajectory_data[i]['evolution_robot'][0].q
         try:
-            viewer._rb.display(q)
+            viewers[i]._rb.display(q)
         except Viewer._backend_exception:
             break
-        viewers.append(viewer)
 
-    if camera_xyzrpy is not None:
-        viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
-                                      rotation=camera_xyzrpy[3:])
-
-    if (xyz_offset is None):
-        xyz_offset = len(trajectory_data) * (None,)
-
+    # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
+    # Replay the trajectory
     threads = []
     for i in range(len(trajectory_data)):
         threads.append(Thread(target=viewers[i].display,
@@ -651,8 +664,11 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0,
     for i in range(len(trajectory_data)):
         threads[i].join()
 
+    # Close backend if needed
     if close_backend:
         Viewer.close()
+
+    return viewers
 
 def play_logfiles(robots, logs_data, **kwargs):
     """
@@ -674,4 +690,4 @@ def play_logfiles(robots, logs_data, **kwargs):
                     for log, robot in zip(logs_data, robots)]
 
     # Finally, play the trajectories
-    play_trajectories(trajectories, **kwargs)
+    return play_trajectories(trajectories, **kwargs)
