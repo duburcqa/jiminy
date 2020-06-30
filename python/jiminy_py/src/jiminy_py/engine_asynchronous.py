@@ -247,9 +247,10 @@ class EngineAsynchronous:
             # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
-        except RuntimeError:
-            Viewer.close()
-            self._viewer = None
+        except (RuntimeError, AttributeError):
+            if self._viewer is not None:
+                self._viewer.close()
+                self._viewer = None
             if self._is_viewer_available:
                 self._is_viewer_available = False
                 rgb_array = self.render(return_rgb_array)

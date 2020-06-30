@@ -193,8 +193,8 @@ class Viewer:
         except:
             raise RuntimeError("Impossible to create or connect to backend.")
 
-        # Backup the backend subprocess if it is the parent, which will be required for closing
-        self._backend_proc = Viewer._backend_proc if self.is_backend_parent else None
+        # Backup the backend subprocess used for instantiate the robot
+        self._backend_proc = Viewer._backend_proc
 
         # Create a RobotWrapper
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
@@ -281,11 +281,12 @@ class Viewer:
             if (Viewer.backend == 'gepetto-gui'):
                 self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
             else:
-                node_names = [self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
-                              for visual_obj in self._rb.visual_model.geometryObjects]
+                node_names = [
+                    self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
+                    for visual_obj in self._rb.visual_model.geometryObjects]
                 self._delete_nodes_viewer(node_names)
-        if self._backend_proc is not None:
-            if self._backend_proc.poll() is None:
+        if self == Viewer or self.is_backend_parent:
+            if self._backend_proc is not None and self._backend_proc.poll() is None:
                 self._backend_proc.terminate()
         if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
@@ -494,7 +495,7 @@ class Viewer:
         if self.use_theoretical_model:
             raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
 
-        if Viewer._backend_obj is None:
+        if Viewer._backend_obj is None or self._backend_proc.poll() is not None:
             raise RuntimeError("No backend available. Please start one before calling this method.")
 
         if Viewer.backend == 'gepetto-gui':
