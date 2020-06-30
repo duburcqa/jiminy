@@ -316,10 +316,12 @@ class EngineAsynchronous:
 
         @param[in]  action_next     Updated command
         """
-        if (not isinstance(action_next, np.ndarray)
-                or action_next.shape != (self.robot.nmotors,)):
+        if (not isinstance(action_next, np.ndarray) or \
+                action_next.shape[-1] != self.robot.nmotors):
             raise ValueError("The action must be a 1D numpy array \
                               whose length matches the number of motors.")
+        if np.any(np.isnan(action_next)):
+            raise ValueError("'action_next' cannot contain nan values.")
         self._action[:] = action_next
 
     def get_engine_options(self):

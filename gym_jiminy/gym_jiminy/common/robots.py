@@ -364,16 +364,7 @@ class RobotJiminyEnv(core.Env):
         @return     The next observation, the reward, the status of the episode
                     (done or not), and a dictionary of extra information
         """
-
-        # Bypass 'self.engine_py.action' setter and use
-        # direct assignment to max out the performances
-        if action is None:
-            if self.is_running:
-                action = self.action_prev
-            else:
-                ValueError("At least the first action of the episode must be specified.")
-        self.engine_py._action[:] = action
-        self.engine_py.step(dt_desired=self.dt)
+        self.engine_py.step(action_next=action, dt_desired=self.dt)
         self.is_running = True
         self.action_prev = action
 
