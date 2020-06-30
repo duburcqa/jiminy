@@ -173,6 +173,12 @@ class EngineAsynchronous:
         # forces, register log variables, change the options...etc.
         self.engine.reset()
 
+        # Restore the initial internal pinocchio data
+        update_quantities(self.robot,
+                          x0[:self.robot.nq],
+                          update_physics=True,
+                          use_theoretical_model=False)
+
     def step(self, action_next=None, dt_desired=-1):
         """
         @brief      Run simulation steps.
@@ -254,9 +260,7 @@ class EngineAsynchronous:
 
     def close(self):
         """
-        @brief      Close the connection with the renderer, namely Gepetto-viewer.
-
-        @details    Must be called once before the destruction of the engine.
+        @brief      Close the connection with the renderer.
         """
         if self._viewer is not None:
             self._viewer.close()
