@@ -199,7 +199,7 @@ class Viewer:
         # Create a RobotWrapper
         root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
         if (Viewer.backend == 'gepetto-gui'):
-            Viewer._delete_gepetto_nodes_viewer(scene_name + '/' + self.robot_name)
+            self._delete_nodes_viewer([scene_name + '/' + self.robot_name])
             if (urdf_rgba is not None):
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3], root_path)
@@ -277,6 +277,13 @@ class Viewer:
     def close(self=None):
         if self is None:
             self = Viewer
+        else:
+            if (Viewer.backend == 'gepetto-gui'):
+                self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
+            else:
+                node_names = [self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
+                              for visual_obj in self._rb.visual_model.geometryObjects]
+                self._delete_nodes_viewer(node_names)
         if self._backend_proc is not None:
             if self._backend_proc.poll() is None:
                 self._backend_proc.terminate()
@@ -387,7 +394,7 @@ class Viewer:
                     print("Impossible to open Gepetto-viewer")
         return None, None
 
-    def _delete_gepetto_nodes_viewer(self, *nodes_path):
+    def _delete_nodes_viewer(self, nodes_path):
         """
         @brief      Delete a 'node' in Gepetto-viewer.
 
@@ -402,6 +409,9 @@ class Viewer:
             for node_path in nodes_path:
                 if node_path in self._client.getNodeList():
                     self._client.deleteNode(node_path, True)
+        else:
+            for node_path in nodes_path:
+                self._client.viewer[node_path].delete()
 
     def _getViewerNodeName(self, geometry_object, geometry_type):
         """
