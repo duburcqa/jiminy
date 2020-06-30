@@ -494,7 +494,7 @@ class Viewer:
         if self.use_theoretical_model:
             raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
 
-        if Viewer._backend_obj is None:
+        if Viewer._backend_obj is None or self._backend_proc.poll() is not None:
             raise RuntimeError("No backend available. Please start one before calling this method.")
 
         if Viewer.backend == 'gepetto-gui':
