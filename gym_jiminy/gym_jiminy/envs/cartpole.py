@@ -109,16 +109,6 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         engine_py = EngineAsynchronous(robot)
 
-        # ############################### Configure Jiminy #####################################
-
-        robot_options = robot.get_options()
-
-        # Set the effort limit of the motor
-        robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
-        robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_FORCE
-
-        robot.set_options(robot_options)
-
         # ##################### Define some problem-specific variables #########################
 
         if not self.continuous:
@@ -139,6 +129,19 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         super().__init__("cartpole", engine_py, DT)
 
+    def _setup_environment(self):
+        super()._setup_environment()
+
+        # Override some options of the robot and engine
+        robot_options = self.robot.get_options()
+
+        ### Set the effort limit of the motor
+        motor_name = self.robot.motors_names[0]
+        robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
+        robot_options["motors"][motor_name]["effortLimit"] = MAX_FORCE
+
+        self.robot.set_options(robot_options)
+
     def _refresh_learning_spaces(self):
         # Replace the observation space, which is the state space instead of the sensor space.
         # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
@@ -158,8 +161,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
-        return self.np_random.uniform(low=self.state_random_low,
-                                      high=self.state_random_high)
+        return self.rg.uniform(low=self.state_random_low,
+                               high=self.state_random_high)
 
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
@@ -206,4 +209,10 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                 action = self.AVAIL_FORCE[action]
 
         # Perform the step
-        return super().step(action)
+        obs, reward, done, info = super().step(action)
+
+        # Update success flag, since in this case success actually
+        # means never reaching terminal condition.
+        info['is_success'] = not done
+
+        return obs, reward, done, info

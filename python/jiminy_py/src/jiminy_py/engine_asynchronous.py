@@ -90,7 +90,7 @@ class EngineAsynchronous:
                     member methods of the class. It is not intended to be called
                     manually.
         """
-        self._sensors_data = sensors_data
+        self._sensors_data = sensors_data # It is already a snapshot copy of robot.sensors_data
         uCommand[:] = self._action
 
     def _internal_dynamics(self, t, q, v, sensors_data, uCommand):
@@ -173,6 +173,12 @@ class EngineAsynchronous:
         # forces, register log variables, change the options...etc.
         self.engine.reset()
 
+        # Restore the initial internal pinocchio data
+        update_quantities(self.robot,
+                          x0[:self.robot.nq],
+                          update_physics=True,
+                          use_theoretical_model=False)
+
     def step(self, action_next=None, dt_desired=-1):
         """
         @brief      Run simulation steps.
@@ -187,17 +193,17 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
-        if (not self.engine.is_simulation_running):
+        if not self.engine.is_simulation_running:
             flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
-                raise ValueError("Failed to start the simulation.")
+                raise RuntimeError("Failed to start the simulation.")
 
         if (action_next is not None):
             self.action = action_next
 
         return_code = self.engine.step(dt_desired)
         if (return_code != jiminy.hresult_t.SUCCESS):
-            raise ValueError("Failed to perform the simulation step.")
+            raise RuntimeError("Failed to perform the simulation step.")
 
         self._t = self.engine.stepper_state.t
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
@@ -222,7 +228,7 @@ class EngineAsynchronous:
 
         try:
             # Instantiate the robot and viewer client if necessary
-            if (self._viewer is None):
+            if not self._is_viewer_available:
                 uniq_id = next(tempfile._get_candidate_names())
                 self._viewer = Viewer(self.robot,
                                       use_theoretical_model=False,
@@ -230,8 +236,9 @@ class EngineAsynchronous:
                                       robot_name="_".join(("robot", uniq_id)),
                                       scene_name="_".join(("scene", uniq_id)),
                                       window_name="_".join(("window", uniq_id)))
-                self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
-                                                rotation=[np.pi/2, 0.0, np.pi])
+                if self._viewer.is_backend_parent:
+                    self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
+                                                    rotation=[np.pi/2, 0.0, np.pi])
 
             # Refresh viewer
             self._viewer.refresh()
@@ -240,20 +247,20 @@ class EngineAsynchronous:
             # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
-        except:
-            self.close()
+        except RuntimeError:
+            Viewer.close()
             self._viewer = None
             if self._is_viewer_available:
                 self._is_viewer_available = False
-                return self.render(return_rgb_array)
+                rgb_array = self.render(return_rgb_array)
+            else:
+                RuntimeError("Impossible to create or connect to backend.")
         finally:
             return rgb_array
 
     def close(self):
         """
-        @brief      Close the connection with the renderer, namely Gepetto-viewer.
-
-        @details    Must be called once before the destruction of the engine.
+        @brief      Close the connection with the renderer.
         """
         if self._viewer is not None:
             self._viewer.close()

@@ -37,8 +37,8 @@ def flatten(space, x=None):
             raise NotImplementedError
     if x is None:
         return spaces.Box(low=_flatten_bounds(space, 'low'),
-                        high=_flatten_bounds(space, 'high'),
-                        dtype=np.float32)
+                          high=_flatten_bounds(space, 'high'),
+                          dtype=np.float32)
     else:
         return spaces.flatten(space, x)
 

@@ -101,20 +101,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         engine_py = EngineAsynchronous(robot)
 
-        # ############################### Configure Jiminy #####################################
-
-        robot_options = robot.get_options()
-
-        # Set the position and velocity bounds of the robot
-        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
-        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
-
-        # Set the effort limit of the motor
-        robot_options["motors"][motor_joint_name]["effortLimitFromUrdf"] = False
-        robot_options["motors"][motor_joint_name]["effortLimit"] = MAX_TORQUE
-
-        robot.set_options(robot_options)
-
         # ##################### Define some problem-specific variables #########################
 
         if not self.continuous:
@@ -138,6 +124,23 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # ####################### Configure the learning environment ###########################
 
         super().__init__("acrobot", engine_py, DT)
+
+    def _setup_environment(self):
+        super()._setup_environment()
+
+        # Override some options of the robot and engine
+        robot_options = self.robot.get_options()
+
+        ### Set the position and velocity bounds of the robot
+        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
+        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
+
+        ### Set the effort limit of the motor
+        motor_name = self.robot.motors_names[0]
+        robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
+        robot_options["motors"][motor_name]["effortLimit"] = MAX_TORQUE
+
+        self.robot.set_options(robot_options)
 
     def _refresh_learning_spaces(self):
         # Replace the observation space, which is NOT the sensor space in this case,
@@ -165,14 +168,14 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
     def _sample_state(self):
         # @copydoc RobotJiminyEnv::_sample_state
-        return self.np_random.uniform(low=self.state_random_low,
-                                      high=self.state_random_high)
+        return self.rg.uniform(low=self.state_random_low,
+                               high=self.state_random_high)
 
     def _sample_goal(self):
         # @copydoc RobotJiminyGoalEnv::_sample_goal
-        return self.np_random.uniform(low=-0.20*self._tipPosZMax,
-                                      high=0.98*self._tipPosZMax,
-                                      size=(1,))
+        return self.rg.uniform(low=-0.20*self._tipPosZMax,
+                               high=0.98*self._tipPosZMax,
+                               size=(1,))
 
     def _get_achieved_goal(self):
         # @copydoc RobotJiminyGoalEnv::_get_achieved_goal
@@ -220,7 +223,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
             if not self.continuous:
                 action = self.AVAIL_TORQUE[action]
             if ACTION_NOISE > 0.0:
-                action += self.np_random.uniform(-ACTION_NOISE, ACTION_NOISE)
+                action += self.rg.uniform(-ACTION_NOISE, ACTION_NOISE)
 
         # Perform the step
         return super().step(action)

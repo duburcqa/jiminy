@@ -146,7 +146,7 @@ class RobotJiminyEnv(core.Env):
 
     def _refresh_learning_spaces(self):
         ## Define some proxies for convenience
-        sensors_data = self.robot.sensors_data
+        sensors_data = self.engine_py.sensors_data
         model_options = self.robot.get_model_options()
 
         ## Extract some information about the robot
@@ -189,7 +189,7 @@ class RobotJiminyEnv(core.Env):
         ## Sensor space
         sensor_space_raw = {key: {'min': np.full(value.shape, -np.inf),
                                   'max': np.full(value.shape, np.inf)}
-                            for key, value in self.robot.sensors_data.items()}
+                            for key, value in self.engine_py.sensors_data.items()}
 
         # Replace inf bounds by the appropriate universal bound for the Encoder sensors
         if enc.type in sensors_data.keys():
@@ -274,7 +274,10 @@ class RobotJiminyEnv(core.Env):
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
-        obs['sensors'] = self.engine_py.sensors_data
+        obs['sensors'] = {
+            sensor_type: self.engine_py.sensors_data[sensor_type]
+            for sensor_type in self.engine_py.sensors_data.keys()
+        }
 
     def _is_done(self):
         """
