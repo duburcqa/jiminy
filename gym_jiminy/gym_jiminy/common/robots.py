@@ -34,7 +34,7 @@ FREEFLYER_VEL_ANG_UNIVERSAL_MAX = 10000.0
 JOINT_POS_UNIVERSAL_MAX = 10000.0
 JOINT_VEL_UNIVERSAL_MAX = 100.0
 FLEX_VEL_ANG_UNIVERSAL_MAX = 10000.0
-MOTOR_EFFORT_MAX = 1000.0
+MOTOR_EFFORT_UNIVERSAL_MAX = 1000.0
 SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
 SENSOR_GYRO_UNIVERSAL_MAX = 100.0
 SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
@@ -177,7 +177,7 @@ class RobotJiminyEnv(core.Env):
             motor = self.robot.get_motor(motor_name)
             motor_options = motor.get_options()
             if not motor_options["enableEffortLimit"]:
-                effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
+                effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_UNIVERSAL_MAX
 
         ## Action space
         action_low  = -effort_limit[self.robot.motors_velocity_idx]
@@ -194,11 +194,12 @@ class RobotJiminyEnv(core.Env):
         if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
-                sensor_idx = self.robot.get_sensor(enc.type, sensor_name).idx
-                pos_idx = self.robot.get_sensor(enc.type, sensor_name).joint_position_idx
+                sensor = self.robot.get_sensor(enc.type, sensor_name)
+                sensor_idx = sensor.idx
+                pos_idx = sensor.joint_position_idx
                 sensor_space_raw[enc.type]['min'][0, sensor_idx] = 1.5 * position_limit_lower[pos_idx]
                 sensor_space_raw[enc.type]['max'][0, sensor_idx] = 1.5 * position_limit_upper[pos_idx]
-                vel_idx = self.robot.get_sensor(enc.type, sensor_name).joint_velocity_idx
+                vel_idx = sensor.joint_velocity_idx
                 sensor_space_raw[enc.type]['min'][1, sensor_idx] = -1.5 * velocity_limit[vel_idx]
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
 
@@ -206,8 +207,9 @@ class RobotJiminyEnv(core.Env):
         if effort.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
-                sensor_idx = self.robot.get_sensor(effort.type, sensor_name).idx
-                motor_idx = self.robot.get_sensor(effort.type, sensor_name).motor_idx
+                sensor = self.robot.get_sensor(effort.type, sensor_name)
+                sensor_idx = sensor.idx
+                motor_idx = sensor.motor_idx
                 sensor_space_raw[effort.type]['min'][0, sensor_idx] = action_low[motor_idx]
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = action_high[motor_idx]
 
@@ -218,17 +220,17 @@ class RobotJiminyEnv(core.Env):
 
         # Replace inf bounds by the appropriate universal bound for the IMU sensors
         if imu.type in sensors_data.keys():
-            quat_imu_indices = ['Quat' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][quat_imu_indices, :] = -1.0
-            sensor_space_raw[imu.type]['max'][quat_imu_indices, :] = 1.0
+            quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
+            sensor_space_raw[imu.type]['min'][quat_imu_idx, :] = -1.0
+            sensor_space_raw[imu.type]['max'][quat_imu_idx, :] = 1.0
 
-            gyro_imu_indices = ['Gyro' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][gyro_imu_indices, :] = -SENSOR_GYRO_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][gyro_imu_indices, :] = +SENSOR_GYRO_UNIVERSAL_MAX
+            gyro_imu_idx = ['Gyro' in field for field in imu.fieldnames]
+            sensor_space_raw[imu.type]['min'][gyro_imu_idx, :] = -SENSOR_GYRO_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['max'][gyro_imu_idx, :] = +SENSOR_GYRO_UNIVERSAL_MAX
 
-            accel_imu_indices = ['Accel' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][accel_imu_indices, :] = -SENSOR_ACCEL_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][accel_imu_indices, :] = +SENSOR_ACCEL_UNIVERSAL_MAX
+            accel_imu_idx = ['Accel' in field for field in imu.fieldnames]
+            sensor_space_raw[imu.type]['min'][accel_imu_idx, :] = -SENSOR_ACCEL_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['max'][accel_imu_idx, :] = +SENSOR_ACCEL_UNIVERSAL_MAX
 
         sensor_space = spaces.Dict(
             {key: spaces.Box(low=value["min"], high=value["max"], dtype=np.float64)
