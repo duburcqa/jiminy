@@ -491,7 +491,8 @@ namespace jiminy
         /// \details This function registers a callback function forceFct that links
         ///          both systems by a given force. This function must return the
         ///          force that the second systems applies to the first system,
-        ///          in the world frame.
+        ///          in the global frame of the first frame (i.e. expressed at the origin
+        ///          of the first frame, in word coordinates).
         ///
         /// \param[in] systemName1 Name of the first system (the one receiving the force)
         /// \param[in] systemName2 Name of the second system (the one applying the force)
@@ -499,7 +500,7 @@ namespace jiminy
         /// \param[in] frameName2 Frame on the second system where
         ///                       (the opposite of) the force is applied.
         /// \param[in] forceFct Callback function returning the force that systemName2
-        ///                     applies on systemName1, in the world frame.
+        ///                     applies on systemName1, in the global frame of frameName1.
         hresult_t addCouplingForce(std::string            const & systemName1,
                                    std::string            const & systemName2,
                                    std::string            const & frameName1,
@@ -622,6 +623,11 @@ namespace jiminy
                                              vectorN_t          const & v,
                                              vectorN_t          const & a);
 
+        /// \brief Compute the force resulting from ground contact on a given frame.
+        ///
+        /// \param[in] system      System for which to perform computation.
+        /// \param[in] header      Id of the frame in contact.
+        /// \return Contact force, in the global frame.
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
                                                 int32_t            const & frameIdx) const;
 

@@ -161,6 +161,54 @@ class SimulateTwoMasses(unittest.TestCase):
         # Compare the numerical and analytical solutions
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
+        # Now apply a force / torque to a non-trivial rotation to verify internal projection of the force
+        # onto the joints.
+
+        # Rebuild the model with a freeflyer.
+        self.robot = load_urdf_default(self.urdf_path, self.motor_names, has_freeflyer = True)
+
+        # Initialize with zero freeflyer velocity...
+        x_init = np.zeros(17)
+        x_init[7:9] = self.x0[:2]
+        x_init[-2:] = self.x0[2:]
+        # ... and a "random" (but fixed) freeflyer quaternion
+        np.random.seed(42)
+        x_init[:7] = np.random.rand(7)
+        x_init[3:7] /= np.linalg.norm(x_init[3:7])
+
+        # Define a wrench in the local frame.
+        f_local = np.array([1.0, 1.0, 0., 0., 0.5, 0.5])
+        idx = self.robot.pinocchio_model.getJointId("FirstJoint")
+        def external_force(t, q, v, f):
+            # Rotate the wrench to project it to the world frame.
+            R = self.robot.pinocchio_data.oMi[idx].rotation
+            f[:3] = R @ f_local[:3]
+            f[3:] = R @ f_local[3:]
+
+        def internal_dynamics(t, q, v, sensors_data, u):
+            u[:] = 0.0
+
+        def compute_command(t, q, v, sensors_data, u):
+            # Check force computation: is the local external force what we expected ?
+            # Exclude first computation as simulator init is bit peculiar.
+            if t > 0.0:
+                self.assertTrue(np.allclose(engine.system_state.f_external[idx].vector, f_local, atol=TOLERANCE))
+            u[:] = 0.0
+
+        controller = jiminy.ControllerFunctor(compute_command, internal_dynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+        engine.register_force_profile("FirstJoint", external_force)
+
+        engine_options = engine.get_options()
+        engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = 1e-3
+        engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
+        engine.set_options(engine_options)
+
+        engine.simulate(self.tf, x_init)
+
     def test_fixed_body_constraint(self):
         """
         @brief Test kinematic constraint: fixed second mass with a constaint.
