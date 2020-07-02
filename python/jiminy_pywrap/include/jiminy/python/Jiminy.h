@@ -562,7 +562,7 @@ namespace python
             for (auto const & sensorDataType : self)
             {
                 std::string const & sensorTypeName = sensorDataType.first;
-                s << sensorTypeName << ": \n";
+                s << sensorTypeName << ":\n";
                 for (auto const & sensorData : sensorDataType.second)
                 {
                     std::string const & sensorName = sensorData.name;
@@ -1457,13 +1457,13 @@ namespace python
         static std::string repr(stepperState_t & self)
         {
             std::stringstream s;
-            Eigen::IOFormat HeavyFmt(5, 1, ", ", ",\n    ", "[", "]", "    [", "]");
-            s << "iter: \n    " << self.iter;
-            s << "\n - iter_failed: \n    " << self.iterFailed;
-            s << "\n - t: \n    " << self.t;
-            s << "\n - dt: \n    " << self.dt;
-            s << "\n - x: \n" << self.x.transpose().format(HeavyFmt);
-            s << "\n - dxdt: \n" << self.dxdt.transpose().format(HeavyFmt);
+            Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
+            s << "iter:\n    " << self.iter;
+            s << "\niter_failed:\n    " << self.iterFailed;
+            s << "\nt:\n    " << self.t;
+            s << "\ndt:\n    " << self.dt;
+            s << "\nx:\n    " << self.x.transpose().format(HeavyFmt);
+            s << "dxdt:\n    " << self.dxdt.transpose().format(HeavyFmt);
             return s.str();
         }
 
@@ -1510,7 +1510,29 @@ namespace python
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
                                             bp::return_value_policy<bp::copy_non_const_reference>()))
+                .def("__repr__", &PySystemStateVisitor::repr)
                 ;
+        }
+
+        static std::string repr(systemState_t & self)
+        {
+            std::stringstream s;
+            Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
+            s << "q:\n    " << self.q.transpose().format(HeavyFmt);
+            s << "v:\n    " << self.v.transpose().format(HeavyFmt);
+            s << "qDot:\n    " << self.qDot.transpose().format(HeavyFmt);
+            s << "a:\n    " << self.a.transpose().format(HeavyFmt);
+            s << "u:\n    " << self.u.transpose().format(HeavyFmt);
+            s << "u_motor:\n    " << self.uMotor.transpose().format(HeavyFmt);
+            s << "u_command:\n    " << self.uCommand.transpose().format(HeavyFmt);
+            s << "u_internal:\n    " << self.uInternal.transpose().format(HeavyFmt);
+            s << "f_external:\n";
+            for (std::size_t i = 0; i < self.fExternal.size(); i++)
+            {
+                s << "    (" << i << "): "
+                  << self.fExternal[i].toVector().transpose().format(HeavyFmt);
+            }
+            return s.str();
         }
 
         ///////////////////////////////////////////////////////////////////////////////

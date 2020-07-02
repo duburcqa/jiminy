@@ -247,9 +247,10 @@ class EngineAsynchronous:
             # Compute rgb array if needed
             if return_rgb_array:
                 rgb_array = self._viewer.captureFrame()
-        except RuntimeError:
-            Viewer.close()
-            self._viewer = None
+        except (RuntimeError, AttributeError):
+            if self._viewer is not None:
+                self._viewer.close()
+                self._viewer = None
             if self._is_viewer_available:
                 self._is_viewer_available = False
                 rgb_array = self.render(return_rgb_array)
@@ -315,10 +316,12 @@ class EngineAsynchronous:
 
         @param[in]  action_next     Updated command
         """
-        if (not isinstance(action_next, np.ndarray)
-                or action_next.shape != (self.robot.nmotors,)):
+        if (not isinstance(action_next, np.ndarray) or \
+                action_next.shape[-1] != self.robot.nmotors):
             raise ValueError("The action must be a 1D numpy array \
                               whose length matches the number of motors.")
+        if np.any(np.isnan(action_next)):
+            raise ValueError("'action_next' cannot contain nan values.")
         self._action[:] = action_next
 
     def get_engine_options(self):

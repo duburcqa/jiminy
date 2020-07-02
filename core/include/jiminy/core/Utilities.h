@@ -321,10 +321,17 @@ namespace jiminy
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
 
-    pinocchio::Force computeFrameForceOnParentJoint(pinocchio::Model const & model,
+    /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
+    ///
+    /// \param[in] model       Pinocchio model.
+    /// \param[in] data        Pinocchio data.
+    /// \param[in] frameIdx    Id of the frame.
+    /// \param[in] fextInWorld Force in the global frame to be converted.
+    /// \return Force in the parent joint local frame.
+    pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
                                                     pinocchio::Data  const & data,
                                                     int32_t          const & frameIdx,
-                                                    pinocchio::Force const & fextInWorld);
+                                                    pinocchio::Force const & fextInGlobal);
 
     // ********************** Math utilities *************************
 

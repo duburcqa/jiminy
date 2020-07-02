@@ -1182,6 +1182,9 @@ namespace jiminy
                         // Reset the fail counter
                         fail_checker.reset();
 
+                        // Project vector onto Lie group, to prevent accumulation of numerical error due to integration.
+                        x = normalizeState(x);
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1271,6 +1274,9 @@ namespace jiminy
                     {
                         // Reset the fail counter
                         fail_checker.reset();
+
+                        // Project vector onto Lie group
+                        x = normalizeState(x);
 
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
@@ -1689,6 +1695,18 @@ namespace jiminy
         return splitStateImpl<>(systemsDataHolder_, val);
     }
 
+    vectorN_t EngineMultiRobot::normalizeState(vectorN_t xCat) const
+    {
+        auto xSplit = splitState(xCat);
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        for ( ; systemIt != systemsDataHolder_.end(); systemIt++, qSplitIt++)
+        {
+            pinocchio::normalize(systemIt->robot->pncModel_, *qSplitIt);
+        }
+        return xCat;
+    }
+
     void EngineMultiRobot::syncStepperStateWithSystems(void)
     {
         auto xSplit = splitState(stepperState_.x);
@@ -1944,16 +1962,20 @@ namespace jiminy
         std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
         for (uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
-            // Compute force in the contact frame.
+            // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force & fextInFrame = system.robot->contactForces_[i];
-            fextInFrame = computeContactDynamics(system, frameIdx);
+            pinocchio::Force & fextInGlobal = system.robot->contactForces_[i];
+            fextInGlobal = computeContactDynamics(system, frameIdx);
 
             // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextLocal = computeFrameForceOnParentJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInFrame);
+            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInGlobal);
             int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
             fext[parentIdx] += fextLocal;
+
+            // Convert contact force from the global frame to the local frame to store it in contactForces_.
+            system.robot->contactForces_[i].linear() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.linear();
+            system.robot->contactForces_[i].angular() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.angular();
         }
 
         // Add the effect of user-defined external impulse forces
@@ -1971,7 +1993,7 @@ namespace jiminy
                 int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
                 pinocchio::Force const & F = forcesImpulseIt->F;
 
-                fext[parentIdx] += computeFrameForceOnParentJoint(
+                fext[parentIdx] += convertForceGlobalFrameToJoint(
                     system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
@@ -1984,7 +2006,7 @@ namespace jiminy
             forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
 
             pinocchio::Force const force = forceFct(t, q, v);
-            fext[parentIdx] += computeFrameForceOnParentJoint(
+            fext[parentIdx] += convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
         }
     }
@@ -2011,11 +2033,15 @@ namespace jiminy
 
             pinocchio::Force const force = forceFct(t, q1, v1, q2, v2);
             int32_t const & parentIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
-            fext1[parentIdx1] += computeFrameForceOnParentJoint(
+            fext1[parentIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
             int32_t const & parentIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
-            fext2[parentIdx2] += computeFrameForceOnParentJoint(
-                system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -force);
+            // Move force from frame1 to frame2 to apply it to the second system.
+            pinocchio::SE3 offset(
+                matrix3_t::Identity(),
+                system1.robot->pncData_.oMf[frameIdx2].translation() - system1.robot->pncData_.oMf[frameIdx1].translation());
+            fext2[parentIdx2] += convertForceGlobalFrameToJoint(
+                system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));
         }
     }
 
@@ -2063,8 +2089,12 @@ namespace jiminy
              buffers in the case of the Dopri5. The actually stepper
              buffer never directly use by this method. */
 
+        /* Project vector onto Lie group, to prevent numerical error due
+           to Runge-Kutta internal steps being based on vector algebra. */
+        vectorN_t const xN = normalizeState(xCat);
+
         // Split the input state and derivative (by reference)
-        auto xSplit = splitState(xCat);
+        auto xSplit = splitState(xN);
         auto dxdtSplit = splitState(dxdtCat);
 
         // Update the kinematics of each system

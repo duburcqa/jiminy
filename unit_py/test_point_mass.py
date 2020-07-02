@@ -2,6 +2,7 @@
 # method of jiminy on simple models.
 import unittest
 import numpy as np
+from pinocchio import Force
 
 from jiminy_py import core as jiminy
 
@@ -88,8 +89,56 @@ class SimulatePointMass(unittest.TestCase):
                                np.logical_and(x_jiminy[:, 9] > 0.0, x_jiminy[:, 2] < 0.0))) > 1))
 
         # Compare the numerical and analytical equilibrium state
-        self.assertTrue(np.allclose(-log_data['MassBody.FZ'][-1], mass * gravity, atol=TOLERANCE))
+        idx = self.robot.pinocchio_model.frames[self.robot.pinocchio_model.getFrameId("MassBody")].parent
+        self.assertTrue(np.allclose(-engine.system_state.f_external[idx].linear[2], mass * gravity, atol=TOLERANCE))
         self.assertTrue(np.allclose(self.k_contact * x_jiminy[-1, 2], mass * gravity, atol=TOLERANCE))
+
+
+    def test_force_sensor(self):
+        """
+        @brief Validate output of force sensor.
+
+        @details The energy is expected to decrease slowly when penetrating into the ground,
+                 but should stay constant otherwise. Then, the equilibrium point must also
+                 match the physics. Note that the friction model is not assessed here.
+        """
+        # Create the engine
+        engine = jiminy.Engine()
+        engine.initialize(self.robot)
+
+        engine_options = engine.get_options()
+        engine_options['contacts']['stiffness'] = self.k_contact
+        engine_options['contacts']['damping'] = self.nu_contact
+        engine_options['contacts']['transitionEps'] = 1.0 / self.k_contact # To avoid assertion failure because of problem regularization
+        engine_options["stepper"]["dtMax"] = self.dtMax
+        engine_options["stepper"]["logInternalStepperSteps"] = True
+        engine.set_options(engine_options)
+
+
+        idx = self.robot.pinocchio_model.getFrameId("MassBody")
+        def computeCommand(t, q, v, sensors_data, u):
+            # Verify sensor data.
+            f = Force(sensors_data[jiminy.ForceSensor.type, "MassBody"], np.zeros(3))
+            f_joint_sensor = self.robot.pinocchio_model.frames[idx].placement * f
+            f_jiminy = engine.system_state.f_external[self.robot.pinocchio_model.frames[idx].parent]
+            self.assertTrue(np.allclose(f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
+            u[:] = 0.0
+
+        # Internal dynamics: make the mass spin to generate nontrivial rotations.
+        def internalDynamics(t, q, v, sensors_data, u):
+            u[3:6] = 1.0
+
+        controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
+        controller.initialize(self.robot)
+        engine = jiminy.Engine()
+        engine.initialize(self.robot, controller)
+
+        # Run simulation
+        x0 = np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ]) # [TX,TY,TZ],[QX,QY,QZ,QW]
+        tf = 1.5
+
+        engine.simulate(tf, x0)
 
     def test_friction_model(self):
         """
