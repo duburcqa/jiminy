@@ -40,6 +40,7 @@ setup(name = 'jiminy_py',
           'numpy',
           'matplotlib',
           'tqdm',
-          'xmltodict'
+          'xmltodict',
+          'psutil'
       ]
 )

@@ -5,10 +5,12 @@
 import os
 import re
 import time
+import psutil
 import shutil
 import tempfile
 import subprocess
 import numpy as np
+from contextlib import redirect_stdout
 from bisect import bisect_right
 from threading import Thread, Lock
 from PIL import Image
@@ -62,7 +64,7 @@ class Viewer:
     backend = None
     port_forwarding = None
     _backend_obj = None
-    _backend_exception = None
+    _backend_exceptions = ()
     _backend_proc = None
     _lock = Lock() # Unique threading.Lock for every simulations (in the same thread ONLY!)
 
@@ -127,16 +129,32 @@ class Viewer:
             print("Different backend already running. Closing it...")
         Viewer.backend = backend
 
+        # Configure exception handling
+        if (Viewer.backend == 'gepetto-gui'):
+            import omniORB
+            Viewer._backend_exceptions = \
+                (omniORB.CORBA.COMM_FAILURE, omniORB.CORBA.TRANSIENT)
+        else:
+            import zmq
+            Viewer._backend_exceptions = (zmq.error.Again, zmq.error.ZMQError)
+
         # Check if the backend is still available, if any
         if Viewer._backend_obj is not None and Viewer._backend_proc is not None:
             is_backend_running = True
             if Viewer._backend_proc.poll() is not None:
                 is_backend_running = False
             if (Viewer.backend == 'gepetto-gui'):
-                from omniORB.CORBA import TRANSIENT as gepetto_server_error
                 try:
                     Viewer._backend_obj.gui.refresh()
-                except gepetto_server_error:
+                except Viewer._backend_exceptions:
+                    is_backend_running = False
+            else:
+                try:
+                    zmq_socket = Viewer._backend_obj.window.zmq_socket
+                    zmq_socket.send(b"url")
+                    zmq_socket.RCVTIMEO = 50
+                    zmq_socket.recv()
+                except Viewer._backend_exceptions:
                     is_backend_running = False
             if not is_backend_running:
                 Viewer._backend_obj = None
@@ -149,17 +167,11 @@ class Viewer:
         self.is_backend_parent = False
         try:
             if (Viewer.backend == 'gepetto-gui'):
-                import omniORB
-
-                Viewer._backend_exception = omniORB.CORBA.COMM_FAILURE
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_gepetto_client(True)
+                        Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc is not None
-                if  Viewer._backend_obj is not None:
-                    self._client = Viewer._backend_obj.gui
-                else:
-                    raise RuntimeError
+                self._client = Viewer._backend_obj.gui
 
                 if not scene_name in self._client.getSceneList():
                     self._client.createSceneWithFloor(scene_name)
@@ -181,7 +193,8 @@ class Viewer:
                 from pinocchio.shortcuts import createDatas
 
                 if Viewer._backend_obj is None:
-                    Viewer._create_meshcat_backend()
+                    Viewer._backend_obj, Viewer._backend_proc = \
+                        Viewer._get_client(True)
                     if Viewer._is_notebook():
                         Viewer.display_jupyter_cell()
                     else:
@@ -234,15 +247,6 @@ class Viewer:
         self.close()
 
     @staticmethod
-    def _create_meshcat_backend():
-        import meshcat
-        from contextlib import redirect_stdout
-
-        with redirect_stdout(None):
-            Viewer._backend_obj = meshcat.Visualizer()
-            Viewer._backend_proc = Viewer._backend_obj.window.server_proc
-
-    @staticmethod
     def reset_port_forwarding(port_forwarding=None):
         Viewer.port_forwarding = port_forwarding
 
@@ -253,7 +257,8 @@ class Viewer:
 
             if Viewer._backend_obj is None:
                 if force_create_backend:
-                    Viewer._create_meshcat_backend()
+                    Viewer._backend_obj, Viewer._backend_proc = \
+                        Viewer._get_client(True)
                 else:
                     raise RuntimeError("No meshcat backend available and 'force_create_backend' is set to False.")
 
@@ -290,7 +295,6 @@ class Viewer:
                 self._backend_proc.terminate()
         if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
-            Viewer._backend_exception = None
         self._backend_proc = None
 
     @staticmethod
@@ -350,7 +354,7 @@ class Viewer:
         return colorized_urdf_path
 
     @staticmethod
-    def _get_gepetto_client(create_if_needed=False, create_timeout=2000):
+    def _get_client(create_if_needed=False, create_timeout=2000):
         """
         @brief      Get a pointer to the running process of Gepetto-Viewer.
 
@@ -366,34 +370,73 @@ class Viewer:
         @return     A pointer to the running Gepetto-viewer Client and its PID.
         """
 
-        from gepetto.corbaserver.client import Client as gepetto_client
 
-        try:
-            # Get the existing Gepetto client
-            client = gepetto_client()
-            # Try to fetch the list of scenes to make sure that the Gepetto client is responding
-            client.gui.getSceneList()
-            return client, None
-        except:
+        if (Viewer.backend == 'gepetto-gui'):
+            from gepetto.corbaserver.client import Client as gepetto_client
+
             try:
+                # Get the existing Gepetto client
                 client = gepetto_client()
+                # Try to fetch the list of scenes to make sure that the Gepetto client is responding
                 client.gui.getSceneList()
                 return client, None
             except:
-                if (create_if_needed):
-                    FNULL = open(os.devnull, 'w')
-                    proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
-                                            shell=False,
-                                            stdout=FNULL,
-                                            stderr=FNULL)
-                    for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
-                        time.sleep(0.2)
-                        try:
-                            return gepetto_client(), proc
-                        except:
-                            pass
-                    print("Impossible to open Gepetto-viewer")
-        return None, None
+                try:
+                    client = gepetto_client()
+                    client.gui.getSceneList()
+                    return client, None
+                except:
+                    if (create_if_needed):
+                        FNULL = open(os.devnull, 'w')
+                        proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
+                                                shell=False,
+                                                stdout=FNULL,
+                                                stderr=FNULL)
+                        for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
+                            time.sleep(0.2)
+                            try:
+                                return gepetto_client(), proc
+                            except:
+                                pass
+                        print("Impossible to open Gepetto-viewer")
+            return None, None
+        else:
+            import zmq
+            import meshcat
+
+            # Get the list of port corresponding to meshcat zmq servers
+            meshcat_port = [
+                conn.laddr.port for conn in psutil.net_connections("tcp4")
+                if conn.status == 'LISTEN' and \
+                    psutil.Process(conn.pid).cmdline()[-1] == 'meshcat.servers.zmqserver']
+
+            # Use the first port responding, if any
+            zmq_url = None
+            context = zmq.Context.instance()
+            for port in meshcat_port:
+                try:
+                    zmq_url = f"tcp://127.0.0.1:{port}"
+                    zmq_socket = context.socket(zmq.REQ)
+                    zmq_socket.RCVTIMEO = 50
+                    zmq_socket.connect(zmq_url)
+                    zmq_socket.send(b"url")
+                    zmq_socket.recv()
+                except Viewer._backend_exceptions:
+                    zmq_url = None
+                finally:
+                    zmq_socket.close(linger=5)
+                    if zmq_url is not None:
+                        break
+            context.destroy(linger=5)
+
+            # Connect to the existing zmq server or create one if none.
+            # Make sure the timeout is properly configured in any case
+            # to avoid infinite waiting if case of closed server.
+            with redirect_stdout(None):
+                client = meshcat.Visualizer(zmq_url)
+                client.window.zmq_socket.RCVTIMEO = 50
+                proc = client.window.server_proc
+            return client, proc
 
     def _delete_nodes_viewer(self, nodes_path):
         """
@@ -405,14 +448,16 @@ class Viewer:
 
         @param[in]  nodes_path     Full path of the node to delete
         """
-
-        if Viewer.backend == 'gepetto-gui':
-            for node_path in nodes_path:
-                if node_path in self._client.getNodeList():
-                    self._client.deleteNode(node_path, True)
-        else:
-            for node_path in nodes_path:
-                self._client.viewer[node_path].delete()
+        try:
+            if Viewer.backend == 'gepetto-gui':
+                for node_path in nodes_path:
+                    if node_path in self._client.getNodeList():
+                        self._client.deleteNode(node_path, True)
+            else:
+                for node_path in nodes_path:
+                    self._client.viewer[node_path].delete()
+        except Viewer._backend_exceptions:
+            pass
 
     def _getViewerNodeName(self, geometry_object, geometry_type):
         """
@@ -498,28 +543,28 @@ class Viewer:
         if Viewer._backend_obj is None or self._backend_proc.poll() is not None:
             raise RuntimeError("No backend available. Please start one before calling this method.")
 
+        if not self._lock.acquire(timeout=50e-3):
+            raise RuntimeError("Impossible to acquire backend lock.")
+
         if Viewer.backend == 'gepetto-gui':
-            with self._lock:
-                if self._rb.displayCollisions:
-                    self._client.applyConfigurations(
-                        [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
-                         for collision in self._rb.collision_model.geometryObjects],
-                        [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
-                            self._rb.collision_model.getGeometryId(collision.name)])
-                         for collision in self._rb.collision_model.geometryObjects]
-                    )
-
-                if self._rb.displayVisuals:
-                    self._updateGeometryPlacements(visual=True)
-                    self._client.applyConfigurations(
-                        [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
-                         for visual in self._rb.visual_model.geometryObjects],
-                        [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
-                            self._rb.visual_model.getGeometryId(visual.name)])
-                         for visual in self._rb.visual_model.geometryObjects]
-                    )
-
-                self._client.refresh()
+            if self._rb.displayCollisions:
+                self._client.applyConfigurations(
+                    [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
+                        for collision in self._rb.collision_model.geometryObjects],
+                    [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
+                        self._rb.collision_model.getGeometryId(collision.name)])
+                        for collision in self._rb.collision_model.geometryObjects]
+                )
+            if self._rb.displayVisuals:
+                self._updateGeometryPlacements(visual=True)
+                self._client.applyConfigurations(
+                    [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
+                        for visual in self._rb.visual_model.geometryObjects],
+                    [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
+                        self._rb.visual_model.getGeometryId(visual.name)])
+                        for visual in self._rb.visual_model.geometryObjects]
+                )
+            self._client.refresh()
         else:
             self._updateGeometryPlacements(visual=True)
             for visual in self._rb.visual_model.geometryObjects:
@@ -527,6 +572,8 @@ class Viewer:
                     self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
                     self._getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
+
+        self._lock.release()
 
     def display(self, evolution_robot, replay_speed, xyz_offset=None):
         t = [s.t for s in evolution_robot]
@@ -540,9 +587,11 @@ class Viewer:
             else:
                 q = s.q
                 try:
-                    with self._lock:
-                        self._rb.display(q)
-                except Viewer._backend_exception:
+                    if not self._lock.acquire(timeout=0.1):
+                        raise RuntimeError("Impossible to acquire backend lock.")
+                    self._rb.display(q)
+                    self._lock.release()
+                except Viewer._backend_exceptions:
                     break
             t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
@@ -631,6 +680,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
         viewers = []
         lock = Lock()
         for i in range(len(trajectory_data)):
+            # Create a new viewer instance, and load the robot in it
             robot = trajectory_data[i]['robot']
             robot_name = "_".join(("robot",  str(i)))
             use_theoretical_model = trajectory_data[i]['use_theoretical_model']
@@ -638,6 +688,9 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
                             urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
                             lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
             viewers.append(viewer)
+
+            # Wait a few moment, to give enough time to load meshes if necessary
+            time.sleep(0.5 *len(viewers))
 
         if viewers[0].is_backend_parent:
             # Initialize camera pose
@@ -676,7 +729,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
             q = trajectory_data[i]['evolution_robot'][0].q
         try:
             viewers[i]._rb.display(q)
-        except Viewer._backend_exception:
+        except Viewer._backend_exceptions:
             break
 
     # Handle start-in-pause mode
