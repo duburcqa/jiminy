@@ -1182,6 +1182,9 @@ namespace jiminy
                         // Reset the fail counter
                         fail_checker.reset();
 
+                        // Project vector onto Lie group, to prevent accumulation of numerical error due to integration.
+                        x = normalizeState(x);
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1271,6 +1274,9 @@ namespace jiminy
                     {
                         // Reset the fail counter
                         fail_checker.reset();
+
+                        // Project vector onto Lie group
+                        x = normalizeState(x);
 
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
@@ -1689,6 +1695,18 @@ namespace jiminy
         return splitStateImpl<>(systemsDataHolder_, val);
     }
 
+    vectorN_t EngineMultiRobot::normalizeState(vectorN_t xCat) const
+    {
+        auto xSplit = splitState(xCat);
+        auto systemIt = systemsDataHolder_.begin();
+        auto qSplitIt = xSplit.first.begin();
+        for ( ; systemIt != systemsDataHolder_.end(); systemIt++, qSplitIt++)
+        {
+            pinocchio::normalize(systemIt->robot->pncModel_, *qSplitIt);
+        }
+        return xCat;
+    }
+
     void EngineMultiRobot::syncStepperStateWithSystems(void)
     {
         auto xSplit = splitState(stepperState_.x);
@@ -2071,8 +2089,12 @@ namespace jiminy
              buffers in the case of the Dopri5. The actually stepper
              buffer never directly use by this method. */
 
+        /* Project vector onto Lie group, to prevent numerical error due
+           to Runge-Kutta internal steps being based on vector algebra. */
+        vectorN_t const xN = normalizeState(xCat);
+
         // Split the input state and derivative (by reference)
-        auto xSplit = splitState(xCat);
+        auto xSplit = splitState(xN);
         auto dxdtSplit = splitState(dxdtCat);
 
         // Update the kinematics of each system

@@ -615,6 +615,8 @@ namespace jiminy
         stateSplitRef_t<std::add_const> splitState(vectorN_t const & val) const;
         stateSplitRef_t<> splitState(vectorN_t & val) const;
 
+        vectorN_t normalizeState(vectorN_t xCat) const; // Copy on purpose
+
         void syncStepperStateWithSystems(void);
         void syncSystemsStateWithStepper(void);
 

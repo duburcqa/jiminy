@@ -186,7 +186,8 @@ class SimulateTwoMasses(unittest.TestCase):
             f[3:] = R @ f_local[3:]
 
         def internal_dynamics(t, q, v, sensors_data, u):
-            u[:] = 0.0
+            # Apply torque on freeflyer to make it spin.
+            u[3:6] = 1.0
 
         def compute_command(t, q, v, sensors_data, u):
             # Check force computation: is the local external force what we expected ?
