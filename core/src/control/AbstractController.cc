@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include "pinocchio/algorithm/joint-configuration.hpp"
+
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
@@ -39,7 +41,7 @@ namespace jiminy
             // isInitialized_ must be true to execute the 'computeCommand' and 'internalDynamics' methods
             isInitialized_ = true;
             float64_t t = 0;
-            vectorN_t q = vectorN_t::Zero(robot_->nq());
+            vectorN_t q = pinocchio::neutral(robot->pncModel_);
             vectorN_t v = vectorN_t::Zero(robot_->nv());
             vectorN_t uCommand = vectorN_t::Zero(robot_->getMotorsNames().size());
             vectorN_t uInternal = vectorN_t::Zero(robot_->nv());

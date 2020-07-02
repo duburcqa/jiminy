@@ -89,7 +89,7 @@ class SimulatePointMass(unittest.TestCase):
                                np.logical_and(x_jiminy[:, 9] > 0.0, x_jiminy[:, 2] < 0.0))) > 1))
 
         # Compare the numerical and analytical equilibrium state
-        idx =self.robot.pinocchio_model.frames[self.robot.pinocchio_model.getFrameId("MassBody")].parent
+        idx = self.robot.pinocchio_model.frames[self.robot.pinocchio_model.getFrameId("MassBody")].parent
         self.assertTrue(np.allclose(-engine.system_state.f_external[idx].linear[2], mass * gravity, atol=TOLERANCE))
         self.assertTrue(np.allclose(self.k_contact * x_jiminy[-1, 2], mass * gravity, atol=TOLERANCE))
 
@@ -118,7 +118,7 @@ class SimulatePointMass(unittest.TestCase):
         idx = self.robot.pinocchio_model.getFrameId("MassBody")
         def computeCommand(t, q, v, sensors_data, u):
             # Verify sensor data.
-            f =  Force(sensors_data[jiminy.ForceSensor.type, "MassBody"], np.zeros(3))
+            f = Force(sensors_data[jiminy.ForceSensor.type, "MassBody"], np.zeros(3))
             f_joint_sensor = self.robot.pinocchio_model.frames[idx].placement * f
             f_jiminy = engine.system_state.f_external[self.robot.pinocchio_model.frames[idx].parent]
             self.assertTrue(np.allclose(f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))

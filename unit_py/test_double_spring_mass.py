@@ -187,6 +187,7 @@ class SimulateTwoMasses(unittest.TestCase):
 
         def internal_dynamics(t, q, v, sensors_data, u):
             # Apply torque on freeflyer to make it spin.
+            self.assertTrue(np.allclose(np.linalg.norm(q[3:7]), 1.0, atol=TOLERANCE))
             u[3:6] = 1.0
 
         def compute_command(t, q, v, sensors_data, u):
