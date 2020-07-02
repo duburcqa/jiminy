@@ -1,0 +1,1 @@
+recursive-include src/jiminy_py *.so *.dll *.pyd
