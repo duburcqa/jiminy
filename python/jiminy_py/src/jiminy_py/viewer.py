@@ -122,9 +122,7 @@ class Viewer:
                 raise ValueError("%s backend not available." % backend)
 
         # Update the backend currently running, if any
-        if (Viewer.backend != backend) and \
-           (Viewer._backend_obj is not None or \
-            Viewer._backend_proc is not None):
+        if Viewer.backend != backend and Viewer._backend_obj is not None:
             Viewer.close()
             print("Different backend already running. Closing it...")
         Viewer.backend = backend
@@ -139,9 +137,10 @@ class Viewer:
             Viewer._backend_exceptions = (zmq.error.Again, zmq.error.ZMQError)
 
         # Check if the backend is still available, if any
-        if Viewer._backend_obj is not None and Viewer._backend_proc is not None:
+        if Viewer._backend_obj is not None:
             is_backend_running = True
-            if Viewer._backend_proc.poll() is not None:
+            if Viewer._backend_proc is not None and \
+                    Viewer._backend_proc.poll() is not None:
                 is_backend_running = False
             if (Viewer.backend == 'gepetto-gui'):
                 try:
@@ -199,7 +198,7 @@ class Viewer:
                         Viewer.display_jupyter_cell()
                     else:
                         Viewer._backend_obj.open()
-                    self.is_backend_parent = True
+                    self.is_backend_parent = Viewer._backend_proc is not None
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
@@ -243,6 +242,9 @@ class Viewer:
             self._client.loadViewerModel(rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
 
+        # Refresh the viewer since the position of the meshes is not initialized at this point
+        self.refresh()
+
     def __del__(self):
         self.close()
 
@@ -283,13 +285,16 @@ class Viewer:
         if self is None:
             self = Viewer
         else:
-            if (Viewer.backend == 'gepetto-gui'):
-                self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
-            else:
-                node_names = [
-                    self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
-                    for visual_obj in self._rb.visual_model.geometryObjects]
-                self._delete_nodes_viewer(node_names)
+            try:
+                if (Viewer.backend == 'gepetto-gui'):
+                    self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
+                else:
+                    node_names = [
+                        self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
+                        for visual_obj in self._rb.visual_model.geometryObjects]
+                    self._delete_nodes_viewer(node_names)
+            except AttributeError:
+                pass
         if self == Viewer or self.is_backend_parent:
             if self._backend_proc is not None and self._backend_proc.poll() is None:
                 self._backend_proc.terminate()
@@ -540,7 +545,8 @@ class Viewer:
         if self.use_theoretical_model:
             raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
 
-        if Viewer._backend_obj is None or self._backend_proc.poll() is not None:
+        if Viewer._backend_obj is None or (self.is_backend_parent and
+                self._backend_proc.poll() is not None):
             raise RuntimeError("No backend available. Please start one before calling this method.")
 
         if not self._lock.acquire(timeout=50e-3):
@@ -690,7 +696,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
             viewers.append(viewer)
 
             # Wait a few moment, to give enough time to load meshes if necessary
-            time.sleep(0.5 *len(viewers))
+            time.sleep(0.5)
 
         if viewers[0].is_backend_parent:
             # Initialize camera pose
@@ -709,9 +715,9 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
         # Make sure the viewers are still running
         is_backend_running = True
         for viewer in viewers:
-            if viewer.is_backend_parent:
-                if viewer._backend_proc.poll() is not None:
-                    is_backend_running = False
+            if viewer.is_backend_parent and \
+                    viewer._backend_proc.poll() is not None:
+                is_backend_running = False
         if Viewer._backend_obj is None:
             is_backend_running = False
         if not is_backend_running:
