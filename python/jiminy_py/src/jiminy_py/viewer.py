@@ -70,7 +70,7 @@ class Viewer:
 
     def __init__(self, robot, use_theoretical_model=False,
                  mesh_root_path = None, urdf_rgba=None, lock=None, backend=None,
-                 robot_name="robot", window_name='jiminy', scene_name='world'):
+                 robot_name="robot", window_name='jiminy', scene_name='world', delete_robot_on_close=False):
         """
         @brief Constructor.
 
@@ -96,6 +96,7 @@ class Viewer:
         self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
+        self.delete_robot_on_close = delete_robot_on_close
 
         if self.scene_name == self.window_name:
             raise ValueError("Please, choose a different name for the scene and the window.")
@@ -196,8 +197,8 @@ class Viewer:
                         Viewer._get_client(True)
                     if Viewer._is_notebook():
                         Viewer.display_jupyter_cell()
-                    else:
-                        Viewer._backend_obj.open()
+                    #~ else:
+                        #~ Viewer._backend_obj.open()
                     self.is_backend_parent = Viewer._backend_proc is not None
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
@@ -246,7 +247,7 @@ class Viewer:
         self.refresh()
 
     def __del__(self):
-        self.close()
+        self.close(self.delete_robot_on_close)
 
     @staticmethod
     def reset_port_forwarding(port_forwarding=None):
@@ -281,20 +282,21 @@ class Viewer:
         else:
             raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
-    def close(self=None):
+    def close(self=None, delete_robot_on_close = True):
         if self is None:
             self = Viewer
         else:
-            try:
-                if (Viewer.backend == 'gepetto-gui'):
-                    self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
-                else:
-                    node_names = [
-                        self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
-                        for visual_obj in self._rb.visual_model.geometryObjects]
-                    self._delete_nodes_viewer(node_names)
-            except AttributeError:
-                pass
+            if delete_robot_on_close:
+                try:
+                    if (Viewer.backend == 'gepetto-gui'):
+                        self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
+                    else:
+                        node_names = [
+                            self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
+                            for visual_obj in self._rb.visual_model.geometryObjects]
+                        self._delete_nodes_viewer(node_names)
+                except AttributeError:
+                    pass
         if self == Viewer or self.is_backend_parent:
             if self._backend_proc is not None and self._backend_proc.poll() is None:
                 self._backend_proc.terminate()
@@ -542,8 +544,9 @@ class Viewer:
         @brief      Refresh the configuration of Robot in the viewer.
         """
 
+        # Don't refresh if using theoretical model.
         if self.use_theoretical_model:
-            raise RuntimeError("'refresh' method only available if 'use_theoretical_model'=False.")
+            return None
 
         if Viewer._backend_obj is None or (self.is_backend_parent and
                 self._backend_proc.poll() is not None):
@@ -654,7 +657,8 @@ def extract_viewer_data_from_log(log_data, robot):
 
 def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, viewers=None,
                       start_paused=False, camera_xyzrpy=None, xyz_offset=None, urdf_rgba=None,
-                      backend=None, window_name='python-pinocchio', scene_name='world', close_backend=None):
+                      backend=None, window_name='python-pinocchio', scene_name='world',
+                      close_backend=None, delete_robot_on_close=True):
     """!
     @brief      Display a robot trajectory in a viewer.
 
@@ -678,6 +682,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
+    @param[in] delete_robot_on_close Whether or not to delete the robot from the viewer when closing it.
 
     @return     The viewers used to play the trajectories.
     """
@@ -692,7 +697,8 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
             use_theoretical_model = trajectory_data[i]['use_theoretical_model']
             viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path=mesh_root_path,
                             urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
-                            lock=lock, backend=backend, window_name=window_name, scene_name=scene_name)
+                            lock=lock, backend=backend, window_name=window_name, scene_name=scene_name,
+                            delete_robot_on_close=delete_robot_on_close)
             viewers.append(viewer)
 
             # Wait a few moment, to give enough time to load meshes if necessary
