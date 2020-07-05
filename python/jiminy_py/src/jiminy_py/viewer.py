@@ -92,7 +92,7 @@ class Viewer:
                               simultaneous connections (e.g. corbasever).
         @param backend        The name of the desired backend to use for rendering.
                               Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
-        @param delete_robot_on_close     Enable automatic deletion of robot when viewer is closed.
+        @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
         @param scene_name     Scene name, used only when gepetto-gui is used as backend.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
@@ -258,7 +258,7 @@ class Viewer:
         self.refresh()
 
     def __del__(self):
-        self.close(self.delete_robot_on_close)
+        self.close()
 
     @staticmethod
     def reset_port_forwarding(port_forwarding=None):
@@ -293,11 +293,11 @@ class Viewer:
         else:
             raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
 
-    def close(self=None, delete_robot_on_close = True):
+    def close(self=None):
         if self is None:
             self = Viewer
         else:
-            if delete_robot_on_close:
+            if self.delete_robot_on_close:
                 try:
                     if (Viewer.backend == 'gepetto-gui'):
                         self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
