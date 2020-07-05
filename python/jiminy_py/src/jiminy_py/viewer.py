@@ -423,7 +423,7 @@ class Viewer:
             meshcat_port = [
                 conn.laddr.port for conn in psutil.net_connections("tcp4")
                 if conn.status == 'LISTEN' and \
-                    psutil.Process(conn.pid).cmdline()[-1] == 'meshcat.servers.zmqserver']
+                    'meshcat' in psutil.Process(conn.pid).cmdline()[-1]]
 
             # Use the first port responding, if any
             zmq_url = None
