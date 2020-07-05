@@ -68,9 +68,17 @@ class Viewer:
     _backend_proc = None
     _lock = Lock() # Unique threading.Lock for every simulations (in the same thread ONLY!)
 
-    def __init__(self, robot, use_theoretical_model=False,
-                 mesh_root_path = None, urdf_rgba=None, lock=None, backend=None,
-                 robot_name="robot", window_name='jiminy', scene_name='world', delete_robot_on_close=False):
+    def __init__(self,
+                 robot,
+                 use_theoretical_model=False,
+                 mesh_root_path = None,
+                 urdf_rgba=None,
+                 lock=None,
+                 backend=None,
+                 delete_robot_on_close=False,
+                 robot_name="robot",
+                 window_name='jiminy',
+                 scene_name='world'):
         """
         @brief Constructor.
 
@@ -84,6 +92,7 @@ class Viewer:
                               simultaneous connections (e.g. corbasever).
         @param backend        The name of the desired backend to use for rendering.
                               Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+        @param delete_robot_on_close     Enable automatic deletion of robot when viewer is closed.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
         @param scene_name     Scene name, used only when gepetto-gui is used as backend.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
@@ -195,11 +204,13 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
+                    self.is_backend_parent = Viewer._backend_proc is not None
+
+                if self.is_backend_parent:
                     if Viewer._is_notebook():
                         Viewer.display_jupyter_cell()
-                    #~ else:
-                        #~ Viewer._backend_obj.open()
-                    self.is_backend_parent = Viewer._backend_proc is not None
+                    else:
+                        Viewer._backend_obj.open()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
@@ -331,7 +342,6 @@ class Viewer:
 
         @return     Full path of the colorized URDF file.
         """
-
         color_string = "%.3f_%.3f_%.3f_1.0" % rgb
         color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % rgb # don't close tag with '>', in order to handle <color/> and <color></color>
         colorized_tmp_path = os.path.join(tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
@@ -376,8 +386,6 @@ class Viewer:
 
         @return     A pointer to the running Gepetto-viewer Client and its PID.
         """
-
-
         if (Viewer.backend == 'gepetto-gui'):
             from gepetto.corbaserver.client import Client as gepetto_client
 
@@ -505,8 +513,7 @@ class Viewer:
                                      geom_model, geom_data)
 
     def setCameraTransform(self, translation=np.zeros(3), rotation=np.zeros(3), relative=False):
-        # translation : [Px, Py, Pz],
-        # rotation : [Roll, Pitch, Yaw]
+        # translation : [Px, Py, Pz], rotation : [Roll, Pitch, Yaw]
 
         R_pnc = rpyToMatrix(np.array(rotation))
         if Viewer.backend == 'gepetto-gui':
@@ -543,16 +550,11 @@ class Viewer:
         """
         @brief      Refresh the configuration of Robot in the viewer.
         """
-
-        # Don't refresh if using theoretical model.
-        if self.use_theoretical_model:
-            return None
-
         if Viewer._backend_obj is None or (self.is_backend_parent and
                 self._backend_proc.poll() is not None):
             raise RuntimeError("No backend available. Please start one before calling this method.")
 
-        if not self._lock.acquire(timeout=50e-3):
+        if not self._lock.acquire(timeout=0.2):
             raise RuntimeError("Impossible to acquire backend lock.")
 
         if Viewer.backend == 'gepetto-gui':
@@ -596,7 +598,7 @@ class Viewer:
             else:
                 q = s.q
                 try:
-                    if not self._lock.acquire(timeout=0.1):
+                    if not self._lock.acquire(timeout=0.2):
                         raise RuntimeError("Impossible to acquire backend lock.")
                     self._rb.display(q)
                     self._lock.release()
@@ -682,7 +684,7 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
-    @param[in] delete_robot_on_close Whether or not to delete the robot from the viewer when closing it.
+    @param[in] delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
 
     @return     The viewers used to play the trajectories.
     """
