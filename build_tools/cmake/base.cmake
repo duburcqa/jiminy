@@ -1,14 +1,6 @@
 # Minimum version required
 cmake_minimum_required (VERSION 3.10)
 
-# Enable ccache if available
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    message("-- Enabling ccache.")
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-endif(CCACHE_FOUND)
-
 # Check if network is available for compiling gtest
 option(BUILD_TESTING "Build the gtest testing tree." ON)
 if(BUILD_TESTING)
