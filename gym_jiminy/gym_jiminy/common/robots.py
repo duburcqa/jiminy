@@ -60,10 +60,10 @@ class RobotJiminyEnv(core.Env):
     }
 
     def __init__(self,
-                 robot_name : str,
-                 engine_py : EngineAsynchronous,
-                 dt : float,
-                 debug : bool = False):
+                 robot_name: str,
+                 engine_py: EngineAsynchronous,
+                 dt: float,
+                 debug: bool = False):
         """
         @brief      Constructor
 
@@ -148,7 +148,10 @@ class RobotJiminyEnv(core.Env):
         sensors_data = self.engine_py.sensors_data
         model_options = self.robot.get_model_options()
 
-        ## Extract some information about the robot
+        ## Extract some proxies
+        joints_position_idx = self.robot.rigid_joints_position_idx
+        joints_velocity_idx = self.robot.rigid_joints_velocity_idx
+        motors_velocity_idx = self.robot.motors_velocity_idx
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
@@ -163,32 +166,45 @@ class RobotJiminyEnv(core.Env):
 
         for jointIdx in self.robot.flexible_joints_idx:
             jointVelIdx = self.robot.pinocchio_model.joints[jointIdx].idx_v
-            velocity_limit[jointVelIdx + np.arange(3)] = FLEX_VEL_ANG_UNIVERSAL_MAX
+            velocity_limit[jointVelIdx + np.arange(3)] = \
+                FLEX_VEL_ANG_UNIVERSAL_MAX
 
         if not model_options['joints']['enablePositionLimit']:
-            position_limit_lower[self.robot.rigid_joints_position_idx] = -JOINT_POS_UNIVERSAL_MAX
-            position_limit_upper[self.robot.rigid_joints_position_idx] = +JOINT_POS_UNIVERSAL_MAX
+            position_limit_lower[joints_position_idx] = \
+                -JOINT_POS_UNIVERSAL_MAX
+            position_limit_upper[joints_position_idx] = \
+                +JOINT_POS_UNIVERSAL_MAX
+        else:
+            # Joint bounds are not hard bounds, so margins need to be added
+            position_limit_lower[joints_position_idx] -= 1.0e-2
+            position_limit_upper[joints_position_idx] += 1.0e-2
 
         if not model_options['joints']['enableVelocityLimit']:
-            velocity_limit[self.robot.rigid_joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
+            velocity_limit[joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
+        else:
+            velocity_limit[joints_velocity_idx] += 5.0e-1
 
         # Replace inf bounds by the appropriate universal bound for the action space
         for motor_name in self.robot.motors_names:
             motor = self.robot.get_motor(motor_name)
             motor_options = motor.get_options()
             if not motor_options["enableEffortLimit"]:
-                effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_UNIVERSAL_MAX
+                effort_limit[motor.joint_velocity_idx] = \
+                    MOTOR_EFFORT_UNIVERSAL_MAX
 
         ## Action space
-        action_low  = -effort_limit[self.robot.motors_velocity_idx]
-        action_high = +effort_limit[self.robot.motors_velocity_idx]
+        action_low  = -effort_limit[motors_velocity_idx]
+        action_high = +effort_limit[motors_velocity_idx]
 
-        self.action_space = spaces.Box(low=action_low, high=action_high, dtype=np.float64)
+        self.action_space = spaces.Box(
+            low=action_low, high=action_high, dtype=np.float64)
 
         ## Sensor space
-        sensor_space_raw = {key: {'min': np.full(value.shape, -np.inf),
-                                  'max': np.full(value.shape, np.inf)}
-                            for key, value in self.engine_py.sensors_data.items()}
+        sensor_space_raw = {
+            key: {'min': np.full(value.shape, -np.inf),
+                  'max': np.full(value.shape, np.inf)}
+            for key, value in self.engine_py.sensors_data.items()
+        }
 
         # Replace inf bounds by the appropriate universal bound for the Encoder sensors
         if enc.type in sensors_data.keys():
@@ -197,11 +213,15 @@ class RobotJiminyEnv(core.Env):
                 sensor = self.robot.get_sensor(enc.type, sensor_name)
                 sensor_idx = sensor.idx
                 pos_idx = sensor.joint_position_idx
-                sensor_space_raw[enc.type]['min'][0, sensor_idx] = 1.5 * position_limit_lower[pos_idx]
-                sensor_space_raw[enc.type]['max'][0, sensor_idx] = 1.5 * position_limit_upper[pos_idx]
+                sensor_space_raw[enc.type]['min'][0, sensor_idx] = \
+                    position_limit_lower[pos_idx]
+                sensor_space_raw[enc.type]['max'][0, sensor_idx] = \
+                    position_limit_upper[pos_idx]
                 vel_idx = sensor.joint_velocity_idx
-                sensor_space_raw[enc.type]['min'][1, sensor_idx] = -1.5 * velocity_limit[vel_idx]
-                sensor_space_raw[enc.type]['max'][1, sensor_idx] =  1.5 * velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['min'][1, sensor_idx] = \
+                    - velocity_limit[vel_idx]
+                sensor_space_raw[enc.type]['max'][1, sensor_idx] = \
+                    velocity_limit[vel_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Effort sensors
         if effort.type in sensors_data.keys():
@@ -210,39 +230,57 @@ class RobotJiminyEnv(core.Env):
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
                 sensor_idx = sensor.idx
                 motor_idx = sensor.motor_idx
-                sensor_space_raw[effort.type]['min'][0, sensor_idx] = action_low[motor_idx]
-                sensor_space_raw[effort.type]['max'][0, sensor_idx] = action_high[motor_idx]
+                sensor_space_raw[effort.type]['min'][0, sensor_idx] = \
+                    action_low[motor_idx]
+                sensor_space_raw[effort.type]['max'][0, sensor_idx] = \
+                    action_high[motor_idx]
 
         # Replace inf bounds by the appropriate universal bound for the Force sensors
         if force.type in sensors_data.keys():
-            sensor_space_raw[force.type]['min'][:, :] = -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][:, :] = +SENSOR_FORCE_UNIVERSAL_MAX
+            sensor_space_raw[force.type]['min'][:,:] = \
+                -SENSOR_FORCE_UNIVERSAL_MAX
+            sensor_space_raw[force.type]['max'][:,:] = \
+                +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds by the appropriate universal bound for the IMU sensors
         if imu.type in sensors_data.keys():
             quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][quat_imu_idx, :] = -1.0
-            sensor_space_raw[imu.type]['max'][quat_imu_idx, :] = 1.0
+            sensor_space_raw[imu.type]['min'][quat_imu_idx,:] = -1.0
+            sensor_space_raw[imu.type]['max'][quat_imu_idx,:] = 1.0
 
             gyro_imu_idx = ['Gyro' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][gyro_imu_idx, :] = -SENSOR_GYRO_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][gyro_imu_idx, :] = +SENSOR_GYRO_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['min'][gyro_imu_idx,:] = \
+                -SENSOR_GYRO_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['max'][gyro_imu_idx,:] = \
+                +SENSOR_GYRO_UNIVERSAL_MAX
 
             accel_imu_idx = ['Accel' in field for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][accel_imu_idx, :] = -SENSOR_ACCEL_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][accel_imu_idx, :] = +SENSOR_ACCEL_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['min'][accel_imu_idx,:] = \
+                -SENSOR_ACCEL_UNIVERSAL_MAX
+            sensor_space_raw[imu.type]['max'][accel_imu_idx,:] = \
+                +SENSOR_ACCEL_UNIVERSAL_MAX
 
-        sensor_space = spaces.Dict(
-            {key: spaces.Box(low=value["min"], high=value["max"], dtype=np.float64)
-             for key, value in sensor_space_raw.items()})
+        sensor_space = spaces.Dict({
+            key: spaces.Box(
+                low=value["min"], high=value["max"], dtype=np.float64)
+            for key, value in sensor_space_raw.items()
+        })
 
         ## Observation space
-        state_limit_lower = 1.5 * np.concatenate((position_limit_lower, -velocity_limit))
-        state_limit_upper = 1.5 * np.concatenate((position_limit_upper, +velocity_limit))
+        state_limit_lower = np.concatenate(
+            (position_limit_lower, -velocity_limit))
+        state_limit_upper = np.concatenate(
+            (position_limit_upper, velocity_limit))
 
         self.observation_space = spaces.Dict(
-            t = spaces.Box(low=0.0, high=T_UNIVERSAL_MAX, shape=(1,), dtype=np.float64),
-            state = spaces.Box(low=state_limit_lower, high=state_limit_upper, dtype=np.float64),
+            t = spaces.Box(
+                low=0.0,
+                high=T_UNIVERSAL_MAX,
+                shape=(1,), dtype=np.float64),
+            state = spaces.Box(
+                low=state_limit_lower,
+                high=state_limit_upper,
+                dtype=np.float64),
             sensors = sensor_space
         )
 
@@ -260,7 +298,8 @@ class RobotJiminyEnv(core.Env):
         if self.robot.has_freeflyer:
             ground_fun = self.engine.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, q0, ground_profile=ground_fun, use_theoretical_model=False)
+                self.robot, q0, ground_profile=ground_fun,
+                use_theoretical_model=False)
         v0 = np.zeros(self.robot.nv)
         x0 = np.concatenate((q0, v0))
         return x0
@@ -448,7 +487,10 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
     @details    The Jiminy Engine must be completely initialized beforehand, which
                 means that the Jiminy Robot and Controller are already setup.
     """
-    def __init__(self, robot_name : str, engine_py : EngineAsynchronous, dt : float):
+    def __init__(self,
+                 robot_name: str,
+                 engine_py: EngineAsynchronous,
+                 dt: float):
         """
         @brief      Constructor
 
@@ -474,8 +516,10 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
 
         ## Append default desired and achieved goal spaces to the observation space
         self.observation_space = spaces.Dict(
-            desired_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
-            achieved_goal=spaces.Box(-np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
+            desired_goal=spaces.Box(
+                -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
+            achieved_goal=spaces.Box(
+                -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
             observation=self.observation_space)
 
         ## Current observation of the robot
