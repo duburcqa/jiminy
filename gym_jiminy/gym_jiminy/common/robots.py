@@ -176,13 +176,13 @@ class RobotJiminyEnv(core.Env):
                 +JOINT_POS_UNIVERSAL_MAX
         else:
             # Joint bounds are not hard bounds, so margins need to be added
-            position_limit_lower[joints_position_idx] -= 1.0e-2
-            position_limit_upper[joints_position_idx] += 1.0e-2
+            position_limit_lower[joints_position_idx] -= 5.0e-2
+            position_limit_upper[joints_position_idx] += 5.0e-2
 
         if not model_options['joints']['enableVelocityLimit']:
             velocity_limit[joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
         else:
-            velocity_limit[joints_velocity_idx] += 5.0e-1
+            velocity_limit[joints_velocity_idx] += 1.0e-0
 
         # Replace inf bounds by the appropriate universal bound for the action space
         for motor_name in self.robot.motors_names:
