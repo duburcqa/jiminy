@@ -228,25 +228,34 @@ class Viewer:
                 urdf_contents = urdf_file.read()
                 for mesh_fullpath in re.findall('<mesh filename="(.*)"', urdf_contents):
                     if not mesh_fullpath.startswith(mesh_root_path):
-                        logging.warning("The specified mesh root path conflicts with existing absolute mesh path used in the URDF.\nOverriding URDF mesh path. THIS MAY CAUSE ERRORS IN LINK LOADING.")
+                        logging.warning(
+                        "The specified mesh root path conflicts with existing absolute mesh path used in the URDF.\n"\
+                        "Overriding URDF mesh path. THIS MAY CAUSE ERRORS IN LINK LOADING.")
                         override_urdf_path=True
                         break
             if override_urdf_path:
-                self.urdf_path = self._override_absolute_mesh_path(self.urdf_path, mesh_root_path)
+                self.urdf_path = self._override_absolute_mesh_path(
+                    self.urdf_path, mesh_root_path)
 
         # Create a RobotWrapper
-        root_path = mesh_root_path if mesh_root_path is not None else os.environ.get('JIMINY_MESH_PATH', [])
+        if mesh_root_path is not None:
+            root_path = mesh_root_path
+        else:
+            root_path = os.environ.get('JIMINY_MESH_PATH', [])
         if (Viewer.backend == 'gepetto-gui'):
             self._delete_nodes_viewer([scene_name + '/' + self.robot_name])
             if (urdf_rgba is not None):
                 alpha = urdf_rgba[3]
-                self.urdf_path = Viewer._get_colorized_urdf(self.urdf_path, urdf_rgba[:3], root_path)
+                self.urdf_path = Viewer._get_colorized_urdf(
+                    self.urdf_path, urdf_rgba[:3], root_path)
             else:
                 alpha = 1.0
-        collision_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                                root_path, pin.GeometryType.COLLISION)
-        visual_model = pin.buildGeomFromUrdf(self.pinocchio_model, self.urdf_path,
-                                             root_path, pin.GeometryType.VISUAL)
+        collision_model = pin.buildGeomFromUrdf(
+            self.pinocchio_model, self.urdf_path,
+            root_path, pin.GeometryType.COLLISION)
+        visual_model = pin.buildGeomFromUrdf(
+            self.pinocchio_model, self.urdf_path,
+            root_path, pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=collision_model,
                                 visual_model=visual_model)
@@ -256,16 +265,20 @@ class Viewer:
 
         # Load robot in the backend viewer
         if (Viewer.backend == 'gepetto-gui'):
-            self._rb.initViewer(windowName=window_name, sceneName=scene_name, loadModel=False)
+            self._rb.initViewer(
+                windowName=window_name, sceneName=scene_name, loadModel=False)
             self._rb.loadViewerModel(self.robot_name)
             self._client.setFloatProperty(scene_name + '/' + self.robot_name,
                                           'Transparency', 1 - alpha)
         else:
             self._client.collision_model = collision_model
             self._client.visual_model = visual_model
-            self._client.data, self._client.collision_data, self._client.visual_data = \
-                createDatas(self.pinocchio_model, collision_model, visual_model)
-            self._client.loadViewerModel(rootNodeName=self.robot_name, color=urdf_rgba)
+            (self._client.data,
+             self._client.collision_data,
+             self._client.visual_data) = createDatas(
+                 self.pinocchio_model, collision_model, visual_model)
+            self._client.loadViewerModel(
+                rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
 
         # Refresh the viewer since the position of the meshes is not initialized at this point
@@ -286,7 +299,8 @@ class Viewer:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
                 else:
-                    raise RuntimeError("No meshcat backend available and 'create_if_needed' is set to False.")
+                    raise RuntimeError(
+                        "No meshcat backend available and 'create_if_needed' is set to False.")
 
             viewer_url = Viewer._backend_obj.gui.url()
             if Viewer.port_forwarding is not None:
@@ -294,7 +308,8 @@ class Viewer:
                 port_localhost = int(re.search(url_port_pattern, viewer_url).group())
                 assert port_localhost in Viewer.port_forwarding.keys(), \
                     "Port forwarding defined but no port mapping associated with {port_localhost}."
-                viewer_url = re.sub(url_port_pattern, str(Viewer.port_forwarding[port_localhost]), viewer_url)
+                port_remote = Viewer.port_forwarding[port_localhost]
+                viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
 
             if Viewer._is_notebook():
                 from IPython.core.display import HTML, display
@@ -314,10 +329,12 @@ class Viewer:
             if self.delete_robot_on_close:
                 try:
                     if (Viewer.backend == 'gepetto-gui'):
-                        self._delete_nodes_viewer([self.scene_name + '/' + self.robot_name])
+                        self._delete_nodes_viewer(
+                            [self.scene_name + '/' + self.robot_name])
                     else:
                         node_names = [
-                            self._client.getViewerNodeName(visual_obj, pin.GeometryType.VISUAL)
+                            self._client.getViewerNodeName(
+                                visual_obj, pin.GeometryType.VISUAL)
                             for visual_obj in self._rb.visual_model.geometryObjects]
                         self._delete_nodes_viewer(node_names)
                 except AttributeError:
@@ -358,15 +375,18 @@ class Viewer:
         """
         color_string = "%.3f_%.3f_%.3f_1.0" % tuple(rgb)
         color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % tuple(rgb) # don't close tag with '>', in order to handle <color/> and <color></color>
-        colorized_tmp_path = os.path.join(tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
-        colorized_urdf_path = os.path.join(colorized_tmp_path, os.path.basename(urdf_path))
+        colorized_tmp_path = os.path.join(
+            tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
+        colorized_urdf_path = os.path.join(
+            colorized_tmp_path, os.path.basename(urdf_path))
         if not os.path.exists(colorized_tmp_path):
             os.makedirs(colorized_tmp_path)
 
         with open(urdf_path, 'r') as urdf_file:
             colorized_contents = urdf_file.read()
 
-        for mesh_fullpath in re.findall('<mesh filename="(.*)"', colorized_contents):
+        for mesh_fullpath in re.findall(
+                '<mesh filename="(.*)"', colorized_contents):
             # Replace package path by root_path.
             if mesh_fullpath.startswith('package://'):
                 mesh_fullpath = root_path + mesh_fullpath[len("package:/"):]
@@ -375,8 +395,8 @@ class Viewer:
             if not os.access(colorized_mesh_path, os.F_OK):
                 os.makedirs(colorized_mesh_path)
             shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
-            colorized_contents = colorized_contents.replace('"' + mesh_fullpath + '"',
-                                                            '"' + colorized_mesh_fullpath + '"', 1)
+            colorized_contents = colorized_contents.replace(
+                '"' + mesh_fullpath + '"', '"' + colorized_mesh_fullpath + '"', 1)
         colorized_contents = re.sub(r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
 
         with open(colorized_urdf_path, 'w') as colorized_urdf_file:
@@ -390,27 +410,29 @@ class Viewer:
         @brief      Generate an URDF with overridden mesh paths
         """
         overridden_tmp_path = os.path.join(tempfile.gettempdir(), "overridden_urdf")
-        overridden_urdf_path = os.path.join(overridden_tmp_path, os.path.basename(urdf_path))
+        overridden_urdf_path = os.path.join(
+            overridden_tmp_path, os.path.basename(urdf_path))
         if not os.path.exists(overridden_tmp_path):
             os.makedirs(overridden_tmp_path)
 
         with open(urdf_path, 'r') as urdf_file:
             urdf_contents = urdf_file.read()
-        pathlists = [filename.split('/') for filename in re.findall('<mesh filename="(.*)"', urdf_contents)]
+        pathlists = [
+            filename.split('/')
+            for filename in re.findall('<mesh filename="(.*)"', urdf_contents)]
         # Find root of the URDF mesh paths
-        print(pathlists)
         searching = True
-        urdf_root_path_length=0
+        urdf_root_path_len = 0
         while searching:
-            urdf_root_path_length+=1
+            urdf_root_path_len += 1
             for element in pathlists:
-                if pathlists[0][urdf_root_path_length] != element[urdf_root_path_length]:
-                    searching=False
+                if pathlists[0][urdf_root_path_len] != element[urdf_root_path_len]:
+                    searching = False
                     break
-        urdf_root_path=''
-        pathlists[0][3]='builder'
-        for element in pathlists[0][1:urdf_root_path_length]:
-            urdf_root_path += '/'+ element
+        urdf_root_path = ''
+        pathlists[0][3] = 'builder'
+        for element in pathlists[0][1:urdf_root_path_len]:
+            urdf_root_path += '/' + element
 
         urdf_contents = urdf_contents.replace(urdf_root_path,mesh_root_path)
         with open(overridden_urdf_path, 'w') as overridden_urdf_file:
@@ -497,9 +519,12 @@ class Viewer:
                 gui = meshcat.Visualizer(zmq_url)
                 gui.window.zmq_socket.RCVTIMEO = 50
                 proc = gui.window.server_proc
-                browser = HTMLSession()
-                webui = browser.get(gui.url() + "index.html")
-                webui.html.render(keep_page=True, sleep=0.2)
+                if not Viewer._is_notebook():
+                    browser = HTMLSession()
+                    webui = browser.get(gui.url() + "index.html")
+                    webui.html.render(keep_page=True, sleep=0.2)
+                else:
+                    browser, webui = None, None
 
             class MeshcatWrapper:
                 def __init__(self, gui, browser, webui):
@@ -574,28 +599,34 @@ class Viewer:
 
         #if no translation or rotation are set, initialize camera towards origin of the plane
         if translation is None and rotation is None:
-            translation, rotation = np.array([[5.],[-5.],[3.]]), np.array([[1.2],[0.],[0.8]])
+            translation = np.array([[5.], [-5.], [3.]])
+            rotation = np.array([[1.2], [0.], [0.8]])
 
         R_pnc = rpyToMatrix(np.array(rotation))
         H_abs = SE3(R_pnc, np.array(translation))
 
         if relative==False:
             if Viewer.backend == 'gepetto-gui':
-                self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
+                self._client.setCameraTransform(
+                    self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else :
                 # Transformation of the camera object
                 T_meshcat = tf.translation_matrix(translation)
-                self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
+                camera_pose = self._client.viewer["/Cameras/default/rotated/<object>"]
+                camera_pose.set_transform(T_meshcat)
                 # Orientation of the camera object
                 Q_pnc = Quaternion(R_pnc).coeffs()
                 Q_meshcat = np.roll(Q_pnc, shift=1)
                 R_meshcat = tf.quaternion_matrix(Q_meshcat)
-                self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
+                camera_view = self._client.viewer["/Cameras/default"]
+                camera_view.set_transform(R_meshcat)
         elif relative=='Camera':
             if Viewer.backend == 'gepetto-gui':
-                H_orig = XYZQUATToSe3(self._client.getCameraTransform(self._window_id))
+                H_orig = XYZQUATToSe3(
+                    self._client.getCameraTransform(self._window_id))
                 H_abs = H_abs * H_orig
-                self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
+                self._client.setCameraTransform(
+                    self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else:
                 raise RuntimeError("'relative'=True not available with meshcat.")
             # Transformation of the camera object
@@ -622,7 +653,8 @@ class Viewer:
 
     def captureFrame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
-            assert width is None and height is None, "Cannot specify window size using gepetto-gui."
+            assert width is None and height is None, \
+                "Cannot specify window size using gepetto-gui."
             assert not raw_data, "Raw data mode is not available using gepetto-gui."
             png_path = next(tempfile._get_candidate_names()) + ".png"
             self.saveFrame(png_path)  # It is not possible to capture directly frame using gepetto-gui
@@ -631,6 +663,8 @@ class Viewer:
             os.remove(png_path)
             return rgb_array
         else:
+            assert Viewer._backend_obj.webui is not None, \
+                "Capturing frame is not available in Jupyter for now."
             async def _capture_frame(client):
                 if width is not None and height is not None:
                     await client.html.page.setViewport(
@@ -665,7 +699,8 @@ class Viewer:
         """
         if Viewer._backend_obj is None or (self.is_backend_parent and
                 self._backend_proc.poll() is not None):
-            raise RuntimeError("No backend available. Please start one before calling this method.")
+            raise RuntimeError(
+                "No backend available. Please start one before calling this method.")
 
         if not self._lock.acquire(timeout=0.2):
             raise RuntimeError("Impossible to acquire backend lock.")
@@ -695,7 +730,8 @@ class Viewer:
                 T = self._rb.visual_data.oMg[\
                     self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
-                    self._getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
+                    self._getViewerNodeName(
+                        visual, pin.GeometryType.VISUAL)].set_transform(T)
 
         self._lock.release()
 
@@ -773,10 +809,19 @@ def extract_viewer_data_from_log(log_data, robot):
             'robot': robot,
             'use_theoretical_model': use_theoretical_model}
 
-def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, viewers=None,
-                      start_paused=False, camera_xyzrpy=None, xyz_offset=None, urdf_rgba=None,
-                      backend=None, window_name='python-pinocchio', scene_name='world',
-                      close_backend=None, delete_robot_on_close=True):
+def play_trajectories(trajectory_data,
+                      mesh_root_path=None,
+                      replay_speed=1.0,
+                      viewers=None,
+                      start_paused=False,
+                      camera_xyzrpy=None,
+                      xyz_offset=None,
+                      urdf_rgba=None,
+                      backend=None,
+                      window_name='python-pinocchio',
+                      scene_name='world',
+                      close_backend=None,
+                      delete_robot_on_close=True):
     """!
     @brief      Display a robot trajectory in a viewer.
 
@@ -813,10 +858,17 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
             robot = trajectory_data[i]['robot']
             robot_name = "_".join(("robot",  str(i)))
             use_theoretical_model = trajectory_data[i]['use_theoretical_model']
-            viewer = Viewer(robot, use_theoretical_model=use_theoretical_model, mesh_root_path=mesh_root_path,
-                            urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None, robot_name=robot_name,
-                            lock=lock, backend=backend, window_name=window_name, scene_name=scene_name,
-                            delete_robot_on_close=delete_robot_on_close)
+            viewer = Viewer(
+                robot,
+                use_theoretical_model=use_theoretical_model,
+                mesh_root_path=mesh_root_path,
+                urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None,
+                robot_name=robot_name,
+                lock=lock,
+                backend=backend,
+                window_name=window_name,
+                scene_name=scene_name,
+                delete_robot_on_close=delete_robot_on_close)
             viewers.append(viewer)
 
             # Wait a few moment, to give enough time to load meshes if necessary
@@ -825,8 +877,8 @@ def play_trajectories(trajectory_data, mesh_root_path=None, replay_speed=1.0, vi
         if viewers[0].is_backend_parent:
             # Initialize camera pose
             if camera_xyzrpy is not None:
-                viewers[0].setCameraTransform(translation=camera_xyzrpy[:3],
-                                            rotation=camera_xyzrpy[3:])
+                viewers[0].setCameraTransform(
+                    translation=camera_xyzrpy[:3], rotation=camera_xyzrpy[3:])
 
             # Close backend by default if it was not available beforehand
             if (close_backend is None):
