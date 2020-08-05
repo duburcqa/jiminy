@@ -20,6 +20,9 @@ from bisect import bisect_right
 from threading import Thread, Lock
 from PIL import Image
 
+import zmq
+import meshcat
+import meshcat.transformations as tf
 from requests_html import HTMLSession
 
 import pinocchio as pin
@@ -32,7 +35,7 @@ from .state import State
 
 
 # Determine if the various backends are available
-backends_available = []
+backends_available = ['meshcat']
 import platform
 if platform.system() == 'Linux':
     try:
@@ -145,7 +148,6 @@ class Viewer:
             Viewer._backend_exceptions = \
                 (omniORB.CORBA.COMM_FAILURE, omniORB.CORBA.TRANSIENT)
         else:
-            import zmq
             Viewer._backend_exceptions = (zmq.error.Again, zmq.error.ZMQError)
 
         # Check if the backend is still available, if any
@@ -161,7 +163,7 @@ class Viewer:
                     is_backend_running = False
             else:
                 try:
-                    zmq_socket = Viewer._backend_obj.window.zmq_socket
+                    zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
                     zmq_socket.send(b"url")
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.recv()
@@ -209,10 +211,10 @@ class Viewer:
                     self.is_backend_parent = Viewer._backend_proc is not None
 
                 if self.is_backend_parent:
-                    self.open_client()
+                    self.open_gui()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
-                self._client.viewer = Viewer._backend_obj
+                self._client.viewer = Viewer._backend_obj.gui
         except:
             raise RuntimeError("Impossible to create or connect to backend.")
 
@@ -277,10 +279,8 @@ class Viewer:
         Viewer.port_forwarding = port_forwarding
 
     @staticmethod
-    def open_client(create_if_needed=False):
+    def open_gui(create_if_needed=False):
         if Viewer.backend == 'meshcat':
-            from IPython.core.display import HTML, display as ipython_display
-
             if Viewer._backend_obj is None:
                 if create_if_needed:
                     Viewer._backend_obj, Viewer._backend_proc = \
@@ -288,7 +288,7 @@ class Viewer:
                 else:
                     raise RuntimeError("No meshcat backend available and 'create_if_needed' is set to False.")
 
-            viewer_url = Viewer._backend_obj.url()
+            viewer_url = Viewer._backend_obj.gui.url()
             if Viewer.port_forwarding is not None:
                 url_port_pattern = '(?<=:)[0-9]+(?=/)'
                 port_localhost = int(re.search(url_port_pattern, viewer_url).group())
@@ -297,10 +297,11 @@ class Viewer:
                 viewer_url = re.sub(url_port_pattern, str(Viewer.port_forwarding[port_localhost]), viewer_url)
 
             if Viewer._is_notebook():
+                from IPython.core.display import HTML, display
                 jupyter_html = f'\n<div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">\
                                  \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
                                  </iframe>\n</div>\n'
-                ipython_display(HTML(jupyter_html))
+                display(HTML(jupyter_html))
             else:
                 webbrowser.open(viewer_url, new=2, autoraise=True)
         else:
@@ -464,9 +465,6 @@ class Viewer:
                         print("Impossible to open Gepetto-viewer")
             return None, None
         else:
-            import zmq
-            import meshcat
-
             # Get the list of port corresponding to meshcat zmq servers
             meshcat_port = [
                 conn.laddr.port for conn in psutil.net_connections("tcp4")
@@ -496,9 +494,20 @@ class Viewer:
             # Make sure the timeout is properly configured in any case
             # to avoid infinite waiting if case of closed server.
             with redirect_stdout(None):
-                client = meshcat.Visualizer(zmq_url)
-                client.window.zmq_socket.RCVTIMEO = 50
-                proc = client.window.server_proc
+                gui = meshcat.Visualizer(zmq_url)
+                gui.window.zmq_socket.RCVTIMEO = 50
+                proc = gui.window.server_proc
+                browser = HTMLSession()
+                webui = browser.get(gui.url() + "index.html")
+                webui.html.render(keep_page=True, sleep=0.2)
+
+            class MeshcatWrapper:
+                def __init__(self, gui, browser, webui):
+                    self.gui = gui
+                    self.browser = browser
+                    self.webui = webui
+            client = MeshcatWrapper(gui, browser, webui)
+
             return client, proc
 
     def _delete_nodes_viewer(self, nodes_path):
@@ -514,11 +523,11 @@ class Viewer:
         try:
             if Viewer.backend == 'gepetto-gui':
                 for node_path in nodes_path:
-                    if node_path in self._client.getNodeList():
-                        self._client.deleteNode(node_path, True)
+                    if node_path in Viewer._backend_obj.gui.getNodeList():
+                        Viewer._backend_obj.gui.deleteNode(node_path, True)
             else:
                 for node_path in nodes_path:
-                    self._client.viewer[node_path].delete()
+                    Viewer._backend_obj.gui[node_path].delete()
         except Viewer._backend_exceptions:
             pass
 
@@ -574,7 +583,6 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else :
-                import meshcat.transformations as tf
                 # Transformation of the camera object
                 T_meshcat = tf.translation_matrix(translation)
                 self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
@@ -590,7 +598,6 @@ class Viewer:
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else:
                 raise RuntimeError("'relative'=True not available with meshcat.")
-            import meshcat.transformations as tf
             # Transformation of the camera object
             T_meshcat = tf.translation_matrix(translation)
             self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
@@ -613,40 +620,44 @@ class Viewer:
             else:
                 raise RuntimeError("'relative'=True not available with meshcat.")
 
-    def captureFrame(self, width=None, height=None):
+    def captureFrame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
             assert width is None and height is None, "Cannot specify window size using gepetto-gui."
-            png_path = next(tempfile._get_candidate_names())
-            self.saveFrame(png_path)
-            rgb_array = np.array(Image.open(png_path))[:, :, :-1]
+            assert not raw_data, "Raw data mode is not available using gepetto-gui."
+            png_path = next(tempfile._get_candidate_names()) + ".png"
+            self.saveFrame(png_path)  # It is not possible to capture directly frame using gepetto-gui
+            img_obj = Image.open(png_path)
+            rgb_array = np.array(img_obj)[:, :, :-1]
             os.remove(png_path)
             return rgb_array
         else:
-            session = HTMLSession()
-            client = session.get("http://127.0.0.1:7000/static/index.html")
-            client.html.render(keep_page=True)
             async def _capture_frame(client):
-                await client.html.page.setViewport(
-                    {'width': width, 'height': height})
+                if width is not None and height is not None:
+                    await client.html.page.setViewport(
+                        {'width': width, 'height': height})
                 return await client.html.page.evaluate("""
                     () => {
                     return viewer.capture_image();
                     }
                 """)
             loop = asyncio.get_event_loop()
-            img_data_html = loop.run_until_complete(_capture_frame(client))
+            img_data_html = loop.run_until_complete(
+                _capture_frame(Viewer._backend_obj.webui))
             img_data = base64.decodebytes(str.encode(img_data_html[22:]))
-            img_handle = Image.open(io.BytesIO(img_data))
-            rgb_array = np.array(img_handle)[:, :, :-1]
-            return rgb_array
+            if raw_data:
+                return img_data
+            else:
+                img_obj = Image.open(io.BytesIO(img_data))
+                rgb_array = np.array(img_obj)[:, :, :-1]
+                return rgb_array
 
     def saveFrame(self, output_path, width=None, height=None):
         if Viewer.backend == 'gepetto-gui':
             self._client.captureFrame(self._window_id, output_path)
         else:
-            rgb_array = self.captureFrame(width, height)
-            img_obj = Image.fromarray(rgb_array, 'RGB')
-            img_obj.save(output_path)
+            img_data = self.captureFrame(width, height, True)
+            with open(output_path, "wb") as f:
+                f.write(img_data)
 
     def refresh(self):
         """
