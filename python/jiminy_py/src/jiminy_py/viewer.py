@@ -73,7 +73,7 @@ class Viewer:
     def __init__(self,
                  robot,
                  use_theoretical_model=False,
-                 mesh_root_path = None,
+                 mesh_root_path=None,
                  urdf_rgba=None,
                  lock=None,
                  backend=None,
@@ -209,10 +209,7 @@ class Viewer:
                     self.is_backend_parent = Viewer._backend_proc is not None
 
                 if self.is_backend_parent:
-                    if Viewer._is_notebook():
-                        Viewer.display_jupyter_cell()
-                    else:
-                        Viewer._backend_obj.open()
+                    self.open_client()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj
@@ -280,7 +277,7 @@ class Viewer:
         Viewer.port_forwarding = port_forwarding
 
     @staticmethod
-    def open_client(create_if_needed=False, *, jupyter_cell=False, height=600, width=900):
+    def open_client(create_if_needed=False):
         if Viewer.backend == 'meshcat':
             from IPython.core.display import HTML, display as ipython_display
 
@@ -295,21 +292,19 @@ class Viewer:
             if Viewer.port_forwarding is not None:
                 url_port_pattern = '(?<=:)[0-9]+(?=/)'
                 port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-                if port_localhost in Viewer.port_forwarding.keys():
-                    viewer_url = re.sub(url_port_pattern, str(Viewer.port_forwarding[port_localhost]), viewer_url)
-                else:
-                    print("Port forwarding defined but no port mapping associated with {port_localhost}.")
+                assert port_localhost in Viewer.port_forwarding.keys(), \
+                    "Port forwarding defined but no port mapping associated with {port_localhost}."
+                viewer_url = re.sub(url_port_pattern, str(Viewer.port_forwarding[port_localhost]), viewer_url)
 
-            if jupyter_cell:
-                jupyter_html = f'\n<div style="height: {height}px; width: {width}px; overflow-x: auto; overflow-y: hidden; resize: both">\
+            if Viewer._is_notebook():
+                jupyter_html = f'\n<div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">\
                                  \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
                                  </iframe>\n</div>\n'
                 ipython_display(HTML(jupyter_html))
             else:
-                print(viewer_url)
-                webbrowser.open_new_tab(viewer_url) #TODO : make this work
+                webbrowser.open(viewer_url, new=2, autoraise=True)
         else:
-            raise RuntimeError("Display in a Jupyter cell is only available using 'meshcat' backend and within a Jupyter notebook.")
+            raise RuntimeError("Showing client is only available using 'meshcat' backend.")
 
     def close(self=None):
         if self is None:
@@ -419,9 +414,9 @@ class Viewer:
         urdf_contents = urdf_contents.replace(urdf_root_path,mesh_root_path)
         with open(overridden_urdf_path, 'w') as overridden_urdf_file:
             overridden_urdf_file.write(urdf_contents)
-        
+
         return overridden_urdf_path
-         
+
     @staticmethod
     def _get_client(create_if_needed=False, create_timeout=2000):
         """
@@ -455,10 +450,11 @@ class Viewer:
                 except:
                     if (create_if_needed):
                         FNULL = open(os.devnull, 'w')
-                        proc = subprocess.Popen(['/opt/openrobots/bin/gepetto-gui'],
-                                                shell=False,
-                                                stdout=FNULL,
-                                                stderr=FNULL)
+                        proc = subprocess.Popen(
+                            ['/opt/openrobots/bin/gepetto-gui'],
+                            shell=False,
+                            stdout=FNULL,
+                            stderr=FNULL)
                         for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
@@ -574,8 +570,7 @@ class Viewer:
         R_pnc = rpyToMatrix(np.array(rotation))
         H_abs = SE3(R_pnc, np.array(translation))
 
-        if relative==False :
-
+        if relative==False:
             if Viewer.backend == 'gepetto-gui':
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else :
@@ -588,14 +583,12 @@ class Viewer:
                 Q_meshcat = np.roll(Q_pnc, shift=1)
                 R_meshcat = tf.quaternion_matrix(Q_meshcat)
                 self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
-
-        elif relative=='Camera' :
-
+        elif relative=='Camera':
             if Viewer.backend == 'gepetto-gui':
                 H_orig = XYZQUATToSe3(self._client.getCameraTransform(self._window_id))
                 H_abs = H_abs * H_orig
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
-            else :
+            else:
                 raise RuntimeError("'relative'=True not available with meshcat.")
             import meshcat.transformations as tf
             # Transformation of the camera object
@@ -606,11 +599,10 @@ class Viewer:
             Q_meshcat = np.roll(Q_pnc, shift=1)
             R_meshcat = tf.quaternion_matrix(Q_meshcat)
             self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
-        else :
+        else:
             body_id = self._rb.model.getFrameId(relative)
             if body_id == self._rb.model.nframes:
                 raise RuntimeError("'relative' is set to a non existing value")
-
             transform = self._rb.data.oMf[body_id]
             print(transform)
             if Viewer.backend == 'gepetto-gui':
@@ -618,7 +610,7 @@ class Viewer:
                 H_orig = SE3(R_id, transform.translation)
                 H_abs = H_abs * H_orig
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
-            else :
+            else:
                 raise RuntimeError("'relative'=True not available with meshcat.")
 
     def captureFrame(self, width=None, height=None):
@@ -720,7 +712,7 @@ class Viewer:
             t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
-            
+
 
 def extract_viewer_data_from_log(log_data, robot):
     """
