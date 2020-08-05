@@ -4,9 +4,12 @@
 
 import os
 import re
+import io
 import time
 import psutil
 import shutil
+import base64
+import asyncio
 import tempfile
 import subprocess
 import logging
@@ -16,6 +19,8 @@ from contextlib import redirect_stdout
 from bisect import bisect_right
 from threading import Thread, Lock
 from PIL import Image
+
+from requests_html import HTMLSession
 
 import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
@@ -36,11 +41,6 @@ if platform.system() == 'Linux':
         backends_available.append('gepetto-gui')
     except ImportError:
         pass
-try:
-    import meshcat as _meshcat
-    backends_available.append('meshcat')
-except ImportError:
-    pass
 
 
 DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
@@ -597,9 +597,16 @@ class Viewer:
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else :
                 raise RuntimeError("'relative'=True not available with meshcat.")
-
+            import meshcat.transformations as tf
+            # Transformation of the camera object
+            T_meshcat = tf.translation_matrix(translation)
+            self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
+            # Orientation of the camera object
+            Q_pnc = Quaternion(R_pnc).coeffs()
+            Q_meshcat = np.roll(Q_pnc, shift=1)
+            R_meshcat = tf.quaternion_matrix(Q_meshcat)
+            self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
         else :
-
             body_id = self._rb.model.getFrameId(relative)
             if body_id == self._rb.model.nframes:
                 raise RuntimeError("'relative' is set to a non existing value")
@@ -614,23 +621,40 @@ class Viewer:
             else :
                 raise RuntimeError("'relative'=True not available with meshcat.")
 
-
-
-
-    def captureFrame(self, frame_path=None,):
+    def captureFrame(self, width=None, height=None):
         if Viewer.backend == 'gepetto-gui':
-            if frame_path == None:
-                png_path = next(tempfile._get_candidate_names())+'.png'
-                self._client.captureFrame(self._window_id, png_path)
-                rgb_array = np.array(Image.open(png_path))[:, :, :-1]
-                os.remove(png_path)
-                return rgb_array
-            else :
-                png_path = frame_path
-                self._client.captureFrame(self._window_id, png_path)
-                return 0
+            assert width is None and height is None, "Cannot specify window size using gepetto-gui."
+            png_path = next(tempfile._get_candidate_names())
+            self.saveFrame(png_path)
+            rgb_array = np.array(Image.open(png_path))[:, :, :-1]
+            os.remove(png_path)
+            return rgb_array
         else:
-            raise RuntimeError("Screen capture through Python only available using 'gepetto-gui' backend.")
+            session = HTMLSession()
+            client = session.get("http://127.0.0.1:7000/static/index.html")
+            client.html.render(keep_page=True)
+            async def _capture_frame(client):
+                await client.html.page.setViewport(
+                    {'width': width, 'height': height})
+                return await client.html.page.evaluate("""
+                    () => {
+                    return viewer.capture_image();
+                    }
+                """)
+            loop = asyncio.get_event_loop()
+            img_data_html = loop.run_until_complete(_capture_frame(client))
+            img_data = base64.decodebytes(str.encode(img_data_html[22:]))
+            img_handle = Image.open(io.BytesIO(img_data))
+            rgb_array = np.array(img_handle)[:, :, :-1]
+            return rgb_array
+
+    def saveFrame(self, output_path, width=None, height=None):
+        if Viewer.backend == 'gepetto-gui':
+            self._client.captureFrame(self._window_id, output_path)
+        else:
+            rgb_array = self.captureFrame(width, height)
+            img_obj = Image.fromarray(rgb_array, 'RGB')
+            img_obj.save(output_path)
 
     def refresh(self):
         """

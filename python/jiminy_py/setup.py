@@ -36,6 +36,7 @@ setup(name = 'jiminy_py',
       install_requires = [
           'Pillow',
           'meshcat',
+          'requests_html',
           'scipy',
           'numpy',
           'matplotlib',
