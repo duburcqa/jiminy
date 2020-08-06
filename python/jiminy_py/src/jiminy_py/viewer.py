@@ -25,7 +25,8 @@ from PIL import Image
 import zmq
 import meshcat
 import meshcat.transformations as mtf
-from meshcat.servers.zmqserver import StaticFileHandlerNoCache, ZMQWebSocketBridge, WebSocketHandler
+from meshcat.servers.zmqserver import (
+    VIEWER_ROOT, StaticFileHandlerNoCache, ZMQWebSocketBridge, WebSocketHandler)
 from requests_html import HTMLSession
 
 import pinocchio as pin
@@ -530,20 +531,34 @@ class Viewer:
                 # outside anyway.
                 WebSocketHandler.check_origin = lambda self, origin: True
 
-                # Update the html page to disable auto-update of three js
-                # "controls" of the camera, so that it can be moved
-                # programmatically in any position, without any constraint,
-                # as long as the user is not moving it manually using the
-                # mouse.
+                # Override the default html page to disable auto-update of
+                # three js "controls" of the camera, so that it can be moved
+                # programmatically in any position, without any constraint, as
+                # long as the user is not moving it manually using the mouse.
+                class MyFileHandler(StaticFileHandlerNoCache):
+                    def initialize(self, default_path, default_filename, fallback_path):
+                        self.default_path = default_path
+                        self.default_filename = default_filename
+                        self.fallback_path = fallback_path
+                        super().initialize(self.default_path, self.default_filename)
+                    def validate_absolute_path(self, root, absolute_path):
+                        if os.path.basename(absolute_path) != 'index.html':
+                            return super().validate_absolute_path(root, absolute_path)
+                        else:
+                            return os.path.abspath(
+                                os.path.join(self.fallback_path, 'index.html'))
                 def make_app(self):
                     return tornado.web.Application([
-                        (r"/static/(.*)", StaticFileHandlerNoCache, {
-                            "path": os.path.dirname(__file__),
+                        (r"/static/(.*)", MyFileHandler, {
+                            "default_path": VIEWER_ROOT,
+                            "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
                             "default_filename": "index.html"}),
                         (r"/", WebSocketHandler, {"bridge": self})
                     ])
                 ZMQWebSocketBridge.make_app = make_app
 
+                # Meshcat server deamon, using nonlocal scope variable to
+                # get the zmq url instead of reading stdout as it was.
                 info = {'zmq_url' : None}
                 def meshcat_zmqserver():
                     nonlocal info

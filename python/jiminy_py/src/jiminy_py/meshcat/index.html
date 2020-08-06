@@ -17,16 +17,16 @@
                 console.info("Not connected to MeshCat websocket server: ", e);
             }
 
-            function animate() {{
+            function animate() {
                 requestAnimationFrame(animate);
                 viewer.animator.update();
-                if (viewer.needs_render) {{
+                if (viewer.needs_render) {
                     viewer.camera.updateProjectionMatrix();
                     viewer.renderer.render(viewer.scene, viewer.camera);
                     viewer.animator.after_render();
                     viewer.needs_render = false;
-                }}
-            }}
+                }
+            }
             animate();
         </script>
 
