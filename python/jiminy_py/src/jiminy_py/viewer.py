@@ -342,6 +342,9 @@ class Viewer:
         if self == Viewer or self.is_backend_parent:
             if self._backend_proc is not None and self._backend_proc.poll() is None:
                 self._backend_proc.terminate()
+            if Viewer.backend == 'meshcat' and self._backend_obj.browser is not None:
+                self._backend_obj.webui.close()
+                self._backend_obj.browser.close()
         if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
         self._backend_proc = None
@@ -599,10 +602,10 @@ class Viewer:
         # If no translation or rotation are set, initialize camera towards origin of the plane
         if translation is None and rotation is None:
             if Viewer.backend == 'gepetto-gui':
-                translation = np.array([[5.], [-5.], [2.]]).ravel()
+                translation = np.array([[3.], [-3.], [2.]]).ravel()
                 rotation = np.array([[1.3], [0.], [0.8]]).ravel()
             elif Viewer.backend == 'meshcat':
-                translation = np.array([[5.], [0.], [0.]]).ravel()
+                translation = np.array([[2.], [0.], [0.]]).ravel()
                 rotation = np.array([[1.0], [0.], [-0.8]]).ravel()
 
         if Viewer.backend == 'gepetto-gui':
@@ -648,8 +651,8 @@ class Viewer:
 
     def captureFrame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
-            assert width is None and height is None, \
-                "Cannot specify window size using gepetto-gui."
+            if width is not None or height is None:
+                logging.warning("Cannot specify window size using gepetto-gui.")
             assert not raw_data, "Raw data mode is not available using gepetto-gui."
             png_path = next(tempfile._get_candidate_names()) + ".png"
             self.saveFrame(png_path)  # It is not possible to capture directly frame using gepetto-gui
