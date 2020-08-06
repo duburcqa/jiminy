@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>MeshCat</title>
+	</head>
+	<body>
+        <div id="meshcat-pane">
+        </div>
+
+        <script type="text/javascript" src="main.min.js"></script>
+        <script>
+            var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
+            try {
+                viewer.connect();
+            } catch (e) {
+                console.info("Not connected to MeshCat websocket server: ", e);
+            }
+
+            function animate() {{
+                requestAnimationFrame(animate);
+                viewer.animator.update();
+                if (viewer.needs_render) {{
+                    viewer.camera.updateProjectionMatrix();
+                    viewer.renderer.render(viewer.scene, viewer.camera);
+                    viewer.animator.after_render();
+                    viewer.needs_render = false;
+                }}
+            }}
+            animate();
+        </script>
+
+
+         <style>
+            body {
+                margin: 0;
+            }
+
+            #meshcat-pane {
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+            }
+        </style>
+        <script id="embedded-json"></script>
+	</body>
+</html>

@@ -11,11 +11,13 @@ import shutil
 import base64
 import asyncio
 import tempfile
+import threading
 import subprocess
 import logging
 import webbrowser
 import numpy as np
-from contextlib import redirect_stdout
+import tornado.web
+from contextlib import redirect_stdout, redirect_stderr
 from bisect import bisect_right
 from threading import Thread, Lock
 from PIL import Image
@@ -23,6 +25,7 @@ from PIL import Image
 import zmq
 import meshcat
 import meshcat.transformations as mtf
+from meshcat.servers.zmqserver import StaticFileHandlerNoCache, ZMQWebSocketBridge, WebSocketHandler
 from requests_html import HTMLSession
 
 import pinocchio as pin
@@ -490,16 +493,18 @@ class Viewer:
                         print("Impossible to open Gepetto-viewer")
             return None, None
         else:
-            # Get the list of port corresponding to meshcat zmq servers
-            meshcat_port = [
-                conn.laddr.port for conn in psutil.net_connections("tcp4")
-                if conn.status == 'LISTEN' and \
-                    'meshcat' in psutil.Process(conn.pid).cmdline()[-1]]
+            # Get the list of ports that are likely to correspond to meshcat servers
+            meshcat_candidate_ports = []
+            for conn in psutil.net_connections("tcp4"):
+                if conn.status == 'LISTEN':
+                    cmdline = psutil.Process(conn.pid).cmdline()
+                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
+                        meshcat_candidate_ports.append(conn.laddr.port)
 
-            # Use the first port responding, if any
+            # Use the first port responding to zmq request, if any
             zmq_url = None
             context = zmq.Context.instance()
-            for port in meshcat_port:
+            for port in meshcat_candidate_ports:
                 try:
                     zmq_url = f"tcp://127.0.0.1:{port}"
                     zmq_socket = context.socket(zmq.REQ)
@@ -514,6 +519,53 @@ class Viewer:
                     if zmq_url is not None:
                         break
             context.destroy(linger=5)
+
+            # Launch a meshcat custom server if none has been found
+            if zmq_url is None:
+                # Monkey-patch Meshcat to support cross-origin connection.
+                # It is useful to execute custom javascript commands within
+                # a Jupyter Notebook, and it is not an actual security flaw
+                # for local servers since they are not accessible from the
+                # outside anyway.
+                WebSocketHandler.check_origin = lambda self, origin: True
+
+                # Update the html page to disable auto-update of three js
+                # "controls" of the camera, so that it can be moved
+                # programmatically in any position, without any constraint,
+                # as long as the user is not moving it manually using the
+                # mouse.
+                def make_app(self):
+                    return tornado.web.Application([
+                        (r"/static/(.*)", StaticFileHandlerNoCache, {
+                            "path": os.path.dirname(__file__),
+                            "default_filename": "index.html"}),
+                        (r"/", WebSocketHandler, {"bridge": self})
+                    ])
+                ZMQWebSocketBridge.make_app = make_app
+
+                info = {'zmq_url' : None}
+                def meshcat_zmqserver():
+                    nonlocal info
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    with open(os.devnull, 'w') as f:
+                        with redirect_stderr(f):
+                            bridge = ZMQWebSocketBridge()
+                            info['zmq_url'] = bridge.zmq_url
+                            try:
+                                bridge.run()
+                            except KeyboardInterrupt:
+                                pass
+
+                # Run meshcat server in a thread to enable monkey patching
+                th = threading.Thread(target=meshcat_zmqserver)
+                th.daemon = True
+                th.start()
+
+                # Wait for the process to initialize !
+                while info['web_url'] is None:
+                    pass
+                zmq_url = info['zmq_url']
 
             # Connect to the existing zmq server or create one if none.
             # Make sure the timeout is properly configured in any case
