@@ -28,7 +28,7 @@ setup(name = 'jiminy_py',
       download_url = 'https://github.com/Wandercraft/jiminy/archive/@PROJECT_VERSION@.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd']},
+      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html']},
       entry_points={'console_scripts': ['jiminy_plot=jiminy_py.log:plot_log']},
       include_package_data = True, # make sure the shared library is included
       distclass = BinaryDistribution,

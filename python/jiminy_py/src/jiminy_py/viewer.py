@@ -511,13 +511,14 @@ class Viewer:
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
-                    zmq_socket.recv()
-                except Viewer._backend_exceptions:
+                    response = zmq_socket.recv().decode("utf-8")
+                    if response[:4] != "http":
+                        zmq_url = None
+                except (zmq.error.Again, zmq.error.ZMQError):
                     zmq_url = None
-                finally:
-                    zmq_socket.close(linger=5)
-                    if zmq_url is not None:
-                        break
+                zmq_socket.close(linger=5)
+                if zmq_url is not None:
+                    break
             context.destroy(linger=5)
 
             # Launch a meshcat custom server if none has been found
@@ -563,7 +564,7 @@ class Viewer:
                 th.start()
 
                 # Wait for the process to initialize !
-                while info['web_url'] is None:
+                while info['zmq_url'] is None:
                     pass
                 zmq_url = info['zmq_url']
 
@@ -682,7 +683,7 @@ class Viewer:
                 H_orig = SE3(R_id, body_transform.translation)
                 H_abs = H_abs * H_orig
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
-            
+
         elif Viewer.backend == 'meshcat':
             if relative==False:
                 raise RuntimeError("Absolute camera position is not allowed in meshcat.")
