@@ -22,7 +22,7 @@ from PIL import Image
 
 import zmq
 import meshcat
-import meshcat.transformations as tf
+import meshcat.transformations as mtf
 from requests_html import HTMLSession
 
 import pinocchio as pin
@@ -522,7 +522,7 @@ class Viewer:
                 if not Viewer._is_notebook():
                     browser = HTMLSession()
                     webui = browser.get(gui.url() + "index.html")
-                    webui.html.render(keep_page=True, sleep=0.2)
+                    webui.html.render(keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
                 else:
                     browser, webui = None, None
 
@@ -596,60 +596,55 @@ class Viewer:
 
     def setCameraTransform(self, translation=None, rotation=None, relative=False):
         # translation : [Px, Py, Pz], rotation : [Roll, Pitch, Yaw]
-
-        #if no translation or rotation are set, initialize camera towards origin of the plane
+        # If no translation or rotation are set, initialize camera towards origin of the plane
         if translation is None and rotation is None:
-            translation = np.array([[5.], [-5.], [3.]])
-            rotation = np.array([[1.2], [0.], [0.8]])
-
-        R_pnc = rpyToMatrix(np.array(rotation))
-        H_abs = SE3(R_pnc, np.array(translation))
-
-        if relative==False:
             if Viewer.backend == 'gepetto-gui':
+                translation = np.array([[5.], [-5.], [2.]]).ravel()
+                rotation = np.array([[1.3], [0.], [0.8]]).ravel()
+            elif Viewer.backend == 'meshcat':
+                translation = np.array([[5.], [0.], [0.]]).ravel()
+                rotation = np.array([[1.0], [0.], [-0.8]]).ravel()
+
+        if Viewer.backend == 'gepetto-gui':
+            R_pnc = rpyToMatrix(np.array(rotation))
+            H_abs = SE3(R_pnc, np.array(translation))
+            if relative==False:
                 self._client.setCameraTransform(
                     self._window_id, se3ToXYZQUAT(H_abs).tolist())
-            else :
-                # Transformation of the camera object
-                T_meshcat = tf.translation_matrix(translation)
-                camera_pose = self._client.viewer["/Cameras/default/rotated/<object>"]
-                camera_pose.set_transform(T_meshcat)
-                # Orientation of the camera object
-                Q_pnc = Quaternion(R_pnc).coeffs()
-                Q_meshcat = np.roll(Q_pnc, shift=1)
-                R_meshcat = tf.quaternion_matrix(Q_meshcat)
-                camera_view = self._client.viewer["/Cameras/default"]
-                camera_view.set_transform(R_meshcat)
-        elif relative=='Camera':
-            if Viewer.backend == 'gepetto-gui':
+            elif relative=='Camera':
                 H_orig = XYZQUATToSe3(
                     self._client.getCameraTransform(self._window_id))
                 H_abs = H_abs * H_orig
                 self._client.setCameraTransform(
                     self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else:
-                raise RuntimeError("'relative'=True not available with meshcat.")
-            # Transformation of the camera object
-            T_meshcat = tf.translation_matrix(translation)
-            self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
-            # Orientation of the camera object
-            Q_pnc = Quaternion(R_pnc).coeffs()
-            Q_meshcat = np.roll(Q_pnc, shift=1)
-            R_meshcat = tf.quaternion_matrix(Q_meshcat)
-            self._client.viewer["/Cameras/default"].set_transform(R_meshcat)
-        else:
-            body_id = self._rb.model.getFrameId(relative)
-            if body_id == self._rb.model.nframes:
-                raise RuntimeError("'relative' is set to a non existing value")
-            transform = self._rb.data.oMf[body_id]
-            print(transform)
-            if Viewer.backend == 'gepetto-gui':
+                body_id = self._rb.model.getFrameId(relative)
+                if body_id == self._rb.model.nframes:
+                    raise RuntimeError("'relative' is set to a non existing value")
+                body_transform = self._rb.data.oMf[body_id]
+
                 R_id = rpyToMatrix(np.zeros(3))
-                H_orig = SE3(R_id, transform.translation)
+                H_orig = SE3(R_id, body_transform.translation)
                 H_abs = H_abs * H_orig
                 self._client.setCameraTransform(self._window_id, se3ToXYZQUAT(H_abs).tolist())
+            
+        elif Viewer.backend == 'meshcat':
+            if relative==False:
+                raise RuntimeError("Absolute camera position is not allowed in meshcat.")
+
+            elif relative=='Camera':
+                raise RuntimeError("Relative camera movement is not allowed in meshcat.")
             else:
-                raise RuntimeError("'relative'=True not available with meshcat.")
+                body_id = self._rb.model.getFrameId(relative)
+                if body_id == self._rb.model.nframes:
+                    raise RuntimeError("'relative' is set to a non existing value")
+                body_transform = self._rb.data.oMf[body_id]
+
+                # Transformation of the camera object
+                T_meshcat = mtf.translation_matrix(translation)
+                self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
+                # Orientation of the camera object
+                self._client.viewer["/Cameras/default"].set_transform(mtf.compose_matrix(translate=(body_transform.translation), angles=rotation))
 
     def captureFrame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
