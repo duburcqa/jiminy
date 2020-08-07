@@ -79,6 +79,9 @@ class EngineAsynchronous:
         # Reset the low-level jiminy engine
         self.engine.reset()
 
+    def __del__(self):
+        self.close()
+
     def _send_command(self, t, q, v, sensors_data, uCommand):
         """
         @brief      This method implement the callback function required by Jiminy
@@ -233,12 +236,14 @@ class EngineAsynchronous:
                 self._viewer = Viewer(self.robot,
                                       use_theoretical_model=False,
                                       backend=self.viewer_backend,
+                                      delete_robot_on_close=True,
                                       robot_name="_".join(("robot", uniq_id)),
                                       scene_name="_".join(("scene", uniq_id)),
                                       window_name="_".join(("window", uniq_id)))
                 if self._viewer.is_backend_parent:
-                    self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
-                                                    rotation=[np.pi/2, 0.0, np.pi])
+                    self._viewer.set_camera_transform(
+                        translation=[0.0, 9.0, 2e-5],
+                        rotation=[np.pi/2, 0.0, np.pi])
 
             # Refresh viewer
             self._viewer.refresh()
@@ -256,8 +261,7 @@ class EngineAsynchronous:
                 rgb_array = self.render(return_rgb_array)
             else:
                 RuntimeError("Impossible to create or connect to backend.")
-        finally:
-            return rgb_array
+        return rgb_array
 
     def close(self):
         """

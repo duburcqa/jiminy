@@ -13,7 +13,6 @@
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
             try {
                 viewer.connect();
-                viewer.camera.fov = 30;
             } catch (e) {
                 console.info("Not connected to MeshCat websocket server: ", e);
             }
@@ -32,6 +31,8 @@
             }
             var checkerboard = new THREE.Mesh(geometry, materials);
             viewer.scene_tree.find(["Grid"]).set_object(checkerboard)
+
+            viewer.camera.fov = 30;
             viewer.render();
 
             function animate() {

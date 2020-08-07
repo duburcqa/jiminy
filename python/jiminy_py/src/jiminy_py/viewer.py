@@ -19,10 +19,10 @@ import webbrowser
 import numpy as np
 import tornado.web
 import multiprocessing
-from contextlib import redirect_stdout, redirect_stderr
+from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
-from PIL import Image
+from contextlib import redirect_stdout, redirect_stderr
 
 import zmq
 import meshcat
@@ -342,23 +342,26 @@ class Viewer:
         else:
             raise RuntimeError("Showing client is only available using 'meshcat' backend.")
 
+    def delete_robot(self):
+        try:
+            if Viewer.backend == 'gepetto-gui':
+                self._delete_nodes_viewer(
+                    [self.scene_name + '/' + self.robot_name])
+            else:
+                node_names = [
+                    self._client.getViewerNodeName(
+                        visual_obj, pin.GeometryType.VISUAL)
+                    for visual_obj in self._rb.visual_model.geometryObjects]
+                self._delete_nodes_viewer(node_names)
+        except AttributeError:
+            pass
+
     def close(self=None):
         if self is None:
             self = Viewer
         else:
             if self.delete_robot_on_close:
-                try:
-                    if Viewer.backend == 'gepetto-gui':
-                        self._delete_nodes_viewer(
-                            [self.scene_name + '/' + self.robot_name])
-                    else:
-                        node_names = [
-                            self._client.getViewerNodeName(
-                                visual_obj, pin.GeometryType.VISUAL)
-                            for visual_obj in self._rb.visual_model.geometryObjects]
-                        self._delete_nodes_viewer(node_names)
-                except AttributeError:
-                    pass
+                self.delete_robot()
         if self == Viewer or self.is_backend_parent:
             if Viewer._backend_proc is not None and Viewer._backend_proc.is_alive():
                 Viewer._backend_proc.terminate()
@@ -890,7 +893,7 @@ def extract_viewer_data_from_log(log_data, robot):
     try:
         qe = np.stack([log_data["HighLevelController." + s]
                        for s in robot.logfile_position_headers], axis=-1)
-    except:
+    except KeyError:
         model_options['dynamics']['enableFlexibleModel'] = not robot.is_flexible
         robot.set_model_options(model_options)
         qe = np.stack([log_data["HighLevelController." + s]
