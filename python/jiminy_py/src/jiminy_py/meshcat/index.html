@@ -13,7 +13,7 @@
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
             try {
                 viewer.connect();
-                viewer.camera.fov = 33;
+                viewer.camera.fov = 30;
             } catch (e) {
                 console.info("Not connected to MeshCat websocket server: ", e);
             }
