@@ -30,12 +30,12 @@ setup(name = 'jiminy_py',
       package_dir = {'': 'src'},
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html **/*.js']},
       entry_points={'console_scripts': ['jiminy_plot=jiminy_py.log:plot_log']},
-      include_package_data = True, # make sure the shared library is included
+      include_package_data = True,  # make sure the shared library is included
       distclass = BinaryDistribution,
       cmdclass = {'install': InstallPlatlib},
       install_requires = [
-          'Pillow',
-          'meshcat',
+          'pillow',
+          'meshcat @ git+https://github.com/rdeits/meshcat-python.git',  # Waiting for release 0.19
           'requests_html',
           'scipy',
           'numpy',

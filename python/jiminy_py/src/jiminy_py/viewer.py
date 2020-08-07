@@ -51,10 +51,12 @@ if platform.system() == 'Linux':
     except ImportError:
         pass
 
-# Monkey-patch subprocess poll to add 'is_alive' method, similar to thread
+# Monkey-patch subprocess poll to add 'is_alive' and 'join' methods,
+# to have the same interface than multiprocessing Process.
 def is_alive(self):
-    return self.poll() is not None
+    return self.poll() is None
 subprocess.Popen.is_alive = is_alive
+subprocess.Popen.join = subprocess.Popen.wait
 
 
 DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
@@ -154,7 +156,7 @@ class Viewer:
         Viewer.backend = backend
 
         # Configure exception handling
-        if (Viewer.backend == 'gepetto-gui'):
+        if Viewer.backend == 'gepetto-gui':
             import omniORB
             Viewer._backend_exceptions = \
                 (omniORB.CORBA.COMM_FAILURE, omniORB.CORBA.TRANSIENT)
@@ -167,7 +169,7 @@ class Viewer:
             if Viewer._backend_proc is not None and \
                     not Viewer._backend_proc.is_alive():
                 is_backend_running = False
-            if (Viewer.backend == 'gepetto-gui'):
+            if Viewer.backend == 'gepetto-gui':
                 try:
                     Viewer._backend_obj.gui.refresh()
                 except Viewer._backend_exceptions:
@@ -190,7 +192,7 @@ class Viewer:
         # Access the current backend or create one if none is available
         self.is_backend_parent = False
         try:
-            if (Viewer.backend == 'gepetto-gui'):
+            if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
@@ -210,7 +212,7 @@ class Viewer:
 
                 # Set the default camera pose if the viewer is not running before
                 if self.is_backend_parent:
-                    self.setCameraTransform(
+                    self.set_camera_transform(
                         translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
                         rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
@@ -227,8 +229,8 @@ class Viewer:
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj.gui
-        except:
-            raise RuntimeError("Impossible to create or connect to backend.")
+        except Exception as e:
+            raise RuntimeError("Impossible to create or connect to backend.") from e
 
         # Backup the backend subprocess used for instantiate the robot
         self._backend_proc = Viewer._backend_proc
@@ -254,9 +256,9 @@ class Viewer:
             root_path = mesh_root_path
         else:
             root_path = os.environ.get('JIMINY_MESH_PATH', [])
-        if (Viewer.backend == 'gepetto-gui'):
+        if Viewer.backend == 'gepetto-gui':
             self._delete_nodes_viewer([scene_name + '/' + self.robot_name])
-            if (urdf_rgba is not None):
+            if urdf_rgba is not None:
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
                     self.urdf_path, urdf_rgba[:3], root_path)
@@ -276,7 +278,7 @@ class Viewer:
         self.pinocchio_data = self._rb.data
 
         # Load robot in the backend viewer
-        if (Viewer.backend == 'gepetto-gui'):
+        if Viewer.backend == 'gepetto-gui':
             self._rb.initViewer(
                 windowName=window_name, sceneName=scene_name, loadModel=False)
             self._rb.loadViewerModel(self.robot_name)
@@ -347,7 +349,7 @@ class Viewer:
         else:
             if self.delete_robot_on_close:
                 try:
-                    if (Viewer.backend == 'gepetto-gui'):
+                    if Viewer.backend == 'gepetto-gui':
                         self._delete_nodes_viewer(
                             [self.scene_name + '/' + self.robot_name])
                     else:
@@ -493,7 +495,7 @@ class Viewer:
 
         @return     A pointer to the running Gepetto-viewer Client and its PID.
         """
-        if (Viewer.backend == 'gepetto-gui'):
+        if Viewer.backend == 'gepetto-gui':
             from gepetto.corbaserver.client import Client as gepetto_client
 
             try:
@@ -508,7 +510,7 @@ class Viewer:
                     client.gui.getSceneList()
                     return client, None
                 except:
-                    if (create_if_needed):
+                    if create_if_needed:
                         FNULL = open(os.devnull, 'w')
                         client_proc = subprocess.Popen(
                             ['/opt/openrobots/bin/gepetto-gui'],
@@ -660,7 +662,7 @@ class Viewer:
         except Viewer._backend_exceptions:
             pass
 
-    def _getViewerNodeName(self, geometry_object, geometry_type):
+    def __getViewerNodeName(self, geometry_object, geometry_type):
         """
         @brief      Get the full path of a node associated with a given geometry
                     object and geometry type.
@@ -679,7 +681,7 @@ class Viewer:
         elif geometry_type is pin.GeometryType.COLLISION:
             return self._rb.viz.viewerCollisionGroupName + '/' + geometry_object.name
 
-    def _updateGeometryPlacements(self, visual=False):
+    def __updateGeometryPlacements(self, visual=False):
         """
         @brief      Update the generalized position of a geometry object.
 
@@ -693,12 +695,11 @@ class Viewer:
         else:
             geom_model = self._rb.collision_model
             geom_data = self._rb.collision_data
-
         pin.updateGeometryPlacements(self.pinocchio_model,
-                                     self.pinocchio_data,
-                                     geom_model, geom_data)
+                                    self.pinocchio_data,
+                                    geom_model, geom_data)
 
-    def setCameraTransform(self, translation=None, rotation=None, relative=False):
+    def set_camera_transform(self, translation=None, rotation=None, relative=False):
         # translation : [Px, Py, Pz], rotation : [Roll, Pitch, Yaw]
         # If no translation or rotation are set, initialize camera towards origin of the plane
         if translation is None and rotation is None:
@@ -734,10 +735,10 @@ class Viewer:
 
         elif Viewer.backend == 'meshcat':
             if relative==False:
-
                 # There is a different convention, we must appli a pi/2 rotation along Roll axis
                 translation = np.array([translation[0],-translation[2], translation[1]])
-                self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(mtf.compose_matrix(translate=(translation), angles=rotation))
+                self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(
+                    mtf.compose_matrix(translate=(translation), angles=rotation))
             elif relative=='Camera':
                 raise RuntimeError("Relative camera movement is not allowed in meshcat.")
             else:
@@ -750,15 +751,16 @@ class Viewer:
                 T_meshcat = mtf.translation_matrix(translation)
                 self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(T_meshcat)
                 # Orientation of the camera object
-                self._client.viewer["/Cameras/default"].set_transform(mtf.compose_matrix(translate=(body_transform.translation), angles=rotation))
+                self._client.viewer["/Cameras/default"].set_transform(
+                    mtf.compose_matrix(translate=(body_transform.translation), angles=rotation))
 
-    def captureFrame(self, width=None, height=None, raw_data=False):
+    def capture_frame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
             if width is not None or height is None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
             assert not raw_data, "Raw data mode is not available using gepetto-gui."
             png_path = next(tempfile._get_candidate_names()) + ".png"
-            self.saveFrame(png_path)  # It is not possible to capture directly frame using gepetto-gui
+            self.save_frame(png_path)  # It is not possible to capture directly frame using gepetto-gui
             img_obj = Image.open(png_path)
             rgb_array = np.array(img_obj)[:, :, :-1]
             os.remove(png_path)
@@ -786,11 +788,11 @@ class Viewer:
                 rgb_array = np.array(img_obj)[:, :, :-1]
                 return rgb_array
 
-    def saveFrame(self, output_path, width=None, height=None):
+    def save_frame(self, output_path, width=None, height=None):
         if Viewer.backend == 'gepetto-gui':
-            self._client.captureFrame(self._window_id, output_path)
+            self._client.capture_frame(self._window_id, output_path)
         else:
-            img_data = self.captureFrame(width, height, True)
+            img_data = self.capture_frame(width, height, True)
             with open(output_path, "wb") as f:
                 f.write(img_data)
 
@@ -809,16 +811,16 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             if self._rb.displayCollisions:
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(collision, pin.GeometryType.COLLISION)
+                    [self.__getViewerNodeName(collision, pin.GeometryType.COLLISION)
                         for collision in self._rb.collision_model.geometryObjects],
                     [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
                         self._rb.collision_model.getGeometryId(collision.name)])
                         for collision in self._rb.collision_model.geometryObjects]
                 )
             if self._rb.displayVisuals:
-                self._updateGeometryPlacements(visual=True)
+                self.__updateGeometryPlacements(visual=True)
                 self._client.applyConfigurations(
-                    [self._getViewerNodeName(visual, pin.GeometryType.VISUAL)
+                    [self.__getViewerNodeName(visual, pin.GeometryType.VISUAL)
                         for visual in self._rb.visual_model.geometryObjects],
                     [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
                         self._rb.visual_model.getGeometryId(visual.name)])
@@ -826,18 +828,18 @@ class Viewer:
                 )
             self._client.refresh()
         else:
-            self._updateGeometryPlacements(visual=True)
+            self.__updateGeometryPlacements(visual=True)
             for visual in self._rb.visual_model.geometryObjects:
                 T = self._rb.visual_data.oMg[\
                     self._rb.visual_model.getGeometryId(visual.name)].homogeneous
                 self._client.viewer[\
-                    self._getViewerNodeName(
+                    self.__getViewerNodeName(
                         visual, pin.GeometryType.VISUAL)].set_transform(T)
 
         self._lock.release()
 
     def display(self, q, xyz_offset=None):
-        if (xyz_offset is not None):
+        if xyz_offset is not None:
             q = q.copy() # Make sure to use a copy to avoid altering the original data
             q[:3] += xyz_offset
 
@@ -978,11 +980,11 @@ def play_trajectories(trajectory_data,
         if viewers[0].is_backend_parent:
             # Initialize camera pose
             if camera_xyzrpy is not None:
-                viewers[0].setCameraTransform(
+                viewers[0].set_camera_transform(
                     translation=camera_xyzrpy[:3], rotation=camera_xyzrpy[3:])
 
             # Close backend by default if it was not available beforehand
-            if (close_backend is None):
+            if close_backend is None:
                 close_backend = True
     else:
         # Make sure that viewers is a list
@@ -1000,11 +1002,11 @@ def play_trajectories(trajectory_data,
             raise RuntimeError("Viewers backend not available.")
 
     # Load robots in gepetto viewer
-    if (xyz_offset is None):
+    if xyz_offset is None:
         xyz_offset = len(trajectory_data) * (None,)
 
     for i in range(len(trajectory_data)):
-        if (xyz_offset is not None and xyz_offset[i] is not None):
+        if xyz_offset is not None and xyz_offset[i] is not None:
             q = trajectory_data[i]['evolution_robot'][0].q.copy()
             q[:3] += xyz_offset[i]
         else:
