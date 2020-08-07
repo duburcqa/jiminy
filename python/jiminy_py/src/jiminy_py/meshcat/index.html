@@ -5,9 +5,9 @@
 		<title>MeshCat</title>
 	</head>
 	<body>
-        <div id="meshcat-pane">
-        </div>
+        <div id="meshcat-pane"></div>
 
+        <script type="text/javascript" src="three.min.js"></script>
         <script type="text/javascript" src="main.min.js"></script>
         <script>
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
@@ -17,6 +17,22 @@
             } catch (e) {
                 console.info("Not connected to MeshCat websocket server: ", e);
             }
+
+            var segments = 20;
+            var geometry = new THREE.PlaneGeometry(20, 20, segments, segments);
+            var materialEven = new THREE.MeshBasicMaterial({color: 0x2b2b40, side: THREE.DoubleSide});
+            var materialOdd = new THREE.MeshBasicMaterial({color: 0xf2f2fe, side: THREE.DoubleSide});
+            var materials = [materialEven, materialOdd]
+            for (x of [...Array(segments).keys()]) {
+                for (y of [...Array(segments).keys()]) {
+                    i = x * segments + y;
+                    j = 2 * i;
+                    geometry.faces[j].materialIndex = geometry.faces[j + 1].materialIndex = (x + y) % 2;
+                }
+            }
+            var checkerboard = new THREE.Mesh(geometry, materials);
+            viewer.scene_tree.find(["Grid"]).set_object(checkerboard)
+            viewer.render();
 
             function animate() {
                 requestAnimationFrame(animate);
@@ -31,8 +47,7 @@
             animate();
         </script>
 
-
-         <style>
+        <style>
             body {
                 margin: 0;
             }

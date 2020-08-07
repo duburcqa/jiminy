@@ -59,8 +59,7 @@ subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
-                                                 1.4, 0.0, np.pi/2])
+DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 
 
 def sleep(dt):
@@ -209,12 +208,6 @@ class Viewer:
                 else:
                     self._window_id = int(np.where(
                         [name == window_name for name in self._client.getWindowList()])[0][0])
-
-                # Set the default camera pose if the viewer is not running before
-                if self.is_backend_parent:
-                    self.set_camera_transform(
-                        translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
-                        rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
@@ -231,6 +224,12 @@ class Viewer:
                 self._client.viewer = Viewer._backend_obj.gui
         except Exception as e:
             raise RuntimeError("Impossible to create or connect to backend.") from e
+
+        # Set the default camera pose if the viewer is not running before
+        if self.is_backend_parent:
+            self.set_camera_transform(
+                translation=DEFAULT_CAMERA_XYZRPY[:3],
+                rotation=DEFAULT_CAMERA_XYZRPY[3:])
 
         # Backup the backend subprocess used for instantiate the robot
         self._backend_proc = Viewer._backend_proc
@@ -570,16 +569,17 @@ class Viewer:
                 # long as the user is not moving it manually using the mouse.
                 class MyFileHandler(StaticFileHandlerNoCache):
                     def initialize(self, default_path, default_filename, fallback_path):
-                        self.default_path = default_path
+                        self.default_path = os.path.abspath(default_path)
                         self.default_filename = default_filename
-                        self.fallback_path = fallback_path
+                        self.fallback_path = os.path.abspath(fallback_path)
                         super().initialize(self.default_path, self.default_filename)
                     def validate_absolute_path(self, root, absolute_path):
-                        if os.path.basename(absolute_path) != 'index.html':
+                        if os.path.exists(absolute_path) and \
+                                os.path.basename(absolute_path) != 'index.html' :
                             return super().validate_absolute_path(root, absolute_path)
                         else:
-                            return os.path.abspath(
-                                os.path.join(self.fallback_path, 'index.html'))
+                            return os.path.join(
+                                self.fallback_path, absolute_path[(len(root)+1):])
                 def make_app(self):
                     return tornado.web.Application([
                         (r"/static/(.*)", MyFileHandler, {
