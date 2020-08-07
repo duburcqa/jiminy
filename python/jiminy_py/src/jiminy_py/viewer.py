@@ -9,6 +9,7 @@ import time
 import psutil
 import shutil
 import base64
+import atexit
 import asyncio
 import tempfile
 import threading
@@ -485,15 +486,19 @@ class Viewer:
                 except:
                     if (create_if_needed):
                         FNULL = open(os.devnull, 'w')
-                        proc = subprocess.Popen(
+                        client_proc = subprocess.Popen(
                             ['/opt/openrobots/bin/gepetto-gui'],
                             shell=False,
                             stdout=FNULL,
                             stderr=FNULL)
+                        def cleanup(client_proc):
+                            client_proc.kill()
+                            client_proc.wait()
+                        atexit.register(cleanup, client_proc)
                         for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
-                                return gepetto_client(), proc
+                                return gepetto_client(), client_proc
                             except:
                                 pass
                         print("Impossible to open Gepetto-viewer")
