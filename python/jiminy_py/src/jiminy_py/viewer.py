@@ -12,12 +12,12 @@ import base64
 import atexit
 import asyncio
 import tempfile
-import threading
 import subprocess
 import logging
 import webbrowser
 import numpy as np
 import tornado.web
+from multiprocessing import Manager, Process
 from contextlib import redirect_stdout, redirect_stderr
 from bisect import bisect_right
 from threading import Thread, Lock
@@ -567,11 +567,9 @@ class Viewer:
                     ])
                 ZMQWebSocketBridge.make_app = make_app
 
-                # Meshcat server deamon, using nonlocal scope variable to
-                # get the zmq url instead of reading stdout as it was.
-                info = {'zmq_url' : None}
-                def meshcat_zmqserver():
-                    nonlocal info
+                # Meshcat server deamon, using in/out argument to get
+                # the zmq url instead of reading stdout as it was.
+                def meshcat_zmqserver(zmq_url):
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     with open(os.devnull, 'w') as f:
@@ -583,13 +581,17 @@ class Viewer:
                             except KeyboardInterrupt:
                                 pass
 
-                # Run meshcat server in a thread to enable monkey patching
-                proc = threading.Thread(target=meshcat_zmqserver)
+                # Run meshcat server in background using multiprocessing
+                # Process to enable monkey patching and proper interprocess
+                # communication through a manager.
+                manager = Manager()
+                info = manager.dict()
+                proc = Process(target=meshcat_zmqserver, args=(info,))
                 proc.daemon = True
                 proc.start()
 
-                # Wait for the process to initialize !
-                while info['zmq_url'] is None:
+                # Wait for the process to finish initialization
+                while not info:
                     pass
                 zmq_url = info['zmq_url']
 
