@@ -49,6 +49,10 @@ if platform.system() == 'Linux':
     except ImportError:
         pass
 
+# Monkey-patch subprocess poll to add 'is_alive' method, similar to thread
+def is_alive(self):
+    return self.poll() is not None
+subprocess.Popen.is_alive = is_alive
 
 DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
                                                  1.4, 0.0, np.pi/2])
@@ -158,7 +162,7 @@ class Viewer:
         if Viewer._backend_obj is not None:
             is_backend_running = True
             if Viewer._backend_proc is not None and \
-                    Viewer._backend_proc.poll() is not None:
+                    not Viewer._backend_proc.is_alive():
                 is_backend_running = False
             if (Viewer.backend == 'gepetto-gui'):
                 try:
@@ -203,8 +207,9 @@ class Viewer:
 
                 # Set the default camera pose if the viewer is not running before
                 if self.is_backend_parent:
-                    self.setCameraTransform(translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
-                                            rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
+                    self.setCameraTransform(
+                        translation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[:3],
+                        rotation=DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO[3:])
             else:
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
@@ -344,7 +349,7 @@ class Viewer:
                 except AttributeError:
                     pass
         if self == Viewer or self.is_backend_parent:
-            if self._backend_proc is not None and self._backend_proc.poll() is None:
+            if self._backend_proc is not None and self._backend_proc.is_alive():
                 self._backend_proc.terminate()
             if Viewer.backend == 'meshcat' and self._backend_obj.browser is not None:
                 self._backend_obj.webui.close()
@@ -574,9 +579,9 @@ class Viewer:
                                 pass
 
                 # Run meshcat server in a thread to enable monkey patching
-                th = threading.Thread(target=meshcat_zmqserver)
-                th.daemon = True
-                th.start()
+                proc = threading.Thread(target=meshcat_zmqserver)
+                proc.daemon = True
+                proc.start()
 
                 # Wait for the process to initialize !
                 while info['zmq_url'] is None:
@@ -589,7 +594,6 @@ class Viewer:
             with redirect_stdout(None):
                 gui = meshcat.Visualizer(zmq_url)
                 gui.window.zmq_socket.RCVTIMEO = 50
-                proc = gui.window.server_proc
                 if not Viewer._is_notebook():
                     browser = HTMLSession()
                     webui = browser.get(gui.url() + "index.html")
@@ -764,7 +768,7 @@ class Viewer:
         @brief      Refresh the configuration of Robot in the viewer.
         """
         if Viewer._backend_obj is None or (self.is_backend_parent and
-                self._backend_proc.poll() is not None):
+                not Viewer._backend_proc.is_alive()):
             raise RuntimeError(
                 "No backend available. Please start one before calling this method.")
 
@@ -957,8 +961,7 @@ def play_trajectories(trajectory_data,
         # Make sure the viewers are still running
         is_backend_running = True
         for viewer in viewers:
-            if viewer.is_backend_parent and \
-                    viewer._backend_proc.poll() is not None:
+            if viewer.is_backend_parent and not Viewer._backend_proc.is_alive():
                 is_backend_running = False
         if Viewer._backend_obj is None:
             is_backend_running = False
