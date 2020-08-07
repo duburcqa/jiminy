@@ -33,10 +33,9 @@ from requests_html import HTMLSession
 
 import pinocchio as pin
 from pinocchio.robot_wrapper import RobotWrapper
-from pinocchio import Quaternion, SE3, se3ToXYZQUAT, XYZQUATToSe3
+from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
-from.dynamics import XYZRPYToSe3
 from .state import State
 
 
@@ -51,7 +50,7 @@ if platform.system() == 'Linux':
     except ImportError:
         pass
 
-# Monkey-patch subprocess poll to add 'is_alive' and 'join' methods,
+# Monkey-patch subprocess Popen to add 'is_alive' and 'join' methods,
 # to have the same interface than multiprocessing Process.
 def is_alive(self):
     return self.poll() is None
