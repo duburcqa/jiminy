@@ -8,6 +8,7 @@ import io
 import time
 import psutil
 import shutil
+import signal
 import base64
 import atexit
 import asyncio
@@ -17,7 +18,7 @@ import logging
 import webbrowser
 import numpy as np
 import tornado.web
-from multiprocessing import Manager, Process
+import multiprocessing
 from contextlib import redirect_stdout, redirect_stderr
 from bisect import bisect_right
 from threading import Thread, Lock
@@ -54,6 +55,7 @@ if platform.system() == 'Linux':
 def is_alive(self):
     return self.poll() is not None
 subprocess.Popen.is_alive = is_alive
+
 
 DEFAULT_CAMERA_XYZRPY_OFFSET_GEPETTO = np.array([7.5, 0.0,     1.4,
                                                  1.4, 0.0, np.pi/2])
@@ -311,6 +313,9 @@ class Viewer:
                 else:
                     raise RuntimeError(
                         "No meshcat backend available and 'create_if_needed' is set to False.")
+            if Viewer._is_notebook() and Viewer.port_forwarding is not None:
+                raise("Impossible to open web browser programmatically for Meshcat "\
+                      "through port forwarding. Either use Jupyter or open it manually.")
 
             viewer_url = Viewer._backend_obj.gui.url()
             if Viewer.port_forwarding is not None:
@@ -328,7 +333,11 @@ class Viewer:
                                  </iframe>\n</div>\n'
                 display(HTML(jupyter_html))
             else:
-                webbrowser.open(viewer_url, new=2, autoraise=True)
+                if Viewer.port_forwarding is None:
+                    webbrowser.open(viewer_url, new=2, autoraise=True)
+                else:
+                    logging.warning("Impossible to open webbrowser through port forwarding. "\
+                                    "Either use Jupyter or open it manually.")
         else:
             raise RuntimeError("Showing client is only available using 'meshcat' backend.")
 
@@ -350,11 +359,26 @@ class Viewer:
                 except AttributeError:
                     pass
         if self == Viewer or self.is_backend_parent:
-            if self._backend_proc is not None and self._backend_proc.is_alive():
-                self._backend_proc.terminate()
-            if Viewer.backend == 'meshcat' and self._backend_obj.browser is not None:
-                self._backend_obj.webui.close()
-                self._backend_obj.browser.close()
+            if Viewer._backend_proc is not None and Viewer._backend_proc.is_alive():
+                Viewer._backend_proc.terminate()
+                Viewer._backend_proc.join(timeout=0.5)
+                try:
+                    proc = psutil.Process(Viewer._backend_proc.pid)
+                    proc.send_signal(signal.SIGKILL)
+                    os.waitpid(Viewer._backend_proc.pid, 0)  # Reap the zombies !
+                except psutil.NoSuchProcess:
+                    pass
+                multiprocessing.active_children()
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None and \
+                    Viewer._backend_obj.browser is not None:
+                Viewer._backend_obj.webui.close()
+                Viewer._backend_obj.browser.close()
+                Viewer._backend_obj.browser._browser.process.kill()
+                try:
+                    os.waitpid(Viewer._backend_obj.browser._browser.process.pid, 0)
+                    os.waitpid(os.getpid(), 0)
+                except ChildProcessError:
+                    pass
         if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
         self._backend_proc = None
@@ -491,10 +515,7 @@ class Viewer:
                             shell=False,
                             stdout=FNULL,
                             stderr=FNULL)
-                        def cleanup(client_proc):
-                            client_proc.kill()
-                            client_proc.wait()
-                        atexit.register(cleanup, client_proc)
+                        atexit.register(Viewer.close)  # Cleanup at exit
                         for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
@@ -584,11 +605,12 @@ class Viewer:
                 # Run meshcat server in background using multiprocessing
                 # Process to enable monkey patching and proper interprocess
                 # communication through a manager.
-                manager = Manager()
+                manager = multiprocessing.Manager()
                 info = manager.dict()
-                proc = Process(target=meshcat_zmqserver, args=(info,))
-                proc.daemon = True
+                proc = multiprocessing.Process(target=meshcat_zmqserver, args=(info,))
+                proc.daemon = False
                 proc.start()
+                atexit.register(Viewer.close)  # Cleanup at exit
 
                 # Wait for the process to finish initialization
                 while not info:
