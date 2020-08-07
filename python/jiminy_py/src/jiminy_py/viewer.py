@@ -734,6 +734,9 @@ class Viewer:
 
         elif Viewer.backend == 'meshcat':
             if relative==False:
+
+                # There is a different convention, we must appli a pi/2 rotation along Roll axis
+                translation = np.array([translation[0],-translation[2], translation[1]])
                 self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(mtf.compose_matrix(translate=(translation), angles=rotation))
             elif relative=='Camera':
                 raise RuntimeError("Relative camera movement is not allowed in meshcat.")
