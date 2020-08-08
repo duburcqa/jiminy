@@ -12,6 +12,7 @@ import signal
 import base64
 import atexit
 import asyncio
+import umsgpack
 import tempfile
 import subprocess
 import logging
@@ -117,11 +118,50 @@ def start_zmq_server():
                 "default_filename": "index.html"}),
             (r"/", WebSocketHandler, {"bridge": self})
         ])
-
     ZMQWebSocketBridge.make_app = make_app
 
-    # Meshcat server deamon, using in/out argument to get
-    # the zmq url instead of reading stdout as it was.
+    # Implement bidirectional communication because zmq and the
+    # websockets by gathering and forward messages received from
+    # the websockets to zmq. Note that there is currently no way
+    # to identify the client associated to each reply, but it is
+    # usually not a big deal, since the same answers is usual
+    # expected from each of them. Comma is used as a delimiter.
+    #
+    # It also fixes flushing issue when 'handle_zmq' is not directly
+    # responsible for sending a message through the zmq socket.
+    def handle_web(self, message):
+        self.bridge.websocket_messages.append(message)
+        if len(self.bridge.websocket_messages) == len(self.bridge.websocket_pool):
+            gathered_msg = ",".join(self.bridge.websocket_messages)
+            self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
+            self.bridge.zmq_stream.flush()
+    WebSocketHandler.on_message = handle_web
+
+    def wait_for_websockets(self):
+        if len(self.websocket_pool) > 0:
+            self.zmq_socket.send(b"ok")
+            self.zmq_stream.flush()
+        else:
+            self.ioloop.call_later(0.1, self.wait_for_websockets)
+    ZMQWebSocketBridge.wait_for_websockets = wait_for_websockets
+
+    handle_zmq_orig = ZMQWebSocketBridge.handle_zmq
+    def handle_zmq(self, frames):
+        self.websocket_messages = []  # Used to gather websocket messages
+        cmd = frames[0].decode("utf-8")
+        if cmd == "meshes_loaded":
+            if not self.websocket_pool:
+                self.zmq_socket.send("".encode("utf-8"))
+            for websocket in self.websocket_pool:
+                websocket.write_message(umsgpack.packb({
+                    u"type": u"meshes_loaded"
+                }), binary=True)
+        else:
+            handle_zmq_orig(self, frames)
+    ZMQWebSocketBridge.handle_zmq = handle_zmq
+
+    # Meshcat server deamon, using in/out argument to get the
+    # zmq url instead of reading stdout as it was.
     def meshcat_zmqserver(zmq_url):
         asyncio.get_event_loop()  # It automatically create a new event loop if needed
         with open(os.devnull, 'w') as f:
@@ -172,6 +212,7 @@ class Viewer:
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
+    _backend_robot_names = []
     _lock = Lock() # Unique threading.Lock for every simulations (in the same thread ONLY!)
 
     def __init__(self,
@@ -220,6 +261,11 @@ class Viewer:
         if scene_name == window_name:
             raise ValueError(
                 "Please, choose a different name for the scene and the window.")
+
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose a "\
+                "different one, or close the associated viewer and delete the robot.")
 
         # Extract the right Pinocchio model
         if self.use_theoretical_model:
@@ -273,6 +319,7 @@ class Viewer:
                     zmq_socket.send(b"url")
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.recv()
+                    zmq_socket.RCVTIMEO = -1  # -1 for limit, milliseconds otherwise
                 except Viewer._backend_exceptions:
                     is_backend_running = False
             if not is_backend_running:
@@ -343,7 +390,7 @@ class Viewer:
         else:
             root_path = os.environ.get('JIMINY_MESH_PATH', [])
         if Viewer.backend == 'gepetto-gui':
-            self._delete_nodes_viewer([scene_name + '/' + self.robot_name])
+            Viewer._delete_nodes_viewer([scene_name + '/' + self.robot_name])
             if urdf_rgba is not None:
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
@@ -380,6 +427,9 @@ class Viewer:
             self._client.loadViewerModel(
                 rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
+            Viewer._backend_obj.info['nmeshes'] += \
+                len(self._rb.visual_model.geometryObjects)
+        Viewer._backend_robot_names.append(robot_name)
 
         # Refresh the viewer since the position of the meshes is not initialized at this point
         self.refresh()
@@ -414,7 +464,10 @@ class Viewer:
         @param port_forwarding  Dictionary whose keys are ports on local machine,
                                 and values are associated remote port.
         """
-        if Viewer.backend == 'meshcat':
+        if Viewer.backend == 'gepetto-gui':
+            raise RuntimeError(
+                "Showing client is only available using 'meshcat' backend.")
+        else:
             if Viewer._backend_obj is None:
                 if start_if_needed:
                     Viewer._backend_obj, Viewer._backend_proc = \
@@ -450,26 +503,37 @@ class Viewer:
                     logging.warning(
                         "Impossible to open webbrowser through port forwarding. "\
                         "Either use Jupyter or open it manually.")
-        else:
-            raise RuntimeError(
-                "Showing client is only available using 'meshcat' backend.")
 
-    def delete_robot(self):
+    @staticmethod
+    def wait(require_client=False):
         """
-        @brief Delete the robot associated with the viewer instance from the backend server.
+        @brief Wait for all the meshes to finish loading in every clients.
+
+        @param[in]  require_client   Wait for at least one client to be available
+                                     before checking for mesh loading.
         """
-        try:
-            if Viewer.backend == 'gepetto-gui':
-                self._delete_nodes_viewer(
-                    [self.scene_name + '/' + self.robot_name])
+        if Viewer.backend == 'gepetto-gui':
+            return True  # Gepetto-gui is synchronous, so it cannot not be already loaded
+        else:
+            if Viewer._backend_proc is not None:
+                if require_client:
+                    Viewer._backend_obj.gui.wait()
+                zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
+                def _is_loaded():
+                    zmq_socket.send(b'meshes_loaded')
+                    resp = zmq_socket.recv().decode("utf-8")
+                    if resp:
+                        return resp or min(np.array(resp.split(','), int)) == \
+                            Viewer._backend_obj.info['nmeshes']
+                    else:
+                        return True
+                while not _is_loaded():
+                    time.sleep(0.1)
+                return True
             else:
-                node_names = [
-                    self._client.getViewerNodeName(
-                        visual_obj, pin.GeometryType.VISUAL)
-                    for visual_obj in self._rb.visual_model.geometryObjects]
-                self._delete_nodes_viewer(node_names)
-        except AttributeError:
-            pass
+                raise NotImplementedError(
+                    "Impossible to wait for mesh loading if the Meshcat server "\
+                    "has not been opened by Python main thread for now.")
 
     def close(self=None):
         """
@@ -489,13 +553,24 @@ class Viewer:
             else:
                 if self.delete_robot_on_close:
                     self.delete_robot_on_close = False  # In case 'close' is called twice.
-                    self.delete_robot()
+                    if Viewer.backend == 'gepetto-gui':
+                        Viewer._delete_nodes_viewer(
+                            [self.scene_name + '/' + self.robot_name])
+                    else:
+                        node_names = [
+                            self._client.getViewerNodeName(
+                                visual_obj, pin.GeometryType.VISUAL)
+                            for visual_obj in self._rb.visual_model.geometryObjects]
+                        Viewer._delete_nodes_viewer(node_names)
+                        Viewer._backend_obj.info['nmeshes'] -= \
+                            len(self._rb.visual_model.geometryObjects)
+                    Viewer._backend_robot_names.remove(self.robot_name)
             if self == Viewer or self.is_backend_parent:
                 self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
-                if Viewer._backend_proc is not None and \
-                        Viewer._backend_proc.is_alive():
-                    Viewer._backend_proc.terminate()
-                    Viewer._backend_proc.join(timeout=0.5)
+                if self._backend_proc is not None and \
+                        self._backend_proc.is_alive():
+                    self._backend_proc.terminate()
+                    self._backend_proc.join(timeout=0.5)
                     try:
                         backend_pid = Viewer._backend_proc.pid
                         proc = psutil.Process(backend_pid)
@@ -516,8 +591,8 @@ class Viewer:
                         os.waitpid(os.getpid(), 0)
                     except ChildProcessError:
                         pass
-            if self._backend_proc is Viewer._backend_proc:
-                Viewer._backend_obj = None
+                if self._backend_proc is Viewer._backend_proc:
+                    Viewer._backend_obj = None
             if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
                     shutil.rmtree(self._tempdir)
@@ -737,20 +812,20 @@ class Viewer:
             # to avoid infinite waiting if case of closed server.
             with redirect_stdout(None):
                 gui = meshcat.Visualizer(zmq_url)
-                gui.window.zmq_socket.RCVTIMEO = 100
-                browser, webui = None, None
+            browser, webui = None, None
 
             class MeshcatWrapper:
                 def __init__(self, gui, browser, webui):
                     self.gui = gui
                     self.browser = browser
                     self.webui = webui
+                    self.info = {'nmeshes': 0}
             client = MeshcatWrapper(gui, browser, webui)
 
             return client, proc
 
     @staticmethod
-    def _delete_nodes_viewer(self, nodes_path):
+    def _delete_nodes_viewer(nodes_path):
         """
         @brief      Delete a 'node' in Gepetto-viewer.
 
@@ -907,7 +982,8 @@ class Viewer:
                     Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
                         Viewer._backend_obj.gui.url())
                     Viewer._backend_obj.webui.html.render(
-                        keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
+                        keep_page=True)
+                    Viewer.wait(require_client=True)
             else:
                 raise NotImplementedError(
                     "Capturing frame is not available in Jupyter for now.")
@@ -957,9 +1033,11 @@ class Viewer:
             with open(output_path, "wb") as f:
                 f.write(img_data)
 
-    def refresh(self):
+    def refresh(self, wait=False):
         """
         @brief      Refresh the configuration of Robot in the viewer.
+
+        @param[in]  wait    Whether or not to wait for rendering to finish.
         """
         if Viewer._backend_obj is None or (self.is_backend_parent and
                 not Viewer._backend_proc.is_alive()):
@@ -994,8 +1072,10 @@ class Viewer:
                     self._client.viewer[\
                         self.__getViewerNodeName(
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
+        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
+            Viewer._backend_obj.gui.wait()
 
-    def display(self, q, xyz_offset=None):
+    def display(self, q, xyz_offset=None, wait=False):
         """
         @brief      Update the configuration of the robot.
 
@@ -1005,6 +1085,7 @@ class Viewer:
         @param[in]  q    Configuration of the robot, as a 1D numpy array.
         @param[in]  xyz_offset    Freeflyer position offset. (Note that it does not
                                   check for the robot actually have a freeflyer).
+        @param[in]  wait    Whether or not to wait for rendering to finish.
         """
         if xyz_offset is not None:
             q = q.copy()  # Make a copy to avoid altering the original data
@@ -1014,9 +1095,11 @@ class Viewer:
             if self._rb.model.nq != q.shape[0]:
                 raise ValueError("The configuration vector does not have the right size.")
             self._rb.display(q)
-            pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
+        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
+        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
+            Viewer._backend_obj.gui.wait()
 
-    def replay(self, evolution_robot, replay_speed, xyz_offset=None):
+    def replay(self, evolution_robot, replay_speed, xyz_offset=None, wait=False):
         """
         @brief      Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1027,6 +1110,7 @@ class Viewer:
         @param[in]  replay_speed       Real-time ratio
         @param[in]  xyz_offset         Freeflyer position offset. (Note that it does not
                                        check for the robot actually have a freeflyer).
+        @param[in]  wait               Whether or not to wait for rendering to finish.
         """
         t = [s.t for s in evolution_robot]
         i = 0
@@ -1034,7 +1118,8 @@ class Viewer:
         while i < len(evolution_robot):
             s = evolution_robot[i]
             try:
-                self.display(s.q, xyz_offset)
+                self.display(s.q, xyz_offset, wait)
+                wait = False  # It is enough to wait for the first timestep
             except Viewer._backend_exceptions:
                 break
             t_simu = (time.time() - init_time) * replay_speed
@@ -1095,6 +1180,7 @@ def play_trajectories(trajectory_data,
                       replay_speed=1.0,
                       viewers=None,
                       start_paused=False,
+                      wait_for_client=True,
                       camera_xyzrpy=None,
                       xyz_offset=None,
                       urdf_rgba=None,
@@ -1104,29 +1190,38 @@ def play_trajectories(trajectory_data,
                       close_backend=None,
                       delete_robot_on_close=True):
     """!
-    @brief      Display a robot trajectory in a viewer.
+    @brief      Replay one or several robot trajectories in a viewer.
 
     @details    The ratio between the replay and the simulation time is kept constant to the desired ratio.
                 One can choose between several backend (gepetto-gui or meshcat).
 
     @remark     The speed is independent of the plateform and the CPU power.
 
-    @param[in]  trajectory_data     Trajectory dictionary with keys:
+    @param[in]  trajectory_data     List of trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model':  whether the theoretical or actual model must be used
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
-    @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array)
+    @param[in]  replay_speed        Speed ratio of the simulation
+
+
+
+    @param[in]  viewers             Optional, already instantiated viewers, associated one by one
+                                    in order to each trajectory data.
+    @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
+                                    starting to play the trajectories.
+    @param[in]  wait_for_client     Wait for the client to finish loading the meshes before starting
+    @param[in]  camera_xyzrpy       Absolute pose of the camera during replay.
+    @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array).
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
-    @param[in]  replay_speed        Speed ratio of the simulation
     @param[in]  backend             Backend, one of 'meshcat' or 'gepetto-gui'. By default 'meshcat' is used
                                     in notebook environment and 'gepetto-gui' otherwise.
     @param[in]  window_name         Name of the Gepetto-viewer's window in which to display the robot.
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
-    @param[in] delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
+    @param[in]  delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
 
     @return     The viewers used to play the trajectories.
     """
@@ -1152,14 +1247,12 @@ def play_trajectories(trajectory_data,
                 delete_robot_on_close=delete_robot_on_close)
             viewers.append(viewer)
 
-            # Wait a few moment, to give enough time to load meshes if necessary
-            time.sleep(0.5)
-
         if viewers[0].is_backend_parent:
             # Initialize camera pose
             if camera_xyzrpy is not None:
                 viewers[0].set_camera_transform(
-                    translation=camera_xyzrpy[:3], rotation=camera_xyzrpy[3:])
+                    translation=camera_xyzrpy[:3],
+                    rotation=camera_xyzrpy[3:])
 
             # Close backend by default if it was not available beforehand
             if close_backend is None:
@@ -1190,6 +1283,7 @@ def play_trajectories(trajectory_data,
                 trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
         except Viewer._backend_exceptions:
             break
+    Viewer.wait(require_client=True)  # Wait for the meshes to finish loading
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
@@ -1202,9 +1296,14 @@ def play_trajectories(trajectory_data,
                               args=(trajectory_data[i]['evolution_robot'],
                                     replay_speed, xyz_offset[i])))
     for i in range(len(trajectory_data)):
+        threads[i].daemon = True
         threads[i].start()
-    for i in range(len(trajectory_data)):
-        threads[i].join()
+
+    try:
+        for i in range(len(trajectory_data)):
+            threads[i].join()
+    except KeyboardInterrupt:
+        pass
 
     # Close backend if needed
     if close_backend:

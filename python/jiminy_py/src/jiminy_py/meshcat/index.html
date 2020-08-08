@@ -7,10 +7,26 @@
 	<body>
         <div id="meshcat-pane"></div>
 
-        <script type="text/javascript" src="three.min.js"></script>
         <script type="text/javascript" src="main.min.js"></script>
         <script>
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
+
+            var meshes_loaded = 0;
+            var set_object_from_json = viewer.set_object_from_json;
+            viewer.set_object_from_json = function(path, object_json) {
+                set_object_from_json.call(this, path, object_json);
+                meshes_loaded += 1;
+            };
+
+            var handle_command = viewer.handle_command;
+            viewer.handle_command = function(cmd) {
+                if (cmd.type == "meshes_loaded") {
+                    this.connection.send(meshes_loaded);
+                } else {
+                    handle_command.call(this, cmd);
+                }
+            };
+
             try {
                 viewer.connect();
             } catch (e) {
@@ -18,9 +34,11 @@
             }
 
             var segments = 20;
-            var geometry = new THREE.PlaneGeometry(20, 20, segments, segments);
-            var materialEven = new THREE.MeshBasicMaterial({color: 0x2b2b40, side: THREE.DoubleSide});
-            var materialOdd = new THREE.MeshBasicMaterial({color: 0xf2f2fe, side: THREE.DoubleSide});
+            var geometry = new MeshCat.THREE.PlaneGeometry(20, 20, segments, segments);
+            var materialEven = new MeshCat.THREE.MeshBasicMaterial(
+                {color: 0x222233, side: MeshCat.THREE.DoubleSide});
+            var materialOdd = new MeshCat.THREE.MeshBasicMaterial(
+                {color: 0xf2f2fe, side: MeshCat.THREE.DoubleSide});
             var materials = [materialEven, materialOdd]
             for (x of [...Array(segments).keys()]) {
                 for (y of [...Array(segments).keys()]) {
@@ -29,8 +47,10 @@
                     geometry.faces[j].materialIndex = geometry.faces[j + 1].materialIndex = (x + y) % 2;
                 }
             }
-            var checkerboard = new THREE.Mesh(geometry, materials);
+            var checkerboard = new MeshCat.THREE.Mesh(geometry, materials);
             viewer.scene_tree.find(["Grid"]).set_object(checkerboard)
+
+            viewer.scene_tree.find(["Axes", "<object>"]).object.material.linewidth = 2.5
 
             viewer.camera.fov = 30;
             viewer.render();
