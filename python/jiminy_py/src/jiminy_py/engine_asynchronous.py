@@ -220,7 +220,7 @@ class EngineAsynchronous:
         @remark     Note that it supports parallel rendering, which means that one
                     can display multiple simulations in the same Gepetto-viewer
                     processes at the same time in different tabs.
-                    Note that returning an RGB array required Gepetto-viewer.
+                    Note that returning an RGB array is not supported by Meshcat in Jupyter.
 
         @param[in]  return_rgb_array    Updated command
                                         Optional: Use the value in the internal buffer otherwise
@@ -251,7 +251,7 @@ class EngineAsynchronous:
 
             # Compute rgb array if needed
             if return_rgb_array:
-                rgb_array = self._viewer.captureFrame()
+                rgb_array = self._viewer.capture_frame()
         except (RuntimeError, AttributeError):
             if self._viewer is not None:
                 self._viewer.close()

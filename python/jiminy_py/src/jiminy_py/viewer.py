@@ -1145,7 +1145,8 @@ def play_trajectories(trajectory_data,
         # Make sure the viewers are still running
         is_backend_running = True
         for viewer in viewers:
-            if viewer.is_backend_parent and not Viewer._backend_proc.is_alive():
+            if viewer.is_backend_parent and \
+                    not Viewer._backend_proc.is_alive():
                 is_backend_running = False
         if Viewer._backend_obj is None:
             is_backend_running = False
@@ -1157,13 +1158,9 @@ def play_trajectories(trajectory_data,
         xyz_offset = len(trajectory_data) * (None,)
 
     for i in range(len(trajectory_data)):
-        if xyz_offset is not None and xyz_offset[i] is not None:
-            q = trajectory_data[i]['evolution_robot'][0].q.copy()
-            q[:3] += xyz_offset[i]
-        else:
-            q = trajectory_data[i]['evolution_robot'][0].q
         try:
-            viewers[i]._rb.display(q)
+            viewers[i].display(
+                trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
         except Viewer._backend_exceptions:
             break
 
@@ -1174,7 +1171,7 @@ def play_trajectories(trajectory_data,
     # Replay the trajectory
     threads = []
     for i in range(len(trajectory_data)):
-        threads.append(Thread(target=viewers[i].display,
+        threads.append(Thread(target=viewers[i].replay,
                               args=(trajectory_data[i]['evolution_robot'],
                                     replay_speed, xyz_offset[i])))
     for i in range(len(trajectory_data)):
