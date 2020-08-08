@@ -175,6 +175,7 @@ class Viewer:
                  lock=None,
                  backend=None,
                  delete_robot_on_close=False,
+                 close_backend_at_exit=True,
                  robot_name="robot",
                  window_name='jiminy',
                  scene_name='world'):
@@ -192,6 +193,7 @@ class Viewer:
         @param backend        The name of the desired backend to use for rendering.
                               Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
         @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
+        @param close_backend_at_exit     Terminate backend server at Python exit.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
         @param scene_name     Scene name, used only when gepetto-gui is used as backend.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
@@ -278,7 +280,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer._get_client(True, self.close_backend_at_exit)
                     self.is_backend_parent = Viewer._backend_proc is not None
                 self._client = Viewer._backend_obj.gui
 
@@ -298,7 +300,7 @@ class Viewer:
 
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer._get_client(True, self.close_backend_at_exit)
                     self.is_backend_parent = Viewer._backend_proc is not None
 
                 if self.is_backend_parent:
@@ -393,7 +395,7 @@ class Viewer:
         Viewer.port_forwarding = port_forwarding
 
     @staticmethod
-    def open_gui(create_if_needed=False):
+    def open_gui(start_if_needed=False):
         """
         @brief Open a new viewer graphical interface.
 
@@ -406,12 +408,12 @@ class Viewer:
         """
         if Viewer.backend == 'meshcat':
             if Viewer._backend_obj is None:
-                if create_if_needed:
+                if start_if_needed:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
                 else:
                     raise RuntimeError("No meshcat backend available and "\
-                                       "'create_if_needed' is set to False.")
+                                       "'start_if_needed' is set to False.")
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
                 logging.warning(
                     "Impossible to open web browser programmatically for Meshcat "\
@@ -634,18 +636,22 @@ class Viewer:
         return fixed_urdf_path
 
     @staticmethod
-    def _get_client(create_if_needed=False, create_timeout=2000):
+    def _get_client(start_if_needed=False,
+                    close_at_exit=True,
+                    timeout=2000):
         """
         @brief      Get a pointer to the running process of Gepetto-Viewer.
 
         @details    This method can be used to open a new process if necessary.
         .
-        @param[in]  create_if_needed    Whether a new process must be created if
-                                        no running process is found.
-                                        Optional: False by default
-        @param[in]  create_timeout      Wait some millisecond before considering
-                                        creating new viewer as failed.
-                                        Optional: 1s by default
+        @param[in]  start_if_needed    Whether a new process must be created if
+                                       no running process is found.
+                                       Optional: False by default
+        @param[in]  timeout            Wait some millisecond before considering
+                                       starting new server has failed.
+                                       Optional: 1s by default
+        @param[in]  close_at_exit      Terminate backend server at Python exit.
+                                       Optional: True by default
 
         @return     A pointer to the running Gepetto-viewer Client and its PID.
         """
@@ -664,15 +670,16 @@ class Viewer:
                     client.gui.getSceneList()
                     return client, None
                 except Viewer._backend_exceptions:
-                    if create_if_needed:
+                    if start_if_needed:
                         FNULL = open(os.devnull, 'w')
                         client_proc = subprocess.Popen(
                             ['/opt/openrobots/bin/gepetto-gui'],
                             shell=False,
                             stdout=FNULL,
                             stderr=FNULL)
-                        atexit.register(Viewer.close)  # Cleanup at exit
-                        for _ in range(max(2, int(create_timeout / 200))): # Must try at least twice for robustness
+                        if close_at_exit:
+                            atexit.register(Viewer.close)  # Cleanup at exit
+                        for _ in range(max(2, int(timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
                                 return gepetto_client(), client_proc
@@ -712,7 +719,8 @@ class Viewer:
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
                 proc, zmq_url, _ = start_zmq_server()
-                atexit.register(Viewer.close)  # Ensure proper cleanup at exit
+                if close_at_exit:
+                    atexit.register(Viewer.close)  # Ensure proper cleanup at exit
             else:
                 proc = None
 
