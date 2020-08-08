@@ -29,7 +29,10 @@ setup(name = 'jiminy_py',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html **/*.js']},
-      entry_points={'console_scripts': ['jiminy_plot=jiminy_py.log:plot_log']},
+      entry_points={'console_scripts': [
+          'jiminy_plot=jiminy_py.log:plot_log',
+          'jiminy_meshcat_server=jiminy_py.viewer:start_zmq_server_standalone'
+      ]},
       include_package_data = True,  # make sure the shared library is included
       distclass = BinaryDistribution,
       cmdclass = {'install': InstallPlatlib},

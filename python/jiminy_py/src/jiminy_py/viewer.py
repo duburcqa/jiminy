@@ -62,17 +62,101 @@ DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 
 def sleep(dt):
     """
-        @brief   Function to provide cross-plateform time sleep with maximum accuracy.
+        @brief   Function to provide cross-plateform time sleep with maximum
+                 accuracy.
+
+        @details Use this method with cautious since it relies on busy looping
+                 principle instead of system scheduler. As a result, it wastes
+                 a lot more resources than time.sleep. However, it is the only
+                 way to ensure accurate delay on a non-real-time systems such
+                 as Windows 10.
 
         @param   dt   sleep duration in seconds.
-
-        @details Use this method with cautious since it relies on busy looping principle instead of system scheduler.
-                 As a result, it wastes a lot more resources than time.sleep. However, it is the only way to ensure
-                 accurate delay on a non-real-time systems such as Windows 10.
     """
     _ = time.perf_counter() + dt
     while time.perf_counter() < _:
         pass
+
+
+def start_zmq_server():
+    # Monkey-patch Meshcat to support cross-origin connection.
+    # It is useful to execute custom javascript commands within
+    # a Jupyter Notebook, and it is not an actual security flaw
+    # for local servers since they are not accessible from the
+    # outside anyway.
+    WebSocketHandler.check_origin = lambda self, origin: True
+
+    # Override the default html page to disable auto-update of
+    # three js "controls" of the camera, so that it can be moved
+    # programmatically in any position, without any constraint, as
+    # long as the user is not moving it manually using the mouse.
+    class MyFileHandler(StaticFileHandlerNoCache):
+        def initialize(self, default_path, default_filename, fallback_path):
+            self.default_path = os.path.abspath(default_path)
+            self.default_filename = default_filename
+            self.fallback_path = os.path.abspath(fallback_path)
+            super().initialize(self.default_path, self.default_filename)
+        def validate_absolute_path(self, root, absolute_path):
+            if os.path.exists(absolute_path) and \
+                    os.path.basename(absolute_path) != 'index.html' :
+                return super().validate_absolute_path(root, absolute_path)
+            else:
+                return os.path.join(
+                    self.fallback_path, absolute_path[(len(root)+1):])
+    def make_app(self):
+        return tornado.web.Application([
+            (r"/static/(.*)", MyFileHandler, {
+                "default_path": VIEWER_ROOT,
+                "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
+                "default_filename": "index.html"}),
+            (r"/", WebSocketHandler, {"bridge": self})
+        ])
+    ZMQWebSocketBridge.make_app = make_app
+
+    # Meshcat server deamon, using in/out argument to get
+    # the zmq url instead of reading stdout as it was.
+    def meshcat_zmqserver(zmq_url):
+        asyncio.get_event_loop()  # It automatically create a new event loop if needed
+        with open(os.devnull, 'w') as f:
+            with redirect_stderr(f):
+                bridge = ZMQWebSocketBridge()
+                info['zmq_url'] = bridge.zmq_url
+                info['web_url'] = bridge.web_url
+                bridge.run()
+
+    # Run meshcat server in background using multiprocessing
+    # Process to enable monkey patching and proper interprocess
+    # communication through a manager.
+    manager = multiprocessing.Manager()
+    info = manager.dict()
+    server = multiprocessing.Process(target=meshcat_zmqserver, args=(info,))
+    server.daemon = True
+    server.start()
+
+    # Wait for the process to finish initialization
+    while not info:
+        pass
+    return server, info['zmq_url'], info['web_url']
+
+def start_zmq_server_standalone():
+    import argparse
+    argparse.ArgumentParser(
+        description="Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands")
+
+    server, zmq_url, web_url = start_zmq_server()
+    print(zmq_url)
+    print(web_url)
+
+    try:
+        server.join()
+    except KeyboardInterrupt:
+        server.terminate()
+        server.join(timeout=0.5)
+        try:
+            proc = psutil.Process(server.pid)
+            proc.send_signal(signal.SIGKILL)
+        except psutil.NoSuchProcess:
+            pass
 
 
 class Viewer:
@@ -122,7 +206,8 @@ class Viewer:
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
 
-        if self.scene_name == self.window_name:
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == window_name:
             raise ValueError(
                 "Please, choose a different name for the scene and the window.")
 
@@ -388,37 +473,49 @@ class Viewer:
                 in the same outcome than calling this method without specifying any
                 viewer instance.
         """
-        if self is None:
-            self = Viewer
-        else:
-            if self.delete_robot_on_close:
-                self.delete_robot()
-        if self == Viewer or self.is_backend_parent:
-            if Viewer._backend_proc is not None and Viewer._backend_proc.is_alive():
-                Viewer._backend_proc.terminate()
-                Viewer._backend_proc.join(timeout=0.5)
+        try:
+            if self is None:
+                self = Viewer
+            else:
+                if self.delete_robot_on_close:
+                    self.delete_robot_on_close = False  # In case 'close' is called twice.
+                    self.delete_robot()
+            if self == Viewer or self.is_backend_parent:
+                self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
+                if Viewer._backend_proc is not None and \
+                        Viewer._backend_proc.is_alive():
+                    Viewer._backend_proc.terminate()
+                    Viewer._backend_proc.join(timeout=0.5)
+                    try:
+                        backend_pid = Viewer._backend_proc.pid
+                        proc = psutil.Process(backend_pid)
+                        proc.send_signal(signal.SIGKILL)
+                        os.waitpid(backend_pid, 0)  # Reap the zombies !
+                    except psutil.NoSuchProcess:
+                        pass
+                    multiprocessing.active_children()
+                if Viewer.backend == 'meshcat' and \
+                        Viewer._backend_obj is not None and \
+                        Viewer._backend_obj.browser is not None:
+                    browser_proc = Viewer._backend_obj.browser._browser.process
+                    Viewer._backend_obj.webui.close()
+                    Viewer._backend_obj.browser.close()
+                    browser_proc.kill()
+                    try:
+                        os.waitpid(browser_proc.pid, 0)
+                        os.waitpid(os.getpid(), 0)
+                    except ChildProcessError:
+                        pass
+            if self._backend_proc is Viewer._backend_proc:
+                Viewer._backend_obj = None
+            if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
-                    proc = psutil.Process(Viewer._backend_proc.pid)
-                    proc.send_signal(signal.SIGKILL)
-                    os.waitpid(Viewer._backend_proc.pid, 0)  # Reap the zombies !
-                except psutil.NoSuchProcess:
+                    shutil.rmtree(self._tempdir)
+                except FileNotFoundError:
                     pass
-                multiprocessing.active_children()
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None and \
-                    Viewer._backend_obj.browser is not None:
-                Viewer._backend_obj.webui.close()
-                Viewer._backend_obj.browser.close()
-                Viewer._backend_obj.browser._browser.process.kill()
-                try:
-                    os.waitpid(Viewer._backend_obj.browser._browser.process.pid, 0)
-                    os.waitpid(os.getpid(), 0)
-                except ChildProcessError:
-                    pass
-        if self._backend_proc is Viewer._backend_proc:
-            Viewer._backend_obj = None
-        if self._tempdir.startswith(tempfile.gettempdir()):
-            shutil.rmtree(self._tempdir)
-        self._backend_proc = None
+            self._backend_proc = None
+        except AttributeError:
+            pass
 
     @staticmethod
     def _is_notebook():
@@ -614,68 +711,8 @@ class Viewer:
 
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
-                # Monkey-patch Meshcat to support cross-origin connection.
-                # It is useful to execute custom javascript commands within
-                # a Jupyter Notebook, and it is not an actual security flaw
-                # for local servers since they are not accessible from the
-                # outside anyway.
-                WebSocketHandler.check_origin = lambda self, origin: True
-
-                # Override the default html page to disable auto-update of
-                # three js "controls" of the camera, so that it can be moved
-                # programmatically in any position, without any constraint, as
-                # long as the user is not moving it manually using the mouse.
-                class MyFileHandler(StaticFileHandlerNoCache):
-                    def initialize(self, default_path, default_filename, fallback_path):
-                        self.default_path = os.path.abspath(default_path)
-                        self.default_filename = default_filename
-                        self.fallback_path = os.path.abspath(fallback_path)
-                        super().initialize(self.default_path, self.default_filename)
-                    def validate_absolute_path(self, root, absolute_path):
-                        if os.path.exists(absolute_path) and \
-                                os.path.basename(absolute_path) != 'index.html' :
-                            return super().validate_absolute_path(root, absolute_path)
-                        else:
-                            return os.path.join(
-                                self.fallback_path, absolute_path[(len(root)+1):])
-                def make_app(self):
-                    return tornado.web.Application([
-                        (r"/static/(.*)", MyFileHandler, {
-                            "default_path": VIEWER_ROOT,
-                            "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
-                            "default_filename": "index.html"}),
-                        (r"/", WebSocketHandler, {"bridge": self})
-                    ])
-                ZMQWebSocketBridge.make_app = make_app
-
-                # Meshcat server deamon, using in/out argument to get
-                # the zmq url instead of reading stdout as it was.
-                def meshcat_zmqserver(zmq_url):
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    with open(os.devnull, 'w') as f:
-                        with redirect_stderr(f):
-                            bridge = ZMQWebSocketBridge()
-                            info['zmq_url'] = bridge.zmq_url
-                            try:
-                                bridge.run()
-                            except KeyboardInterrupt:
-                                pass
-
-                # Run meshcat server in background using multiprocessing
-                # Process to enable monkey patching and proper interprocess
-                # communication through a manager.
-                manager = multiprocessing.Manager()
-                info = manager.dict()
-                proc = multiprocessing.Process(target=meshcat_zmqserver, args=(info,))
-                proc.daemon = False
-                proc.start()
-                atexit.register(Viewer.close)  # Cleanup at exit
-
-                # Wait for the process to finish initialization
-                while not info:
-                    pass
-                zmq_url = info['zmq_url']
+                proc, zmq_url, _ = start_zmq_server()
+                atexit.register(Viewer.close)  # Ensure proper cleanup at exit
             else:
                 proc = None
 
@@ -902,38 +939,34 @@ class Viewer:
             raise RuntimeError(
                 "No backend available. Please start one before calling this method.")
 
-        if not self._lock.acquire(timeout=0.5):
-            raise RuntimeError("Impossible to acquire backend lock.")
-
-        if Viewer.backend == 'gepetto-gui':
-            if self._rb.displayCollisions:
-                self._client.applyConfigurations(
-                    [self.__getViewerNodeName(collision, pin.GeometryType.COLLISION)
-                        for collision in self._rb.collision_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
-                        self._rb.collision_model.getGeometryId(collision.name)])
-                        for collision in self._rb.collision_model.geometryObjects]
-                )
-            if self._rb.displayVisuals:
+        with self._lock:
+            if Viewer.backend == 'gepetto-gui':
+                if self._rb.displayCollisions:
+                    self._client.applyConfigurations(
+                        [self.__getViewerNodeName(collision, pin.GeometryType.COLLISION)
+                            for collision in self._rb.collision_model.geometryObjects],
+                        [pin.se3ToXYZQUATtuple(self._rb.collision_data.oMg[\
+                            self._rb.collision_model.getGeometryId(collision.name)])
+                            for collision in self._rb.collision_model.geometryObjects]
+                    )
+                if self._rb.displayVisuals:
+                    self.__updateGeometryPlacements(visual=True)
+                    self._client.applyConfigurations(
+                        [self.__getViewerNodeName(visual, pin.GeometryType.VISUAL)
+                            for visual in self._rb.visual_model.geometryObjects],
+                        [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
+                            self._rb.visual_model.getGeometryId(visual.name)])
+                            for visual in self._rb.visual_model.geometryObjects]
+                    )
+                self._client.refresh()
+            else:
                 self.__updateGeometryPlacements(visual=True)
-                self._client.applyConfigurations(
-                    [self.__getViewerNodeName(visual, pin.GeometryType.VISUAL)
-                        for visual in self._rb.visual_model.geometryObjects],
-                    [pin.se3ToXYZQUATtuple(self._rb.visual_data.oMg[\
-                        self._rb.visual_model.getGeometryId(visual.name)])
-                        for visual in self._rb.visual_model.geometryObjects]
-                )
-            self._client.refresh()
-        else:
-            self.__updateGeometryPlacements(visual=True)
-            for visual in self._rb.visual_model.geometryObjects:
-                T = self._rb.visual_data.oMg[\
-                    self._rb.visual_model.getGeometryId(visual.name)].homogeneous
-                self._client.viewer[\
-                    self.__getViewerNodeName(
-                        visual, pin.GeometryType.VISUAL)].set_transform(T)
-
-        self._lock.release()
+                for visual in self._rb.visual_model.geometryObjects:
+                    T = self._rb.visual_data.oMg[\
+                        self._rb.visual_model.getGeometryId(visual.name)].homogeneous
+                    self._client.viewer[\
+                        self.__getViewerNodeName(
+                            visual, pin.GeometryType.VISUAL)].set_transform(T)
 
     def display(self, q, xyz_offset=None):
         """
@@ -950,11 +983,11 @@ class Viewer:
             q = q.copy()  # Make a copy to avoid altering the original data
             q[:3] += xyz_offset
 
-        if not self._lock.acquire(timeout=0.2):
-            raise RuntimeError("Impossible to acquire backend lock.")
-        self._rb.display(q)
-        self._lock.release()
-        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
+        with self._lock:
+            if self._rb.model.nq != q.shape[0]:
+                raise ValueError("The configuration vector does not have the right size.")
+            self._rb.display(q)
+            pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
 
     def replay(self, evolution_robot, replay_speed, xyz_offset=None):
         """
