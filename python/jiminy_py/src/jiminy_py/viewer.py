@@ -729,13 +729,8 @@ class Viewer:
             # to avoid infinite waiting if case of closed server.
             with redirect_stdout(None):
                 gui = meshcat.Visualizer(zmq_url)
-                gui.window.zmq_socket.RCVTIMEO = 50
-                if not Viewer._is_notebook():
-                    browser = HTMLSession()
-                    webui = browser.get(gui.url() + "index.html")
-                    webui.html.render(keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
-                else:
-                    browser, webui = None, None
+                gui.window.zmq_socket.RCVTIMEO = 100
+                browser, webui = None, None
 
             class MeshcatWrapper:
                 def __init__(self, gui, browser, webui):
@@ -895,9 +890,20 @@ class Viewer:
                 rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
-            if Viewer._backend_obj.webui is not None:
+            # Start rendering the viewer on host, in a hidden
+            # Chromium browser, if not already started.
+            if Viewer._backend_obj.webui is None and not Viewer._is_notebook():
+                Viewer._backend_obj.browser = HTMLSession()
+                Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
+                    Viewer._backend_obj.gui.url())
+                Viewer._backend_obj.webui.html.render(
+                    keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
+            else:
                 raise NotImplementedError(
                     "Capturing frame is not available in Jupyter for now.")
+
+            # Send a javascript command to the hidden browser to
+            # capture frame, then wait for it (since it is async).
             async def _capture_frame(client):
                 if width is not None and height is not None:
                     await client.html.page.setViewport(
@@ -910,6 +916,9 @@ class Viewer:
             loop = asyncio.get_event_loop()
             img_data_html = loop.run_until_complete(
                 _capture_frame(Viewer._backend_obj.webui))
+
+            # Parse the output to remove the html header, and
+            # convert it into the desired output format.
             img_data = base64.decodebytes(str.encode(img_data_html[22:]))
             if raw_data:
                 return img_data
