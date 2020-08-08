@@ -32,17 +32,16 @@ from meshcat.servers.zmqserver import (
 from requests_html import HTMLSession
 
 import pinocchio as pin
-from pinocchio.robot_wrapper import RobotWrapper
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
+from pinocchio.robot_wrapper import RobotWrapper
 
 from .state import State
 
 
 # Determine if the various backends are available
 backends_available = ['meshcat']
-import platform
-if platform.system() == 'Linux':
+if __import__('platform').system() == 'Linux':
     try:
         import gepetto as _gepetto
         import omniORB as _omniORB
@@ -124,7 +123,8 @@ class Viewer:
         self.delete_robot_on_close = delete_robot_on_close
 
         if self.scene_name == self.window_name:
-            raise ValueError("Please, choose a different name for the scene and the window.")
+            raise ValueError(
+                "Please, choose a different name for the scene and the window.")
 
         # Extract the right Pinocchio model
         if self.use_theoretical_model:
@@ -137,7 +137,7 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if Viewer._is_notebook() or (not 'gepetto-gui' in backends_available):
+                if Viewer._is_notebook() or not 'gepetto-gui' in backends_available:
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
@@ -205,8 +205,8 @@ class Viewer:
                     self._client.createGroup(scene_name + '/' + scene_name)
                     self._client.addLandmark(scene_name + '/' + scene_name, 0.1)
                 else:
-                    self._window_id = int(np.where(
-                        [name == window_name for name in self._client.getWindowList()])[0][0])
+                    self._window_id = int(np.where([name == window_name
+                        for name in self._client.getWindowList()])[0][0])
             else:
                 from pinocchio.visualize import MeshcatVisualizer
                 from pinocchio.shortcuts import createDatas
@@ -325,8 +325,8 @@ class Viewer:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
                 else:
-                    raise RuntimeError(
-                        "No meshcat backend available and 'create_if_needed' is set to False.")
+                    raise RuntimeError("No meshcat backend available and "\
+                                       "'create_if_needed' is set to False.")
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
                 logging.warning(
                     "Impossible to open web browser programmatically for Meshcat "\
@@ -336,8 +336,9 @@ class Viewer:
             if Viewer.port_forwarding is not None:
                 url_port_pattern = '(?<=:)[0-9]+(?=/)'
                 port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-                assert port_localhost in Viewer.port_forwarding.keys(), \
-                    "Port forwarding defined but no port mapping associated with {port_localhost}."
+                if not port_localhost in Viewer.port_forwarding.keys():
+                    raise RuntimeError("Port forwarding defined but no port "\
+                                       "mapping associated with {port_localhost}.")
                 port_remote = Viewer.port_forwarding[port_localhost]
                 viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
 
@@ -436,7 +437,10 @@ class Viewer:
             return False      # Probably standard Python interpreter
 
     @staticmethod
-    def _get_colorized_urdf(urdf_path, rgb, mesh_root_path=None, output_root_path=None):
+    def _get_colorized_urdf(urdf_path,
+                            rgb,
+                            mesh_root_path=None,
+                            output_root_path=None):
         """
         @brief      Generate a unique colorized URDF.
 
@@ -767,7 +771,7 @@ class Viewer:
                                        - other string: relative to a robot frame,
                                          not accounting for the rotation (traveling)
         """
-        # Handling of default transformation
+        # Handling of translation and rotation arguments
         if not relative is None and relative != 'camera':
             if translation is None:
                 translation = np.array([3.0, -3.0, 2.0])
@@ -778,6 +782,8 @@ class Viewer:
                 translation = np.zeros(3)
             if rotation is None:
                 rotation = np.zeros(3)
+        rotation_mat = rpyToMatrix(np.asarray(rotation))
+        translation = np.asarray(translation)
 
         # Compute the relative transformation if applicable
         if relative == 'camera':
@@ -798,7 +804,7 @@ class Viewer:
 
         # Perform the desired rotation
         if Viewer.backend == 'gepetto-gui':
-            H_abs = SE3(rpyToMatrix(np.asarray(rotation)), np.asarray(translation))
+            H_abs = SE3(rotation_mat, translation)
             if relative is None:
                 self._client.setCameraTransform(
                     self._window_id, se3ToXYZQUAT(H_abs).tolist())
@@ -811,11 +817,12 @@ class Viewer:
             if relative is None:
                 # Meshcat camera is rotated by -pi/2 along Roll axis wrt the usual convention in robotics
                 translation = CAMERA_INV_TRANSFORM_MESHCAT @ translation
-                rotation = matrixToRpy(CAMERA_INV_TRANSFORM_MESHCAT @ rpyToMatrix(rotation))
-                self._client.viewer["/Cameras/default/rotated/<object>"].set_transform(
-                    mtf.compose_matrix(translate=translation, angles=rotation))
+                rotation = matrixToRpy(CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
+                self._client.viewer["/Cameras/default/rotated/<object>"].\
+                    set_transform(mtf.compose_matrix(
+                        translate=translation, angles=rotation))
             else:
-                H_abs = SE3(rpyToMatrix(np.asarray(rotation)), np.asarray(translation))
+                H_abs = SE3(rotation_mat, translation)
                 H_abs = H_abs * H_orig
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
@@ -832,7 +839,9 @@ class Viewer:
                                 from the backend (the actual type may vary)
         """
         if Viewer.backend == 'gepetto-gui':
-            assert not raw_data, "Raw data mode is not available using gepetto-gui."
+            if raw_data:
+                raise ValueError(
+                    "Raw data mode is not available using gepetto-gui.")
             if width is not None or height is None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
             with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to save the frame if the file does not have ".png" extension
@@ -842,7 +851,8 @@ class Viewer:
             return rgb_array
         else:
             if Viewer._backend_obj.webui is not None:
-                raise NotImplementedError("Capturing frame is not available in Jupyter for now.")
+                raise NotImplementedError(
+                    "Capturing frame is not available in Jupyter for now.")
             async def _capture_frame(client):
                 if width is not None and height is not None:
                     await client.html.page.setViewport(
@@ -874,7 +884,8 @@ class Viewer:
         @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now)
         @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now)
         """
-        assert output_path.endswith('.png'), "The output path must have .png extension."
+        if not output_path.endswith('.png'):
+            raise ValueError("The output path must have .png extension.")
         if Viewer.backend == 'gepetto-gui':
             self._client.captureFrame(self._window_id, output_path)
         else:
