@@ -233,21 +233,14 @@ class Viewer:
         # Backup the backend subprocess used for instantiate the robot
         self._backend_proc = Viewer._backend_proc
 
+        # Create a unique temporary directory, specific to this viewer instance
+        self._tempdir = tempfile.mkdtemp(
+            prefix= "_".join([window_name, scene_name, robot_name, ""]))
+
         # Check for conflict in mesh path specification
-        if mesh_root_path!=None:
-            override_urdf_path = False
-            with open(self.urdf_path, 'r') as urdf_file:
-                urdf_contents = urdf_file.read()
-                for mesh_fullpath in re.findall('<mesh filename="(.*)"', urdf_contents):
-                    if not mesh_fullpath.startswith(mesh_root_path):
-                        logging.warning(
-                        "The specified mesh root path conflicts with existing absolute mesh path used in the URDF.\n"\
-                        "Overriding URDF mesh path. THIS MAY CAUSE ERRORS IN LINK LOADING.")
-                        override_urdf_path=True
-                        break
-            if override_urdf_path:
-                self.urdf_path = self._override_absolute_mesh_path(
-                    self.urdf_path, mesh_root_path)
+        if mesh_root_path != None:
+            self.urdf_path = Viewer._urdf_fix_mesh_path(
+                self.urdf_path, mesh_root_path, self._tempdir)
 
         # Create a RobotWrapper
         if mesh_root_path is not None:
@@ -259,7 +252,7 @@ class Viewer:
             if urdf_rgba is not None:
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    self.urdf_path, urdf_rgba[:3], root_path)
+                    self.urdf_path, urdf_rgba[:3], root_path, self._tempdir)
             else:
                 alpha = 1.0
         collision_model = pin.buildGeomFromUrdf(
@@ -384,6 +377,8 @@ class Viewer:
                     pass
         if self._backend_proc is Viewer._backend_proc:
             Viewer._backend_obj = None
+        if self._tempdir.startswith(tempfile.gettempdir()):
+            shutil.rmtree(self._tempdir)
         self._backend_proc = None
 
     @staticmethod
@@ -400,85 +395,96 @@ class Viewer:
             return False      # Probably standard Python interpreter
 
     @staticmethod
-    def _get_colorized_urdf(urdf_path, rgb, root_path=None):
+    def _get_colorized_urdf(urdf_path, rgb, mesh_root_path=None, output_root_path=None):
         """
         @brief      Generate a unique colorized URDF.
 
         @remark     Multiple identical URDF model of different colors can be
                     loaded in Gepetto-viewer this way.
 
-        @param[in]  urdf_path     Full path of the URDF file
-        @param[in]  rgb           RGB code defining the color of the model. It is the same for each link.
-        @param[in]  root_path     Root path of the meshes.
+        @param[in]  urdf_path           Full path of the URDF file.
+        @param[in]  rgb                 RGB code defining the color of the model. It is the same for each link.
+        @param[in]  mesh_root_path      Root path of the meshes (optional).
+        @param[in]  output_root_path    Root directory of the colorized URDF data (optional).
 
         @return     Full path of the colorized URDF file.
         """
+        # Convert RGB array to string and xml tag
         color_string = "%.3f_%.3f_%.3f_1.0" % tuple(rgb)
-        color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % tuple(rgb) # don't close tag with '>', in order to handle <color/> and <color></color>
-        colorized_tmp_path = os.path.join(
-            tempfile.gettempdir(), "colorized_urdf_rgba_" + color_string)
-        colorized_urdf_path = os.path.join(
-            colorized_tmp_path, os.path.basename(urdf_path))
-        if not os.path.exists(colorized_tmp_path):
-            os.makedirs(colorized_tmp_path)
+        color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % tuple(rgb)  # don't close tag with '>', in order to handle <color/> and <color></color>
 
+        # Create the output directory
+        if output_root_path is None:
+            output_root_path = tempfile.mkdtemp()
+        colorized_data_dir = os.path.join(
+            output_root_path, "colorized_urdf_rgba_" + color_string)
+        os.makedirs(colorized_data_dir, exist_ok=True)
+        colorized_urdf_path = os.path.join(
+            colorized_data_dir, os.path.basename(urdf_path))
+
+        # Copy the meshes in the temporary directory, and update paths in URDF file
         with open(urdf_path, 'r') as urdf_file:
             colorized_contents = urdf_file.read()
 
         for mesh_fullpath in re.findall(
                 '<mesh filename="(.*)"', colorized_contents):
-            # Replace package path by root_path.
-            if mesh_fullpath.startswith('package://'):
-                mesh_fullpath = root_path + mesh_fullpath[len("package:/"):]
-            colorized_mesh_fullpath = os.path.join(colorized_tmp_path, mesh_fullpath[1:])
+            if mesh_root_path is not None:
+                # Replace package path by mesh_root_path for convenience
+                if mesh_fullpath.startswith('package://'):
+                    mesh_fullpath = mesh_root_path + mesh_fullpath[9:]
+            colorized_mesh_fullpath = os.path.join(
+                colorized_data_dir, mesh_fullpath[1:])
             colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
             if not os.access(colorized_mesh_path, os.F_OK):
                 os.makedirs(colorized_mesh_path)
             shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
             colorized_contents = colorized_contents.replace(
                 '"' + mesh_fullpath + '"', '"' + colorized_mesh_fullpath + '"', 1)
-        colorized_contents = re.sub(r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
+        colorized_contents = re.sub(
+            r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
 
-        with open(colorized_urdf_path, 'w') as colorized_urdf_file:
-            colorized_urdf_file.write(colorized_contents)
+        with open(colorized_urdf_path, 'w') as f:
+            f.write(colorized_contents)
 
         return colorized_urdf_path
 
     @staticmethod
-    def _override_absolute_mesh_path(urdf_path, mesh_root_path):
+    def _urdf_fix_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
         """
-        @brief      Generate an URDF with overridden mesh paths
+        @brief      Generate an URDF with updated mesh paths.
         """
-        overridden_tmp_path = os.path.join(tempfile.gettempdir(), "overridden_urdf")
-        overridden_urdf_path = os.path.join(
-            overridden_tmp_path, os.path.basename(urdf_path))
-        if not os.path.exists(overridden_tmp_path):
-            os.makedirs(overridden_tmp_path)
 
+        # Extract all the mesh path that are not package path, continue if any
         with open(urdf_path, 'r') as urdf_file:
             urdf_contents = urdf_file.read()
         pathlists = [
-            filename.split('/')
-            for filename in re.findall('<mesh filename="(.*)"', urdf_contents)]
-        # Find root of the URDF mesh paths
-        searching = True
-        urdf_root_path_len = 0
-        while searching:
-            urdf_root_path_len += 1
-            for element in pathlists:
-                if pathlists[0][urdf_root_path_len] != element[urdf_root_path_len]:
-                    searching = False
-                    break
-        urdf_root_path = ''
-        pathlists[0][3] = 'builder'
-        for element in pathlists[0][1:urdf_root_path_len]:
-            urdf_root_path += '/' + element
+            filename
+            for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
+            if not filename.startswith('package://')]
+        if not pathlists:
+            return
 
-        urdf_contents = urdf_contents.replace(urdf_root_path,mesh_root_path)
-        with open(overridden_urdf_path, 'w') as overridden_urdf_file:
-            overridden_urdf_file.write(urdf_contents)
+        # If mesh root path already matching, then nothing to do
+        mesh_root_path_orig = os.path.commonpath(pathlists)
+        if mesh_root_path == mesh_root_path_orig:
+            return urdf_path
 
-        return overridden_urdf_path
+        # Create the output directory
+        if output_root_path is None:
+            output_root_path = tempfile.mkdtemp()
+        fixed_urdf_dir = os.path.join(output_root_path,
+            "fixed_urdf" + mesh_root_path.replace('/', '_'))
+        os.makedirs(fixed_urdf_dir, exist_ok=True)
+        fixed_urdf_path = os.path.join(
+            fixed_urdf_dir, os.path.basename(urdf_path))
+
+        # Override the root mesh path with the desired one
+        urdf_contents = urdf_contents.replace(
+            mesh_root_path_orig, mesh_root_path)
+        with open(fixed_urdf_path, 'w') as f:
+            f.write(urdf_contents)
+
+        return fixed_urdf_path
 
     @staticmethod
     def _get_client(create_if_needed=False, create_timeout=2000):
@@ -758,14 +764,13 @@ class Viewer:
 
     def capture_frame(self, width=None, height=None, raw_data=False):
         if Viewer.backend == 'gepetto-gui':
+            assert not raw_data, "Raw data mode is not available using gepetto-gui."
             if width is not None or height is None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
-            assert not raw_data, "Raw data mode is not available using gepetto-gui."
-            png_path = next(tempfile._get_candidate_names()) + ".png"
-            self.save_frame(png_path)  # It is not possible to capture directly frame using gepetto-gui
-            img_obj = Image.open(png_path)
-            rgb_array = np.array(img_obj)[:, :, :-1]
-            os.remove(png_path)
+            with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to capture the frame if the file does not have ".png" extension
+                self.save_frame(f.name)  # It is not possible to capture frame directly using gepetto-gui
+                img_obj = Image.open(f.name)
+                rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
             assert Viewer._backend_obj.webui is not None, \
