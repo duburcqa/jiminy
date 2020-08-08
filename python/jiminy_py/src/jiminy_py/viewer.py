@@ -290,14 +290,35 @@ class Viewer:
         self.refresh()
 
     def __del__(self):
+        """
+        @brief Destructor.
+
+        @remark It automatically close the viewer before being garbage collected.
+        """
         self.close()
 
     @staticmethod
     def reset_port_forwarding(port_forwarding=None):
+        """
+        @brief Configure port forwarding. Only used for remote display in Jupyter notebook cell.
+
+        @param port_forwarding  Dictionary whose keys are ports on local machine,
+                                and values are associated remote port.
+        """
         Viewer.port_forwarding = port_forwarding
 
     @staticmethod
     def open_gui(create_if_needed=False):
+        """
+        @brief Open a new viewer graphical interface.
+
+        @remark  This method is not supported by Gepetto-gui since it does not have a classical
+                 server-client mechanism. One and only one graphical interface (client) can be
+                 opened, and its lifetime is tied to the one of the server itself.
+
+        @param port_forwarding  Dictionary whose keys are ports on local machine,
+                                and values are associated remote port.
+        """
         if Viewer.backend == 'meshcat':
             if Viewer._backend_obj is None:
                 if create_if_needed:
@@ -307,8 +328,9 @@ class Viewer:
                     raise RuntimeError(
                         "No meshcat backend available and 'create_if_needed' is set to False.")
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
-                raise("Impossible to open web browser programmatically for Meshcat "\
-                      "through port forwarding. Either use Jupyter or open it manually.")
+                logging.warning(
+                    "Impossible to open web browser programmatically for Meshcat "\
+                    "through port forwarding. Either use Jupyter or open it manually.")
 
             viewer_url = Viewer._backend_obj.gui.url()
             if Viewer.port_forwarding is not None:
@@ -329,12 +351,17 @@ class Viewer:
                 if Viewer.port_forwarding is None:
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 else:
-                    logging.warning("Impossible to open webbrowser through port forwarding. "\
-                                    "Either use Jupyter or open it manually.")
+                    logging.warning(
+                        "Impossible to open webbrowser through port forwarding. "\
+                        "Either use Jupyter or open it manually.")
         else:
-            raise RuntimeError("Showing client is only available using 'meshcat' backend.")
+            raise RuntimeError(
+                "Showing client is only available using 'meshcat' backend.")
 
     def delete_robot(self):
+        """
+        @brief Delete the robot associated with the viewer instance from the backend server.
+        """
         try:
             if Viewer.backend == 'gepetto-gui':
                 self._delete_nodes_viewer(
@@ -349,6 +376,17 @@ class Viewer:
             pass
 
     def close(self=None):
+        """
+        @brief Close a given viewer instance, or all of them if no instance is specified.
+
+        @remark Calling this method with an viewer instance always closes the client.
+                It may also remove the robot from the server if the viewer attribute
+                'delete_robot_on_close' is True.
+                Moreover, it is the one having started the backend server, it also
+                terminates it, resulting in closing every viewer somehow. It results
+                in the same outcome than calling this method without specifying any
+                viewer instance.
+        """
         if self is None:
             self = Viewer
         else:
@@ -383,6 +421,9 @@ class Viewer:
 
     @staticmethod
     def _is_notebook():
+        """
+        @brief Determine whether Python is running inside a Notebook or not.
+        """
         try:
             shell = get_ipython().__class__.__name__
             if shell == 'ZMQInteractiveShell':
@@ -452,8 +493,13 @@ class Viewer:
     def _urdf_fix_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
         """
         @brief      Generate an URDF with updated mesh paths.
-        """
 
+        @param[in]  urdf_path           Full path of the URDF file.
+        @param[in]  mesh_root_path      Root path of the meshes (optional).
+        @param[in]  output_root_path    Root directory of the fixed URDF file (optional).
+
+        @return     Full path of the fixed URDF file.
+        """
         # Extract all the mesh path that are not package path, continue if any
         with open(urdf_path, 'r') as urdf_file:
             urdf_contents = urdf_file.read()
@@ -710,17 +756,28 @@ class Viewer:
                                      geom_model, geom_data)
 
     def set_camera_transform(self, translation=None, rotation=None, relative=None):
-        # translation : [Px, Py, Pz], rotation : [Roll, Pitch, Yaw]
-        # If no translation or rotation are set, initialize camera towards origin of the plane
+        """
+        @brief      Apply transform to the camera pose.
 
+        @param[in]  translation    Position [X, Y, Z] as a list or 1D array
+        @param[in]  rotation       Rotation [Roll, Pitch, Yaw] as a list or 1D np.array
+        @param[in]  relative       How to apply the transform:
+                                       - None: absolute
+                                       - 'camera': relative to the current camera pose
+                                       - other string: relative to a robot frame,
+                                         not accounting for the rotation (traveling)
+        """
         # Handling of default transformation
-        if translation is None and rotation is None:
-            translation = np.array([3.0, -3.0, 2.0])
-            rotation = np.array([1.3, 0.0, 0.8])
-        if translation is None:
-            translation = np.zeros(3)
-        if rotation is None:
-            rotation = np.zeros(3)
+        if not relative is None and relative != 'camera':
+            if translation is None:
+                translation = np.array([3.0, -3.0, 2.0])
+            if rotation is None:
+                rotation = np.array([1.3, 0.0, 0.8])
+        else:
+            if translation is None:
+                translation = np.zeros(3)
+            if rotation is None:
+                rotation = np.zeros(3)
 
         # Compute the relative transformation if applicable
         if relative == 'camera':
@@ -763,18 +820,29 @@ class Viewer:
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
     def capture_frame(self, width=None, height=None, raw_data=False):
+        """
+        @brief      Take a snapshot and return associated data.
+
+        @remark     This method is currently not available on Jupyter using
+                    Meshcat backend because of asyncio conflict.
+
+        @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  raw_data    Whether to return a 2D numpy array, or the raw output
+                                from the backend (the actual type may vary)
+        """
         if Viewer.backend == 'gepetto-gui':
             assert not raw_data, "Raw data mode is not available using gepetto-gui."
             if width is not None or height is None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
-            with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to capture the frame if the file does not have ".png" extension
+            with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to save the frame if the file does not have ".png" extension
                 self.save_frame(f.name)  # It is not possible to capture frame directly using gepetto-gui
                 img_obj = Image.open(f.name)
                 rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
-            assert Viewer._backend_obj.webui is not None, \
-                "Capturing frame is not available in Jupyter for now."
+            if Viewer._backend_obj.webui is not None:
+                raise NotImplementedError("Capturing frame is not available in Jupyter for now.")
             async def _capture_frame(client):
                 if width is not None and height is not None:
                     await client.html.page.setViewport(
@@ -796,6 +864,17 @@ class Viewer:
                 return rgb_array
 
     def save_frame(self, output_path, width=None, height=None):
+        """
+        @brief      Save a snapshot in png format.
+
+        @remark     This method is currently not available on Jupyter using
+                    Meshcat backend because of asyncio conflict.
+
+        @param[in]  output_path    Fullpath of the image (.png extension is mandatory)
+        @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now)
+        """
+        assert output_path.endswith('.png'), "The output path must have .png extension."
         if Viewer.backend == 'gepetto-gui':
             self._client.captureFrame(self._window_id, output_path)
         else:
@@ -812,7 +891,7 @@ class Viewer:
             raise RuntimeError(
                 "No backend available. Please start one before calling this method.")
 
-        if not self._lock.acquire(timeout=0.2):
+        if not self._lock.acquire(timeout=0.5):
             raise RuntimeError("Impossible to acquire backend lock.")
 
         if Viewer.backend == 'gepetto-gui':
@@ -846,17 +925,38 @@ class Viewer:
         self._lock.release()
 
     def display(self, q, xyz_offset=None):
+        """
+        @brief      Update the configuration of the robot.
+
+        @details    Note that it will alter original robot data if viewer attribute
+                    'use_theoretical_model' is false.
+
+        @param[in]  q    Configuration of the robot, as a 1D numpy array.
+        @param[in]  xyz_offset    Freeflyer position offset. (Note that it does not
+                                  check for the robot actually have a freeflyer).
+        """
         if xyz_offset is not None:
-            q = q.copy() # Make sure to use a copy to avoid altering the original data
+            q = q.copy()  # Make a copy to avoid altering the original data
             q[:3] += xyz_offset
 
         if not self._lock.acquire(timeout=0.2):
             raise RuntimeError("Impossible to acquire backend lock.")
         self._rb.display(q)
         self._lock.release()
-        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)
+        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
 
     def replay(self, evolution_robot, replay_speed, xyz_offset=None):
+        """
+        @brief      Replay a complete robot trajectory at a given real-time ratio.
+
+        @details    Note that it will alter original robot data if viewer attribute
+                    'use_theoretical_model' is false.
+
+        @param[in]  evolution_robot    list of State object of increasing time
+        @param[in]  replay_speed       Real-time ratio
+        @param[in]  xyz_offset         Freeflyer position offset. (Note that it does not
+                                       check for the robot actually have a freeflyer).
+        """
         t = [s.t for s in evolution_robot]
         i = 0
         init_time = time.time()
@@ -1006,7 +1106,7 @@ def play_trajectories(trajectory_data,
         if Viewer._backend_obj is None:
             is_backend_running = False
         if not is_backend_running:
-            raise RuntimeError("Viewers backend not available.")
+            raise RuntimeError("Viewer's backend not available.")
 
     # Load robots in gepetto viewer
     if xyz_offset is None:
