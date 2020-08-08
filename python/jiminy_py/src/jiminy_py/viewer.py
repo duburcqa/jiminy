@@ -658,12 +658,12 @@ class Viewer:
                 # Try to fetch the list of scenes to make sure that the Gepetto client is responding
                 client.gui.getSceneList()
                 return client, None
-            except:
+            except Viewer._backend_exceptions:
                 try:
                     client = gepetto_client()
                     client.gui.getSceneList()
                     return client, None
-                except:
+                except Viewer._backend_exceptions:
                     if create_if_needed:
                         FNULL = open(os.devnull, 'w')
                         client_proc = subprocess.Popen(
@@ -676,7 +676,7 @@ class Viewer:
                             time.sleep(0.2)
                             try:
                                 return gepetto_client(), client_proc
-                            except:
+                            except Viewer._backend_exceptions:
                                 pass
                         print("Impossible to open Gepetto-viewer")
             return None, None
