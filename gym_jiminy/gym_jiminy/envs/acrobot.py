@@ -5,8 +5,7 @@ import numpy as np
 from math import sin, cos, pi
 from pkg_resources import resource_filename
 
-from gym import core, spaces, logger
-from gym.utils import seeding
+from gym import core, spaces
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous

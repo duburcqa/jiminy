@@ -4,7 +4,7 @@
 
 import numpy as np
 from collections import defaultdict
-from copy import copy, deepcopy
+import copy
 
 
 class State:
@@ -30,19 +30,19 @@ class State:
         ## Time
         self.t = t
         ## Configuration vector
-        self.q = copy(q) if copy else q
+        self.q = copy.copy(q) if copy else q
         ## Velocity vector
-        self.v = copy(v) if copy else v
+        self.v = copy.copy(v) if copy else v
         ## Acceleration vector
-        self.a = copy(a) if copy else a
+        self.a = copy.copy(a) if copy else a
         ## Effort vector
-        self.tau = copy(tau) if copy else tau
+        self.tau = copy.copy(tau) if copy else tau
         ## Frame name of the contact point, if nay
         self.contact_frame = contact_frame
         ## External forces
         self.f_ext = None
         if f_ext is not None:
-            self.f_ext = deepcopy(f_ext) if copy else f_ext
+            self.f_ext = copy.deepcopy(f_ext) if copy else f_ext
 
     @staticmethod
     def todict(state_list):

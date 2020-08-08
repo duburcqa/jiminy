@@ -6,7 +6,6 @@
 @brief      Package containing python-native helper methods for Gym Jiminy Open Source.
 """
 
-import os
 import time
 import numpy as np
 
@@ -14,7 +13,6 @@ from gym import core, spaces, logger
 from gym.utils import seeding
 
 from pinocchio import neutral
-from jiminy_py import core as jiminy
 from jiminy_py.core import EncoderSensor as enc, \
                            EffortSensor as effort, \
                            ForceSensor as force, \

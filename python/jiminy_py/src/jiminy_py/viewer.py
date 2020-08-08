@@ -97,12 +97,18 @@ def start_zmq_server():
             self.fallback_path = os.path.abspath(fallback_path)
             super().initialize(self.default_path, self.default_filename)
         def validate_absolute_path(self, root, absolute_path):
+            if os.path.isdir(absolute_path):
+                if not self.request.path.endswith("/"):
+                    self.redirect(self.request.path + "/", permanent=True)
+                    return None
+                return os.path.join(self.fallback_path, self.default_filename)
             if os.path.exists(absolute_path) and \
-                    os.path.basename(absolute_path) != 'index.html' :
+                    os.path.basename(absolute_path) != self.default_filename:
                 return super().validate_absolute_path(root, absolute_path)
             else:
                 return os.path.join(
                     self.fallback_path, absolute_path[(len(root)+1):])
+
     def make_app(self):
         return tornado.web.Application([
             (r"/static/(.*)", MyFileHandler, {
@@ -111,6 +117,7 @@ def start_zmq_server():
                 "default_filename": "index.html"}),
             (r"/", WebSocketHandler, {"bridge": self})
         ])
+
     ZMQWebSocketBridge.make_app = make_app
 
     # Meshcat server deamon, using in/out argument to get
@@ -207,6 +214,7 @@ class Viewer:
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+        self.close_backend_at_exit = close_backend_at_exit
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == window_name:
@@ -741,6 +749,7 @@ class Viewer:
 
             return client, proc
 
+    @staticmethod
     def _delete_nodes_viewer(self, nodes_path):
         """
         @brief      Delete a 'node' in Gepetto-viewer.
@@ -892,12 +901,13 @@ class Viewer:
         else:
             # Start rendering the viewer on host, in a hidden
             # Chromium browser, if not already started.
-            if Viewer._backend_obj.webui is None and not Viewer._is_notebook():
-                Viewer._backend_obj.browser = HTMLSession()
-                Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
-                    Viewer._backend_obj.gui.url())
-                Viewer._backend_obj.webui.html.render(
-                    keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
+            if not Viewer._is_notebook():
+                if Viewer._backend_obj.webui is None:
+                    Viewer._backend_obj.browser = HTMLSession()
+                    Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
+                        Viewer._backend_obj.gui.url())
+                    Viewer._backend_obj.webui.html.render(
+                        keep_page=True, sleep=0.5)  # Must be long enough to render all bodies
             else:
                 raise NotImplementedError(
                     "Capturing frame is not available in Jupyter for now.")

@@ -2,11 +2,10 @@
 
 import os
 import numpy as np
-from math import sin, cos, pi
+from math import cos, pi
 from pkg_resources import resource_filename
 
 from gym import core, spaces, logger
-from gym.utils import seeding
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous

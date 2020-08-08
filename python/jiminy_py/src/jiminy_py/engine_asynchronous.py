@@ -6,13 +6,8 @@
 @brief      Package containing python-native helper methods for Jiminy Open Source.
 """
 
-import os
 import tempfile
-import time
 import numpy as np
-from collections import OrderedDict
-
-from pinocchio import neutral
 
 from . import core as jiminy
 from .viewer import Viewer
