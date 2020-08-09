@@ -1,3 +1,6 @@
+#!/bin/bash
+set -eo
+
 ################################## Configure the environment ###########################################
 
 ### Set the build type to "Release" if undefined
@@ -25,9 +28,6 @@ fi
 ### Remove the preinstalled boost library from search path
 unset Boost_ROOT
 
-### Add the generated pkgconfig file to the search path
-export PKG_CONFIG_PATH="$InstallDir/lib/pkgconfig;$InstallDir/lib64/pkgconfig;$InstallDir/share/pkgconfig"
-
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules.
@@ -49,7 +49,7 @@ git submodule --quiet update --init --recursive --jobs 8
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 
 ### Checkout console_bridge
-git clone -b "1.0.1" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 
 ### Checkout urdfdom_headers
 git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
@@ -73,19 +73,26 @@ git submodule --quiet update --init --recursive --jobs 8
 
 ### Build and install the build tool b2 (build-ception !)
 cd "$RootDir/boost"
-./bootstrap.sh --prefix="$InstallDir"
+./bootstrap.sh --prefix="$InstallDir" --with-python="${PYTHON_EXECUTABLE}"
+
+### File "project-config.jam" create by bootstrap must be edited manually
+#   to specify Python included dir manually, since it is not detected
+#   sucessfully in some cases.
+PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sys; print (\"%d.%d\" % (sys.version_info[0], sys.version_info[1]))")"
+PYTHON_ROOT="$(${PYTHON_EXECUTABLE} -c "import sys; print(sys.prefix)")"
+PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"
+PYTHON_CONFIG_JAM="using python : ${PYTHON_VERSION} : ${PYTHON_ROOT} : ${PYTHON_INCLUDE_DIRS} ;"
+sed -i "/using python/c ${PYTHON_CONFIG_JAM}" ./project-config.jam
 
 ### Build and install and install boost (Replace -d0 option by -d1 to check compilation errors)
 BuildTypeB2="$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
 mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
-     --without-wave --without-contract --without-graph --without-regex \
-     --without-mpi --without-coroutine --without-fiber --without-context \
-     --without-timer --without-chrono --without-atomic --without-graph_parallel \
-     --without-type_erasure --without-container --without-exception --without-locale \
-     --without-log --without-program_options --without-random --without-iostreams \
-     --build-type=minimal toolset=gcc variant="$BuildTypeB2" threading=multi --layout=system \
-     architecture=x86 address-model=64 link=shared runtime-link=shared install -q -d0 -j2
+     --with-date_time --with-filesystem --with-headers --with-math --with-python \
+     --with-serialization --with-stacktrace --with-system --with-test --with-thread --with-python \
+     --build-type=minimal --layout=system toolset=gcc architecture=x86 \
+     address-model=64 threading=multi link=shared runtime-link=shared \
+     variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -119,9 +126,9 @@ sed -i 's/SHARED //g' "$RootDir/eigenpy/CMakeLists.txt"
 
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_FIND_DEBUG_MODE=ON \
       -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -171,7 +178,7 @@ sed -i 's/SHARED //g' "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
 
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DBUILD_TESTING=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -201,7 +208,7 @@ find "$RootDir/pinocchio" -type f -name "*.hpp" -exec ex -sc "g/StdVectorPythonV
 ### Build and install pinocchio, finally !
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBoost_USE_STATIC_LIBS=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF \

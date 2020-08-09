@@ -64,7 +64,7 @@ jobs:
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${PYTHON_VERSION}" \
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make install -j2
