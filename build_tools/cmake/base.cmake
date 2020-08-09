@@ -178,6 +178,8 @@ if(BUILD_PYTHON_INTERFACE)
                     "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
                     "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
         set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
+        unset(Boost_LIBRARIES)
+        unset(Boost_LIBRARIES CACHE)
     else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
         if(${PYTHON_VERSION_MAJOR} EQUAL 3)
             set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
