@@ -1,8 +1,9 @@
 ################################## Configure the environment ###########################################
 
 ### Set the build type to "Release" if undefined
-if [ -z ${var+x} ]; then
+if [ -z ${BUILD_TYPE} ]; then
   BUILD_TYPE="Release"
+  echo "BUILD_TYPE is unset. Defaulting to 'Release'."
 fi
 
 ### Get the fullpath of Jiminy project
@@ -13,9 +14,13 @@ RootDir="$(dirname $ScriptDir)"
 InstallDir="$RootDir/install"
 mkdir -p "$InstallDir"
 
-### Eigenpy and Pinocchio are using the deprecated FindPythonInterp cmake helper to detect Python executable,
-#   which is not working properly when several executables exist.
-PYTHON_EXECUTABLE=$(python -c "import sys; sys.stdout.write(sys.executable)")
+### Eigenpy and Pinocchio are using the deprecated FindPythonInterp
+#   cmake helper to detect Python executable, which is not working
+#   properly when several executables exist.
+if [ -z ${PYTHON_EXECUTABLE} ]; then
+  PYTHON_EXECUTABLE=$(python -c "import sys; sys.stdout.write(sys.executable)")
+  echo "PYTHON_EXECUTABLE is unset. Defaulting to '${PYTHON_EXECUTABLE}'."
+fi
 
 ### Remove the preinstalled boost library from search path
 unset Boost_ROOT

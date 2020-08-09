@@ -37,11 +37,11 @@ jobs:
         pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "*${{ matrix.python-version }}*" | sed -e 's/\.//g')" -print -quit)
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
-        update-alternatives --install /usr/bin/python python "${pythonLocation}/bin/python${{ matrix.python-version }}" 1
-        ln -s "${pythonLocation}/include/python${{ matrix.python-version }}m" "${pythonLocation}/include/python${{ matrix.python-version }}"
         git config --global advice.detachedHead false
-        python -m pip install --upgrade pip
-        python -m pip install twine wheel && python -m pip install cmake numpy
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.python-version }}"
+        "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
+        "${PYTHON_EXECUTABLE}" -m pip install twine wheel && python -m pip install cmake numpy
+        echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
     - name: Build project dependencies
       run: |
         source $HOME/.bashrc
