@@ -189,12 +189,12 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Define Python install helpers
     function(deployPythonPackage TARGET_NAME)
-        install(CODE "execute_process(COMMAND python -m pip install ${PYTHON_INSTALL_FLAGS} .
+        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
     endfunction()
 
     function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "execute_process(COMMAND python -m pip install ${PYTHON_INSTALL_FLAGS} -e .
+        install (CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endfunction()
 endif()

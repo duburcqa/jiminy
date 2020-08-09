@@ -52,7 +52,7 @@ jobs:
       run: |
         "${GITHUB_WORKSPACE}/build/unit/unit"
         cd "${GITHUB_WORKSPACE}/unit_py"
-        python -m unittest discover -v
+        python3.6 -m unittest discover -v
 
     #####################################################################################
 

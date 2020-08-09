@@ -22,7 +22,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.6', '3.7', '3.8']
+        PYTHON_VERSION: ['3.6', '3.7', '3.8']
 
     #####################################################################################
 
@@ -34,13 +34,13 @@ jobs:
 
     - name: Setup minimal build environment
       run: |
-        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "*${{ matrix.python-version }}*" | sed -e 's/\.//g')" -print -quit)
+        pythonLocation=$(find /opt/python -maxdepth 1 -name "$(echo "*${{ matrix.PYTHON_VERSION }}*" | sed -e 's/\.//g')" -print -quit)
         echo "export PATH=\"${pythonLocation}/bin:\$PATH\"" >> $HOME/.bashrc
         source $HOME/.bashrc
         git config --global advice.detachedHead false
-        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.python-version }}"
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install twine wheel && python -m pip install cmake numpy
+        "${PYTHON_EXECUTABLE}" -m pip install twine wheel && "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
         echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
     - name: Build project dependencies
       run: |
@@ -63,13 +63,13 @@ jobs:
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" \
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.PYTHON_VERSION }}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        cp -r "$InstallDir/lib/python${{ matrix.python-version }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
+        cp -r "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
 
         make install
 
@@ -84,7 +84,7 @@ jobs:
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
         auditwheel repair pypi/jiminy_py/dist/*.whl
-        python -m pip install --force-reinstall --no-deps wheelhouse/*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps wheelhouse/*.whl
 
     #####################################################################################
 
@@ -97,7 +97,7 @@ jobs:
 
         LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib" ./build/unit/unit
         cd unit_py
-        python -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
 
@@ -109,7 +109,7 @@ jobs:
         password: ${{ secrets.PYPI_DEPLOY }}
         packages_dir: build/wheelhouse/
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
-      if: matrix.python-version == '3.6' && success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: matrix.PYTHON_VERSION == '3.6' && success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__

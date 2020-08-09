@@ -18,6 +18,7 @@ jobs:
 
     env:
       BUILD_TYPE: "Release"
+      PYTHON_VERSION: 3.6
 
     #####################################################################################
 
@@ -30,23 +31,23 @@ jobs:
     - name: Configure Python
       uses: actions/setup-python@v1
       with:
-        python-version: 3.6
+        python-version: ${{ env.PYTHON_VERSION }}
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
         git config --global advice.detachedHead false
-        PYTHON_EXECUTABLE="${pythonLocation}"
+        PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install numpy && python -m pip install wheel
+        "${PYTHON_EXECUTABLE}" -m pip install wheel && "${PYTHON_EXECUTABLE}" -m pip install numpy
         echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
 
-        mkdir -p "$HOME/.local/lib/python3.6/site-packages"
-        echo "${GITHUB_WORKSPACE}/install/lib/python3.6/site-packages" \
-        > "$HOME/.local/lib/python3.6/site-packages/user_site.pth"
+        mkdir -p "$HOME/.local/lib/python${PYTHON_VERSION}/site-packages"
+        echo "${GITHUB_WORKSPACE}/install/lib/python${PYTHON_VERSION}/site-packages" \
+        > "$HOME/.local/lib/python${PYTHON_VERSION}/site-packages/user_site.pth"
 
     #####################################################################################
 
@@ -63,7 +64,7 @@ jobs:
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="3.6" \
+              -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${PYTHON_VERSION}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make install -j2
@@ -78,4 +79,4 @@ jobs:
         export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
         ./build/unit/unit
         cd unit_py
-        python -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
