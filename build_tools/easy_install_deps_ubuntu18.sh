@@ -16,8 +16,9 @@ apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
 update-alternatives --install /usr/bin/python python /usr/bin/python3 1 && \
 update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1 && \
-sudo -u $(id -nu $SUDO_UID) pip install wheel && \
-sudo -u $(id -nu $SUDO_UID) pip install numpy
+sudo -u $(id -nu $SUDO_UID) python -m pip install --upgrade pip && \
+sudo -u $(id -nu $SUDO_UID) python -m pip install wheel && \
+sudo -u $(id -nu $SUDO_UID) python -m pip install numpy
 
 # Install standard linux utilities and boost tools suite
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev # libeigen3-dev

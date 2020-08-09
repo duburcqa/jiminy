@@ -40,7 +40,7 @@ FUNCTION(EXTERNALPROJECT_APPLY_PATCH patch_dir output_patch_args)
 	# For each path file, append a patch instruction.
 	foreach(PATCH_FILE ${PATCH_FILES})
 		list(APPEND patch_args
-			patch -p0 < ${PATCH_FILE} &&
+			patch -p0 -N --merge < ${PATCH_FILE} &&
 		)
 	endforeach()
 	list(REMOVE_AT patch_args -1)

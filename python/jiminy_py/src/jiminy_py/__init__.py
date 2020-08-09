@@ -11,8 +11,8 @@ def is_package_available(pkg_name):
             return False
         return True
 
-# Import eigenpy and Pinocchio (use the embedded version only if necessary),
-# then patch Pinocchio to fix support of numpy.ndarray as eigen conversion.
+# Import Eigenpy and Pinocchio (use the embedded version only if necessary),
+# then patch Pinocchio to fix support of numpy.ndarray as Eigen conversion.
 if (is_package_available("eigenpy")):
     import eigenpy
 else:
