@@ -6,13 +6,8 @@
 @brief      Package containing python-native helper methods for Jiminy Open Source.
 """
 
-import os
 import tempfile
-import time
 import numpy as np
-from collections import OrderedDict
-
-from pinocchio import neutral
 
 from . import core as jiminy
 from .viewer import Viewer
@@ -78,6 +73,9 @@ class EngineAsynchronous:
 
         # Reset the low-level jiminy engine
         self.engine.reset()
+
+    def __del__(self):
+        self.close()
 
     def _send_command(self, t, q, v, sensors_data, uCommand):
         """
@@ -217,7 +215,7 @@ class EngineAsynchronous:
         @remark     Note that it supports parallel rendering, which means that one
                     can display multiple simulations in the same Gepetto-viewer
                     processes at the same time in different tabs.
-                    Note that returning an RGB array required Gepetto-viewer.
+                    Note that returning an RGB array is not supported by Meshcat in Jupyter.
 
         @param[in]  return_rgb_array    Updated command
                                         Optional: Use the value in the internal buffer otherwise
@@ -233,12 +231,15 @@ class EngineAsynchronous:
                 self._viewer = Viewer(self.robot,
                                       use_theoretical_model=False,
                                       backend=self.viewer_backend,
+                                      delete_robot_on_close=True,
                                       robot_name="_".join(("robot", uniq_id)),
                                       scene_name="_".join(("scene", uniq_id)),
                                       window_name="_".join(("window", uniq_id)))
                 if self._viewer.is_backend_parent:
-                    self._viewer.setCameraTransform(translation=[0.0, 9.0, 2e-5],
-                                                    rotation=[np.pi/2, 0.0, np.pi])
+                    self._viewer.set_camera_transform(
+                        translation=[0.0, 9.0, 2e-5],
+                        rotation=[np.pi/2, 0.0, np.pi])
+                self._viewer.wait(True)  # Wait for backend to finish loading
 
             # Refresh viewer
             self._viewer.refresh()
@@ -246,7 +247,7 @@ class EngineAsynchronous:
 
             # Compute rgb array if needed
             if return_rgb_array:
-                rgb_array = self._viewer.captureFrame()
+                rgb_array = self._viewer.capture_frame()
         except (RuntimeError, AttributeError):
             if self._viewer is not None:
                 self._viewer.close()
@@ -256,8 +257,7 @@ class EngineAsynchronous:
                 rgb_array = self.render(return_rgb_array)
             else:
                 RuntimeError("Impossible to create or connect to backend.")
-        finally:
-            return rgb_array
+        return rgb_array
 
     def close(self):
         """

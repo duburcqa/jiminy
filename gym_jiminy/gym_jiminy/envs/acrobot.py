@@ -2,11 +2,9 @@
 
 import os
 import numpy as np
-from math import sin, cos, pi
 from pkg_resources import resource_filename
 
-from gym import core, spaces, logger
-from gym.utils import seeding
+from gym import spaces
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
@@ -14,10 +12,10 @@ from jiminy_py.engine_asynchronous import EngineAsynchronous
 from ..common.robots import RobotJiminyEnv, RobotJiminyGoalEnv
 
 
-DT = 2.0e-3         ## Stepper update period
-MAX_VEL = 4 * pi    ## Max velocity of the joints
-MAX_TORQUE = 10.0   ## Max torque of the motor
-ACTION_NOISE = 0.0  ## Standard deviation of the noise added to the action
+DT = 2.0e-3          ## Stepper update period
+MAX_VEL = 4 * np.pi  ## Max velocity of the joints
+MAX_TORQUE = 10.0    ## Max torque of the motor
+ACTION_NOISE = 0.0   ## Standard deviation of the noise added to the action
 
 
 class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
@@ -108,7 +106,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
             self.AVAIL_TORQUE = [-MAX_TORQUE, MAX_TORQUE]
 
         ## Angle at which to fail the episode
-        self.theta_threshold_radians = 25 * pi / 180
+        self.theta_threshold_radians = 25 * np.pi / 180
 
         ## Position at which to fail the episode
         self.x_threshold = 0.75
@@ -118,8 +116,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         self._tipPosZMax = robot.pinocchio_data.oMf[self._tipIdx].translation[2]
 
         # Bounds of the hypercube associated with the initial state of the robot
-        self.state_random_high = np.array([ 0.2 - pi,  0.2,  1.0,  1.0])
-        self.state_random_low  = np.array([-0.2 - pi, -0.2, -1.0, -1.0])
+        self.state_random_high = np.array([ 0.2 - np.pi,  0.2,  1.0,  1.0])
+        self.state_random_low  = np.array([-0.2 - np.pi, -0.2, -1.0, -1.0])
 
         # ####################### Configure the learning environment ###########################
 
@@ -184,10 +182,10 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
         theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
-        obs['observation'] = np.array([cos(theta1 + pi),
-                                       sin(theta1 + pi),
-                                       cos(theta2 + pi),
-                                       sin(theta2 + pi),
+        obs['observation'] = np.array([np.cos(theta1 + np.pi),
+                                       np.sin(theta1 + np.pi),
+                                       np.cos(theta2 + np.pi),
+                                       np.sin(theta2 + np.pi),
                                        theta1_dot,
                                        theta2_dot])
         obs['achieved_goal'] = self._get_achieved_goal()
