@@ -38,9 +38,15 @@ jobs:
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
         git config --global advice.detachedHead false
         sudo update-alternatives --install /usr/bin/python python "${pythonLocation}/bin/python3.6" 1
-        python -m pip install numpy
+        python -m pip install --upgrade pip
+        python -m pip install numpy && python -m pip install wheel
     - name: Build project dependencies
-      run: ./build_tools/build_install_deps_linux.sh
+      run: |
+        ./build_tools/build_install_deps_linux.sh
+
+        mkdir -p "$HOME/.local/lib/python3.6/site-packages"
+        echo "${GITHUB_WORKSPACE}/install/lib/python3.6/site-packages" \
+        > "$HOME/.local/lib/python3.6/site-packages/user_site.pth"
 
     #####################################################################################
 
@@ -53,6 +59,7 @@ jobs:
 
         mkdir "$RootDir/build"
         cd "$RootDir/build"
+        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" \
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
@@ -61,10 +68,6 @@ jobs:
               -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make install -j2
 
-        mkdir -p "$HOME/.local/lib/python3.6/site-packages"
-        echo "$InstallDir/lib/python3.6/site-packages" \
-        > "$HOME/.local/lib/python3.6/site-packages/user_site.pth"
-
     #####################################################################################
 
     - name: Run unit tests
@@ -72,7 +75,7 @@ jobs:
         RootDir="${GITHUB_WORKSPACE}"
         InstallDir="$RootDir/install"
 
-        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/"
+        export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
         ./build/unit/unit
         cd unit_py
         python -m unittest discover -v

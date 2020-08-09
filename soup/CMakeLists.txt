@@ -1,4 +1,5 @@
-include(${CMAKE_SOURCE_DIR}/build_tools/cmake/externalProjectUtils.cmake)
+# Import external project utilities
+include(ExternalProject)
 
 # Set the compilation flags
 if(NOT WIN32)
@@ -19,7 +20,9 @@ else()
 endif()
 
 # Add all SOUP
-SUBDIRLIST(${CMAKE_CURRENT_SOURCE_DIR} subdirs_list)
+file(GLOB subdirs_list RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 foreach(subdir ${subdirs_list})
-    add_subdirectory(${subdir})
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${subdir})
+        add_subdirectory(${subdir})
+    endif()
 endforeach()

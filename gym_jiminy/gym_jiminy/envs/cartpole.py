@@ -2,11 +2,9 @@
 
 import os
 import numpy as np
-from math import sin, cos, pi
 from pkg_resources import resource_filename
 
-from gym import core, spaces, logger
-from gym.utils import seeding
+from gym import spaces, logger
 
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
@@ -116,7 +114,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
 
         ## Maximum absolute angle of the pole before considering the episode failed
-        self.theta_threshold_radians = 25 * pi / 180
+        self.theta_threshold_radians = 25 * np.pi / 180
 
         ## Maximum absolute position of the cart before considering the episode failed
         self.x_threshold = 0.75

@@ -34,7 +34,8 @@ class Getch():
         if os.name != 'nt':
             c = ''
             try:
-                import sys, select, termios
+                import sys
+                import termios
                 termios.tcflush(self.fd, termios.TCIFLUSH)
                 while self.stop_event is None or \
                         not self.stop_event.is_set():

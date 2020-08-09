@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(jsoncpp_external)
 
 # Set the path of the generated library
-set(${PROJECT_NAME}_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME}-build/src/lib_json")
+set(${PROJECT_NAME}_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME}-build/lib")
 
 if(NOT WIN32)
      set(jsoncpp_lib_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/libjsoncpp.a")
@@ -16,17 +16,12 @@ else(NOT WIN32)
      set(jsoncpp_lib_PATH_Release "${${PROJECT_NAME}_LIB_DIR}/Release/jsoncpp.lib")
 endif(NOT WIN32)
 
-# Generate patch argument
-EXTERNALPROJECT_APPLY_PATCH(${CMAKE_CURRENT_SOURCE_DIR}/patch PATCH_ARGS)
-
 # Download, build and install jsoncpp.
 EXTERNALPROJECT_ADD(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
-     GIT_TAG           1.9.2
+     GIT_TAG           1.9.3
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
-
-     ${PATCH_ARGS}
 
      CMAKE_ARGS
      -DJSONCPP_WITH_TESTS=OFF
@@ -43,8 +38,6 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
 
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
-
-EXTERNALPROJECT_GET_PROPERTY(${PROJECT_NAME} BINARY_DIR)
 
 # Import the generated library as a target
 add_library(jsoncpp_lib STATIC IMPORTED GLOBAL)
