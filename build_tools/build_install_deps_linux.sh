@@ -28,7 +28,7 @@ export PKG_CONFIG_PATH="$InstallDir/lib/pkgconfig;$InstallDir/lib64/pkgconfig;$I
 ### Checkout boost and its submodules.
 #   Boost numeric odeint < 1.71 does not support eigen3 > 3.2,
 #   and eigen < 3.3 build fails on windows because of a cmake error
-git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
+git clone -b "boost-1.72.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 cd "$RootDir/boost"
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -36,7 +36,7 @@ git submodule --quiet update --init --recursive --jobs 8
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 
 ### Checkout eigenpy and its submodules
-git clone -b "v2.3.1" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+git clone -b "v2.4.3" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 cd "$RootDir/eigenpy"
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -44,16 +44,16 @@ git submodule --quiet update --init --recursive --jobs 8
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 
 ### Checkout console_bridge
-git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+git clone -b "1.0.1" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 
 ### Checkout urdfdom_headers
-git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 
 ### Checkout urdfdom
-git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 
 ### Checkout pinocchio and its submodules
-git clone -b "v2.4.4" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+git clone -b "v2.4.7" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 cd "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
 
@@ -117,15 +117,9 @@ cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF \
+      -DBoost_USE_STATIC_LIBS=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
-
-### Embedded the required dynamic library in the package folder
-# cp "$InstallDir/bin/eigenpy.dll" \
-#           -Destination "$InstallDir/lib/site-packages/eigenpy"
-# cp "$InstallDir/lib/boost_python*.dll" \
-#           -Destination "$InstallDir/lib/site-packages/eigenpy"
 
 ################################## Build and install tinyxml ###########################################
 
@@ -196,18 +190,6 @@ sed -i '73s/.*/ /' "$RootDir/pinocchio/cmake/boost.cmake"
 ### Must patch /src/CMakefile.txt to disable library type enforced SHARED
 sed -i 's/SHARED //g' "$RootDir/pinocchio/src/CMakeLists.txt"
 
-### Must patch line 117 of bindings/python/CMakeLists.txt to use the right Python library name
-sed -i '117s/.*/'"\
-"'SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES '"\
-"'PREFIX "" '"\
-"'SUFFIX "${PYTHON_EXT_SUFFIX}" '"\
-"'OUTPUT_NAME "${PYWRAP}") /' \
-"$RootDir/pinocchio/bindings/python/CMakeLists.txt"
-
-### Replace recursively in all files the Python library name by the right one
-find "$RootDir/pinocchio" -type f \( -name "*.py" -o -name "*.cpp" \) \
--exec sed -i'' -e 's/libpinocchio_pywrap/pinocchio_pywrap/g' {} +
-
 ### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
 find "$RootDir/pinocchio" -type f -name "*.hpp" -exec ex -sc "g/StdVectorPythonVisitor</d" -cx {} ';'
 
@@ -218,6 +200,6 @@ cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$Inst
       -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBoost_USE_STATIC_LIBS=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF \
-      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON -DINSTALL_DOCUMENTATION=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

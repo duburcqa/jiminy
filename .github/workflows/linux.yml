@@ -35,7 +35,7 @@ jobs:
     - name: Setup minimal build environment
       run: |
         ln -s "${pythonLocation}/include/python3.6m" "${pythonLocation}/include/python3.6"
-        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
+        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
         git config --global advice.detachedHead false
         sudo update-alternatives --install /usr/bin/python python "${pythonLocation}/bin/python3.6" 1
         python -m pip install --upgrade pip
