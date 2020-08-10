@@ -289,6 +289,18 @@ Foreach ($file in $configFiles)
 }
 Set-PSDebug -Trace 1
 
+
+### C-style overloading disambiguation is not working properly with MSVC.
+#   Must patch lines at 40 of src/parsers/urdf/model.cpp
+$LineNumber = 40
+$Contents = Get-Content "$RootDir/pinocchio/src/parsers/urdf/model.cpp"
+Set-PSDebug -Trace 0
+$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
+'return Inertia(Y.mass,com,Inertia::Symmetric3(R*I*R.transpose()));'
+} else {$_} ; $n++ } | `
+Out-File -Encoding ASCII "$RootDir/pinocchio/src/parsers/urdf/model.cpp"
+Set-PSDebug -Trace 1
+
 ### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
