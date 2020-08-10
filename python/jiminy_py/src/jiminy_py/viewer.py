@@ -11,6 +11,8 @@ import shutil
 import signal
 import base64
 import atexit
+import cv2
+from tqdm import tqdm
 import asyncio
 import umsgpack
 import tempfile
@@ -567,6 +569,7 @@ class Viewer:
                     Viewer._backend_robot_names.remove(self.robot_name)
             if self == Viewer or self.is_backend_parent:
                 self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
+                Viewer._backend_robot_names = []
                 if self._backend_proc is not None and \
                         self._backend_proc.is_alive():
                     self._backend_proc.terminate()
@@ -1178,6 +1181,9 @@ def extract_viewer_data_from_log(log_data, robot):
 def play_trajectories(trajectory_data,
                       mesh_root_path=None,
                       replay_speed=1.0,
+                      record=False,
+                      video_path=None,
+                      reference_link=None,
                       viewers=None,
                       start_paused=False,
                       wait_for_client=True,
@@ -1283,27 +1289,47 @@ def play_trajectories(trajectory_data,
                 trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
         except Viewer._backend_exceptions:
             break
-    Viewer.wait(require_client=True)  # Wait for the meshes to finish loading
+    Viewer.wait(require_client=(not record))  # Wait for the meshes to finish loading
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
-    threads = []
-    for i in range(len(trajectory_data)):
-        threads.append(Thread(target=viewers[i].replay,
-                              args=(trajectory_data[i]['evolution_robot'],
-                                    replay_speed, xyz_offset[i])))
-    for i in range(len(trajectory_data)):
-        threads[i].daemon = True
-        threads[i].start()
-
-    try:
+    if record:
+        # Play trajectories without multithreading and record
+        print('Beginning video recording...')
+        img_array = []
+        for t in tqdm(range(len(trajectory_data[0]['evolution_robot'])), desc = "Loading frames"):
+            for i in range(len(trajectory_data)):
+                viewers[i].display(trajectory_data[i]['evolution_robot'][t].q)
+                viewers[0].set_camera_transform(relative = reference_link)
+                frame = viewer.capture_frame(width=1000, height=1000)
+                img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        size = (np.shape(img_array[0])[1], np.shape(img_array[0])[0])
+        subsampling_rate = trajectory_data[0]['evolution_robot'][1].t - trajectory_data[0]['evolution_robot'][0].t
+        print('The subsampling rate is :', subsampling_rate)
+        out = cv2.VideoWriter(video_path+'/'+'record.avi',cv2.VideoWriter_fourcc(*'DIVX'), fps=1000/subsampling_rate, frameSize=size)
+        for i in tqdm(range(len(img_array)), desc = 'Writing frames'):
+            out.write(img_array[i])
+        out.release()
+        print('Video output to: ',video_path+'/'+'record.avi')
+    else:
+        # Play trajectories with multithreading
+        threads = []
         for i in range(len(trajectory_data)):
-            threads[i].join()
-    except KeyboardInterrupt:
-        pass
+            threads.append(Thread(target=viewers[i].replay,
+                                  args=(trajectory_data[i]['evolution_robot'],
+                                        replay_speed, xyz_offset[i])))
+        for i in range(len(trajectory_data)):
+            threads[i].daemon = True
+            threads[i].start()
+
+        try:
+            for i in range(len(trajectory_data)):
+                threads[i].join()
+        except KeyboardInterrupt:
+            pass
 
     # Close backend if needed
     if close_backend:
