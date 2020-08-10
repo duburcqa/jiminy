@@ -76,23 +76,23 @@ endif()
 
 if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
-    unset(PYTHON_EXECUTABLE)
-    unset(PYTHON_EXECUTABLE CACHE)
-    if(${CMAKE_VERSION} VERSION_LESS "3.12.4")
-        if(PYTHON_REQUIRED_VERSION)
-            message(FATAL_ERROR "Impossible to handle PYTHON_REQUIRED_VERSION for cmake older than 3.12.4, Cmake will exit.")
+    if(NOT DEFINED PYTHON_EXECUTABLE)
+        if(${CMAKE_VERSION} VERSION_LESS "3.12.4")
+            if(PYTHON_REQUIRED_VERSION)
+                message(FATAL_ERROR "Impossible to handle PYTHON_REQUIRED_VERSION for cmake older than 3.12.4, Cmake will exit.")
+            endif()
+            find_program(PYTHON_EXECUTABLE python)
+            if (NOT PYTHON_EXECUTABLE)
+                message(FATAL_ERROR "No Python executable found, CMake will exit.")
+            endif()
+        else()
+            if(PYTHON_REQUIRED_VERSION)
+                find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
+            else(PYTHON_REQUIRED_VERSION)
+                find_package(Python REQUIRED COMPONENTS Interpreter)
+            endif(PYTHON_REQUIRED_VERSION)
+            set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
         endif()
-        find_program(PYTHON_EXECUTABLE python)
-        if (NOT PYTHON_EXECUTABLE)
-            message(FATAL_ERROR "No Python executable found, CMake will exit.")
-        endif()
-    else()
-        if(PYTHON_REQUIRED_VERSION)
-            find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
-        else(PYTHON_REQUIRED_VERSION)
-            find_package(Python REQUIRED COMPONENTS Interpreter)
-        endif(PYTHON_REQUIRED_VERSION)
-        set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
     endif()
 
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
@@ -178,6 +178,8 @@ if(BUILD_PYTHON_INTERFACE)
                     "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
                     "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
         set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
+        unset(Boost_LIBRARIES)
+        unset(Boost_LIBRARIES CACHE)
     else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
         if(${PYTHON_VERSION_MAJOR} EQUAL 3)
             set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
@@ -189,12 +191,12 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Define Python install helpers
     function(deployPythonPackage TARGET_NAME)
-        install(CODE "execute_process(COMMAND python -m pip install ${PYTHON_INSTALL_FLAGS} .
+        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
     endfunction()
 
     function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "execute_process(COMMAND python -m pip install ${PYTHON_INSTALL_FLAGS} -e .
+        install (CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
                                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endfunction()
 endif()
