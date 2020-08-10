@@ -267,7 +267,7 @@ class Viewer:
         if robot_name in Viewer._backend_robot_names:
             raise ValueError(
                 "Robot name already exists but must be unique. Please choose a "\
-                "different one, or close the associated viewer and delete the robot.")
+                "different one, or close the associated viewer.")
 
         # Extract the right Pinocchio model
         if self.use_theoretical_model:
@@ -553,6 +553,7 @@ class Viewer:
             if self is None:
                 self = Viewer
             else:
+                Viewer._backend_robot_names.remove(self.robot_name)  # Consider that the robot name is now available, no matter whether the robot has actually been deleted or not
                 if self.delete_robot_on_close:
                     self.delete_robot_on_close = False  # In case 'close' is called twice.
                     if Viewer.backend == 'gepetto-gui':
@@ -566,7 +567,6 @@ class Viewer:
                         Viewer._delete_nodes_viewer(node_names)
                         Viewer._backend_obj.info['nmeshes'] -= \
                             len(self._rb.visual_model.geometryObjects)
-                    Viewer._backend_robot_names.remove(self.robot_name)
             if self == Viewer or self.is_backend_parent:
                 self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
                 Viewer._backend_robot_names = []
