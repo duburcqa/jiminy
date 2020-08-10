@@ -1,0 +1,298 @@
+diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
+index e94b56ca..c8e81fe4 100644
+--- a/bindings/python/CMakeLists.txt
++++ b/bindings/python/CMakeLists.txt
+@@ -100,11 +100,6 @@ IF(BUILD_PYTHON_INTERFACE)
+   
+   SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES PREFIX "") # Remove lib prefix for the target
+ 
+-  # Do not report:
+-  #  -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
+-  #  -Wcomment as latex equations have multi-line comments.
+-  TARGET_COMPILE_OPTIONS(${PYWRAP} PRIVATE -Wno-conversion -Wno-comment)
+-
+   SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES VERSION ${PROJECT_VERSION})
+   IF(BUILD_WITH_COMMIT_VERSION)
+     TAG_LIBRARY_VERSION(${PYWRAP})
+diff --git a/bindings/python/module.cpp b/bindings/python/module.cpp
+index dbaa8592..8d5f97e2 100644
+--- a/bindings/python/module.cpp
++++ b/bindings/python/module.cpp
+@@ -34,9 +34,9 @@ BOOST_PYTHON_MODULE(pinocchio_pywrap)
+   _PyWarnings_Init();
+ #endif
+   
+-  if(not register_symbolic_link_to_registered_type<Eigen::Quaterniond>())
++  if(!register_symbolic_link_to_registered_type<Eigen::Quaterniond>())
+     eigenpy::exposeQuaternion();
+-  if(not register_symbolic_link_to_registered_type<Eigen::AngleAxisd>())
++  if(!register_symbolic_link_to_registered_type<Eigen::AngleAxisd>())
+     eigenpy::exposeAngleAxis();
+   
+   StdContainerFromPythonList< std::vector<std::string> >::register_converter();
+diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data.hpp
+index fecbf190..64e5c430 100644
+--- a/bindings/python/multibody/data.hpp
++++ b/bindings/python/multibody/data.hpp
+@@ -184,7 +184,6 @@ namespace pinocchio
+         
+         StdAlignedVectorPythonVisitor<Vector3, true>::expose("StdVec_vec3d");
+         StdAlignedVectorPythonVisitor<Matrix6x, true>::expose("StdVec_Matrix6x");
+-        StdVectorPythonVisitor<int>::expose("StdVec_int");
+       }
+ 
+     };
+diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/model.hpp
+index 57683816..1f17da7e 100644
+--- a/bindings/python/multibody/model.hpp
++++ b/bindings/python/multibody/model.hpp
+@@ -310,11 +310,6 @@ namespace pinocchio
+       /* --- Expose --------------------------------------------------------- */
+       static void expose()
+       {
+-        StdVectorPythonVisitor<Index>::expose("StdVec_Index");
+-        StdVectorPythonVisitor<IndexVector>::expose("StdVec_IndexVector");
+-        StdVectorPythonVisitor<std::string>::expose("StdVec_StdString");
+-        StdVectorPythonVisitor<bool>::expose("StdVec_Bool");
+-        StdVectorPythonVisitor<Scalar>::expose("StdVec_double");
+         bp::class_<typename Model::ConfigVectorMap>("StdMap_String_EigenVectorXd")
+           .def(bp::map_indexing_suite< typename Model::ConfigVectorMap, true >())
+           .def_pickle(PickleMap<typename Model::ConfigVectorMap>());
+diff --git a/bindings/python/spatial/inertia.hpp b/bindings/python/spatial/inertia.hpp
+index d3cdf575..b18e0de9 100644
+--- a/bindings/python/spatial/inertia.hpp
++++ b/bindings/python/spatial/inertia.hpp
+@@ -201,7 +201,7 @@ namespace pinocchio
+            || (Eigen::Vector3d::UnitY().transpose()*inertia*Eigen::Vector3d::UnitY()<0)
+            || (Eigen::Vector3d::UnitZ().transpose()*inertia*Eigen::Vector3d::UnitZ()<0) )
+           throw eigenpy::Exception("The 3d inertia should be positive.");
+-        return new Inertia(mass,lever,inertia);
++        return new Inertia(mass,lever,Inertia::Symmetric3(inertia));
+            }
+       
+       static void expose()
+Submodule cmake contains modified content
+diff --git a/cmake/boost.cmake b/cmake/boost.cmake
+index b2cf262..84639d9 100644
+--- a/cmake/boost.cmake
++++ b/cmake/boost.cmake
+@@ -70,7 +70,6 @@ MACRO(SEARCH_FOR_BOOST)
+   FIND_PACKAGE(Boost ${BOOST_REQUIRED})
+   STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
+   IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
+-    SET(BUILD_SHARED_LIBS ON)
+     SET(Boost_NO_BOOST_CMAKE ON)
+   ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
+ 
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index b18e001f..d6ce025d 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -14,7 +14,7 @@ ENDIF()
+ GET_DIRECTORY_PROPERTY(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+ 
+ # Create target libpinocchio.so
+-ADD_LIBRARY(${PROJECT_NAME} SHARED ${HEADERS} ${${PROJECT_NAME}_SOURCES})
++ADD_LIBRARY(${PROJECT_NAME} ${HEADERS} ${${PROJECT_NAME}_SOURCES})
+ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+ TARGET_COMPILE_DEFINITIONS(${PROJECT_NAME} PUBLIC ${CURRENT_COMPILE_DEFINITIONS})
+ 
+diff --git a/src/algorithm/center-of-mass.hxx b/src/algorithm/center-of-mass.hxx
+index c20ff702..77e0dc9f 100644
+--- a/src/algorithm/center-of-mass.hxx
++++ b/src/algorithm/center-of-mass.hxx
+@@ -411,7 +411,7 @@ namespace pinocchio
+     PINOCCHIO_CHECK_INPUT_ARGUMENT(data.mass[rootSubtreeId] > 0., "The mass of the subtree is not positive.");
+     const Scalar mass_inv_subtree = Scalar(1)/data.mass[rootSubtreeId];
+     typename Data::Vector3 & com_subtree = data.com[rootSubtreeId];
+-    if(not computeSubtreeComs)
++    if(!computeSubtreeComs)
+       com_subtree *= mass_inv_subtree;
+ 
+     if(rootSubtreeId == 0)
+diff --git a/src/algorithm/joint-configuration.hpp b/src/algorithm/joint-configuration.hpp
+index 43ac12cc..2a8abe08 100644
+--- a/src/algorithm/joint-configuration.hpp
++++ b/src/algorithm/joint-configuration.hpp
+@@ -863,7 +863,7 @@ namespace pinocchio
+    *
+    */
+   template<typename LieGroup_t, typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorIn1, typename ConfigVectorIn2>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                       const Eigen::MatrixBase<ConfigVectorIn1> & lowerLimits,
+                       const Eigen::MatrixBase<ConfigVectorIn2> & upperLimits);
+@@ -884,7 +884,7 @@ namespace pinocchio
+   
+   */
+   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorIn1, typename ConfigVectorIn2>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                       const Eigen::MatrixBase<ConfigVectorIn1> & lowerLimits,
+                       const Eigen::MatrixBase<ConfigVectorIn2> & upperLimits)
+@@ -907,7 +907,7 @@ namespace pinocchio
+    *
+    */
+   template<typename LieGroup_t, typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model);
+ 
+   /**
+@@ -925,7 +925,7 @@ namespace pinocchio
+    *
+    */
+   template<typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model)
+   {
+     return randomConfiguration<LieGroupMap,Scalar,Options,JointCollectionTpl>(model);
+diff --git a/src/algorithm/joint-configuration.hxx b/src/algorithm/joint-configuration.hxx
+index b7f7b574..d0db2247 100644
+--- a/src/algorithm/joint-configuration.hxx
++++ b/src/algorithm/joint-configuration.hxx
+@@ -389,19 +389,19 @@ namespace pinocchio
+   }
+ 
+   template<typename LieGroup_t,typename Scalar, int Options, template<typename,int> class JointCollectionTpl, typename ConfigVectorIn1, typename ConfigVectorIn2>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model,
+                       const Eigen::MatrixBase<ConfigVectorIn1> & lowerLimits,
+                       const Eigen::MatrixBase<ConfigVectorIn2> & upperLimits)
+   {
+-    typedef typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)) ReturnType; 
++    typedef typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type ReturnType; 
+     ReturnType q(model.nq);
+     randomConfiguration<LieGroup_t,Scalar,Options,JointCollectionTpl,ConfigVectorIn1,ConfigVectorIn2,ReturnType>(model, lowerLimits.derived(), upperLimits.derived(), q);
+     return q;
+   }
+ 
+   template<typename LieGroup_t,typename Scalar, int Options, template<typename,int> class JointCollectionTpl>
+-  typename PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))
++  typename Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type
+   randomConfiguration(const ModelTpl<Scalar,Options,JointCollectionTpl> & model)
+   {
+     typedef ModelTpl<Scalar,Options,JointCollectionTpl> Model;
+diff --git a/src/algorithm/model.hxx b/src/algorithm/model.hxx
+index ee8c210f..51277db5 100644
+--- a/src/algorithm/model.hxx
++++ b/src/algorithm/model.hxx
+@@ -474,7 +474,7 @@ namespace pinocchio
+       
+       const JointIndex joint_id_in_input_model = geom.parentJoint;
+       PINOCCHIO_CHECK_INPUT_ARGUMENT(joint_id_in_input_model < (JointIndex)input_model.njoints,
+-                                     "Invalid joint parent index for the geometry with name " + geom.name);
++                                     "Invalid joint parent index for the geometry.");
+       const std::string & parent_joint_name = input_model.names[joint_id_in_input_model];
+       
+       JointIndex reduced_joint_id = (JointIndex)-1;
+diff --git a/src/parsers/sample-models.hxx b/src/parsers/sample-models.hxx
+index 7bd6e3ec..b271366d 100644
+--- a/src/parsers/sample-models.hxx
++++ b/src/parsers/sample-models.hxx
+@@ -66,8 +66,8 @@ namespace pinocchio
+         
+         SE3 Marm(SE3::Matrix3::Identity(),SE3::Vector3::UnitZ());
+         SE3 I4 = SE3::Identity();
+-        Inertia Ijoint(.1,Inertia::Vector3::Zero(),Inertia::Matrix3::Identity()*.01);
+-        Inertia Iarm(1.,typename Inertia::Vector3(0,0,.5),Inertia::Matrix3::Identity());
++        Inertia Ijoint(.1,Inertia::Vector3::Zero(),Inertia::Symmetric3(Inertia::Matrix3(Inertia::Matrix3::Identity()*.01)));
++        Inertia Iarm(1.,typename Inertia::Vector3(0,0,.5),Inertia::Symmetric3::Identity());
+         CV qmin = CV::Constant(-3.14), qmax   = CV::Constant(3.14);
+         TV vmax = TV::Constant( 10),   taumax = TV::Constant(10);
+         
+@@ -308,8 +308,8 @@ namespace pinocchio
+       
+       SE3 Marm(SE3::Matrix3::Identity(),SE3::Vector3::UnitZ());
+       SE3 I4 = SE3::Identity();
+-      Inertia Ijoint(.1,Inertia::Vector3::Zero(),Inertia::Matrix3::Identity()*.01);
+-      Inertia Iarm(1.,typename Inertia::Vector3(0,0,.5),Inertia::Matrix3::Identity());
++      Inertia Ijoint(.1,Inertia::Vector3::Zero(),Inertia::Symmetric3(Inertia::Matrix3(Inertia::Matrix3::Identity()*.01)));
++      Inertia Iarm(1.,typename Inertia::Vector3(0,0,.5),Inertia::Symmetric3::Identity());
+       CV qmin = CV::Constant(-3.14), qmax   = CV::Constant(3.14);
+       TV vmax = TV::Constant( 10),   taumax = TV::Constant(10);
+       
+diff --git a/src/parsers/urdf/model.cpp b/src/parsers/urdf/model.cpp
+index ae24272f..60486e8a 100644
+--- a/src/parsers/urdf/model.cpp
++++ b/src/parsers/urdf/model.cpp
+@@ -37,7 +37,7 @@ namespace pinocchio
+           Y.ixx,Y.ixy,Y.ixz,
+           Y.ixy,Y.iyy,Y.iyz,
+           Y.ixz,Y.iyz,Y.izz;
+-        return Inertia(Y.mass,com,R*I*R.transpose());
++        return Inertia(Y.mass,com,Inertia::Symmetric3(Inertia::Matrix3(R*I*R.transpose())));
+       }
+ 
+       inline Inertia convertFromUrdf (const ::urdf::InertialSharedPtr & Y)
+diff --git a/src/spatial/inertia.hpp b/src/spatial/inertia.hpp
+index 45fe347d..655d1db7 100644
+--- a/src/spatial/inertia.hpp
++++ b/src/spatial/inertia.hpp
+@@ -165,10 +165,6 @@ namespace pinocchio
+     // Constructors
+     InertiaTpl()
+     {}
+-
+-    InertiaTpl(const Scalar mass, const Vector3 & com, const Matrix3 & rotational_inertia)
+-    : m_mass(mass), m_com(com), m_inertia(rotational_inertia)
+-    {}
+     
+     InertiaTpl(const Matrix6 & I6)
+     {
+@@ -204,7 +200,7 @@ namespace pinocchio
+     InertiaTpl(const InertiaTpl<Scalar,O2> & clone)
+     : m_mass(clone.mass())
+     , m_com(clone.lever())
+-    , m_inertia(clone.inertia().matrix())
++    , m_inertia(InertiaTpl<Scalar,O2>::Symmetric3(clone.inertia().matrix()))
+     {}
+ 
+     // Initializers
+@@ -315,7 +311,7 @@ namespace pinocchio
+     * where \f$ I = I_C + mS^T(c)S(c) \f$ and \f$ I_C \f$ has its origin at the barycenter.
+     */
+     template<typename Vector10Like>
+-    static InertiaTpl FromDynamicParameters(const Eigen::MatrixBase<Vector10Like> & params)
++    static InertiaTpl FromDynamicParameters(const Vector10Like & params)
+     {
+       PINOCCHIO_ASSERT_MATRIX_SPECIFIC_SIZE(Vector10Like, params, 10, 1);
+ 
+@@ -323,7 +319,7 @@ namespace pinocchio
+       Vector3 lever = params.template segment<3>(1);
+       lever /= mass;
+ 
+-      return InertiaTpl(mass, lever, Symmetric3(params.template segment<6>(4)) + AlphaSkewSquare(mass,lever));
++      return InertiaTpl(mass, lever, Symmetric3(Symmetric3(Symmetric3::Vector6(params.template segment<6>(4))) + AlphaSkewSquare(mass,lever)));
+     }
+ 
+     // Arithmetic operators
+diff --git a/src/spatial/symmetric3.hpp b/src/spatial/symmetric3.hpp
+index 51c375fa..fc13f77e 100644
+--- a/src/spatial/symmetric3.hpp
++++ b/src/spatial/symmetric3.hpp
+@@ -28,10 +28,8 @@ namespace pinocchio
+   public:    
+     Symmetric3Tpl(): m_data() {}
+ 
+-    template<typename Sc,int N,int Opt>
+-    explicit Symmetric3Tpl(const Eigen::Matrix<Sc,N,N,Opt> & I)
++    explicit Symmetric3Tpl(const Matrix3 & I)
+     {
+-      EIGEN_STATIC_ASSERT(N==3,THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE)
+       assert( (I-I.transpose()).isMuchSmallerThan(I) );
+       m_data(0) = I(0,0);
+       m_data(1) = I(1,0); m_data(2) = I(1,1);
+@@ -44,7 +42,7 @@ namespace pinocchio
+ 		  const Scalar & a3, const Scalar & a4, const Scalar & a5)
+     { m_data << a0,a1,a2,a3,a4,a5; }
+ 
+-    static Symmetric3Tpl Zero()     { return Symmetric3Tpl(Vector6::Zero());  }
++    static Symmetric3Tpl Zero()     { const Vector6 tmp = Vector6::Zero(); return Symmetric3Tpl(tmp);  }
+     void setZero() { m_data.setZero(); }
+     
+     static Symmetric3Tpl Random()   { return RandomPositive();  }

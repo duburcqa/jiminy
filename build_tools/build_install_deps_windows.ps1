@@ -1,7 +1,7 @@
 ################################## Configure the environment ###########################################
 
-### Enable stop-on-error and debug print mode
-$ErrorActionPreference = "Stop"
+### Enable debug print mode and disable stop-on-error because it appears that some commands return 1 even if successfull
+$ErrorActionPreference = "Continue"
 Set-PSDebug -Trace 1
 
 ### Set the build type to "Release" if undefined
@@ -33,37 +33,45 @@ $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 
 ################################## Checkout the dependencies ###########################################
 
-### Checkout boost and its submodules.
+### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 #   Boost numeric odeint < 1.71 does not support eigen3 > 3.2,
 #   and eigen < 3.3 build fails on windows because of a cmake error
-git clone -b "boost-1.72.0" https://github.com/boostorg/boost.git "$RootDir/boost"
+#   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used on Windows 10.
+git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 Set-Location -Path "$RootDir/boost"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/boost.patch"
 
 ### Checkout eigen3
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 
-### Checkout eigenpy and its submodules
+### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "v2.4.3" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 Set-Location -Path "$RootDir/eigenpy"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 
-### Checkout console_bridge
+### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+Set-Location -Path "$RootDir/console_bridge"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/console_bridge.patch"
 
 ### Checkout urdfdom_headers
 git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 
-### Checkout urdfdom
+### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+Set-Location -Path "$RootDir/urdfdom"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/urdfdom.patch"
 
-### Checkout pinocchio and its submodules (sbarthelemy fork for windows compatibility - based on 2.1.11)
+### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "v2.4.7" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 Set-Location -Path "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/pinocchio.patch"
 
 ################################### Build and install boost ############################################
 
@@ -73,39 +81,6 @@ git submodule --quiet update --init --recursive --jobs 8
 #   * Set the environment variable Boost_DIR
 # - if Boost_NO_BOOST_CMAKE is FALSE:
 #   * Set the cmake cache variable BOOST_ROOT and Boost_INCLUDE_DIR
-
-### Patch /boost/python/operators.hpp (or /libs/python/include/boost/python/operators.hpp on github) to avoid conflicts with msvc
-$LineNumbers = @(22, 371)
-$Contents = Get-Content "$RootDir/boost/libs/python/include/boost/python/operators.hpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumbers[0] -eq $n) {
-'// Workaround msvc iso646.h
-#if defined(_MSC_VER) && !defined(__clang__)
-#ifndef __GCCXML__
-#if defined(or)
-#   pragma push_macro("or")
-#   pragma push_macro("xor")
-#   pragma push_macro("and")
-#   undef or
-#   undef xor
-#   undef and
-#endif
-#endif
-#endif'
-} elseif ($LineNumbers[1] -eq $n) {
-'// Workaround msvc iso646.h
-#if defined(_MSC_VER) && !defined(__clang__)
-#ifndef __GCCXML__
-#if defined(or)
-#   pragma pop_macro("or")
-#   pragma pop_macro("and")
-#   pragma pop_macro("xor")
-#endif
-#endif
-#endif'
-} ; $_ ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/boost/libs/python/include/boost/python/operators.hpp"
-Set-PSDebug -Trace 1
 
 ### Build and install the build tool b2 (build-ception !)
 Set-Location -Path "$RootDir/boost"
@@ -136,18 +111,6 @@ cmake "$RootDir/eigen3" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_P
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
-
-### Remove line 73 of boost.cmake to disable library type enforced SHARED
-$LineNumber = 73
-$Contents = Get-Content "$RootDir/eigenpy/cmake/boost.cmake"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/eigenpy/cmake/boost.cmake"
-Set-PSDebug -Trace 1
-
-### Must patch /CMakefile.txt to disable library type enforced SHARED
-$Contents = Get-Content "$RootDir/eigenpy/CMakeLists.txt"
-($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/eigenpy/CMakeLists.txt"
 
 ### Build eigenpy
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
@@ -181,14 +144,6 @@ cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
 
-### Must remove lines 107 and 114 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(107, 114)
-$Contents = Get-Content "$RootDir/console_bridge/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/console_bridge/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
 ###
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
@@ -200,14 +155,6 @@ cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GEN
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install urdfdom_headers ######################################
-
-### Must remove lines 51 and 56 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(51, 56)
-$Contents = Get-Content "$RootDir/urdfdom_headers/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/urdfdom_headers/CMakeLists.txt"
-Set-PSDebug -Trace 1
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
@@ -221,38 +168,6 @@ cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################# Build and install urdfdom ###########################################
 
-### Patch line 71 of CMakeLists.txt to add TinyXML dependency to cmake configuration files generator
-$LineNumber = 71
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'set(PKG_DEPENDS urdfdom_headers console_bridge TinyXML)'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Patch line 81 of CMakeLists.txt to add TinyXML dependency to pkgconfig files generator
-$LineNumber = 81
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'set(PKG_URDF_LIBS "-lurdfdom_sensor -lurdfdom_model_state -lurdfdom_model -lurdfdom_world -ltinyxml")'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Must remove lines 78 and 86 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(78, 86)
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Must patch /urdf_parser/CMakeLists.txt to disable library type enforced SHARED
-(Get-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt").replace('SHARED ', '') | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
-
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
@@ -265,41 +180,6 @@ cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
-
-### Remove line 73 of boost.cmake to disable library type enforced SHARED
-$LineNumber = 73
-$Contents = Get-Content "$RootDir/pinocchio/cmake/boost.cmake"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/cmake/boost.cmake"
-Set-PSDebug -Trace 1
-
-### Must patch /src/CMakefile.txt to disable library type enforced SHARED
-$Contents = Get-Content "$RootDir/pinocchio/src/CMakeLists.txt"
-($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/pinocchio/src/CMakeLists.txt"
-
-### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
-$configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.hpp -Recurse
-Set-PSDebug -Trace 0
-Foreach ($file in $configFiles)
-{
-  (Get-Content $file.PSPath) | `
-  Where-Object {$_ -notmatch 'StdVectorPythonVisitor<'} | `
-  Set-Content $file.PSPath
-}
-Set-PSDebug -Trace 1
-
-
-### C-style overloading disambiguation is not working properly with MSVC.
-#   Must patch lines at 40 of src/parsers/urdf/model.cpp
-$LineNumber = 40
-$Contents = Get-Content "$RootDir/pinocchio/src/parsers/urdf/model.cpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'return Inertia(Y.mass,com,Inertia::Symmetric3(R*I*R.transpose()));'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/src/parsers/urdf/model.cpp"
-Set-PSDebug -Trace 1
 
 ### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {

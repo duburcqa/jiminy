@@ -33,7 +33,8 @@ unset Boost_ROOT
 ### Checkout boost and its submodules.
 #   Boost numeric odeint < 1.71 does not support eigen3 > 3.2,
 #   and eigen < 3.3 build fails on windows because of a cmake error
-git clone -b "boost-1.72.0" https://github.com/boostorg/boost.git "$RootDir/boost"
+#   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used on Windows 10.
+git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 cd "$RootDir/boost"
 git submodule --quiet update --init --recursive --jobs 8
 
