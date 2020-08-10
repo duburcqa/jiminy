@@ -1,0 +1,14 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a36152e..d9f465c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -16,7 +16,8 @@ set(TINYXML_BUILD_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+ set(TINYXML_BUILD_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR})
+ 
+ # Offer the user the choice of overriding the installation directories
+-set(TINYXML_INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
++include(GNUInstallDirs) 
++ set(TINYXML_INSTALL_LIB_DIR "${CMAKE_INSTALL_LIBDIR}" CACHE PATH "Installation directory for libraries") 
+ set(TINYXML_INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
+ set(TINYXML_INSTALL_INCLUDE_DIR include CACHE PATH "Installation directory for header files")
+ if(WIN32 AND NOT CYGWIN)

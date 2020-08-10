@@ -40,7 +40,7 @@ $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
 git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 Set-Location -Path "$RootDir/boost"
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/boost.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
 ### Checkout eigen3
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
@@ -49,7 +49,7 @@ git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir
 git clone -b "v2.4.3" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 Set-Location -Path "$RootDir/eigenpy"
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/eigenpy.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
@@ -57,7 +57,7 @@ git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$R
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 Set-Location -Path "$RootDir/console_bridge"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/console_bridge.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/console_bridge.patch"
 
 ### Checkout urdfdom_headers
 git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
@@ -65,13 +65,13 @@ git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdo
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 Set-Location -Path "$RootDir/urdfdom"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/urdfdom.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
 ### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "v2.4.7" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 Set-Location -Path "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/pinocchio.patch"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 
 ################################### Build and install boost ############################################
 
@@ -86,7 +86,8 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_windows/pinocchi
 Set-Location -Path "$RootDir/boost"
 ./bootstrap.bat --prefix="$InstallDir"
 
-### Build and install and install boost (Replace -d0 option by -d1 to check compilation errors)
+### Build and install and install boost
+#   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
 $BuildTypeB2 = ${Env:BUILD_TYPE}.ToLower()
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
