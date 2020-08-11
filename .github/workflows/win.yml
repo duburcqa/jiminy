@@ -59,8 +59,6 @@ jobs:
           Remove-Item Env:/Boost_ROOT
         }
 
-        $Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
-
         if (-not (Test-Path -PathType Container $RootDir/build)) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build"
         }

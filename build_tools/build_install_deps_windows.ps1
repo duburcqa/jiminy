@@ -106,7 +106,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
 }
 Set-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON `
       -DCMAKE_CXX_FLAGS="/bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -119,7 +119,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 }
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -139,7 +139,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 }
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -151,7 +151,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
 }
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -163,7 +163,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj" "$RootDir/urdfdom_headers"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
@@ -175,7 +175,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -188,7 +188,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 }
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `

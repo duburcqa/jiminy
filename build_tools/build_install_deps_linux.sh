@@ -106,7 +106,7 @@ mkdir -p "$RootDir/boost/build"
 
 mkdir -p "$RootDir/eigen3/build"
 cd "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigen3" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -115,7 +115,7 @@ make install -j2
 
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
@@ -127,7 +127,7 @@ make install -j2
 
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/tinyxml" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -135,7 +135,7 @@ make install -j2
 
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/console_bridge" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -143,7 +143,7 @@ make install -j2
 
 mkdir -p "$RootDir/urdfdom_headers/build"
 cd "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom_headers" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
@@ -151,7 +151,7 @@ make install -j2
 
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -161,7 +161,7 @@ make install -j2
 ### Build and install pinocchio, finally !
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
