@@ -28,7 +28,7 @@ setup(name = 'jiminy_py',
       download_url = 'https://github.com/Wandercraft/jiminy/archive/@PROJECT_VERSION@.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html **/*.js']},
+      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js']},
       entry_points={'console_scripts': [
           'jiminy_plot=jiminy_py.log:plot_log',
           'jiminy_meshcat_server=jiminy_py.viewer:start_zmq_server_standalone'
@@ -37,14 +37,15 @@ setup(name = 'jiminy_py',
       distclass = BinaryDistribution,
       cmdclass = {'install': InstallPlatlib},
       install_requires = [
-          'pillow',
-          'meshcat @ git+https://github.com/rdeits/meshcat-python.git',  # Waiting for release 0.19
-          'requests_html',
-          'scipy',
-          'numpy',
-          'matplotlib',
-          'tqdm',
           'xmltodict',
-          'psutil'
+          'pillow',
+          'tqdm',
+          'numpy',
+          'scipy',
+          'matplotlib',
+          'meshcat @ git+https://github.com/rdeits/meshcat-python.git',  # Waiting for release 0.19
+          'psutil',
+          'requests_html',
+          'opencv-python'
       ]
 )
