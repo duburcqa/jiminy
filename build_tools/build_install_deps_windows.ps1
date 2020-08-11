@@ -53,8 +53,6 @@ git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$R
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
-Set-Location -Path "$RootDir/console_bridge"
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/console_bridge.patch"
 
 ### Checkout urdfdom_headers
 git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
