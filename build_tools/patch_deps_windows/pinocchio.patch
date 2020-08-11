@@ -15,13 +15,26 @@ index e94b56ca..c8e81fe4 100644
    IF(BUILD_WITH_COMMIT_VERSION)
      TAG_LIBRARY_VERSION(${PYWRAP})
 diff --git a/bindings/python/algorithm/expose-joints.cpp b/bindings/python/algorithm/expose-joints.cpp
-index 9d72c12a..c34a71b2 100644
+index 9d72c12a..7c1ded16 100644
 --- a/bindings/python/algorithm/expose-joints.cpp
 +++ b/bindings/python/algorithm/expose-joints.cpp
-@@ -35,43 +35,6 @@ namespace pinocchio
- 
-       return bp::make_tuple(J0,J1);
+@@ -22,112 +22,11 @@ namespace pinocchio
+     {
+       return randomConfiguration(model);
      }
+-
+-    bp::tuple dIntegrate_proxy(const Model & model,
+-                               const Eigen::VectorXd & q,
+-                               const Eigen::VectorXd & v)
+-    {
+-      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-
+-      dIntegrate(model,q,v,J0,ARG0);
+-      dIntegrate(model,q,v,J1,ARG1);
+-
+-      return bp::make_tuple(J0,J1);
+-    }
 -
 -    Eigen::MatrixXd dIntegrate_arg_proxy(const Model & model,
 -                                         const Eigen::VectorXd & q,
@@ -62,10 +75,28 @@ index 9d72c12a..c34a71b2 100644
    
      void exposeJointsAlgo()
      {
-@@ -97,17 +60,6 @@ namespace pinocchio
-               "\tq: the joint configuration vector (size model.nq)\n"
-               "\tv: the joint velocity vector (size model.nv)\n");
- 
+       using namespace Eigen;
+       
+-      bp::def("integrate",
+-              &integrate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+-              bp::args("model","q","v"),
+-              "Integrate the joint configuration vector q with a tangent vector v during one unit time.\n"
+-              "This is the canonical integrator of a Configuration Space composed of Lie groups, such as most robots.\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq: the joint configuration vector (size model.nq)\n"
+-              "\tv: the joint velocity vector (size model.nv)\n");
+-      
+-      bp::def("dIntegrate",
+-              &dIntegrate_proxy,
+-              bp::args("model","q","v"),
+-              "Computes the partial derivatives of the integrate function with respect to the first "
+-              "and the second argument, and returns the two Jacobians as a tuple.\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq: the joint configuration vector (size model.nq)\n"
+-              "\tv: the joint velocity vector (size model.nv)\n");
+-
 -      bp::def("dIntegrate",
 -              &dIntegrate_arg_proxy,
 -              bp::args("model","q","v","argument_position"),
@@ -77,10 +108,30 @@ index 9d72c12a..c34a71b2 100644
 -              "\tv: the joint velocity vector (size model.nv)\n"
 -              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
 -
-       bp::def("interpolate",
-               &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
-               bp::args("model","q1","q2","alpha"),
-@@ -146,27 +98,6 @@ namespace pinocchio
+-      bp::def("interpolate",
+-              &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+-              bp::args("model","q1","q2","alpha"),
+-              "Interpolate between two given joint configuration vectors q1 and q2.\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq1: the initial joint configuration vector (size model.nq)\n"
+-              "\tq2: the terminal joint configuration vector (size model.nq)\n"
+-              "\talpha: the interpolation coefficient in [0,1]\n");
+-      
+-      bp::def("difference",
+-              &difference<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+-              bp::args("model","q1","q2"),
+-              "Difference between two joint configuration vectors, i.e. the tangent vector that must be integrated during one unit time"
+-              "to go from q1 to q2.\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq1: the initial joint configuration vector (size model.nq)\n"
+-              "\tq2: the terminal joint configuration vector (size model.nq)\n");
+-      
+       bp::def("squaredDistance",
+               &squaredDistance<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+               bp::args("model","q1","q2"),
+@@ -146,27 +45,6 @@ namespace pinocchio
                "\tq1: the initial joint configuration vector (size model.nq)\n"
                "\tq2: the terminal joint configuration vector (size model.nq)\n");
  
