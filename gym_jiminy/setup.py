@@ -21,4 +21,3 @@ setup(name = 'gym_jiminy',
       ],
       python_requires='>3.6'
 )
-

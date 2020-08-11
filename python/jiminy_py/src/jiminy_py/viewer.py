@@ -30,7 +30,7 @@ import zmq
 import meshcat
 import meshcat.transformations as mtf
 from meshcat.servers.zmqserver import (
-    VIEWER_ROOT, StaticFileHandlerNoCache, ZMQWebSocketBridge, WebSocketHandler)
+    VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
 
 import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
@@ -91,12 +91,17 @@ def start_zmq_server():
     # three js "controls" of the camera, so that it can be moved
     # programmatically in any position, without any constraint, as
     # long as the user is not moving it manually using the mouse.
-    class MyFileHandler(StaticFileHandlerNoCache):
+    class MyFileHandler(tornado.web.StaticFileHandler):
         def initialize(self, default_path, default_filename, fallback_path):
             self.default_path = os.path.abspath(default_path)
             self.default_filename = default_filename
             self.fallback_path = os.path.abspath(fallback_path)
             super().initialize(self.default_path, self.default_filename)
+
+        def set_extra_headers(self, path):
+            self.set_header('Cache-Control',
+                            'no-store, no-cache, must-revalidate, max-age=0')
+
         def validate_absolute_path(self, root, absolute_path):
             if os.path.isdir(absolute_path):
                 if not self.request.path.endswith("/"):
@@ -212,7 +217,7 @@ class Viewer:
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
-    _backend_robot_names = []
+    _backend_robot_names = set()
     _lock = Lock() # Unique threading.Lock for every simulations (in the same thread ONLY!)
 
     def __init__(self,
@@ -429,7 +434,7 @@ class Viewer:
             self._rb.viz = self._client
             Viewer._backend_obj.info['nmeshes'] += \
                 len(self._rb.visual_model.geometryObjects)
-        Viewer._backend_robot_names.append(robot_name)
+        Viewer._backend_robot_names.add(robot_name)
 
         # Refresh the viewer since the position of the meshes is not initialized at this point
         self.refresh()
@@ -451,6 +456,24 @@ class Viewer:
                                 and values are associated remote port.
         """
         Viewer.port_forwarding = port_forwarding
+
+    @staticmethod
+    def _get_client_url():
+        if Viewer.backend == 'gepetto-gui':
+            raise RuntimeError("Can only get client url using Meshcat backend.")
+        if Viewer._backend_obj is None:
+            raise RuntimeError("Viewer not connected to any running Meshcat server.")
+
+        viewer_url = Viewer._backend_obj.gui.url()
+        if Viewer.port_forwarding is not None:
+            url_port_pattern = '(?<=:)[0-9]+(?=/)'
+            port_localhost = int(re.search(url_port_pattern, viewer_url).group())
+            if not port_localhost in Viewer.port_forwarding.keys():
+                raise RuntimeError("Port forwarding defined but no port "\
+                                    "mapping associated with {port_localhost}.")
+            port_remote = Viewer.port_forwarding[port_localhost]
+            viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
+        return viewer_url
 
     @staticmethod
     def open_gui(start_if_needed=False):
@@ -480,16 +503,7 @@ class Viewer:
                     "Impossible to open web browser programmatically for Meshcat "\
                     "through port forwarding. Either use Jupyter or open it manually.")
 
-            viewer_url = Viewer._backend_obj.gui.url()
-            if Viewer.port_forwarding is not None:
-                url_port_pattern = '(?<=:)[0-9]+(?=/)'
-                port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-                if not port_localhost in Viewer.port_forwarding.keys():
-                    raise RuntimeError("Port forwarding defined but no port "\
-                                       "mapping associated with {port_localhost}.")
-                port_remote = Viewer.port_forwarding[port_localhost]
-                viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
-
+            viewer_url = Viewer._get_client_url()
             if Viewer._is_notebook():
                 from IPython.core.display import HTML, display
                 jupyter_html = f'\n<div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">\
@@ -551,7 +565,7 @@ class Viewer:
             if self is None:
                 self = Viewer
             else:
-                Viewer._backend_robot_names.remove(self.robot_name)  # Consider that the robot name is now available, no matter whether the robot has actually been deleted or not
+                Viewer._backend_robot_names.discard(self.robot_name)  # Consider that the robot name is now available, no matter whether the robot has actually been deleted or not
                 if self.delete_robot_on_close:
                     self.delete_robot_on_close = False  # In case 'close' is called twice.
                     if Viewer.backend == 'gepetto-gui':
@@ -567,7 +581,7 @@ class Viewer:
                             len(self._rb.visual_model.geometryObjects)
             if self == Viewer or self.is_backend_parent:
                 self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
-                Viewer._backend_robot_names = []
+                Viewer._backend_robot_names.clear()
                 if self._backend_proc is not None and \
                         self._backend_proc.is_alive():
                     self._backend_proc.terminate()
@@ -1294,7 +1308,7 @@ def play_trajectories(trajectory_data,
             break
     if verbose:
         if backend == 'meshcat':
-            print("Waiting for meshcat client in browser to connect...")
+            print(f"Waiting for meshcat client in browser to connect: {Viewer._get_client_url()}")
     Viewer.wait(require_client=(not record_video))  # Wait for the meshes to finish loading
 
     # Handle start-in-pause mode

@@ -44,7 +44,7 @@ setup(name = 'jiminy_py',
           'numpy',
           'scipy',
           'matplotlib',
-          'meshcat @ git+https://github.com/rdeits/meshcat-python.git',  # Waiting for release 0.19
+          'meshcat>=0.0.18',
           'psutil'
       ],
       extras_require = {
