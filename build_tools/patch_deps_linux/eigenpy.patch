@@ -16,12 +16,11 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index b2cf262..fbd00f3 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -70,7 +70,7 @@ MACRO(SEARCH_FOR_BOOST)
+@@ -70,7 +70,6 @@ MACRO(SEARCH_FOR_BOOST)
    FIND_PACKAGE(Boost ${BOOST_REQUIRED})
    STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
 -    SET(BUILD_SHARED_LIBS ON)
-+ 
      SET(Boost_NO_BOOST_CMAKE ON)
    ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
  
