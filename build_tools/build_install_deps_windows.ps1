@@ -1,7 +1,7 @@
 ################################## Configure the environment ###########################################
 
-### Enable stop-on-error and debug print mode
-$ErrorActionPreference = "Stop"
+### Enable debug print mode and disable stop-on-error because it appears that some commands return 1 even if successfull
+$ErrorActionPreference = "Continue"
 Set-PSDebug -Trace 1
 
 ### Set the build type to "Release" if undefined
@@ -28,42 +28,45 @@ if (Test-Path Env:/Boost_ROOT) {
   Remove-Item Env:/Boost_ROOT
 }
 
-### Add the generated pkgconfig file to the search path
-$Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
-
 ################################## Checkout the dependencies ###########################################
 
-### Checkout boost and its submodules.
+### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 #   Boost numeric odeint < 1.71 does not support eigen3 > 3.2,
 #   and eigen < 3.3 build fails on windows because of a cmake error
+#   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used on Windows 10.
 git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
 Set-Location -Path "$RootDir/boost"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
 ### Checkout eigen3
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 
-### Checkout eigenpy and its submodules
-git clone -b "v2.1.2" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+git clone -b "v2.4.3" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 Set-Location -Path "$RootDir/eigenpy"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
 git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 
-### Checkout console_bridge
+### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 
 ### Checkout urdfdom_headers
-git clone -b "1.0.3" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 
-### Checkout urdfdom
-git clone -b "1.0.3" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
+git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+Set-Location -Path "$RootDir/urdfdom"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
-### Checkout pinocchio and its submodules (sbarthelemy fork for windows compatibility - based on 2.1.11)
-git clone -b "sbarth_action" https://github.com/sbarthelemy/pinocchio.git "$RootDir/pinocchio"
+### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
+git clone -b "v2.4.7" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 Set-Location -Path "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 
 ################################### Build and install boost ############################################
 
@@ -74,56 +77,22 @@ git submodule --quiet update --init --recursive --jobs 8
 # - if Boost_NO_BOOST_CMAKE is FALSE:
 #   * Set the cmake cache variable BOOST_ROOT and Boost_INCLUDE_DIR
 
-### Patch /boost/python/operators.hpp (or /libs/python/include/boost/python/operators.hpp on github) to avoid conflicts with msvc
-$LineNumbers = @(22, 371)
-$Contents = Get-Content "$RootDir/boost/libs/python/include/boost/python/operators.hpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumbers[0] -eq $n) {
-'// Workaround msvc iso646.h
-#if defined(_MSC_VER) && !defined(__clang__)
-#ifndef __GCCXML__
-#if defined(or)
-#   pragma push_macro("or")
-#   pragma push_macro("xor")
-#   pragma push_macro("and")
-#   undef or
-#   undef xor
-#   undef and
-#endif
-#endif
-#endif'
-} elseif ($LineNumbers[1] -eq $n) {
-'// Workaround msvc iso646.h
-#if defined(_MSC_VER) && !defined(__clang__)
-#ifndef __GCCXML__
-#if defined(or)
-#   pragma pop_macro("or")
-#   pragma pop_macro("and")
-#   pragma pop_macro("xor")
-#endif
-#endif
-#endif'
-} ; $_ ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/boost/libs/python/include/boost/python/operators.hpp"
-Set-PSDebug -Trace 1
-
 ### Build and install the build tool b2 (build-ception !)
 Set-Location -Path "$RootDir/boost"
 ./bootstrap.bat --prefix="$InstallDir"
 
-### Build and install and install boost (Replace -d0 option by -d1 to check compilation errors)
+### Build and install and install boost
+#   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
 $BuildTypeB2 = ${Env:BUILD_TYPE}.ToLower()
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
 }
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
-         --without-wave --without-contract --without-graph --without-regex `
-         --without-mpi --without-coroutine --without-fiber --without-context `
-         --without-timer --without-chrono --without-atomic --without-graph_parallel `
-         --without-type_erasure --without-container --without-exception --without-locale `
-         --without-log --without-program_options --without-random --without-iostreams `
-         --build-type=minimal toolset=msvc-14.2 variant=$BuildTypeB2 threading=multi --layout=system `
-         architecture=x86 address-model=64 link=shared runtime-link=shared install -q -d0 -j2
+         --with-date_time --with-filesystem --with-headers --with-math --with-python `
+         --with-serialization --with-stacktrace --with-system --with-test --with-thread `
+         --with-python --build-type=minimal architecture=x86 address-model=64 `
+         threading=multi --layout=system link=shared runtime-link=shared `
+         toolset=msvc-14.2 variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -132,24 +101,12 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
 }
 Set-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF `
       -DCMAKE_CXX_FLAGS="/bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################### Build and install eigenpy ##########################################
-
-### Remove line 73 of boost.cmake to disable library type enforced SHARED
-$LineNumber = 73
-$Contents = Get-Content "$RootDir/eigenpy/cmake/boost.cmake"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/eigenpy/cmake/boost.cmake"
-Set-PSDebug -Trace 1
-
-### Must patch /CMakefile.txt to disable library type enforced SHARED
-$Contents = Get-Content "$RootDir/eigenpy/CMakeLists.txt"
-($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/eigenpy/CMakeLists.txt"
 
 ### Build eigenpy
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
@@ -157,28 +114,14 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 }
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
-      -DBUILD_TESTING=OFF `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
+      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DBoost_USE_STATIC_LIBS=OFF `
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj $(
+)     -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Must patch line 18 of $InstallDir/lib/pkgconfig/eigenpy.pc because if the list of library includes in ill-formated on Windows.
-#   The pkconfig config file is generated by the cmake submodule, which is the same for pinocchio itself.
-$LineNumber = 18
-$Contents = Get-Content "$InstallDir/lib/pkgconfig/eigenpy.pc"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {'Libs:'} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$InstallDir/lib/pkgconfig/eigenpy.pc"
-Set-PSDebug -Trace 1
-
-### Must replace "Program Files" by "PROGRA~1" and "Program Files (x86)" by "PROGRA~2" to avoid having spaces in paths...
-(Get-Content "$InstallDir/lib/pkgconfig/eigenpy.pc").replace("Program Files (x86)", "PROGRA~2") | `
-Set-Content "$InstallDir/lib/pkgconfig/eigenpy.pc"
-(Get-Content "$InstallDir/lib/pkgconfig/eigenpy.pc").replace("Program Files", "PROGRA~1") | `
-Set-Content "$InstallDir/lib/pkgconfig/eigenpy.pc"
 
 ### Embedded the required dynamic library in the package folder
 Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
@@ -191,19 +134,11 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 }
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
-
-### Must remove lines 107 and 114 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(107, 114)
-$Contents = Get-Content "$RootDir/console_bridge/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/console_bridge/CMakeLists.txt"
-Set-PSDebug -Trace 1
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
@@ -211,19 +146,11 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
 }
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install urdfdom_headers ######################################
-
-### Must remove lines 51 and 56 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(51, 56)
-$Contents = Get-Content "$RootDir/urdfdom_headers/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/urdfdom_headers/CMakeLists.txt"
-Set-PSDebug -Trace 1
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
@@ -231,43 +158,11 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
 cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj" "$RootDir/urdfdom_headers"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################# Build and install urdfdom ###########################################
-
-### Patch line 71 of CMakeLists.txt to add TinyXML dependency to cmake configuration files generator
-$LineNumber = 71
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'set(PKG_DEPENDS urdfdom_headers console_bridge TinyXML)'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Patch line 81 of CMakeLists.txt to add TinyXML dependency to pkgconfig files generator
-$LineNumber = 81
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'set(PKG_URDF_LIBS "-lurdfdom_sensor -lurdfdom_model_state -lurdfdom_model -lurdfdom_world -ltinyxml")'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Must remove lines 78 and 86 of CMakefile.txt `if (NOT MSVC) ... endif()`
-$LineNumbers = @(78, 86)
-$Contents = Get-Content "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if (-Not ($LineNumbers -Contains $n)) {$_} ; $n++} | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Must patch /urdf_parser/CMakeLists.txt to disable library type enforced SHARED
-(Get-Content "$RootDir/urdfdom/urdf_parser/CMakeLists.txt").replace('SHARED ', '') | `
-Out-File -Encoding ASCII "$RootDir/urdfdom/urdf_parser/CMakeLists.txt"
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
@@ -275,152 +170,12 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################ Build and install Pinocchio ##########################################
-
-### Must add line after 337 (387 v2.1.2 eigenpy) of cmake/python.cmake to remove disk prefix in target names and shorten its name to less than 50 chars
-$LineNumber = 337
-$Contents = Get-Content "$RootDir/pinocchio/cmake/python.cmake"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'string(LENGTH ${FILE_TARGET_NAME} FILE_TARGET_LENGTH)
-math(EXPR FILE_TARGET_START "${FILE_TARGET_LENGTH}-50")
-if(${FILE_TARGET_START} LESS 3)
-  set(FILE_TARGET_START 3)
-endif()
-string(SUBSTRING ${FILE_TARGET_NAME} ${FILE_TARGET_START} -1 FILE_TARGET_NAME)
-'} ; $_ ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/cmake/python.cmake"
-Set-PSDebug -Trace 1
-
-### Replace line 170 of /CMakeLists.txt to include link directory of python and remove defined include headers directory
-$LineNumber = 170
-$Contents = Get-Content "$RootDir/pinocchio/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'link_directories("${PYTHON_LIBRARY_DIRS}")'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Add line at 129 to manually link eigenpy and urdfdom since pkgconfig has been patched to not do it automatically because it was generating errors...
-$LineNumber = 129
-$Contents = Get-Content "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/eigenpy.lib")
-TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/urdfdom_model.lib")
-TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/tinyxml.lib")
-TARGET_LINK_LIBRARIES(${PYWRAP} "${CMAKE_INSTALL_PREFIX}/lib/console_bridge.lib")
-'
-} ; $_ ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Remove line 66 of boost.cmake to disable library type enforced SHARED
-$LineNumber = 66
-$Contents = Get-Content "$RootDir/pinocchio/cmake/boost.cmake"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -ne $n) {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/cmake/boost.cmake"
-Set-PSDebug -Trace 1
-
-### Must patch /src/CMakefile.txt to disable library type enforced SHARED
-$Contents = Get-Content "$RootDir/pinocchio/src/CMakeLists.txt"
-($Contents -replace 'SHARED ','') | Out-File -Encoding ASCII "$RootDir/pinocchio/src/CMakeLists.txt"
-
-### Must patch line 148 of bindings/python/CMakeLists.txt to use the right Python library name
-$LineNumber = 148
-$Contents = Get-Content "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES
-                       PREFIX ""
-                       SUFFIX "${PYTHON_EXT_SUFFIX}"
-                       OUTPUT_NAME "${PYWRAP}")
-'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/CMakeLists.txt"
-Set-PSDebug -Trace 1
-
-### Replace recursively in all files the Python library name by the right one
-$configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.py, *.cpp -Recurse
-Set-PSDebug -Trace 0
-Foreach ($file in $configFiles)
-{
-  (Get-Content $file.PSPath) | `
-  Foreach-Object { $_ -replace 'libpinocchio_pywrap', 'pinocchio_pywrap' } | `
-  Out-File -Encoding ASCII $file.PSPath
-}
-Set-PSDebug -Trace 1
-
-### Remove every std::vector bindings of native types, since it makes absolutely no sense to bind such ambiguous types
-$configFiles = Get-ChildItem -Path "$RootDir/pinocchio/*" -Include *.hpp -Recurse
-Set-PSDebug -Trace 0
-Foreach ($file in $configFiles)
-{
-  (Get-Content $file.PSPath) | `
-  Where-Object {$_ -notmatch 'StdVectorPythonVisitor<'} | `
-  Set-Content $file.PSPath
-}
-Set-PSDebug -Trace 1
-
-### For some reason, the preprocessor directive `PINOCCHIO_EIGEN_PLAIN_TYPE((...))` is not properly generated. Expending it manually
-#   in src/algorithm/joint-configuration.hpp and src/algorithm/joint-configuration.hxx
-$FileNames = @("$RootDir/pinocchio/src/algorithm/joint-configuration.hpp", "$RootDir/pinocchio/src/algorithm/joint-configuration.hxx")
-$DirectiveOrign = 'PINOCCHIO_EIGEN_PLAIN_TYPE((typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType))'
-$DirectiveAfter = 'Eigen::internal::plain_matrix_type< typename pinocchio::helper::argument_type<void(typename ModelTpl<Scalar,Options,JointCollectionTpl>::ConfigVectorType)>::type >::type'
-Set-PSDebug -Trace 0
-Foreach ($file in $FileNames)
-{
-  (Get-Content $file).replace($DirectiveOrign, $DirectiveAfter) | Set-Content $file
-}
-Set-PSDebug -Trace 1
-
-### C-style overloading disambiguation is not working properly with MSVC when it requires double template substitution.
-#   Must patch line at 31 of bindings/python/algorithm/expose-geometry.cpp
-$LineNumber = 31
-$Contents = Get-Content "$RootDir/pinocchio/bindings/python/algorithm/expose-geometry.cpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'(void (*)(GeometryModel &, const Eigen::MatrixBase<Vector3d> &))&setGeometryMeshScales<Vector3d>,'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/algorithm/expose-geometry.cpp"
-Set-PSDebug -Trace 1
-
-### Patch line 285 (289 v2.3.1 pinocchio) of /src/algorithm/model.hxx to fix dot placed after the closing double quote by mistake, not supported by MSVC.
-$LineNumber = 285
-$Contents = Get-Content "$RootDir/pinocchio/src/algorithm/model.hxx"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'"The number of joints to lock is greater than the total of joints in the reduced_model.");'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/src/algorithm/model.hxx"
-Set-PSDebug -Trace 1
-
-### Patch the files using the 'not' operator, not supported by MSVC without "#include <iso646.h>" or "#include <ciso646>",  by '!'.
-(Get-Content "$RootDir/pinocchio/bindings/python/module.cpp").replace('if(not ', 'if(!') | `
-Set-Content "$RootDir/pinocchio/bindings/python/module.cpp"
-(Get-Content "$RootDir/pinocchio/src/algorithm/center-of-mass.hxx").replace('if(not ', 'if(!') | `
-Set-Content "$RootDir/pinocchio/src/algorithm/center-of-mass.hxx"
-
-### C-style overloading disambiguation is not working properly with MSVC.
-#   Must patch lines at 35 of bindings/python/multibody/joint/joint-derived.hpp
-$LineNumber = 35
-$Contents = Get-Content "$RootDir/pinocchio/bindings/python/multibody/joint/joint-derived.hpp"
-Set-PSDebug -Trace 0
-$Contents | Foreach {$n=1}{if ($LineNumber -eq $n) {
-'.def("setIndexes", bp::make_function(
-                    (void (JointModelDerived::*)(JointIndex, int, int))&JointModelDerived::setIndexes,
-                    bp::default_call_policies(),
-                    boost::mpl::vector<void, JointModelDerived, JointIndex, int, int>()))'
-} else {$_} ; $n++ } | `
-Out-File -Encoding ASCII "$RootDir/pinocchio/bindings/python/multibody/joint/joint-derived.hpp"
-Set-PSDebug -Trace 1
 
 ### Build and install pinocchio, finally !
 if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
@@ -428,13 +183,14 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 }
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
-      -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
-      -DBoost_USE_STATIC_LIBS=OFF  -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
-      -DBUILD_WITH_LUA_SUPPORT=OFF -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF `
-      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC"
+      -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF `
+      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON -DBoost_USE_STATIC_LIBS=OFF `
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4715 /permissive- $(
+)     -D_USE_MATH_DEFINES -DNOMINMAX -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DURDFDOM_STATIC -DPINOCCHIO_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ### Embedded the required dynamic library in the package folder

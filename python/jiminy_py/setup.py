@@ -37,6 +37,7 @@ setup(name = 'jiminy_py',
       distclass = BinaryDistribution,
       cmdclass = {'install': InstallPlatlib},
       install_requires = [
+          'wheel',
           'xmltodict',
           'pillow',
           'tqdm',
@@ -44,8 +45,12 @@ setup(name = 'jiminy_py',
           'scipy',
           'matplotlib',
           'meshcat @ git+https://github.com/rdeits/meshcat-python.git',  # Waiting for release 0.19
-          'psutil',
-          'requests_html',
-          'opencv-python'
-      ]
+          'psutil'
+      ],
+      extras_require = {
+        'record': [
+            'requests_html',
+            'opencv-python-headless'
+        ]
+      }
 )

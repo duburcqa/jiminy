@@ -1,0 +1,40 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 92762f1..8a0c334 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -68,7 +68,7 @@ endif()
+ 
+ set(PKG_NAME ${PROJECT_NAME})
+ set(PKG_LIBRARIES urdfdom_sensor urdfdom_model_state urdfdom_model urdfdom_world)
+-set(PKG_DEPENDS urdfdom_headers console_bridge)
++set(PKG_DEPENDS urdfdom_headers console_bridge TinyXML)
+ set(cmake_conf_file "cmake/urdfdom-config.cmake")
+ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${cmake_conf_file}.in" "${CMAKE_BINARY_DIR}/${cmake_conf_file}" @ONLY)
+ install(FILES ${CMAKE_BINARY_DIR}/${cmake_conf_file}
+diff --git a/urdf_parser/CMakeLists.txt b/urdf_parser/CMakeLists.txt
+index 3952064..6857f30 100644
+--- a/urdf_parser/CMakeLists.txt
++++ b/urdf_parser/CMakeLists.txt
+@@ -1,18 +1,18 @@
+ include_directories(include)
+ 
+-add_library(urdfdom_world SHARED src/pose.cpp src/model.cpp src/link.cpp src/joint.cpp src/world.cpp)
++add_library(urdfdom_world src/pose.cpp src/model.cpp src/link.cpp src/joint.cpp src/world.cpp)
+ target_link_libraries(urdfdom_world ${TinyXML_LIBRARIES} ${console_bridge_LIBRARIES})
+ set_target_properties(urdfdom_world PROPERTIES SOVERSION ${URDF_MAJOR_MINOR_VERSION})
+ 
+-add_library(urdfdom_model SHARED src/pose.cpp src/model.cpp src/link.cpp src/joint.cpp)
++add_library(urdfdom_model src/pose.cpp src/model.cpp src/link.cpp src/joint.cpp)
+ target_link_libraries(urdfdom_model ${TinyXML_LIBRARIES} ${console_bridge_LIBRARIES})
+ set_target_properties(urdfdom_model PROPERTIES SOVERSION ${URDF_MAJOR_MINOR_VERSION})
+ 
+-add_library(urdfdom_sensor SHARED src/urdf_sensor.cpp)
++add_library(urdfdom_sensor src/urdf_sensor.cpp)
+ target_link_libraries(urdfdom_sensor urdfdom_model ${TinyXML_LIBRARIES} ${console_bridge_LIBRARIES})
+ set_target_properties(urdfdom_sensor PROPERTIES SOVERSION ${URDF_MAJOR_MINOR_VERSION})
+ 
+-add_library(urdfdom_model_state SHARED src/urdf_model_state.cpp src/twist.cpp)
++add_library(urdfdom_model_state src/urdf_model_state.cpp src/twist.cpp)
+ target_link_libraries(urdfdom_model_state ${TinyXML_LIBRARIES} ${console_bridge_LIBRARIES})
+ set_target_properties(urdfdom_model_state PROPERTIES SOVERSION ${URDF_MAJOR_MINOR_VERSION})
+ 
