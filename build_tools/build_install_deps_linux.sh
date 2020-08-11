@@ -153,7 +153,7 @@ mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################ Build and install Pinocchio ##########################################
@@ -167,5 +167,5 @@ cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=11 -DCMAKE_INSTALL_PREFIX="$Inst
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON -DBoost_USE_STATIC_LIBS=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

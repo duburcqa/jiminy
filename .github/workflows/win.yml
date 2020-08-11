@@ -71,7 +71,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON `
-              -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DURDFDOM_STATIC -DURDFDOM_STATIC -DEIGENPY_STATIC -DPINOCCHIO_STATIC"
+              -DCMAKE_CXX_FLAGS="/EHsc /bigobj -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC"
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {

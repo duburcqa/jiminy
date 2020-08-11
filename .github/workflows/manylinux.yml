@@ -65,7 +65,7 @@ jobs:
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
               -DBoost_USE_STATIC_LIBS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="-DURDFDOM_STATIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+              -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
         make -j2
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
