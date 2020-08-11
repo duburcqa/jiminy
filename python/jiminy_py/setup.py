@@ -49,7 +49,7 @@ setup(name = 'jiminy_py',
       ],
       extras_require = {
         'record': [
-            'requests_html', 
+            'requests_html',
             'opencv-python-headless'
         ]
       }
