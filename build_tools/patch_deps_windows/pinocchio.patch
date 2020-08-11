@@ -68,7 +68,7 @@ index 9d72c12a..41aa429f 100644
 -      
 -      return J;
 -    }
-
+   
      void exposeJointsAlgo()
      {
        using namespace Eigen;
