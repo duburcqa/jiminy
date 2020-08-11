@@ -1,79 +1,20 @@
 diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
-index e94b56ca..c8e81fe4 100644
+index e94b56ca..60ee47cf 100644
 --- a/bindings/python/CMakeLists.txt
 +++ b/bindings/python/CMakeLists.txt
-@@ -100,11 +100,6 @@ IF(BUILD_PYTHON_INTERFACE)
-   
-   SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES PREFIX "") # Remove lib prefix for the target
- 
--  # Do not report:
--  #  -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
--  #  -Wcomment as latex equations have multi-line comments.
+@@ -103,7 +103,6 @@ IF(BUILD_PYTHON_INTERFACE)
+   # Do not report:
+   #  -Wconversion as the BOOST_PYTHON_FUNCTION_OVERLOADS implicitly converts.
+   #  -Wcomment as latex equations have multi-line comments.
 -  TARGET_COMPILE_OPTIONS(${PYWRAP} PRIVATE -Wno-conversion -Wno-comment)
--
+ 
    SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES VERSION ${PROJECT_VERSION})
    IF(BUILD_WITH_COMMIT_VERSION)
-     TAG_LIBRARY_VERSION(${PYWRAP})
 diff --git a/bindings/python/algorithm/expose-joints.cpp b/bindings/python/algorithm/expose-joints.cpp
-index 9d72c12a..7c1ded16 100644
+index 9d72c12a..41aa429f 100644
 --- a/bindings/python/algorithm/expose-joints.cpp
 +++ b/bindings/python/algorithm/expose-joints.cpp
-@@ -22,112 +22,11 @@ namespace pinocchio
-     {
-       return randomConfiguration(model);
-     }
--
--    bp::tuple dIntegrate_proxy(const Model & model,
--                               const Eigen::VectorXd & q,
--                               const Eigen::VectorXd & v)
--    {
--      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
--
--      dIntegrate(model,q,v,J0,ARG0);
--      dIntegrate(model,q,v,J1,ARG1);
--
--      return bp::make_tuple(J0,J1);
--    }
--
--    Eigen::MatrixXd dIntegrate_arg_proxy(const Model & model,
--                                         const Eigen::VectorXd & q,
--                                         const Eigen::VectorXd & v,
--                                         const ArgumentPosition arg)
--    {
--      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      
--      dIntegrate(model,q,v,J,arg, SETTO);
--      
--      return J;
--    }
--
--    bp::tuple dDifference_proxy(const Model & model,
--                                const Eigen::VectorXd & q1,
--                                const Eigen::VectorXd & q2)
--    {
--      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
--
--      dDifference(model,q1,q2,J0,ARG0);
--      dDifference(model,q1,q2,J1,ARG1);
--
--      return bp::make_tuple(J0,J1);
--    }
--
--    Eigen::MatrixXd dDifference_arg_proxy(const Model & model,
--                                          const Eigen::VectorXd & q1,
--                                          const Eigen::VectorXd & q2,
--                                          const ArgumentPosition arg)
--    {
--      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
--      
--      dDifference(model,q1,q2,J,arg);
--      
--      return J;
--    }
-   
-     void exposeJointsAlgo()
+@@ -77,57 +77,6 @@ namespace pinocchio
      {
        using namespace Eigen;
        
@@ -131,7 +72,7 @@ index 9d72c12a..7c1ded16 100644
        bp::def("squaredDistance",
                &squaredDistance<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
                bp::args("model","q1","q2"),
-@@ -146,27 +45,6 @@ namespace pinocchio
+@@ -146,27 +95,6 @@ namespace pinocchio
                "\tq1: the initial joint configuration vector (size model.nq)\n"
                "\tq2: the terminal joint configuration vector (size model.nq)\n");
  
