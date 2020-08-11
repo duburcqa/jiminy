@@ -1181,8 +1181,8 @@ def extract_viewer_data_from_log(log_data, robot):
 def play_trajectories(trajectory_data,
                       mesh_root_path=None,
                       replay_speed=1.0,
-                      record=False,
-                      video_path=None,
+                      record_video=False,
+                      output_directory=None,
                       reference_link=None,
                       viewers=None,
                       start_paused=False,
@@ -1194,7 +1194,8 @@ def play_trajectories(trajectory_data,
                       window_name='python-pinocchio',
                       scene_name='world',
                       close_backend=None,
-                      delete_robot_on_close=True):
+                      delete_robot_on_close=True,
+                      verbose=True):
     """!
     @brief      Replay one or several robot trajectories in a viewer.
 
@@ -1209,9 +1210,11 @@ def play_trajectories(trajectory_data,
                                     'use_theoretical_model':  whether the theoretical or actual model must be used
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
-
-
-
+    @param[in]  record_video        Whether or not to generate a video. For now, if this mode
+                                    is enabled, one must make sure that the time evolution of
+                                    each trajectories are the same, using a constant timestep.
+    @param[in]  output_directory    Output directory where to save generated data,
+                                    for instance the video if 'record_video' option is enabled.
     @param[in]  viewers             Optional, already instantiated viewers, associated one by one
                                     in order to each trajectory data.
     @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
@@ -1228,6 +1231,7 @@ def play_trajectories(trajectory_data,
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
     @param[in]  delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
+    @param[in]  verbose              Add information to keep track of the process.
 
     @return     The viewers used to play the trajectories.
     """
@@ -1289,31 +1293,46 @@ def play_trajectories(trajectory_data,
                 trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
         except Viewer._backend_exceptions:
             break
-    Viewer.wait(require_client=(not record))  # Wait for the meshes to finish loading
+    if verbose:
+        if backend == 'meshcat':
+            print("Waiting for meshcat client in browser to connect...")
+    Viewer.wait(require_client=(not record_video))  # Wait for the meshes to finish loading
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
-    if record:
-        # Play trajectories without multithreading and record
-        print('Beginning video recording...')
+    if record_video:
+        # Play trajectories without multithreading and record_video
+        if verbose:
+            print("Beginning video recording...")
+        try:
+            os.makedirs(output_directory)
+        except OSError:
+            pass
         img_array = []
-        for t in tqdm(range(len(trajectory_data[0]['evolution_robot'])), desc = "Loading frames"):
+        for i in tqdm(range(len(trajectory_data[0]['evolution_robot'])),
+                      desc="Loading frames"):
             for i in range(len(trajectory_data)):
                 viewers[i].display(trajectory_data[i]['evolution_robot'][t].q)
-                viewers[0].set_camera_transform(relative = reference_link)
-                frame = viewer.capture_frame(width=1000, height=1000)
-                img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-        size = (np.shape(img_array[0])[1], np.shape(img_array[0])[0])
-        subsampling_rate = trajectory_data[0]['evolution_robot'][1].t - trajectory_data[0]['evolution_robot'][0].t
-        print('The subsampling rate is :', subsampling_rate)
-        out = cv2.VideoWriter(video_path+'/'+'record.avi',cv2.VideoWriter_fourcc(*'DIVX'), fps=1000/subsampling_rate, frameSize=size)
-        for i in tqdm(range(len(img_array)), desc = 'Writing frames'):
+            viewers[0].set_camera_transform(relative=reference_link)
+            frame = viewers[0].capture_frame(width=1000, height=1000)
+            img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        subsampling_rate = trajectory_data[0]['evolution_robot'][1].t \
+                         - trajectory_data[0]['evolution_robot'][0].t
+        if verbose:
+            print(f"The subsampling rate is: {subsampling_rate}")
+        video_fullpath = os.path.join(output_directory, "record_video.avi")
+        out = cv2.VideoWriter(video_fullpath,
+                              cv2.VideoWriter_fourcc(*'DIVX'),
+                              fps=1000/subsampling_rate,
+                              frameSize=np.shape(img_array[0])[::-1])
+        for i in tqdm(range(len(img_array)), desc="Writing frames"):
             out.write(img_array[i])
         out.release()
-        print('Video output to: ',video_path+'/'+'record.avi')
+        if verbose:
+            print(f"Video output to: {video_fullpath}")
     else:
         # Play trajectories with multithreading
         threads = []
