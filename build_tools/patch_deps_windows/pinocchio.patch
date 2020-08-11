@@ -100,22 +100,6 @@ index 9d72c12a..41aa429f 100644
        bp::def("randomConfiguration",
                &randomConfiguration_proxy,
                bp::arg("model"),
-diff --git a/bindings/python/module.cpp b/bindings/python/module.cpp
-index dbaa8592..8d5f97e2 100644
---- a/bindings/python/module.cpp
-+++ b/bindings/python/module.cpp
-@@ -34,9 +34,9 @@ BOOST_PYTHON_MODULE(pinocchio_pywrap)
-   _PyWarnings_Init();
- #endif
-   
--  if(not register_symbolic_link_to_registered_type<Eigen::Quaterniond>())
-+  if(!register_symbolic_link_to_registered_type<Eigen::Quaterniond>())
-     eigenpy::exposeQuaternion();
--  if(not register_symbolic_link_to_registered_type<Eigen::AngleAxisd>())
-+  if(!register_symbolic_link_to_registered_type<Eigen::AngleAxisd>())
-     eigenpy::exposeAngleAxis();
-   
-   StdContainerFromPythonList< std::vector<std::string> >::register_converter();
 diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data.hpp
 index fecbf190..64e5c430 100644
 --- a/bindings/python/multibody/data.hpp
@@ -183,19 +167,6 @@ index b18e001f..d6ce025d 100644
  SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
  TARGET_COMPILE_DEFINITIONS(${PROJECT_NAME} PUBLIC ${CURRENT_COMPILE_DEFINITIONS})
  
-diff --git a/src/algorithm/center-of-mass.hxx b/src/algorithm/center-of-mass.hxx
-index c20ff702..77e0dc9f 100644
---- a/src/algorithm/center-of-mass.hxx
-+++ b/src/algorithm/center-of-mass.hxx
-@@ -411,7 +411,7 @@ namespace pinocchio
-     PINOCCHIO_CHECK_INPUT_ARGUMENT(data.mass[rootSubtreeId] > 0., "The mass of the subtree is not positive.");
-     const Scalar mass_inv_subtree = Scalar(1)/data.mass[rootSubtreeId];
-     typename Data::Vector3 & com_subtree = data.com[rootSubtreeId];
--    if(not computeSubtreeComs)
-+    if(!computeSubtreeComs)
-       com_subtree *= mass_inv_subtree;
- 
-     if(rootSubtreeId == 0)
 diff --git a/src/algorithm/joint-configuration.hpp b/src/algorithm/joint-configuration.hpp
 index 43ac12cc..2a8abe08 100644
 --- a/src/algorithm/joint-configuration.hpp
