@@ -39,7 +39,6 @@ jobs:
     - name: Setup minimal build environment
       run: |
         git config --global advice.detachedHead false
-        choco install pkgconfiglite -y
         python -m pip install numpy wheel
     - name: Build project dependencies
       run: |

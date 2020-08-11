@@ -28,9 +28,6 @@ if (Test-Path Env:/Boost_ROOT) {
   Remove-Item Env:/Boost_ROOT
 }
 
-### Add the generated pkgconfig file to the search path
-$Env:PKG_CONFIG_PATH = "$InstallDir/lib/pkgconfig;$InstallDir/share/pkgconfig"
-
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
@@ -107,7 +104,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
 Set-Location -Path "$RootDir/eigen3/build"
 cmake "$RootDir/eigen3" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=ON `
+      -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF `
       -DCMAKE_CXX_FLAGS="/bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
