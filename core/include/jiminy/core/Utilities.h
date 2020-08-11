@@ -100,6 +100,7 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
+    
     // ======================== is_vector ===========================
 
     template<typename T>
