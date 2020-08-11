@@ -1,0 +1,70 @@
+diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data.hpp
+index fecbf190..64e5c430 100644
+--- a/bindings/python/multibody/data.hpp
++++ b/bindings/python/multibody/data.hpp
+@@ -184,7 +184,6 @@ namespace pinocchio
+         
+         StdAlignedVectorPythonVisitor<Vector3, true>::expose("StdVec_vec3d");
+         StdAlignedVectorPythonVisitor<Matrix6x, true>::expose("StdVec_Matrix6x");
+-        StdVectorPythonVisitor<int>::expose("StdVec_int");
+       }
+ 
+     };
+diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/model.hpp
+index 57683816..1f17da7e 100644
+--- a/bindings/python/multibody/model.hpp
++++ b/bindings/python/multibody/model.hpp
+@@ -310,11 +310,6 @@ namespace pinocchio
+       /* --- Expose --------------------------------------------------------- */
+       static void expose()
+       {
+-        StdVectorPythonVisitor<Index>::expose("StdVec_Index");
+-        StdVectorPythonVisitor<IndexVector>::expose("StdVec_IndexVector");
+-        StdVectorPythonVisitor<std::string>::expose("StdVec_StdString");
+-        StdVectorPythonVisitor<bool>::expose("StdVec_Bool");
+-        StdVectorPythonVisitor<Scalar>::expose("StdVec_double");
+         bp::class_<typename Model::ConfigVectorMap>("StdMap_String_EigenVectorXd")
+           .def(bp::map_indexing_suite< typename Model::ConfigVectorMap, true >())
+           .def_pickle(PickleMap<typename Model::ConfigVectorMap>());
+Submodule cmake contains modified content
+diff --git a/cmake/boost.cmake b/cmake/boost.cmake
+index b2cf262..fbd00f3 100644
+--- a/cmake/boost.cmake
++++ b/cmake/boost.cmake
+@@ -70,7 +70,7 @@ MACRO(SEARCH_FOR_BOOST)
+   FIND_PACKAGE(Boost ${BOOST_REQUIRED})
+   STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
+   IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
+-    SET(BUILD_SHARED_LIBS ON)
++ 
+     SET(Boost_NO_BOOST_CMAKE ON)
+   ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
+ 
+diff --git a/cmake/python.cmake b/cmake/python.cmake
+index 3286da3..a142198 100644
+--- a/cmake/python.cmake
++++ b/cmake/python.cmake
+@@ -89,7 +89,9 @@ MACRO(FINDPYTHON)
+       SET(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
+       SET(Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE ${PYTHON_EXECUTABLE})
+ 
+-      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" REQUIRED COMPONENTS Interpreter Development)
++      FIND_PACKAGE("Python${_PYTHON_VERSION_MAJOR}" COMPONENTS Interpreter)
++      execute_process(COMMAND "${Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE}" -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())"
++                      OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE Python${_PYTHON_VERSION_MAJOR}_INCLUDE_DIRS)
+     ELSE()
+       # No hind was provided. We can then check for first Python 2, then Python 3
+       FIND_PACKAGE(Python2 QUIET COMPONENTS Interpreter Development)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index b18e001f..d6ce025d 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -14,7 +14,7 @@ ENDIF()
+ GET_DIRECTORY_PROPERTY(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
+ 
+ # Create target libpinocchio.so
+-ADD_LIBRARY(${PROJECT_NAME} SHARED ${HEADERS} ${${PROJECT_NAME}_SOURCES})
++ADD_LIBRARY(${PROJECT_NAME} ${HEADERS} ${${PROJECT_NAME}_SOURCES})
+ SET_TARGET_PROPERTIES(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
+ TARGET_COMPILE_DEFINITIONS(${PROJECT_NAME} PUBLIC ${CURRENT_COMPILE_DEFINITIONS})
+ 
