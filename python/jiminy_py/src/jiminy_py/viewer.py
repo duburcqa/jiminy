@@ -11,7 +11,6 @@ import shutil
 import signal
 import base64
 import atexit
-import cv2
 from tqdm import tqdm
 import asyncio
 import umsgpack
@@ -32,7 +31,6 @@ import meshcat
 import meshcat.transformations as mtf
 from meshcat.servers.zmqserver import (
     VIEWER_ROOT, StaticFileHandlerNoCache, ZMQWebSocketBridge, WebSocketHandler)
-from requests_html import HTMLSession
 
 import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
@@ -981,6 +979,7 @@ class Viewer:
             # Chromium browser, if not already started.
             if not Viewer._is_notebook():
                 if Viewer._backend_obj.webui is None:
+                    from requests_html import HTMLSession
                     Viewer._backend_obj.browser = HTMLSession()
                     Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
                         Viewer._backend_obj.gui.url())
@@ -1305,6 +1304,7 @@ def play_trajectories(trajectory_data,
     # Replay the trajectory
     if record_video:
         # Play trajectories without multithreading and record_video
+        import cv2
         if verbose:
             print("Beginning video recording...")
         try:
