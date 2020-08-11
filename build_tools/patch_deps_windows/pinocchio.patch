@@ -14,6 +14,100 @@ index e94b56ca..c8e81fe4 100644
    SET_TARGET_PROPERTIES(${PYWRAP} PROPERTIES VERSION ${PROJECT_VERSION})
    IF(BUILD_WITH_COMMIT_VERSION)
      TAG_LIBRARY_VERSION(${PYWRAP})
+diff --git a/bindings/python/algorithm/expose-joints.cpp b/bindings/python/algorithm/expose-joints.cpp
+index 9d72c12a..c34a71b2 100644
+--- a/bindings/python/algorithm/expose-joints.cpp
++++ b/bindings/python/algorithm/expose-joints.cpp
+@@ -35,43 +35,6 @@ namespace pinocchio
+ 
+       return bp::make_tuple(J0,J1);
+     }
+-
+-    Eigen::MatrixXd dIntegrate_arg_proxy(const Model & model,
+-                                         const Eigen::VectorXd & q,
+-                                         const Eigen::VectorXd & v,
+-                                         const ArgumentPosition arg)
+-    {
+-      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-      
+-      dIntegrate(model,q,v,J,arg, SETTO);
+-      
+-      return J;
+-    }
+-
+-    bp::tuple dDifference_proxy(const Model & model,
+-                                const Eigen::VectorXd & q1,
+-                                const Eigen::VectorXd & q2)
+-    {
+-      Eigen::MatrixXd J0(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-      Eigen::MatrixXd J1(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-
+-      dDifference(model,q1,q2,J0,ARG0);
+-      dDifference(model,q1,q2,J1,ARG1);
+-
+-      return bp::make_tuple(J0,J1);
+-    }
+-
+-    Eigen::MatrixXd dDifference_arg_proxy(const Model & model,
+-                                          const Eigen::VectorXd & q1,
+-                                          const Eigen::VectorXd & q2,
+-                                          const ArgumentPosition arg)
+-    {
+-      Eigen::MatrixXd J(Eigen::MatrixXd::Zero(model.nv,model.nv));
+-      
+-      dDifference(model,q1,q2,J,arg);
+-      
+-      return J;
+-    }
+   
+     void exposeJointsAlgo()
+     {
+@@ -97,17 +60,6 @@ namespace pinocchio
+               "\tq: the joint configuration vector (size model.nq)\n"
+               "\tv: the joint velocity vector (size model.nv)\n");
+ 
+-      bp::def("dIntegrate",
+-              &dIntegrate_arg_proxy,
+-              bp::args("model","q","v","argument_position"),
+-              "Computes the partial derivatives of the integrate function with respect to the first (arg == ARG0) "
+-              "or the second argument (arg == ARG1).\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq: the joint configuration vector (size model.nq)\n"
+-              "\tv: the joint velocity vector (size model.nv)\n"
+-              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
+-
+       bp::def("interpolate",
+               &interpolate<double,0,JointCollectionDefaultTpl,VectorXd,VectorXd>,
+               bp::args("model","q1","q2","alpha"),
+@@ -146,27 +98,6 @@ namespace pinocchio
+               "\tq1: the initial joint configuration vector (size model.nq)\n"
+               "\tq2: the terminal joint configuration vector (size model.nq)\n");
+ 
+-      bp::def("dDifference",
+-              &dDifference_proxy,
+-              bp::args("model","q1","q2"),
+-              "Computes the partial derivatives of the difference function with respect to the first "
+-              "and the second argument, and returns the two Jacobians as a tuple.\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq1: the initial joint configuration vector (size model.nq)\n"
+-              "\tq2: the terminal joint configuration vector (size model.nq)\n");
+-      
+-      bp::def("dDifference",
+-              &dDifference_arg_proxy,
+-              bp::args("model","q1","q2","argument_position"),
+-              "Computes the partial derivatives of the difference function with respect to the first (arg == ARG0) "
+-              "or the second argument (arg == ARG1).\n\n"
+-              "Parameters:\n"
+-              "\tmodel: model of the kinematic tree\n"
+-              "\tq1: the initial joint configuration vector (size model.nq)\n"
+-              "\tq2: the terminal joint configuration vector (size model.nq)\n"
+-              "\targument_position: either pinocchio.ArgumentPosition.ARG0 or pinocchio.ArgumentPosition.ARG1, depending on the desired Jacobian value.\n");
+-      
+       bp::def("randomConfiguration",
+               &randomConfiguration_proxy,
+               bp::arg("model"),
 diff --git a/bindings/python/module.cpp b/bindings/python/module.cpp
 index dbaa8592..8d5f97e2 100644
 --- a/bindings/python/module.cpp
