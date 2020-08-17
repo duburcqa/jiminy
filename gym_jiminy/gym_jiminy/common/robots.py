@@ -93,7 +93,6 @@ class RobotJiminyEnv(core.Env):
         ## Current observation of the robot
         self.is_running = False
         self.observation = None
-        self.action_prev = None
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
@@ -388,7 +387,6 @@ class RobotJiminyEnv(core.Env):
         # Reset some internal buffers
         self.is_running = False
         self._steps_beyond_done = None
-        self.action_prev = None
         self._update_observation(self.observation)
 
         return self.observation
@@ -405,7 +403,6 @@ class RobotJiminyEnv(core.Env):
         """
         self.engine_py.step(action_next=action, dt_desired=self.dt)
         self.is_running = True
-        self.action_prev = action
 
         # Extract information about the current simulation state
         self._update_observation(self.observation)

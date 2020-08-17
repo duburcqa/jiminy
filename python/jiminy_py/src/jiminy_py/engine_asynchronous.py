@@ -239,7 +239,7 @@ class EngineAsynchronous:
                     self._viewer.set_camera_transform(
                         translation=[0.0, 9.0, 2e-5],
                         rotation=[np.pi/2, 0.0, np.pi])
-                self._viewer.wait(True)  # Wait for backend to finish loading
+                self._viewer.wait(False)  # Wait for backend to finish loading
 
             # Refresh viewer
             self._viewer.refresh()

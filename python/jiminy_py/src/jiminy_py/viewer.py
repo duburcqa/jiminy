@@ -104,20 +104,16 @@ def start_zmq_server():
 
         def validate_absolute_path(self, root, absolute_path):
             if os.path.isdir(absolute_path):
-                if not self.request.path.endswith("/"):
-                    self.redirect(self.request.path + "/", permanent=True)
-                    return None
-                return os.path.join(self.fallback_path, self.default_filename)
+                absolute_path = os.path.join(absolute_path, self.default_filename)
+                return self.validate_absolute_path(root, absolute_path)
             if os.path.exists(absolute_path) and \
                     os.path.basename(absolute_path) != self.default_filename:
                 return super().validate_absolute_path(root, absolute_path)
-            else:
-                return os.path.join(
-                    self.fallback_path, absolute_path[(len(root)+1):])
+            return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
 
     def make_app(self):
         return tornado.web.Application([
-            (r"/static/(.*)", MyFileHandler, {
+            (r"/static/?(.*)", MyFileHandler, {
                 "default_path": VIEWER_ROOT,
                 "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
                 "default_filename": "index.html"}),
@@ -168,7 +164,10 @@ def start_zmq_server():
     # Meshcat server deamon, using in/out argument to get the
     # zmq url instead of reading stdout as it was.
     def meshcat_zmqserver(zmq_url):
-        asyncio.get_event_loop()  # It automatically create a new event loop if needed
+        # Do NOT use the original even loop, if any, to avoid
+        # Runtime Error in Jupyter "event loop is already running".
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         with open(os.devnull, 'w') as f:
             with redirect_stderr(f):
                 bridge = ZMQWebSocketBridge()
