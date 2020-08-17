@@ -45,12 +45,8 @@ setup(name = 'jiminy_py',
           'scipy',
           'matplotlib',
           'meshcat>=0.0.18',
-          'psutil'
-      ],
-      extras_require = {
-        'record': [
-            'requests_html',
-            'opencv-python-headless'
-        ]
-      }
+          'psutil',
+          'requests_html',
+          'opencv-python-headless<=4.3.0.36'
+      ]
 )
