@@ -171,15 +171,9 @@ class RobotJiminyEnv(core.Env):
                 -JOINT_POS_UNIVERSAL_MAX
             position_limit_upper[joints_position_idx] = \
                 +JOINT_POS_UNIVERSAL_MAX
-        else:
-            # Joint bounds are not hard bounds, so margins need to be added
-            position_limit_lower[joints_position_idx] -= 5.0e-2
-            position_limit_upper[joints_position_idx] += 5.0e-2
 
         if not model_options['joints']['enableVelocityLimit']:
             velocity_limit[joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
-        else:
-            velocity_limit[joints_velocity_idx] += 2.0e-0
 
         # Replace inf bounds by the appropriate universal bound for the action space
         for motor_name in self.robot.motors_names:
@@ -320,7 +314,8 @@ class RobotJiminyEnv(core.Env):
         """
         @brief      Determine whether the episode is over
 
-        @details    By default, it always returns False.
+        @details    By default, it returns True if the observation reaches or
+                    exceeds the lower or upper limit.
 
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called
@@ -328,7 +323,7 @@ class RobotJiminyEnv(core.Env):
 
         @return     Boolean flag
         """
-        return False
+        return not self.observation_space.contains(self.observation)
 
     def _compute_reward(self):
         """
