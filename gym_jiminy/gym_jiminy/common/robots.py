@@ -9,7 +9,8 @@
 import time
 import numpy as np
 
-from gym import core, spaces, logger
+import gym
+from gym import logger
 from gym.utils import seeding
 
 from pinocchio import neutral
@@ -39,7 +40,7 @@ SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
 T_UNIVERSAL_MAX = 10000.0
 
 
-class RobotJiminyEnv(core.Env):
+class RobotJiminyEnv(gym.core.Env):
     """
     @brief      Base class to train a robot in Gym OpenAI using a user-specified
                 Python Jiminy engine for physics computations.
@@ -92,7 +93,7 @@ class RobotJiminyEnv(core.Env):
 
         ## Current observation of the robot
         self.is_running = False
-        self.observation = None
+        self._observation = None
 
         ## Information about the learning process
         self.learning_info = {'is_success': False}
@@ -187,7 +188,7 @@ class RobotJiminyEnv(core.Env):
         action_low  = -effort_limit[motors_velocity_idx]
         action_high = +effort_limit[motors_velocity_idx]
 
-        self.action_space = spaces.Box(
+        self.action_space = gym.spaces.Box(
             low=action_low, high=action_high, dtype=np.float64)
 
         ## Sensor space
@@ -251,8 +252,8 @@ class RobotJiminyEnv(core.Env):
             sensor_space_raw[imu.type]['max'][accel_imu_idx,:] = \
                 +SENSOR_ACCEL_UNIVERSAL_MAX
 
-        sensor_space = spaces.Dict({
-            key: spaces.Box(
+        sensor_space = gym.spaces.Dict({
+            key: gym.spaces.Box(
                 low=value["min"], high=value["max"], dtype=np.float64)
             for key, value in sensor_space_raw.items()
         })
@@ -263,19 +264,19 @@ class RobotJiminyEnv(core.Env):
         state_limit_upper = np.concatenate(
             (position_limit_upper, velocity_limit))
 
-        self.observation_space = spaces.Dict(
-            t = spaces.Box(
+        self.observation_space = gym.spaces.Dict(
+            t = gym.spaces.Box(
                 low=0.0,
                 high=T_UNIVERSAL_MAX,
                 shape=(1,), dtype=np.float64),
-            state = spaces.Box(
+            state = gym.spaces.Box(
                 low=state_limit_lower,
                 high=state_limit_upper,
                 dtype=np.float64),
             sensors = sensor_space
         )
 
-        self.observation = {'t': None, 'state': None, 'sensors': None}
+        self._observation = {'t': None, 'state': None, 'sensors': None}
 
     def _sample_state(self):
         """
@@ -310,6 +311,25 @@ class RobotJiminyEnv(core.Env):
             for sensor_type in self.engine_py.sensors_data.keys()
         }
 
+    @property
+    def observation(self):
+        """
+        @brief      Post-process observation.
+
+        @details    The default implementation clamps the observation to make
+                    sure it does not violate the lower and upper bounds.
+        """
+        def _clamp(space, x):
+            if isinstance(space, gym.spaces.Dict):
+                return {
+                    k: _clamp(subspace, x[k])
+                    for k, subspace in space.spaces.items()
+                }
+            else:
+                return np.clip(x, space.lower, space.upper)
+
+        return _clamp(self.observation_space, self._observation)
+
     def _is_done(self):
         """
         @brief      Determine whether the episode is over
@@ -323,7 +343,7 @@ class RobotJiminyEnv(core.Env):
 
         @return     Boolean flag
         """
-        return not self.observation_space.contains(self.observation)
+        return not self.observation_space.contains(self._observation)
 
     def _compute_reward(self):
         """
@@ -382,7 +402,7 @@ class RobotJiminyEnv(core.Env):
         # Reset some internal buffers
         self.is_running = False
         self._steps_beyond_done = None
-        self._update_observation(self.observation)
+        self._update_observation(self._observation)
 
         return self.observation
 
@@ -400,7 +420,7 @@ class RobotJiminyEnv(core.Env):
         self.is_running = True
 
         # Extract information about the current simulation state
-        self._update_observation(self.observation)
+        self._update_observation(self._observation)
         done = self._is_done()
         self.learning_info = {'is_success': done}
 
@@ -412,9 +432,10 @@ class RobotJiminyEnv(core.Env):
                 self._steps_beyond_done = 0
             else:
                 if self._steps_beyond_done == 0:
-                    logger.warn("You are calling 'step()' even though this environment has already \
-                                 returned done = True. You should always call 'reset()' once you \
-                                 receive 'done = True' -- any further steps are undefined behavior.")
+                    logger.warn(
+                        "You are calling 'step()' even though this environment has already"\
+                        "returned done = True. You should always call 'reset()' once you"\
+                        "receive 'done = True' -- any further steps are undefined behavior.")
                 self._steps_beyond_done += 1
 
         return self.observation, reward, done, self.learning_info
@@ -466,7 +487,7 @@ class RobotJiminyEnv(core.Env):
         return self.engine_py.engine
 
 
-class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
+class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
     """
     @brief      Base class to train a robot in Gym OpenAI using a user-specified
                 Jiminy Engine for physics computations.
@@ -505,10 +526,10 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         super()._refresh_learning_spaces()
 
         ## Append default desired and achieved goal spaces to the observation space
-        self.observation_space = spaces.Dict(
-            desired_goal=spaces.Box(
+        self.observation_space = gym.spaces.Dict(
+            desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
-            achieved_goal=spaces.Box(
+            achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
             observation=self.observation_space)
 
@@ -548,13 +569,17 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, core.GoalEnv):
         @param[in]  achieved_goal   Achieved goal
         @param[in]  desired_goal    Desired goal
 
+        @details    By default, it returns True if the observation reaches or
+                    exceeds the lower or upper limit.
+
         @remark     This is a hidden function that is not listed as part of the
                     member methods of the class. It is not intended to be called
                     manually.
 
         @return     Boolean flag
         """
-        raise NotImplementedError()
+        return not self.observation_space.spaces['observation'].contains(
+            self.observation['observation'])
 
     def _compute_reward(self):
         # @copydoc RobotJiminyEnv::_compute_reward
