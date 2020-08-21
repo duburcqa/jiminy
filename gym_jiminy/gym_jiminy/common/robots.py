@@ -5,7 +5,6 @@
 
 @brief      Package containing python-native helper methods for Gym Jiminy Open Source.
 """
-import os
 import time
 import tempfile
 import numpy as np
@@ -327,11 +326,17 @@ class RobotJiminyEnv(gym.core.Env):
 
     def _sample_state(self):
         """
-        @brief      Returns a random valid configuration and velocity for the robot.
+        @brief      Returns a random valid configuration and velocity for the
+                    robot.
 
-        @details    The default implementation only return the neural configuration,
-                    with offsets on the freeflyer to ensure no contact points are
-                    going through the ground and a single one is touching it.
+        @details    The default implementation only return the neural
+                    configuration, with offsets on the freeflyer to ensure no
+                    contact points are going through the ground and a single
+                    one is touching it.
+
+        @remark     This method is called internally by 'reset' to generate the
+                    initial state. It can be overloaded to act as a random
+                    state generator.
         """
         qpos = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
@@ -393,20 +398,21 @@ class RobotJiminyEnv(gym.core.Env):
         """
         @brief      Compute reward at current episode state.
 
-        @details    By default it always return 0.0, without extra info.
+        @details    By default it always return 'nan', without extra info.
 
         @return     The computed reward, and any extra info useful for
                     monitoring as a dictionary.
         """
-        return 0.0, {}
+        return float('nan'), {}
 
     def _compute_reward_terminal(self):
         """
         @brief      Compute terminal reward at current episode final state.
 
-        @details    By default it always return 0.0, without extra info.
+        @details    Implementation is optional. Not computing terminal reward
+                    if not overloaded by the user.
 
-        @return     The computed reward, and any extra info useful for
+        @return     The computed terminal reward, and any extra info useful for
                     monitoring as a dictionary.
         """
         raise NotImplementedError
@@ -447,6 +453,10 @@ class RobotJiminyEnv(gym.core.Env):
         # Reset the simulator and set the initial state
         self.engine_py.reset(np.concatenate((qpos, qvel)))
 
+        # Reset some internal buffers
+        self._steps_beyond_done = None
+        self._log_data = None
+
         # Clear the log file
         if self.debug is not None:
             self._log_file.truncate(0)
@@ -455,7 +465,7 @@ class RobotJiminyEnv(gym.core.Env):
         """
         @brief      Reset the environment.
 
-        @details    The initial state is randomly sampled.
+        @details    The initial state is obtained by calling '_sample_state'.
 
         @return     Initial state of the episode
         """
@@ -467,10 +477,6 @@ class RobotJiminyEnv(gym.core.Env):
 
         # Refresh the observation and action spaces
         self._refresh_learning_spaces()
-
-        # Reset some internal buffers
-        self._steps_beyond_done = None
-        self._log_data = None
         self._update_obs(self._observation)
 
         return self._get_obs()
