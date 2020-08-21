@@ -253,9 +253,9 @@ class EngineAsynchronous:
             self._is_viewer_available = True
         except RuntimeError as e:
             # Check if it failed because viewer backend is no longer available
-            if self._is_viewer_available and Viewer._backend_obj is None or \
+            if self._is_viewer_available and (Viewer._backend_obj is None or \
                 (self._viewer.is_backend_parent and \
-                    self._viewer._backend_proc.poll() is not None):
+                    not self._viewer._backend_proc.is_alive())):
                 # Reset viewer backend
                 self._viewer.close()
                 self._viewer = None

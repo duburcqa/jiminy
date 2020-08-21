@@ -508,7 +508,7 @@ class RobotJiminyEnv(gym.core.Env):
         else:
             log_data, _ = self.engine.get_log()
         self.engine_py._viewer = play_logfiles(self.robot, log_data,
-            viewers=self.engine_py._viewer, close_backend=False, **kwargs)[0]
+            viewers=[self.engine_py._viewer], close_backend=False, **kwargs)[0]
 
     @staticmethod
     def _key_to_action(key):
