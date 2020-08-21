@@ -109,28 +109,43 @@ class RobotJiminyEnv(gym.core.Env):
         self.seed()
         self.reset()
 
-    def _setup_environment(self):
-        # Enforce some options by default for the robot and the engine
+    @property
+    def robot(self):
+        return self.engine_py.robot
 
+    @property
+    def engine(self):
+        return self.engine_py.engine
+
+    # methods to override:
+    # ----------------------------
+
+    def _set_options(self):
+        """
+        @brief      Set options of the backend engine and robot.
+
+        @details    This method is called systematically during reset.
+        """
+        # Extract some proxies
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        ### Disable completely the telemetry in non debug mode to speed up the simulation
+        # Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
             if field[:6] == 'enable':
                 engine_options["telemetry"][field] = self.debug
 
-        ### Set the position and velocity bounds of the robot
+        # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        ### Set the effort limits of the motors
+        # Set the effort limits of the motors
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        ### Configure the stepper update period, and disable max number of iterations and timeout
+        # Configure the stepper update period, and disable max number of iterations and timeout
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
@@ -144,6 +159,11 @@ class RobotJiminyEnv(gym.core.Env):
         self.engine_py.set_engine_options(engine_options)
 
     def _refresh_learning_spaces(self):
+        """
+        @brief      Configure the observation and action space of the environment.
+
+        @details    This method is called systematically during reset.
+        """
         ## Define some proxies for convenience
         sensors_data = self.engine_py.sensors_data
         model_options = self.robot.get_model_options()
@@ -282,23 +302,22 @@ class RobotJiminyEnv(gym.core.Env):
 
     def _sample_state(self):
         """
-        @brief      Returns a random valid initial state.
+        @brief      Returns a random valid configuration and velocity for the robot.
 
         @details    The default implementation only return the neural configuration,
                     with offsets on the freeflyer to ensure no contact points are
                     going through the ground and a single one is touching it.
         """
-        q0 = neutral(self.robot.pinocchio_model)
+        qpos = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
             ground_fun = self.engine.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, q0, ground_profile=ground_fun,
+                self.robot, qpos, ground_profile=ground_fun,
                 use_theoretical_model=False)
-        v0 = np.zeros(self.robot.nv)
-        x0 = np.concatenate((q0, v0))
-        return x0
+        qvel = np.zeros(self.robot.nv)
+        return qpos, qvel
 
-    def _update_observation(self, obs):
+    def _update_obs(self, obs):
         """
         @brief      Update the observation based on the current state of the robot.
         """
@@ -360,6 +379,8 @@ class RobotJiminyEnv(gym.core.Env):
         """
         raise NotImplementedError
 
+    # -----------------------------
+
     def seed(self, seed=None):
         """
         @brief      Specify the seed of the environment.
@@ -387,6 +408,17 @@ class RobotJiminyEnv(gym.core.Env):
 
         return [self._seed]
 
+    def set_state(self, qpos, qvel):
+        """
+        @brief      Reset the simulation and specify the initial state of the robot.
+        """
+        # Reset the simulator and set the initial state
+        self.engine_py.reset(np.concatenate((qpos, qvel)))
+
+        # Clear the log file
+        if self.debug is not None:
+            self.log_file.truncate(0)
+
     def reset(self):
         """
         @brief      Reset the environment.
@@ -396,10 +428,10 @@ class RobotJiminyEnv(gym.core.Env):
         @return     Initial state of the episode
         """
         # Make sure the environment is properly setup
-        self._setup_environment()
+        self._set_options()
 
         # Reset the low-level engine
-        self.engine_py.reset(self._sample_state())
+        self.set_state(*self._sample_state())
 
         # Refresh the observation and action spaces
         self._refresh_learning_spaces()
@@ -407,7 +439,7 @@ class RobotJiminyEnv(gym.core.Env):
         # Reset some internal buffers
         self._steps_beyond_done = None
         self._log_data = None
-        self._update_observation(self._observation)
+        self._update_obs(self._observation)
 
         return self._get_obs()
 
@@ -426,9 +458,9 @@ class RobotJiminyEnv(gym.core.Env):
             self.engine_py.step(action_next=action, dt_desired=self.dt)
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
-            self._update_observation(self._observation)
+            self._update_obs(self._observation)
             return self._get_obs(), 0.0, True, {'is_success': False}
-        self._update_observation(self._observation)
+        self._update_obs(self._observation)
 
         # Check if the simulation is over and if not already the case
         done = self._is_done()
@@ -506,6 +538,13 @@ class RobotJiminyEnv(gym.core.Env):
         self.engine_py._viewer = play_logfiles([self.robot], [log_data],
             viewers=[self.engine_py._viewer], close_backend=False, **kwargs)[0]
 
+    def close(self):
+        """
+        @brief      Terminate the Python Jiminy engine. Mostly defined for
+                    compatibility with Gym OpenAI.
+        """
+        self.engine_py.close()
+
     @staticmethod
     def _key_to_action(key):
         raise NotImplementedError
@@ -521,21 +560,6 @@ class RobotJiminyEnv(gym.core.Env):
         self.render()
         sleep(self.dt - (time.time() - t_init))
         return done
-
-    def close(self):
-        """
-        @brief      Terminate the Python Jiminy engine. Mostly defined for
-                    compatibility with Gym OpenAI.
-        """
-        self.engine_py.close()
-
-    @property
-    def robot(self):
-        return self.engine_py.robot
-
-    @property
-    def engine(self):
-        return self.engine_py.engine
 
 
 class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
@@ -603,9 +627,9 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         """
         raise NotImplementedError
 
-    def _update_observation(self, obs):
-        # @copydoc RobotJiminyEnv::_update_observation
-        super()._update_observation(obs['observation'])
+    def _update_obs(self, obs):
+        # @copydoc RobotJiminyEnv::_update_obs
+        super()._update_obs(obs['observation'])
         obs['achieved_goal'] = self._get_achieved_goal(),
         obs['desired_goal'] = self.goal.copy()
 
