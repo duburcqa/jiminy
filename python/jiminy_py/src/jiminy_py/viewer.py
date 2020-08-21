@@ -243,8 +243,8 @@ class Viewer:
         @param urdf_rgba      RGBA color to use to display this robot, as a list of 4 floating-point
                               values between 0.0 and 1.0.
                               Optional: It will override the original color of the meshes if specified.
--       @param lock           Custom threading.Lock
--                             Optional: Only required for parallel rendering using multiprocessing.
+        @param lock           Custom threading.Lock
+                              Optional: Only required for parallel rendering using multiprocessing.
                                         It is required since some backends does not support multiple
                                         simultaneous connections (e.g. corbasever).
         @param backend        The name of the desired backend to use for rendering. It can be

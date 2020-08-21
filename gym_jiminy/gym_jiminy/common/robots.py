@@ -9,6 +9,7 @@ import os
 import time
 import tempfile
 import numpy as np
+from typing import Optional
 
 import gym
 from gym import logger
@@ -42,29 +43,28 @@ T_UNIVERSAL_MAX = 10000.0
 
 class RobotJiminyEnv(gym.core.Env):
     """
-    @brief      Base class to train a robot in Gym OpenAI using a user-specified
-                Python Jiminy engine for physics computations.
+    @brief      Base class to train a robot in Gym OpenAI using a
+                user-specified Python Jiminy engine for physics computations.
 
-                It creates an Gym environment wrapping Jiminy Engine and behaves
-                like any other Gym environment.
-
-    @details    The Python Jiminy engine must be completely initialized beforehand,
-                which means that the Jiminy Robot and Controller are already setup.
-                For now, the only engine available is `EngineAsynchronous`.
+                It creates an Gym environment wrapping Jiminy Engine and
+                behaves like any other Gym environment.
     """
 
     def __init__(self,
-                 engine_py: EngineAsynchronous,
+                 engine_py: Optional[EngineAsynchronous],
                  dt: float,
                  debug: bool = False):
         """
         @brief      Constructor
 
-        @param[in]  engine_py   Python Jiminy engine used for physics computations.
-                                It must be completely initialized. For now, the
-                                only engine available is `EngineAsynchronous`.
+        @param[in]  engine_py   Python Jiminy engine used for physics
+                                computations. For now, the only engine
+                                available is `EngineAsynchronous`. Not
+                                required provided that '_setup_environment'
+                                has been overwritten such that 'self.engine_py'
+                                is a valid and completely initialized engine.
         @param[in]  dt          Desired update period of the simulation
-        @param[in]  debug       Whether or not the debug mode must be activated.
+        @param[in]  debug       Whether or not the debug mode must be enabled.
                                 Doing it enables telemetry recording.
 
         @return     Instance of the environment.
@@ -79,7 +79,11 @@ class RobotJiminyEnv(gym.core.Env):
         self.dt = dt
         self.debug = debug
         self._log_data = None
-        self.log_file = tempfile.NamedTemporaryFile(prefix="log_", suffix=".png") if debug else None
+        if self.debug is not None:
+            self._log_file = tempfile.NamedTemporaryFile(
+                prefix="log_", suffix=".png")
+        else:
+            self._log_file = None
 
         ## Set the metadata of the environment. Those information are
         #  used by some gym wrappers such as VideoRecorder.
@@ -117,14 +121,27 @@ class RobotJiminyEnv(gym.core.Env):
     def engine(self):
         return self.engine_py.engine
 
+    @property
+    def log_path(self):
+        if self.debug is not None:
+            return self._log_file.name
+
     # methods to override:
     # ----------------------------
 
-    def _set_options(self):
+    def _setup_environment(self):
         """
-        @brief      Set options of the backend engine and robot.
+        @brief      Configure the environment. It must guarantee that its
+                    internal state is valid after calling this method.
 
-        @details    This method is called systematically during reset.
+        @details    By default, it enforces some options of the engine.
+
+        @remark     This method is called internally by 'reset' method at the
+                    very beginning. This method can be overwritten to postpone
+                    the engine and robot creation at 'reset'. One have to
+                    delegate the creation and initialization of the engine to
+                    this method, so that it alleviates the requirement to
+                    specify a valid the engine at environment instantiation.
         """
         # Extract some proxies
         robot_options = self.robot.get_options()
@@ -160,9 +177,17 @@ class RobotJiminyEnv(gym.core.Env):
 
     def _refresh_learning_spaces(self):
         """
-        @brief      Configure the observation and action space of the environment.
+        @brief      Configure the observation and action space of the
+                    environment.
 
-        @details    This method is called systematically during reset.
+        @details    By default, the observation is a dictionary gathering the
+                    current simulation time, the real robot state, and the
+                    sensors data.
+
+        @remark     This method is called internally by 'reset' method at the
+                    very end, just before computing and returning the initial
+                    observation.  This method, alongside '_update_obs', must be
+                    overwritten in order to use a custom observation space.
         """
         ## Define some proxies for convenience
         sensors_data = self.engine_py.sensors_data
@@ -319,7 +344,14 @@ class RobotJiminyEnv(gym.core.Env):
 
     def _update_obs(self, obs):
         """
-        @brief      Update the observation based on the current state of the robot.
+        @brief      Update the observation based on the current state of the
+                    robot.
+
+        @details    By default, no filtering is applied on the raw data extracted
+                    from the engine.
+
+        @remark     This method, alongside '_refresh_learning_spaces', must be
+                    overwritten in order to use a custom observation space.
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
@@ -417,7 +449,7 @@ class RobotJiminyEnv(gym.core.Env):
 
         # Clear the log file
         if self.debug is not None:
-            self.log_file.truncate(0)
+            self._log_file.truncate(0)
 
     def reset(self):
         """
@@ -428,7 +460,7 @@ class RobotJiminyEnv(gym.core.Env):
         @return     Initial state of the episode
         """
         # Make sure the environment is properly setup
-        self._set_options()
+        self._setup_environment()
 
         # Reset the low-level engine
         self.set_state(*self._sample_state())
@@ -487,7 +519,7 @@ class RobotJiminyEnv(gym.core.Env):
             if self._steps_beyond_done is None:
                 # Write log file if simulation is over (debug mode only)
                 if self.debug:
-                    self.engine.write_log(self.log_file.name)
+                    self.engine.write_log(self.log_path)
 
                 if self._steps_beyond_done == 0 and \
                         self._enable_reward_terminal:
