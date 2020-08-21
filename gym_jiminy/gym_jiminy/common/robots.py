@@ -53,20 +53,13 @@ class RobotJiminyEnv(gym.core.Env):
                 For now, the only engine available is `EngineAsynchronous`.
     """
 
-    ## Metadata of the environment
-    metadata = {
-        'render.modes': ['human']
-    }
-
     def __init__(self,
-                 robot_name: str,
                  engine_py: EngineAsynchronous,
                  dt: float,
                  debug: bool = False):
         """
         @brief      Constructor
 
-        @param[in]  robot_name  Name of the robot
         @param[in]  engine_py   Python Jiminy engine used for physics computations.
                                 It must be completely initialized. For now, the
                                 only engine available is `EngineAsynchronous`.
@@ -79,9 +72,6 @@ class RobotJiminyEnv(gym.core.Env):
 
         # ###################### Configure the learning environment ######################
 
-        ## Name of the robot
-        self.robot_name = robot_name
-
         ## Jiminy engine associated with the robot (used for physics computations)
         self.engine_py = engine_py
         self.rg = np.random.RandomState()
@@ -89,8 +79,14 @@ class RobotJiminyEnv(gym.core.Env):
         self.dt = dt
         self.debug = debug
         self._log_data = None
-        self.log_path = os.path.join(
-            tempfile.gettempdir(), f"log_{robot_name}.data") if debug else None
+        self.log_file = tempfile.NamedTemporaryFile(prefix="log_", suffix=".png") if debug else None
+
+        ## Set the metadata of the environment. Those information are
+        #  used by some gym wrappers such as VideoRecorder.
+        self.metadata = {
+            'render.modes': ['human', 'rgb_array', 'depth_array'],
+            'video.frames_per_second': int(np.round(1.0 / self.dt))
+        }
 
         ## Configure the action and observation spaces
         self.action_space = None
@@ -104,18 +100,14 @@ class RobotJiminyEnv(gym.core.Env):
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
             is not RobotJiminyEnv._compute_reward_terminal
 
-        self._steps_beyond_done = None
         ## Number of simulation steps performed after episode termination
+        self._steps_beyond_done = None
 
         # ############################# Initialize the engine ############################
 
         ## Set the seed of the simulation and reset the simulation
         self.seed()
         self.reset()
-
-    def __del__(self):
-        if self.debug:
-            os.remove(self.log_path)
 
     def _setup_environment(self):
         # Enforce some options by default for the robot and the engine
@@ -463,7 +455,7 @@ class RobotJiminyEnv(gym.core.Env):
             if self._steps_beyond_done is None:
                 # Write log file if simulation is over (debug mode only)
                 if self.debug:
-                    self.engine.write_log(self.log_path)
+                    self.engine.write_log(self.log_file.name)
 
                 if self._steps_beyond_done == 0 and \
                         self._enable_reward_terminal:
@@ -511,7 +503,7 @@ class RobotJiminyEnv(gym.core.Env):
             log_data = self._log_data
         else:
             log_data, _ = self.engine.get_log()
-        self.engine_py._viewer = play_logfiles(self.robot, log_data,
+        self.engine_py._viewer = play_logfiles([self.robot], [log_data],
             viewers=[self.engine_py._viewer], close_backend=False, **kwargs)[0]
 
     @staticmethod

@@ -236,7 +236,8 @@ class EngineAsynchronous:
 
         @return     Rendering as an RGB array (3D numpy array) if enabled, None otherwise.
         """
-        # Instantiate the robot and viewer client if necessary
+        # Instantiate the robot and viewer client if necessary.
+        # A new dedicated scene and window will be created.
         if not self._is_viewer_available:
             uniq_id = next(tempfile._get_candidate_names())
             self._viewer = Viewer(self.robot,

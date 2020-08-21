@@ -228,29 +228,42 @@ class Viewer:
                  backend=None,
                  delete_robot_on_close=False,
                  close_backend_at_exit=True,
-                 robot_name="robot",
+                 robot_name=None,
                  window_name='jiminy',
                  scene_name='world'):
         """
         @brief Constructor.
 
         @param robot          The jiminy.Robot to display.
-        @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible model for this robot.
-        @param mesh_root_path Optional, path to the folder containing the URDF meshes.
-        @param urdf_rgba      Color to use to display this robot (rgba).
+        @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible
+                                       model for this robot.
+        @param mesh_root_path    Path to the folder containing the URDF meshes.
+                                 Optional: Must only be specified for relative mesh paths.
+                                           It will override any absolute mesh path if specified.
+        @param urdf_rgba      RGBA color to use to display this robot, as a list of 4 floating-point
+                              values between 0.0 and 1.0.
+                              Optional: It will override the original color of the meshes if specified.
 -       @param lock           Custom threading.Lock
 -                             Optional: Only required for parallel rendering using multiprocessing.
-                              It is required since some backends does not support multiple
-                              simultaneous connections (e.g. corbasever).
-        @param backend        The name of the desired backend to use for rendering.
-                              Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+                                        It is required since some backends does not support multiple
+                                        simultaneous connections (e.g. corbasever).
+        @param backend        The name of the desired backend to use for rendering. It can be
+                              either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+                              Optional: 'gepetto-gui' by default if available and not running
+                                        inside a notebook, 'meshcat' otherwise.
         @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
         @param close_backend_at_exit     Terminate backend server at Python exit.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
-        @param scene_name     Scene name, used only when gepetto-gui is used as backend.
+                              Optional: Randomly generated identifier by default.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
                               Note that it is not allowed to be equal to the window name.
+        @param scene_name     Scene name, used only when gepetto-gui is used as backend.
         """
+        # Handling of default arguments
+        if robot_name is None:
+            uniq_id = next(tempfile._get_candidate_names())
+            robot_name="_".join(("robot", uniq_id))
+
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.robot_name = robot_name
