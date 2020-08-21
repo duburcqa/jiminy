@@ -5,8 +5,9 @@
 
 @brief      Package containing python-native helper methods for Gym Jiminy Open Source.
 """
-
+import os
 import time
+import tempfile
 import numpy as np
 
 import gym
@@ -20,7 +21,7 @@ from jiminy_py.core import EncoderSensor as enc, \
                            ImuSensor as imu
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
-from jiminy_py.viewer import sleep
+from jiminy_py.viewer import sleep, play_logfiles
 
 from .render_out_mock import RenderOutMock
 from .play import loop_interactive
@@ -71,6 +72,8 @@ class RobotJiminyEnv(gym.core.Env):
                                 It must be completely initialized. For now, the
                                 only engine available is `EngineAsynchronous`.
         @param[in]  dt          Desired update period of the simulation
+        @param[in]  debug       Whether or not the debug mode must be activated.
+                                Doing it enables telemetry recording.
 
         @return     Instance of the environment.
         """
@@ -86,6 +89,9 @@ class RobotJiminyEnv(gym.core.Env):
         self._seed = None
         self.dt = dt
         self.debug = debug
+        self._log_data = None
+        self.log_path = os.path.join(
+            tempfile.gettempdir(), f"log_{robot_name}.data") if debug else None
 
         ## Configure the action and observation spaces
         self.action_space = None
@@ -96,16 +102,22 @@ class RobotJiminyEnv(gym.core.Env):
         self._observation = None
 
         ## Information about the learning process
-        self.learning_info = {'is_success': False}
+        self._info = {'is_success': False}
+        self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
+            is not RobotJiminyEnv._compute_reward_terminal
 
-        ## Number of simulation steps performed after having met the stopping criterion
         self._steps_beyond_done = None
+        ## Number of simulation steps performed after episode termination
 
         # ############################# Initialize the engine ############################
 
         ## Set the seed of the simulation and reset the simulation
         self.seed()
         self.reset()
+
+    def __del__(self):
+        if self.debug:
+            os.remove(self.log_path)
 
     def _setup_environment(self):
         # Enforce some options by default for the robot and the engine
@@ -299,10 +311,6 @@ class RobotJiminyEnv(gym.core.Env):
     def _update_observation(self, obs):
         """
         @brief      Update the observation based on the current state of the robot.
-
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
@@ -311,10 +319,9 @@ class RobotJiminyEnv(gym.core.Env):
             for sensor_type in self.engine_py.sensors_data.keys()
         }
 
-    @property
-    def observation(self):
+    def _get_obs(self):
         """
-        @brief      Post-process observation.
+        @brief      Post-processed observation.
 
         @details    The default implementation clamps the observation to make
                     sure it does not violate the lower and upper bounds.
@@ -326,7 +333,7 @@ class RobotJiminyEnv(gym.core.Env):
                     for k, subspace in space.spaces.items()
                 }
             else:
-                return np.clip(x, space.lower, space.upper)
+                return np.clip(x, space.low, space.high)
 
         return _clamp(self.observation_space, self._observation)
 
@@ -337,23 +344,31 @@ class RobotJiminyEnv(gym.core.Env):
         @details    By default, it returns True if the observation reaches or
                     exceeds the lower or upper limit.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     Boolean flag
         """
         return not self.observation_space.contains(self._observation)
 
     def _compute_reward(self):
         """
-        @brief      Compute the reward at the current episode state.
+        @brief      Compute reward at current episode state.
 
-        @details    By default it always return 0.0.
+        @details    By default it always return 0.0, without extra info.
 
-        @return     The computed reward.
+        @return     The computed reward, and any extra info useful for
+                    monitoring as a dictionary.
         """
-        return 0.0
+        return 0.0, {}
+
+    def _compute_reward_terminal(self):
+        """
+        @brief      Compute terminal reward at current episode final state.
+
+        @details    By default it always return 0.0, without extra info.
+
+        @return     The computed reward, and any extra info useful for
+                    monitoring as a dictionary.
+        """
+        raise NotImplementedError
 
     def seed(self, seed=None):
         """
@@ -402,9 +417,10 @@ class RobotJiminyEnv(gym.core.Env):
         # Reset some internal buffers
         self.is_running = False
         self._steps_beyond_done = None
+        self._log_data = None
         self._update_observation(self._observation)
 
-        return self.observation
+        return self._get_obs()
 
     def step(self, action):
         """
@@ -416,29 +432,48 @@ class RobotJiminyEnv(gym.core.Env):
         @return     The next observation, the reward, the status of the episode
                     (done or not), and a dictionary of extra information
         """
+        # Perform a single simulation step
         self.engine_py.step(action_next=action, dt_desired=self.dt)
+        self._update_observation(self._observation)
         self.is_running = True
 
-        # Extract information about the current simulation state
-        self._update_observation(self._observation)
+        # Check if the simulation is over and if not already the case
         done = self._is_done()
-        self.learning_info = {'is_success': done}
-
-        reward = self._compute_reward()
-
-        # Make sure the simulation is not already over
         if done:
             if self._steps_beyond_done is None:
                 self._steps_beyond_done = 0
             else:
                 if self._steps_beyond_done == 0:
                     logger.warn(
-                        "You are calling 'step()' even though this environment has already"\
-                        "returned done = True. You should always call 'reset()' once you"\
-                        "receive 'done = True' -- any further steps are undefined behavior.")
+                        "Calling 'step' even though this environment has "\
+                        "already returned done = True whereas debug mode or "\
+                        "terminal reward is enabled. You must call 'reset' "\
+                        "to avoid further undefined behavior.")
                 self._steps_beyond_done += 1
 
-        return self.observation, reward, done, self.learning_info
+        # Compute reward and extra information
+        self._info = {'is_success': done}
+        reward, reward_info = self._compute_reward()
+        self._info.update(reward_info)
+
+        # Finalize the episode is the simulation is over
+        if done:
+            if self._steps_beyond_done is None:
+                # Write log file if simulation is over (debug mode only)
+                if self.debug:
+                    self.engine.write_log(self.log_path)
+
+                if self._steps_beyond_done == 0 and self._enable_reward_terminal:
+                    # Extract log data from the simulation, which
+                    # could be used for computing terminal reward.
+                    self._log_data, _ = self.engine.get_log()
+
+                    # Compute the terminal reward
+                    reward_final, reward_final_info = self._compute_reward_terminal()
+                    reward += reward_final
+                    self._info.update(reward_final_info)
+
+        return self._get_obs(), reward, done, self._info
 
     def render(self, mode=None, **kwargs):
         """
@@ -447,17 +482,30 @@ class RobotJiminyEnv(gym.core.Env):
         @details    Do not suport Multi-Rendering RGB output because it is not
                     possible to create window in new tabs programmatically.
 
-        @param[in]  mode    Unused. Defined for compatibility with Gym OpenAI.
+        @param[in]  mode     Unused. Defined for compatibility with Gym OpenAI.
+        @param[in]  kwargs   Extra keyword arguments for 'Viewer' delegation.
 
         @return     Fake output for compatibility with Gym OpenAI.
         """
-
         self.engine_py.render(return_rgb_array=False, **kwargs)
         return RenderOutMock()
 
+    def replay(self, **kwargs):
+        """
+        @brief      Replay the current episode until now.
+
+        @param[in]  kwargs   Extra keyword arguments for 'play_logfiles' delegation.
+        """
+        if self._log_data is not None:
+            log_data = self._log_data
+        else:
+            log_data, _ = self.engine.get_log()
+        self.engine_py._viewer = play_logfiles(self.robot, log_data,
+            viewers=self.engine_py._viewer, close_backend=False, **kwargs)[0]
+
     @staticmethod
     def _key_to_action(key):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @loop_interactive()
     def play_interactive(self, key=None):
@@ -542,19 +590,15 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         """
         @brief      Samples a new goal and returns it.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _get_achieved_goal(self):
         """
         @brief      Compute the achieved goal based on the current state of the robot.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     The currently achieved goal
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _update_observation(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
@@ -572,20 +616,16 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         @details    By default, it returns True if the observation reaches or
                     exceeds the lower or upper limit.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     Boolean flag
         """
         return not self.observation_space.spaces['observation'].contains(
-            self.observation['observation'])
+            self._observation['observation'])
 
     def _compute_reward(self):
         # @copydoc RobotJiminyEnv::_compute_reward
-        return self.compute_reward(self.observation['achieved_goal'],
-                                   self.observation['desired_goal'],
-                                   self.learning_info)
+        return self.compute_reward(self._observation['achieved_goal'],
+                                   self._observation['desired_goal'],
+                                   self._info)
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """
@@ -596,10 +636,11 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         @param[in]  info            Dictionary of extra information
                                     (must NOT be used, since not available using HER)
 
-        @return     The computed reward.
+        @return     The computed reward, and any extra info useful for
+                    monitoring as a dictionary.
         """
         # Must NOT use info, since it is not available while using HER (Experience Replay)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def reset(self):
         # @copydoc RobotJiminyEnv::reset
