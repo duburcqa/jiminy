@@ -14,6 +14,8 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
+DEFAULT_SIZE = 500
+
 class EngineAsynchronous:
     """
     @brief      Wrapper of Jiminy enabling to update of the command and run simulation
@@ -214,7 +216,10 @@ class EngineAsynchronous:
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self.engine.stepper_state.dt
 
-    def render(self, return_rgb_array=False):
+    def render(self,
+               return_rgb_array=False,
+               width=DEFAULT_SIZE,
+               height=DEFAULT_SIZE):
         """
         @brief      Render the current state of the simulation. One can display it
                     in Gepetto-viewer or return an RGB array.
@@ -224,13 +229,13 @@ class EngineAsynchronous:
                     processes at the same time in different tabs.
                     Note that returning an RGB array is not supported by Meshcat in Jupyter.
 
-        @param[in]  return_rgb_array    Updated command
-                                        Optional: Use the value in the internal buffer otherwise
+        @param[in]  return_rgb_array    Whether or not to return the current frame as an rgb array.
+                                        Not that this feature is currently not available in Jupyter.
+        @param[in]  width    Width of the returned RGB frame if enabled.
+        @param[in]  height    Width of the returned RGB frame if enabled.
 
-        @return     Low-resolution rendering as an RGB array (3D numpy array)
+        @return     Rendering as an RGB array (3D numpy array) if enabled, None otherwise.
         """
-        rgb_array = None
-
         # Instantiate the robot and viewer client if necessary
         if not self._is_viewer_available:
             uniq_id = next(tempfile._get_candidate_names())
@@ -262,15 +267,14 @@ class EngineAsynchronous:
                 self._is_viewer_available = False
 
                 # Retry rendering one more time
-                return self.render(return_rgb_array)
+                return self.render(return_rgb_array, width, height)
             else:
                 raise RuntimeError(
                     "Unrecoverable Viewer backend exception.") from e
 
         # Compute rgb array if needed
         if return_rgb_array:
-            rgb_array = self._viewer.capture_frame()
-        return rgb_array
+            return self._viewer.capture_frame(width, height)
 
     def close(self):
         """

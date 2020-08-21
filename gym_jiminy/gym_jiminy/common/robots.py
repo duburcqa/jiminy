@@ -23,7 +23,6 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 from jiminy_py.viewer import sleep, play_logfiles
 
-from .render_out_mock import RenderOutMock
 from .play import loop_interactive
 
 
@@ -482,7 +481,7 @@ class RobotJiminyEnv(gym.core.Env):
 
         return self._get_obs(), reward, done, self._info
 
-    def render(self, mode=None, **kwargs):
+    def render(self, mode='human', **kwargs):
         """
         @brief      Render the current state of the robot.
 
@@ -494,8 +493,13 @@ class RobotJiminyEnv(gym.core.Env):
 
         @return     Fake output for compatibility with Gym OpenAI.
         """
-        self.engine_py.render(return_rgb_array=False, **kwargs)
-        return RenderOutMock()
+        if mode == 'human':
+            return_rgb_array = False
+        elif mode == 'rgb_array':
+            return_rgb_array = True
+        else:
+            raise ValueError(f"Rendering mode {mode} not supported.")
+        return self.engine_py.render(return_rgb_array, **kwargs)
 
     def replay(self, **kwargs):
         """
