@@ -98,7 +98,6 @@ class RobotJiminyEnv(gym.core.Env):
         self.observation_space = None
 
         ## Current observation of the robot
-        self.is_running = False
         self._observation = None
 
         ## Information about the learning process
@@ -415,7 +414,6 @@ class RobotJiminyEnv(gym.core.Env):
         self._refresh_learning_spaces()
 
         # Reset some internal buffers
-        self.is_running = False
         self._steps_beyond_done = None
         self._log_data = None
         self._update_observation(self._observation)
@@ -432,10 +430,14 @@ class RobotJiminyEnv(gym.core.Env):
         @return     The next observation, the reward, the status of the episode
                     (done or not), and a dictionary of extra information
         """
-        # Perform a single simulation step
-        self.engine_py.step(action_next=action, dt_desired=self.dt)
+        # Try to perform a single simulation step
+        try:
+            self.engine_py.step(action_next=action, dt_desired=self.dt)
+        except RuntimeError as e:
+            logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
+            self._update_observation(self._observation)
+            return self._get_obs(), 0.0, True, {'is_success': False}
         self._update_observation(self._observation)
-        self.is_running = True
 
         # Check if the simulation is over and if not already the case
         done = self._is_done()
@@ -454,7 +456,8 @@ class RobotJiminyEnv(gym.core.Env):
         # Compute reward and extra information
         self._info = {'is_success': done}
         reward, reward_info = self._compute_reward()
-        self._info.update(reward_info)
+        if reward_info is not None:
+            self._info['reward'] = reward_info
 
         # Finalize the episode is the simulation is over
         if done:
@@ -463,15 +466,19 @@ class RobotJiminyEnv(gym.core.Env):
                 if self.debug:
                     self.engine.write_log(self.log_path)
 
-                if self._steps_beyond_done == 0 and self._enable_reward_terminal:
+                if self._steps_beyond_done == 0 and \
+                        self._enable_reward_terminal:
                     # Extract log data from the simulation, which
                     # could be used for computing terminal reward.
                     self._log_data, _ = self.engine.get_log()
 
                     # Compute the terminal reward
-                    reward_final, reward_final_info = self._compute_reward_terminal()
+                    reward_final, reward_final_info = \
+                        self._compute_reward_terminal()
                     reward += reward_final
-                    self._info.update(reward_final_info)
+                    if reward_final_info is not None:
+                        self._info.setdefault('reward', {}).update(
+                            reward_final_info)
 
         return self._get_obs(), reward, done, self._info
 
