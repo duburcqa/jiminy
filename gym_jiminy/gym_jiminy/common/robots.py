@@ -5,9 +5,10 @@
 
 @brief      Package containing python-native helper methods for Gym Jiminy Open Source.
 """
-
 import time
+import tempfile
 import numpy as np
+from typing import Optional
 
 import gym
 from gym import logger
@@ -20,9 +21,8 @@ from jiminy_py.core import EncoderSensor as enc, \
                            ImuSensor as imu
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
-from jiminy_py.viewer import sleep
+from jiminy_py.viewer import sleep, play_logfiles
 
-from .render_out_mock import RenderOutMock
 from .play import loop_interactive
 
 
@@ -42,43 +42,34 @@ T_UNIVERSAL_MAX = 10000.0
 
 class RobotJiminyEnv(gym.core.Env):
     """
-    @brief      Base class to train a robot in Gym OpenAI using a user-specified
-                Python Jiminy engine for physics computations.
+    @brief      Base class to train a robot in Gym OpenAI using a
+                user-specified Python Jiminy engine for physics computations.
 
-                It creates an Gym environment wrapping Jiminy Engine and behaves
-                like any other Gym environment.
-
-    @details    The Python Jiminy engine must be completely initialized beforehand,
-                which means that the Jiminy Robot and Controller are already setup.
-                For now, the only engine available is `EngineAsynchronous`.
+                It creates an Gym environment wrapping Jiminy Engine and
+                behaves like any other Gym environment.
     """
 
-    ## Metadata of the environment
-    metadata = {
-        'render.modes': ['human']
-    }
-
     def __init__(self,
-                 robot_name: str,
-                 engine_py: EngineAsynchronous,
+                 engine_py: Optional[EngineAsynchronous],
                  dt: float,
                  debug: bool = False):
         """
         @brief      Constructor
 
-        @param[in]  robot_name  Name of the robot
-        @param[in]  engine_py   Python Jiminy engine used for physics computations.
-                                It must be completely initialized. For now, the
-                                only engine available is `EngineAsynchronous`.
+        @param[in]  engine_py   Python Jiminy engine used for physics
+                                computations. For now, the only engine
+                                available is `EngineAsynchronous`. Not
+                                required provided that '_setup_environment'
+                                has been overwritten such that 'self.engine_py'
+                                is a valid and completely initialized engine.
         @param[in]  dt          Desired update period of the simulation
+        @param[in]  debug       Whether or not the debug mode must be enabled.
+                                Doing it enables telemetry recording.
 
         @return     Instance of the environment.
         """
 
         # ###################### Configure the learning environment ######################
-
-        ## Name of the robot
-        self.robot_name = robot_name
 
         ## Jiminy engine associated with the robot (used for physics computations)
         self.engine_py = engine_py
@@ -86,19 +77,33 @@ class RobotJiminyEnv(gym.core.Env):
         self._seed = None
         self.dt = dt
         self.debug = debug
+        self._log_data = None
+        if self.debug is not None:
+            self._log_file = tempfile.NamedTemporaryFile(
+                prefix="log_", suffix=".png")
+        else:
+            self._log_file = None
+
+        ## Set the metadata of the environment. Those information are
+        #  used by some gym wrappers such as VideoRecorder.
+        self.metadata = {
+            'render.modes': ['human', 'rgb_array', 'depth_array'],
+            'video.frames_per_second': int(np.round(1.0 / self.dt))
+        }
 
         ## Configure the action and observation spaces
         self.action_space = None
         self.observation_space = None
 
         ## Current observation of the robot
-        self.is_running = False
         self._observation = None
 
         ## Information about the learning process
-        self.learning_info = {'is_success': False}
+        self._info = {'is_success': False}
+        self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
+            is not RobotJiminyEnv._compute_reward_terminal
 
-        ## Number of simulation steps performed after having met the stopping criterion
+        ## Number of simulation steps performed after episode termination
         self._steps_beyond_done = None
 
         # ############################# Initialize the engine ############################
@@ -107,28 +112,56 @@ class RobotJiminyEnv(gym.core.Env):
         self.seed()
         self.reset()
 
-    def _setup_environment(self):
-        # Enforce some options by default for the robot and the engine
+    @property
+    def robot(self):
+        return self.engine_py.robot
 
+    @property
+    def engine(self):
+        return self.engine_py.engine
+
+    @property
+    def log_path(self):
+        if self.debug is not None:
+            return self._log_file.name
+
+    # methods to override:
+    # ----------------------------
+
+    def _setup_environment(self):
+        """
+        @brief      Configure the environment. It must guarantee that its
+                    internal state is valid after calling this method.
+
+        @details    By default, it enforces some options of the engine.
+
+        @remark     This method is called internally by 'reset' method at the
+                    very beginning. This method can be overwritten to postpone
+                    the engine and robot creation at 'reset'. One have to
+                    delegate the creation and initialization of the engine to
+                    this method, so that it alleviates the requirement to
+                    specify a valid the engine at environment instantiation.
+        """
+        # Extract some proxies
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        ### Disable completely the telemetry in non debug mode to speed up the simulation
+        # Disable completely the telemetry in non debug mode to speed up the simulation
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
             if field[:6] == 'enable':
                 engine_options["telemetry"][field] = self.debug
 
-        ### Set the position and velocity bounds of the robot
+        # Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        ### Set the effort limits of the motors
+        # Set the effort limits of the motors
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        ### Configure the stepper update period, and disable max number of iterations and timeout
+        # Configure the stepper update period, and disable max number of iterations and timeout
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
@@ -142,6 +175,19 @@ class RobotJiminyEnv(gym.core.Env):
         self.engine_py.set_engine_options(engine_options)
 
     def _refresh_learning_spaces(self):
+        """
+        @brief      Configure the observation and action space of the
+                    environment.
+
+        @details    By default, the observation is a dictionary gathering the
+                    current simulation time, the real robot state, and the
+                    sensors data.
+
+        @remark     This method is called internally by 'reset' method at the
+                    very end, just before computing and returning the initial
+                    observation.  This method, alongside '_update_obs', must be
+                    overwritten in order to use a custom observation space.
+        """
         ## Define some proxies for convenience
         sensors_data = self.engine_py.sensors_data
         model_options = self.robot.get_model_options()
@@ -280,29 +326,37 @@ class RobotJiminyEnv(gym.core.Env):
 
     def _sample_state(self):
         """
-        @brief      Returns a random valid initial state.
+        @brief      Returns a random valid configuration and velocity for the
+                    robot.
 
-        @details    The default implementation only return the neural configuration,
-                    with offsets on the freeflyer to ensure no contact points are
-                    going through the ground and a single one is touching it.
+        @details    The default implementation only return the neural
+                    configuration, with offsets on the freeflyer to ensure no
+                    contact points are going through the ground and a single
+                    one is touching it.
+
+        @remark     This method is called internally by 'reset' to generate the
+                    initial state. It can be overloaded to act as a random
+                    state generator.
         """
-        q0 = neutral(self.robot.pinocchio_model)
+        qpos = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
             ground_fun = self.engine.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
-                self.robot, q0, ground_profile=ground_fun,
+                self.robot, qpos, ground_profile=ground_fun,
                 use_theoretical_model=False)
-        v0 = np.zeros(self.robot.nv)
-        x0 = np.concatenate((q0, v0))
-        return x0
+        qvel = np.zeros(self.robot.nv)
+        return qpos, qvel
 
-    def _update_observation(self, obs):
+    def _update_obs(self, obs):
         """
-        @brief      Update the observation based on the current state of the robot.
+        @brief      Update the observation based on the current state of the
+                    robot.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
+        @details    By default, no filtering is applied on the raw data extracted
+                    from the engine.
+
+        @remark     This method, alongside '_refresh_learning_spaces', must be
+                    overwritten in order to use a custom observation space.
         """
         obs['t'] = self.engine_py.t
         obs['state'] = self.engine_py.state
@@ -311,10 +365,9 @@ class RobotJiminyEnv(gym.core.Env):
             for sensor_type in self.engine_py.sensors_data.keys()
         }
 
-    @property
-    def observation(self):
+    def _get_obs(self):
         """
-        @brief      Post-process observation.
+        @brief      Post-processed observation.
 
         @details    The default implementation clamps the observation to make
                     sure it does not violate the lower and upper bounds.
@@ -326,7 +379,7 @@ class RobotJiminyEnv(gym.core.Env):
                     for k, subspace in space.spaces.items()
                 }
             else:
-                return np.clip(x, space.lower, space.upper)
+                return np.clip(x, space.low, space.high)
 
         return _clamp(self.observation_space, self._observation)
 
@@ -337,23 +390,34 @@ class RobotJiminyEnv(gym.core.Env):
         @details    By default, it returns True if the observation reaches or
                     exceeds the lower or upper limit.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     Boolean flag
         """
         return not self.observation_space.contains(self._observation)
 
     def _compute_reward(self):
         """
-        @brief      Compute the reward at the current episode state.
+        @brief      Compute reward at current episode state.
 
-        @details    By default it always return 0.0.
+        @details    By default it always return 'nan', without extra info.
 
-        @return     The computed reward.
+        @return     The computed reward, and any extra info useful for
+                    monitoring as a dictionary.
         """
-        return 0.0
+        return float('nan'), {}
+
+    def _compute_reward_terminal(self):
+        """
+        @brief      Compute terminal reward at current episode final state.
+
+        @details    Implementation is optional. Not computing terminal reward
+                    if not overloaded by the user.
+
+        @return     The computed terminal reward, and any extra info useful for
+                    monitoring as a dictionary.
+        """
+        raise NotImplementedError
+
+    # -----------------------------
 
     def seed(self, seed=None):
         """
@@ -382,11 +446,26 @@ class RobotJiminyEnv(gym.core.Env):
 
         return [self._seed]
 
+    def set_state(self, qpos, qvel):
+        """
+        @brief      Reset the simulation and specify the initial state of the robot.
+        """
+        # Reset the simulator and set the initial state
+        self.engine_py.reset(np.concatenate((qpos, qvel)))
+
+        # Reset some internal buffers
+        self._steps_beyond_done = None
+        self._log_data = None
+
+        # Clear the log file
+        if self.debug is not None:
+            self._log_file.truncate(0)
+
     def reset(self):
         """
         @brief      Reset the environment.
 
-        @details    The initial state is randomly sampled.
+        @details    The initial state is obtained by calling '_sample_state'.
 
         @return     Initial state of the episode
         """
@@ -394,17 +473,13 @@ class RobotJiminyEnv(gym.core.Env):
         self._setup_environment()
 
         # Reset the low-level engine
-        self.engine_py.reset(self._sample_state())
+        self.set_state(*self._sample_state())
 
         # Refresh the observation and action spaces
         self._refresh_learning_spaces()
+        self._update_obs(self._observation)
 
-        # Reset some internal buffers
-        self.is_running = False
-        self._steps_beyond_done = None
-        self._update_observation(self._observation)
-
-        return self.observation
+        return self._get_obs()
 
     def step(self, action):
         """
@@ -416,48 +491,101 @@ class RobotJiminyEnv(gym.core.Env):
         @return     The next observation, the reward, the status of the episode
                     (done or not), and a dictionary of extra information
         """
-        self.engine_py.step(action_next=action, dt_desired=self.dt)
-        self.is_running = True
+        # Try to perform a single simulation step
+        try:
+            self.engine_py.step(action_next=action, dt_desired=self.dt)
+        except RuntimeError as e:
+            logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
+            self._update_obs(self._observation)
+            return self._get_obs(), 0.0, True, {'is_success': False}
+        self._update_obs(self._observation)
 
-        # Extract information about the current simulation state
-        self._update_observation(self._observation)
+        # Check if the simulation is over and if not already the case
         done = self._is_done()
-        self.learning_info = {'is_success': done}
-
-        reward = self._compute_reward()
-
-        # Make sure the simulation is not already over
         if done:
             if self._steps_beyond_done is None:
                 self._steps_beyond_done = 0
             else:
                 if self._steps_beyond_done == 0:
                     logger.warn(
-                        "You are calling 'step()' even though this environment has already"\
-                        "returned done = True. You should always call 'reset()' once you"\
-                        "receive 'done = True' -- any further steps are undefined behavior.")
+                        "Calling 'step' even though this environment has "\
+                        "already returned done = True whereas debug mode or "\
+                        "terminal reward is enabled. You must call 'reset' "\
+                        "to avoid further undefined behavior.")
                 self._steps_beyond_done += 1
 
-        return self.observation, reward, done, self.learning_info
+        # Compute reward and extra information
+        self._info = {'is_success': done}
+        reward, reward_info = self._compute_reward()
+        if reward_info is not None:
+            self._info['reward'] = reward_info
 
-    def render(self, mode=None, **kwargs):
+        # Finalize the episode is the simulation is over
+        if done:
+            if self._steps_beyond_done is None:
+                # Write log file if simulation is over (debug mode only)
+                if self.debug:
+                    self.engine.write_log(self.log_path)
+
+                if self._steps_beyond_done == 0 and \
+                        self._enable_reward_terminal:
+                    # Extract log data from the simulation, which
+                    # could be used for computing terminal reward.
+                    self._log_data, _ = self.engine.get_log()
+
+                    # Compute the terminal reward
+                    reward_final, reward_final_info = \
+                        self._compute_reward_terminal()
+                    reward += reward_final
+                    if reward_final_info is not None:
+                        self._info.setdefault('reward', {}).update(
+                            reward_final_info)
+
+        return self._get_obs(), reward, done, self._info
+
+    def render(self, mode='human', **kwargs):
         """
         @brief      Render the current state of the robot.
 
         @details    Do not suport Multi-Rendering RGB output because it is not
                     possible to create window in new tabs programmatically.
 
-        @param[in]  mode    Unused. Defined for compatibility with Gym OpenAI.
+        @param[in]  mode     Unused. Defined for compatibility with Gym OpenAI.
+        @param[in]  kwargs   Extra keyword arguments for 'Viewer' delegation.
 
         @return     Fake output for compatibility with Gym OpenAI.
         """
+        if mode == 'human':
+            return_rgb_array = False
+        elif mode == 'rgb_array':
+            return_rgb_array = True
+        else:
+            raise ValueError(f"Rendering mode {mode} not supported.")
+        return self.engine_py.render(return_rgb_array, **kwargs)
 
-        self.engine_py.render(return_rgb_array=False, **kwargs)
-        return RenderOutMock()
+    def replay(self, **kwargs):
+        """
+        @brief      Replay the current episode until now.
+
+        @param[in]  kwargs   Extra keyword arguments for 'play_logfiles' delegation.
+        """
+        if self._log_data is not None:
+            log_data = self._log_data
+        else:
+            log_data, _ = self.engine.get_log()
+        self.engine_py._viewer = play_logfiles([self.robot], [log_data],
+            viewers=[self.engine_py._viewer], close_backend=False, **kwargs)[0]
+
+    def close(self):
+        """
+        @brief      Terminate the Python Jiminy engine. Mostly defined for
+                    compatibility with Gym OpenAI.
+        """
+        self.engine_py.close()
 
     @staticmethod
     def _key_to_action(key):
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @loop_interactive()
     def play_interactive(self, key=None):
@@ -470,21 +598,6 @@ class RobotJiminyEnv(gym.core.Env):
         self.render()
         sleep(self.dt - (time.time() - t_init))
         return done
-
-    def close(self):
-        """
-        @brief      Terminate the Python Jiminy engine. Mostly defined for
-                    compatibility with Gym OpenAI.
-        """
-        self.engine_py.close()
-
-    @property
-    def robot(self):
-        return self.engine_py.robot
-
-    @property
-    def engine(self):
-        return self.engine_py.engine
 
 
 class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
@@ -542,23 +655,19 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         """
         @brief      Samples a new goal and returns it.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def _get_achieved_goal(self):
         """
         @brief      Compute the achieved goal based on the current state of the robot.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     The currently achieved goal
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def _update_observation(self, obs):
-        # @copydoc RobotJiminyEnv::_update_observation
-        super()._update_observation(obs['observation'])
+    def _update_obs(self, obs):
+        # @copydoc RobotJiminyEnv::_update_obs
+        super()._update_obs(obs['observation'])
         obs['achieved_goal'] = self._get_achieved_goal(),
         obs['desired_goal'] = self.goal.copy()
 
@@ -572,20 +681,16 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         @details    By default, it returns True if the observation reaches or
                     exceeds the lower or upper limit.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be called
-                    manually.
-
         @return     Boolean flag
         """
         return not self.observation_space.spaces['observation'].contains(
-            self.observation['observation'])
+            self._observation['observation'])
 
     def _compute_reward(self):
         # @copydoc RobotJiminyEnv::_compute_reward
-        return self.compute_reward(self.observation['achieved_goal'],
-                                   self.observation['desired_goal'],
-                                   self.learning_info)
+        return self.compute_reward(self._observation['achieved_goal'],
+                                   self._observation['desired_goal'],
+                                   self._info)
 
     def compute_reward(self, achieved_goal, desired_goal, info):
         """
@@ -596,10 +701,11 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         @param[in]  info            Dictionary of extra information
                                     (must NOT be used, since not available using HER)
 
-        @return     The computed reward.
+        @return     The computed reward, and any extra info useful for
+                    monitoring as a dictionary.
         """
         # Must NOT use info, since it is not available while using HER (Experience Replay)
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def reset(self):
         # @copydoc RobotJiminyEnv::reset

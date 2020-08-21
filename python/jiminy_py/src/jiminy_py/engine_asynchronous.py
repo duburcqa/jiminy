@@ -14,6 +14,8 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
+DEFAULT_SIZE = 500
+
 class EngineAsynchronous:
     """
     @brief      Wrapper of Jiminy enabling to update of the command and run simulation
@@ -29,7 +31,12 @@ class EngineAsynchronous:
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, robot, controller=None, engine=None, use_theoretical_model=False, viewer_backend=None):
+    def __init__(self,
+                 robot,
+                 controller=None,
+                 engine=None,
+                 use_theoretical_model=False,
+                 viewer_backend=None):
         """
         @brief      Constructor
 
@@ -52,7 +59,8 @@ class EngineAsynchronous:
 
         # Instantiate the Jiminy controller if necessary, then initialize it
         if controller is None:
-            self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
+            self._controller = jiminy.ControllerFunctor(
+                self._send_command, self._internal_dynamics)
         else:
             self._controller = controller
         self._controller.initialize(robot)
@@ -115,7 +123,8 @@ class EngineAsynchronous:
         assert isinstance(seed, np.uint32),  "'seed' must have type np.uint32."
 
         engine_options = self.engine.get_options()
-        engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
+        engine_options["stepper"]["randomSeed"] = \
+            np.array(seed, dtype=np.dtype('uint32'))
         self.engine.set_options(engine_options)
         self.engine.reset()
 
@@ -207,7 +216,10 @@ class EngineAsynchronous:
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self.engine.stepper_state.dt
 
-    def render(self, return_rgb_array=False):
+    def render(self,
+               return_rgb_array=False,
+               width=DEFAULT_SIZE,
+               height=DEFAULT_SIZE):
         """
         @brief      Render the current state of the simulation. One can display it
                     in Gepetto-viewer or return an RGB array.
@@ -217,47 +229,53 @@ class EngineAsynchronous:
                     processes at the same time in different tabs.
                     Note that returning an RGB array is not supported by Meshcat in Jupyter.
 
-        @param[in]  return_rgb_array    Updated command
-                                        Optional: Use the value in the internal buffer otherwise
+        @param[in]  return_rgb_array    Whether or not to return the current frame as an rgb array.
+                                        Not that this feature is currently not available in Jupyter.
+        @param[in]  width    Width of the returned RGB frame if enabled.
+        @param[in]  height    Width of the returned RGB frame if enabled.
 
-        @return     Low-resolution rendering as an RGB array (3D numpy array)
+        @return     Rendering as an RGB array (3D numpy array) if enabled, None otherwise.
         """
-        rgb_array = None
+        # Instantiate the robot and viewer client if necessary.
+        # A new dedicated scene and window will be created.
+        if not self._is_viewer_available:
+            uniq_id = next(tempfile._get_candidate_names())
+            self._viewer = Viewer(self.robot,
+                                    use_theoretical_model=False,
+                                    backend=self.viewer_backend,
+                                    delete_robot_on_close=True,
+                                    robot_name="_".join(("robot", uniq_id)),
+                                    scene_name="_".join(("scene", uniq_id)),
+                                    window_name="_".join(("window", uniq_id)))
+            if self._viewer.is_backend_parent:
+                self._viewer.set_camera_transform(
+                    translation=[0.0, 9.0, 2e-5],
+                    rotation=[np.pi/2, 0.0, np.pi])
+            self._viewer.wait(False)  # Wait for backend to finish loading
 
+        # Try refreshing the viewer
         try:
-            # Instantiate the robot and viewer client if necessary
-            if not self._is_viewer_available:
-                uniq_id = next(tempfile._get_candidate_names())
-                self._viewer = Viewer(self.robot,
-                                      use_theoretical_model=False,
-                                      backend=self.viewer_backend,
-                                      delete_robot_on_close=True,
-                                      robot_name="_".join(("robot", uniq_id)),
-                                      scene_name="_".join(("scene", uniq_id)),
-                                      window_name="_".join(("window", uniq_id)))
-                if self._viewer.is_backend_parent:
-                    self._viewer.set_camera_transform(
-                        translation=[0.0, 9.0, 2e-5],
-                        rotation=[np.pi/2, 0.0, np.pi])
-                self._viewer.wait(False)  # Wait for backend to finish loading
-
-            # Refresh viewer
             self._viewer.refresh()
             self._is_viewer_available = True
-
-            # Compute rgb array if needed
-            if return_rgb_array:
-                rgb_array = self._viewer.capture_frame()
-        except (RuntimeError, AttributeError):
-            if self._viewer is not None:
+        except RuntimeError as e:
+            # Check if it failed because viewer backend is no longer available
+            if self._is_viewer_available and (Viewer._backend_obj is None or \
+                (self._viewer.is_backend_parent and \
+                    not self._viewer._backend_proc.is_alive())):
+                # Reset viewer backend
                 self._viewer.close()
                 self._viewer = None
-            if self._is_viewer_available:
                 self._is_viewer_available = False
-                rgb_array = self.render(return_rgb_array)
+
+                # Retry rendering one more time
+                return self.render(return_rgb_array, width, height)
             else:
-                RuntimeError("Impossible to create or connect to backend.")
-        return rgb_array
+                raise RuntimeError(
+                    "Unrecoverable Viewer backend exception.") from e
+
+        # Compute rgb array if needed
+        if return_rgb_array:
+            return self._viewer.capture_frame(width, height)
 
     def close(self):
         """

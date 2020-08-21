@@ -49,14 +49,6 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
                     Reinforcement learning: An introduction.
                     Cambridge: MIT press, 1998.
     """
-
-    ## @var metadata
-    # @copydoc RobotJiminyGoalEnv::metadata
-
-    metadata = {
-        'render.modes': ['human'],
-    }
-
     def __init__(self, continuous=False):
         """
         @brief      Constructor
@@ -179,7 +171,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         # @copydoc RobotJiminyGoalEnv::_get_achieved_goal
         return self.robot.pinocchio_data.oMf[self._tipIdx].translation[[2]].copy()
 
-    def _update_observation(self, obs):
+    def _update_obs(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
         theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
         obs['observation'] = np.array([np.cos(theta1 + np.pi),

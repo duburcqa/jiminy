@@ -228,29 +228,42 @@ class Viewer:
                  backend=None,
                  delete_robot_on_close=False,
                  close_backend_at_exit=True,
-                 robot_name="robot",
+                 robot_name=None,
                  window_name='jiminy',
                  scene_name='world'):
         """
         @brief Constructor.
 
         @param robot          The jiminy.Robot to display.
-        @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible model for this robot.
-        @param mesh_root_path Optional, path to the folder containing the URDF meshes.
-        @param urdf_rgba      Color to use to display this robot (rgba).
--       @param lock           Custom threading.Lock
--                             Optional: Only required for parallel rendering using multiprocessing.
-                              It is required since some backends does not support multiple
-                              simultaneous connections (e.g. corbasever).
-        @param backend        The name of the desired backend to use for rendering.
-                              Optional, either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+        @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible
+                                       model for this robot.
+        @param mesh_root_path    Path to the folder containing the URDF meshes.
+                                 Optional: Must only be specified for relative mesh paths.
+                                           It will override any absolute mesh path if specified.
+        @param urdf_rgba      RGBA color to use to display this robot, as a list of 4 floating-point
+                              values between 0.0 and 1.0.
+                              Optional: It will override the original color of the meshes if specified.
+        @param lock           Custom threading.Lock
+                              Optional: Only required for parallel rendering using multiprocessing.
+                                        It is required since some backends does not support multiple
+                                        simultaneous connections (e.g. corbasever).
+        @param backend        The name of the desired backend to use for rendering. It can be
+                              either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
+                              Optional: 'gepetto-gui' by default if available and not running
+                                        inside a notebook, 'meshcat' otherwise.
         @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
         @param close_backend_at_exit     Terminate backend server at Python exit.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
-        @param scene_name     Scene name, used only when gepetto-gui is used as backend.
+                              Optional: Randomly generated identifier by default.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
                               Note that it is not allowed to be equal to the window name.
+        @param scene_name     Scene name, used only when gepetto-gui is used as backend.
         """
+        # Handling of default arguments
+        if robot_name is None:
+            uniq_id = next(tempfile._get_candidate_names())
+            robot_name="_".join(("robot", uniq_id))
+
         # Backup some user arguments
         self.urdf_path = robot.urdf_path
         self.robot_name = robot_name
@@ -1219,7 +1232,7 @@ def play_trajectories(trajectory_data,
     @param[in]  trajectory_data     List of trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
-                                    'use_theoretical_model':  whether the theoretical or actual model must be used
+                                    'use_theoretical_model':  whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
     @param[in]  record_video        Whether or not to generate a video. For now, if this mode
@@ -1232,7 +1245,7 @@ def play_trajectories(trajectory_data,
     @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
                                     starting to play the trajectories.
     @param[in]  wait_for_client     Wait for the client to finish loading the meshes before starting
-    @param[in]  camera_xyzrpy       Absolute pose of the camera during replay.
+    @param[in]  camera_xyzrpy       Absolute pose of the camera during replay (disable during video recording).
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array).
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
@@ -1242,11 +1255,31 @@ def play_trajectories(trajectory_data,
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
                                     Optional: Common default name if omitted.
+    @param[in]  close_backend       Close backend automatically at exit.
+                                    Optional: Enable by default if not (presumably) available beforehand.
     @param[in]  delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
     @param[in]  verbose              Add information to keep track of the process.
 
     @return     The viewers used to play the trajectories.
     """
+    if viewers is not None:
+        # Make sure that viewers is a list
+        if not isinstance(viewers, list):
+            viewers = [viewers]
+
+        # Make sure the viewers are still running if specified
+        if Viewer._backend_obj is None:
+            viewers = None
+        for viewer in viewers:
+            if viewer.is_backend_parent and \
+                    not Viewer._backend_proc.is_alive():
+                viewers = None
+                break
+
+        # Do not close backend by default if it was supposed to be available
+        if close_backend is None:
+            close_backend = False
+
     if viewers is None:
         # Create new viewer instances
         viewers = []
@@ -1269,31 +1302,14 @@ def play_trajectories(trajectory_data,
                 delete_robot_on_close=delete_robot_on_close)
             viewers.append(viewer)
 
-        if viewers[0].is_backend_parent:
-            # Initialize camera pose
-            if camera_xyzrpy is not None:
-                viewers[0].set_camera_transform(
-                    translation=camera_xyzrpy[:3],
-                    rotation=camera_xyzrpy[3:])
-
-            # Close backend by default if it was not available beforehand
+            # Close backend by default
             if close_backend is None:
                 close_backend = True
-    else:
-        # Make sure that viewers is a list
-        if not isinstance(viewers, list):
-            viewers = [viewers]
 
-        # Make sure the viewers are still running
-        is_backend_running = True
-        for viewer in viewers:
-            if viewer.is_backend_parent and \
-                    not Viewer._backend_proc.is_alive():
-                is_backend_running = False
-        if Viewer._backend_obj is None:
-            is_backend_running = False
-        if not is_backend_running:
-            raise RuntimeError("Viewer's backend not available.")
+    # Set camera pose if requested
+    if camera_xyzrpy is not None:
+        viewers[0].set_camera_transform(
+            translation=camera_xyzrpy[:3], rotation=camera_xyzrpy[3:])
 
     # Load robots in gepetto viewer
     if xyz_offset is None:
@@ -1307,7 +1323,8 @@ def play_trajectories(trajectory_data,
             break
     if verbose:
         if backend == 'meshcat':
-            print(f"Waiting for meshcat client in browser to connect: {Viewer._get_client_url()}")
+            print("Waiting for meshcat client in browser to connect: "\
+                  f"{Viewer._get_client_url()}")
     Viewer.wait(require_client=(not record_video))  # Wait for the meshes to finish loading
 
     # Handle start-in-pause mode
@@ -1327,8 +1344,8 @@ def play_trajectories(trajectory_data,
         img_array = []
         for i in tqdm(range(len(trajectory_data[0]['evolution_robot'])),
                       desc="Loading frames"):
-            for i in range(len(trajectory_data)):
-                viewers[i].display(trajectory_data[i]['evolution_robot'][t].q)
+            for j in range(len(trajectory_data)):
+                viewers[j].display(trajectory_data[j]['evolution_robot'][i].q)
             viewers[0].set_camera_transform(relative=reference_link)
             frame = viewers[0].capture_frame(width=1000, height=1000)
             img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))

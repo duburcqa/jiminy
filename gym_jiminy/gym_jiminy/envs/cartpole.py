@@ -61,14 +61,6 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                 Considered solved when the average reward is greater than or equal to
                 195.0 over 100 consecutive trials.
     """
-
-    ## @var metadata
-    # @copydoc RobotJiminyEnv::metadata
-
-    metadata = {
-        'render.modes': ['human']
-    }
-
     def __init__(self, continuous=False):
         """
         @brief      Constructor
@@ -162,7 +154,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         return self.rg.uniform(low=self.state_random_low,
                                high=self.state_random_high)
 
-    def _update_observation(self, obs):
+    def _update_obs(self, obs):
         # @copydoc RobotJiminyEnv::_update_observation
         obs[:] = self.engine_py.state
 
