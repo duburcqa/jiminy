@@ -29,7 +29,12 @@ class EngineAsynchronous:
     @remark     This class can be used for synchronous purpose. In such a case, one has
                 to call the method `step` specifying the optional argument `action_next`.
     """
-    def __init__(self, robot, controller=None, engine=None, use_theoretical_model=False, viewer_backend=None):
+    def __init__(self,
+                 robot,
+                 controller=None,
+                 engine=None,
+                 use_theoretical_model=False,
+                 viewer_backend=None):
         """
         @brief      Constructor
 
@@ -52,7 +57,8 @@ class EngineAsynchronous:
 
         # Instantiate the Jiminy controller if necessary, then initialize it
         if controller is None:
-            self._controller = jiminy.ControllerFunctor(self._send_command, self._internal_dynamics)
+            self._controller = jiminy.ControllerFunctor(
+                self._send_command, self._internal_dynamics)
         else:
             self._controller = controller
         self._controller.initialize(robot)
@@ -115,7 +121,8 @@ class EngineAsynchronous:
         assert isinstance(seed, np.uint32),  "'seed' must have type np.uint32."
 
         engine_options = self.engine.get_options()
-        engine_options["stepper"]["randomSeed"] = np.array(seed, dtype=np.dtype('uint32'))
+        engine_options["stepper"]["randomSeed"] = \
+            np.array(seed, dtype=np.dtype('uint32'))
         self.engine.set_options(engine_options)
         self.engine.reset()
 
@@ -224,39 +231,45 @@ class EngineAsynchronous:
         """
         rgb_array = None
 
-        try:
-            # Instantiate the robot and viewer client if necessary
-            if not self._is_viewer_available:
-                uniq_id = next(tempfile._get_candidate_names())
-                self._viewer = Viewer(self.robot,
-                                      use_theoretical_model=False,
-                                      backend=self.viewer_backend,
-                                      delete_robot_on_close=True,
-                                      robot_name="_".join(("robot", uniq_id)),
-                                      scene_name="_".join(("scene", uniq_id)),
-                                      window_name="_".join(("window", uniq_id)))
-                if self._viewer.is_backend_parent:
-                    self._viewer.set_camera_transform(
-                        translation=[0.0, 9.0, 2e-5],
-                        rotation=[np.pi/2, 0.0, np.pi])
-                self._viewer.wait(False)  # Wait for backend to finish loading
+        # Instantiate the robot and viewer client if necessary
+        if not self._is_viewer_available:
+            uniq_id = next(tempfile._get_candidate_names())
+            self._viewer = Viewer(self.robot,
+                                    use_theoretical_model=False,
+                                    backend=self.viewer_backend,
+                                    delete_robot_on_close=True,
+                                    robot_name="_".join(("robot", uniq_id)),
+                                    scene_name="_".join(("scene", uniq_id)),
+                                    window_name="_".join(("window", uniq_id)))
+            if self._viewer.is_backend_parent:
+                self._viewer.set_camera_transform(
+                    translation=[0.0, 9.0, 2e-5],
+                    rotation=[np.pi/2, 0.0, np.pi])
+            self._viewer.wait(False)  # Wait for backend to finish loading
 
-            # Refresh viewer
+        # Try refreshing the viewer
+        try:
             self._viewer.refresh()
             self._is_viewer_available = True
-
-            # Compute rgb array if needed
-            if return_rgb_array:
-                rgb_array = self._viewer.capture_frame()
-        except (RuntimeError, AttributeError):
-            if self._viewer is not None:
+        except RuntimeError as e:
+            # Check if it failed because viewer backend is no longer available
+            if self._is_viewer_available and Viewer._backend_obj is None or \
+                (self._viewer.is_backend_parent and \
+                    self._viewer._backend_proc.poll() is not None):
+                # Reset viewer backend
                 self._viewer.close()
                 self._viewer = None
-            if self._is_viewer_available:
                 self._is_viewer_available = False
-                rgb_array = self.render(return_rgb_array)
+
+                # Retry rendering one more time
+                return self.render(return_rgb_array)
             else:
-                RuntimeError("Impossible to create or connect to backend.")
+                raise RuntimeError(
+                    "Unrecoverable Viewer backend exception.") from e
+
+        # Compute rgb array if needed
+        if return_rgb_array:
+            rgb_array = self._viewer.capture_frame()
         return rgb_array
 
     def close(self):
