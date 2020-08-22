@@ -80,7 +80,7 @@ class RobotJiminyEnv(gym.core.Env):
         self._log_data = None
         if self.debug is not None:
             self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".png")
+                prefix="log_", suffix=".data", delete=(not debug))
         else:
             self._log_file = None
 
