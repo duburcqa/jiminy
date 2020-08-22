@@ -80,7 +80,7 @@ class RobotJiminyEnv(gym.core.Env):
         self._log_data = None
         if self.debug is not None:
             self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".png")
+                prefix="log_", suffix=".data", delete=(not debug))
         else:
             self._log_file = None
 
@@ -146,22 +146,27 @@ class RobotJiminyEnv(gym.core.Env):
         robot_options = self.robot.get_options()
         engine_options = self.engine_py.get_engine_options()
 
-        # Disable completely the telemetry in non debug mode to speed up the simulation
+        # Disable part of the telemetry in non debug mode, to speed up
+        # the simulation. Only the required data for log replay are enabled.
+        # It is up to the user to overload this method if logging more data
+        # is necessary for terminal reward computation.
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
             if field[:6] == 'enable':
                 engine_options["telemetry"][field] = self.debug
+        engine_options['telemetry']['enableConfiguration'] = True
 
-        # Set the position and velocity bounds of the robot
+        # Enable the position and velocity bounds of the robot
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        # Set the effort limits of the motors
+        # Enable the effort limits of the motors
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        # Configure the stepper update period, and disable max number of iterations and timeout
+        # Configure the stepper update period, and disable max number of
+        # iterations and timeout.
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
