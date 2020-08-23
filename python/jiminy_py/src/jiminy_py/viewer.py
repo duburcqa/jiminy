@@ -164,8 +164,8 @@ def start_zmq_server():
     # communication through a manager.
     manager = multiprocessing.Manager()
     info = manager.dict()
-    server = multiprocessing.Process(target=meshcat_zmqserver, args=(info,))
-    server.daemon = True
+    server = multiprocessing.Process(
+        target=meshcat_zmqserver, args=(info,), daemon=True)
     server.start()
 
     # Wait for the process to finish initialization
@@ -1031,6 +1031,8 @@ class Viewer:
                                      img_data_html_shm,
                                      width_shm,
                                      height_shm):
+                    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
 
@@ -1058,10 +1060,12 @@ class Viewer:
                           recorder_shm['take_snapshot'],
                           recorder_shm['img_data_html'],
                           recorder_shm['width'],
-                          recorder_shm['height']))
-                Viewer._backend_obj.recorder.daemon = True
+                          recorder_shm['height']),
+                    daemon=True)
                 Viewer._backend_obj.recorder.start()
                 Viewer._backend_obj.info['recorder_shm'] = recorder_shm
+
+                self.wait(require_client=True)
 
             # Send capture frame request to the background recorder process
             recorder_shm = Viewer._backend_obj.info['recorder_shm']
