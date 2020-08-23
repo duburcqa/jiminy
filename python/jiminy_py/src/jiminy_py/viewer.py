@@ -24,6 +24,7 @@ import multiprocessing
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
+from ctypes import c_char_p, c_bool
 from contextlib import redirect_stdout, redirect_stderr
 
 import zmq
@@ -59,24 +60,6 @@ subprocess.Popen.join = subprocess.Popen.wait
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
-
-
-def sleep(dt):
-    """
-        @brief   Function to provide cross-plateform time sleep with maximum
-                 accuracy.
-
-        @details Use this method with cautious since it relies on busy looping
-                 principle instead of system scheduler. As a result, it wastes
-                 a lot more resources than time.sleep. However, it is the only
-                 way to ensure accurate delay on a non-real-time systems such
-                 as Windows 10.
-
-        @param   dt   sleep duration in seconds.
-    """
-    _ = time.perf_counter() + dt
-    while time.perf_counter() < _:
-        pass
 
 
 def start_zmq_server():
@@ -208,6 +191,37 @@ def start_zmq_server_standalone():
             proc.send_signal(signal.SIGKILL)
         except psutil.NoSuchProcess:
             pass
+
+
+def sleep(dt):
+    """
+        @brief   Function to provide cross-plateform time sleep with maximum
+                 accuracy.
+
+        @details Use this method with cautious since it relies on busy looping
+                 principle instead of system scheduler. As a result, it wastes
+                 a lot more resources than time.sleep. However, it is the only
+                 way to ensure accurate delay on a non-real-time systems such
+                 as Windows 10.
+
+        @param   dt   sleep duration in seconds.
+    """
+    _ = time.perf_counter() + dt
+    while time.perf_counter() < _:
+        pass
+
+def kill_process(proc):
+    proc.terminate()
+    proc.join(timeout=0.5)
+    try:
+        proc_pid = proc.pid
+        proc_raw = psutil.Process(proc_pid)
+        proc_raw.send_signal(signal.SIGKILL)
+        os.waitpid(proc_pid, 0)
+        os.waitpid(os.getpid(), 0)
+    except psutil.NoSuchProcess:
+        pass
+    multiprocessing.active_children()
 
 
 class Viewer:
@@ -596,28 +610,12 @@ class Viewer:
                 Viewer._backend_robot_names.clear()
                 if self._backend_proc is not None and \
                         self._backend_proc.is_alive():
-                    self._backend_proc.terminate()
-                    self._backend_proc.join(timeout=0.5)
-                    try:
-                        backend_pid = Viewer._backend_proc.pid
-                        proc = psutil.Process(backend_pid)
-                        proc.send_signal(signal.SIGKILL)
-                        os.waitpid(backend_pid, 0)  # Reap the zombies !
-                    except psutil.NoSuchProcess:
-                        pass
-                    multiprocessing.active_children()
+                    kill_process(self._backend_proc)
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None and \
-                        Viewer._backend_obj.browser is not None:
-                    browser_proc = Viewer._backend_obj.browser._browser.process
-                    Viewer._backend_obj.webui.close()
-                    Viewer._backend_obj.browser.close()
-                    browser_proc.kill()
-                    try:
-                        os.waitpid(browser_proc.pid, 0)
-                        os.waitpid(os.getpid(), 0)
-                    except ChildProcessError:
-                        pass
+                        Viewer._backend_obj.recorder is not None:
+                    kill_process(Viewer._backend_obj.recorder)
+                    Viewer._backend_obj.info['recorder_shm'] = None
                 if self._backend_proc is Viewer._backend_proc:
                     Viewer._backend_obj = None
             if self._tempdir.startswith(tempfile.gettempdir()):
@@ -839,15 +837,14 @@ class Viewer:
             # to avoid infinite waiting if case of closed server.
             with redirect_stdout(None):
                 gui = meshcat.Visualizer(zmq_url)
-            browser, webui = None, None
+            recorder = None
 
             class MeshcatWrapper:
-                def __init__(self, gui, browser, webui):
+                def __init__(self, gui, recorder):
                     self.gui = gui
-                    self.browser = browser
-                    self.webui = webui
-                    self.info = {'nmeshes': 0}
-            client = MeshcatWrapper(gui, browser, webui)
+                    self.recorder = recorder
+                    self.info = {'nmeshes': 0, 'recorder_shm': None}
+            client = MeshcatWrapper(gui, recorder)
 
             return client, proc
 
@@ -984,8 +981,10 @@ class Viewer:
         @remark     This method is currently not available on Jupyter using
                     Meshcat backend because of asyncio conflict.
 
-        @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now)
-        @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now).
+                                Optional: None to keep the original size
+        @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now).
+                                Optional: None to keep the original size
         @param[in]  raw_data    Whether to return a 2D numpy array, or the raw output
                                 from the backend (the actual type may vary)
         """
@@ -993,7 +992,7 @@ class Viewer:
             if raw_data:
                 raise ValueError(
                     "Raw data mode is not available using gepetto-gui.")
-            if width is not None or height is None:
+            if width is not None or height is not None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
             with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to save the frame if the file does not have ".png" extension
                 self.save_frame(f.name)  # It is not possible to capture frame directly using gepetto-gui
@@ -1001,39 +1000,80 @@ class Viewer:
                 rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
-            # Start rendering the viewer on host, in a hidden
-            # Chromium browser, if not already started.
-            if not Viewer._is_notebook():
-                if Viewer._backend_obj.webui is None:
-                    from requests_html import HTMLSession
-                    Viewer._backend_obj.browser = HTMLSession()
-                    Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
-                        Viewer._backend_obj.gui.url())
-                    Viewer._backend_obj.webui.html.render(
-                        keep_page=True)
-                    Viewer.wait(require_client=True)
-            else:
-                raise NotImplementedError(
-                    "Capturing frame is not available in Jupyter for now.")
+            if Viewer._backend_obj.recorder is None:
+                from requests_html import HTMLSession
 
-            # Send a javascript command to the hidden browser to
-            # capture frame, then wait for it (since it is async).
-            async def _capture_frame(client):
-                if width is not None and height is not None:
-                    await client.html.page.setViewport(
-                        {'width': width, 'height': height})
-                return await client.html.page.evaluate("""
-                    () => {
-                    return viewer.capture_image();
-                    }
-                """)
-            loop = asyncio.get_event_loop()
-            img_data_html = loop.run_until_complete(
-                _capture_frame(Viewer._backend_obj.webui))
+                # Send a javascript command to the hidden browser to
+                # capture frame, then wait for it (since it is async).
+                def capture_frame(client, width, height):
+                    async def _capture_frame(client):
+                        _width = client.html.page.viewport['width']
+                        _height = client.html.page.viewport['height']
+                        if not width > 0:
+                            width = _width
+                        if not height > 0:
+                            height = _height
+                        if _width != width or _height != height:
+                            await client.html.page.setViewport(
+                                {'width': width, 'height': height})
+                        return await client.html.page.evaluate("""
+                            () => {
+                            return viewer.capture_image();
+                            }
+                        """)
+                    loop = asyncio.get_event_loop()
+                    img_data = loop.run_until_complete(_capture_frame(client))
+                    return img_data
+
+                def meshcat_recorder(meshcat_url,
+                                     take_snapshot_shm,
+                                     img_data_html_shm,
+                                     width_shm,
+                                     height_shm):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                    session = HTMLSession()
+                    client = session.get(meshcat_url)
+                    client.html.render(keep_page=True)
+
+                    while True:
+                        if take_snapshot_shm.value:
+                            img_data_html_shm.value = capture_frame(
+                                client, width_shm.value, height_shm.value)
+                            take_snapshot_shm.value = False
+
+                manager = multiprocessing.Manager()
+                recorder_shm = {
+                    'take_snapshot': manager.Value(c_bool, False),
+                    'img_data_html': manager.Value(c_char_p, ""),
+                    'width': manager.Value(c_int, -1),
+                    'height': manager.Value(c_int, -1)
+                }
+                meshcat_url = Viewer._backend_obj.gui.url()
+                Viewer._backend_obj.recorder = multiprocessing.Process(
+                    target=meshcat_recorder,
+                    args=(meshcat_url,
+                          recorder_shm['take_snapshot'],
+                          recorder_shm['img_data_html'],
+                          recorder_shm['width'],
+                          recorder_shm['height']))
+                Viewer._backend_obj.recorder.daemon = True
+                Viewer._backend_obj.recorder.start()
+                Viewer._backend_obj.info['recorder_shm'] = recorder_shm
+
+            # Send capture frame request to the background recorder process
+            Viewer._backend_obj.info['recorder_shm']['width'].value = \
+                width if width is not None else -1
+            Viewer._backend_obj.info['recorder_shm']['height'].value = \
+                width if width is not None else -1
+            take_snapshot.value = True
+            while take_snapshot.value is True:
+                pass
 
             # Parse the output to remove the html header, and
             # convert it into the desired output format.
-            img_data = base64.decodebytes(str.encode(img_data_html[22:]))
+            img_data = base64.decodebytes(str.encode(img_data_html.value[22:]))
             if raw_data:
                 return img_data
             else:
@@ -1049,8 +1089,10 @@ class Viewer:
                     Meshcat backend because of asyncio conflict.
 
         @param[in]  output_path    Fullpath of the image (.png extension is mandatory)
-        @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now)
-        @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now).
+                              Optional: None to keep the original size
+        @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now).
+                              Optional: None to keep the original size
         """
         if not output_path.endswith('.png'):
             raise ValueError("The output path must have .png extension.")
