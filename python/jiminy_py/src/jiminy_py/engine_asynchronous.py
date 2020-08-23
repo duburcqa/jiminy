@@ -14,8 +14,6 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
-DEFAULT_SIZE = 500
-
 class EngineAsynchronous:
     """
     @brief      Wrapper of Jiminy enabling to update of the command and run simulation
@@ -216,13 +214,10 @@ class EngineAsynchronous:
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self.engine.stepper_state.dt
 
-    def render(self,
-               return_rgb_array=False,
-               width=DEFAULT_SIZE,
-               height=DEFAULT_SIZE):
+    def render(self, return_rgb_array=False, width=None, height=None):
         """
         @brief      Render the current state of the simulation. One can display it
-                    in Gepetto-viewer or return an RGB array.
+                    or return an RGB array instead.
 
         @remark     Note that it supports parallel rendering, which means that one
                     can display multiple simulations in the same Gepetto-viewer
@@ -231,8 +226,8 @@ class EngineAsynchronous:
 
         @param[in]  return_rgb_array    Whether or not to return the current frame as an rgb array.
                                         Not that this feature is currently not available in Jupyter.
-        @param[in]  width    Width of the returned RGB frame if enabled.
-        @param[in]  height    Width of the returned RGB frame if enabled.
+        @param[in]  width               Width of the returned RGB frame if enabled.
+        @param[in]  height              Height of the returned RGB frame if enabled.
 
         @return     Rendering as an RGB array (3D numpy array) if enabled, None otherwise.
         """
@@ -241,12 +236,13 @@ class EngineAsynchronous:
         if not self._is_viewer_available:
             uniq_id = next(tempfile._get_candidate_names())
             self._viewer = Viewer(self.robot,
-                                    use_theoretical_model=False,
-                                    backend=self.viewer_backend,
-                                    delete_robot_on_close=True,
-                                    robot_name="_".join(("robot", uniq_id)),
-                                    scene_name="_".join(("scene", uniq_id)),
-                                    window_name="_".join(("window", uniq_id)))
+                                  use_theoretical_model=False,
+                                  backend=self.viewer_backend,
+                                  open_gui_if_parent=(not return_rgb_array),
+                                  delete_robot_on_close=True,
+                                  robot_name="_".join(("robot", uniq_id)),
+                                  scene_name="_".join(("scene", uniq_id)),
+                                  window_name="_".join(("window", uniq_id)))
             if self._viewer.is_backend_parent:
                 self._viewer.set_camera_transform(
                     translation=[0.0, 9.0, 2e-5],

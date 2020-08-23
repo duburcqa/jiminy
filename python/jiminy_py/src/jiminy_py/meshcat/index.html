@@ -54,6 +54,7 @@
             viewer.scene_tree.find(["Axes", "<object>"]).object.material.linewidth = 2.5
 
             viewer.camera.fov = 30;
+            viewer.camera.position.set(8.0, 1.2, 0);
             viewer.render();
 
             function animate() {
