@@ -24,7 +24,7 @@ import multiprocessing
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
-from ctypes import c_char_p, c_bool
+from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stdout, redirect_stderr
 
 import zmq
@@ -241,8 +241,8 @@ class Viewer:
                  urdf_rgba=None,
                  lock=None,
                  backend=None,
+                 open_gui_if_parent=True,
                  delete_robot_on_close=False,
-                 close_backend_at_exit=True,
                  robot_name=None,
                  window_name='jiminy',
                  scene_name='world'):
@@ -266,8 +266,8 @@ class Viewer:
                               either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
                               Optional: 'gepetto-gui' by default if available and not running
                                         inside a notebook, 'meshcat' otherwise.
+        @param open_gui_if_parent        Open GUI if new viewer's backend server is started.
         @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
-        @param close_backend_at_exit     Terminate backend server at Python exit.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
                               Optional: Randomly generated identifier by default.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
@@ -287,7 +287,6 @@ class Viewer:
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
-        self.close_backend_at_exit = close_backend_at_exit
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == window_name:
@@ -367,7 +366,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True, self.close_backend_at_exit)
+                        Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc is not None
                 self._client = Viewer._backend_obj.gui
 
@@ -387,10 +386,10 @@ class Viewer:
 
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True, self.close_backend_at_exit)
+                        Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc is not None
 
-                if self.is_backend_parent:
+                if self.is_backend_parent and open_gui_if_parent:
                     self.open_gui()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
@@ -572,7 +571,7 @@ class Viewer:
                     time.sleep(0.1)
                 return True
             else:
-                raise NotImplementedError(
+                logging.warning(
                     "Impossible to wait for mesh loading if the Meshcat server "\
                     "has not been opened by Python main thread for now.")
 
@@ -1008,6 +1007,7 @@ class Viewer:
                 # capture frame, then wait for it (since it is async).
                 def capture_frame(client, width, height):
                     async def _capture_frame(client):
+                        nonlocal width, height
                         _width = client.html.page.viewport['width']
                         _height = client.html.page.viewport['height']
                         if not width > 0:
@@ -1064,17 +1064,17 @@ class Viewer:
                 Viewer._backend_obj.info['recorder_shm'] = recorder_shm
 
             # Send capture frame request to the background recorder process
-            Viewer._backend_obj.info['recorder_shm']['width'].value = \
-                width if width is not None else -1
-            Viewer._backend_obj.info['recorder_shm']['height'].value = \
-                width if width is not None else -1
-            take_snapshot.value = True
-            while take_snapshot.value is True:
+            recorder_shm = Viewer._backend_obj.info['recorder_shm']
+            recorder_shm['width'].value = width if width is not None else -1
+            recorder_shm['height'].value = width if width is not None else -1
+            recorder_shm['take_snapshot'].value = True
+            while recorder_shm['take_snapshot'].value is True:
                 pass
 
             # Parse the output to remove the html header, and
             # convert it into the desired output format.
-            img_data = base64.decodebytes(str.encode(img_data_html.value[22:]))
+            img_data = base64.decodebytes(str.encode(
+                recorder_shm['img_data_html'].value[22:]))
             if raw_data:
                 return img_data
             else:

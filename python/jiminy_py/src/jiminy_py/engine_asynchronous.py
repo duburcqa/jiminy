@@ -217,7 +217,7 @@ class EngineAsynchronous:
     def render(self, return_rgb_array=False, width=None, height=None):
         """
         @brief      Render the current state of the simulation. One can display it
-                    in Gepetto-viewer or return an RGB array.
+                    or return an RGB array instead.
 
         @remark     Note that it supports parallel rendering, which means that one
                     can display multiple simulations in the same Gepetto-viewer
@@ -236,12 +236,13 @@ class EngineAsynchronous:
         if not self._is_viewer_available:
             uniq_id = next(tempfile._get_candidate_names())
             self._viewer = Viewer(self.robot,
-                                    use_theoretical_model=False,
-                                    backend=self.viewer_backend,
-                                    delete_robot_on_close=True,
-                                    robot_name="_".join(("robot", uniq_id)),
-                                    scene_name="_".join(("scene", uniq_id)),
-                                    window_name="_".join(("window", uniq_id)))
+                                  use_theoretical_model=False,
+                                  backend=self.viewer_backend,
+                                  open_gui_if_parent=(not return_rgb_array),
+                                  delete_robot_on_close=True,
+                                  robot_name="_".join(("robot", uniq_id)),
+                                  scene_name="_".join(("scene", uniq_id)),
+                                  window_name="_".join(("window", uniq_id)))
             if self._viewer.is_backend_parent:
                 self._viewer.set_camera_transform(
                     translation=[0.0, 9.0, 2e-5],
