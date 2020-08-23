@@ -11,7 +11,7 @@ import shutil
 import signal
 import base64
 import atexit
-from tqdm import tqdm
+import pathlib
 import asyncio
 import tempfile
 import subprocess
@@ -20,6 +20,7 @@ import webbrowser
 import numpy as np
 import tornado.web
 import multiprocessing
+from tqdm import tqdm
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
@@ -1105,9 +1106,7 @@ def play_trajectories(trajectory_data,
     @param[in]  replay_speed        Speed ratio of the simulation
                                     Optional: 1.0 by default
     @param[in]  record_video_path   Fullpath location where to save generated video. Must be
-                                    specified to enable video recording. For now, if recording
-                                    is enabled, one must make sure that the time evolution of
-                                    each trajectories are the same, using a constant timestep.
+                                    specified to enable video recording.
                                     Optional: None to disable. None by default.
     @param[in]  viewers             Already instantiated viewers, associated one by one in order to
                                     each trajectory data.
@@ -1217,6 +1216,10 @@ def play_trajectories(trajectory_data,
 
     # Replay the trajectory
     if record_video_path is not None:
+        # Enforce video extension, since it is required by opencv
+        record_video_path = str(
+            pathlib.Path(record_video_path).with_suffix('.mp4'))
+
         # Extract and resample trajectory data at fixed framerate
         time_max = max([traj['evolution_robot'][-1].t
                         for traj in trajectory_data])
@@ -1239,7 +1242,7 @@ def play_trajectories(trajectory_data,
         import cv2
         img_array = []
         for i in tqdm(range(len(time_evolution)),
-                      desc="Loading frames",
+                      desc="Rendering frames",
                       disable=(not verbose)):
             for j in range(len(trajectory_data)):
                 viewers[j].display(position_evolution[j][i])
@@ -1248,9 +1251,9 @@ def play_trajectories(trajectory_data,
             frame = viewers[0].capture_frame(width=1000, height=1000)
             img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         out = cv2.VideoWriter(record_video_path,
-                              cv2.VideoWriter_fourcc(*'DIVX'),
-                              fps=1000/VIDEO_FRAMERATE,
-                              frameSize=np.shape(img_array[0])[::-1])
+                              cv2.VideoWriter_fourcc(*'mp4v'),
+                              fps=VIDEO_FRAMERATE,
+                              frameSize=np.shape(img_array[0])[1::-1])
         for i in tqdm(range(len(img_array)),
                       desc="Writing frames",
                       disable=(not verbose)):
