@@ -8,7 +8,6 @@ import multiprocessing
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
-import pyppeteer
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
@@ -30,11 +29,13 @@ async def launch(self) -> Browser:
         options['stdout'] = subprocess.PIPE
         options['stderr'] = subprocess.STDOUT
     if sys.platform.startswith('win'):
-        startupflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        startupflags = subprocess.DETACHED_PROCESS | \
+            subprocess.CREATE_NEW_PROCESS_GROUP
         self.proc = subprocess.Popen(
-            self.cmd, **options, creationflags=startupflags)
+            self.cmd, **options, creationflags=startupflags, shell=False)
     else:
-        self.proc = subprocess.Popen(self.cmd, **options, preexec_fn=os.setpgrp)
+        self.proc = subprocess.Popen(
+            self.cmd, **options, preexec_fn=os.setpgrp, shell=False)
 
     # don't forget to close browser process
     def _close_process(*args, **kwargs) -> None:
@@ -48,9 +49,14 @@ async def launch(self) -> Browser:
             signal.signal(signal.SIGHUP, _close_process)
 
     self.browserWSEndpoint = get_ws_endpoint(self.url)
-    self.connection = Connection(self.browserWSEndpoint, self._loop, self.slowMo, )
+    self.connection = Connection(self.browserWSEndpoint, self._loop)
     browser = await Browser.create(
-        self.connection, [], self.ignoreHTTPSErrors, self.defaultViewport, self.proc, self.killChrome)
+        self.connection,
+        [],
+        self.ignoreHTTPSErrors,
+        self.defaultViewport,
+        self.proc,
+        self.killChrome)
     await self.ensureInitialPage(browser)
     return browser
 Launcher.launch = launch
@@ -95,13 +101,13 @@ def meshcat_recorder(meshcat_url,
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
 
-    # with open(os.devnull, 'w') as f:
-    #     with redirect_stderr(f):
-    while True:
-        if take_snapshot_shm.value:
-            img_data_html_shm.value = capture_frame(
-                client, width_shm.value, height_shm.value)
-            take_snapshot_shm.value = False
+    with open(os.devnull, 'w') as f:
+        with redirect_stderr(f):
+            while True:
+                if take_snapshot_shm.value:
+                    img_data_html_shm.value = capture_frame(
+                        client, width_shm.value, height_shm.value)
+                    take_snapshot_shm.value = False
 
 def mgr_init():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
