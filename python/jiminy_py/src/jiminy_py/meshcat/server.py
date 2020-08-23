@@ -129,7 +129,10 @@ def start_meshcat_server():
     # Wait for the process to finish initialization
     while not info:
         pass
-    return server, info['zmq_url'], info['web_url']
+    zmq_url, web_url = info['zmq_url'], info['web_url']
+    manager.shutdown()
+
+    return server, zmq_url, web_url
 
 def start_meshcat_server_standalone():
     import argparse

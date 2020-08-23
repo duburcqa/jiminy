@@ -87,7 +87,7 @@ def kill_process(proc):
         proc_raw.send_signal(signal.SIGKILL)
         os.waitpid(proc_pid, 0)
         os.waitpid(os.getpid(), 0)
-    except psutil.NoSuchProcess:
+    except (psutil.NoSuchProcess, ChildProcessError):
         pass
     multiprocessing.active_children()
 
@@ -482,6 +482,9 @@ class Viewer:
                         Viewer._backend_obj is not None and \
                         Viewer._backend_obj.recorder is not None:
                     kill_process(Viewer._backend_obj.recorder)
+                    Viewer._backend_obj.info[
+                        'recorder_manager'].shutdown()
+                    Viewer._backend_obj.info['recorder_manager'] = None
                     Viewer._backend_obj.info['recorder_shm'] = None
                 if self._backend_proc is Viewer._backend_proc:
                     Viewer._backend_obj = None
@@ -654,6 +657,7 @@ class Viewer:
                             stderr=FNULL)
                         if close_at_exit:
                             atexit.register(Viewer.close)  # Cleanup at exit
+                            signal.signal(signal.SIGTERM, Viewer.close)
                         for _ in range(max(2, int(timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
@@ -696,6 +700,7 @@ class Viewer:
                 proc, zmq_url, _ = start_meshcat_server()
                 if close_at_exit:
                     atexit.register(Viewer.close)  # Ensure proper cleanup at exit
+                    signal.signal(signal.SIGTERM, Viewer.close)
             else:
                 proc = None
 
@@ -710,7 +715,11 @@ class Viewer:
                 def __init__(self, gui, recorder):
                     self.gui = gui
                     self.recorder = recorder
-                    self.info = {'nmeshes': 0, 'recorder_shm': None}
+                    self.info = {
+                        'nmeshes': 0,
+                        'recorder_manager': None,
+                        'recorder_shm': None
+                    }
             client = MeshcatWrapper(gui, recorder)
 
             return client, proc
@@ -868,9 +877,10 @@ class Viewer:
             return rgb_array
         else:
             if Viewer._backend_obj.recorder is None:
-                meshcat_url = Viewer._backend_obj.gui.url()
-                proc, recorder_shm = start_meshcat_recorder(meshcat_url)
+                url = Viewer._backend_obj.gui.url()
+                proc, manager, recorder_shm = start_meshcat_recorder(url)
                 Viewer._backend_obj.recorder = proc
+                Viewer._backend_obj.info['recorder_manager'] = manager
                 Viewer._backend_obj.info['recorder_shm'] = recorder_shm
                 self.wait(require_client=True)
 

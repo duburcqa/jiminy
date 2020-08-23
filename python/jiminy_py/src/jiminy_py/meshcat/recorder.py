@@ -1,26 +1,59 @@
 import os
+import sys
 import signal
+import atexit
 import asyncio
+import subprocess
 import multiprocessing
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
-from requests_html import BaseSession, HTMLSession
+import pyppeteer
+from pyppeteer.connection import Connection
+from pyppeteer.browser import Browser
+from pyppeteer.launcher import Launcher, get_ws_endpoint
+from requests_html import HTMLSession
 
 # ================ Monkey-patch =======================
 
-# Overwrite pyppeteer headless browser backend options.
-async def browser(self):
-    browser_args = {
-        'headless': True,
-        'args': self.__browser_args
-    }
-    if not hasattr(self, "_browser"):
-        self._browser = await pyppeteer.launch(
-            ignoreHTTPSErrors=not(self.verify), **browser_args)
-    print("Nice job !")
-    return self._browser
-BaseSession.browser = property(browser)
+# Make sure raise SIGINT does not kill chrome
+# pyppeteer browser backend automatically, so that
+# it allows a closing handle to be manually registered.
+async def launch(self) -> Browser:
+    """Start chrome process and return `Browser` object."""
+    self.chromeClosed = False
+    self.connection = None
+
+    options = dict()
+    options['env'] = self.env
+    if not self.dumpio:
+        options['stdout'] = subprocess.PIPE
+        options['stderr'] = subprocess.STDOUT
+    if sys.platform.startswith('win'):
+        startupflags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        self.proc = subprocess.Popen(
+            self.cmd, **options, creationflags=startupflags)
+    else:
+        self.proc = subprocess.Popen(self.cmd, **options, preexec_fn=os.setpgrp)
+
+    # don't forget to close browser process
+    def _close_process(*args, **kwargs) -> None:
+        if not self.chromeClosed:
+            self._loop.run_until_complete(self.killChrome())
+    atexit.register(_close_process)
+    if self.handleSIGTERM:
+        signal.signal(signal.SIGTERM, _close_process)
+    if not sys.platform.startswith('win'):
+        if self.handleSIGHUP:
+            signal.signal(signal.SIGHUP, _close_process)
+
+    self.browserWSEndpoint = get_ws_endpoint(self.url)
+    self.connection = Connection(self.browserWSEndpoint, self._loop, self.slowMo, )
+    browser = await Browser.create(
+        self.connection, [], self.ignoreHTTPSErrors, self.defaultViewport, self.proc, self.killChrome)
+    await self.ensureInitialPage(browser)
+    return browser
+Launcher.launch = launch
 
 # ======================================================
 
@@ -98,4 +131,4 @@ def start_meshcat_recorder(meshcat_url):
         daemon=True)
     recorder.start()
 
-    return recorder, recorder_shm
+    return recorder, manager, recorder_shm
