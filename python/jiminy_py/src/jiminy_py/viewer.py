@@ -385,12 +385,8 @@ class Viewer:
                 "Showing client is only available using 'meshcat' backend.")
         else:
             if Viewer._backend_obj is None:
-                if start_if_needed:
-                    Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
-                else:
-                    raise RuntimeError("No meshcat backend available and "\
-                                       "'start_if_needed' is set to False.")
+                Viewer._backend_obj, Viewer._backend_proc = \
+                    Viewer._get_client(start_if_needed)
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
                 logging.warning(
                     "Impossible to open web browser programmatically for Meshcat "\
@@ -672,7 +668,7 @@ class Viewer:
             for conn in psutil.net_connections("tcp4"):
                 if conn.status == 'LISTEN':
                     cmdline = psutil.Process(conn.pid).cmdline()
-                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
+                    if 'python' in cmdline[0] and 'meshcat' in cmdline[-1]:
                         meshcat_candidate_ports.append(conn.laddr.port)
 
             # Use the first port responding to zmq request, if any
