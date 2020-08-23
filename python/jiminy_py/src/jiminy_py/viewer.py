@@ -13,7 +13,6 @@ import base64
 import atexit
 from tqdm import tqdm
 import asyncio
-import umsgpack
 import tempfile
 import subprocess
 import logging
@@ -24,14 +23,11 @@ import multiprocessing
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
-from ctypes import c_char_p, c_bool, c_int
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 
 import zmq
 import meshcat
 import meshcat.transformations as mtf
-from meshcat.servers.zmqserver import (
-    VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
 
 import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
@@ -39,7 +35,8 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.robot_wrapper import RobotWrapper
 
 from .state import State
-
+from .meshcat.server import start_meshcat_server
+from .meshcat.recorder import start_meshcat_recorder
 
 # Determine if the various backends are available
 backends_available = ['meshcat']
@@ -57,141 +54,11 @@ def is_alive(self):
     return self.poll() is None
 subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
+multiprocessing.set_start_method('spawn', force=True)
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 DEFAULT_SIZE = 500
-
-
-def start_zmq_server():
-    # Monkey-patch Meshcat to support cross-origin connection.
-    # It is useful to execute custom javascript commands within
-    # a Jupyter Notebook, and it is not an actual security flaw
-    # for local servers since they are not accessible from the
-    # outside anyway.
-    WebSocketHandler.check_origin = lambda self, origin: True
-
-    # Override the default html page to disable auto-update of
-    # three js "controls" of the camera, so that it can be moved
-    # programmatically in any position, without any constraint, as
-    # long as the user is not moving it manually using the mouse.
-    class MyFileHandler(tornado.web.StaticFileHandler):
-        def initialize(self, default_path, default_filename, fallback_path):
-            self.default_path = os.path.abspath(default_path)
-            self.default_filename = default_filename
-            self.fallback_path = os.path.abspath(fallback_path)
-            super().initialize(self.default_path, self.default_filename)
-
-        def set_extra_headers(self, path):
-            self.set_header('Cache-Control',
-                            'no-store, no-cache, must-revalidate, max-age=0')
-
-        def validate_absolute_path(self, root, absolute_path):
-            if os.path.isdir(absolute_path):
-                absolute_path = os.path.join(absolute_path, self.default_filename)
-                return self.validate_absolute_path(root, absolute_path)
-            if os.path.exists(absolute_path) and \
-                    os.path.basename(absolute_path) != self.default_filename:
-                return super().validate_absolute_path(root, absolute_path)
-            return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
-
-    def make_app(self):
-        return tornado.web.Application([
-            (r"/static/?(.*)", MyFileHandler, {
-                "default_path": VIEWER_ROOT,
-                "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
-                "default_filename": "index.html"}),
-            (r"/", WebSocketHandler, {"bridge": self})
-        ])
-    ZMQWebSocketBridge.make_app = make_app
-
-    # Implement bidirectional communication because zmq and the
-    # websockets by gathering and forward messages received from
-    # the websockets to zmq. Note that there is currently no way
-    # to identify the client associated to each reply, but it is
-    # usually not a big deal, since the same answers is usual
-    # expected from each of them. Comma is used as a delimiter.
-    #
-    # It also fixes flushing issue when 'handle_zmq' is not directly
-    # responsible for sending a message through the zmq socket.
-    def handle_web(self, message):
-        self.bridge.websocket_messages.append(message)
-        if len(self.bridge.websocket_messages) == len(self.bridge.websocket_pool):
-            gathered_msg = ",".join(self.bridge.websocket_messages)
-            self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
-            self.bridge.zmq_stream.flush()
-    WebSocketHandler.on_message = handle_web
-
-    def wait_for_websockets(self):
-        if len(self.websocket_pool) > 0:
-            self.zmq_socket.send(b"ok")
-            self.zmq_stream.flush()
-        else:
-            self.ioloop.call_later(0.1, self.wait_for_websockets)
-    ZMQWebSocketBridge.wait_for_websockets = wait_for_websockets
-
-    handle_zmq_orig = ZMQWebSocketBridge.handle_zmq
-    def handle_zmq(self, frames):
-        self.websocket_messages = []  # Used to gather websocket messages
-        cmd = frames[0].decode("utf-8")
-        if cmd == "meshes_loaded":
-            if not self.websocket_pool:
-                self.zmq_socket.send("".encode("utf-8"))
-            for websocket in self.websocket_pool:
-                websocket.write_message(umsgpack.packb({
-                    u"type": u"meshes_loaded"
-                }), binary=True)
-        else:
-            handle_zmq_orig(self, frames)
-    ZMQWebSocketBridge.handle_zmq = handle_zmq
-
-    # Meshcat server deamon, using in/out argument to get the
-    # zmq url instead of reading stdout as it was.
-    def meshcat_zmqserver(zmq_url):
-        # Do NOT use the original even loop, if any, to avoid
-        # Runtime Error in Jupyter "event loop is already running".
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        with open(os.devnull, 'w') as f:
-            with redirect_stderr(f):
-                bridge = ZMQWebSocketBridge()
-                info['zmq_url'] = bridge.zmq_url
-                info['web_url'] = bridge.web_url
-                bridge.run()
-
-    # Run meshcat server in background using multiprocessing
-    # Process to enable monkey patching and proper interprocess
-    # communication through a manager.
-    manager = multiprocessing.Manager()
-    info = manager.dict()
-    server = multiprocessing.Process(
-        target=meshcat_zmqserver, args=(info,), daemon=True)
-    server.start()
-
-    # Wait for the process to finish initialization
-    while not info:
-        pass
-    return server, info['zmq_url'], info['web_url']
-
-def start_zmq_server_standalone():
-    import argparse
-    argparse.ArgumentParser(
-        description="Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands")
-
-    server, zmq_url, web_url = start_zmq_server()
-    print(zmq_url)
-    print(web_url)
-
-    try:
-        server.join()
-    except KeyboardInterrupt:
-        server.terminate()
-        server.join(timeout=0.5)
-        try:
-            proc = psutil.Process(server.pid)
-            proc.send_signal(signal.SIGKILL)
-        except psutil.NoSuchProcess:
-            pass
 
 
 def sleep(dt):
@@ -826,7 +693,7 @@ class Viewer:
 
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
-                proc, zmq_url, _ = start_zmq_server()
+                proc, zmq_url, _ = start_meshcat_server()
                 if close_at_exit:
                     atexit.register(Viewer.close)  # Ensure proper cleanup at exit
             else:
@@ -1001,70 +868,10 @@ class Viewer:
             return rgb_array
         else:
             if Viewer._backend_obj.recorder is None:
-                from requests_html import HTMLSession
-
-                # Send a javascript command to the hidden browser to
-                # capture frame, then wait for it (since it is async).
-                def capture_frame(client, width, height):
-                    async def _capture_frame(client):
-                        nonlocal width, height
-                        _width = client.html.page.viewport['width']
-                        _height = client.html.page.viewport['height']
-                        if not width > 0:
-                            width = _width
-                        if not height > 0:
-                            height = _height
-                        if _width != width or _height != height:
-                            await client.html.page.setViewport(
-                                {'width': width, 'height': height})
-                        return await client.html.page.evaluate("""
-                            () => {
-                            return viewer.capture_image();
-                            }
-                        """)
-                    loop = asyncio.get_event_loop()
-                    img_data = loop.run_until_complete(_capture_frame(client))
-                    return img_data
-
-                def meshcat_recorder(meshcat_url,
-                                     take_snapshot_shm,
-                                     img_data_html_shm,
-                                     width_shm,
-                                     height_shm):
-                    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-
-                    session = HTMLSession()
-                    client = session.get(meshcat_url)
-                    client.html.render(keep_page=True)
-
-                    while True:
-                        if take_snapshot_shm.value:
-                            img_data_html_shm.value = capture_frame(
-                                client, width_shm.value, height_shm.value)
-                            take_snapshot_shm.value = False
-
-                manager = multiprocessing.Manager()
-                recorder_shm = {
-                    'take_snapshot': manager.Value(c_bool, False),
-                    'img_data_html': manager.Value(c_char_p, ""),
-                    'width': manager.Value(c_int, -1),
-                    'height': manager.Value(c_int, -1)
-                }
                 meshcat_url = Viewer._backend_obj.gui.url()
-                Viewer._backend_obj.recorder = multiprocessing.Process(
-                    target=meshcat_recorder,
-                    args=(meshcat_url,
-                          recorder_shm['take_snapshot'],
-                          recorder_shm['img_data_html'],
-                          recorder_shm['width'],
-                          recorder_shm['height']),
-                    daemon=True)
-                Viewer._backend_obj.recorder.start()
+                proc, recorder_shm = start_meshcat_recorder(meshcat_url)
+                Viewer._backend_obj.recorder = proc
                 Viewer._backend_obj.info['recorder_shm'] = recorder_shm
-
                 self.wait(require_client=True)
 
             # Send capture frame request to the background recorder process

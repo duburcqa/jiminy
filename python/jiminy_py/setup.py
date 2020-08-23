@@ -31,7 +31,7 @@ setup(name = 'jiminy_py',
       package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js']},
       entry_points={'console_scripts': [
           'jiminy_plot=jiminy_py.log:plot_log',
-          'jiminy_meshcat_server=jiminy_py.viewer:start_zmq_server_standalone'
+          'jiminy_meshcat_server=jiminy_py.meshcat.server:start_meshcat_server_standalone'
       ]},
       include_package_data = True,  # make sure the shared library is included
       distclass = BinaryDistribution,
