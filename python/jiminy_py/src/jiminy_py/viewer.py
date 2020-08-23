@@ -60,6 +60,7 @@ subprocess.Popen.join = subprocess.Popen.wait
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
+DEFAULT_SIZE = 500
 
 
 def start_zmq_server():
@@ -974,7 +975,7 @@ class Viewer:
                 H_abs = H_abs * H_orig
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
-    def capture_frame(self, width=None, height=None, raw_data=False):
+    def capture_frame(self, width=DEFAULT_SIZE, height=DEFAULT_SIZE, raw_data=False):
         """
         @brief      Take a snapshot and return associated data.
 
@@ -982,9 +983,9 @@ class Viewer:
                     Meshcat backend because of asyncio conflict.
 
         @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now).
-                                Optional: None to keep the original size
+                                Optional: DEFAULT_SIZE by default. None to keep the original size
         @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now).
-                                Optional: None to keep the original size
+                                Optional: DEFAULT_SIZE by default. None to keep the original size
         @param[in]  raw_data    Whether to return a 2D numpy array, or the raw output
                                 from the backend (the actual type may vary)
         """
@@ -1090,9 +1091,9 @@ class Viewer:
 
         @param[in]  output_path    Fullpath of the image (.png extension is mandatory)
         @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now).
-                              Optional: None to keep the original size
+                              Optional: DEFAULT_SIZE by default. None to keep the original size
         @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now).
-                              Optional: None to keep the original size
+                              Optional: DEFAULT_SIZE by default. None to keep the original size
         """
         if not output_path.endswith('.png'):
             raise ValueError("The output path must have .png extension.")
@@ -1248,8 +1249,7 @@ def extract_viewer_data_from_log(log_data, robot):
 def play_trajectories(trajectory_data,
                       mesh_root_path=None,
                       replay_speed=1.0,
-                      record_video=False,
-                      output_directory=None,
+                      record_video_path=None,
                       reference_link=None,
                       viewers=None,
                       start_paused=False,
@@ -1277,11 +1277,10 @@ def play_trajectories(trajectory_data,
                                     'use_theoretical_model':  whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
-    @param[in]  record_video        Whether or not to generate a video. For now, if this mode
+    @param[in]  record_video_path   Fullpath location where to save generated video. Must be
+                                    specified to enable video recording. For now, if recording
                                     is enabled, one must make sure that the time evolution of
                                     each trajectories are the same, using a constant timestep.
-    @param[in]  output_directory    Output directory where to save generated data,
-                                    for instance the video if 'record_video' option is enabled.
     @param[in]  viewers             Optional, already instantiated viewers, associated one by one
                                     in order to each trajectory data.
     @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
@@ -1367,25 +1366,24 @@ def play_trajectories(trajectory_data,
         if backend == 'meshcat':
             print("Waiting for meshcat client in browser to connect: "\
                   f"{Viewer._get_client_url()}")
-    Viewer.wait(require_client=(not record_video))  # Wait for the meshes to finish loading
+
+    # Wait for the meshes to finish loading
+    Viewer.wait(require_client=(record_video_path is not None))
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
-    if record_video:
+    if record_video_path is not None:
         # Play trajectories without multithreading and record_video
         import cv2
         if verbose:
             print("Beginning video recording...")
-        try:
-            os.makedirs(output_directory)
-        except OSError:
-            pass
         img_array = []
         for i in tqdm(range(len(trajectory_data[0]['evolution_robot'])),
-                      desc="Loading frames"):
+                      desc="Loading frames",
+                      disable=(not verbose)):
             for j in range(len(trajectory_data)):
                 viewers[j].display(trajectory_data[j]['evolution_robot'][i].q)
             viewers[0].set_camera_transform(relative=reference_link)
@@ -1395,16 +1393,15 @@ def play_trajectories(trajectory_data,
                          - trajectory_data[0]['evolution_robot'][0].t
         if verbose:
             print(f"The subsampling rate is: {subsampling_rate}")
-        video_fullpath = os.path.join(output_directory, "record_video.avi")
-        out = cv2.VideoWriter(video_fullpath,
+        out = cv2.VideoWriter(record_video_path,
                               cv2.VideoWriter_fourcc(*'DIVX'),
                               fps=1000/subsampling_rate,
                               frameSize=np.shape(img_array[0])[::-1])
-        for i in tqdm(range(len(img_array)), desc="Writing frames"):
+        for i in tqdm(range(len(img_array)),
+                      desc="Writing frames",
+                      disable=(not verbose)):
             out.write(img_array[i])
         out.release()
-        if verbose:
-            print(f"Video output to: {video_fullpath}")
     else:
         # Play trajectories with multithreading
         threads = []

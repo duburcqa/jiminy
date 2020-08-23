@@ -14,8 +14,6 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
-DEFAULT_SIZE = 500
-
 class EngineAsynchronous:
     """
     @brief      Wrapper of Jiminy enabling to update of the command and run simulation
@@ -216,10 +214,7 @@ class EngineAsynchronous:
         self._state = None # Do not fetch the new current state if not requested to the sake of efficiency
         self.step_dt_prev = self.engine.stepper_state.dt
 
-    def render(self,
-               return_rgb_array=False,
-               width=DEFAULT_SIZE,
-               height=DEFAULT_SIZE):
+    def render(self, return_rgb_array=False, width=None, height=None):
         """
         @brief      Render the current state of the simulation. One can display it
                     in Gepetto-viewer or return an RGB array.
@@ -231,8 +226,8 @@ class EngineAsynchronous:
 
         @param[in]  return_rgb_array    Whether or not to return the current frame as an rgb array.
                                         Not that this feature is currently not available in Jupyter.
-        @param[in]  width    Width of the returned RGB frame if enabled.
-        @param[in]  height    Width of the returned RGB frame if enabled.
+        @param[in]  width               Width of the returned RGB frame if enabled.
+        @param[in]  height              Height of the returned RGB frame if enabled.
 
         @return     Rendering as an RGB array (3D numpy array) if enabled, None otherwise.
         """
