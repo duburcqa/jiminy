@@ -578,8 +578,10 @@ class RobotJiminyEnv(gym.core.Env):
             log_data = self._log_data
         else:
             log_data, _ = self.engine.get_log()
-        self.engine_py._viewer = play_logfiles([self.robot], [log_data],
-            viewers=[self.engine_py._viewer], close_backend=False, **kwargs)[0]
+        self.engine_py._viewer = play_logfiles(
+            [self.robot], [log_data], viewers=[self.engine_py._viewer],
+            close_backend=False, verbose=True, **kwargs
+        )[0]
 
     def close(self):
         """
