@@ -61,7 +61,7 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 DEFAULT_SIZE = 500
 VIDEO_FRAMERATE = 50
-
+VIDEO_SIZE = (1000, 1000)
 
 def sleep(dt):
     """
@@ -1216,7 +1216,9 @@ def play_trajectories(trajectory_data,
 
     # Replay the trajectory
     if record_video_path is not None:
-        # Enforce video extension, since it is required by opencv
+        import cv2
+
+        # Enforce video extension, since it is important for opencv
         record_video_path = str(
             pathlib.Path(record_video_path).with_suffix('.mp4'))
 
@@ -1230,17 +1232,15 @@ def play_trajectories(trajectory_data,
             t_orig = np.array([s.t for s in data_orig])
             pos_orig = np.stack([s.q for s in data_orig], axis=0)
             pos_interp = interp1d(
-                t_orig,
-                pos_orig,
-                kind='linear',
-                bounds_error=False,
-                fill_value=(pos_orig[0], pos_orig[-1]),
-                axis=0)
+                t_orig, pos_orig,
+                kind='linear', bounds_error=False,
+                fill_value=(pos_orig[0], pos_orig[-1]), xis=0)
             position_evolution.append(pos_interp(time_evolution))
 
         # Play trajectories without multithreading and record_video
-        import cv2
-        img_array = []
+        out = cv2.VideoWriter(
+            record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
+            fps=VIDEO_FRAMERATE, frameSize=VIDEO_SIZE)
         for i in tqdm(range(len(time_evolution)),
                       desc="Rendering frames",
                       disable=(not verbose)):
@@ -1248,16 +1248,8 @@ def play_trajectories(trajectory_data,
                 viewers[j].display(position_evolution[j][i])
             if traveling_frame is not None:
                 viewers[0].set_camera_transform(relative=traveling_frame)
-            frame = viewers[0].capture_frame(width=1000, height=1000)
-            img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-        out = cv2.VideoWriter(record_video_path,
-                              cv2.VideoWriter_fourcc(*'mp4v'),
-                              fps=VIDEO_FRAMERATE,
-                              frameSize=np.shape(img_array[0])[1::-1])
-        for i in tqdm(range(len(img_array)),
-                      desc="Writing frames",
-                      disable=(not verbose)):
-            out.write(img_array[i])
+            frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
+            out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         out.release()
     else:
         # Play trajectories with multithreading
