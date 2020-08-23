@@ -24,6 +24,7 @@ from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
 from contextlib import redirect_stdout
+from scipy.interpolate import interp1d
 
 import zmq
 import meshcat
@@ -36,7 +37,6 @@ from pinocchio.robot_wrapper import RobotWrapper
 
 from .state import State
 from .meshcat.server import start_meshcat_server
-from .meshcat.recorder import start_meshcat_recorder
 
 # Determine if the various backends are available
 backends_available = ['meshcat']
@@ -59,6 +59,7 @@ multiprocessing.set_start_method('spawn', force=True)
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 DEFAULT_SIZE = 500
+VIDEO_FRAMERATE = 50
 
 
 def sleep(dt):
@@ -266,9 +267,7 @@ class Viewer:
 
         # Set the default camera pose if the viewer is not running before
         if self.is_backend_parent:
-            self.set_camera_transform(
-                translation=DEFAULT_CAMERA_XYZRPY[:3],
-                rotation=DEFAULT_CAMERA_XYZRPY[3:])
+            self.set_camera_transform()
 
         # Backup the backend subprocess used for instantiate the robot
         self._backend_proc = Viewer._backend_proc
@@ -799,9 +798,9 @@ class Viewer:
                 rotation = np.array([1.3, 0.0, 0.8])
         else:
             if translation is None:
-                translation = np.zeros(3)
+                translation = DEFAULT_CAMERA_XYZRPY[:3]
             if rotation is None:
-                rotation = np.zeros(3)
+                rotation = DEFAULT_CAMERA_XYZRPY[3:]
         rotation_mat = rpyToMatrix(np.asarray(rotation))
         translation = np.asarray(translation)
 
@@ -873,11 +872,14 @@ class Viewer:
             return rgb_array
         else:
             if Viewer._backend_obj.recorder is None:
+                from .meshcat.recorder import start_meshcat_recorder
+
                 url = Viewer._backend_obj.gui.url()
                 proc, manager, recorder_shm = start_meshcat_recorder(url)
                 Viewer._backend_obj.recorder = proc
                 Viewer._backend_obj.info['recorder_manager'] = manager
                 Viewer._backend_obj.info['recorder_shm'] = recorder_shm
+
                 self.wait(require_client=True)
 
             # Send capture frame request to the background recorder process
@@ -987,7 +989,12 @@ class Viewer:
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
             Viewer._backend_obj.gui.wait()
 
-    def replay(self, evolution_robot, replay_speed, xyz_offset=None, wait=False):
+    def replay(self,
+               evolution_robot,
+               replay_speed,
+               xyz_offset=None,
+               traveling_frame=None,
+               wait=False):
         """
         @brief      Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1007,6 +1014,8 @@ class Viewer:
             s = evolution_robot[i]
             try:
                 self.display(s.q, xyz_offset, wait)
+                if traveling_frame is not None:
+                    self.set_camera_transform(relative=traveling_frame)
                 wait = False  # It is enough to wait for the first timestep
             except Viewer._backend_exceptions:
                 break
@@ -1067,10 +1076,10 @@ def play_trajectories(trajectory_data,
                       mesh_root_path=None,
                       replay_speed=1.0,
                       record_video_path=None,
-                      reference_link=None,
                       viewers=None,
                       start_paused=False,
                       wait_for_client=True,
+                      traveling_frame=None,
                       camera_xyzrpy=None,
                       xyz_offset=None,
                       urdf_rgba=None,
@@ -1094,21 +1103,32 @@ def play_trajectories(trajectory_data,
                                     'use_theoretical_model':  whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
+                                    Optional: 1.0 by default
     @param[in]  record_video_path   Fullpath location where to save generated video. Must be
                                     specified to enable video recording. For now, if recording
                                     is enabled, one must make sure that the time evolution of
                                     each trajectories are the same, using a constant timestep.
-    @param[in]  viewers             Optional, already instantiated viewers, associated one by one
-                                    in order to each trajectory data.
+                                    Optional: None to disable. None by default.
+    @param[in]  viewers             Already instantiated viewers, associated one by one in order to
+                                    each trajectory data.
+                                    Optional: None to disable. None by default.
     @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
                                     starting to play the trajectories.
+                                    Optional: False by default.
     @param[in]  wait_for_client     Wait for the client to finish loading the meshes before starting
+                                    Optional: True by default.
+    @param[in]  traveling_frame     Name of the frame to automatically follow with the camera.
+                                    Optional: None to disable. None by default.
     @param[in]  camera_xyzrpy       Absolute pose of the camera during replay (disable during video recording).
+                                    This option is unused if camera traveling is enabled.
+                                    Optional: None to disable. None by default.
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array).
+                                    Optional: None to disable. None by default.
     @param[in]  urdf_rgba           RGBA code defining the color of the model. It is the same for each link.
                                     Optional: Original colors of each link. No alpha.
-    @param[in]  backend             Backend, one of 'meshcat' or 'gepetto-gui'. By default 'meshcat' is used
-                                    in notebook environment and 'gepetto-gui' otherwise.
+    @param[in]  backend             Backend, one of 'meshcat' or 'gepetto-gui'.
+                                    Optional: If None, 'meshcat' is used in notebook environment and
+                                    'gepetto-gui' otherwise. None by default.
     @param[in]  window_name         Name of the Gepetto-viewer's window in which to display the robot.
                                     Optional: Common default name if omitted.
     @param[in]  scene_name          Name of the Gepetto-viewer's scene in which to display the robot.
@@ -1116,7 +1136,9 @@ def play_trajectories(trajectory_data,
     @param[in]  close_backend       Close backend automatically at exit.
                                     Optional: Enable by default if not (presumably) available beforehand.
     @param[in]  delete_robot_on_close    Whether or not to delete the robot from the viewer when closing it.
-    @param[in]  verbose              Add information to keep track of the process.
+                                         Optional: True by default.
+    @param[in]  verbose             Add information to keep track of the process.
+                                    Optional: True by default.
 
     @return     The viewers used to play the trajectories.
     """
@@ -1157,7 +1179,8 @@ def play_trajectories(trajectory_data,
                 backend=backend,
                 window_name=window_name,
                 scene_name=scene_name,
-                delete_robot_on_close=delete_robot_on_close)
+                delete_robot_on_close=delete_robot_on_close,
+                open_gui_if_parent=(record_video_path is None))
             viewers.append(viewer)
 
             # Close backend by default
@@ -1179,13 +1202,14 @@ def play_trajectories(trajectory_data,
                 trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
         except Viewer._backend_exceptions:
             break
-    if verbose:
-        if backend == 'meshcat':
-            print("Waiting for meshcat client in browser to connect: "\
-                  f"{Viewer._get_client_url()}")
 
-    # Wait for the meshes to finish loading
-    Viewer.wait(require_client=(record_video_path is not None))
+    # Wait for the meshes to finish loading if non video recording mode
+    if record_video_path is None:
+        if verbose:
+            if backend == 'meshcat':
+                print("Waiting for meshcat client in browser to connect: "\
+                    f"{Viewer._get_client_url()}")
+        Viewer.wait(require_client=True)
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
@@ -1193,26 +1217,39 @@ def play_trajectories(trajectory_data,
 
     # Replay the trajectory
     if record_video_path is not None:
+        # Extract and resample trajectory data at fixed framerate
+        time_max = max([traj['evolution_robot'][-1].t
+                        for traj in trajectory_data])
+        time_evolution = np.arange(0.0, time_max, 1.0 / VIDEO_FRAMERATE)
+        position_evolution = []
+        for j in range(len(trajectory_data)):
+            data_orig = trajectory_data[j]['evolution_robot']
+            t_orig = np.array([s.t for s in data_orig])
+            pos_orig = np.stack([s.q for s in data_orig], axis=0)
+            pos_interp = interp1d(
+                t_orig,
+                pos_orig,
+                kind='linear',
+                bounds_error=False,
+                fill_value=(pos_orig[0], pos_orig[-1]),
+                axis=0)
+            position_evolution.append(pos_interp(time_evolution))
+
         # Play trajectories without multithreading and record_video
         import cv2
-        if verbose:
-            print("Beginning video recording...")
         img_array = []
-        for i in tqdm(range(len(trajectory_data[0]['evolution_robot'])),
+        for i in tqdm(range(len(time_evolution)),
                       desc="Loading frames",
                       disable=(not verbose)):
             for j in range(len(trajectory_data)):
-                viewers[j].display(trajectory_data[j]['evolution_robot'][i].q)
-            viewers[0].set_camera_transform(relative=reference_link)
+                viewers[j].display(position_evolution[j][i])
+            if traveling_frame is not None:
+                viewers[0].set_camera_transform(relative=traveling_frame)
             frame = viewers[0].capture_frame(width=1000, height=1000)
             img_array.append(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-        subsampling_rate = trajectory_data[0]['evolution_robot'][1].t \
-                         - trajectory_data[0]['evolution_robot'][0].t
-        if verbose:
-            print(f"The subsampling rate is: {subsampling_rate}")
         out = cv2.VideoWriter(record_video_path,
                               cv2.VideoWriter_fourcc(*'DIVX'),
-                              fps=1000/subsampling_rate,
+                              fps=1000/VIDEO_FRAMERATE,
                               frameSize=np.shape(img_array[0])[::-1])
         for i in tqdm(range(len(img_array)),
                       desc="Writing frames",
@@ -1223,9 +1260,12 @@ def play_trajectories(trajectory_data,
         # Play trajectories with multithreading
         threads = []
         for i in range(len(trajectory_data)):
-            threads.append(Thread(target=viewers[i].replay,
-                                  args=(trajectory_data[i]['evolution_robot'],
-                                        replay_speed, xyz_offset[i])))
+            threads.append(Thread(
+                target=viewers[i].replay,
+                args=(trajectory_data[i]['evolution_robot'],
+                      replay_speed,
+                      xyz_offset[i],
+                      traveling_frame if i == 0 else None)))
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
