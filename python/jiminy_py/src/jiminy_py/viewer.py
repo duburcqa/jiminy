@@ -13,7 +13,6 @@ import base64
 import atexit
 from tqdm import tqdm
 import asyncio
-import umsgpack
 import tempfile
 import subprocess
 import logging
@@ -24,13 +23,11 @@ import multiprocessing
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 
 import zmq
 import meshcat
 import meshcat.transformations as mtf
-from meshcat.servers.zmqserver import (
-    VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
 
 import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
@@ -38,7 +35,8 @@ from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.robot_wrapper import RobotWrapper
 
 from .state import State
-
+from .meshcat.server import start_meshcat_server
+from .meshcat.recorder import start_meshcat_recorder
 
 # Determine if the various backends are available
 backends_available = ['meshcat']
@@ -56,9 +54,11 @@ def is_alive(self):
     return self.poll() is None
 subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
+multiprocessing.set_start_method('spawn', force=True)
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
+DEFAULT_SIZE = 500
 
 
 def sleep(dt):
@@ -78,136 +78,18 @@ def sleep(dt):
     while time.perf_counter() < _:
         pass
 
-
-def start_zmq_server():
-    # Monkey-patch Meshcat to support cross-origin connection.
-    # It is useful to execute custom javascript commands within
-    # a Jupyter Notebook, and it is not an actual security flaw
-    # for local servers since they are not accessible from the
-    # outside anyway.
-    WebSocketHandler.check_origin = lambda self, origin: True
-
-    # Override the default html page to disable auto-update of
-    # three js "controls" of the camera, so that it can be moved
-    # programmatically in any position, without any constraint, as
-    # long as the user is not moving it manually using the mouse.
-    class MyFileHandler(tornado.web.StaticFileHandler):
-        def initialize(self, default_path, default_filename, fallback_path):
-            self.default_path = os.path.abspath(default_path)
-            self.default_filename = default_filename
-            self.fallback_path = os.path.abspath(fallback_path)
-            super().initialize(self.default_path, self.default_filename)
-
-        def set_extra_headers(self, path):
-            self.set_header('Cache-Control',
-                            'no-store, no-cache, must-revalidate, max-age=0')
-
-        def validate_absolute_path(self, root, absolute_path):
-            if os.path.isdir(absolute_path):
-                absolute_path = os.path.join(absolute_path, self.default_filename)
-                return self.validate_absolute_path(root, absolute_path)
-            if os.path.exists(absolute_path) and \
-                    os.path.basename(absolute_path) != self.default_filename:
-                return super().validate_absolute_path(root, absolute_path)
-            return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
-
-    def make_app(self):
-        return tornado.web.Application([
-            (r"/static/?(.*)", MyFileHandler, {
-                "default_path": VIEWER_ROOT,
-                "fallback_path": os.path.join(os.path.dirname(__file__), "meshcat"),
-                "default_filename": "index.html"}),
-            (r"/", WebSocketHandler, {"bridge": self})
-        ])
-    ZMQWebSocketBridge.make_app = make_app
-
-    # Implement bidirectional communication because zmq and the
-    # websockets by gathering and forward messages received from
-    # the websockets to zmq. Note that there is currently no way
-    # to identify the client associated to each reply, but it is
-    # usually not a big deal, since the same answers is usual
-    # expected from each of them. Comma is used as a delimiter.
-    #
-    # It also fixes flushing issue when 'handle_zmq' is not directly
-    # responsible for sending a message through the zmq socket.
-    def handle_web(self, message):
-        self.bridge.websocket_messages.append(message)
-        if len(self.bridge.websocket_messages) == len(self.bridge.websocket_pool):
-            gathered_msg = ",".join(self.bridge.websocket_messages)
-            self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
-            self.bridge.zmq_stream.flush()
-    WebSocketHandler.on_message = handle_web
-
-    def wait_for_websockets(self):
-        if len(self.websocket_pool) > 0:
-            self.zmq_socket.send(b"ok")
-            self.zmq_stream.flush()
-        else:
-            self.ioloop.call_later(0.1, self.wait_for_websockets)
-    ZMQWebSocketBridge.wait_for_websockets = wait_for_websockets
-
-    handle_zmq_orig = ZMQWebSocketBridge.handle_zmq
-    def handle_zmq(self, frames):
-        self.websocket_messages = []  # Used to gather websocket messages
-        cmd = frames[0].decode("utf-8")
-        if cmd == "meshes_loaded":
-            if not self.websocket_pool:
-                self.zmq_socket.send("".encode("utf-8"))
-            for websocket in self.websocket_pool:
-                websocket.write_message(umsgpack.packb({
-                    u"type": u"meshes_loaded"
-                }), binary=True)
-        else:
-            handle_zmq_orig(self, frames)
-    ZMQWebSocketBridge.handle_zmq = handle_zmq
-
-    # Meshcat server deamon, using in/out argument to get the
-    # zmq url instead of reading stdout as it was.
-    def meshcat_zmqserver(zmq_url):
-        # Do NOT use the original even loop, if any, to avoid
-        # Runtime Error in Jupyter "event loop is already running".
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        with open(os.devnull, 'w') as f:
-            with redirect_stderr(f):
-                bridge = ZMQWebSocketBridge()
-                info['zmq_url'] = bridge.zmq_url
-                info['web_url'] = bridge.web_url
-                bridge.run()
-
-    # Run meshcat server in background using multiprocessing
-    # Process to enable monkey patching and proper interprocess
-    # communication through a manager.
-    manager = multiprocessing.Manager()
-    info = manager.dict()
-    server = multiprocessing.Process(target=meshcat_zmqserver, args=(info,))
-    server.daemon = True
-    server.start()
-
-    # Wait for the process to finish initialization
-    while not info:
-        pass
-    return server, info['zmq_url'], info['web_url']
-
-def start_zmq_server_standalone():
-    import argparse
-    argparse.ArgumentParser(
-        description="Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands")
-
-    server, zmq_url, web_url = start_zmq_server()
-    print(zmq_url)
-    print(web_url)
-
+def kill_process(proc):
+    proc.terminate()
+    proc.join(timeout=0.5)
     try:
-        server.join()
-    except KeyboardInterrupt:
-        server.terminate()
-        server.join(timeout=0.5)
-        try:
-            proc = psutil.Process(server.pid)
-            proc.send_signal(signal.SIGKILL)
-        except psutil.NoSuchProcess:
-            pass
+        proc_pid = proc.pid
+        proc_raw = psutil.Process(proc_pid)
+        proc_raw.send_signal(signal.SIGKILL)
+        os.waitpid(proc_pid, 0)
+        os.waitpid(os.getpid(), 0)
+    except (psutil.NoSuchProcess, ChildProcessError):
+        pass
+    multiprocessing.active_children()
 
 
 class Viewer:
@@ -226,8 +108,8 @@ class Viewer:
                  urdf_rgba=None,
                  lock=None,
                  backend=None,
+                 open_gui_if_parent=True,
                  delete_robot_on_close=False,
-                 close_backend_at_exit=True,
                  robot_name=None,
                  window_name='jiminy',
                  scene_name='world'):
@@ -251,8 +133,8 @@ class Viewer:
                               either 'gepetto-gui' or 'meshcat' ('panda3d' available soon).
                               Optional: 'gepetto-gui' by default if available and not running
                                         inside a notebook, 'meshcat' otherwise.
+        @param open_gui_if_parent        Open GUI if new viewer's backend server is started.
         @param delete_robot_on_close     Enable automatic deletion of the robot when closing.
-        @param close_backend_at_exit     Terminate backend server at Python exit.
         @param robot_name     Unique robot name, to identify each robot in the viewer.
                               Optional: Randomly generated identifier by default.
         @param window_name    Window name, used only when gepetto-gui is used as backend.
@@ -272,7 +154,6 @@ class Viewer:
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
-        self.close_backend_at_exit = close_backend_at_exit
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == window_name:
@@ -352,7 +233,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True, self.close_backend_at_exit)
+                        Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc is not None
                 self._client = Viewer._backend_obj.gui
 
@@ -372,10 +253,10 @@ class Viewer:
 
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True, self.close_backend_at_exit)
+                        Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc is not None
 
-                if self.is_backend_parent:
+                if self.is_backend_parent and open_gui_if_parent:
                     self.open_gui()
 
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
@@ -504,12 +385,8 @@ class Viewer:
                 "Showing client is only available using 'meshcat' backend.")
         else:
             if Viewer._backend_obj is None:
-                if start_if_needed:
-                    Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
-                else:
-                    raise RuntimeError("No meshcat backend available and "\
-                                       "'start_if_needed' is set to False.")
+                Viewer._backend_obj, Viewer._backend_proc = \
+                    Viewer._get_client(start_if_needed)
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
                 logging.warning(
                     "Impossible to open web browser programmatically for Meshcat "\
@@ -557,7 +434,7 @@ class Viewer:
                     time.sleep(0.1)
                 return True
             else:
-                raise NotImplementedError(
+                logging.warning(
                     "Impossible to wait for mesh loading if the Meshcat server "\
                     "has not been opened by Python main thread for now.")
 
@@ -596,28 +473,15 @@ class Viewer:
                 Viewer._backend_robot_names.clear()
                 if self._backend_proc is not None and \
                         self._backend_proc.is_alive():
-                    self._backend_proc.terminate()
-                    self._backend_proc.join(timeout=0.5)
-                    try:
-                        backend_pid = Viewer._backend_proc.pid
-                        proc = psutil.Process(backend_pid)
-                        proc.send_signal(signal.SIGKILL)
-                        os.waitpid(backend_pid, 0)  # Reap the zombies !
-                    except psutil.NoSuchProcess:
-                        pass
-                    multiprocessing.active_children()
+                    kill_process(self._backend_proc)
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None and \
-                        Viewer._backend_obj.browser is not None:
-                    browser_proc = Viewer._backend_obj.browser._browser.process
-                    Viewer._backend_obj.webui.close()
-                    Viewer._backend_obj.browser.close()
-                    browser_proc.kill()
-                    try:
-                        os.waitpid(browser_proc.pid, 0)
-                        os.waitpid(os.getpid(), 0)
-                    except ChildProcessError:
-                        pass
+                        Viewer._backend_obj.recorder is not None:
+                    kill_process(Viewer._backend_obj.recorder)
+                    Viewer._backend_obj.info[
+                        'recorder_manager'].shutdown()
+                    Viewer._backend_obj.info['recorder_manager'] = None
+                    Viewer._backend_obj.info['recorder_shm'] = None
                 if self._backend_proc is Viewer._backend_proc:
                     Viewer._backend_obj = None
             if self._tempdir.startswith(tempfile.gettempdir()):
@@ -789,6 +653,7 @@ class Viewer:
                             stderr=FNULL)
                         if close_at_exit:
                             atexit.register(Viewer.close)  # Cleanup at exit
+                            signal.signal(signal.SIGTERM, Viewer.close)
                         for _ in range(max(2, int(timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
@@ -803,7 +668,7 @@ class Viewer:
             for conn in psutil.net_connections("tcp4"):
                 if conn.status == 'LISTEN':
                     cmdline = psutil.Process(conn.pid).cmdline()
-                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
+                    if 'python' in cmdline[0] and 'meshcat' in cmdline[-1]:
                         meshcat_candidate_ports.append(conn.laddr.port)
 
             # Use the first port responding to zmq request, if any
@@ -828,9 +693,10 @@ class Viewer:
 
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
-                proc, zmq_url, _ = start_zmq_server()
+                proc, zmq_url, _ = start_meshcat_server()
                 if close_at_exit:
                     atexit.register(Viewer.close)  # Ensure proper cleanup at exit
+                    signal.signal(signal.SIGTERM, Viewer.close)
             else:
                 proc = None
 
@@ -839,15 +705,18 @@ class Viewer:
             # to avoid infinite waiting if case of closed server.
             with redirect_stdout(None):
                 gui = meshcat.Visualizer(zmq_url)
-            browser, webui = None, None
+            recorder = None
 
             class MeshcatWrapper:
-                def __init__(self, gui, browser, webui):
+                def __init__(self, gui, recorder):
                     self.gui = gui
-                    self.browser = browser
-                    self.webui = webui
-                    self.info = {'nmeshes': 0}
-            client = MeshcatWrapper(gui, browser, webui)
+                    self.recorder = recorder
+                    self.info = {
+                        'nmeshes': 0,
+                        'recorder_manager': None,
+                        'recorder_shm': None
+                    }
+            client = MeshcatWrapper(gui, recorder)
 
             return client, proc
 
@@ -977,15 +846,17 @@ class Viewer:
                 H_abs = H_abs * H_orig
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
-    def capture_frame(self, width=None, height=None, raw_data=False):
+    def capture_frame(self, width=DEFAULT_SIZE, height=DEFAULT_SIZE, raw_data=False):
         """
         @brief      Take a snapshot and return associated data.
 
         @remark     This method is currently not available on Jupyter using
                     Meshcat backend because of asyncio conflict.
 
-        @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now)
-        @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now).
+                                Optional: DEFAULT_SIZE by default. None to keep the original size
+        @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now).
+                                Optional: DEFAULT_SIZE by default. None to keep the original size
         @param[in]  raw_data    Whether to return a 2D numpy array, or the raw output
                                 from the backend (the actual type may vary)
         """
@@ -993,7 +864,7 @@ class Viewer:
             if raw_data:
                 raise ValueError(
                     "Raw data mode is not available using gepetto-gui.")
-            if width is not None or height is None:
+            if width is not None or height is not None:
                 logging.warning("Cannot specify window size using gepetto-gui.")
             with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to save the frame if the file does not have ".png" extension
                 self.save_frame(f.name)  # It is not possible to capture frame directly using gepetto-gui
@@ -1001,39 +872,26 @@ class Viewer:
                 rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
-            # Start rendering the viewer on host, in a hidden
-            # Chromium browser, if not already started.
-            if not Viewer._is_notebook():
-                if Viewer._backend_obj.webui is None:
-                    from requests_html import HTMLSession
-                    Viewer._backend_obj.browser = HTMLSession()
-                    Viewer._backend_obj.webui = Viewer._backend_obj.browser.get(
-                        Viewer._backend_obj.gui.url())
-                    Viewer._backend_obj.webui.html.render(
-                        keep_page=True)
-                    Viewer.wait(require_client=True)
-            else:
-                raise NotImplementedError(
-                    "Capturing frame is not available in Jupyter for now.")
+            if Viewer._backend_obj.recorder is None:
+                url = Viewer._backend_obj.gui.url()
+                proc, manager, recorder_shm = start_meshcat_recorder(url)
+                Viewer._backend_obj.recorder = proc
+                Viewer._backend_obj.info['recorder_manager'] = manager
+                Viewer._backend_obj.info['recorder_shm'] = recorder_shm
+                self.wait(require_client=True)
 
-            # Send a javascript command to the hidden browser to
-            # capture frame, then wait for it (since it is async).
-            async def _capture_frame(client):
-                if width is not None and height is not None:
-                    await client.html.page.setViewport(
-                        {'width': width, 'height': height})
-                return await client.html.page.evaluate("""
-                    () => {
-                    return viewer.capture_image();
-                    }
-                """)
-            loop = asyncio.get_event_loop()
-            img_data_html = loop.run_until_complete(
-                _capture_frame(Viewer._backend_obj.webui))
+            # Send capture frame request to the background recorder process
+            recorder_shm = Viewer._backend_obj.info['recorder_shm']
+            recorder_shm['width'].value = width if width is not None else -1
+            recorder_shm['height'].value = width if width is not None else -1
+            recorder_shm['take_snapshot'].value = True
+            while recorder_shm['take_snapshot'].value is True:
+                pass
 
             # Parse the output to remove the html header, and
             # convert it into the desired output format.
-            img_data = base64.decodebytes(str.encode(img_data_html[22:]))
+            img_data = base64.decodebytes(str.encode(
+                recorder_shm['img_data_html'].value[22:]))
             if raw_data:
                 return img_data
             else:
@@ -1049,8 +907,10 @@ class Viewer:
                     Meshcat backend because of asyncio conflict.
 
         @param[in]  output_path    Fullpath of the image (.png extension is mandatory)
-        @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now)
-        @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now)
+        @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now).
+                              Optional: DEFAULT_SIZE by default. None to keep the original size
+        @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now).
+                              Optional: DEFAULT_SIZE by default. None to keep the original size
         """
         if not output_path.endswith('.png'):
             raise ValueError("The output path must have .png extension.")
@@ -1206,8 +1066,7 @@ def extract_viewer_data_from_log(log_data, robot):
 def play_trajectories(trajectory_data,
                       mesh_root_path=None,
                       replay_speed=1.0,
-                      record_video=False,
-                      output_directory=None,
+                      record_video_path=None,
                       reference_link=None,
                       viewers=None,
                       start_paused=False,
@@ -1235,11 +1094,10 @@ def play_trajectories(trajectory_data,
                                     'use_theoretical_model':  whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
-    @param[in]  record_video        Whether or not to generate a video. For now, if this mode
+    @param[in]  record_video_path   Fullpath location where to save generated video. Must be
+                                    specified to enable video recording. For now, if recording
                                     is enabled, one must make sure that the time evolution of
                                     each trajectories are the same, using a constant timestep.
-    @param[in]  output_directory    Output directory where to save generated data,
-                                    for instance the video if 'record_video' option is enabled.
     @param[in]  viewers             Optional, already instantiated viewers, associated one by one
                                     in order to each trajectory data.
     @param[in]  start_paused        Start the simulation is pause, waiting for keyboard input before
@@ -1325,25 +1183,24 @@ def play_trajectories(trajectory_data,
         if backend == 'meshcat':
             print("Waiting for meshcat client in browser to connect: "\
                   f"{Viewer._get_client_url()}")
-    Viewer.wait(require_client=(not record_video))  # Wait for the meshes to finish loading
+
+    # Wait for the meshes to finish loading
+    Viewer.wait(require_client=(record_video_path is not None))
 
     # Handle start-in-pause mode
     if start_paused and not Viewer._is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
-    if record_video:
+    if record_video_path is not None:
         # Play trajectories without multithreading and record_video
         import cv2
         if verbose:
             print("Beginning video recording...")
-        try:
-            os.makedirs(output_directory)
-        except OSError:
-            pass
         img_array = []
         for i in tqdm(range(len(trajectory_data[0]['evolution_robot'])),
-                      desc="Loading frames"):
+                      desc="Loading frames",
+                      disable=(not verbose)):
             for j in range(len(trajectory_data)):
                 viewers[j].display(trajectory_data[j]['evolution_robot'][i].q)
             viewers[0].set_camera_transform(relative=reference_link)
@@ -1353,16 +1210,15 @@ def play_trajectories(trajectory_data,
                          - trajectory_data[0]['evolution_robot'][0].t
         if verbose:
             print(f"The subsampling rate is: {subsampling_rate}")
-        video_fullpath = os.path.join(output_directory, "record_video.avi")
-        out = cv2.VideoWriter(video_fullpath,
+        out = cv2.VideoWriter(record_video_path,
                               cv2.VideoWriter_fourcc(*'DIVX'),
                               fps=1000/subsampling_rate,
                               frameSize=np.shape(img_array[0])[::-1])
-        for i in tqdm(range(len(img_array)), desc="Writing frames"):
+        for i in tqdm(range(len(img_array)),
+                      desc="Writing frames",
+                      disable=(not verbose)):
             out.write(img_array[i])
         out.release()
-        if verbose:
-            print(f"Video output to: {video_fullpath}")
     else:
         # Play trajectories with multithreading
         threads = []
