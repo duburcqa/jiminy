@@ -6,6 +6,7 @@ import os
 import re
 import io
 import time
+import types
 import psutil
 import shutil
 import signal
@@ -168,6 +169,12 @@ class Viewer:
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
+
+        # Define camera update function, that will be called systematically
+        # after calling refresh or update. It will be used later for enabling
+        # to attach the camera to a given frame and automatically track it
+        # without explicitly calling 'set_camera_transform'.
+        self.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == window_name:
@@ -663,7 +670,6 @@ class Viewer:
                             shell=False, stdout=FNULL, stderr=FNULL)
                         if close_at_exit:
                             atexit.register(Viewer.close)  # Cleanup at exit
-                            signal.signal(signal.SIGTERM, Viewer.close)
                         for _ in range(max(2, int(timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
@@ -706,7 +712,6 @@ class Viewer:
                 proc, zmq_url, _ = start_meshcat_server()
                 if close_at_exit:
                     atexit.register(Viewer.close)  # Ensure proper cleanup at exit
-                    signal.signal(signal.SIGTERM, Viewer.close)
             else:
                 proc = None
 
@@ -856,6 +861,33 @@ class Viewer:
                 H_abs = H_orig * H_abs
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
+    def attach_camera(self, frame=None, translation=None, rotation=None):
+        """
+        @brief      Attach the camera to a given robot frame.
+
+        @details    Only the position of the frame is taken into account.
+                    A custom relative pose of the camera wrt to the frame
+                    can be further specified.
+
+        @param[in]  frame          Frame of the robot to follow with the camera.
+        @param[in]  translation    Relative position of the camera wrt to the frame [X, Y, Z]
+        @param[in]  rotation       Relative rotation of the camera wrt to the frame [Roll, Pitch, Yaw]
+        """
+        def __update_camera_transform(self):
+            nonlocal frame, translation, rotation
+            self.set_camera_transform(translation, rotation, relative=frame)
+        self.__update_camera_transform = types.MethodType(
+            __update_camera_transform, self)
+
+    def detach_camera(self):
+        """
+        @brief      Detach the camera.
+
+        @details    Must be called to undo 'attach_camera', so that it will
+                    stop automatically tracking a frame.
+        """
+        self.__update_camera_transform = lambda : None
+
     def capture_frame(self, width=DEFAULT_SIZE, height=DEFAULT_SIZE, raw_data=False):
         """
         @brief      Take a snapshot and return associated data.
@@ -964,6 +996,7 @@ class Viewer:
                             self._rb.visual_model.getGeometryId(visual.name)])
                             for visual in self._rb.visual_model.geometryObjects]
                     )
+                self.__update_camera_transform()
                 self._client.refresh()
             else:
                 self.__updateGeometryPlacements(visual=True)
@@ -973,6 +1006,7 @@ class Viewer:
                     self._client.viewer[\
                         self.__getViewerNodeName(
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
+                self.__update_camera_transform()
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
             Viewer._backend_obj.gui.wait()
 
@@ -996,6 +1030,7 @@ class Viewer:
             if self._rb.model.nq != q.shape[0]:
                 raise ValueError("The configuration vector does not have the right size.")
             self._rb.display(q)
+            self.__update_camera_transform()
         pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
             Viewer._backend_obj.gui.wait()
@@ -1004,7 +1039,6 @@ class Viewer:
                evolution_robot,
                replay_speed,
                xyz_offset=None,
-               travelling_frame=None,
                wait=False):
         """
         @brief      Replay a complete robot trajectory at a given real-time ratio.
@@ -1025,8 +1059,6 @@ class Viewer:
             s = evolution_robot[i]
             try:
                 self.display(s.q, xyz_offset, wait)
-                if travelling_frame is not None:
-                    self.set_camera_transform(relative=travelling_frame)
                 wait = False  # It is enough to wait for the first timestep
             except Viewer._backend_exceptions:
                 break
@@ -1201,6 +1233,13 @@ def play_trajectories(trajectory_data,
     if camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
 
+    # Activate camera traveling if requested
+    if travelling_frame is not None:
+        if camera_xyzrpy is not None:
+            viewers[0].attach_camera(travelling_frame, *camera_xyzrpy)
+        else:
+            viewers[0].attach_camera(travelling_frame)
+
     # Load robots in gepetto viewer
     if xyz_offset is None:
         xyz_offset = len(trajectory_data) * (None,)
@@ -1254,12 +1293,6 @@ def play_trajectories(trajectory_data,
             for j in range(len(trajectory_data)):
                 viewers[j].display(
                     position_evolution[j][i], xyz_offset=xyz_offset[j])
-            if travelling_frame is not None:
-                if camera_xyzrpy is not None:
-                    viewers[0].set_camera_transform(
-                        *camera_xyzrpy, relative=travelling_frame)
-                else:
-                    viewers[0].set_camera_transform(relative=travelling_frame)
             frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
             if i == 0:
                 out = cv2.VideoWriter(
