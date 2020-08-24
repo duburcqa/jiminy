@@ -1320,6 +1320,10 @@ def play_trajectories(trajectory_data,
         except KeyboardInterrupt:
             pass
 
+    # Disable camera traveling it was enabled
+    if travelling_frame is not None:
+        viewers[0].detach_camera()
+
     # Close backend if needed
     if close_backend:
         for viewer in viewers:
