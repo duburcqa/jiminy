@@ -25,6 +25,7 @@ async def launch(self) -> Browser:
 
     options = dict()
     options['env'] = self.env
+    cmd = self.cmd + [" --disable-frame-rate-limit", " --disable-gpu-vsync"]
     if not self.dumpio:
         options['stdout'] = subprocess.PIPE
         options['stderr'] = subprocess.STDOUT
@@ -32,10 +33,10 @@ async def launch(self) -> Browser:
         startupflags = subprocess.DETACHED_PROCESS | \
             subprocess.CREATE_NEW_PROCESS_GROUP
         self.proc = subprocess.Popen(
-            self.cmd, **options, creationflags=startupflags, shell=False)
+            cmd, **options, creationflags=startupflags, shell=False)
     else:
         self.proc = subprocess.Popen(
-            self.cmd, **options, preexec_fn=os.setpgrp, shell=False)
+            cmd, **options, preexec_fn=os.setpgrp, shell=False)
 
     # don't forget to close browser process
     def _close_process(*args, **kwargs) -> None:
@@ -81,7 +82,7 @@ def capture_frame(client, width, height):
                 {'width': width, 'height': height})
         return await client.html.page.evaluate("""
             () => {
-            return viewer.capture_image();
+                return viewer.capture_image();
             }
         """)
     loop = asyncio.get_event_loop()
@@ -93,17 +94,30 @@ def meshcat_recorder(meshcat_url,
                      img_data_html_shm,
                      width_shm,
                      height_shm):
-    # Do not catch signal interrupt automatically, to avoid
-    # killing meshcat server and stopping Jupyter notebook cell.
+    # Do not catch signal interrupt automatically, to avoid killing meshcat
+    # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    # Open a Meshcat client in background in a hidden chrome browser instance
     session = HTMLSession()
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
 
+    # Stop rendering loop since it is irrelevant in his case, because
+    # capture_frame is already doing the job.
+    async def stop_animation_async(client):
+        return await client.html.page.evaluate("""
+            () => {
+                stop_animate();
+            }
+        """)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(stop_animation_async(client))
+
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
             while True:
+                # Wait for request to take a screenshot
                 if take_snapshot_shm.value:
                     img_data_html_shm.value = capture_frame(
                         client, width_shm.value, height_shm.value)
