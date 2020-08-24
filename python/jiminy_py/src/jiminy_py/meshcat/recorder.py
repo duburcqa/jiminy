@@ -94,14 +94,17 @@ def meshcat_recorder(meshcat_url,
                      img_data_html_shm,
                      width_shm,
                      height_shm):
-    # Do not catch signal interrupt automatically, to avoid
-    # killing meshcat server and stopping Jupyter notebook cell.
+    # Do not catch signal interrupt automatically, to avoid killing meshcat
+    # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    # Open a Meshcat client in background in a hidden chrome browser instance
     session = HTMLSession()
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
 
+    # Stop rendering loop since it is irrelevant in his case, because
+    # capture_frame is already doing the job.
     async def stop_animation_async(client):
         return await client.html.page.evaluate("""
             () => {
@@ -114,6 +117,7 @@ def meshcat_recorder(meshcat_url,
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
             while True:
+                # Wait for request to take a screenshot
                 if take_snapshot_shm.value:
                     img_data_html_shm.value = capture_frame(
                         client, width_shm.value, height_shm.value)
