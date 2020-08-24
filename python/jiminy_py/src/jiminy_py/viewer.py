@@ -804,7 +804,7 @@ class Viewer:
         # Handling of translation and rotation arguments
         if not relative is None and relative != 'camera':
             if translation is None:
-                translation = np.array([3.0, -3.0, 2.0])
+                translation = np.array([3.0, -3.0, 1.0])
             if rotation is None:
                 rotation = np.array([1.3, 0.0, 0.8])
         else:
@@ -840,7 +840,7 @@ class Viewer:
                     self._window_id, se3ToXYZQUAT(H_abs).tolist())
             else:
                 # Not using recursive call for efficiency
-                H_abs = H_abs * H_orig
+                H_abs = H_orig * H_abs
                 self._client.setCameraTransform(
                     self._window_id, se3ToXYZQUAT(H_abs).tolist())
         elif Viewer.backend == 'meshcat':
@@ -853,7 +853,7 @@ class Viewer:
                         translate=translation, angles=rotation))
             else:
                 H_abs = SE3(rotation_mat, translation)
-                H_abs = H_abs * H_orig
+                H_abs = H_orig * H_abs
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
     def capture_frame(self, width=DEFAULT_SIZE, height=DEFAULT_SIZE, raw_data=False):
@@ -1128,8 +1128,9 @@ def play_trajectories(trajectory_data,
                                     Optional: True by default.
     @param[in]  travelling_frame    Name of the frame to automatically follow with the camera.
                                     Optional: None to disable. None by default.
-    @param[in]  camera_xyzrpy       Absolute pose of the camera during replay (disable during video recording).
-                                    This option is unused if camera travelling is enabled.
+    @param[in]  camera_xyzrpy       Tuple (position [X, Y, Z], rotation [Roll, Pitch, Yaw]) corresponding
+                                    to the absolute pose of the camera during replay, if travelling is
+                                    disable, or the relative pose wrt the tracked frame otherwise.
                                     Optional: None to disable. None by default.
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array).
                                     Optional: None to disable. None by default.
@@ -1198,8 +1199,7 @@ def play_trajectories(trajectory_data,
 
     # Set camera pose if requested
     if camera_xyzrpy is not None:
-        viewers[0].set_camera_transform(
-            translation=camera_xyzrpy[:3], rotation=camera_xyzrpy[3:])
+        viewers[0].set_camera_transform(*camera_xyzrpy)
 
     # Load robots in gepetto viewer
     if xyz_offset is None:
@@ -1254,7 +1254,11 @@ def play_trajectories(trajectory_data,
             for j in range(len(trajectory_data)):
                 viewers[j].display(position_evolution[j][i])
             if travelling_frame is not None:
-                viewers[0].set_camera_transform(relative=travelling_frame)
+                if camera_xyzrpy is not None:
+                    viewers[0].set_camera_transform(
+                        *camera_xyzrpy, relative=travelling_frame)
+                else:
+                    viewers[0].set_camera_transform(relative=travelling_frame)
             frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
             if i == 0:
                 out = cv2.VideoWriter(
