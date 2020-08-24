@@ -68,12 +68,11 @@ def is_alive(self):
     return self.poll() is None
 subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
-multiprocessing.set_start_method('spawn', force=True)
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 DEFAULT_SIZE = 500
-VIDEO_FRAMERATE = 50
+VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
 
 def sleep(dt):

@@ -87,7 +87,7 @@ class RobotJiminyEnv(gym.core.Env):
         ## Set the metadata of the environment. Those information are
         #  used by some gym wrappers such as VideoRecorder.
         self.metadata = {
-            'render.modes': ['human', 'rgb_array', 'depth_array'],
+            'render.modes': ['human', 'rgb_array'],
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
 

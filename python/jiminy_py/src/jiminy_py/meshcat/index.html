@@ -57,6 +57,14 @@
             viewer.camera.position.set(8.0, 1.2, 0);
             viewer.render();
 
+            viewer.capture_image = function() {
+                viewer.camera.updateProjectionMatrix();
+                viewer.renderer.render(viewer.scene, viewer.camera);
+                viewer.animator.after_render();
+                viewer.needs_render = false;
+                return viewer.renderer.domElement.toDataURL();
+            };
+
             function animate() {
                 requestAnimationFrame(animate);
                 viewer.animator.update();
