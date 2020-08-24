@@ -81,7 +81,7 @@ def capture_frame(client, width, height):
                 {'width': width, 'height': height})
         return await client.html.page.evaluate("""
             () => {
-            return viewer.capture_image();
+                return viewer.capture_image();
             }
         """)
     loop = asyncio.get_event_loop()
@@ -100,6 +100,15 @@ def meshcat_recorder(meshcat_url,
     session = HTMLSession()
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
+
+    async def stop_animation_async(client):
+        return await client.html.page.evaluate("""
+            () => {
+                stop_animate();
+            }
+        """)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(stop_animation_async(client))
 
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
