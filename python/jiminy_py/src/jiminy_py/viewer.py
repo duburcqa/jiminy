@@ -49,6 +49,19 @@ if __import__('platform').system() == 'Linux':
     except ImportError:
         pass
 
+# Create logger
+class DuplicateFilter:
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg not in self.msgs
+        self.msgs.add(record.msg)
+        return rv
+
+logger = logging.getLogger(__name__)
+logger.addFilter(DuplicateFilter())
+
 # Monkey-patch subprocess Popen to add 'is_alive' and 'join' methods,
 # to have the same interface than multiprocessing Process.
 def is_alive(self):
@@ -388,7 +401,7 @@ class Viewer:
                 Viewer._backend_obj, Viewer._backend_proc = \
                     Viewer._get_client(start_if_needed)
             if Viewer._is_notebook() and Viewer.port_forwarding is not None:
-                logging.warning(
+                logger.warning(
                     "Impossible to open web browser programmatically for Meshcat "\
                     "through port forwarding. Either use Jupyter or open it manually.")
 
@@ -403,7 +416,7 @@ class Viewer:
                 if Viewer.port_forwarding is None:
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 else:
-                    logging.warning(
+                    logger.warning(
                         "Impossible to open webbrowser through port forwarding. "\
                         "Either use Jupyter or open it manually.")
 
@@ -434,7 +447,7 @@ class Viewer:
                     time.sleep(0.1)
                 return True
             else:
-                logging.warning(
+                logger.warning(
                     "Impossible to wait for mesh loading if the Meshcat server "\
                     "has not been opened by Python main thread for now.")
 
@@ -648,9 +661,7 @@ class Viewer:
                         FNULL = open(os.devnull, 'w')
                         client_proc = subprocess.Popen(
                             ['/opt/openrobots/bin/gepetto-gui'],
-                            shell=False,
-                            stdout=FNULL,
-                            stderr=FNULL)
+                            shell=False, stdout=FNULL, stderr=FNULL)
                         if close_at_exit:
                             atexit.register(Viewer.close)  # Cleanup at exit
                             signal.signal(signal.SIGTERM, Viewer.close)
@@ -865,7 +876,7 @@ class Viewer:
                 raise ValueError(
                     "Raw data mode is not available using gepetto-gui.")
             if width is not None or height is not None:
-                logging.warning("Cannot specify window size using gepetto-gui.")
+                logger.warning("Cannot specify window size using gepetto-gui.")
             with tempfile.NamedTemporaryFile(suffix=".png") as f:  # Gepetto is not able to save the frame if the file does not have ".png" extension
                 self.save_frame(f.name)  # It is not possible to capture frame directly using gepetto-gui
                 img_obj = Image.open(f.name)
@@ -1238,9 +1249,6 @@ def play_trajectories(trajectory_data,
             position_evolution.append(pos_interp(time_evolution))
 
         # Play trajectories without multithreading and record_video
-        out = cv2.VideoWriter(
-            record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
-            fps=VIDEO_FRAMERATE, frameSize=VIDEO_SIZE)
         for i in tqdm(range(len(time_evolution)),
                       desc="Rendering frames",
                       disable=(not verbose)):
@@ -1249,6 +1257,10 @@ def play_trajectories(trajectory_data,
             if traveling_frame is not None:
                 viewers[0].set_camera_transform(relative=traveling_frame)
             frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
+            if i == 0:
+                out = cv2.VideoWriter(
+                    record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
+                    fps=VIDEO_FRAMERATE, frameSize=frame.shape[1::-1])
             out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         out.release()
     else:
