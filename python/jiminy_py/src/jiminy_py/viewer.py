@@ -68,12 +68,11 @@ def is_alive(self):
     return self.poll() is None
 subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
-multiprocessing.set_start_method('spawn', force=True)
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
 DEFAULT_SIZE = 500
-VIDEO_FRAMERATE = 50
+VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
 
 def sleep(dt):
@@ -800,7 +799,7 @@ class Viewer:
                                        - None: absolute
                                        - 'camera': relative to the current camera pose
                                        - other string: relative to a robot frame,
-                                         not accounting for the rotation (traveling)
+                                         not accounting for the rotation (travelling)
         """
         # Handling of translation and rotation arguments
         if not relative is None and relative != 'camera':
@@ -1005,7 +1004,7 @@ class Viewer:
                evolution_robot,
                replay_speed,
                xyz_offset=None,
-               traveling_frame=None,
+               travelling_frame=None,
                wait=False):
         """
         @brief      Replay a complete robot trajectory at a given real-time ratio.
@@ -1026,8 +1025,8 @@ class Viewer:
             s = evolution_robot[i]
             try:
                 self.display(s.q, xyz_offset, wait)
-                if traveling_frame is not None:
-                    self.set_camera_transform(relative=traveling_frame)
+                if travelling_frame is not None:
+                    self.set_camera_transform(relative=travelling_frame)
                 wait = False  # It is enough to wait for the first timestep
             except Viewer._backend_exceptions:
                 break
@@ -1091,7 +1090,7 @@ def play_trajectories(trajectory_data,
                       viewers=None,
                       start_paused=False,
                       wait_for_client=True,
-                      traveling_frame=None,
+                      travelling_frame=None,
                       camera_xyzrpy=None,
                       xyz_offset=None,
                       urdf_rgba=None,
@@ -1127,10 +1126,10 @@ def play_trajectories(trajectory_data,
                                     Optional: False by default.
     @param[in]  wait_for_client     Wait for the client to finish loading the meshes before starting
                                     Optional: True by default.
-    @param[in]  traveling_frame     Name of the frame to automatically follow with the camera.
+    @param[in]  travelling_frame    Name of the frame to automatically follow with the camera.
                                     Optional: None to disable. None by default.
     @param[in]  camera_xyzrpy       Absolute pose of the camera during replay (disable during video recording).
-                                    This option is unused if camera traveling is enabled.
+                                    This option is unused if camera travelling is enabled.
                                     Optional: None to disable. None by default.
     @param[in]  xyz_offset          Constant translation of the root joint in world frame (1D numpy array).
                                     Optional: None to disable. None by default.
@@ -1254,8 +1253,8 @@ def play_trajectories(trajectory_data,
                       disable=(not verbose)):
             for j in range(len(trajectory_data)):
                 viewers[j].display(position_evolution[j][i])
-            if traveling_frame is not None:
-                viewers[0].set_camera_transform(relative=traveling_frame)
+            if travelling_frame is not None:
+                viewers[0].set_camera_transform(relative=travelling_frame)
             frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
             if i == 0:
                 out = cv2.VideoWriter(
@@ -1272,7 +1271,7 @@ def play_trajectories(trajectory_data,
                 args=(trajectory_data[i]['evolution_robot'],
                       replay_speed,
                       xyz_offset[i],
-                      traveling_frame if i == 0 else None)))
+                      travelling_frame if i == 0 else None)))
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
