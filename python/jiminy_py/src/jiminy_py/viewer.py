@@ -1252,7 +1252,7 @@ def play_trajectories(trajectory_data,
                       desc="Rendering frames",
                       disable=(not verbose)):
             for j in range(len(trajectory_data)):
-                viewers[j].display(position_evolution[j][i])
+                viewers[j].display(position_evolution[j][i], xyz_offset=xyz_offset[j])
             if travelling_frame is not None:
                 if camera_xyzrpy is not None:
                     viewers[0].set_camera_transform(
