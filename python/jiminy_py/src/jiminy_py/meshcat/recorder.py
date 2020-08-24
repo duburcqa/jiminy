@@ -25,6 +25,7 @@ async def launch(self) -> Browser:
 
     options = dict()
     options['env'] = self.env
+    cmd = self.cmd + [" --disable-frame-rate-limit", " --disable-gpu-vsync"]
     if not self.dumpio:
         options['stdout'] = subprocess.PIPE
         options['stderr'] = subprocess.STDOUT
@@ -32,10 +33,10 @@ async def launch(self) -> Browser:
         startupflags = subprocess.DETACHED_PROCESS | \
             subprocess.CREATE_NEW_PROCESS_GROUP
         self.proc = subprocess.Popen(
-            self.cmd, **options, creationflags=startupflags, shell=False)
+            cmd, **options, creationflags=startupflags, shell=False)
     else:
         self.proc = subprocess.Popen(
-            self.cmd, **options, preexec_fn=os.setpgrp, shell=False)
+            cmd, **options, preexec_fn=os.setpgrp, shell=False)
 
     # don't forget to close browser process
     def _close_process(*args, **kwargs) -> None:

@@ -77,8 +77,7 @@
             viewer.capture_image = function() {
                 viewer.camera.updateProjectionMatrix();
                 viewer.renderer.render(viewer.scene, viewer.camera);
-                viewer.needs_render = false;
-                return viewer.renderer.domElement.toDataURL();
+                return viewer.renderer.domElement.toDataURL('image/webp', 1.0);
             };
             function animate() {
                 if (continue_animating) {

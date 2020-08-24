@@ -936,12 +936,12 @@ class Viewer:
             # Parse the output to remove the html header, and
             # convert it into the desired output format.
             img_data = base64.decodebytes(str.encode(
-                recorder_shm['img_data_html'].value[22:]))
+                recorder_shm['img_data_html'].value[23:]))
             if raw_data:
                 return img_data
             else:
                 img_obj = Image.open(io.BytesIO(img_data))
-                rgb_array = np.array(img_obj)[:, :, :-1]
+                rgb_array = np.array(img_obj)
                 return rgb_array
 
     def save_frame(self, output_path, width=None, height=None):
@@ -951,18 +951,19 @@ class Viewer:
         @remark     This method is currently not available on Jupyter using
                     Meshcat backend because of asyncio conflict.
 
-        @param[in]  output_path    Fullpath of the image (.png extension is mandatory)
+        @param[in]  output_path    Fullpath of the image (.png extension is mandatory for
+                                   Gepetto-gui, it is .webp for Meshcat)
         @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now).
                               Optional: DEFAULT_SIZE by default. None to keep the original size
         @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now).
                               Optional: DEFAULT_SIZE by default. None to keep the original size
         """
-        if not output_path.endswith('.png'):
-            raise ValueError("The output path must have .png extension.")
         if Viewer.backend == 'gepetto-gui':
+            output_path = str(pathlib.Path(output_path).with_suffix('.png'))
             self._client.captureFrame(self._window_id, output_path)
         else:
             img_data = self.capture_frame(width, height, True)
+            output_path = str(pathlib.Path(output_path).with_suffix('.webp'))
             with open(output_path, "wb") as f:
                 f.write(img_data)
 
@@ -1143,12 +1144,12 @@ def play_trajectories(trajectory_data,
     @param[in]  trajectory_data     List of trajectory dictionary with keys:
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
-                                    'use_theoretical_model':  whether to use the theoretical or actual model
+                                    'use_theoretical_model': whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation
                                     Optional: 1.0 by default
-    @param[in]  record_video_path   Fullpath location where to save generated video. Must be
-                                    specified to enable video recording.
+    @param[in]  record_video_path   Fullpath location where to save generated video (.mp4 extension is
+                                    mandatory). Must be specified to enable video recording.
                                     Optional: None to disable. None by default.
     @param[in]  viewers             Already instantiated viewers, associated one by one in order to
                                     each trajectory data.
