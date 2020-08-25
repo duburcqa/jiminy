@@ -25,7 +25,16 @@ async def launch(self) -> Browser:
 
     options = dict()
     options['env'] = self.env
-    cmd = self.cmd + [" --disable-frame-rate-limit", " --disable-gpu-vsync"]
+    cmd = self.cmd + [
+        "--ignore-certificate-errors",
+        "--disable-infobars",
+        "--disable-breakpad",
+        "--disable-setuid-sandbox",
+        "--proxy-server='direct://'",
+        "--proxy-bypass-list=*",
+        "--enable-webgl",
+        "--disable-frame-rate-limit",
+        "--disable-gpu-vsync"]
     if not self.dumpio:
         options['stdout'] = subprocess.PIPE
         options['stderr'] = subprocess.STDOUT

@@ -71,10 +71,10 @@ subprocess.Popen.is_alive = is_alive
 subprocess.Popen.join = subprocess.Popen.wait
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY = np.array([7.5, 0.0, 1.4, 1.4, 0.0, np.pi/2])
-DEFAULT_SIZE = 500
+DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
+DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
-VIDEO_SIZE = (1000, 1000)
+VIDEO_SIZE = (800, 800)
 
 def sleep(dt):
     """
@@ -814,9 +814,9 @@ class Viewer:
                 rotation = np.array([1.3, 0.0, 0.8])
         else:
             if translation is None:
-                translation = DEFAULT_CAMERA_XYZRPY[:3]
+                translation = DEFAULT_CAMERA_XYZRPY[0]
             if rotation is None:
-                rotation = DEFAULT_CAMERA_XYZRPY[3:]
+                rotation = DEFAULT_CAMERA_XYZRPY[1]
         rotation_mat = rpyToMatrix(np.asarray(rotation))
         translation = np.asarray(translation)
 
@@ -888,17 +888,17 @@ class Viewer:
         """
         self.__update_camera_transform = lambda : None
 
-    def capture_frame(self, width=DEFAULT_SIZE, height=DEFAULT_SIZE, raw_data=False):
+    def capture_frame(self,
+                      width=DEFAULT_CAPTURE_SIZE,
+                      height=DEFAULT_CAPTURE_SIZE,
+                      raw_data=False):
         """
         @brief      Take a snapshot and return associated data.
 
-        @remark     This method is currently not available on Jupyter using
-                    Meshcat backend because of asyncio conflict.
-
         @param[in]  width       Width for the image in pixels (not available with Gepetto-gui for now).
-                                Optional: DEFAULT_SIZE by default. None to keep the original size
+                                Optional: DEFAULT_CAPTURE_SIZE by default. None to keep unchanged.
         @param[in]  height      Height for the image in pixels (not available with Gepetto-gui for now).
-                                Optional: DEFAULT_SIZE by default. None to keep the original size
+                                Optional: DEFAULT_CAPTURE_SIZE by default. None to keep unchanged.
         @param[in]  raw_data    Whether to return a 2D numpy array, or the raw output
                                 from the backend (the actual type may vary)
         """
@@ -944,27 +944,27 @@ class Viewer:
                 rgb_array = np.array(img_obj)
                 return rgb_array
 
-    def save_frame(self, output_path, width=None, height=None):
+    def save_frame(self,
+                   image_path,
+                   width=DEFAULT_CAPTURE_SIZE,
+                   height=DEFAULT_CAPTURE_SIZE):
         """
         @brief      Save a snapshot in png format.
 
-        @remark     This method is currently not available on Jupyter using
-                    Meshcat backend because of asyncio conflict.
-
-        @param[in]  output_path    Fullpath of the image (.png extension is mandatory for
-                                   Gepetto-gui, it is .webp for Meshcat)
+        @param[in]  image_path    Fullpath of the image (.png extension is mandatory for
+                                  Gepetto-gui, it is .webp for Meshcat)
         @param[in]  width     Width for the image in pixels (not available with Gepetto-gui for now).
-                              Optional: DEFAULT_SIZE by default. None to keep the original size
+                              Optional: DEFAULT_CAPTURE_SIZE by default. None to keep unchanged.
         @param[in]  height    Height for the image in pixels (not available with Gepetto-gui for now).
-                              Optional: DEFAULT_SIZE by default. None to keep the original size
+                              Optional: DEFAULT_CAPTURE_SIZE by default. None to keep unchanged.
         """
         if Viewer.backend == 'gepetto-gui':
-            output_path = str(pathlib.Path(output_path).with_suffix('.png'))
-            self._client.captureFrame(self._window_id, output_path)
+            image_path = str(pathlib.Path(image_path).with_suffix('.png'))
+            self._client.captureFrame(self._window_id, image_path)
         else:
-            img_data = self.capture_frame(width, height, True)
-            output_path = str(pathlib.Path(output_path).with_suffix('.webp'))
-            with open(output_path, "wb") as f:
+            img_data = self.capture_frame(width, height, raw_data=True)
+            image_path = str(pathlib.Path(image_path).with_suffix('.webp'))
+            with open(image_path, "wb") as f:
                 f.write(img_data)
 
     def refresh(self, wait=False):
