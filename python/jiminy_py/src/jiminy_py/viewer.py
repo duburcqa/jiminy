@@ -25,11 +25,9 @@ from tqdm import tqdm
 from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
-from contextlib import redirect_stdout
 from scipy.interpolate import interp1d
 
 import zmq
-import meshcat
 import meshcat.transformations as mtf
 
 import pinocchio as pin
@@ -39,6 +37,7 @@ from pinocchio.robot_wrapper import RobotWrapper
 
 from .state import State
 from .meshcat.server import start_meshcat_server
+from .meshcat.wrapper import MeshcatWrapper
 
 # Determine if the various backends are available
 backends_available = ['meshcat']
@@ -74,7 +73,8 @@ CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
 DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
-VIDEO_SIZE = (800, 800)
+VIDEO_SIZE = (1000, 1000)
+
 
 def sleep(dt):
     """
@@ -424,7 +424,8 @@ class Viewer:
                         "Impossible to open webbrowser through port forwarding. "\
                         "Either use Jupyter or open it manually.")
 
-    def wait(self, require_client=False):
+    @staticmethod
+    def wait(require_client=False):
         """
         @brief Wait for all the meshes to finish loading in every clients.
 
@@ -432,22 +433,9 @@ class Viewer:
                                      before checking for mesh loading.
         """
         if Viewer.backend == 'gepetto-gui':
-            return True  # Gepetto-gui is synchronous, so it cannot not be already loaded
+            return  # Gepetto-gui is synchronous, so it cannot not be already loaded
         else:
-            if require_client:
-                Viewer._backend_obj.gui.wait()
-            zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-            def _is_loaded():
-                zmq_socket.send(f"meshes_loaded:{self.robot_name}".encode())
-                resp = zmq_socket.recv().decode("utf-8")
-                if resp:
-                    return resp or min(np.array(resp.split(','), int)) == \
-                        len(self._rb.visual_model.geometryObjects)
-                else:
-                    return True
-            while not _is_loaded():
-                time.sleep(0.1)
-            return True
+            Viewer._backend_obj.wait()
 
     def close(self=None):
         """
@@ -462,6 +450,9 @@ class Viewer:
                 viewer instance.
         """
         try:
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
+                zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
+                zmq_socket.RCVTIMEO = 50
             if self is None:
                 self = Viewer
             else:
@@ -484,13 +475,9 @@ class Viewer:
                         self._backend_proc.is_alive():
                     kill_process(self._backend_proc)
                 if Viewer.backend == 'meshcat' and \
-                        Viewer._backend_obj is not None and \
-                        Viewer._backend_obj.recorder is not None:
-                    kill_process(Viewer._backend_obj.recorder)
-                    Viewer._backend_obj.info[
-                        'recorder_manager'].shutdown()
-                    Viewer._backend_obj.info['recorder_manager'] = None
-                    Viewer._backend_obj.info['recorder_shm'] = None
+                        Viewer._backend_obj is not None:
+                    Viewer._backend_obj.close()
+                    kill_process(Viewer._backend_obj.recorder.proc)
                 if self._backend_proc is Viewer._backend_proc:
                     Viewer._backend_obj = None
             if self._tempdir.startswith(tempfile.gettempdir()):
@@ -499,7 +486,9 @@ class Viewer:
                 except FileNotFoundError:
                     pass
             self._backend_proc = None
-        except AttributeError:
+            if Viewer._backend_obj is not None:
+                zmq_socket.RCVTIMEO = -1
+        except:
             pass
 
     @staticmethod
@@ -705,22 +694,8 @@ class Viewer:
             else:
                 proc = None
 
-            # Connect to the existing zmq server or create one if none.
-            # Make sure the timeout is properly configured in any case
-            # to avoid infinite waiting if case of closed server.
-            with redirect_stdout(None):
-                gui = meshcat.Visualizer(zmq_url)
-            recorder = None
-
-            class MeshcatWrapper:
-                def __init__(self, gui, recorder):
-                    self.gui = gui
-                    self.recorder = recorder
-                    self.info = {
-                        'recorder_manager': None,
-                        'recorder_shm': None
-                    }
-            client = MeshcatWrapper(gui, recorder)
+            # Connect to the zmq server
+            client = MeshcatWrapper(zmq_url)
 
             return client, proc
 
@@ -903,29 +878,12 @@ class Viewer:
                 rgb_array = np.array(img_obj)[:, :, :-1]
             return rgb_array
         else:
-            if Viewer._backend_obj.recorder is None:
-                from .meshcat.recorder import start_meshcat_recorder
-
-                url = Viewer._backend_obj.gui.url()
-                proc, manager, recorder_shm = start_meshcat_recorder(url)
-                Viewer._backend_obj.recorder = proc
-                Viewer._backend_obj.info['recorder_manager'] = manager
-                Viewer._backend_obj.info['recorder_shm'] = recorder_shm
-
-                self.wait(require_client=True)
-
             # Send capture frame request to the background recorder process
-            recorder_shm = Viewer._backend_obj.info['recorder_shm']
-            recorder_shm['width'].value = width if width is not None else -1
-            recorder_shm['height'].value = width if width is not None else -1
-            recorder_shm['take_snapshot'].value = True
-            while recorder_shm['take_snapshot'].value is True:
-                pass
+            img_html = Viewer._backend_obj.capture_frame(width, height)
 
             # Parse the output to remove the html header, and
             # convert it into the desired output format.
-            img_data = base64.decodebytes(str.encode(
-                recorder_shm['img_data_html'].value[23:]))
+            img_data = base64.decodebytes(str.encode(img_html[23:]))
             if raw_data:
                 return img_data
             else:
@@ -1255,12 +1213,6 @@ def play_trajectories(trajectory_data,
 
     # Replay the trajectory
     if record_video_path is not None:
-        import cv2
-
-        # Enforce video extension, since it is important for opencv
-        record_video_path = str(
-            pathlib.Path(record_video_path).with_suffix('.mp4'))
-
         # Extract and resample trajectory data at fixed framerate
         time_max = max([traj['evolution_robot'][-1].t
                         for traj in trajectory_data])
@@ -1283,13 +1235,27 @@ def play_trajectories(trajectory_data,
             for j in range(len(trajectory_data)):
                 viewers[j].display(
                     position_evolution[j][i], xyz_offset=xyz_offset[j])
-            frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
-            if i == 0:
-                out = cv2.VideoWriter(
-                    record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
-                    fps=VIDEO_FRAMERATE, frameSize=frame.shape[1::-1])
-            out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-        out.release()
+            if Viewer.backend != 'meshcat':
+                import cv2
+                frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
+                if i == 0:
+                    record_video_path = str(
+                        pathlib.Path(record_video_path).with_suffix('.mp4'))
+                    out = cv2.VideoWriter(
+                        record_video_path, cv2.VideoWriter_fourcc(*'vp09'),
+                        fps=VIDEO_FRAMERATE, frameSize=frame.shape[1::-1])
+                out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+            else:
+                if i == 0:
+                    record_video_path = str(
+                        pathlib.Path(record_video_path).with_suffix('.webm'))
+                    viewers[0]._backend_obj.start_recording(
+                        record_video_path, VIDEO_FRAMERATE, *VIDEO_SIZE)
+                viewers[0]._backend_obj.add_frame()
+        if Viewer.backend != 'meshcat':
+            out.release()
+        else:
+            viewers[0]._backend_obj.stop_recording()
     else:
         # Play trajectories with multithreading
         threads = []
@@ -1303,7 +1269,6 @@ def play_trajectories(trajectory_data,
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
-
         try:
             for i in range(len(trajectory_data)):
                 threads[i].join()
