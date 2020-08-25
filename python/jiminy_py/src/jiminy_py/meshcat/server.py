@@ -36,6 +36,9 @@ class MyFileHandler(tornado.web.StaticFileHandler):
 
     def validate_absolute_path(self, root, absolute_path):
         if os.path.isdir(absolute_path):
+            if not self.request.path.endswith("/"):
+                self.redirect(self.request.path + "/", permanent=True)
+                return None
             absolute_path = os.path.join(absolute_path, self.default_filename)
             return self.validate_absolute_path(root, absolute_path)
         if os.path.exists(absolute_path) and \
