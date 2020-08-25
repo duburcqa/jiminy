@@ -344,8 +344,6 @@ class Viewer:
             self._client.loadViewerModel(
                 rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
-            Viewer._backend_obj.info['nmeshes'] += \
-                len(self._rb.visual_model.geometryObjects)
         Viewer._backend_robot_names.add(robot_name)
 
         # Refresh the viewer since the position of the meshes is not initialized at this point
@@ -426,8 +424,7 @@ class Viewer:
                         "Impossible to open webbrowser through port forwarding. "\
                         "Either use Jupyter or open it manually.")
 
-    @staticmethod
-    def wait(require_client=False):
+    def wait(self, require_client=False):
         """
         @brief Wait for all the meshes to finish loading in every clients.
 
@@ -437,25 +434,20 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             return True  # Gepetto-gui is synchronous, so it cannot not be already loaded
         else:
-            if Viewer._backend_proc is not None:
-                if require_client:
-                    Viewer._backend_obj.gui.wait()
-                zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                def _is_loaded():
-                    zmq_socket.send(b'meshes_loaded')
-                    resp = zmq_socket.recv().decode("utf-8")
-                    if resp:
-                        return resp or min(np.array(resp.split(','), int)) == \
-                            Viewer._backend_obj.info['nmeshes']
-                    else:
-                        return True
-                while not _is_loaded():
-                    time.sleep(0.1)
-                return True
-            else:
-                logger.warning(
-                    "Impossible to wait for mesh loading if the Meshcat server "\
-                    "has not been opened by Python main thread for now.")
+            if require_client:
+                Viewer._backend_obj.gui.wait()
+            zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
+            def _is_loaded():
+                zmq_socket.send(f"meshes_loaded:{self.robot_name}".encode())
+                resp = zmq_socket.recv().decode("utf-8")
+                if resp:
+                    return resp or min(np.array(resp.split(','), int)) == \
+                        len(self._rb.visual_model.geometryObjects)
+                else:
+                    return True
+            while not _is_loaded():
+                time.sleep(0.1)
+            return True
 
     def close(self=None):
         """
@@ -485,8 +477,6 @@ class Viewer:
                                 visual_obj, pin.GeometryType.VISUAL)
                             for visual_obj in self._rb.visual_model.geometryObjects]
                         Viewer._delete_nodes_viewer(node_names)
-                        Viewer._backend_obj.info['nmeshes'] -= \
-                            len(self._rb.visual_model.geometryObjects)
             if self == Viewer or self.is_backend_parent:
                 self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
                 Viewer._backend_robot_names.clear()
@@ -727,7 +717,6 @@ class Viewer:
                     self.gui = gui
                     self.recorder = recorder
                     self.info = {
-                        'nmeshes': 0,
                         'recorder_manager': None,
                         'recorder_shm': None
                     }

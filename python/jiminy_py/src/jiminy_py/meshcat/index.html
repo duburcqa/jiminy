@@ -17,16 +17,14 @@
             // 'handle_command' to add support of custom
             // 'meshes_loaded' command, which is used to return
             // the number of meshes already loading in viewer.
-            var meshes_loaded = 0;
-            var set_object_from_json = viewer.set_object_from_json;
-            viewer.set_object_from_json = function(path, object_json) {
-                set_object_from_json.call(this, path, object_json);
-                meshes_loaded += 1;
-            };
             var handle_command = viewer.handle_command;
             viewer.handle_command = function(cmd) {
-                if (cmd.type == "meshes_loaded") {
-                    this.connection.send(meshes_loaded);
+                if (cmd.type.startsWith("meshes_loaded:")) {
+                    const robot_name = cmd.type.substr(14)
+                    var data = viewer.scene.children.find(function(x) { return x.name == "meshcat" })
+                    var robot = data.children.find(function(x) { return x.name == robot_name })
+                    var meshes = robot.children.find(function(x) { return x.name == "visuals" })
+                    this.connection.send(meshes.children.length);
                 } else {
                     handle_command.call(this, cmd);
                 }
