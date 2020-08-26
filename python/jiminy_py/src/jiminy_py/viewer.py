@@ -1093,7 +1093,7 @@ def play_trajectories(trajectory_data,
                                     'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model': whether to use the theoretical or actual model
     @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
-    @param[in]  replay_speed        Speed ratio of the simulation
+    @param[in]  replay_speed        Speed ratio of the simulation.
                                     Optional: 1.0 by default
     @param[in]  record_video_path   Fullpath location where to save generated video (.mp4 extension is
                                     mandatory). Must be specified to enable video recording.
@@ -1216,7 +1216,8 @@ def play_trajectories(trajectory_data,
         # Extract and resample trajectory data at fixed framerate
         time_max = max([traj['evolution_robot'][-1].t
                         for traj in trajectory_data])
-        time_evolution = np.arange(0.0, time_max, 1.0 / VIDEO_FRAMERATE)
+        time_evolution = np.arange(
+            0.0, time_max, replay_speed / VIDEO_FRAMERATE)
         position_evolution = []
         for j in range(len(trajectory_data)):
             data_orig = trajectory_data[j]['evolution_robot']
