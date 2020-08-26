@@ -8,25 +8,21 @@
 	<body>
         <div id="meshcat-pane"></div>
 
+
         <script type="text/javascript" src="main.min.js"></script>
+        <script type="text/javascript" src="webm-writer-0.3.0.js"></script>
         <script>
             // Instantiate a new Meshcat viewer
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
 
-            // Monkey-patch 'set_object_from_json' and
-            // 'handle_command' to add support of custom
-            // 'meshes_loaded' command, which is used to return
-            // the number of meshes already loading in viewer.
-            var meshes_loaded = 0;
-            var set_object_from_json = viewer.set_object_from_json;
-            viewer.set_object_from_json = function(path, object_json) {
-                set_object_from_json.call(this, path, object_json);
-                meshes_loaded += 1;
-            };
+            // Monkey-patch 'set_object_from_json' and 'handle_command'
+            // to add support of custom 'ready' command, which is used to
+            // determine  if all the meshes have finish loading. Indeed,
+            // commands are only processed once every meshes are loaded.
             var handle_command = viewer.handle_command;
             viewer.handle_command = function(cmd) {
-                if (cmd.type == "meshes_loaded") {
-                    this.connection.send(meshes_loaded);
+                if (cmd.type == "ready") {
+                    this.connection.send("ok");
                 } else {
                     handle_command.call(this, cmd);
                 }
@@ -39,9 +35,8 @@
                 console.info("Not connected to MeshCat websocket server: ", e);
             }
 
-            // Replace the mesh grid by a filled checkerboard,
-            // similar to the one of Gepetto-gui. The pvaing size
-            // is 1m by 1m for convenience.
+            // Replace the mesh grid by a filled checkerboard, similar to
+            // the one of Gepetto-gui. The paving size is 1m by 1m.
             var segments = 20;
             var geometry = new MeshCat.THREE.PlaneGeometry(20, 20, segments, segments);
             var materialEven = new MeshCat.THREE.MeshBasicMaterial(
@@ -61,22 +56,23 @@
 
             viewer.scene_tree.find(["Axes", "<object>"]).object.material.linewidth = 2.5
 
-            // Update the "zoom" of the camera to match the
-            // behavior of Gepetto-gui, and update the default
-            // position of the camera accordingly.
+            // Update the "zoom" of the camera to match the behavior of
+            // Gepetto-gui, and update the default position of the camera.
             viewer.camera.fov = 30;
             viewer.camera.position.set(8.0, 1.2, 0);
             viewer.render();
 
             // Fix 'capture_image' and 'animate' methods to NOT
-            // automatically update controls, which would prevent
-            // free control of the camera programmatically.
-            // Note that it does not disable controls update while
-            // moving the camera using the mouse, which is nice
-            // because it enforces the camera to be "straight".
+            // automatically update controls, which would prevent free
+            // control of the camera programmatically. Note that it does
+            // not disable controls update while moving the camera using
+            // the mouse, which is nice because it enforces the camera
+            // to be "straight".
             viewer.capture_image = function() {
                 viewer.camera.updateProjectionMatrix();
                 viewer.renderer.render(viewer.scene, viewer.camera);
+                viewer.animator.after_render();
+                viewer.needs_render = false;
                 return viewer.renderer.domElement.toDataURL('image/webp', 1.0);
             };
             function animate() {
