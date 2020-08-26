@@ -85,7 +85,7 @@ handle_zmq_orig = ZMQWebSocketBridge.handle_zmq
 def handle_zmq(self, frames):
     self.websocket_messages = []  # Used to gather websocket messages
     cmd = frames[0].decode("utf-8")
-    if cmd.startswith("ready"):
+    if cmd == "ready":
         if not self.websocket_pool:
             self.zmq_socket.send("".encode("utf-8"))
         for websocket in self.websocket_pool:
