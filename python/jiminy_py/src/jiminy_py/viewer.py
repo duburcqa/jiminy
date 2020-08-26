@@ -1250,12 +1250,12 @@ def play_trajectories(trajectory_data,
                     record_video_path = str(
                         pathlib.Path(record_video_path).with_suffix('.webm'))
                     viewers[0]._backend_obj.start_recording(
-                        record_video_path, VIDEO_FRAMERATE, *VIDEO_SIZE)
+                        VIDEO_FRAMERATE, *VIDEO_SIZE)
                 viewers[0]._backend_obj.add_frame()
         if Viewer.backend != 'meshcat':
             out.release()
         else:
-            viewers[0]._backend_obj.stop_recording()
+            viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
         # Play trajectories with multithreading
         threads = []

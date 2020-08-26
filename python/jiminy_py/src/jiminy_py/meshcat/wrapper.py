@@ -24,15 +24,14 @@ class MeshcatWrapper:
         self.__zmq_socket.send(b"ready")
         self.__zmq_socket.recv().decode("utf-8")
 
-    def start_recording(self, path, fps, width, height):
+    def start_recording(self, fps, width, height):
         if not self.recorder.is_open:
             self.recorder.open()
             self.wait(require_client=True)
-        self.recorder.start_video_recording(path, fps, width, height)
+        self.recorder.start_video_recording(fps, width, height)
 
-    def stop_recording(self):
-        self.recorder.stop_and_save_video()
-        self.wait(require_client=True)
+    def stop_recording(self, path):
+        self.recorder.stop_and_save_video(path)
 
     def add_frame(self):
         self.recorder.add_video_frame()

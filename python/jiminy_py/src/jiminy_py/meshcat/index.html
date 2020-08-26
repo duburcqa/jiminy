@@ -10,7 +10,7 @@
 
 
         <script type="text/javascript" src="main.min.js"></script>
-        <script type="text/javascript" src="CCapture.all.min.js"></script>
+        <script type="text/javascript" src="webm-writer-0.3.0.js"></script>
         <script>
             // Instantiate a new Meshcat viewer
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
@@ -76,16 +76,28 @@
                 return viewer.renderer.domElement.toDataURL('image/webp', 1.0);
             };
             function animate() {
-                requestAnimationFrame(animate);
+                if (continue_animating) {
+                    requestAnimationFrame(animate);
+                }
                 viewer.animator.update();
-                if (viewer.needs_render || viewer.animator.recording) {
+                if (viewer.needs_render) {
                     viewer.camera.updateProjectionMatrix();
                     viewer.renderer.render(viewer.scene, viewer.camera);
                     viewer.animator.after_render();
                     viewer.needs_render = false;
                 }
             }
-            animate()
+
+            // Enable start and stop animation on-the-fly
+            var continue_animating = true;
+            function start_animate() {
+                continue_animating = true;
+                animate()
+            }
+            function stop_animate() {
+                continue_animating = false;
+            }
+            start_animate();
         </script>
 
         <style>
