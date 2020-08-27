@@ -137,6 +137,7 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     session = HTMLSession()
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
+    message_shm.value = f"{session._browser.process.pid}"
 
     # Infinite loop, waiting for requests
     loop = asyncio.get_event_loop()
@@ -212,19 +213,33 @@ class MeshcatRecorder:
             daemon=True)
         self.proc.start()
 
+        while self.__shm['message'].value == "":
+            pass
+        self.__browser_pid = int(self.__shm['message'].value)
+        self.__shm['message'].value = ""
+
         self.is_open = True
 
     def __del__(self):
         self.release()
 
     def release(self):
-        if self.__shm is not None:
-            if self.proc.is_alive():
-                self._send_request(request="quit", timeout=0.5)
-            self.__shm = None
+        try:
+            if self.__shm is not None:
+                if self.proc.is_alive():
+                    self._send_request(request="quit", timeout=0.5)
+                self.__shm = None
+        except:
+            pass
         if self.proc is not None:
             self.proc.terminate()
             self.proc = None
+        try:
+            psutil.Process(self.__browser_pid).kill()
+            os.waitpid(self.__browser_pid, 0)
+            os.waitpid(os.getpid(), 0)
+        except (psutil.NoSuchProcess, ChildProcessError):
+            pass
         if self.__manager is not None:
             self.__manager.shutdown()
             self.__manager = None
@@ -240,18 +255,15 @@ class MeshcatRecorder:
             self.__shm['message'].value = ""
         self.__shm['request'].value = request
         timeout += time.time()
-        try:
-            while self.__shm['request'].value != "":
-                if time.time() > timeout:
-                    self.release()
-                    raise RuntimeError("Timeout.")
-                elif not self.proc.is_alive():
-                    self.release()
-                    raise RuntimeError(
-                        "Backend browser has encountered an unrecoverable "\
-                        "error: ", self.__shm['message'].value)
-        except KeyboardInterrupt:
-            self.__shm['request'].value = ""
+        while self.__shm['request'].value != "":
+            if time.time() > timeout:
+                self.release()
+                raise RuntimeError("Timeout.")
+            elif not self.proc.is_alive():
+                self.release()
+                raise RuntimeError(
+                    "Backend browser has encountered an unrecoverable "\
+                    "error: ", self.__shm['message'].value)
 
     def capture_frame(self, width=None, height=None):
         self._send_request("take_snapshot",
