@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import signal
-import atexit
 import psutil
 import pathlib
 import asyncio
@@ -143,35 +142,44 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     loop = asyncio.get_event_loop()
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
-            while request_shm.value != "quit": # (request := request_shm.value) != "quit":
-                request = request_shm.value
-                if request != "":
-                    args = list(map(str.strip, message_shm.value.split(",")))
-                    if request == "take_snapshot":
-                        width, height = map(int, args)
-                        coro = capture_frame_async(client, width, height)
-                    elif request == "start_record":
-                        fps, width, height = map(int, args)
-                        coro = start_video_recording_async(
-                            client, fps, width, height)
-                    elif request == "add_frame":
-                        coro = add_video_frame_async(client)
-                    elif request == "stop_and_save_record":
-                        (path,) = args
-                        coro = stop_and_save_video_async(client, path)
-                    else:
-                        continue
-                    try:
-                        output = loop.run_until_complete(coro)
-                        if output is not None:
-                            message_shm.value = output
-                        request_shm.value = ""
-                    except Exception as e:
-                        print(e)
-                        message_shm.value = str(e)
-                        request_shm.value = "quit"
-            request_shm.value = ""
+            try:
+                while request_shm.value != "quit":  # [>Python3.8] while (request := request_shm.value) != "quit":
+                    request = request_shm.value
+                    if request != "":
+                        args = map(str.strip, message_shm.value.split(","))
+                        if request == "take_snapshot":
+                            width, height = map(int, args)
+                            coro = capture_frame_async(client, width, height)
+                        elif request == "start_record":
+                            fps, width, height = map(int, args)
+                            coro = start_video_recording_async(
+                                client, fps, width, height)
+                        elif request == "add_frame":
+                            coro = add_video_frame_async(client)
+                        elif request == "stop_and_save_record":
+                            (path,) = args
+                            coro = stop_and_save_video_async(client, path)
+                        else:
+                            continue
+                        try:
+                            output = loop.run_until_complete(coro)
+                            if output is not None:
+                                message_shm.value = output
+                            else:
+                                message_shm.value = ""
+                        except Exception as e:
+                            message_shm.value = str(e)
+                            request_shm.value = "quit"
+                        else:
+                            request_shm.value = ""
+            except ConnectionError:
+                pass
     session.close()
+    try:
+        message_shm.value = ""
+        request_shm.value = ""
+    except ConnectionError:
+        pass
 
 
 class MeshcatRecorder:
@@ -212,7 +220,7 @@ class MeshcatRecorder:
     def release(self):
         if self.__shm is not None:
             if self.proc.is_alive():
-                self._send_request(request="quit")
+                self._send_request(request="quit", timeout=0.5)
             self.__shm = None
         if self.proc is not None:
             self.proc.terminate()
@@ -222,7 +230,7 @@ class MeshcatRecorder:
             self.__manager = None
         self.is_open = False
 
-    def _send_request(self, request, message=None, timeout=10.0):
+    def _send_request(self, request, message=None, timeout=2.0):
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")
@@ -285,7 +293,7 @@ class MeshcatRecorder:
         path = os.path.abspath(pathlib.Path(path).with_suffix('.webm'))
         if os.path.exists(path):
             os.remove(path)
-        self._send_request("stop_and_save_record", message=path)
+        self._send_request("stop_and_save_record", message=path, timeout=30.0)
         self.is_recording = False
         while not file_available(path):
             pass

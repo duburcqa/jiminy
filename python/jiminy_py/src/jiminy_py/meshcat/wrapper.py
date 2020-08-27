@@ -1,3 +1,4 @@
+import atexit
 from contextlib import redirect_stdout
 
 import meshcat
@@ -11,6 +12,7 @@ class MeshcatWrapper:
             self.gui = meshcat.Visualizer(zmq_url)
         self.__zmq_socket = self.gui.window.zmq_socket
         self.recorder = MeshcatRecorder(self.gui.url())
+        atexit.register(self.close)
 
     def __del__(self):
         self.close()
