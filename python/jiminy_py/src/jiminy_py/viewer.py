@@ -34,6 +34,8 @@ import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.robot_wrapper import RobotWrapper
+from pinocchio.visualize import MeshcatVisualizer
+from pinocchio.shortcuts import createDatas
 
 from .state import State
 from .meshcat.server import start_meshcat_server
@@ -203,6 +205,7 @@ class Viewer:
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
 
+
         # Define camera update function, that will be called systematically
         # after calling refresh or update. It will be used later for enabling
         # to attach the camera to a given frame and automatically track it
@@ -280,6 +283,7 @@ class Viewer:
             is_backend_running = False
 
         # Access the current backend or create one if none is available
+        self.__is_open = False
         self.is_backend_parent = False
         try:
             if Viewer.backend == 'gepetto-gui':
@@ -287,6 +291,7 @@ class Viewer:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
+                self.__is_open = True
                 self._client = Viewer._backend_obj.gui
 
                 if not scene_name in self._client.getSceneList():
@@ -300,17 +305,13 @@ class Viewer:
                     self._window_id = int(np.where([name == window_name
                         for name in self._client.getWindowList()])[0][0])
             else:
-                from pinocchio.visualize import MeshcatVisualizer
-                from pinocchio.shortcuts import createDatas
-
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
-
+                self.__is_open = True
                 if self.is_backend_parent and open_gui_if_parent:
                     self.open_gui()
-
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj.gui
         except Exception as e:
@@ -319,9 +320,6 @@ class Viewer:
         # Set the default camera pose if the viewer is not running before
         if self.is_backend_parent:
             self.set_camera_transform()
-
-        # Backup the backend subprocess used for instantiate the robot
-        self._backend_proc = Viewer._backend_proc
 
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
@@ -388,6 +386,18 @@ class Viewer:
         """
         self.close()
 
+    def __must_be_open(fct):
+        def fct_safe(*args, **kwargs):
+            self = None
+            if len(args) > 0 and isinstance(args[0], Viewer):
+                self = args[0]
+            self = kwargs.get('self', self)
+            if not Viewer.is_open(self):
+                raise RuntimeError("No backend available. "\
+                    "Please start one before calling this method.")
+            return fct(*args, **kwargs)
+        return fct_safe
+
     @staticmethod
     def reset_port_forwarding(port_forwarding=None):
         """
@@ -399,11 +409,10 @@ class Viewer:
         Viewer.port_forwarding = port_forwarding
 
     @staticmethod
+    @__must_be_open
     def _get_client_url():
         if Viewer.backend == 'gepetto-gui':
             raise RuntimeError("Can only get client url using Meshcat backend.")
-        if Viewer._backend_obj is None:
-            raise RuntimeError("Viewer not connected to any running Meshcat server.")
 
         viewer_url = Viewer._backend_obj.gui.url()
         if Viewer.port_forwarding is not None:
@@ -417,6 +426,7 @@ class Viewer:
         return viewer_url
 
     @staticmethod
+    @__must_be_open
     def open_gui(start_if_needed=False):
         """
         @brief Open a new viewer graphical interface.
@@ -456,6 +466,7 @@ class Viewer:
                         "Either use Jupyter or open it manually.")
 
     @staticmethod
+    @__must_be_open
     def wait(require_client=False):
         """
         @brief Wait for all the meshes to finish loading in every clients.
@@ -468,10 +479,12 @@ class Viewer:
         else:
             Viewer._backend_obj.wait()
 
-    @staticmethod
-    def is_open():
-        return Viewer._backend_proc is not None and \
+    def is_open(self=None):
+        is_open_ = Viewer._backend_proc is not None and \
             Viewer._backend_proc.is_alive()
+        if self is not None:
+            is_open_ = is_open_ and self.__is_open
+        return is_open_
 
     def close(self=None):
         """
@@ -512,14 +525,16 @@ class Viewer:
                     ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
                 if Viewer.is_open():
                     Viewer._backend_proc.kill()
+            else:
+                self.__is_open = False
             if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
                     shutil.rmtree(self._tempdir)
                 except FileNotFoundError:
                     pass
-            self._backend_proc = None
-            if Viewer._backend_obj is not None:
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
                 zmq_socket.RCVTIMEO = -1
+            Viewer._backend_obj = None
         except:
             pass
 
@@ -739,6 +754,7 @@ class Viewer:
             return client, proc
 
     @staticmethod
+    @__must_be_open
     def _delete_nodes_viewer(nodes_path):
         """
         @brief      Delete a 'node' in Gepetto-viewer.
@@ -797,6 +813,7 @@ class Viewer:
                                      self.pinocchio_data,
                                      geom_model, geom_data)
 
+    @__must_be_open
     def set_camera_transform(self, translation=None, rotation=None, relative=None):
         """
         @brief      Apply transform to the camera pose.
@@ -891,6 +908,7 @@ class Viewer:
         """
         self.__update_camera_transform = lambda : None
 
+    @__must_be_open
     def capture_frame(self,
                       width=DEFAULT_CAPTURE_SIZE,
                       height=DEFAULT_CAPTURE_SIZE,
@@ -930,6 +948,7 @@ class Viewer:
                 rgb_array = np.array(img_obj)
                 return rgb_array
 
+    @__must_be_open
     def save_frame(self,
                    image_path,
                    width=DEFAULT_CAPTURE_SIZE,
@@ -953,16 +972,13 @@ class Viewer:
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
+    @__must_be_open
     def refresh(self, wait=False):
         """
         @brief      Refresh the configuration of Robot in the viewer.
 
         @param[in]  wait    Whether or not to wait for rendering to finish.
         """
-        if not self.is_open():
-            raise RuntimeError(
-                "No backend available. Please start one before calling this method.")
-
         with self._lock:
             if Viewer.backend == 'gepetto-gui':
                 if self._rb.displayCollisions:
@@ -996,6 +1012,7 @@ class Viewer:
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
             Viewer._backend_obj.gui.wait()
 
+    @__must_be_open
     def display(self, q, xyz_offset=None, wait=False):
         """
         @brief      Update the configuration of the robot.
@@ -1176,8 +1193,12 @@ def play_trajectories(trajectory_data,
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
-        if Viewer.is_open() is None:
+        if not Viewer.is_open() is None:
             viewers = None
+        for viewer in viewers:
+            if not viewer.is_open():
+                viewers = None
+                break
 
         # Do not close backend by default if it was supposed to be available
         if close_backend is None:
