@@ -1324,11 +1324,8 @@ def play_trajectories(trajectory_data,
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
-        try:
-            for i in range(len(trajectory_data)):
-                threads[i].join()
-        except KeyboardInterrupt:
-            pass
+        for i in range(len(trajectory_data)):
+            threads[i].join()
 
     # Disable camera traveling it was enabled
     if travelling_frame is not None:
