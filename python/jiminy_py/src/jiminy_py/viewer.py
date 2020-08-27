@@ -39,6 +39,7 @@ from .state import State
 from .meshcat.server import start_meshcat_server
 from .meshcat.wrapper import MeshcatWrapper
 
+
 # Determine if the various backends are available
 backends_available = ['meshcat']
 if __import__('platform').system() == 'Linux':
@@ -48,6 +49,7 @@ if __import__('platform').system() == 'Linux':
         backends_available.append('gepetto-gui')
     except ImportError:
         pass
+
 
 # Create logger
 class DuplicateFilter:
@@ -62,12 +64,6 @@ class DuplicateFilter:
 logger = logging.getLogger(__name__)
 logger.addFilter(DuplicateFilter())
 
-# Monkey-patch subprocess Popen to add 'is_alive' and 'join' methods,
-# to have the same interface than multiprocessing Process.
-def is_alive(self):
-    return self.poll() is None
-subprocess.Popen.is_alive = is_alive
-subprocess.Popen.join = subprocess.Popen.wait
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi/2, 0.0, 0.0]))
 DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi/2])
@@ -93,18 +89,55 @@ def sleep(dt):
     while time.perf_counter() < _:
         pass
 
-def kill_process(proc):
-    proc.terminate()
-    proc.join(timeout=0.5)
-    try:
-        proc_pid = proc.pid
-        proc_raw = psutil.Process(proc_pid)
-        proc_raw.send_signal(signal.SIGKILL)
-        os.waitpid(proc_pid, 0)
-        os.waitpid(os.getpid(), 0)
-    except (psutil.NoSuchProcess, ChildProcessError):
-        pass
-    multiprocessing.active_children()
+
+class ProcessWrapper:
+    """
+    @brief     Wrap multiprocessing Process, subprocess Popen, and psutil
+               Process in the same object to have the same user interface.
+
+    @details   It also makes sure that the process is properly terminated
+               at Python exits, and without zombies left behind.
+    """
+    def __init__(self, proc, kill_at_exit=False):
+        self._proc = proc
+        # Make sure the process is killed at Python exit
+        if kill_at_exit:
+            atexit.register(self.kill)
+
+    def is_parent(self):
+        return isinstance(self._proc, (
+            subprocess.Popen, multiprocessing.Process))
+
+    def is_alive(self):
+        if isinstance(self._proc, subprocess.Popen):
+            return self._proc.poll() is None
+        elif isinstance(self._proc, multiprocessing.Process):
+            return self._proc.is_alive()
+        elif isinstance(self._proc, psutil.Process):
+            return self._proc.status() in [
+                psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+
+    def wait(self, timeout=None):
+        if isinstance(self._proc, multiprocessing.Process):
+            return self._proc.join(timeout)
+        elif isinstance(self._proc, (
+                subprocess.Popen, psutil.Process)):
+            return self._proc.wait(timeout)
+
+    def kill(self):
+        if self.is_parent() and self.is_alive():
+            # Try to terminate cleanly
+            self._proc.terminate()
+            self.wait(timeout=0.5)
+
+            # Force kill if necessary and reap the zombies
+            try:
+                psutil.Process(self._proc.pid).kill()
+                os.waitpid(self._proc.pid, 0)
+                os.waitpid(os.getpid(), 0)
+            except (psutil.NoSuchProcess, ChildProcessError):
+                pass
+            multiprocessing.active_children()
 
 
 class Viewer:
@@ -224,8 +257,7 @@ class Viewer:
         # Check if the backend is still available, if any
         if Viewer._backend_obj is not None:
             is_backend_running = True
-            if Viewer._backend_proc is not None and \
-                    not Viewer._backend_proc.is_alive():
+            if not Viewer.is_open():
                 is_backend_running = False
             if Viewer.backend == 'gepetto-gui':
                 try:
@@ -235,9 +267,8 @@ class Viewer:
             else:
                 try:
                     zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                    zmq_socket.send(b"url")
                     zmq_socket.RCVTIMEO = 50
-                    zmq_socket.recv()
+                    Viewer._backend_obj.wait()
                     zmq_socket.RCVTIMEO = -1  # -1 for limit, milliseconds otherwise
                 except Viewer._backend_exceptions:
                     is_backend_running = False
@@ -255,7 +286,7 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
-                    self.is_backend_parent = Viewer._backend_proc is not None
+                    self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self._client = Viewer._backend_obj.gui
 
                 if not scene_name in self._client.getSceneList():
@@ -275,7 +306,7 @@ class Viewer:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
                         Viewer._get_client(True)
-                    self.is_backend_parent = Viewer._backend_proc is not None
+                    self.is_backend_parent = Viewer._backend_proc.is_parent()
 
                 if self.is_backend_parent and open_gui_if_parent:
                     self.open_gui()
@@ -437,6 +468,11 @@ class Viewer:
         else:
             Viewer._backend_obj.wait()
 
+    @staticmethod
+    def is_open():
+        return Viewer._backend_proc is not None and \
+            Viewer._backend_proc.is_alive()
+
     def close(self=None):
         """
         @brief Close a given viewer instance, or all of them if no instance is specified.
@@ -468,18 +504,14 @@ class Viewer:
                                 visual_obj, pin.GeometryType.VISUAL)
                             for visual_obj in self._rb.visual_model.geometryObjects]
                         Viewer._delete_nodes_viewer(node_names)
-            if self == Viewer or self.is_backend_parent:
-                self.is_backend_parent = False  # In case 'close' is called twice. No longer parent after closing.
+            if self == Viewer:  # NEVER closing backend if closing instances, even for the parent. It will be closed at Python exit automatically.
                 Viewer._backend_robot_names.clear()
-                if self._backend_proc is not None and \
-                        self._backend_proc.is_alive():
-                    kill_process(self._backend_proc)
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None:
                     Viewer._backend_obj.close()
-                    kill_process(Viewer._backend_obj.recorder.proc)
-                if self._backend_proc is Viewer._backend_proc:
-                    Viewer._backend_obj = None
+                    ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
+                if Viewer.is_open():
+                    Viewer._backend_proc.kill()
             if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
                     shutil.rmtree(self._tempdir)
@@ -630,48 +662,56 @@ class Viewer:
         if Viewer.backend == 'gepetto-gui':
             from gepetto.corbaserver.client import Client as gepetto_client
 
-            try:
+            def _gepetto_client_connect(get_proc_info=False):
+                nonlocal close_at_exit
+
                 # Get the existing Gepetto client
                 client = gepetto_client()
+
                 # Try to fetch the list of scenes to make sure that the Gepetto client is responding
                 client.gui.getSceneList()
-                return client, None
+
+                # Get the associated process information if requested
+                if not get_proc_info:
+                    return client
+                proc = [p for p in psutil.process_iter()
+                        if 'gepetto-gui' in p.cmdline()[0]][0]
+                return client, ProcessWrapper(proc, close_at_exit)
+
+            try:
+                return _gepetto_client_connect(get_proc_info=True)
             except Viewer._backend_exceptions:
                 try:
-                    client = gepetto_client()
-                    client.gui.getSceneList()
-                    return client, None
+                    return _gepetto_client_connect(get_proc_info=True)
                 except Viewer._backend_exceptions:
                     if start_if_needed:
                         FNULL = open(os.devnull, 'w')
-                        client_proc = subprocess.Popen(
-                            ['/opt/openrobots/bin/gepetto-gui'],
+                        proc = subprocess.Popen(['gepetto-gui'],
                             shell=False, stdout=FNULL, stderr=FNULL)
-                        if close_at_exit:
-                            atexit.register(Viewer.close)  # Cleanup at exit
+                        proc = ProcessWrapper(proc, close_at_exit)
                         for _ in range(max(2, int(timeout / 200))): # Must try at least twice for robustness
                             time.sleep(0.2)
                             try:
-                                return gepetto_client(), client_proc
+                                return _gepetto_client_connect(), proc
                             except Viewer._backend_exceptions:
                                 pass
-                        print("Impossible to open Gepetto-viewer")
+                        raise RuntimeError("Impossible to open Gepetto-viewer.")
             return None, None
         else:
-            # Get the list of ports that are likely to correspond to meshcat servers
-            meshcat_candidate_ports = []
+            # Get the list of connections that are likely to correspond to meshcat servers
+            meshcat_candidate_conn = []
             for conn in psutil.net_connections("tcp4"):
                 if conn.status == 'LISTEN':
                     cmdline = psutil.Process(conn.pid).cmdline()
                     if 'python' in cmdline[0] and 'meshcat' in cmdline[-1]:
-                        meshcat_candidate_ports.append(conn.laddr.port)
+                        meshcat_candidate_conn.append(conn)
 
             # Use the first port responding to zmq request, if any
             zmq_url = None
             context = zmq.Context.instance()
-            for port in meshcat_candidate_ports:
+            for conn in meshcat_candidate_conn:
                 try:
-                    zmq_url = f"tcp://127.0.0.1:{port}"
+                    zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
                     zmq_socket = context.socket(zmq.REQ)
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.connect(zmq_url)
@@ -689,10 +729,9 @@ class Viewer:
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
                 proc, zmq_url, _ = start_meshcat_server()
-                if close_at_exit:
-                    atexit.register(Viewer.close)  # Ensure proper cleanup at exit
             else:
-                proc = None
+                proc = psutil.Process(conn.pid)
+            proc = ProcessWrapper(proc, close_at_exit)
 
             # Connect to the zmq server
             client = MeshcatWrapper(zmq_url)
@@ -920,8 +959,7 @@ class Viewer:
 
         @param[in]  wait    Whether or not to wait for rendering to finish.
         """
-        if Viewer._backend_obj is None or (self.is_backend_parent and
-                not Viewer._backend_proc.is_alive()):
+        if not self.is_open():
             raise RuntimeError(
                 "No backend available. Please start one before calling this method.")
 
@@ -1138,13 +1176,8 @@ def play_trajectories(trajectory_data,
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
-        if Viewer._backend_obj is None:
+        if Viewer.is_open() is None:
             viewers = None
-        for viewer in viewers:
-            if viewer.is_backend_parent and \
-                    not Viewer._backend_proc.is_alive():
-                viewers = None
-                break
 
         # Do not close backend by default if it was supposed to be available
         if close_backend is None:
