@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import logging
 import signal
 import psutil
 import pathlib
@@ -10,8 +11,25 @@ import multiprocessing
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
-# Must use a recent release that supports webgl rendering with hardware acceleration
-os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+try:
+    # Must overload 'chromium_executable' for Google Colaboratory to
+    # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
+    # Note that the downside is that chrome must be installed manually.
+    shell = get_ipython().__class__.__module__
+    if shell == 'google.colab._shell':
+        import pyppeteer.chromium_downloader
+        pyppeteer.chromium_downloader.chromium_executable = \
+            lambda : "/usr/lib/chromium-browser/chromium-browser"
+    if not pyppeteer.chromium_downloader.check_chromium():
+        logging.warning("Chrome must be installed manually on Google Colab. "\
+            "It must be done using '!apt install chromium-chromedriver'.")
+except NameError:
+    pass
+else:
+    # Must use a recent release that supports webgl rendering with hardware
+    # acceleration. It speeds up rendering at least by a factor 5 using on
+    # a midrange dedicated GPU.
+    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
 
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
@@ -32,9 +50,10 @@ async def launch(self) -> Browser:
     options['env'] = self.env
     cmd = self.cmd + [
         "--enable-webgl",
-        "--use-gl=egl",
+        "--use-gl=egl",  # "egl" is currently the only webgl rendering working without X server and in headless mode
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
+        # "--disable-gpu",  # GPU acceleration is not available in headless mode on Windows for now apparently...
         "--ignore-certificate-errors",
         "--disable-infobars",
         "--disable-breakpad",
@@ -133,6 +152,10 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    # Create new asyncio event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     # Open a Meshcat client in background in a hidden chrome browser instance
     session = HTMLSession()
     client = session.get(meshcat_url)
@@ -140,7 +163,6 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     message_shm.value = f"{session._browser.process.pid}"
 
     # Infinite loop, waiting for requests
-    loop = asyncio.get_event_loop()
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
             try:

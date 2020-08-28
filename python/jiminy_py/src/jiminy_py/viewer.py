@@ -144,7 +144,6 @@ class ProcessWrapper:
 
 class Viewer:
     backend = None
-    port_forwarding = None
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
@@ -233,7 +232,8 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if Viewer._is_notebook() or not 'gepetto-gui' in backends_available:
+                if (Viewer._is_notebook() > 0) or \
+                        not 'gepetto-gui' in backends_available:
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
@@ -289,7 +289,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer.__get_client(True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
                 self._client = Viewer._backend_obj.gui
@@ -307,7 +307,7 @@ class Viewer:
             else:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer.__get_client(True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
                 if self.is_backend_parent and open_gui_if_parent:
@@ -399,34 +399,6 @@ class Viewer:
         return fct_safe
 
     @staticmethod
-    def reset_port_forwarding(port_forwarding=None):
-        """
-        @brief Configure port forwarding. Only used for remote display in Jupyter notebook cell.
-
-        @param port_forwarding  Dictionary whose keys are ports on local machine,
-                                and values are associated remote port.
-        """
-        Viewer.port_forwarding = port_forwarding
-
-    @staticmethod
-    @__must_be_open
-    def _get_client_url():
-        if Viewer.backend == 'gepetto-gui':
-            raise RuntimeError("Can only get client url using Meshcat backend.")
-
-        viewer_url = Viewer._backend_obj.gui.url()
-        if Viewer.port_forwarding is not None:
-            url_port_pattern = '(?<=:)[0-9]+(?=/)'
-            port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-            if not port_localhost in Viewer.port_forwarding.keys():
-                raise RuntimeError("Port forwarding defined but no port "\
-                                    "mapping associated with {port_localhost}.")
-            port_remote = Viewer.port_forwarding[port_localhost]
-            viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
-        return viewer_url
-
-    @staticmethod
-    @__must_be_open
     def open_gui(start_if_needed=False):
         """
         @brief Open a new viewer graphical interface.
@@ -434,9 +406,6 @@ class Viewer:
         @remark  This method is not supported by Gepetto-gui since it does not have a classical
                  server-client mechanism. One and only one graphical interface (client) can be
                  opened, and its lifetime is tied to the one of the server itself.
-
-        @param port_forwarding  Dictionary whose keys are ports on local machine,
-                                and values are associated remote port.
         """
         if Viewer.backend == 'gepetto-gui':
             raise RuntimeError(
@@ -444,26 +413,40 @@ class Viewer:
         else:
             if Viewer._backend_obj is None:
                 Viewer._backend_obj, Viewer._backend_proc = \
-                    Viewer._get_client(start_if_needed)
-            if Viewer._is_notebook() and Viewer.port_forwarding is not None:
-                logger.warning(
-                    "Impossible to open web browser programmatically for Meshcat "\
-                    "through port forwarding. Either use Jupyter or open it manually.")
+                    Viewer.__get_client(start_if_needed)
 
-            viewer_url = Viewer._get_client_url()
-            if Viewer._is_notebook():
+            is_notebook = Viewer._is_notebook()
+            if is_notebook > 0:
+                import urllib
                 from IPython.core.display import HTML, display
-                jupyter_html = f'\n<div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">\
-                                 \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
-                                 </iframe>\n</div>\n'
-                display(HTML(jupyter_html))
-            else:
-                if Viewer.port_forwarding is None:
-                    webbrowser.open(viewer_url, new=2, autoraise=True)
+
+                # Scrap the viewer html content, including javascript dependencies
+                viewer_url = Viewer._backend_obj.gui.url()
+                html_content = urllib.request.urlopen(viewer_url).read().decode()
+                pattern = '<script type="text/javascript" src="%s"></script>'
+                scripts_js = re.findall(pattern % '(.*)', html_content)
+                for file in scripts_js:
+                    file_path = os.path.join(viewer_url, file)
+                    js_content = urllib.request.urlopen(file_path).read().decode()
+                    html_content = html_content.replace(pattern % file, f"""
+                    <script type="text/javascript">
+                    {js_content}
+                    </script>""")
+
+                # Open it in a HTML iframe on Jupyter, since it is not possible to
+                # load it directly. It is not an issue on Google Colab.
+                if is_notebook == 1:
+                    html_content = html_content.replace("\"", "&quot;").\
+                        replace("'", "&apos;")
+                    display(HTML(f"""
+                        <div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">
+                        <iframe srcdoc="{html_content}" style="width: 100%; height: 100%; border: none">
+                        </iframe></div>
+                    """))
                 else:
-                    logger.warning(
-                        "Impossible to open webbrowser through port forwarding. "\
-                        "Either use Jupyter or open it manually.")
+                    display(HTML(html_content))
+            else:
+                webbrowser.open(viewer_url, new=2, autoraise=True)
 
     @staticmethod
     @__must_be_open
@@ -544,15 +527,17 @@ class Viewer:
         @brief Determine whether Python is running inside a Notebook or not.
         """
         try:
-            shell = get_ipython().__class__.__name__
-            if shell == 'ZMQInteractiveShell':
-                return True   # Jupyter notebook or qtconsole
-            elif shell == 'TerminalInteractiveShell':
-                return False  # Terminal running IPython
+            shell = get_ipython().__class__.__module__
+            if shell == 'ipykernel.zmqshell':
+                return 1   # Jupyter notebook or qtconsole
+            elif shell == 'IPython.terminal.interactiveshell':
+                return 0   # Terminal running IPython
+            elif shell == 'google.colab._shell':
+                return 2   # Terminal running Google Colaboratory
             else:
-                return False  # Other type, if any
+                return -1  # Other type, if any
         except NameError:
-            return False      # Probably standard Python interpreter
+            return 0       # Probably standard Python interpreter
 
     @staticmethod
     def _get_colorized_urdf(urdf_path,
@@ -655,7 +640,7 @@ class Viewer:
         return fixed_urdf_path
 
     @staticmethod
-    def _get_client(start_if_needed=False,
+    def __get_client(start_if_needed=False,
                     close_at_exit=True,
                     timeout=2000):
         """
@@ -718,7 +703,7 @@ class Viewer:
             for conn in psutil.net_connections("tcp4"):
                 if conn.status == 'LISTEN':
                     cmdline = psutil.Process(conn.pid).cmdline()
-                    if 'python' in cmdline[0] and 'meshcat' in cmdline[-1]:
+                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
                         meshcat_candidate_conn.append(conn)
 
             # Use the first port responding to zmq request, if any
@@ -727,7 +712,7 @@ class Viewer:
             for conn in meshcat_candidate_conn:
                 try:
                     zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
-                    zmq_socket = context.socket(zmq.REQ)
+                    zmq_socket = context.socket(zmq.SUB)
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
@@ -1258,11 +1243,11 @@ def play_trajectories(trajectory_data,
         if verbose:
             if backend == 'meshcat':
                 print("Waiting for meshcat client in browser to connect: "\
-                    f"{Viewer._get_client_url()}")
+                    f"{Viewer._backend_obj.gui.url()}")
         Viewer.wait(require_client=True)
 
     # Handle start-in-pause mode
-    if start_paused and not Viewer._is_notebook():
+    if start_paused and not (Viewer._is_notebook() > 0):
         input("Press Enter to continue...")
 
     # Replay the trajectory

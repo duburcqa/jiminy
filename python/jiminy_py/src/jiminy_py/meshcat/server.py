@@ -7,6 +7,10 @@ import tornado.web
 import multiprocessing
 from contextlib import redirect_stderr
 
+import zmq
+from zmq.eventloop.zmqstream import ZMQStream
+
+from meshcat.servers.tree import walk
 from meshcat.servers.zmqserver import (
     VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
 
@@ -46,16 +50,6 @@ class MyFileHandler(tornado.web.StaticFileHandler):
             return super().validate_absolute_path(root, absolute_path)
         return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
 
-def make_app(self):
-    return tornado.web.Application([
-        (r"/static/?(.*)", MyFileHandler, {
-            "default_path": VIEWER_ROOT,
-            "fallback_path": os.path.dirname(__file__),
-            "default_filename": "index.html"}),
-        (r"/", WebSocketHandler, {"bridge": self})
-    ])
-ZMQWebSocketBridge.make_app = make_app
-
 # Implement bidirectional communication because zmq and the
 # websockets by gathering and forward messages received from
 # the websockets to zmq. Note that there is currently no way
@@ -66,35 +60,93 @@ ZMQWebSocketBridge.make_app = make_app
 # It also fixes flushing issue when 'handle_zmq' is not directly
 # responsible for sending a message through the zmq socket.
 def handle_web(self, message):
-    self.bridge.websocket_messages.append(message)
-    if len(self.bridge.websocket_messages) == len(self.bridge.websocket_pool):
-        gathered_msg = ",".join(self.bridge.websocket_messages)
+    self.bridge.websocket_msg.append(message)
+    if len(self.bridge.websocket_msg) == len(self.bridge.websocket_pool) and \
+            len(self.bridge.comm_msg) == len(self.bridge.comm_pool):
+        gathered_msg = ",".join(
+            self.bridge.websocket_msg + self.bridge.comm_msg)
         self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
         self.bridge.zmq_stream.flush()
+        self.bridge.websocket_msg, self.bridge.comm_msg = [], []
 WebSocketHandler.on_message = handle_web
 
-def wait_for_websockets(self):
-    if len(self.websocket_pool) > 0:
-        self.zmq_socket.send(b"ok")
-        self.zmq_stream.flush()
-    else:
-        self.ioloop.call_later(0.1, self.wait_for_websockets)
-ZMQWebSocketBridge.wait_for_websockets = wait_for_websockets
+class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
+    def __init__(self, zmq_url=None, host="127.0.0.1", port=None):
+        super().__init__(zmq_url, host, port)
+        self.comm_pool = []
+        self.comm_url = "tcp://127.0.0.1:6678" # TODO : Check if port is available
+        self.zmq_socket_comm = self.context.socket(zmq.XREQ)
+        self.zmq_socket_comm.bind(self.comm_url)
+        self.zmq_stream_comm = ZMQStream(self.zmq_socket_comm)
+        self.zmq_stream_comm.on_recv(self.handle_comm)
+        self.websocket_msg = []  # Used to gather websocket messages
+        self.comm_msg = []  # Used to gather comm messages
 
-handle_zmq_orig = ZMQWebSocketBridge.handle_zmq
-def handle_zmq(self, frames):
-    self.websocket_messages = []  # Used to gather websocket messages
-    cmd = frames[0].decode("utf-8")
-    if cmd == "ready":
-        if not self.websocket_pool:
-            self.zmq_socket.send("".encode("utf-8"))
-        for websocket in self.websocket_pool:
-            websocket.write_message(umsgpack.packb({
-                "type": "ready"
-            }), binary=True)
-    else:
-        handle_zmq_orig(self, frames)
-ZMQWebSocketBridge.handle_zmq = handle_zmq
+    def make_app(self):
+        return tornado.web.Application([
+            (r"/static/?(.*)", MyFileHandler, {
+                "default_path": VIEWER_ROOT,
+                "fallback_path": os.path.dirname(__file__),
+                "default_filename": "index.html"}),
+            (r"/", WebSocketHandler, {"bridge": self})
+        ])
+
+    def wait_for_websockets(self):
+        if len(self.websocket_pool) > 0 or len(self.comm_pool) > 0:
+            self.zmq_socket.send(b"ok")
+            self.zmq_stream.flush()
+        else:
+            self.ioloop.call_later(0.1, self.wait_for_websockets)
+
+    def handle_comm(self, frames):
+        cmd = frames[0].decode("utf-8")
+        if cmd.startswith("open:"):
+            comm_id = f"{cmd.split(':', 1)[1]}".encode()
+            self.send_scene(comm_id=comm_id)
+            self.comm_pool.append(comm_id)
+        elif cmd.startswith("close:"):
+            comm_id = f"{cmd.split(':', 1)[1]}".encode()
+            self.comm_pool.remove(comm_id)
+        elif cmd.startswith("data:"):
+            message = f"{cmd.split(':', 2)[2]}"
+            self.comm_msg.append(message)
+            if len(self.websocket_msg) == len(self.websocket_pool) and \
+                    len(self.comm_msg) == len(self.comm_pool):
+                gathered_msg = ",".join(
+                    self.websocket_msg + self.comm_msg)
+                self.zmq_socket.send(gathered_msg.encode("utf-8"))
+                self.zmq_stream.flush()
+                self.websocket_msg, self.comm_msg = [], []
+            self.comm_msg = []  # Used to gather comm messages
+
+    def handle_zmq(self, frames):
+        cmd = frames[0].decode("utf-8")
+        if cmd == "ready":
+            if not self.websocket_pool: #and not self.comm_pool: TODO: Disable temporarily to avoid hanging
+                self.zmq_socket.send(b"")
+            msg = umsgpack.packb({"type": "ready"})
+            for websocket in self.websocket_pool:
+                websocket.write_message(msg, binary=True)
+            for comm_id in self.comm_pool:
+                self.zmq_socket_comm.send(comm_id + msg)
+        else:
+            super().handle_zmq(frames)
+
+    def forward_to_websockets(self, frames):
+        super().forward_to_websockets(frames)
+        _, _, data = frames
+        for comm_id in self.comm_pool:
+            self.zmq_socket_comm.send(comm_id + data)
+
+    def send_scene(self, websocket=None, comm_id=None):
+        if websocket is not None:
+            super().send_scene(websocket)
+        elif comm_id is not None:
+            for node in walk(self.tree):
+                if node.object is not None:
+                    self.zmq_socket_comm.send(comm_id + node.object)
+                if node.transform is not None:
+                    self.zmq_socket_comm.send(comm_id + node.transform)
 
 # ======================================================
 
@@ -107,21 +159,21 @@ def meshcat_server(info):
     # killing meshcat server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    # Create asyncio event loop if not already existing
-    asyncio.get_event_loop()
+    # Create new asyncio event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
-            bridge = ZMQWebSocketBridge()
+            bridge = ZMQWebSocketIpythonBridge()
+            info['comm_url'] = bridge.comm_url
             info['zmq_url'] = bridge.zmq_url
             info['web_url'] = bridge.web_url
             bridge.run()
 
 def start_meshcat_server():
     """
-    @brief    Run meshcat server in background using multiprocessing
-              Process to enable monkey patching and proper interprocess
-              communication through a manager.
+    @brief    Run meshcat server in background using multiprocessing Process.
     """
     manager = multiprocessing.Manager()
     info = manager.dict()
@@ -132,8 +184,50 @@ def start_meshcat_server():
     # Wait for the process to finish initialization
     while not info:
         pass
-    zmq_url, web_url = info['zmq_url'], info['web_url']
+    comm_url, zmq_url, web_url = \
+        info['comm_url'], info['zmq_url'], info['web_url']
     manager.shutdown()
+
+    # Create ZMQ Socket to Ipython Kernel bridge.
+    # Note that it must be done on host, not on remote, because kernel
+    # communication are not available in subprocess (roughly speaking).
+    # It is an one directional communication. The aim is only to redirect
+    # messages send to the websockets to the kernel communication 'meshcat'.
+    def forward_to_ipython(messages):
+        from IPython import get_ipython
+        comm_pool = get_ipython().kernel.comm_manager.comms
+        for message in messages:
+            comm_id = message[:32].decode()  # comm_id is always 32 bits
+            comm_pool[comm_id].send(buffers=[message[32:]])
+
+    context = zmq.Context.instance()
+    zmq_socket_comm = context.socket(zmq.XREQ)
+    zmq_socket_comm.connect(comm_url)
+    zmq_stream_comm = ZMQStream(zmq_socket_comm)
+    zmq_stream_comm.on_recv(forward_to_ipython)
+
+    # Implement bi-directional communication using 'comm.on_msg'. ZMQ
+    # ROUTER/ROUTER protocol supports it, even though it is hacky. A double
+    # socket is used to avoid altering too much the original implementation.
+    # ROUTER/ROUTER enables to spend and receive as many messages as desired
+    # consecutively without replying systematically between them.
+    def comm_register(comm, msg):
+        nonlocal zmq_socket_comm
+
+        @comm.on_msg
+        def _on_msg(msg):
+            nonlocal zmq_socket_comm
+            data = msg['content']['data']
+            zmq_socket_comm.send(f"data:{comm.comm_id}:{data}".encode())
+
+        @comm.on_close
+        def _close(evt):
+            nonlocal zmq_socket_comm
+            zmq_socket_comm.send(f"close:{comm.comm_id}".encode())
+
+        zmq_socket_comm.send(f"open:{comm.comm_id}".encode())
+    get_ipython().kernel.comm_manager.register_target(
+        'meshcat', comm_register)
 
     return server, zmq_url, web_url
 

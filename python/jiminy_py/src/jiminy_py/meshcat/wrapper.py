@@ -1,6 +1,8 @@
 import atexit
 from contextlib import redirect_stdout
 
+import zmq
+
 import meshcat
 
 from .recorder import MeshcatRecorder
