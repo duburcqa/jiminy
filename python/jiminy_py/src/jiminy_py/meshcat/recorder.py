@@ -112,7 +112,6 @@ async def start_video_recording_async(client, fps, width, height):
             {'width': width, 'height': height})
     await client.html.page.evaluate(f"""
         () => {{
-            stop_animate();
             viewer.animator.capturer = new WebMWriter({{
                 quality: 0.99999,  // Lossless codex VP8L is not supported
                 frameRate: {fps}
@@ -143,7 +142,6 @@ async def stop_and_save_video_async(client, path):
                 a.download = "{filename}";
                 a.click();
             }});
-            start_animate();
         }}
     """)
 
@@ -161,6 +159,15 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
     message_shm.value = f"{session._browser.process.pid}"
+
+    # Stop the animation loop by default, since it is not relevant for recording only
+    async def stop_animate_async(client):
+        await client.html.page.evaluate("""
+            () => {
+                stop_animate();
+            }
+        """)
+    loop.run_until_complete(stop_animate_async(client))
 
     # Infinite loop, waiting for requests
     with open(os.devnull, 'w') as f:
