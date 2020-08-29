@@ -995,7 +995,7 @@ class Viewer:
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
                 self.__update_camera_transform()
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.gui.wait()
+            Viewer._backend_obj.wait()
 
     @__must_be_open
     def display(self, q, xyz_offset=None, wait=False):
@@ -1021,7 +1021,7 @@ class Viewer:
             self.__update_camera_transform()
         pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
         if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.gui.wait()
+            Viewer._backend_obj.wait()
 
     def replay(self,
                evolution_robot,

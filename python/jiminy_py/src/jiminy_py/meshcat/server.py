@@ -12,7 +12,10 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 from meshcat.servers.tree import walk, find_node
 from meshcat.servers.zmqserver import (
-    VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
+    DEFAULT_ZMQ_METHOD, VIEWER_ROOT,
+    ZMQWebSocketBridge, WebSocketHandler, find_available_port)
+
+DEFAULT_COMM_PORT = 6500
 
 # ================ Monkey-patch =======================
 
@@ -73,14 +76,25 @@ WebSocketHandler.on_message = handle_web
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
     def __init__(self, zmq_url=None, host="127.0.0.1", port=None):
         super().__init__(zmq_url, host, port)
+
+        # Create a new zmq socket specifically for kernel communications
+        def f(port):
+            return self.setup_comm("{:s}://{:s}:{:d}".format(
+                DEFAULT_ZMQ_METHOD, self.host, port))
+        (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
+            find_available_port(f, DEFAULT_COMM_PORT)
+        
+        # Extra buffers for  comm ids and messages
         self.comm_pool = []
-        self.comm_url = "tcp://127.0.0.1:6678" # TODO : Check if port is available
-        self.zmq_socket_comm = self.context.socket(zmq.XREQ)
-        self.zmq_socket_comm.bind(self.comm_url)
-        self.zmq_stream_comm = ZMQStream(self.zmq_socket_comm)
-        self.zmq_stream_comm.on_recv(self.handle_comm)
-        self.websocket_msg = []  # Used to gather websocket messages
-        self.comm_msg = []  # Used to gather comm messages
+        self.comm_msg = []
+        self.websocket_msg = []
+
+    def setup_comm(self, url):
+        comm_zmq = self.context.socket(zmq.XREQ)
+        comm_zmq.bind(url)
+        comm_stream = ZMQStream(comm_zmq)
+        comm_stream.on_recv(self.handle_comm)
+        return comm_zmq, comm_stream, url
 
     def make_app(self):
         return tornado.web.Application([
@@ -130,7 +144,6 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 self.zmq_socket.send(gathered_msg.encode("utf-8"))
                 self.zmq_stream.flush()
                 self.websocket_msg, self.comm_msg = [], []
-            self.comm_msg = []
 
     def forward_to_websockets(self, frames):
         # Check if the objects are still available in cache
@@ -227,23 +240,23 @@ def start_meshcat_server():
         pass  # No backend Ipython kernel available. Not listening for incoming connections.
     else:
         context = zmq.Context()
-        zmq_socket_comm = context.socket(zmq.XREQ)
-        zmq_socket_comm.connect(comm_url)
+        comm_zmq = context.socket(zmq.XREQ)
+        comm_zmq.connect(comm_url)
         def comm_register(comm, msg):
-            nonlocal zmq_socket_comm
+            nonlocal comm_zmq
 
             @comm.on_msg
             def _on_msg(msg):
-                nonlocal zmq_socket_comm
+                nonlocal comm_zmq
                 data = msg['content']['data']
-                zmq_socket_comm.send(f"data:{comm.comm_id}:{data}".encode())
+                comm_zmq.send(f"data:{comm.comm_id}:{data}".encode())
 
             @comm.on_close
             def _close(evt):
-                nonlocal zmq_socket_comm
-                zmq_socket_comm.send(f"close:{comm.comm_id}".encode())
+                nonlocal comm_zmq
+                comm_zmq.send(f"close:{comm.comm_id}".encode())
 
-            zmq_socket_comm.send(f"open:{comm.comm_id}".encode())
+            comm_zmq.send(f"open:{comm.comm_id}".encode())
         kernel.comm_manager.register_target('meshcat', comm_register)
 
     return server, zmq_url, web_url

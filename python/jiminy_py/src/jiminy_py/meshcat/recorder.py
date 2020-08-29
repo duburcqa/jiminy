@@ -8,6 +8,7 @@ import pathlib
 import asyncio
 import subprocess
 import multiprocessing
+import multiprocessing.managers
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
