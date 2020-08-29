@@ -10,7 +10,7 @@ from contextlib import redirect_stderr
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 
-from meshcat.servers.tree import walk
+from meshcat.servers.tree import walk, find_node
 from meshcat.servers.zmqserver import (
     VIEWER_ROOT, ZMQWebSocketBridge, WebSocketHandler)
 
@@ -133,6 +133,13 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             super().handle_zmq(frames)
 
     def forward_to_websockets(self, frames):
+        # Check if the objects are still available in cache
+        cmd, path, data = frames
+        cache_hit = (cmd == "set_object" and
+                     find_node(self.tree, path).object and
+                     find_node(self.tree, path).object == data)
+        if cache_hit:
+            return
         super().forward_to_websockets(frames)
         _, _, data = frames
         for comm_id in self.comm_pool:
