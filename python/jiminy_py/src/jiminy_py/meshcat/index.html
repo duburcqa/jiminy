@@ -121,6 +121,11 @@
                 continue_animating = false;
             }
             start_animate();
+
+            window.onunload = function(event) {
+                viewer.connection.close();
+                return false;
+            }
         </script>
 
         <style>
