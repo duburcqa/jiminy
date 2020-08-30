@@ -4,6 +4,7 @@ import signal
 import asyncio
 import umsgpack
 import tornado.web
+import tornado.ioloop
 import multiprocessing
 from contextlib import redirect_stderr
 
@@ -83,7 +84,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 DEFAULT_ZMQ_METHOD, self.host, port))
         (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
             find_available_port(f, DEFAULT_COMM_PORT)
-        
+
         # Extra buffers for  comm ids and messages
         self.comm_pool = []
         self.comm_msg = []
@@ -216,48 +217,69 @@ def start_meshcat_server():
     # communication are not available in subprocess (roughly speaking).
     # It is an one directional communication. The aim is only to redirect
     # messages send to the websockets to the kernel communication 'meshcat'.
-    def forward_to_ipython(messages):
-        from IPython import get_ipython
-        comm_pool = get_ipython().kernel.comm_manager.comms
-        for message in messages:
-            comm_id = message[:32].decode()  # comm_id is always 32 bits
-            comm_pool[comm_id].send(buffers=[message[32:]])
-
-    context = zmq.Context.instance()
-    zmq_socket_comm = context.socket(zmq.XREQ)
-    zmq_socket_comm.connect(comm_url)
-    zmq_stream_comm = ZMQStream(zmq_socket_comm)
-    zmq_stream_comm.on_recv(forward_to_ipython)
-
     # Implement bi-directional communication using 'comm.on_msg'. ZMQ
     # ROUTER/ROUTER protocol supports it, even though it is hacky. A double
     # socket is used to avoid altering too much the original implementation.
     # ROUTER/ROUTER enables to spend and receive as many messages as desired
     # consecutively without replying systematically between them.
     try:
-        kernel = get_ipython().kernel
+        get_ipython().kernel
     except (NameError, AttributeError):
         pass  # No backend Ipython kernel available. Not listening for incoming connections.
     else:
-        context = zmq.Context()
-        comm_zmq = context.socket(zmq.XREQ)
-        comm_zmq.connect(comm_url)
-        def comm_register(comm, msg):
-            nonlocal comm_zmq
+        import threading
 
-            @comm.on_msg
-            def _on_msg(msg):
-                nonlocal comm_zmq
-                data = msg['content']['data']
-                comm_zmq.send(f"data:{comm.comm_id}:{data}".encode())
+        class ZMQIPythonBridge(threading.Thread):
+            def __init__(self, comm_url):
+                threading.Thread.__init__(self)
+                self.forward_count = 0
+                self.receive_count = 0
+                self.comm_url = comm_url
 
-            @comm.on_close
-            def _close(evt):
-                nonlocal comm_zmq
-                comm_zmq.send(f"close:{comm.comm_id}".encode())
+            def comm_register(self, comm, msg):
+                @comm.on_msg
+                def _on_msg(msg):
+                    self.receive_count += 1
+                    data = msg['content']['data']
+                    self.comm_zmq.send(f"data:{comm.comm_id}:{data}".encode())
 
-            comm_zmq.send(f"open:{comm.comm_id}".encode())
-        kernel.comm_manager.register_target('meshcat', comm_register)
+                @comm.on_close
+                def _close(evt):
+                    self.comm_zmq.send(f"close:{comm.comm_id}".encode())
+
+                self.comm_zmq.send(f"open:{comm.comm_id}".encode())
+
+            def forward_to_ipython(self, messages):
+                self.forward_count += 1
+                from IPython import get_ipython
+                comm_pool = get_ipython().kernel.comm_manager.comms
+                for message in messages:
+                    comm_id = message[:32].decode()  # comm_id is always 32 bits
+                    comm_pool[comm_id].send(buffers=[message[32:]])
+                    # kernel = get_ipython().kernel
+                    # kernel.session.send(kernel.iopub_socket, 'comm_msg',
+                    #     dict(data={}, comm_id=comm_id),
+                    #     metadata={},
+                    #     ident=f"comm-{comm_id}".encode('ascii'),
+                    #     buffers=[message[32:]],
+                    # )
+
+            def run(self):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                ioloop = tornado.ioloop.IOLoop.current()
+                context = zmq.Context()
+                self.comm_zmq = context.socket(zmq.XREQ)
+                self.comm_zmq.connect(comm_url)
+                self.comm_stream = ZMQStream(self.comm_zmq)
+                self.comm_stream.on_recv(self.forward_to_ipython)
+                get_ipython().kernel.comm_manager.register_target(
+                    'meshcat', self.comm_register)
+                ioloop.start()
+
+        comm_bridge = ZMQIPythonBridge(comm_url)
+        comm_bridge.start()
+        server.bridge = comm_bridge
 
     return server, zmq_url, web_url
 
