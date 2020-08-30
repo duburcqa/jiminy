@@ -98,14 +98,27 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         else:
             self.ioloop.call_later(0.1, self.wait_for_websockets)
 
+    def handle_zmq(self, frames):
+        cmd = frames[0].decode("utf-8")
+        if cmd == "ready":
+            if not self.websocket_pool and not self.comm_pool: #TODO: Disable temporarily to avoid hanging
+                self.zmq_socket.send(b"")
+            msg = umsgpack.packb({"type": "ready"})
+            for websocket in self.websocket_pool:
+                websocket.write_message(msg, binary=True)
+            for comm_id in self.comm_pool:
+                self.forward_to_comm(comm_id, msg)
+        else:
+            super().handle_zmq(frames)
+
     def handle_comm(self, frames):
         cmd = frames[0].decode("utf-8")
         if cmd.startswith("open:"):
-            comm_id = f"{cmd.split(':', 1)[1]}".encode()
+            comm_id = f"{cmd.split(':', 1)[1]}"
             self.send_scene(comm_id=comm_id)
             self.comm_pool.append(comm_id)
         elif cmd.startswith("close:"):
-            comm_id = f"{cmd.split(':', 1)[1]}".encode()
+            comm_id = f"{cmd.split(':', 1)[1]}"
             self.comm_pool.remove(comm_id)
         elif cmd.startswith("data:"):
             message = f"{cmd.split(':', 2)[2]}"
@@ -117,20 +130,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 self.zmq_socket.send(gathered_msg.encode("utf-8"))
                 self.zmq_stream.flush()
                 self.websocket_msg, self.comm_msg = [], []
-            self.comm_msg = []  # Used to gather comm messages
-
-    def handle_zmq(self, frames):
-        cmd = frames[0].decode("utf-8")
-        if cmd == "ready":
-            if not self.websocket_pool: #and not self.comm_pool: TODO: Disable temporarily to avoid hanging
-                self.zmq_socket.send(b"")
-            msg = umsgpack.packb({"type": "ready"})
-            for websocket in self.websocket_pool:
-                websocket.write_message(msg, binary=True)
-            for comm_id in self.comm_pool:
-                self.zmq_socket_comm.send(comm_id + msg)
-        else:
-            super().handle_zmq(frames)
+            self.comm_msg = []
 
     def forward_to_websockets(self, frames):
         # Check if the objects are still available in cache
@@ -143,7 +143,10 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         super().forward_to_websockets(frames)
         _, _, data = frames
         for comm_id in self.comm_pool:
-            self.zmq_socket_comm.send(comm_id + data)
+            self.forward_to_comm(comm_id, data)
+
+    def forward_to_comm(self, comm_id, message):
+        self.zmq_socket_comm.send(comm_id.encode() + data)
 
     def send_scene(self, websocket=None, comm_id=None):
         if websocket is not None:
@@ -151,9 +154,9 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         elif comm_id is not None:
             for node in walk(self.tree):
                 if node.object is not None:
-                    self.zmq_socket_comm.send(comm_id + node.object)
+                    self.forward_to_comm(comm_id, node.object)
                 if node.transform is not None:
-                    self.zmq_socket_comm.send(comm_id + node.transform)
+                    self.forward_to_comm(comm_id, node.transform)
 
 # ======================================================
 
@@ -218,23 +221,30 @@ def start_meshcat_server():
     # socket is used to avoid altering too much the original implementation.
     # ROUTER/ROUTER enables to spend and receive as many messages as desired
     # consecutively without replying systematically between them.
-    def comm_register(comm, msg):
-        nonlocal zmq_socket_comm
-
-        @comm.on_msg
-        def _on_msg(msg):
+    try:
+        kernel = get_ipython().kernel
+    except (NameError, AttributeError):
+        pass  # No backend Ipython kernel available. Not listening for incoming connections.
+    else:
+        context = zmq.Context()
+        zmq_socket_comm = context.socket(zmq.XREQ)
+        zmq_socket_comm.connect(comm_url)
+        def comm_register(comm, msg):
             nonlocal zmq_socket_comm
-            data = msg['content']['data']
-            zmq_socket_comm.send(f"data:{comm.comm_id}:{data}".encode())
 
-        @comm.on_close
-        def _close(evt):
-            nonlocal zmq_socket_comm
-            zmq_socket_comm.send(f"close:{comm.comm_id}".encode())
+            @comm.on_msg
+            def _on_msg(msg):
+                nonlocal zmq_socket_comm
+                data = msg['content']['data']
+                zmq_socket_comm.send(f"data:{comm.comm_id}:{data}".encode())
 
-        zmq_socket_comm.send(f"open:{comm.comm_id}".encode())
-    get_ipython().kernel.comm_manager.register_target(
-        'meshcat', comm_register)
+            @comm.on_close
+            def _close(evt):
+                nonlocal zmq_socket_comm
+                zmq_socket_comm.send(f"close:{comm.comm_id}".encode())
+
+            zmq_socket_comm.send(f"open:{comm.comm_id}".encode())
+        kernel.comm_manager.register_target('meshcat', comm_register)
 
     return server, zmq_url, web_url
 

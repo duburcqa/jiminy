@@ -11,20 +11,18 @@ import multiprocessing
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
-try:
+from IPython import get_ipython
+shell = get_ipython().__class__.__module__
+if shell.startswith('google.colab.'):
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
     # Note that the downside is that chrome must be installed manually.
-    shell = get_ipython().__class__.__module__
-    if shell == 'google.colab._shell':
-        import pyppeteer.chromium_downloader
-        pyppeteer.chromium_downloader.chromium_executable = \
-            lambda : "/usr/lib/chromium-browser/chromium-browser"
+    import pyppeteer.chromium_downloader
+    pyppeteer.chromium_downloader.chromium_executable = \
+        lambda : "/usr/lib/chromium-browser/chromium-browser"
     if not pyppeteer.chromium_downloader.check_chromium():
         logging.warning("Chrome must be installed manually on Google Colab. "\
             "It must be done using '!apt install chromium-chromedriver'.")
-except NameError:
-    pass
 else:
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
@@ -305,7 +303,7 @@ class MeshcatRecorder:
 
     def start_video_recording(self, fps, width, height):
         self._send_request("start_record",
-            message=f"{fps},{width},{height}")
+            message=f"{fps},{width},{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self):
@@ -325,7 +323,7 @@ class MeshcatRecorder:
                         for item in proc.open_files():
                             if path == item.path:
                                 return False
-                except psutil.NoSuchProcess:
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     # The process ended before examining its files
                     pass
             return True

@@ -526,18 +526,18 @@ class Viewer:
         """
         @brief Determine whether Python is running inside a Notebook or not.
         """
-        try:
-            shell = get_ipython().__class__.__module__
-            if shell == 'ipykernel.zmqshell':
-                return 1   # Jupyter notebook or qtconsole
-            elif shell == 'IPython.terminal.interactiveshell':
-                return 0   # Terminal running IPython
-            elif shell == 'google.colab._shell':
-                return 2   # Terminal running Google Colaboratory
-            else:
-                return -1  # Other type, if any
-        except NameError:
-            return 0       # Probably standard Python interpreter
+        from IPython import get_ipython
+        shell = get_ipython().__class__.__module__
+        if shell == 'ipykernel.zmqshell':
+            return 1   # Jupyter notebook or qtconsole. Impossible to discriminate easily without using psutil to inspect the running process...
+        elif shell == 'IPython.terminal.interactiveshell':
+            return 0   # Terminal running IPython
+        elif shell.startswith('google.colab.'):
+            return 2   # Google Colaboratory
+        elif shell == '__builtin__':
+            return 0   # Terminal running Python
+        else:
+            return -1  # Unidentified type
 
     @staticmethod
     def _get_colorized_urdf(urdf_path,
@@ -641,8 +641,8 @@ class Viewer:
 
     @staticmethod
     def __get_client(start_if_needed=False,
-                    close_at_exit=True,
-                    timeout=2000):
+                     close_at_exit=True,
+                     timeout=2000):
         """
         @brief      Get a pointer to the running process of Gepetto-Viewer.
 
@@ -712,7 +712,7 @@ class Viewer:
             for conn in meshcat_candidate_conn:
                 try:
                     zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
-                    zmq_socket = context.socket(zmq.SUB)
+                    zmq_socket = context.socket(zmq.REQ)
                     zmq_socket.RCVTIMEO = 50
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
