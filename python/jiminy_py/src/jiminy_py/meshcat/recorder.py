@@ -1,17 +1,34 @@
 import os
 import sys
 import time
+import logging
 import signal
 import psutil
 import pathlib
 import asyncio
 import subprocess
 import multiprocessing
+import multiprocessing.managers
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
-# Must use a recent release that supports webgl rendering with hardware acceleration
-os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+from IPython import get_ipython
+shell = get_ipython().__class__.__module__
+if shell.startswith('google.colab.'):
+    # Must overload 'chromium_executable' for Google Colaboratory to
+    # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
+    # Note that the downside is that chrome must be installed manually.
+    import pyppeteer.chromium_downloader
+    pyppeteer.chromium_downloader.chromium_executable = \
+        lambda : "/usr/lib/chromium-browser/chromium-browser"
+    if not pyppeteer.chromium_downloader.check_chromium():
+        logging.warning("Chrome must be installed manually on Google Colab. "\
+            "It must be done using '!apt install chromium-chromedriver'.")
+else:
+    # Must use a recent release that supports webgl rendering with hardware
+    # acceleration. It speeds up rendering at least by a factor 5 using on
+    # a midrange dedicated GPU.
+    os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
 
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
@@ -32,9 +49,10 @@ async def launch(self) -> Browser:
     options['env'] = self.env
     cmd = self.cmd + [
         "--enable-webgl",
-        "--use-gl=egl",
+        "--use-gl=egl",  # "egl" is currently the only webgl rendering working without X server and in headless mode
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
+        # "--disable-gpu",  # GPU acceleration is not available in headless mode on Windows for now apparently...
         "--ignore-certificate-errors",
         "--disable-infobars",
         "--disable-breakpad",
@@ -93,7 +111,6 @@ async def start_video_recording_async(client, fps, width, height):
             {'width': width, 'height': height})
     await client.html.page.evaluate(f"""
         () => {{
-            stop_animate();
             viewer.animator.capturer = new WebMWriter({{
                 quality: 0.99999,  // Lossless codex VP8L is not supported
                 frameRate: {fps}
@@ -124,7 +141,6 @@ async def stop_and_save_video_async(client, path):
                 a.download = "{filename}";
                 a.click();
             }});
-            start_animate();
         }}
     """)
 
@@ -133,14 +149,26 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
+    # Create new asyncio event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     # Open a Meshcat client in background in a hidden chrome browser instance
     session = HTMLSession()
     client = session.get(meshcat_url)
     client.html.render(keep_page=True)
     message_shm.value = f"{session._browser.process.pid}"
 
+    # Stop the animation loop by default, since it is not relevant for recording only
+    async def stop_animate_async(client):
+        await client.html.page.evaluate("""
+            () => {
+                stop_animate();
+            }
+        """)
+    loop.run_until_complete(stop_animate_async(client))
+
     # Infinite loop, waiting for requests
-    loop = asyncio.get_event_loop()
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
             try:
@@ -229,7 +257,7 @@ class MeshcatRecorder:
             if self.proc.is_alive():
                 try:
                     self._send_request(request="quit", timeout=0.5)
-                except:
+                except Exception: # Catch everything, since we do not want this method to fail in any circumstances
                     pass
             self.__shm = None
         if self.proc is not None:
@@ -276,7 +304,7 @@ class MeshcatRecorder:
 
     def start_video_recording(self, fps, width, height):
         self._send_request("start_record",
-            message=f"{fps},{width},{height}")
+            message=f"{fps},{width},{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self):
@@ -296,7 +324,7 @@ class MeshcatRecorder:
                         for item in proc.open_files():
                             if path == item.path:
                                 return False
-                except psutil.NoSuchProcess:
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     # The process ended before examining its files
                     pass
             return True
