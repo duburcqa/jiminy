@@ -36,7 +36,7 @@
                     console.log("connection to Google Colab kernel:", viewer.connection);
                     (async function() {
                         for await (const message of channel.messages) {
-                            viewer.handle_command(message.data);
+                            viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
                         }
                         console.log("connection to Google Colab kernel closed.");
                     })();

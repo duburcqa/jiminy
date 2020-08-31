@@ -482,9 +482,8 @@ class Viewer:
                 viewer instance.
         """
         try:
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
-                zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                zmq_socket.RCVTIMEO = 50
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 50
             if self is None:
                 self = Viewer
             else:
@@ -509,6 +508,7 @@ class Viewer:
                 if Viewer.is_open():
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
+                Viewer._backend_proc = None
             else:
                 self.__is_open = False
             if self._tempdir.startswith(tempfile.gettempdir()):
@@ -516,8 +516,8 @@ class Viewer:
                     shutil.rmtree(self._tempdir)
                 except FileNotFoundError:
                     pass
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
-                zmq_socket.RCVTIMEO = -1
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
         except:
             pass
 
@@ -728,13 +728,13 @@ class Viewer:
 
             # Launch a meshcat custom server if none has been found
             if zmq_url is None:
-                proc, zmq_url, _ = start_meshcat_server()
+                proc, zmq_url, _, comm_url = start_meshcat_server()
             else:
                 proc = psutil.Process(conn.pid)
             proc = ProcessWrapper(proc, close_at_exit)
 
             # Connect to the zmq server
-            client = MeshcatWrapper(zmq_url)
+            client = MeshcatWrapper(zmq_url, comm_url)
 
             return client, proc
 
