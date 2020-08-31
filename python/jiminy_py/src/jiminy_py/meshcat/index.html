@@ -47,7 +47,7 @@
                     viewer.connection.on_msg(function(message) {
                         viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
                     });
-                    viewer.connection.on_close(function(evt) {
+                    viewer.connection.on_close(function(message) {
                         console.log("connection to Jupyter kernel closed:", evt);
                     });
                 }

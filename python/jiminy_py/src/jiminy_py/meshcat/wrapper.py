@@ -1,5 +1,7 @@
 import atexit
 import asyncio
+import threading
+import tornado.ioloop
 from heapq import heappop
 from contextlib import redirect_stdout
 
@@ -9,6 +11,13 @@ from zmq.eventloop.zmqstream import ZMQStream
 import meshcat
 
 from .recorder import MeshcatRecorder
+
+
+_send_orig = meshcat.visualizer.ViewerWindow.send
+def _send(self, command):
+    _send_orig(self, command)
+    get_ipython().kernel.do_one_iteration() # TODO : detect if needed
+meshcat.visualizer.ViewerWindow.send = _send
 
 
 class MeshcatWrapper:
@@ -40,11 +49,19 @@ class MeshcatWrapper:
         except (NameError, AttributeError):
             pass  # No backend Ipython kernel available. Not listening for incoming connections.
         else:
-            context = zmq.Context().instance()
-            self.__comm_socket = context.socket(zmq.XREQ)
-            self.__comm_socket.connect(comm_url)
-            self.__comm_stream = ZMQStream(self.__comm_socket)
-            self.__comm_stream.on_recv(self.__forward_to_ipython)
+            def forward_comm_thread():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                ioloop = tornado.ioloop.IOLoop()
+                context = zmq.Context()
+                self.__comm_socket = context.socket(zmq.XREQ)
+                self.__comm_socket.connect(comm_url)
+                self.__comm_stream = ZMQStream(self.__comm_socket)
+                self.__comm_stream.on_recv(self.__forward_to_ipython)
+                ioloop.start()
+            thread = threading.Thread(target=forward_comm_thread)
+            thread.daemon = True
+            thread.start()
             self.__kernel.comm_manager.register_target(
                 'meshcat', self.__comm_register)
 
@@ -66,9 +83,9 @@ class MeshcatWrapper:
     def __forward_to_ipython(self, messages):
         from IPython import get_ipython
         comm_pool = get_ipython().kernel.comm_manager.comms
-        for message in messages:
-            comm_id = message[:32].decode()  # comm_id is always 32 bits
-            comm_pool[comm_id].send(buffers=[message[32:]])
+        cmd = messages[0]
+        comm_id = cmd[:32].decode()  # comm_id is always 32 bits
+        comm_pool[comm_id].send(buffers=[cmd[32:]])
 
     def __comm_register(self, comm, msg):
         # There is a major limitation of using 'comm.on_msg' callback
@@ -93,46 +110,15 @@ class MeshcatWrapper:
         self.n_comm += 1
         self.__comm_socket.send(f"open:{comm.comm_id}".encode())
 
-    @staticmethod
-    def __recv(coro):
-        loop = asyncio.get_event_loop()
-        f = asyncio.ensure_future(coro)
-        while not f.done():
-            # Extract from the implementation of 'run_until_complete' in
-            # 'nested_asyncio' package. Check Github for reference
-            # https://github.com/erdewit/nest_asyncio/blob/43467067b87b20325c4cbaaf78af8eff16ecf847/nest_asyncio.py#L80
-            now = loop.time()
-            ready = loop._ready
-            scheduled = loop._scheduled
-            while scheduled and scheduled[0]._cancelled:
-                heappop(scheduled)
-            timeout = 0 if ready or loop._stopping \
-                else min(max(0, scheduled[0]._when - now), 10) if scheduled \
-                else None
-            event_list = loop._selector.select(timeout)
-            loop._process_events(event_list)
-            while scheduled and scheduled[0]._when < now + loop._clock_resolution:
-                handle = heappop(scheduled)
-                ready.append(handle)
-            while ready:
-                handle = ready.popleft()
-                if not handle._cancelled:
-                    handle._run()
-            handle = None
-        return f.result()
-
     def wait(self, require_client=False):
         if require_client:
             self.gui.wait()
 
-        async def wait_async():
-            while self.__n_message < self.n_comm:
-                await self.__kernel.process_one(wait=True)
-            return self.__zmq_socket.recv().decode("utf-8")
-
-        self.__n_message = 0
         self.__zmq_socket.send(b"ready")
-        self.__recv(wait_async())
+        self.__n_message = 0
+        while self.__n_message < self.n_comm:
+            self.__kernel.do_one_iteration()
+        return self.__zmq_socket.recv().decode("utf-8")
 
     def start_recording(self, fps, width, height):
         if not self.recorder.is_open:
