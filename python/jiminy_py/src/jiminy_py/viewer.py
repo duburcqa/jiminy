@@ -244,7 +244,7 @@ class Viewer:
         # Update the backend currently running, if any
         if Viewer.backend != backend and Viewer._backend_obj is not None:
             Viewer.close()
-            print("Different backend already running. Closing it...")
+            logging.warning("Different backend already running. Closing it...")
         Viewer.backend = backend
 
         # Configure exception handling
@@ -263,14 +263,6 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 try:
                     Viewer._backend_obj.gui.refresh()
-                except Viewer._backend_exceptions:
-                    is_backend_running = False
-            else:
-                try:
-                    zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                    zmq_socket.RCVTIMEO = 50
-                    Viewer.wait()
-                    zmq_socket.RCVTIMEO = -1  # -1 for limit, milliseconds otherwise
                 except Viewer._backend_exceptions:
                     is_backend_running = False
             if not is_backend_running:
@@ -396,7 +388,7 @@ class Viewer:
     def __must_be_open(fct):
         def fct_safe(*args, **kwargs):
             self = None
-            if len(args) > 0 and isinstance(args[0], Viewer):
+            if args and isinstance(args[0], Viewer):
                 self = args[0]
             self = kwargs.get('self', self)
             if not Viewer.is_open(self):
@@ -457,6 +449,7 @@ class Viewer:
                     webbrowser.open(viewer_url, new=2, autoraise=True)
                 except Exception:  # Failt if not browser is available
                     logger.warning("No browser available for display. Please install one manually.")
+                    return  # Skip waiting since it is not possible in this case
 
             # Wait for the display to finish loading
             Viewer.wait(require_client=True)
@@ -696,7 +689,7 @@ class Viewer:
             # Get the list of connections that are likely to correspond to meshcat servers
             meshcat_candidate_conn = []
             for conn in psutil.net_connections("tcp4"):
-                if conn.status == 'LISTEN':
+                if conn.status == 'LISTEN' and conn.laddr.ip == '127.0.0.1':
                     cmdline = psutil.Process(conn.pid).cmdline()
                     if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
                         meshcat_candidate_conn.append(conn)
@@ -706,9 +699,12 @@ class Viewer:
             context = zmq.Context.instance()
             for conn in meshcat_candidate_conn:
                 try:
+                    # Note that the timeout must be long enough to give enough
+                    # time to the server to respond, but not to long to avoid
+                    # sending to much time spanning the available connections.
                     zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
                     zmq_socket = context.socket(zmq.REQ)
-                    zmq_socket.RCVTIMEO = 50
+                    zmq_socket.RCVTIMEO = 250  # millisecond
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
                     response = zmq_socket.recv().decode("utf-8")
@@ -719,8 +715,6 @@ class Viewer:
                 zmq_socket.close(linger=5)
                 if zmq_url is not None:
                     break
-
-            context.destroy(linger=5)
 
             # Create a meshcat server if needed and connect to it
             client = MeshcatWrapper(zmq_url)
@@ -988,8 +982,8 @@ class Viewer:
                         self.__getViewerNodeName(
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
                 self.__update_camera_transform()
-            if wait:
-                Viewer.wait()
+        if wait:
+            Viewer.wait()
 
     @__must_be_open
     def display(self, q, xyz_offset=None, wait=False):
@@ -1014,8 +1008,8 @@ class Viewer:
             self._rb.display(q)
             self.__update_camera_transform()
             pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
-            if wait:
-                Viewer.wait()
+        if wait:
+            Viewer.wait()
 
     def replay(self,
                evolution_robot,
@@ -1210,16 +1204,14 @@ def play_trajectories(trajectory_data,
             if close_backend is None:
                 close_backend = True
 
-    # Set camera pose if requested
-    if camera_xyzrpy is not None:
-        viewers[0].set_camera_transform(*camera_xyzrpy)
-
-    # Activate camera traveling if requested
+    # Set camera pose or activate camera traveling if requested
     if travelling_frame is not None:
         if camera_xyzrpy is not None:
             viewers[0].attach_camera(travelling_frame, *camera_xyzrpy)
         else:
             viewers[0].attach_camera(travelling_frame)
+    elif camera_xyzrpy is not None:
+        viewers[0].set_camera_transform(*camera_xyzrpy)
 
     # Load robots in gepetto viewer
     if xyz_offset is None:
@@ -1234,12 +1226,13 @@ def play_trajectories(trajectory_data,
 
     # Wait for the meshes to finish loading if non video recording mode
     if record_video_path is None:
-        if verbose:
-            if backend == 'meshcat':
+        if backend == 'meshcat':
+            if verbose:
                 print("Waiting for meshcat client in browser to connect: "\
                     f"{Viewer._backend_obj.gui.url()}")
-        Viewer.wait(require_client=True)
-        print("Browser connected! Starting to replay the simulation.")
+            Viewer.wait(require_client=True)
+            if verbose:
+                print("Browser connected! Starting to replay the simulation.")
 
     # Handle start-in-pause mode
     if start_paused and not is_notebook():

@@ -111,7 +111,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         ])
 
     def wait_for_websockets(self):
-        if len(self.websocket_pool) > 0 or len(self.comm_pool) > 0:
+        if self.websocket_pool or self.comm_pool:
             self.zmq_socket.send(b"ok")
             self.zmq_stream.flush()
         else:
