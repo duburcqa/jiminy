@@ -38,8 +38,7 @@ from pinocchio.visualize import MeshcatVisualizer
 from pinocchio.shortcuts import createDatas
 
 from .state import State
-from .meshcat.server import start_meshcat_server
-from .meshcat.wrapper import MeshcatWrapper
+from .meshcat.wrapper import MeshcatWrapper, is_notebook
 
 
 # Determine if the various backends are available
@@ -144,7 +143,6 @@ class ProcessWrapper:
 
 class Viewer:
     backend = None
-    port_forwarding = None
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
@@ -233,7 +231,7 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if Viewer._is_notebook() or not 'gepetto-gui' in backends_available:
+                if is_notebook() or not 'gepetto-gui' in backends_available:
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
@@ -246,7 +244,7 @@ class Viewer:
         # Update the backend currently running, if any
         if Viewer.backend != backend and Viewer._backend_obj is not None:
             Viewer.close()
-            print("Different backend already running. Closing it...")
+            logging.warning("Different backend already running. Closing it...")
         Viewer.backend = backend
 
         # Configure exception handling
@@ -267,14 +265,6 @@ class Viewer:
                     Viewer._backend_obj.gui.refresh()
                 except Viewer._backend_exceptions:
                     is_backend_running = False
-            else:
-                try:
-                    zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                    zmq_socket.RCVTIMEO = 50
-                    Viewer._backend_obj.wait()
-                    zmq_socket.RCVTIMEO = -1  # -1 for limit, milliseconds otherwise
-                except Viewer._backend_exceptions:
-                    is_backend_running = False
             if not is_backend_running:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
@@ -289,7 +279,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer.__get_client(start_if_needed=True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
                 self._client = Viewer._backend_obj.gui
@@ -307,11 +297,20 @@ class Viewer:
             else:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer._get_client(True)
+                        Viewer.__get_client(start_if_needed=True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
-                if self.is_backend_parent and open_gui_if_parent:
-                    self.open_gui()
+                if not is_notebook():
+                    if self.is_backend_parent and open_gui_if_parent:
+                        self.open_gui()
+                else:
+                    # There is no display cell already opened. So opening one
+                    # since it is probably what the user is expecting, but
+                    # there is no fixed rule. Then, wait for it to open,
+                    # otherwise we will get into trouble...
+                    if Viewer._backend_obj.comm_manager.n_comm == 0:
+                        self.open_gui()
+
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj.gui
         except Exception as e:
@@ -389,7 +388,7 @@ class Viewer:
     def __must_be_open(fct):
         def fct_safe(*args, **kwargs):
             self = None
-            if len(args) > 0 and isinstance(args[0], Viewer):
+            if args and isinstance(args[0], Viewer):
                 self = args[0]
             self = kwargs.get('self', self)
             if not Viewer.is_open(self):
@@ -399,34 +398,6 @@ class Viewer:
         return fct_safe
 
     @staticmethod
-    def reset_port_forwarding(port_forwarding=None):
-        """
-        @brief Configure port forwarding. Only used for remote display in Jupyter notebook cell.
-
-        @param port_forwarding  Dictionary whose keys are ports on local machine,
-                                and values are associated remote port.
-        """
-        Viewer.port_forwarding = port_forwarding
-
-    @staticmethod
-    @__must_be_open
-    def _get_client_url():
-        if Viewer.backend == 'gepetto-gui':
-            raise RuntimeError("Can only get client url using Meshcat backend.")
-
-        viewer_url = Viewer._backend_obj.gui.url()
-        if Viewer.port_forwarding is not None:
-            url_port_pattern = '(?<=:)[0-9]+(?=/)'
-            port_localhost = int(re.search(url_port_pattern, viewer_url).group())
-            if not port_localhost in Viewer.port_forwarding.keys():
-                raise RuntimeError("Port forwarding defined but no port "\
-                                    "mapping associated with {port_localhost}.")
-            port_remote = Viewer.port_forwarding[port_localhost]
-            viewer_url = re.sub(url_port_pattern, str(port_remote), viewer_url)
-        return viewer_url
-
-    @staticmethod
-    @__must_be_open
     def open_gui(start_if_needed=False):
         """
         @brief Open a new viewer graphical interface.
@@ -434,9 +405,6 @@ class Viewer:
         @remark  This method is not supported by Gepetto-gui since it does not have a classical
                  server-client mechanism. One and only one graphical interface (client) can be
                  opened, and its lifetime is tied to the one of the server itself.
-
-        @param port_forwarding  Dictionary whose keys are ports on local machine,
-                                and values are associated remote port.
         """
         if Viewer.backend == 'gepetto-gui':
             raise RuntimeError(
@@ -444,26 +412,47 @@ class Viewer:
         else:
             if Viewer._backend_obj is None:
                 Viewer._backend_obj, Viewer._backend_proc = \
-                    Viewer._get_client(start_if_needed)
-            if Viewer._is_notebook() and Viewer.port_forwarding is not None:
-                logger.warning(
-                    "Impossible to open web browser programmatically for Meshcat "\
-                    "through port forwarding. Either use Jupyter or open it manually.")
+                    Viewer.__get_client(start_if_needed)
 
-            viewer_url = Viewer._get_client_url()
-            if Viewer._is_notebook():
+            if is_notebook():
+                import urllib
                 from IPython.core.display import HTML, display
-                jupyter_html = f'\n<div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">\
-                                 \n<iframe src="{viewer_url}" style="width: 100%; height: 100%; border: none">\
-                                 </iframe>\n</div>\n'
-                display(HTML(jupyter_html))
-            else:
-                if Viewer.port_forwarding is None:
-                    webbrowser.open(viewer_url, new=2, autoraise=True)
+
+                # Scrap the viewer html content, including javascript dependencies
+                viewer_url = Viewer._backend_obj.gui.url()
+                html_content = urllib.request.urlopen(viewer_url).read().decode()
+                pattern = '<script type="text/javascript" src="%s"></script>'
+                scripts_js = re.findall(pattern % '(.*)', html_content)
+                for file in scripts_js:
+                    file_path = os.path.join(viewer_url, file)
+                    js_content = urllib.request.urlopen(file_path).read().decode()
+                    html_content = html_content.replace(pattern % file, f"""
+                    <script type="text/javascript">
+                    {js_content}
+                    </script>""")
+
+                # Open it in a HTML iframe on Jupyter, since it is not possible to
+                # load it directly. It is not an issue on Google Colab.
+                if is_notebook() == 1:
+                    html_content = html_content.replace("\"", "&quot;").\
+                        replace("'", "&apos;")
+                    display(HTML(f"""
+                        <div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">
+                        <iframe srcdoc="{html_content}" style="width: 100%; height: 100%; border: none">
+                        </iframe></div>
+                    """))
                 else:
-                    logger.warning(
-                        "Impossible to open webbrowser through port forwarding. "\
-                        "Either use Jupyter or open it manually.")
+                    display(HTML(html_content))
+            else:
+                try:
+                    webbrowser.get()
+                    webbrowser.open(viewer_url, new=2, autoraise=True)
+                except Exception:  # Failt if not browser is available
+                    logger.warning("No browser available for display. Please install one manually.")
+                    return  # Skip waiting since it is not possible in this case
+
+            # Wait for the display to finish loading
+            Viewer.wait(require_client=True)
 
     @staticmethod
     @__must_be_open
@@ -475,9 +464,9 @@ class Viewer:
                                      before checking for mesh loading.
         """
         if Viewer.backend == 'gepetto-gui':
-            return  # Gepetto-gui is synchronous, so it cannot not be already loaded
+            return None  # Gepetto-gui is synchronous, so it cannot not be already loaded
         else:
-            Viewer._backend_obj.wait()
+            Viewer._backend_obj.wait(require_client)
 
     def is_open(self=None):
         is_open_ = Viewer._backend_proc is not None and \
@@ -499,9 +488,8 @@ class Viewer:
                 viewer instance.
         """
         try:
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
-                zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
-                zmq_socket.RCVTIMEO = 50
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 50
             if self is None:
                 self = Viewer
             else:
@@ -526,6 +514,7 @@ class Viewer:
                 if Viewer.is_open():
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
+                Viewer._backend_proc = None
             else:
                 self.__is_open = False
             if self._tempdir.startswith(tempfile.gettempdir()):
@@ -533,26 +522,10 @@ class Viewer:
                     shutil.rmtree(self._tempdir)
                 except FileNotFoundError:
                     pass
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj:
-                zmq_socket.RCVTIMEO = -1
-        except:
+            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
+                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
+        except Exception:  # Catch everything, since we do not want this method to fail in any circumstances
             pass
-
-    @staticmethod
-    def _is_notebook():
-        """
-        @brief Determine whether Python is running inside a Notebook or not.
-        """
-        try:
-            shell = get_ipython().__class__.__name__
-            if shell == 'ZMQInteractiveShell':
-                return True   # Jupyter notebook or qtconsole
-            elif shell == 'TerminalInteractiveShell':
-                return False  # Terminal running IPython
-            else:
-                return False  # Other type, if any
-        except NameError:
-            return False      # Probably standard Python interpreter
 
     @staticmethod
     def _get_colorized_urdf(urdf_path,
@@ -655,9 +628,9 @@ class Viewer:
         return fixed_urdf_path
 
     @staticmethod
-    def _get_client(start_if_needed=False,
-                    close_at_exit=True,
-                    timeout=2000):
+    def __get_client(start_if_needed=False,
+                     close_at_exit=True,
+                     timeout=2000):
         """
         @brief      Get a pointer to the running process of Gepetto-Viewer.
 
@@ -716,9 +689,9 @@ class Viewer:
             # Get the list of connections that are likely to correspond to meshcat servers
             meshcat_candidate_conn = []
             for conn in psutil.net_connections("tcp4"):
-                if conn.status == 'LISTEN':
+                if conn.status == 'LISTEN' and conn.laddr.ip == '127.0.0.1':
                     cmdline = psutil.Process(conn.pid).cmdline()
-                    if 'python' in cmdline[0] and 'meshcat' in cmdline[-1]:
+                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
                         meshcat_candidate_conn.append(conn)
 
             # Use the first port responding to zmq request, if any
@@ -726,9 +699,12 @@ class Viewer:
             context = zmq.Context.instance()
             for conn in meshcat_candidate_conn:
                 try:
+                    # Note that the timeout must be long enough to give enough
+                    # time to the server to respond, but not to long to avoid
+                    # sending to much time spanning the available connections.
                     zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
                     zmq_socket = context.socket(zmq.REQ)
-                    zmq_socket.RCVTIMEO = 50
+                    zmq_socket.RCVTIMEO = 250  # millisecond
                     zmq_socket.connect(zmq_url)
                     zmq_socket.send(b"url")
                     response = zmq_socket.recv().decode("utf-8")
@@ -739,17 +715,14 @@ class Viewer:
                 zmq_socket.close(linger=5)
                 if zmq_url is not None:
                     break
-            context.destroy(linger=5)
 
-            # Launch a meshcat custom server if none has been found
-            if zmq_url is None:
-                proc, zmq_url, _ = start_meshcat_server()
-            else:
-                proc = psutil.Process(conn.pid)
-            proc = ProcessWrapper(proc, close_at_exit)
-
-            # Connect to the zmq server
+            # Create a meshcat server if needed and connect to it
             client = MeshcatWrapper(zmq_url)
+            if client.server_proc is None:
+                proc = psutil.Process(conn.pid)
+            else:
+                proc = client.server_proc
+            proc = ProcessWrapper(proc, close_at_exit)
 
             return client, proc
 
@@ -1009,8 +982,8 @@ class Viewer:
                         self.__getViewerNodeName(
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
                 self.__update_camera_transform()
-        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.gui.wait()
+            if wait:
+                Viewer.wait()
 
     @__must_be_open
     def display(self, q, xyz_offset=None, wait=False):
@@ -1034,9 +1007,9 @@ class Viewer:
                 raise ValueError("The configuration vector does not have the right size.")
             self._rb.display(q)
             self.__update_camera_transform()
-        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
-        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.gui.wait()
+            pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
+            if wait:
+                Viewer.wait()
 
     def replay(self,
                evolution_robot,
@@ -1060,14 +1033,11 @@ class Viewer:
         init_time = time.time()
         while i < len(evolution_robot):
             s = evolution_robot[i]
-            try:
-                self.display(s.q, xyz_offset, wait)
-                wait = False  # It is enough to wait for the first timestep
-            except Viewer._backend_exceptions:
-                break
+            self.display(s.q, xyz_offset, wait)
             t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
+            wait = False  # It is enough to wait for the first timestep
 
 
 def extract_viewer_data_from_log(log_data, robot):
@@ -1231,16 +1201,14 @@ def play_trajectories(trajectory_data,
             if close_backend is None:
                 close_backend = True
 
-    # Set camera pose if requested
-    if camera_xyzrpy is not None:
-        viewers[0].set_camera_transform(*camera_xyzrpy)
-
-    # Activate camera traveling if requested
+    # Set camera pose or activate camera traveling if requested
     if travelling_frame is not None:
         if camera_xyzrpy is not None:
             viewers[0].attach_camera(travelling_frame, *camera_xyzrpy)
         else:
             viewers[0].attach_camera(travelling_frame)
+    elif camera_xyzrpy is not None:
+        viewers[0].set_camera_transform(*camera_xyzrpy)
 
     # Load robots in gepetto viewer
     if xyz_offset is None:
@@ -1255,14 +1223,16 @@ def play_trajectories(trajectory_data,
 
     # Wait for the meshes to finish loading if non video recording mode
     if record_video_path is None:
-        if verbose:
-            if backend == 'meshcat':
+        if backend == 'meshcat':
+            if verbose:
                 print("Waiting for meshcat client in browser to connect: "\
-                    f"{Viewer._get_client_url()}")
-        Viewer.wait(require_client=True)
+                    f"{Viewer._backend_obj.gui.url()}")
+            Viewer.wait(require_client=True)
+            if verbose:
+                print("Browser connected! Starting to replay the simulation.")
 
     # Handle start-in-pause mode
-    if start_paused and not Viewer._is_notebook():
+    if start_paused and not is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
@@ -1312,15 +1282,21 @@ def play_trajectories(trajectory_data,
         else:
             viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
+        def replay_thread(viewer, *args, **kwargs):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            viewer.replay(*args, **kwargs)
+
         # Play trajectories with multithreading
         threads = []
         for i in range(len(trajectory_data)):
             threads.append(Thread(
-                target=viewers[i].replay,
-                args=(trajectory_data[i]['evolution_robot'],
+                target=replay_thread,
+                args=(viewers[i],
+                      trajectory_data[i]['evolution_robot'],
                       replay_speed,
                       xyz_offset[i],
-                      travelling_frame if i == 0 else None)))
+                      True)))
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
