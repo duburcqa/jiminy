@@ -75,15 +75,19 @@ def handle_web(self, message):
 WebSocketHandler.on_message = handle_web
 
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
-    def __init__(self, zmq_url=None, host="127.0.0.1", port=None):
+    def __init__(self, zmq_url=None, comm_url=None, host="127.0.0.1", port=None):
         super().__init__(zmq_url, host, port)
 
         # Create a new zmq socket specifically for kernel communications
-        def f(port):
-            return self.setup_comm("{:s}://{:s}:{:d}".format(
-                DEFAULT_ZMQ_METHOD, self.host, port))
-        (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
-            find_available_port(f, DEFAULT_COMM_PORT)
+        if comm_url is None:
+            def f(port):
+                return self.setup_comm("{:s}://{:s}:{:d}".format(
+                    DEFAULT_ZMQ_METHOD, self.host, port))
+            (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
+                find_available_port(f, DEFAULT_COMM_PORT)
+        else:
+             self.comm_zmq, self.comm_stream, self.comm_url = \
+                 self.setup_comm(comm_url)
 
         # Extra buffers for  comm ids and messages
         self.comm_pool = []

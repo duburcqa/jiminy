@@ -2,9 +2,9 @@ import os
 import numpy as np
 
 from . import core as jiminy
-from .viewer import Viewer
+from .viewer import is_notebook
 
-if Viewer._is_notebook():
+if is_notebook():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm

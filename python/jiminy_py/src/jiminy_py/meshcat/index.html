@@ -123,6 +123,7 @@
             start_animate();
 
             window.onunload = function(event) {
+                console.log("Closing connection...")
                 viewer.connection.close();
                 return false;
             }

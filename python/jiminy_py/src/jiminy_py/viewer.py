@@ -38,8 +38,7 @@ from pinocchio.visualize import MeshcatVisualizer
 from pinocchio.shortcuts import createDatas
 
 from .state import State
-from .meshcat.server import start_meshcat_server
-from .meshcat.wrapper import MeshcatWrapper
+from .meshcat.wrapper import MeshcatWrapper, is_notebook
 
 
 # Determine if the various backends are available
@@ -232,8 +231,7 @@ class Viewer:
         # Select the desired backend
         if backend is None:
             if Viewer.backend is None:
-                if (Viewer._is_notebook() > 0) or \
-                        not 'gepetto-gui' in backends_available:
+                if is_notebook() or not 'gepetto-gui' in backends_available:
                     backend = 'meshcat'
                 else:
                     backend = 'gepetto-gui'
@@ -271,7 +269,7 @@ class Viewer:
                 try:
                     zmq_socket = Viewer._backend_obj.gui.window.zmq_socket
                     zmq_socket.RCVTIMEO = 50
-                    Viewer._backend_obj.wait()
+                    Viewer.wait()
                     zmq_socket.RCVTIMEO = -1  # -1 for limit, milliseconds otherwise
                 except Viewer._backend_exceptions:
                     is_backend_running = False
@@ -289,7 +287,7 @@ class Viewer:
             if Viewer.backend == 'gepetto-gui':
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer.__get_client(True)
+                        Viewer.__get_client(start_if_needed=True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
                 self._client = Viewer._backend_obj.gui
@@ -307,11 +305,20 @@ class Viewer:
             else:
                 if Viewer._backend_obj is None:
                     Viewer._backend_obj, Viewer._backend_proc = \
-                        Viewer.__get_client(True)
+                        Viewer.__get_client(start_if_needed=True)
                     self.is_backend_parent = Viewer._backend_proc.is_parent()
                 self.__is_open = True
-                if self.is_backend_parent and open_gui_if_parent:
-                    self.open_gui()
+                if not is_notebook():
+                    if self.is_backend_parent and open_gui_if_parent:
+                        self.open_gui()
+                else:
+                    # There is no display cell already opened. So opening one
+                    # since it is probably what the user is expecting, but
+                    # there is no fixed rule. Then, wait for it to open,
+                    # otherwise we will get into trouble...
+                    if Viewer._backend_obj.comm_manager.n_comm == 0:
+                        self.open_gui()
+
                 self._client = MeshcatVisualizer(self.pinocchio_model, None, None)
                 self._client.viewer = Viewer._backend_obj.gui
         except Exception as e:
@@ -415,8 +422,7 @@ class Viewer:
                 Viewer._backend_obj, Viewer._backend_proc = \
                     Viewer.__get_client(start_if_needed)
 
-            is_notebook = Viewer._is_notebook()
-            if is_notebook > 0:
+            if is_notebook():
                 import urllib
                 from IPython.core.display import HTML, display
 
@@ -435,7 +441,7 @@ class Viewer:
 
                 # Open it in a HTML iframe on Jupyter, since it is not possible to
                 # load it directly. It is not an issue on Google Colab.
-                if is_notebook == 1:
+                if is_notebook() == 1:
                     html_content = html_content.replace("\"", "&quot;").\
                         replace("'", "&apos;")
                     display(HTML(f"""
@@ -446,7 +452,14 @@ class Viewer:
                 else:
                     display(HTML(html_content))
             else:
-                webbrowser.open(viewer_url, new=2, autoraise=True)
+                try:
+                    webbrowser.get()
+                    webbrowser.open(viewer_url, new=2, autoraise=True)
+                except Exception:  # Failt if not browser is available
+                    logger.warning("No browser available for display. Please install one manually.")
+
+            # Wait for the display to finish loading
+            Viewer.wait(require_client=True)
 
     @staticmethod
     @__must_be_open
@@ -458,9 +471,9 @@ class Viewer:
                                      before checking for mesh loading.
         """
         if Viewer.backend == 'gepetto-gui':
-            return  # Gepetto-gui is synchronous, so it cannot not be already loaded
+            return None  # Gepetto-gui is synchronous, so it cannot not be already loaded
         else:
-            Viewer._backend_obj.wait()
+            Viewer._backend_obj.wait(require_client)
 
     def is_open(self=None):
         is_open_ = Viewer._backend_proc is not None and \
@@ -520,24 +533,6 @@ class Viewer:
                 Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
         except:
             pass
-
-    @staticmethod
-    def _is_notebook():
-        """
-        @brief Determine whether Python is running inside a Notebook or not.
-        """
-        from IPython import get_ipython
-        shell = get_ipython().__class__.__module__
-        if shell == 'ipykernel.zmqshell':
-            return 1   # Jupyter notebook or qtconsole. Impossible to discriminate easily without using psutil to inspect the running process...
-        elif shell == 'IPython.terminal.interactiveshell':
-            return 0   # Terminal running IPython
-        elif shell.startswith('google.colab.'):
-            return 2   # Google Colaboratory
-        elif shell == '__builtin__':
-            return 0   # Terminal running Python
-        else:
-            return -1  # Unidentified type
 
     @staticmethod
     def _get_colorized_urdf(urdf_path,
@@ -724,17 +719,16 @@ class Viewer:
                 zmq_socket.close(linger=5)
                 if zmq_url is not None:
                     break
+
             context.destroy(linger=5)
 
-            # Launch a meshcat custom server if none has been found
-            if zmq_url is None:
-                proc, zmq_url, _, comm_url = start_meshcat_server()
-            else:
+            # Create a meshcat server if needed and connect to it
+            client = MeshcatWrapper(zmq_url)
+            if client.server_proc is None:
                 proc = psutil.Process(conn.pid)
+            else:
+                proc = client.server_proc
             proc = ProcessWrapper(proc, close_at_exit)
-
-            # Connect to the zmq server
-            client = MeshcatWrapper(zmq_url, comm_url)
 
             return client, proc
 
@@ -994,8 +988,8 @@ class Viewer:
                         self.__getViewerNodeName(
                             visual, pin.GeometryType.VISUAL)].set_transform(T)
                 self.__update_camera_transform()
-        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.wait()
+            if wait:
+                Viewer.wait()
 
     @__must_be_open
     def display(self, q, xyz_offset=None, wait=False):
@@ -1019,9 +1013,9 @@ class Viewer:
                 raise ValueError("The configuration vector does not have the right size.")
             self._rb.display(q)
             self.__update_camera_transform()
-        pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
-        if wait and Viewer.backend == 'meshcat':  # Gepetto-gui is already synchronous
-            Viewer._backend_obj.wait()
+            pin.framesForwardKinematics(self._rb.model, self._rb.data, q)  # This method is not called automatically by 'display' method
+            if wait:
+                Viewer.wait()
 
     def replay(self,
                evolution_robot,
@@ -1245,9 +1239,10 @@ def play_trajectories(trajectory_data,
                 print("Waiting for meshcat client in browser to connect: "\
                     f"{Viewer._backend_obj.gui.url()}")
         Viewer.wait(require_client=True)
+        print("Browser connected! Starting to replay the simulation.")
 
     # Handle start-in-pause mode
-    if start_paused and not (Viewer._is_notebook() > 0):
+    if start_paused and not is_notebook():
         input("Press Enter to continue...")
 
     # Replay the trajectory
@@ -1297,15 +1292,21 @@ def play_trajectories(trajectory_data,
         else:
             viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
+        def replay_thread(viewer, *args, **kwargs):
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            viewer.replay(*args, **kwargs)
+
         # Play trajectories with multithreading
         threads = []
         for i in range(len(trajectory_data)):
             threads.append(Thread(
-                target=viewers[i].replay,
-                args=(trajectory_data[i]['evolution_robot'],
+                target=replay_thread,
+                args=(viewers[i],
+                      trajectory_data[i]['evolution_robot'],
                       replay_speed,
                       xyz_offset[i],
-                      travelling_frame if i == 0 else None)))
+                      True)))
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
