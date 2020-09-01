@@ -94,13 +94,13 @@ jobs:
     #####################################################################################
 
     - name: Generating the Python Pip wheels
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'Wandercraft/jiminy'
       run: |
         Set-Location -Path "./build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
         Remove-Item -Path "./pypi/jiminy_py/dist/*" -Include *.tar.gz
     - name: Upload the wheel for Windows of Jiminy_py
-      if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
+      if: success() && github.repository == 'Wandercraft/jiminy'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
