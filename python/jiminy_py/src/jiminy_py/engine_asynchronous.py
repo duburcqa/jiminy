@@ -245,8 +245,8 @@ class EngineAsynchronous:
                                   window_name="_".join(("window", uniq_id)))
             if self._viewer.is_backend_parent:
                 self._viewer.set_camera_transform(
-                    translation=[0.0, 9.0, 2e-5],
-                    rotation=[np.pi/2, 0.0, np.pi])
+                    translation=[9.0, 0.0, 2e-5],
+                    rotation=[np.pi/2, 0.0, np.pi/2])
             self._viewer.wait(False)  # Wait for backend to finish loading
 
         # Try refreshing the viewer

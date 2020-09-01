@@ -90,7 +90,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                  self.setup_comm(comm_url)
 
         # Extra buffers for  comm ids and messages
-        self.comm_pool = []
+        self.comm_pool = set()
         self.comm_msg = []
         self.websocket_msg = []
 
@@ -135,7 +135,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         if cmd.startswith("open:"):
             comm_id = f"{cmd.split(':', 1)[1]}"
             self.send_scene(comm_id=comm_id)
-            self.comm_pool.append(comm_id)
+            self.comm_pool.add(comm_id)
         elif cmd.startswith("close:"):
             comm_id = f"{cmd.split(':', 1)[1]}"
             self.comm_pool.remove(comm_id)

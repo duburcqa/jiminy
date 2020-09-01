@@ -46,7 +46,11 @@ setup(name = 'jiminy_py',
           'matplotlib',
           'meshcat>=0.0.18',
           'psutil',
-          'requests_html',
-          'opencv-python-headless<=4.3.0.36'
-      ]
+          'requests_html'
+      ],
+      extras_require = {
+        'gepetto': [
+            'opencv-python-headless<=4.3.0.36'
+        ]
+      }
 )

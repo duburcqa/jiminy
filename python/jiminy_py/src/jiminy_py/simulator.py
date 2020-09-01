@@ -95,8 +95,7 @@ class BasicSimulator(object):
         """
         @brief Callback method for the simulation.
         """
-        pass
-
+        out[:] = True
 
     def _compute_command_wrapper(self, t, q, v, sensors_data, u):
         """

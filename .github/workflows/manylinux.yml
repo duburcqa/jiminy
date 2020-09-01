@@ -85,6 +85,12 @@ jobs:
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
         auditwheel repair pypi/jiminy_py/dist/*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps wheelhouse/*.whl
+    - name: Upload the wheel for Linux of Jiminy_py
+      if: success() && github.repository == 'Wandercraft/jiminy'
+      uses: actions/upload-artifact@v1
+      with:
+        name: jiminy_py${{ matrix.python-version }}-wheel
+        path: build/wheelhouse/
 
     #####################################################################################
 
