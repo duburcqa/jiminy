@@ -31,14 +31,62 @@ def is_notebook():
         return 0   # Unidentified type
 
 
-# Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
-# messages. Otherwise, new opening comm will not be detected soon enough.
 if is_notebook():
-    from IPython import get_ipython
+    import tornado.gen
+    from ipykernel.kernelbase import SHELL_PRIORITY
+
+    class CommProcessor:
+        def __init__(self):
+            self.__kernel = get_ipython().kernel
+            self.qsize_old = 0
+
+        def __call__(self):
+            """
+            @brief     Custom implementation of ipykernel.kernelbase.do_one_iteration
+                       to only handle comm messages on the spot, and put back in the
+                       stack the other ones.
+
+            @details   Calling 'do_one_iteration' messes up with the kernel 'msg_queue',
+                       so that some messages will be processed too soon, which is
+                       likely to corrupt the kernel state. This method only processes
+                       comm messages to avoid such side effects.
+            """
+            self.__kernel.shell_streams[0].flush()  # Flush every IN/OUT messages on shell_stream only
+            qsize = self.__kernel.msg_queue.qsize()
+            if qsize == self.qsize_old:
+                return  # No new message in the queue. Returning right now.
+            for _ in range(qsize):  # All the messages must be processed to keep the queue in order
+                priority, t, dispatch, args = \
+                    self.__kernel.msg_queue.get_nowait()
+                if priority <= SHELL_PRIORITY:
+                    _, msg = self.__kernel.session.feed_identities(
+                        args[1], copy=False)
+                    msg = self.__kernel.session.deserialize(
+                        msg, content=False, copy=False)
+                else:
+                    # Do not spend time analyzing already rejected message
+                    msg = None
+                if msg is None or not 'comm_' in msg['header']['msg_type']:
+                    # The message is not related to comm, so putting it back in the
+                    # queue after lowering its priority so that it is send at the
+                    # "end of the queue", ie just at the right place: after the next
+                    # unchecked messages, after the other messages already put back
+                    # in the queue, but before the next one to go the same way.
+                    self.__kernel.msg_queue.put_nowait(
+                        (SHELL_PRIORITY + 1, t, dispatch, args))  # Every messages have SHELL_PRIORITY by default
+                else:
+                    # Comm message. Processing it right now.
+                    tornado.gen.maybe_future(dispatch(*args))
+            self.qsize_old = self.__kernel.msg_queue.qsize()
+
+    process_kernel_comm = CommProcessor()
+
+    # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
+    # messages. Otherwise, new opening comm will not be detected soon enough.
     _send_orig = meshcat.visualizer.ViewerWindow.send
     def _send(self, command):
         _send_orig(self, command)
-        get_ipython().kernel.do_one_iteration()
+        process_kernel_comm()
     meshcat.visualizer.ViewerWindow.send = _send
 
 
@@ -92,11 +140,6 @@ class CommManager:
         # is to interleave blocking code with call of 'kernel.do_one_iteration'
         # or 'await kernel.process_one(wait=True)'. See Stackoverflow for ref.
         # https://stackoverflow.com/questions/63651823/direct-communication-between-javascript-in-jupyter-and-server-via-ipython-kernel/63666477#63666477
-        # TODO Calling 'do_one_iteration' messes up with the kernel 'msg_queue',
-        # so that some messages will be processed too soon. It would be better
-        # to deal with the stack manually, 'get' each messages, and check if it
-        # must be handle now are later, then put it back in the stack if so.
-        # https://github.com/ipython/ipykernel/blob/e048a93d93e11b19e25fb13c4eb7b4cb44ea081c/ipykernel/kernelbase.py#L348
         @comm.on_msg
         def _on_msg(msg):
             self.n_message += 1
@@ -149,7 +192,6 @@ class MeshcatWrapper:
         # implementation of Meshcat.
         self.comm_manager = None
         if must_launch_server and is_notebook():
-            self.__kernel = get_ipython().kernel
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed
@@ -186,13 +228,13 @@ class MeshcatWrapper:
                         # point. Fetching new incoming messages and retrying.
                         # By doing this, opening a websocket or comm should
                         # be enough to successfully recv the acknowledgement.
-                        self.__kernel.do_one_iteration()
+                        process_kernel_comm()
 
         self.__zmq_socket.send(b"ready")
         if self.comm_manager is not None:
             self.comm_manager.n_message = 0
             while self.comm_manager.n_message < self.comm_manager.n_comm:
-                self.__kernel.do_one_iteration()
+                process_kernel_comm()
         return self.__zmq_socket.recv().decode("utf-8")
 
     def start_recording(self, fps, width, height):
