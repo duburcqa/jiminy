@@ -700,6 +700,17 @@ class Viewer:
                     if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
                         meshcat_candidate_conn.append(conn)
 
+            # Exclude ipython kernel ports from the look up because sending a
+            # message on ipython ports will throw a low-level exception, that
+            # is not blocking on Jupyter, but is on Google Colab.
+            excluded_ports = []
+            if is_notebook():
+                try:
+                    excluded_ports += list(
+                        get_ipython().kernel._recorded_ports.values())
+                except (NameError, AttributeError):
+                    pass  # No Ipython kernel running
+
             # Use the first port responding to zmq request, if any
             zmq_url = None
             context = zmq.Context.instance()
@@ -708,7 +719,10 @@ class Viewer:
                     # Note that the timeout must be long enough to give enough
                     # time to the server to respond, but not to long to avoid
                     # sending to much time spanning the available connections.
-                    zmq_url = f"tcp://127.0.0.1:{conn.laddr.port}"
+                    port = conn.laddr.port
+                    if port in excluded_ports:
+                        continue
+                    zmq_url = f"tcp://127.0.0.1:{port}"
                     zmq_socket = context.socket(zmq.REQ)
                     zmq_socket.RCVTIMEO = 250  # millisecond
                     zmq_socket.connect(zmq_url)

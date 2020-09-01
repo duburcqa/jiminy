@@ -31,14 +31,97 @@ def is_notebook():
         return 0   # Unidentified type
 
 
-# Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
-# messages. Otherwise, new opening comm will not be detected soon enough.
 if is_notebook():
-    from IPython import get_ipython
+    import tornado.gen
+    from ipykernel.kernelbase import SHELL_PRIORITY
+
+    class CommProcessor:
+        """
+        @brief     Re-implementation of ipykernel.kernelbase.do_one_iteration
+                   to only handle comm messages on the spot, and put back in
+                   the stack the other ones.
+
+        @details   Calling 'do_one_iteration' messes up with kernel
+                   'msg_queue'. Some messages will be processed too soon,
+                   which is likely to corrupt the kernel state. This method
+                   only processes comm messages to avoid such side effects.
+        """
+
+        def __init__(self):
+            self.__kernel = get_ipython().kernel
+            self.qsize_old = 0
+
+        def __call__(self, unsafe=False):
+            """
+            @brief      Check once if there is pending comm related event in
+                        the shell stream message priority queue.
+
+            @param[in]  unsafe     Whether or not to assume check if the number
+                                   of pending message has changed is enough. It
+                                   makes the evaluation much faster but flawed.
+            """
+            # Flush every IN messages on shell_stream only
+            # Note that it is a faster implementation of ZMQStream.flush
+            # to only handle incoming messages. It reduces the computation
+            # from about 15us to 15ns.
+            # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
+            shell_stream = self.__kernel.shell_streams[0]
+            shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
+            events = shell_stream.poller.poll(0)
+            while events:
+                _, event = events[0]
+                if event:
+                    shell_stream._handle_recv()
+                    shell_stream.poller.register(
+                        shell_stream.socket, zmq.POLLIN)
+                    events = shell_stream.poller.poll(0)
+
+            qsize = self.__kernel.msg_queue.qsize()
+            if unsafe and qsize == self.qsize_old:
+                # The number of queued messages in the queue has not changed
+                # since it last time it has been checked. Assuming those
+                # messages are the same has before and returning earlier.
+                return
+
+            # One must go through all the messages to keep them in order
+            for _ in range(qsize):
+                priority, t, dispatch, args = \
+                    self.__kernel.msg_queue.get_nowait()
+                if priority <= SHELL_PRIORITY:
+                    _, msg = self.__kernel.session.feed_identities(
+                        args[1], copy=False)
+                    msg = self.__kernel.session.deserialize(
+                        msg, content=False, copy=False)
+                else:
+                    # Do not spend time analyzing already rejected message
+                    msg = None
+                if msg is None or not 'comm_' in msg['header']['msg_type']:
+                    # The message is not related to comm, so putting it back in
+                    # the queue after lowering its priority so that it is send
+                    # at the "end of the queue", ie just at the right place:
+                    # after the next unchecked messages, after the other
+                    # messages already put back in the queue, but before the
+                    # next one to go the same way. Note that every shell
+                    # messages have SHELL_PRIORITY by default.
+                    self.__kernel.msg_queue.put_nowait(
+                        (SHELL_PRIORITY + 1, t, dispatch, args))
+                else:
+                    # Comm message. Processing it right now.
+                    tornado.gen.maybe_future(dispatch(*args))
+            self.qsize_old = self.__kernel.msg_queue.qsize()
+
+    process_kernel_comm = CommProcessor()
+
+    # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
+    # messages. Otherwise, new opening comm will not be detected soon enough.
     _send_orig = meshcat.visualizer.ViewerWindow.send
     def _send(self, command):
         _send_orig(self, command)
-        get_ipython().kernel.do_one_iteration()
+        # Check on new comm related messages. Unsafe in enabled to avoid
+        # potentially significant overhead. At this point several safe should
+        # have been executed, so it is much less likely than comm messages
+        # will slip through the net.
+        process_kernel_comm(unsafe=True)
     meshcat.visualizer.ViewerWindow.send = _send
 
 
@@ -92,11 +175,6 @@ class CommManager:
         # is to interleave blocking code with call of 'kernel.do_one_iteration'
         # or 'await kernel.process_one(wait=True)'. See Stackoverflow for ref.
         # https://stackoverflow.com/questions/63651823/direct-communication-between-javascript-in-jupyter-and-server-via-ipython-kernel/63666477#63666477
-        # TODO Calling 'do_one_iteration' messes up with the kernel 'msg_queue',
-        # so that some messages will be processed too soon. It would be better
-        # to deal with the stack manually, 'get' each messages, and check if it
-        # must be handle now are later, then put it back in the stack if so.
-        # https://github.com/ipython/ipykernel/blob/e048a93d93e11b19e25fb13c4eb7b4cb44ea081c/ipykernel/kernelbase.py#L348
         @comm.on_msg
         def _on_msg(msg):
             self.n_message += 1
@@ -149,7 +227,6 @@ class MeshcatWrapper:
         # implementation of Meshcat.
         self.comm_manager = None
         if must_launch_server and is_notebook():
-            self.__kernel = get_ipython().kernel
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed
@@ -186,13 +263,13 @@ class MeshcatWrapper:
                         # point. Fetching new incoming messages and retrying.
                         # By doing this, opening a websocket or comm should
                         # be enough to successfully recv the acknowledgement.
-                        self.__kernel.do_one_iteration()
+                        process_kernel_comm()
 
         self.__zmq_socket.send(b"ready")
         if self.comm_manager is not None:
             self.comm_manager.n_message = 0
             while self.comm_manager.n_message < self.comm_manager.n_comm:
-                self.__kernel.do_one_iteration()
+                process_kernel_comm()
         return self.__zmq_socket.recv().decode("utf-8")
 
     def start_recording(self, fps, width, height):
