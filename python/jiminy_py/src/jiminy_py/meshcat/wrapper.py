@@ -1,5 +1,6 @@
 import atexit
 import asyncio
+import logging
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout
@@ -32,8 +33,27 @@ def is_notebook():
 
 
 if is_notebook():
-    import tornado.gen
-    from ipykernel.kernelbase import SHELL_PRIORITY
+    # Google colab is using an older version of ipykernel (4.10), which is
+    # not compatible with >= 5.0. The new API is more flexible and enable
+    # to process only the relevant messages because every incoming messages
+    # is first added in a priority queue waiting for being processed. Thus,
+    # it is possible to process part of those messages without altering the
+    # other ones. It is not possible with the old API since every incoming
+    # message must be ever processed just after flushing, or discarded.
+    # Emulating or restore the queue would be possible theoretically but it
+    # is tricky to do it properly, so instead every message is process
+    # without distinction.
+    import ipykernel
+    from pkg_resources import parse_version as version
+    if version(ipykernel.__version__) >= version("5.0"):
+        import tornado.gen
+        from ipykernel.kernelbase import SHELL_PRIORITY
+    else:
+        logging.warning("Old ipykernel version < 5.0 detected. Please do"\
+            "not schedule other cells for execution while the viewer is"\
+            "busy otherwise it will be not executed properly. Update to a"\
+            "newer version if possible to avoid such limitation.")
+
 
     class CommProcessor:
         """
@@ -49,6 +69,7 @@ if is_notebook():
 
         def __init__(self):
             self.__kernel = get_ipython().kernel
+            self.__old_api = version(ipykernel.__version__) < version("5.0")
             self.qsize_old = 0
 
         def __call__(self, unsafe=False):
@@ -75,6 +96,9 @@ if is_notebook():
                     shell_stream.poller.register(
                         shell_stream.socket, zmq.POLLIN)
                     events = shell_stream.poller.poll(0)
+
+            if self.__old_api:
+                return  # The messages have already been processed...
 
             qsize = self.__kernel.msg_queue.qsize()
             if unsafe and qsize == self.qsize_old:
@@ -120,7 +144,8 @@ if is_notebook():
         # Check on new comm related messages. Unsafe in enabled to avoid
         # potentially significant overhead. At this point several safe should
         # have been executed, so it is much less likely than comm messages
-        # will slip through the net.
+        # will slip through the net. Besides, missing messages at this point
+        # is not blocking, because here we are not waiting for it to continue.
         process_kernel_comm(unsafe=True)
     meshcat.visualizer.ViewerWindow.send = _send
 
