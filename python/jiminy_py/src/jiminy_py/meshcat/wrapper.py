@@ -36,26 +36,55 @@ if is_notebook():
     from ipykernel.kernelbase import SHELL_PRIORITY
 
     class CommProcessor:
+        """
+        @brief     Re-implementation of ipykernel.kernelbase.do_one_iteration
+                   to only handle comm messages on the spot, and put back in
+                   the stack the other ones.
+
+        @details   Calling 'do_one_iteration' messes up with kernel
+                   'msg_queue'. Some messages will be processed too soon,
+                   which is likely to corrupt the kernel state. This method
+                   only processes comm messages to avoid such side effects.
+        """
+
         def __init__(self):
             self.__kernel = get_ipython().kernel
             self.qsize_old = 0
 
-        def __call__(self):
+        def __call__(self, unsafe=False):
             """
-            @brief     Custom implementation of ipykernel.kernelbase.do_one_iteration
-                       to only handle comm messages on the spot, and put back in the
-                       stack the other ones.
+            @brief      Check once if there is pending comm related event in
+                        the shell stream message priority queue.
 
-            @details   Calling 'do_one_iteration' messes up with the kernel 'msg_queue',
-                       so that some messages will be processed too soon, which is
-                       likely to corrupt the kernel state. This method only processes
-                       comm messages to avoid such side effects.
+            @param[in]  unsafe     Whether or not to assume check if the number
+                                   of pending message has changed is enough. It
+                                   makes the evaluation much faster but flawed.
             """
-            self.__kernel.shell_streams[0].flush()  # Flush every IN/OUT messages on shell_stream only
+            # Flush every IN messages on shell_stream only
+            # Note that it is a faster implementation of ZMQStream.flush
+            # to only handle incoming messages. It reduces the computation
+            # from about 15us to 15ns.
+            # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
+            shell_stream = self.__kernel.shell_streams[0]
+            shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
+            events = shell_stream.poller.poll(0)
+            while events:
+                _, event = events[0]
+                if event:
+                    shell_stream._handle_recv()
+                    shell_stream.poller.register(
+                        shell_stream.socket, zmq.POLLIN)
+                    events = shell_stream.poller.poll(0)
+
             qsize = self.__kernel.msg_queue.qsize()
-            if qsize == self.qsize_old:
-                return  # No new message in the queue. Returning right now.
-            for _ in range(qsize):  # All the messages must be processed to keep the queue in order
+            if unsafe and qsize == self.qsize_old:
+                # The number of queued messages in the queue has not changed
+                # since it last time it has been checked. Assuming those
+                # messages are the same has before and returning earlier.
+                return
+
+            # One must go through all the messages to keep them in order
+            for _ in range(qsize):
                 priority, t, dispatch, args = \
                     self.__kernel.msg_queue.get_nowait()
                 if priority <= SHELL_PRIORITY:
@@ -67,13 +96,15 @@ if is_notebook():
                     # Do not spend time analyzing already rejected message
                     msg = None
                 if msg is None or not 'comm_' in msg['header']['msg_type']:
-                    # The message is not related to comm, so putting it back in the
-                    # queue after lowering its priority so that it is send at the
-                    # "end of the queue", ie just at the right place: after the next
-                    # unchecked messages, after the other messages already put back
-                    # in the queue, but before the next one to go the same way.
+                    # The message is not related to comm, so putting it back in
+                    # the queue after lowering its priority so that it is send
+                    # at the "end of the queue", ie just at the right place:
+                    # after the next unchecked messages, after the other
+                    # messages already put back in the queue, but before the
+                    # next one to go the same way. Note that every shell
+                    # messages have SHELL_PRIORITY by default.
                     self.__kernel.msg_queue.put_nowait(
-                        (SHELL_PRIORITY + 1, t, dispatch, args))  # Every messages have SHELL_PRIORITY by default
+                        (SHELL_PRIORITY + 1, t, dispatch, args))
                 else:
                     # Comm message. Processing it right now.
                     tornado.gen.maybe_future(dispatch(*args))
@@ -86,7 +117,11 @@ if is_notebook():
     _send_orig = meshcat.visualizer.ViewerWindow.send
     def _send(self, command):
         _send_orig(self, command)
-        process_kernel_comm()
+        # Check on new comm related messages. Unsafe in enabled to avoid
+        # potentially significant overhead. At this point several safe should
+        # have been executed, so it is much less likely than comm messages
+        # will slip through the net.
+        process_kernel_comm(unsafe=True)
     meshcat.visualizer.ViewerWindow.send = _send
 
 
