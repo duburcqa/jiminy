@@ -9,6 +9,7 @@ import asyncio
 import subprocess
 import multiprocessing
 import multiprocessing.managers
+from pathlib import Path
 from ctypes import c_char_p, c_bool, c_int
 from contextlib import redirect_stderr
 
@@ -20,7 +21,7 @@ if shell.startswith('google.colab.'):
     # Note that the downside is that chrome must be installed manually.
     import pyppeteer.chromium_downloader
     pyppeteer.chromium_downloader.chromium_executable = \
-        lambda : "/usr/lib/chromium-browser/chromium-browser"
+        lambda : Path("/usr/lib/chromium-browser/chromium-browser")
     if not pyppeteer.chromium_downloader.check_chromium():
         logging.warning("Chrome must be installed manually on Google Colab. "\
             "It must be done using '!apt install chromium-chromedriver'.")
@@ -53,6 +54,7 @@ async def launch(self) -> Browser:
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
         # "--disable-gpu",  # GPU acceleration is not available in headless mode on Windows for now apparently...
+        "--ignore-gpu-blacklist",
         "--ignore-certificate-errors",
         "--disable-infobars",
         "--disable-breakpad",

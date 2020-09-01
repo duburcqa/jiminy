@@ -51,6 +51,12 @@ if __import__('platform').system() == 'Linux':
     except ImportError:
         pass
 
+def default_backend():
+    if is_notebook() or not 'gepetto-gui' in backends_available:
+        return 'meshcat'
+    else:
+        return 'gepetto-gui'
+
 
 # Create logger
 class DuplicateFilter:
@@ -142,7 +148,7 @@ class ProcessWrapper:
 
 
 class Viewer:
-    backend = None
+    backend = default_backend()
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
@@ -192,10 +198,10 @@ class Viewer:
         # Handling of default arguments
         if robot_name is None:
             uniq_id = next(tempfile._get_candidate_names())
-            robot_name="_".join(("robot", uniq_id))
+            robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.urdf_path = robot.urdf_path
+        self.urdf_path = os.path.realpath(robot.urdf_path)
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
@@ -603,7 +609,7 @@ class Viewer:
             for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
             if not filename.startswith('package://')]
         if not pathlists:
-            return
+            return urdf_path
 
         # If mesh root path already matching, then nothing to do
         mesh_root_path_orig = os.path.commonpath(pathlists)
@@ -1103,7 +1109,7 @@ def play_trajectories(trajectory_data,
                       window_name='python-pinocchio',
                       scene_name='world',
                       close_backend=None,
-                      delete_robot_on_close=True,
+                      delete_robot_on_close=None,
                       verbose=True):
     """!
     @brief      Replay one or several robot trajectories in a viewer.
@@ -1175,6 +1181,10 @@ def play_trajectories(trajectory_data,
             close_backend = False
 
     if viewers is None:
+        # Delete robot by default only if not in notebook
+        if delete_robot_on_close is None:
+            delete_robot_on_close = not is_notebook()
+
         # Create new viewer instances
         viewers = []
         lock = Lock()
