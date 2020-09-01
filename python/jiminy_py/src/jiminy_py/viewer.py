@@ -437,23 +437,27 @@ class Viewer:
                     {js_content}
                     </script>""")
 
-                # Open it in a HTML iframe on Jupyter, since it is not possible to
-                # load it directly. It is not an issue on Google Colab.
                 if is_notebook() == 1:
+                    # Open it in a HTML iframe on Jupyter, since it is not
+                    # possible to load it directly.
                     html_content = html_content.replace("\"", "&quot;").\
                         replace("'", "&apos;")
                     display(HTML(f"""
-                        <div style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">
-                        <iframe srcdoc="{html_content}" style="width: 100%; height: 100%; border: none">
-                        </iframe></div>
+                        <div class="resizable" style="height: 400px; width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">
+                        <iframe srcdoc="{html_content}" style="width: 100%; height: 100%; border: none;"></iframe>
+                        </div>
                     """))
                 else:
+                    # Adjust the initial window size
+                    html_content = html_content.replace('<div id="meshcat-pane">',
+                        '<div id="meshcat-pane" class="resizable" style="height: 400px; '\
+                            'width: 100%; overflow-x: auto; overflow-y: hidden; resize: both">')
                     display(HTML(html_content))
             else:
                 try:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
-                except Exception:  # Failt if not browser is available
+                except Exception:  # Fail if not browser is available
                     logger.warning("No browser available for display. Please install one manually.")
                     return  # Skip waiting since it is not possible in this case
 
