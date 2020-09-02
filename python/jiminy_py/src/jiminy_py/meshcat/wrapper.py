@@ -79,6 +79,12 @@ if is_notebook():
         def __init__(self):
             self.__kernel = get_ipython().kernel
             self.__old_api = version(ipykernel.__version__) < version("5.0")
+            if self.__old_api:
+                logging.warning("Pre/post kernel handler hooks must be "\
+                    "disable for the old ipykernel API to enable fetching"\
+                    "shell messages from child threads.")
+                self.__kernel.post_handler_hook = lambda : None
+                self.__kernel.pre_handler_hook = lambda : None
             self.qsize_old = 0
 
         def __call__(self, unsafe=False):
@@ -219,10 +225,7 @@ class CommManager:
         @comm.on_msg
         def _on_msg(msg):
             self.n_message += 1
-            if is_notebook() == 1:  # Jupyter notebook
-                data = msg['content']['data']
-            else:  # Google Colab
-                data = msg['data']  # TODO: Check compatibility with Google Colab
+            data = msg['content']['data']
             self.__comm_socket.send(f"data:{comm.comm_id}:{data}".encode())
 
         @comm.on_close

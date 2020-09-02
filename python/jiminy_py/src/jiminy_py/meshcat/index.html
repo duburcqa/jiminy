@@ -32,16 +32,19 @@
             // in Google Colaboratory or Jupyter notebooks.
             try {
                 if (typeof google !== 'undefined') {
-                    viewer.connection = google.colab.kernel.comms.open('meshcat');
-                    console.log("connection to Google Colab kernel:", viewer.connection);
-                    (async function() {
-                        for await (const message of channel.messages) {
-                            viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
-                        }
-                        console.log("connection to Google Colab kernel closed.");
+                    (async () => {
+                        viewer.connection = await google.colab.kernel.comms.open('meshcat');
+                        console.log("connection to Google Colab kernel:", viewer.connection);
+
+                        (async function() {
+                            for await (const message of viewer.connection.messages) {
+                                viewer.handle_command_bytearray(new Uint8Array(message.buffers[0]));
+                            }
+                            console.log("connection to Google Colab kernel closed.");
+                        })();
                     })();
                 }
-                else if(typeof window.parent.Jupyter !== 'undefined') {
+                else if (typeof window.parent.Jupyter !== 'undefined') {
                     viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm('meshcat');
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
