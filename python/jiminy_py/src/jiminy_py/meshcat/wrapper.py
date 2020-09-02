@@ -32,6 +32,15 @@ def is_notebook():
         return 0   # Unidentified type
 
 
+if is_notebook() == 1:
+    # The IO message rate limit has already been increased to 1e6 on Google
+    # Colab, so no need to throw this warning.
+    logging.warning(
+        "You may experience some lags while replaying a simulation.\n"\
+         "Consider increasing the IO message rate limit by adding the "\
+         "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "\
+         "executing 'jupyter notebook'.")
+
 if is_notebook():
     # Google colab is using an older version of ipykernel (4.10), which is
     # not compatible with >= 5.0. The new API is more flexible and enable
@@ -49,11 +58,11 @@ if is_notebook():
         import tornado.gen
         from ipykernel.kernelbase import SHELL_PRIORITY
     else:
-        logging.warning("Old ipykernel version < 5.0 detected. Please do"\
-            "not schedule other cells for execution while the viewer is"\
-            "busy otherwise it will be not executed properly. Update to a"\
-            "newer version if possible to avoid such limitation.")
-
+        logging.warning(
+            "Old ipykernel version < 5.0 detected. Please do not schedule "\
+            "other cells for execution while the viewer is busy otherwise "\
+            "it will be not executed properly.\nUpdate to a newer version "\
+            "if possible to avoid such limitation.")
 
     class CommProcessor:
         """
@@ -165,6 +174,7 @@ class CommManager:
             self.__comm_stream = ZMQStream(self.__comm_socket)
             self.__comm_stream.on_recv(self.__forward_to_ipython)
             ioloop.start()
+
         self.__thread = threading.Thread(target=forward_comm_thread)
         self.__thread.daemon = True
         self.__thread.start()
@@ -186,10 +196,16 @@ class CommManager:
         self.__comm_socket.close(linger=5)
 
     def __forward_to_ipython(self, frames):
-        comm_pool = self.__kernel.comm_manager.comms
-        cmd = frames[0]  # There is always a single command
-        comm_id = cmd[:32].decode()  # comm_id is always 32 bits
-        comm_pool[comm_id].send(buffers=[cmd[32:]])
+        comm_id, cmd = frames  # There must be always two parts each messages
+        comm_id = comm_id.decode()
+        try:
+            comm = self.__kernel.comm_manager.comms[comm_id]
+        except KeyError:
+            # The comm has probably been closed without the server knowing.
+            # Sending the notification to the server to consider it as such.
+            self.__comm_socket.send(f"close:{comm_id}".encode())
+        else:
+            comm.send(buffers=[cmd])
 
     def __comm_register(self, comm, msg):
         # There is a major limitation of using 'comm.on_msg' callback
