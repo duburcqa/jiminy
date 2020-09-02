@@ -133,11 +133,11 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
     def handle_comm(self, frames):
         cmd = frames[0].decode("utf-8")
         if cmd.startswith("open:"):
-            comm_id = f"{cmd.split(':', 1)[1]}"
+            comm_id = f"{cmd.split(':', 1)[1]}".encode()
             self.send_scene(comm_id=comm_id)
             self.comm_pool.add(comm_id)
         elif cmd.startswith("close:"):
-            comm_id = f"{cmd.split(':', 1)[1]}"
+            comm_id = f"{cmd.split(':', 1)[1]}".encode()
             self.comm_pool.remove(comm_id)
         elif cmd.startswith("data:"):
             message = f"{cmd.split(':', 2)[2]}"
@@ -164,7 +164,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.forward_to_comm(comm_id, data)
 
     def forward_to_comm(self, comm_id, message):
-        self.comm_zmq.send(comm_id.encode() + message)
+        self.comm_zmq.send_multipart([comm_id, message])
 
     def send_scene(self, websocket=None, comm_id=None):
         if websocket is not None:

@@ -48,6 +48,7 @@
                         viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));
                     });
                     viewer.connection.on_close(function(message) {
+                        viewer.connection = null;  // The connection is no longer available
                         console.log("connection to Jupyter kernel closed:", message);
                     });
                 }
@@ -123,8 +124,15 @@
             start_animate();
 
             window.onunload = function(event) {
-                console.log("Closing connection...")
-                viewer.connection.close();
+                // Only close the connection if it is still open.
+                // Note that it is still possible that "on_close" method has
+                // not been triggered and that the connection is no longer
+                // available.
+                if (viewer.connection !== null)
+                {
+                    console.log("Closing connection...");
+                    viewer.connection.close();
+                }
                 return false;
             }
         </script>
