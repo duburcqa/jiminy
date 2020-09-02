@@ -2,12 +2,15 @@ __import__('eigenpy').switchToNumpyArray()
 
 # Patching pinocchio to fix support of numpy.array
 
+import warnings
 import numpy as np
 from pkg_resources import parse_version as version
 from math import atan2, pi, sqrt
 
 import pinocchio as pin
 
+warnings.filterwarnings("ignore", message="DeprecatedWarning: This function "\
+    "signature is now deprecated and will be removed in future releases of Pinocchio.")
 
 from pinocchio.rpy import npToTTuple
 
