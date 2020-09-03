@@ -113,9 +113,90 @@ namespace jiminy
     {
         if (isInitialized_)
         {
-            // Update the biases added to the dynamics properties of the model.
+            // Update the biases added to the dynamics properties of the model
             generateModelBiased();
         }
+    }
+
+    hresult_t Model::addFrame(std::string    const & frameName,
+                              std::string    const & parentBodyName,
+                              pinocchio::SE3 const & framePlacement)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
+
+        // Add the frame to the the current model
+        int32_t parentBodyId;
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModel_.addFrame(frame);
+        }
+
+        // Add the frame to the the original rigid model
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModelRigidOrig_.addFrame(frame);
+        }
+
+        // Add the frame to the the original flexible model
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModelFlexibleOrig_.addFrame(frame);
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Model::removeFrame(std::string const & frameName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
+
+        // Check that the frame can be removed from the current model.
+        // If so, assuming it is also the case for the original models.
+        int32_t frameId;
+        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (pncModelRigidOrig_.frames[frameId].type != frameType)
+            {
+                std::cout << "Error - Model::removeFrame - Impossible to remove this frame. One should only remove frames added manually." << std::endl;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Remove the frame from the the current model
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModel_.frames.erase(pncModel_.frames.begin() + frameId);
+            pncModel_.nframes--;
+        }
+
+        // Remove the frame from the the current model
+        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
+            pncModelRigidOrig_.nframes--;
+        }
+
+        // Remove the frame from the the current model
+        returnCode = getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModelFlexibleOrig_.frames.erase(pncModelFlexibleOrig_.frames.begin() + frameId);
+            pncModelFlexibleOrig_.nframes--;
+        }
+
+        return returnCode;
     }
 
     hresult_t Model::addContactPoints(std::vector<std::string> const & frameNames)

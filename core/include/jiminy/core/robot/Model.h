@@ -118,6 +118,10 @@ namespace jiminy
         hresult_t initialize(std::string const & urdfPath,
                              bool_t      const & hasFreeflyer = true);
 
+        hresult_t addFrame(std::string    const & frameName,
+                           std::string    const & parentBodyName,
+                           pinocchio::SE3 const & framePlacement);
+        hresult_t removeFrame(std::string const & frameName);
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 

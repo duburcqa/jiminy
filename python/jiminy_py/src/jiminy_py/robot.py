@@ -255,10 +255,10 @@ class BaseJiminyRobot(jiminy.Robot):
                usually includes the information required to fully characterize
                the motors and sensors, along with some of there properties.
 
-               Note that it is assumed that every actuated joint have an effort
-               sensor attached. So it is not possible to use non-instrumented
-               motors by default. Overload this class if you need such
-               fine-grained capability.
+               Note that it is assumed that the contact points of the robot
+               matches one-by-one the frames of the force sensors. So it is
+               not possible to use non-instrumented contact points by default.
+               Overload this class if you need finer-grained capability.
 
     @remark    hardware description files within the same directory and having
                the name than the URDF file will be detected automatically
@@ -330,19 +330,11 @@ class BaseJiminyRobot(jiminy.Robot):
                     # Create the frame and add it to the robot model
                     body_name = sensor_descr.pop('body_name')
 
-                    # Extract the body id in the kinematic tree
-                    body_id = self.pinocchio_model.getBodyId(body_name)
-                    if body_id == self.pinocchio_model.nframes:
-                        raise ValueError(
-                            f"The name '{body_name}' corresponding to the "
-                            f"body associated with sensor {sensor_name} does "
-                            "not exists.")
-
                     # Generate a frame name that is intelligible and available
                     i = 0
-                    frame_name = sensor_name + "_frame"
+                    frame_name = sensor_name + "Frame"
                     while self.pinocchio_model.existFrame(frame_name):
-                        frame_name = sensor_name + "_frame_%d" % i
+                        frame_name = sensor_name + "Frame_%d" % i
                         i += 1
 
                     # Compute SE3 object representing the frame placement
@@ -352,9 +344,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     frame_placement = pin.SE3(frame_rot, frame_trans)
 
                     # Add the frame to the robot model
-                    frame_type = pin.FrameType.OP_FRAME
-                    self.pinocchio_model.addFrame(pin.Frame(
-                        frame_name, body_id, 0, frame_placement, frame_type))
+                    self.add_frame(frame_name, body_name, frame_placement)
 
                     # Initialize the sensor
                     sensor.initialize(frame_name)
