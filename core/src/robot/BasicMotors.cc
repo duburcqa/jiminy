@@ -103,7 +103,7 @@ namespace jiminy
         }
 
         // Bypass
-        data() = uCommand;
+        data() = uCommand / motorOptions_->mechanicalReduction;
 
         // Enforce the effort limits
         if (motorOptions_->enableEffortLimit)

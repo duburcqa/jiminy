@@ -58,6 +58,7 @@ namespace jiminy
         virtual configHolder_t getDefaultMotorOptions(void)
         {
             configHolder_t config;
+            config["mechanicalReduction"] = 1.0;
             config["enableEffortLimit"] = true;
             config["effortLimitFromUrdf"] = true;
             config["effortLimit"] = 0.0;
@@ -69,6 +70,7 @@ namespace jiminy
 
         struct abstractMotorOptions_t
         {
+            float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
             bool_t    const enableEffortLimit;
             bool_t    const effortLimitFromUrdf;
             float64_t const effortLimit;
@@ -76,6 +78,7 @@ namespace jiminy
             float64_t const rotorInertia;
 
             abstractMotorOptions_t(configHolder_t const & options) :
+            mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
             enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
             effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
             effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
