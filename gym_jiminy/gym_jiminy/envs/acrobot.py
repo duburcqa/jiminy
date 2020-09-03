@@ -9,7 +9,7 @@ from gym import spaces
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 
-from ..common.robots import RobotJiminyEnv, RobotJiminyGoalEnv
+from ..common.robots import BaseJiminyEnv, BaseJiminyGoalEnv
 
 
 DT = 2.0e-3          ## Stepper update period
@@ -18,30 +18,32 @@ MAX_TORQUE = 10.0    ## Max torque of the motor
 ACTION_NOISE = 0.0   ## Standard deviation of the noise added to the action
 
 
-class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
+class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
     """
-    @brief      Implementation of a Gym environment for the Acrobot which is using
-                Jiminy Engine to perform physics computations and Gepetto-viewer for
-                rendering. It is a specialization of RobotJiminyGoalEnv. The acrobot
-                is a 2-link pendulum with only the second joint actuated. Initially,
-                both links point downwards. The goal is to swing the end-effector at
-                a height at least the length of one link above the base. Both links
-                can swing freely and can pass by each other, i.e. they don't collide
-                when they have the same angle.
+    @brief      Implementation of a Gym environment for the Acrobot which is
+                using Jiminy Engine to perform physics computations and Meshcat
+                for rendering.
+
+    @remark     It is a specialization of BaseJiminyGoalEnv. The acrobot is a
+                2-link pendulum with only the second joint actuated. Initially,
+                both links point downwards. The goal is to swing the
+                end-effector at a height at least the length of one link above
+                the base. Both links can swing freely and can pass by each
+                other, i.e. they don't collide when they have the same angle.
 
     @details    **STATE:**
-                The state consists of the sin() and cos() of the two rotational joint
-                angles and the joint angular velocities :
+                The state consists of the sin() and cos() of the two rotational
+                joint angles and the joint angular velocities :
                 [cos(theta1) sin(theta1) cos(theta2) sin(theta2) thetaDot1 thetaDot2].
-                For the first link, an angle of 0 corresponds to the link pointing
-                downwards. The angle of the second link is relative to the angle of
-                the first link. An angle of 0 corresponds to having the same angle
-                between the two links. A state of [1, 0, 1, 0, ..., ...] means that
-                both links point downwards.
+                For the first link, an angle of 0 corresponds to the link
+                pointing downwards. The angle of the second link is relative to
+                the angle of the first link. An angle of 0 corresponds to
+                having the same angle between the two links. A state of
+                [1, 0, 1, 0, ..., ...] means that both links point downwards.
 
                 **ACTIONS:**
-                The action is either applying +1, 0 or -1 torque on the joint between
-                the two pendulum links.
+                The action is either applying +1, 0 or -1 torque on the joint
+                between the two pendulum links.
 
     @see        R. Sutton: Generalization in Reinforcement Learning:
                     Successful Examples Using Sparse Coarse Coding (NIPS 1996)
@@ -53,18 +55,19 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         """
         @brief      Constructor
 
-        @param[in]  continuous      Whether the action space is continuous or not. If
-                                    not continuous, the action space has only 3 states,
-                                    i.e. low, zero, and high. Optional: True by default
+        @param[in]  continuous   Whether the action space is continuous or not.
+                                 If not continuous, the action space has only 3
+                                 states, i.e. low, zero, and high.
+                                 Optional: True by default.
 
         @return     Instance of the environment.
         """
 
-        #  @copydoc RobotJiminyEnv::__init__
+        #  @copydoc BaseJiminyEnv::__init__
         ## @var state_random_high
-        #  @copydoc RobotJiminyGoalEnv::state_random_high
+        #  @copydoc BaseJiminyGoalEnv::state_random_high
         ## @var state_random_low
-        #  @copydoc RobotJiminyGoalEnv::state_random_low
+        #  @copydoc BaseJiminyGoalEnv::state_random_low
 
         # ########################## Backup the input arguments ################################
 
@@ -73,8 +76,10 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # ############################### Initialize Jiminy ####################################
 
-        os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
-        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
+        os.environ["JIMINY_MESH_PATH"] = \
+            resource_filename('gym_jiminy.envs', 'data')
+        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"],
+            "double_pendulum/double_pendulum.urdf")
 
         robot = jiminy.Robot()
         robot.initialize(urdf_path)
@@ -105,7 +110,8 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         # Internal parameters use to generate sample goals and compute the terminal condition
         self._tipIdx = robot.pinocchio_model.getFrameId("SecondPendulumMass")
-        self._tipPosZMax = robot.pinocchio_data.oMf[self._tipIdx].translation[2]
+        self._tipPosZMax = robot.pinocchio_data.oMf[
+            self._tipIdx].translation[2]
 
         # Bounds of the hypercube associated with the initial state of the robot
         self.state_random_high = np.array([ 0.2 - np.pi,  0.2,  1.0,  1.0])
@@ -123,7 +129,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
 
         ### Set the position and velocity bounds of the robot
         robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
-        robot_options["model"]["joints"]["velocityLimit"] = MAX_VEL * np.ones(2)
+        robot_options["model"]["joints"]["velocityLimit"] = np.fill(2, MAX_VEL)
 
         ### Set the effort limit of the motor
         motor_name = self.robot.motors_names[0]
@@ -147,9 +153,12 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         obs_high = np.array([1.0, 1.0, 1.0, 1.0, 1.5 * MAX_VEL, 1.5 * MAX_VEL])
 
         self.observation_space = spaces.Dict(
-            desired_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
-            achieved_goal=spaces.Box(low=-goal_high, high=goal_high, dtype=np.float64),
-            observation=spaces.Box(low=-obs_high, high=obs_high, dtype=np.float64))
+            desired_goal=spaces.Box(
+                low=-goal_high, high=goal_high, dtype=np.float64),
+            achieved_goal=spaces.Box(
+                low=-goal_high, high=goal_high, dtype=np.float64),
+            observation=spaces.Box(
+                low=-obs_high, high=obs_high, dtype=np.float64))
 
         ## Current observation of the robot
         self.observation = {'observation': None,
@@ -157,22 +166,23 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
                             'desired_goal': None}
 
     def _sample_state(self):
-        # @copydoc RobotJiminyEnv::_sample_state
+        # @copydoc BaseJiminyEnv::_sample_state
         return self.rg.uniform(low=self.state_random_low,
                                high=self.state_random_high)
 
     def _sample_goal(self):
-        # @copydoc RobotJiminyGoalEnv::_sample_goal
+        # @copydoc BaseJiminyGoalEnv::_sample_goal
         return self.rg.uniform(low=-0.20*self._tipPosZMax,
                                high=0.98*self._tipPosZMax,
                                size=(1,))
 
     def _get_achieved_goal(self):
-        # @copydoc RobotJiminyGoalEnv::_get_achieved_goal
-        return self.robot.pinocchio_data.oMf[self._tipIdx].translation[[2]].copy()
+        # @copydoc BaseJiminyGoalEnv::_get_achieved_goal
+        return self.robot.pinocchio_data.oMf[
+            self._tipIdx].translation[[2]].copy()
 
     def _update_obs(self, obs):
-        # @copydoc RobotJiminyEnv::_update_observation
+        # @copydoc BaseJiminyEnv::_update_observation
         theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
         obs['observation'] = np.array([np.cos(theta1 + np.pi),
                                        np.sin(theta1 + np.pi),
@@ -184,7 +194,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         obs['desired_goal'] = self.goal.copy()
 
     def _is_done(self, achieved_goal=None, desired_goal=None):
-        # @copydoc RobotJiminyGoalEnv::_is_done
+        # @copydoc BaseJiminyGoalEnv::_is_done
         if achieved_goal is None:
             achieved_goal = self.observation['achieved_goal']
         if desired_goal is None:
@@ -192,7 +202,7 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         return bool(achieved_goal > desired_goal)
 
     def compute_reward(self, achieved_goal, desired_goal, info):
-        # @copydoc RobotJiminyGoalEnv::compute_reward
+        # @copydoc BaseJiminyGoalEnv::compute_reward
 
         # Check if the desired goal has been achieved
         done = self._is_done(achieved_goal, desired_goal)
@@ -204,10 +214,11 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         return reward
 
     def step(self, action):
-        # @copydoc RobotJiminyEnv::step
+        # @copydoc BaseJiminyEnv::step
         if action is not None:
             # Make sure that the action is within bounds
-            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+            assert self.action_space.contains(action), \
+                "%r (%s) invalid" % (action, type(action))
 
             # Compute the actual torque to apply
             if not self.continuous:
@@ -219,17 +230,18 @@ class JiminyAcrobotGoalEnv(RobotJiminyGoalEnv):
         return super().step(action)
 
 
-class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
+class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
     """
-    @brief      Implementation of a Gym goal-environment for the Acrobot which is using
-                Jiminy Engine to perform physics computations and Gepetto-viewer for
-                rendering.
+    @brief      Implementation of a Gym goal-environment for the Acrobot which
+                is using Jiminy Engine to perform physics computations and
+                Meshcat for rendering.
 
     @details    It only changes the observation mechanism wrt the base class
-                `JiminyAcrobotGoalEnv`. See its documentation for more information.
+                `AcrobotJiminyGoalEnv`. See its documentation for more
+                information.
     """
     def __init__(self, continuous=True, enableGoalEnv=False):
-        # @copydoc RobotJiminyGoalEnv::__init__
+        # @copydoc BaseJiminyGoalEnv::__init__
 
         ## Flag to determine if the goal is enable
         self.enableGoalEnv = enableGoalEnv
@@ -242,14 +254,14 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
             self.observation_space = self.observation_space['observation']
 
     def _sample_goal(self):
-        # @copydoc RobotJiminyGoalEnv::_sample_goal
+        # @copydoc BaseJiminyGoalEnv::_sample_goal
         if self.enableGoalEnv:
             return super()._sample_goal()
         else:
             return np.array([0.95 * self._tipPosZMax])
 
     def reset(self):
-        # @copydoc RobotJiminyEnv::reset
+        # @copydoc BaseJiminyEnv::reset
         obs = super().reset()
         if self.enableGoalEnv:
             return obs
@@ -257,7 +269,7 @@ class JiminyAcrobotEnv(JiminyAcrobotGoalEnv):
             return obs['observation']
 
     def step(self, a):
-        # @copydoc RobotJiminyEnv::step
+        # @copydoc BaseJiminyEnv::step
         obs, reward, done, info = super().step(a)
         if self.enableGoalEnv:
             return obs, reward, done, info

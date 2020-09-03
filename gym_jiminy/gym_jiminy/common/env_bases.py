@@ -15,10 +15,10 @@ from gym import logger
 from gym.utils import seeding
 
 from pinocchio import neutral
-from jiminy_py.core import EncoderSensor as enc, \
-                           EffortSensor as effort, \
-                           ForceSensor as force, \
-                           ImuSensor as imu
+from jiminy_py.core import (EncoderSensor as enc,
+                            EffortSensor as effort,
+                            ForceSensor as force,
+                            ImuSensor as imu)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 from jiminy_py.viewer import sleep, play_logfiles
@@ -40,7 +40,7 @@ SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
 T_UNIVERSAL_MAX = 10000.0
 
 
-class RobotJiminyEnv(gym.core.Env):
+class BaseJiminyEnv(gym.core.Env):
     """
     @brief      Base class to train a robot in Gym OpenAI using a
                 user-specified Python Jiminy engine for physics computations.
@@ -101,7 +101,7 @@ class RobotJiminyEnv(gym.core.Env):
         ## Information about the learning process
         self._info = {'is_success': False}
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
-            is not RobotJiminyEnv._compute_reward_terminal
+            is not BaseJiminyEnv._compute_reward_terminal
 
         ## Number of simulation steps performed after episode termination
         self._steps_beyond_done = None
@@ -513,9 +513,9 @@ class RobotJiminyEnv(gym.core.Env):
             else:
                 if self._steps_beyond_done == 0:
                     logger.warn(
-                        "Calling 'step' even though this environment has "\
-                        "already returned done = True whereas debug mode or "\
-                        "terminal reward is enabled. You must call 'reset' "\
+                        "Calling 'step' even though this environment has "
+                        "already returned done = True whereas debug mode or "
+                        "terminal reward is enabled. You must call 'reset' "
                         "to avoid further undefined behavior.")
                 self._steps_beyond_done += 1
 
@@ -607,7 +607,7 @@ class RobotJiminyEnv(gym.core.Env):
         return done
 
 
-class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
+class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
     """
     @brief      Base class to train a robot in Gym OpenAI using a user-specified
                 Jiminy Engine for physics computations.
@@ -635,7 +635,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         """
 
         ## @var observation_space
-        # @copydoc RobotJiminyEnv::observation_space
+        # @copydoc BaseJiminyEnv::observation_space
 
         super().__init__(robot_name, engine_py, dt)
 
@@ -673,7 +673,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         raise NotImplementedError
 
     def _update_obs(self, obs):
-        # @copydoc RobotJiminyEnv::_update_obs
+        # @copydoc BaseJiminyEnv::_update_obs
         super()._update_obs(obs['observation'])
         obs['achieved_goal'] = self._get_achieved_goal(),
         obs['desired_goal'] = self.goal.copy()
@@ -694,7 +694,7 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
             self._observation['observation'])
 
     def _compute_reward(self):
-        # @copydoc RobotJiminyEnv::_compute_reward
+        # @copydoc BaseJiminyEnv::_compute_reward
         return self.compute_reward(self._observation['achieved_goal'],
                                    self._observation['desired_goal'],
                                    self._info)
@@ -715,6 +715,6 @@ class RobotJiminyGoalEnv(RobotJiminyEnv, gym.core.GoalEnv):
         raise NotImplementedError
 
     def reset(self):
-        # @copydoc RobotJiminyEnv::reset
+        # @copydoc BaseJiminyEnv::reset
         self.goal = self._sample_goal()
         return super().reset()

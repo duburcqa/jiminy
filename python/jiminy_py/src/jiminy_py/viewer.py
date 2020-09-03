@@ -223,7 +223,7 @@ class Viewer:
 
         if robot_name in Viewer._backend_robot_names:
             raise ValueError(
-                "Robot name already exists but must be unique. Please choose a "\
+                "Robot name already exists but must be unique. Please choose a "
                 "different one, or close the associated viewer.")
 
         # Extract the right Pinocchio model
@@ -398,7 +398,7 @@ class Viewer:
                 self = args[0]
             self = kwargs.get('self', self)
             if not Viewer.is_open(self):
-                raise RuntimeError("No backend available. "\
+                raise RuntimeError("No backend available. "
                     f"Please start one before calling '{fct.__name__}'.")
             return fct(*args, **kwargs)
         return fct_safe
@@ -1253,8 +1253,8 @@ def play_trajectories(trajectory_data,
     if record_video_path is None:
         if backend == 'meshcat':
             if verbose:
-                print("Waiting for meshcat client in browser to connect: "\
-                    f"{Viewer._backend_obj.gui.url()}")
+                print("Waiting for meshcat client in browser to connect: "
+                      f"{Viewer._backend_obj.gui.url()}")
             Viewer.wait(require_client=True)
             if verbose:
                 print("Browser connected! Starting to replay the simulation.")

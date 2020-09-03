@@ -23,7 +23,7 @@ if shell.startswith('google.colab.'):
     pyppeteer.chromium_downloader.chromium_executable = \
         lambda : Path("/usr/lib/chromium-browser/chromium-browser")
     if not pyppeteer.chromium_downloader.check_chromium():
-        logging.warning("Chrome must be installed manually on Google Colab. "\
+        logging.warning("Chrome must be installed manually on Google Colab. "
             "It must be done using '!apt install chromium-chromedriver'.")
 else:
     # Must use a recent release that supports webgl rendering with hardware
@@ -295,13 +295,13 @@ class MeshcatRecorder:
             elif not self.proc.is_alive():
                 self.release()
                 raise RuntimeError(
-                    "Backend browser has encountered an unrecoverable "\
+                    "Backend browser has encountered an unrecoverable "
                     "error: ", self.__shm['message'].value)
 
     def capture_frame(self, width=None, height=None):
         self._send_request("take_snapshot",
-            message=f"{width if width is not None else -1}|"\
-                    f"{height if height is not None else -1}")
+            message=(f"{width if width is not None else -1}|"
+                     f"{height if height is not None else -1}"))
         return self.__shm['message'].value
 
     def start_video_recording(self, fps, width, height):
@@ -311,8 +311,7 @@ class MeshcatRecorder:
 
     def add_video_frame(self):
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording before adding frames.")
         self._send_request("add_frame")
 
@@ -332,8 +331,7 @@ class MeshcatRecorder:
             return True
 
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording and add frames before saving.")
         if "|" in path:
             raise ValueError(
