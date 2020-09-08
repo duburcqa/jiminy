@@ -11,13 +11,20 @@ def is_package_available(pkg_name):
             return False
         return True
 
-# Import Eigenpy and Pinocchio (use the embedded version only if necessary),
+# Import Pinocchio and co (use the embedded version only if necessary),
 # then patch Pinocchio to fix support of numpy.ndarray as Eigen conversion.
 if (is_package_available("eigenpy")):
     import eigenpy
 else:
     from . import eigenpy
     _sys.modules["eigenpy"] = eigenpy
+    
+if (is_package_available("hppfcl")):
+    import hppfcl
+else:
+    from . import hppfcl
+    _sys.modules["hppfcl"] = hppfcl
+
 if (is_package_available("pinocchio")):
     import pinocchio
 else:

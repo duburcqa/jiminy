@@ -19,7 +19,7 @@ sudo -u $(id -nu $SUDO_UID) python3 -m pip install wheel && \
 sudo -u $(id -nu $SUDO_UID) python3 -m pip install numpy
 
 # Install standard linux utilities and boost tools suite
-apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev # libeigen3-dev
+apt install -y gnupg curl wget build-essential cmake doxygen graphviz libboost-all-dev liboctomap-dev
 
 # Install Eigen
 if ! [ -d "/usr/include/eigen3/" ] ; then
@@ -36,8 +36,11 @@ if ! [-d "/opt/openrobots/lib/python3.6/site-packages/" ] ; then
     sh -c "echo 'deb [arch=amd64] http://robotpkg.openrobots.org/packages/debian/pub bionic robotpkg' >> /etc/apt/sources.list.d/robotpkg.list" && \
     curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
     apt update && \
-    apt install -y robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 robotpkg-hpp-fcl=1.3.0 robotpkg-py36-hpp-fcl=1.3.0 \
-                   robotpkg-pinocchio=2.2.2 robotpkg-py36-eigenpy=2.0.2 robotpkg-py36-pinocchio=2.2.2 && \
+    apt install -y --allow-downgrades robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 \
+                   robotpkg-gepetto-viewer=4.4.0 robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
+                   robotpkg-hpp-fcl=1.4.5 robotpkg-py36-hpp-fcl=1.4.5 \
+                   robotpkg-pinocchio=2.4.7 robotpkg-py36-eigenpy=2.5.0 robotpkg-py36-pinocchio=2.4.7 && \
+    sed -i 's/\/usr\/include\/python3.6;/\/usr\/include\/python3.6m;/g' /opt/openrobots/lib/cmake/eigenpy/eigenpyTargets.cmake && \
     echo 'export LD_LIBRARY_PATH="/opt/openrobots/lib"' >> $HOME/.bashrc && \
     sudo -u $(id -nu $SUDO_UID) mkdir -p $HOME/.local/lib/python3.6/site-packages && \
     sudo -u $(id -nu $SUDO_UID) touch $HOME/.local/lib/python3.6/site-packages/openrobots.pth && \

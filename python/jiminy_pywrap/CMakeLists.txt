@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_pywrap VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(eigenpy 2.0.3 NO_MODULE) # It adds target include lib eigenpy::eigenpy
+find_package(eigenpy 2.0.2 NO_MODULE) # It adds target include lib eigenpy::eigenpy
 if((NOT eigenpy_FOUND) AND (WIN32))
     message(FATAL_ERROR "Eigenpy not found, CMake will exit.")
 elseif(eigenpy_FOUND)

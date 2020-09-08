@@ -1,0 +1,100 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d675c2c..c503cf1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -70,6 +70,9 @@ COMPUTE_PROJECT_ARGS(PROJECT_ARGS LANGUAGES CXX)
+ PROJECT(${PROJECT_NAME} ${PROJECT_ARGS})
+ 
+ ADD_PROJECT_DEPENDENCY(Eigen3 REQUIRED PKG_CONFIG_REQUIRES "eigen3 >= 3.0.0")
++ADD_PROJECT_DEPENDENCY(zlib REQUIRED "zlib" NO_MODULE)
++ADD_PROJECT_DEPENDENCY(IrrXML REQUIRED "IrrXML" NO_MODULE)
++ADD_PROJECT_DEPENDENCY(assimp REQUIRED "assimp >= 5.0.0" NO_MODULE)
+ 
+ if(BUILD_PYTHON_INTERFACE)
+   FIND_PACKAGE(eigenpy 2.2 REQUIRED)
+@@ -86,18 +89,8 @@ if (BUILD_PYTHON_INTERFACE)
+ endif ()
+ 
+ # Optional dependencies
+-ADD_PROJECT_DEPENDENCY(octomap PKG_CONFIG_REQUIRES "octomap >= 1.6")
+-if(octomap_FOUND)
+-  SET(HPP_FCL_HAVE_OCTOMAP TRUE)
+-  string(REPLACE "." ";" VERSION_LIST ${octomap_VERSION})
+-  list(GET VERSION_LIST 0 OCTOMAP_MAJOR_VERSION)
+-  list(GET VERSION_LIST 1 OCTOMAP_MINOR_VERSION)
+-  list(GET VERSION_LIST 2 OCTOMAP_PATCH_VERSION)
+-  message(STATUS "FCL uses Octomap")
+-else()
+-  SET(HPP_FCL_HAVE_OCTOMAP FALSE)
+-  message(STATUS "FCL does not use Octomap")
+-endif()
++SET(HPP_FCL_HAVE_OCTOMAP FALSE)
++message(STATUS "FCL does not use Octomap")
+ 
+ option(HPP_FCL_HAS_QHULL "use qhull library to compute convex hulls." FALSE)
+ if(HPP_FCL_HAS_QHULL)
+@@ -172,12 +165,10 @@ SET(${PROJECT_NAME}_HEADERS
+   include/hpp/fcl/internal/traversal.h
+   )
+ 
+-add_subdirectory(doc)
+ add_subdirectory(src)
+ if (BUILD_PYTHON_INTERFACE)
+   add_subdirectory(python)
+ endif ()
+-add_subdirectory(test)
+ 
+ pkg_config_append_libs("hpp-fcl")
+ IF(HPP_FCL_HAVE_OCTOMAP)
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index dfef812..fee68b9 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -146,7 +146,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
+ ENDFOREACH()
+ LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/config.hh)
+ add_library(${LIBRARY_NAME}
+-  SHARED
+   ${PROJECT_HEADERS_FULL_PATH}
+   ${${LIBRARY_NAME}_SOURCES}
+   )
+@@ -155,16 +154,19 @@ add_library(${LIBRARY_NAME}
+ ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
+ ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
+ 
++find_package(zlib NO_MODULE)
++find_package(IrrXML NO_MODULE)
++find_package(assimp NO_MODULE)
+ TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
+   PUBLIC
+-  Boost::boost
+-  )
+-
+-TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
+-  PRIVATE
+-  ${assimp_LIBRARIES}
+-  # assimp::assimp # Not working
++  Boost::boost assimp::assimp IrrXML::IrrXML zlib::zlib
+   )
++if(NOT WIN32)
++  TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
++    PUBLIC
++    rt
++    )
++endif()
+ 
+ if(HPP_FCL_HAS_QHULL)
+   target_compile_definitions(${LIBRARY_NAME} PRIVATE -DHPP_FCL_HAS_QHULL)
+diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
+index 0726e3e..8fd0928 100644
+--- a/cmake/deprecated.hh.cmake
++++ b/cmake/deprecated.hh.cmake
+@@ -26,7 +26,7 @@
+ #  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+ # else
+ #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+-#   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
++#   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
+ #  else
+ // If the compiler is not recognized, drop the feature.
+ #   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */

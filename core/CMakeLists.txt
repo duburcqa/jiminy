@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
 # Find libraries and headers
-find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS system filesystem date_time thread)
 find_package(urdfdom NO_MODULE) # It is impossible to specify the version is not exported in cmake config...
 if(urdfdom_FOUND)
     # Using pkgconfig is the only way to get the library version...
@@ -22,19 +22,21 @@ if((NOT urdfdom_FOUND) AND (WIN32))
 elseif(urdfdom_FOUND)
     message("-- Found urdfdom: version ${urdfdom_VERSION}")
 endif((NOT urdfdom_FOUND) AND (WIN32))
-find_package(Eigen3 3.3.4 NO_MODULE) # It adds target include lib Eigen3::Eigen
+find_package(Eigen3 3.3.4 NO_MODULE)  # It adds target include lib Eigen3::Eigen
 if((NOT Eigen3_FOUND) AND (WIN32))
     message(FATAL_ERROR "Eigen3 not found, CMake will exit.")
 elseif(Eigen3_FOUND)
     message("-- Found Eigen3: version ${Eigen3_VERSION}")
 endif((NOT Eigen3_FOUND) AND (WIN32))
-find_package(pinocchio 2.4.0 NO_MODULE) # Pinocchio was header-only before 2.4.0. It adds target include lib pinocchio::pinocchio
+find_package(pinocchio 2.4.0 NO_MODULE)  # Pinocchio was header-only before 2.4.0. It adds target include lib pinocchio::pinocchio.
 if(pinocchio_FOUND)
     message("-- Found pinocchio: version ${pinocchio_VERSION}")
-endif()
+elseif(pinocchio_FOUND)
+    find_package(hpp-fcl 1.4.0 REQUIRED NO_MODULE)  # Old pinocchio releases do not export hpp-fcl dependency
+endif(pinocchio_FOUND)
 
 # Pinocchio-specific stuffs
-set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM")
+set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
 if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom version undefined
     if ("${urdfdom_VERSION}" VERSION_GREATER_EQUAL "0.4.0")
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_TYPEDEF_SHARED_PTR")
@@ -101,7 +103,11 @@ if(urdfdom_FOUND)
 endif()
 
 # Linking with other libraries (in such a way to avoid any warnings compiling them)
-target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
+if(pinocchio_FOUND)
+    target_link_libraries_system(${PROJECT_NAME} pinocchio::pinocchio)
+else(pinocchio_FOUND)
+    target_link_libraries_system(${PROJECT_NAME} hpp-fcl::hpp-fcl)
+endif(pinocchio_FOUND)
 if(urdfdom_FOUND)
     if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
         list(APPEND urdfdom_LIBRARIES "tinyxml")
@@ -113,9 +119,7 @@ endif(urdfdom_FOUND)
 if(Eigen3_FOUND)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 endif()
-if(pinocchio_FOUND)
-    target_link_libraries_system(${PROJECT_NAME} pinocchio::pinocchio)
-endif()
+target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
 
 # Activate C++14 on Linux (not properly supported by MSVC 2015)
 set_target_properties(${PROJECT_NAME} PROPERTIES
