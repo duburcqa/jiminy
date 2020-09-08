@@ -4,36 +4,33 @@ cmake_minimum_required(VERSION 3.10)
 # Project name
 project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
-# Find libraries and headers
+# Find dependencies
 find_package(Boost REQUIRED COMPONENTS system filesystem date_time thread)
-find_package(urdfdom NO_MODULE) # It is impossible to specify the version is not exported in cmake config...
-if(urdfdom_FOUND)
-    # Using pkgconfig is the only way to get the library version...
-    find_package(PkgConfig QUIET)
+
+if(NOT LEGACY_MODE)
+    find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH) # It is impossible to specify the version because it is not exported in cmake config files...
+    find_package(PkgConfig QUIET)  # Using pkgconfig is the only way to get the library version...
     if (PkgConfig_FOUND)
         pkg_check_modules(_URDFDOM QUIET "urdfdom")
         if ((_URDFDOM_FOUND) AND (NOT _URDFDOM_PREFIX STREQUAL "/usr"))
             set(urdfdom_VERSION "${_URDFDOM_VERSION}")
         endif()
     endif()
+    if(urdfdom_VERSION)
+        message("-- Found urdfdom: version ${urdfdom_VERSION}")
+    else()
+        message("-- Found urdfdom")
+    endif()
+
+    find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
+
+    find_package(pinocchio 2.4.0 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # It adds target pinocchio::pinocchio. Pinocchio was header-only before 2.4.0.
+    if(pinocchio_FOUND)
+        message("-- Found pinocchio: version ${pinocchio_VERSION}")
+    else()
+        find_package(hpp-fcl 1.4.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Old pinocchio releases do not export hpp-fcl dependency
+    endif()
 endif()
-if((NOT urdfdom_FOUND) AND (WIN32))
-    message(FATAL_ERROR "urdfdom not found, CMake will exit.")
-elseif(urdfdom_FOUND)
-    message("-- Found urdfdom: version ${urdfdom_VERSION}")
-endif((NOT urdfdom_FOUND) AND (WIN32))
-find_package(Eigen3 3.3.4 NO_MODULE)  # It adds target include lib Eigen3::Eigen
-if((NOT Eigen3_FOUND) AND (WIN32))
-    message(FATAL_ERROR "Eigen3 not found, CMake will exit.")
-elseif(Eigen3_FOUND)
-    message("-- Found Eigen3: version ${Eigen3_VERSION}")
-endif((NOT Eigen3_FOUND) AND (WIN32))
-find_package(pinocchio 2.4.0 NO_MODULE)  # Pinocchio was header-only before 2.4.0. It adds target include lib pinocchio::pinocchio.
-if(pinocchio_FOUND)
-    message("-- Found pinocchio: version ${pinocchio_VERSION}")
-elseif(pinocchio_FOUND)
-    find_package(hpp-fcl 1.4.0 REQUIRED NO_MODULE)  # Old pinocchio releases do not export hpp-fcl dependency
-endif(pinocchio_FOUND)
 
 # Pinocchio-specific stuffs
 set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
@@ -45,7 +42,7 @@ if (urdfdom_VERSION) # Assume version strictly older than 0.4.0 if urdfdom versi
         set(COMPILE_FLAGS "${COMPILE_FLAGS} -DPINOCCHIO_URDFDOM_USE_STD_SHARED_PTR")
     endif()
 endif()
-add_definitions(${COMPILE_FLAGS})
+add_definitions("${COMPILE_FLAGS}")
 
 # Add sources
 set(SRC
@@ -98,25 +95,27 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 # Include headers from other libraries (in such a way to avoid any warnings compiling them)
 list(REMOVE_ITEM Boost_LIBRARIES ${BOOST_PYTHON_LIB})
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
-if(urdfdom_FOUND)
+if(NOT LEGACY_MODE)
     target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
 endif()
 
 # Linking with other libraries (in such a way to avoid any warnings compiling them)
 if(pinocchio_FOUND)
     target_link_libraries_system(${PROJECT_NAME} pinocchio::pinocchio)
-else(pinocchio_FOUND)
+elseif(hpp-fcl_FOUND)
     target_link_libraries_system(${PROJECT_NAME} hpp-fcl::hpp-fcl)
-endif(pinocchio_FOUND)
-if(urdfdom_FOUND)
+elseif(LEGACY_MODE)
+    target_link_libraries(${PROJECT_NAME} hpp-fcl)
+endif()
+if(NOT LEGACY_MODE)
     if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
         list(APPEND urdfdom_LIBRARIES "tinyxml")
     endif()
     target_link_libraries(${PROJECT_NAME} "${urdfdom_LIBRARIES}")
-else(urdfdom_FOUND)
+else()
     target_link_libraries(${PROJECT_NAME} urdfdom_model) # Fallback to raw library name
-endif(urdfdom_FOUND)
-if(Eigen3_FOUND)
+endif()
+if(NOT LEGACY_MODE)
     target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 endif()
 target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
