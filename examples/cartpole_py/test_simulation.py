@@ -8,8 +8,8 @@ from jiminy_py.viewer import sleep
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
-urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
+os.environ["JIMINY_DATA_PATH"] = os.path.join(script_dir, "../../data")
+urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"], "cartpole/cartpole.urdf")
 
 motor_joint_names = ("slider_to_cart",)
 encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
