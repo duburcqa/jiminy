@@ -23,7 +23,7 @@ if shell.startswith('google.colab.'):
     pyppeteer.chromium_downloader.chromium_executable = \
         lambda : Path("/usr/lib/chromium-browser/chromium-browser")
     if not pyppeteer.chromium_downloader.check_chromium():
-        logging.warning("Chrome must be installed manually on Google Colab. "\
+        logging.warning("Chrome must be installed manually on Google Colab. "
             "It must be done using '!apt install chromium-chromedriver'.")
 else:
     # Must use a recent release that supports webgl rendering with hardware
@@ -177,7 +177,7 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
                 while request_shm.value != "quit":  # [>Python3.8] while (request := request_shm.value) != "quit":
                     request = request_shm.value
                     if request != "":
-                        args = map(str.strip, message_shm.value.split(","))
+                        args = map(str.strip, message_shm.value.split("|"))
                         if request == "take_snapshot":
                             width, height = map(int, args)
                             coro = capture_frame_async(client, width, height)
@@ -295,24 +295,23 @@ class MeshcatRecorder:
             elif not self.proc.is_alive():
                 self.release()
                 raise RuntimeError(
-                    "Backend browser has encountered an unrecoverable "\
+                    "Backend browser has encountered an unrecoverable "
                     "error: ", self.__shm['message'].value)
 
     def capture_frame(self, width=None, height=None):
         self._send_request("take_snapshot",
-            message=f"{width if width is not None else -1},"\
-                    f"{height if height is not None else -1}")
+            message=(f"{width if width is not None else -1}|"
+                     f"{height if height is not None else -1}"))
         return self.__shm['message'].value
 
     def start_video_recording(self, fps, width, height):
         self._send_request("start_record",
-            message=f"{fps},{width},{height}", timeout=10.0)
+            message=f"{fps}|{width}|{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self):
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording before adding frames.")
         self._send_request("add_frame")
 
@@ -332,9 +331,11 @@ class MeshcatRecorder:
             return True
 
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording and add frames before saving.")
+        if "|" in path:
+            raise ValueError(
+                "'|' character is not supported in video export path.")
         path = os.path.abspath(pathlib.Path(path).with_suffix('.webm'))
         if os.path.exists(path):
             os.remove(path)

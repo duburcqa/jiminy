@@ -49,10 +49,16 @@ def read_log(filename):
         with open(filename, 'r') as log:
             constants_str = next(log).split(', ')
             for c in constants_str:
-                c_split = c.split('=')
-                # Remove line end for last constant.
-                constants_dict[c_split[0]] = c_split[1].strip('\n')
-            # Read data from the log file, skipping the first line (the constants).
+                # Extract the name and value of the constant.
+                # Note that newline is stripped at the end of the value.
+                name, value = c.split('=')
+                value = value.strip('\n')
+
+                # Gather the constants in a dictionary.
+                constants_dict[name] = value.strip('\n')
+
+            # Read data from the log file, skipping the first line, namely the
+            # constants definition.
             data = {}
             reader = DictReader(log)
             for key, value in reader.__next__().items():
@@ -62,35 +68,39 @@ def read_log(filename):
                     data[key].append(value)
             for key, value in data.items():
                 data[key] = np.array(value, dtype=np.float64)
+
         # Convert every element to array to provide same API as the C++ parser,
         # removing spaces present before the keys.
         data_dict = {k.strip() : np.array(v) for k,v in data.items()}
     return data_dict, constants_dict
 
 def plot_log():
-    description_str = \
-        "Plot data from a jiminy log file using matplotlib.\n" + \
-        "Specify a list of fields to plot, separated by a colon for plotting on the same subplot.\n\n" + \
-        "Example: h1 h2:h3:h4 generates two subplots, one with h1, one with h2, h3, and h4.\n" + \
-        "Wildcard token '*' can be used. In such a case:\n" + \
-        "- If *h2* matches several fields : each field will be plotted individually in subplots. \n" + \
-        "- If :*h2* or :*h2*:*h3*:*h4* matches several fields : each field will be plotted in the same subplot. \n" + \
-        "- If *h2*:*h3*:*h4* matches several fields : each match of h2, h3, and h4 will be plotted jointly in subplots.\n" + \
-        "  Note that if the number of matches for h2, h3, h4 differs, only the minimum number will be plotted.\n" + \
-        "\nEnter no plot command (only the file name) to view the list of fields available inside the file."
+    description_str = (
+        "Plot data from a jiminy log file using matplotlib.\n"
+        "Specify a list of fields to plot, separated by a colon for plotting on the same subplot.\n\n"
+        "Example: h1 h2:h3:h4 generates two subplots, one with h1, one with h2, h3, and h4.\n"
+        "Wildcard token '*' can be used. In such a case:\n"
+        "- If *h2* matches several fields : each field will be plotted individually in subplots. \n"
+        "- If :*h2* or :*h2*:*h3*:*h4* matches several fields : each field will be plotted in the same subplot. \n"
+        "- If *h2*:*h3*:*h4* matches several fields : each match of h2, h3, and h4 will be plotted jointly in subplots.\n"
+        "  Note that if the number of matches for h2, h3, h4 differs, only the minimum number will be plotted.\n\n"
+        "Enter no plot command (only the file name) to view the list of fields available inside the file.")
 
-    parser = argparse.ArgumentParser(description = description_str, formatter_class = argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description_str,
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("input", help="Input logfile.")
-    parser.add_argument("-c", "--compare", type=str, default=None, help="Colon-separated list of comparison log files:" +\
-        " the same data as the original log will be plotted in the same subplot, with different line styes."+ \
-        " These logfiles must be of the same length and contain the same header as the original log file.\n" +\
-        " Note: you can click on the figure top legend to show / hide data from specific files.")
+    parser.add_argument("-c", "--compare", type=str, default=None, help=(
+        "Colon-separated list of comparison log files: "
+        "the same data as the original log will be plotted in the same subplot, with different line styes. "
+        "These logfiles must be of the same length and contain the same header as the original log file.\n"
+        "Note: you can click on the figure top legend to show / hide data from specific files."))
     main_arguments, plotting_commands = parser.parse_known_args()
 
-    # Load log file.
+    # Load log file
     log_data, _ = read_log(main_arguments.input)
 
-    # If no plotting commands, display the list of headers instead.
+    # If no plotting commands, display the list of headers instead
     if len(plotting_commands) == 0:
         print("Available data:")
         print("\n - ".join(log_data.keys()))
@@ -101,17 +111,19 @@ def plot_log():
     if main_arguments.compare is not None:
         for filename in main_arguments.compare.split(':'):
             compare_data[filename], _ = read_log(filename)
-    # Define linestyle cycle that will be used for comparison logs.
+
+    # Define linestyle cycle that will be used for comparison logs
     linestyles = ["--","-.",":"]
 
     # Parse plotting arguments.
-    plotted_elements = []
+    plotted_elements = [
     for cmd in plotting_commands:
-        # Check that the command is valid, i.e. that all elements exits. If it is the case, add it to the list.
+        # Check that the command is valid, i.e. that all elements exits.
+        # If it is the case, add it to the list.
         same_subplot = (cmd[0] == ':')
         headers = cmd.strip(':').split(':')
 
-        # Expand each element according to wildcard expression.
+        # Expand each element according to wildcard expression
         matching_headers = []
         for h in headers:
             match = sorted(fnmatch.filter(log_data.keys(), h))
@@ -122,9 +134,10 @@ def plot_log():
         if len(matching_headers) == 0:
             continue
 
-        # Compute number of subplots.
+        # Compute number of subplots
         if same_subplot:
-            plotted_elements.append([e for l_sub in matching_headers for e in l_sub])
+            plotted_elements.append([
+                e for l_sub in matching_headers for e in l_sub])
         else:
             n_subplots = min([len(l) for l in matching_headers])
             for i in range(n_subplots):
@@ -140,7 +153,7 @@ def plot_log():
     fig = plt.figure()
 
     # Create subplots, arranging them in a rectangular fashion.
-    # Do not allow for n_cols to be more than n_rows + 2
+    # Do not allow for n_cols to be more than n_rows + 2.
     n_cols = n_plot
     n_rows = 1
     while n_cols > n_rows + 2:
@@ -154,7 +167,8 @@ def plot_log():
             ax.get_shared_x_axes().join(axs[0], ax)
         axs.append(ax)
 
-    # Store lines in dictionnary fine_name -> plotted lines, to toggle visibility.
+    # Store lines in dictionnary {file_name: plotted lines}, to enable to
+    # toggle individually the visibility the data related to each of them.
     main_name = os.path.basename(main_arguments.input)
     plotted_lines = {main_name : []}
     for c in compare_data:
@@ -162,6 +176,7 @@ def plot_log():
 
     plt.gcf().canvas.set_window_title(main_arguments.input)
     t = log_data['Global.Time']
+
     # Plot each element.
     for ax, plotted_elem in zip(axs, plotted_elements):
         for name in plotted_elem:
@@ -170,7 +185,10 @@ def plot_log():
 
             linecycler = cycle(linestyles)
             for c in compare_data:
-                l = ax.plot(compare_data[c]['Global.Time'], compare_data[c][name], next(linecycler), color=line[0].get_color())
+                l = ax.plot(compare_data[c]['Global.Time'],
+                            compare_data[c][name],
+                            next(linecycler),
+                            color=line[0].get_color())
                 plotted_lines[os.path.basename(c)].append(l[0])
 
     # Add legend and grid for each plot.
@@ -179,18 +197,26 @@ def plot_log():
         ax.legend()
         ax.grid()
 
-    # If a compare plot is present, add overall legend specifying line types.
-    plt.subplots_adjust(bottom=0.05, top=0.98, left=0.06, right=0.98, wspace=0.1, hspace=0.12)
+    # If a compare plot is present, add overall legend specifying line types
+    plt.subplots_adjust(
+        bottom=0.05,
+        top=0.98,
+        left=0.06,
+        right=0.98,
+        wspace=0.1,
+        hspace=0.12)
     if len(compare_data) > 0:
         linecycler = cycle(linestyles)
 
-        # Dictionnary: line in legend to log name.
+        # Dictionnary: line in legend to log name
         legend_lines = {Line2D([0], [0], color='k') : main_name}
         for c in compare_data:
-            legend_lines[Line2D([0], [0],  color='k', linestyle=next(linecycler))] = os.path.basename(c)
+            legend_lines[Line2D([0], [0],  color='k',
+                linestyle=next(linecycler))] = os.path.basename(c)
+        legend = fig.legend(legend_lines.keys(), legend_lines.values(),
+            loc='upper center', ncol=3)
 
-        legend = fig.legend(legend_lines.keys(), legend_lines.values(), loc = 'upper center', ncol = 3)
-        # Create a map (picker) -> (log name) for both the lines and the legend text.
+        # Create a dict {picker: log name} for both the lines and the legend
         picker_to_name = {}
         for legline, name in zip(legend.get_lines(), legend_lines.values()):
             legline.set_picker(10)  # 10 pts tolerance
@@ -201,7 +227,8 @@ def plot_log():
 
         # Increase top margin to fit legend
         fig.canvas.draw()
-        legend_height = legend.get_window_extent().inverse_transformed(fig.transFigure).height
+        legend_height = legend.get_window_extent().inverse_transformed(
+            fig.transFigure).height
         plt.subplots_adjust(top = 0.98 - legend_height)
 
         # Make legend interactive

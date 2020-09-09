@@ -9,8 +9,8 @@ from math import atan2, pi, sqrt
 
 import pinocchio as pin
 
-warnings.filterwarnings("ignore", message="DeprecatedWarning: This function "\
-    "signature is now deprecated and will be removed in future releases of Pinocchio.")
+warnings.filterwarnings("ignore", message=("This function signature is now "
+    "deprecated and will be removed in future releases of Pinocchio."))
 
 from pinocchio.rpy import npToTTuple
 

@@ -3,6 +3,7 @@
 
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/geometry.hpp"
 
 #include "jiminy/core/Types.h"
 
@@ -118,6 +119,12 @@ namespace jiminy
         hresult_t initialize(std::string const & urdfPath,
                              bool_t      const & hasFreeflyer = true);
 
+        hresult_t addFrame(std::string    const & frameName,
+                           std::string    const & parentBodyName,
+                           pinocchio::SE3 const & framePlacement);
+        hresult_t removeFrame(std::string const & frameName);
+        hresult_t addContactBodies(std::vector<std::string> const & bodyNames);
+        hresult_t removeContactBodies(std::vector<std::string> const & frameNames = {});
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
@@ -168,6 +175,8 @@ namespace jiminy
     public:
         pinocchio::Model pncModel_;
         mutable pinocchio::Data pncData_;
+        pinocchio::GeometryModel pncGeometryModel_;
+        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using ptr to avoid having to initialize it with an empty GeometryModel, which causes segfault for Pinocchio < 2.4.0.
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
@@ -179,7 +188,8 @@ namespace jiminy
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the robot
+        std::vector<std::string> contactBodiesNames_;       ///< Name of the contact bodies of the robot
+        std::vector<std::string> contactFramesNames_;       ///< Name of the contact frames of the robot
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot
@@ -198,6 +208,7 @@ namespace jiminy
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
+
         int32_t nq_;
         int32_t nv_;
         int32_t nx_;

@@ -926,6 +926,10 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("add_frame", &Model::addFrame,
+                                  (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
+                .def("remove_frame", &Model::removeFrame,
+                                     (bp::arg("self"), "frame_name"))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))

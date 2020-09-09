@@ -1,3 +1,24 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index cf984477..db497fb7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -141,12 +141,11 @@ IF(BUILD_WITH_HPP_FCL_SUPPORT)
+   ADD_PROJECT_DEPENDENCY(hpp-fcl 1.4.0 REQUIRED PKG_CONFIG_REQUIRES "hpp-fcl >= 1.4.0")
+   # Check whether hpp-fcl python bindings are available.
+   SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS FALSE)
++  IF(NOT IS_ABSOLUTE ${PYTHON_SITELIB})
++    SET(PYTHON_SITELIB ${CMAKE_INSTALL_PREFIX}/${PYTHON_SITELIB})
++  ENDIF()
+   IF(BUILD_PYTHON_INTERFACE)
+-    EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c "import hppfcl"
+-      RESULT_VARIABLE _hpp_fcl_python_bindings_not_found
+-      OUTPUT_QUIET
+-      ERROR_QUIET)
+-    IF(_hpp_fcl_python_bindings_not_found EQUAL 0)
++    IF(EXISTS "${PYTHON_SITELIB}/hppfcl")
+       SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS TRUE)
+       MESSAGE(STATUS "Found hpp-fcl Python bindings.")
+     ELSE()
 diff --git a/bindings/python/CMakeLists.txt b/bindings/python/CMakeLists.txt
 index e94b56ca..60ee47cf 100644
 --- a/bindings/python/CMakeLists.txt
@@ -159,10 +180,10 @@ diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data
 index fecbf190..64e5c430 100644
 --- a/bindings/python/multibody/data.hpp
 +++ b/bindings/python/multibody/data.hpp
-@@ -184,7 +184,6 @@ namespace pinocchio
-         
-         StdAlignedVectorPythonVisitor<Vector3, true>::expose("StdVec_vec3d");
-         StdAlignedVectorPythonVisitor<Matrix6x, true>::expose("StdVec_Matrix6x");
+@@ -190,7 +190,6 @@ namespace pinocchio
+         .def(details::overload_base_get_item_for_std_vector<StdVec_Vector3>());
+         StdAlignedVectorPythonVisitor<Matrix6x,false>::expose("StdVec_Matrix6x")
+         .def(details::overload_base_get_item_for_std_vector<StdVec_Matrix6x>());
 -        StdVectorPythonVisitor<int>::expose("StdVec_int");
        }
  
@@ -171,23 +192,23 @@ diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/mod
 index 57683816..1f17da7e 100644
 --- a/bindings/python/multibody/model.hpp
 +++ b/bindings/python/multibody/model.hpp
-@@ -310,11 +310,6 @@ namespace pinocchio
-       /* --- Expose --------------------------------------------------------- */
-       static void expose()
+@@ -311,11 +311,6 @@ namespace pinocchio
        {
+         typedef typename Model::ConfigVectorMap ConfigVectorMap;
+         typedef bp::map_indexing_suite<ConfigVectorMap,false> map_indexing_suite;
 -        StdVectorPythonVisitor<Index>::expose("StdVec_Index");
 -        StdVectorPythonVisitor<IndexVector>::expose("StdVec_IndexVector");
 -        StdVectorPythonVisitor<std::string>::expose("StdVec_StdString");
 -        StdVectorPythonVisitor<bool>::expose("StdVec_Bool");
 -        StdVectorPythonVisitor<Scalar>::expose("StdVec_double");
          bp::class_<typename Model::ConfigVectorMap>("StdMap_String_EigenVectorXd")
-           .def(bp::map_indexing_suite< typename Model::ConfigVectorMap, true >())
-           .def_pickle(PickleMap<typename Model::ConfigVectorMap>());
+           .def(map_indexing_suite())
+           .def_pickle(PickleMap<typename Model::ConfigVectorMap>())
 diff --git a/bindings/python/spatial/inertia.hpp b/bindings/python/spatial/inertia.hpp
 index d3cdf575..b18e0de9 100644
 --- a/bindings/python/spatial/inertia.hpp
 +++ b/bindings/python/spatial/inertia.hpp
-@@ -201,7 +201,7 @@ namespace pinocchio
+@@ -202,7 +202,7 @@ namespace pinocchio
             || (Eigen::Vector3d::UnitY().transpose()*inertia*Eigen::Vector3d::UnitY()<0)
             || (Eigen::Vector3d::UnitZ().transpose()*inertia*Eigen::Vector3d::UnitZ()<0) )
            throw eigenpy::Exception("The 3d inertia should be positive.");
@@ -201,7 +222,7 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index b2cf262..84639d9 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -70,7 +70,6 @@ MACRO(SEARCH_FOR_BOOST)
+@@ -164,7 +164,6 @@ MACRO(SEARCH_FOR_BOOST)
    FIND_PACKAGE(Boost ${BOOST_REQUIRED})
    STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
@@ -209,6 +230,38 @@ index b2cf262..84639d9 100644
      SET(Boost_NO_BOOST_CMAKE ON)
    ENDIF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
  
+diff --git a/cmake/python.cmake b/cmake/python.cmake
+index db414f9..49ce016 100644
+--- a/cmake/python.cmake
++++ b/cmake/python.cmake
+@@ -394,6 +394,14 @@ ENDMACRO()
+ MACRO(PYTHON_BUILD MODULE FILE)
+   # Regex from IsValidTargetName in CMake/Source/cmGeneratorExpression.cxx
+   STRING(REGEX REPLACE "[^A-Za-z0-9_.+-]" "_" compile_pyc "compile_pyc_${CMAKE_CURRENT_SOURCE_DIR}")
++
++  string(LENGTH ${compile_pyc} compile_pyc_LENGTH)
++  math(EXPR compile_pyc_START "${compile_pyc_LENGTH}-50")
++  if(${compile_pyc_START} LESS 3)
++    set(compile_pyc_START 3)
++  endif()
++  string(SUBSTRING ${compile_pyc} ${compile_pyc_START} -1 compile_pyc)
++
+   IF(NOT TARGET ${compile_pyc})
+     ADD_CUSTOM_TARGET(${compile_pyc} ALL)
+   ENDIF()
+diff --git a/cmake/deprecated.hh.cmake b/cmake/deprecated.hh.cmake
+index 0726e3e..8fd0928 100644
+--- a/cmake/deprecated.hh.cmake
++++ b/cmake/deprecated.hh.cmake
+@@ -26,7 +26,7 @@
+ #  define @PACKAGE_CPPNAME@_DEPRECATED __attribute__ ((deprecated))
+ # else
+ #  if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+-#   define @PACKAGE_CPPNAME@_DEPRECATED __declspec (deprecated)
++#   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
+ #  else
+ // If the compiler is not recognized, drop the feature.
+ #   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index b18e001f..d6ce025d 100644
 --- a/src/CMakeLists.txt

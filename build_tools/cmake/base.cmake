@@ -11,9 +11,9 @@ if(BUILD_TESTING)
                                 "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
                         OUTPUT_STRIP_TRAILING_WHITESPACE
                         OUTPUT_VARIABLE BUILD_OFFLINE)
-    else(NOT WIN32)
+    else()
         set(BUILD_OFFLINE 0)
-    endif(NOT WIN32)
+    endif()
     if(${BUILD_OFFLINE})
         message("-- No internet connection. Not building external projects.")
     endif()
@@ -53,20 +53,6 @@ endif()
 option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 option(BUILD_EXAMPLES "Build the C++ examples" ON)
 
-# Add Fallback search paths for headers and libraries
-# TODO: Remove after support of find_package for Eigen and Pinocchio,
-# namely after moving to Eigen 3.3.7, Boost 1.71, and Pinocchio 2.3.0
-if(NOT WIN32)
-    link_directories("/opt/openrobots/lib/")
-    link_directories("/opt/install/pc/lib/")
-    include_directories(SYSTEM "/opt/openrobots/include/")
-    include_directories(SYSTEM "/opt/install/pc/include/")
-    include_directories(SYSTEM "/opt/install/pc/include/eigen3/")
-else(NOT WIN32)
-    link_directories("${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-    include_directories(SYSTEM "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}")
-endif(NOT WIN32)
-
 # Define search strategy for Boost package
 # TODO: Remove hard-coded path
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
@@ -74,6 +60,36 @@ if(Boost_NO_SYSTEM_PATHS AND (NOT DEFINED BOOST_ROOT))
     set(BOOST_ROOT "/opt/install/pc/")
 endif()
 
+# Determine if the old legacy old for Ubuntu 18 must be used.
+# It will not use "find_package" but instead plain old "link_directories"
+# and "include_directories" directives.
+# Thus it requires the dependencies to be installed from robotpkg apt repository.
+# TODO: Remove legacy mode after dropping support of Ubuntu 18 and moving to
+# Eigen >= 3.3.7, Boost >= 1.71, and Pinocchio >=2.4.0.
+find_package(Boost QUIET)
+string(REPLACE "_" "." BOOST_VERSION "${Boost_LIB_VERSION}")
+if("${BOOST_VERSION}" VERSION_LESS "1.71.0")
+    set(LEGACY_MODE ON)
+endif()
+if(LEGACY_MODE)
+    if(WIN32)
+        message(FATAL_ERROR "Boost >= 1.71.0 required.")
+    else()
+        message("-- Old boost version detected. Fallback to Ubuntu 18 legacy mode. Make sure depedencies have been installed using apt-get.")
+    endif()
+endif()
+
+# Add Fallback search paths for headers and libraries
+if(LEGACY_MODE)
+    link_directories("/opt/openrobots/lib/")
+    link_directories("/opt/install/pc/lib/")
+    include_directories(SYSTEM "/opt/openrobots/include/")
+    include_directories(SYSTEM "/opt/install/pc/include/")
+    include_directories(SYSTEM "/opt/install/pc/include/eigen3/")
+endif()
+list(APPEND CMAKE_PREFIX_PATH "/opt/openrobots/")
+
+# Get the required information to build Python bindings
 if(BUILD_PYTHON_INTERFACE)
     # Get Python executable and version
     if(NOT DEFINED PYTHON_EXECUTABLE)
@@ -82,15 +98,15 @@ if(BUILD_PYTHON_INTERFACE)
                 message(FATAL_ERROR "Impossible to handle PYTHON_REQUIRED_VERSION for cmake older than 3.12.4, Cmake will exit.")
             endif()
             find_program(PYTHON_EXECUTABLE python)
-            if (NOT PYTHON_EXECUTABLE)
+            if(NOT PYTHON_EXECUTABLE)
                 message(FATAL_ERROR "No Python executable found, CMake will exit.")
             endif()
         else()
             if(PYTHON_REQUIRED_VERSION)
                 find_package(Python ${PYTHON_REQUIRED_VERSION} EXACT REQUIRED COMPONENTS Interpreter)
-            else(PYTHON_REQUIRED_VERSION)
+            else()
                 find_package(Python REQUIRED COMPONENTS Interpreter)
-            endif(PYTHON_REQUIRED_VERSION)
+            endif()
             set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
         endif()
     endif()
@@ -106,7 +122,7 @@ if(BUILD_PYTHON_INTERFACE)
     set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
     message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
 
-    ## Get Python system and user site-packages
+    # Get Python system and user site-packages
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
                             "import sysconfig; print(sysconfig.get_paths()['purelib'])"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -125,18 +141,18 @@ if(BUILD_PYTHON_INTERFACE)
                                 "if test -w ${PYTHON_SYS_SITELIB} ; then echo 0; else echo 1; fi"
                         OUTPUT_STRIP_TRAILING_WHITESPACE
                         OUTPUT_VARIABLE HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB)
-    else(NOT WIN32)
+    else()
         set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
-    endif(NOT WIN32)
+    endif()
 
     set(PYTHON_INSTALL_FLAGS "--upgrade ")
     if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
         set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
         message("-- No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
-    else(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
+    else()
         set(PYTHON_SITELIB "${PYTHON_SYS_SITELIB}")
-    endif(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
+    endif()
 
     # Get PYTHON_EXT_SUFFIX
     set(PYTHON_EXT_SUFFIX "")
@@ -145,13 +161,13 @@ if(BUILD_PYTHON_INTERFACE)
                                 "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))"
                         OUTPUT_STRIP_TRAILING_WHITESPACE
                         OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
-    endif(PYTHON_VERSION_MAJOR EQUAL 3)
+    endif()
     if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
         if(NOT WIN32)
-            SET(PYTHON_EXT_SUFFIX ".so")
-        else(WIN32)
-            SET(PYTHON_EXT_SUFFIX ".pyd")
-        endif(WIN32)
+            set(PYTHON_EXT_SUFFIX ".so")
+        else()
+            set(PYTHON_EXT_SUFFIX ".pyd")
+        endif()
     ENDIF()
 
     # Include Python headers
@@ -180,13 +196,13 @@ if(BUILD_PYTHON_INTERFACE)
         set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
         unset(Boost_LIBRARIES)
         unset(Boost_LIBRARIES CACHE)
-    else(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+    else()
         if(${PYTHON_VERSION_MAJOR} EQUAL 3)
             set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
-        else(${PYTHON_VERSION_MAJOR} EQUAL 3)
+        else()
             set(BOOST_PYTHON_LIB "boost_numpy;boost_python")
-        endif(${PYTHON_VERSION_MAJOR} EQUAL 3)
-    endif(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+        endif()
+    endif()
     message("-- Boost Python Libs: ${BOOST_PYTHON_LIB}")
 
     # Define Python install helpers

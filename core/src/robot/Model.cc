@@ -20,6 +20,8 @@ namespace jiminy
     Model::Model(void) :
     pncModel_(),
     pncData_(pncModel_),
+    pncGeometryModel_(),
+    pncGeometryData_(nullptr),
     pncModelRigidOrig_(),
     pncDataRigidOrig_(pncModelRigidOrig_),
     mdlOptions_(nullptr),
@@ -28,6 +30,7 @@ namespace jiminy
     urdfPath_(),
     hasFreeflyer_(false),
     mdlOptionsHolder_(),
+    contactBodiesNames_(),
     contactFramesNames_(),
     contactFramesIdx_(),
     rigidJointsNames_(),
@@ -113,9 +116,194 @@ namespace jiminy
     {
         if (isInitialized_)
         {
-            // Update the biases added to the dynamics properties of the model.
+            // Update the biases added to the dynamics properties of the model
             generateModelBiased();
         }
+    }
+
+    hresult_t Model::addFrame(std::string    const & frameName,
+                              std::string    const & parentBodyName,
+                              pinocchio::SE3 const & framePlacement)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
+
+        // Add the frame to the the current model
+        int32_t parentBodyId;
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModel_.addFrame(frame);
+        }
+
+        // Add the frame to the the original rigid model
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModelRigidOrig_.addFrame(frame);
+        }
+
+        // Add the frame to the the original flexible model
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            pncModelFlexibleOrig_.addFrame(frame);
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Model::removeFrame(std::string const & frameName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
+
+        // Check that the frame can be removed from the current model.
+        // If so, assuming it is also the case for the original models.
+        int32_t frameId;
+        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (pncModelRigidOrig_.frames[frameId].type != frameType)
+            {
+                std::cout << "Error - Model::removeFrame - Impossible to remove this frame. One should only remove frames added manually." << std::endl;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Remove the frame from the the current model
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModel_.frames.erase(pncModel_.frames.begin() + frameId);
+            pncModel_.nframes--;
+        }
+
+        // Remove the frame from the the current model
+        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
+            pncModelRigidOrig_.nframes--;
+        }
+
+        // Remove the frame from the the current model
+        returnCode = getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            pncModelFlexibleOrig_.frames.erase(pncModelFlexibleOrig_.frames.begin() + frameId);
+            pncModelFlexibleOrig_.nframes--;
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Model::addContactBodies(std::vector<std::string> const & bodyNames)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::addContactBodies - Model not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        // Make sure that the body list is not empty
+        if (bodyNames.empty())
+        {
+            std::cout << "Error - Model::addContactBodies - The list of bodies must not be empty." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure that no body are duplicates
+        if (checkDuplicates(bodyNames))
+        {
+            std::cout << "Error - Model::addContactBodies - Some bodies are duplicates." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure that there is no contact already associated with any of the bodies in the list
+        if (checkIntersection(contactBodiesNames_, bodyNames))
+        {
+            std::cout << "Error - Model::addContactBodies - At least one of the body is already been associated with a contact." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure that all the frames exist
+        for (std::string const & body : bodyNames)
+        {
+            if (!pncGeometryModel_.existGeometryName(body))
+            {
+                std::cout << "Error - Model::addContactBodies - At least one of the body does not exist." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Add the list of bodies to the set of contact bodies
+        contactBodiesNames_.insert(contactBodiesNames_.end(), bodyNames.begin(), bodyNames.end());
+
+        // Create the collision pairs and add them to the geometry model of the robot
+        pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
+        for (std::string const & name : bodyNames)
+        {
+            pinocchio::GeomIndex const & bodyId = pncGeometryModel_.getGeometryId(name);
+            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
+            pncGeometryModel_.addCollisionPair(collisionPair);
+        }
+
+        // Refresh proxies associated with the contact only
+        refreshContactsProxies();
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Model::removeContactBodies(std::vector<std::string> const & bodyNames)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Model::removeContactBodies - Model not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        // Make sure that no body are duplicates
+        if (checkDuplicates(bodyNames))
+        {
+            std::cout << "Error - Model::removeContactBodies - Some bodies are duplicates." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure that every body in the list is associated with a contact
+        if (!checkInclusion(contactBodiesNames_, bodyNames))
+        {
+            std::cout << "Error - Model::removeContactBodies - At least one of the body is not associated with any contact." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Remove the list of bodies from the set of contact bodies
+        if (!bodyNames.empty())
+        {
+            eraseVector(contactBodiesNames_, bodyNames);
+        }
+        else
+        {
+            contactBodiesNames_.clear();
+        }
+
+        // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
+        pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
+        for (std::string const & name : bodyNames)
+        {
+            pinocchio::GeomIndex const & bodyId = pncGeometryModel_.getGeometryId(name);
+            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
+            pncGeometryModel_.removeCollisionPair(collisionPair);
+        }
+
+        // Refresh proxies associated with the contact only
+        refreshContactsProxies();
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Model::addContactPoints(std::vector<std::string> const & frameNames)
@@ -140,30 +328,27 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure that no contact point is associated with any of the frame in the list
+        // Make sure that there is no contact already associated with any of the frames in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact point." << std::endl;
+            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that all the frames exist
-        for (std::string const & frame : frameNames)
+        for (std::string const & name : frameNames)
         {
-            if (!pncModel_.existFrame(frame))
+            if (!pncModel_.existFrame(name))
             {
                 std::cout << "Error - Model::addContactPoints - At least one of the frame does not exist." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
 
-        // Add the list of frames to the set of contact points
+        // Add the list of frames to the set of contact frames
         contactFramesNames_.insert(contactFramesNames_.end(), frameNames.begin(), frameNames.end());
 
-        // Reset the contact force internal buffer
-        contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
-
-        // Refresh proxies associated with the contact points only
+        // Refresh proxies associated with the contact only
         refreshContactsProxies();
 
         return hresult_t::SUCCESS;
@@ -184,14 +369,14 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure that every frame in the list is associated with a contact point
+        // Make sure that every frame in the list is associated with a contact
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact point." << std::endl;
+            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Remove the list of frames from the set of contact points
+        // Remove the list of frames from the set of contact frames
         if (!frameNames.empty())
         {
             eraseVector(contactFramesNames_, frameNames);
@@ -201,10 +386,7 @@ namespace jiminy
             contactFramesNames_.clear();
         }
 
-        // Reset the contact force internal buffer
-        contactForces_ = forceVector_t(contactFramesNames_.size(), pinocchio::Force::Zero());
-
-        // Refresh proxies associated with the contact points only
+        // Refresh proxies associated with the contact only
         refreshContactsProxies();
 
         return hresult_t::SUCCESS;
@@ -316,6 +498,13 @@ namespace jiminy
             pinocchio::updateFramePlacements(pncModel_, pncData_);
             pinocchio::centerOfMass(pncModel_, pncData_,
                                     pinocchio::neutral(pncModel_));
+
+            // Initialize Pinocchio Geometry Data internal state
+            pncGeometryData_ = std::make_unique<pinocchio::GeometryData>(pncGeometryModel_);
+            pinocchio::updateGeometryPlacements(pncModel_,
+                                                pncData_,
+                                                pncGeometryModel_,
+                                                *pncGeometryData_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -528,6 +717,10 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
+            // Reset the contact force internal buffer
+            uint64_t nContacts = contactFramesNames_.size() + contactBodiesNames_.size();
+            contactForces_ = forceVector_t(nContacts, pinocchio::Force::Zero());
+
             // Extract the contact frames indices in the model
             getFramesIdx(pncModel_, contactFramesNames_, contactFramesIdx_);
         }
@@ -656,6 +849,7 @@ namespace jiminy
         urdfPath_ = urdfPath;
         hasFreeflyer_ = hasFreeflyer;
 
+        // Build the robot model
         try
         {
             if (hasFreeflyer)
@@ -674,6 +868,21 @@ namespace jiminy
             std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
+
+        // Build the robot geometry model
+        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_);
+
+        // Instantiate ground plane FCL geometry, wrapped as a pinocchio collision geometry
+        hpp::fcl::Vec3f const normal(0.0, 0.0, 1.0);
+        float64_t const offset = 0;
+        auto groudPlane = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Plane(normal, offset));
+
+        // Create a Pinocchio Geometry object associated with the ground plan.
+        // Its parent frame and parent joint are the universe, and it is centered and aligned with world frame.
+        pinocchio::GeometryObject groundPlane("ground", 0, 0, groudPlane, pinocchio::SE3::Identity()); // pinocchio::FrameIndex / pinocchio::JointIndex required ?
+
+        // Add the ground plane pinocchio to the robot model
+        pncGeometryModel_.addGeometryObject(groundPlane, pncModel_);
 
         return hresult_t::SUCCESS;
     }

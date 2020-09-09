@@ -4,6 +4,7 @@
 
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/contact-dynamics.hpp"
+#include "pinocchio/algorithm/geometry.hpp"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -1754,6 +1755,12 @@ namespace jiminy
     {
         pinocchio::forwardKinematics(system.robot->pncModel_, system.robot->pncData_, q, v, a);
         pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
+        pinocchio::updateGeometryPlacements(system.robot->pncModel_,
+                                            system.robot->pncData_,
+                                            system.robot->pncGeometryModel_,
+                                            *system.robot->pncGeometryData_);
+        pinocchio::computeCollisions(system.robot->pncGeometryModel_,
+                                     *system.robot->pncGeometryData_);
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,

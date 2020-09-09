@@ -36,9 +36,9 @@ if is_notebook() == 1:
     # The IO message rate limit has already been increased to 1e6 on Google
     # Colab, so no need to throw this warning.
     logging.warning(
-        "You may experience some lags while replaying a simulation.\n"\
-         "Consider increasing the IO message rate limit by adding the "\
-         "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "\
+        "You may experience some lags while replaying a simulation.\n"
+         "Consider increasing the IO message rate limit by adding the "
+         "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "
          "executing 'jupyter notebook'.")
 
 if is_notebook():
@@ -59,9 +59,9 @@ if is_notebook():
         from ipykernel.kernelbase import SHELL_PRIORITY
     else:
         logging.warning(
-            "Old ipykernel version < 5.0 detected. Please do not schedule "\
-            "other cells for execution while the viewer is busy otherwise "\
-            "it will be not executed properly.\nUpdate to a newer version "\
+            "Old ipykernel version < 5.0 detected. Please do not schedule "
+            "other cells for execution while the viewer is busy otherwise "
+            "it will be not executed properly.\nUpdate to a newer version "
             "if possible to avoid such limitation.")
 
     class CommProcessor:
@@ -80,8 +80,8 @@ if is_notebook():
             self.__kernel = get_ipython().kernel
             self.__old_api = version(ipykernel.__version__) < version("5.0")
             if self.__old_api:
-                logging.warning("Pre/post kernel handler hooks must be "\
-                    "disable for the old ipykernel API to enable fetching"\
+                logging.warning("Pre/post kernel handler hooks must be "
+                    "disable for the old ipykernel API to enable fetching"
                     "shell messages from child threads.")
                 self.__kernel.post_handler_hook = lambda : None
                 self.__kernel.pre_handler_hook = lambda : None

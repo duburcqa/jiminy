@@ -1,4 +1,4 @@
-name: Ubuntu 18 CI (Easy install dependencies)
+name: Ubuntu CI (Easy install dependencies)
 
 on:
   # Trigger the workflow on push on the master branch, or for any pull request
@@ -8,9 +8,13 @@ on:
   pull_request:
 
 jobs:
-  build-test-and-deploy-doc-ubuntu18:
-    name: (Ubuntu 18) Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
-    runs-on: ubuntu-18.04
+  build-test-and-deploy-doc-ubuntu:
+    name: (Ubuntu) Easy install the dependencies. Build the project and run the unit tests. Generate and deploy the documentation.
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04]
 
     defaults:
       run:
@@ -27,8 +31,17 @@ jobs:
 
     #####################################################################################
 
+    - name: Setup minimal build environment
+      run: |
+        # Set Python 3 executable
+        if [ ${{ matrix.os }} == "ubuntu-18.04" ] ; then
+          PYTHON_EXECUTABLE="/usr/bin/python3.6"
+        else
+          PYTHON_EXECUTABLE="/usr/bin/python3.8"
+        fi
+        echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
     - name: Installing requirements
-      run: sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu18.sh"
+      run: sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
 
     #####################################################################################
 
@@ -38,12 +51,18 @@ jobs:
         InstallDir="$RootDir/install"
 
         mkdir "$RootDir/build" "$InstallDir"
-
         cd "$RootDir/build"
+
+        # Old Eigen3 release 3.2.10 must be used on Ubuntu 18.04 for compatibility with Boost < 1.71
+        CMAKE_CXX_FLAGS=
+        if [ ${{ matrix.os }} == "ubuntu-18.04" ] ; then
+          CMAKE_CXX_FLAGS="-isystem/usr/include/eigen3.2.10"
+        fi
+
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-              -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_REQUIRED_VERSION="3.6" \
+              -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
-              -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
     #####################################################################################
@@ -52,7 +71,7 @@ jobs:
       run: |
         "${GITHUB_WORKSPACE}/build/unit/unit"
         cd "${GITHUB_WORKSPACE}/unit_py"
-        python3.6 -m unittest discover -v
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
 
     #####################################################################################
 

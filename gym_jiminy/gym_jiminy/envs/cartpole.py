@@ -9,21 +9,23 @@ from gym import spaces, logger
 from jiminy_py import core as jiminy
 from jiminy_py.engine_asynchronous import EngineAsynchronous
 
-from ..common.robots import RobotJiminyEnv
+from ..common.robots import BaseJiminyEnv
 
 
 DT = 2.0e-3      ## Stepper update period
 MAX_FORCE = 40.0 ## Max force of the motor
 
 
-class JiminyCartPoleEnv(RobotJiminyEnv):
+class CartPoleJiminyEnv(BaseJiminyEnv):
     """
-    @brief      Implementation of a Gym environment for the Cartpole which is using
-                Jiminy Engine to perform physics computations and Gepetto-viewer for
-                rendering. It is a specialization of RobotJiminyGoalEnv. The Cartpole
-                is a pole attached by an un-actuated joint to a cart. The goal is to
-                prevent the pendulum from falling over by increasing and reducing the
-                cart's velocity.
+    @brief      Implementation of a Gym environment for the Cartpole which is
+                using Jiminy Engine to perform physics computations and Meshcat
+                for rendering.
+
+    @remark     It is a specialization of BaseJiminyEnv. The Cartpole is a pole
+                attached by an un-actuated joint to a cart. The goal is to
+                prevent the pendulum from falling over by increasing and
+                reducing the cart's velocity.
 
     @details    **OBSERVATION:**
                 Type: Box(4)
@@ -39,17 +41,18 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                 0	Push cart to the left
                 1	Push cart to the right
 
-                Note that the amount the velocity that is reduced or increased is not
-                fixed, it depends on the angle the pole is pointing. This is because the
-                center of gravity of the pole increases the amount of energy needed to
-                move the cart underneath it.
+                Note that the amount the velocity that is reduced or increased
+                is not fixed, it depends on the angle the pole is pointing.
+                This is because the center of gravity of the pole increases the
+                amount of energy needed to move the cart underneath it.
 
                 **REWARD:**
-                Reward is 1 for every step taken, including the termination step.
-                move the cart underneath it.
+                Reward is 1 for every step taken, including the termination
+                step.
 
                 **STARTING STATE:**
-                All observations are assigned a uniform random value in [-0.05..0.05]
+                All observations are assigned a uniform random value in range
+                [-0.05, 0.05]
 
                 **EPISODE TERMINATION:**
                 If any of these conditions is satisfied:
@@ -58,8 +61,8 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                     - Episode length is greater than 200
 
                 **SOLVED REQUIREMENTS:**
-                Considered solved when the average reward is greater than or equal to
-                195.0 over 100 consecutive trials.
+                Considered solved when the average reward is greater than or
+                equal to 195.0 over 100 consecutive trials.
     """
     def __init__(self, continuous=False):
         """
@@ -68,11 +71,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         @return     Instance of the environment.
         """
 
-        #  @copydoc RobotJiminyEnv::__init__
+        #  @copydoc BaseJiminyEnv::__init__
         # ## @var state_random_high
-        #  @copydoc RobotJiminyEnv::state_random_high
+        #  @copydoc BaseJiminyEnv::state_random_high
         ## @var state_random_low
-        #  @copydoc RobotJiminyEnv::state_random_low
+        #  @copydoc BaseJiminyEnv::state_random_low
 
         # ########################## Backup the input arguments ################################
 
@@ -81,14 +84,19 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
 
         # ############################### Initialize Jiminy ####################################
 
-        os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
-        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
+        os.environ["JIMINY_MESH_PATH"] = \
+            resource_filename('gym_jiminy.envs', 'data')
+        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"],
+            "cartpole/cartpole.urdf")
 
         robot = jiminy.Robot()
         robot.initialize(urdf_path)
 
         motor_joint_name = "slider_to_cart"
-        encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
+        encoder_sensors_def = {
+            "slider": "slider_to_cart",
+            "pole": "cart_to_pole"
+        }
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
@@ -146,16 +154,17 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                          1.5 * self.theta_threshold_radians,
                          *self.robot.velocity_limit])
 
-        self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
+        self.observation_space = spaces.Box(
+            low=-high, high=high, dtype=np.float64)
         self.observation = np.zeros(self.observation_space.shape)
 
     def _sample_state(self):
-        # @copydoc RobotJiminyEnv::_sample_state
+        # @copydoc BaseJiminyEnv::_sample_state
         return self.rg.uniform(low=self.state_random_low,
                                high=self.state_random_high)
 
     def _update_obs(self, obs):
-        # @copydoc RobotJiminyEnv::_update_observation
+        # @copydoc BaseJiminyEnv::_update_observation
         obs[:] = self.engine_py.state
 
     @staticmethod
@@ -169,7 +178,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             return None
 
     def _is_done(self):
-        # @copydoc RobotJiminyEnv::_is_done
+        # @copydoc BaseJiminyEnv::_is_done
         x, theta, _, _ = self.observation
         return        x < -self.x_threshold \
                or     x >  self.x_threshold \
@@ -177,7 +186,7 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                or theta >  self.theta_threshold_radians
 
     def _compute_reward(self):
-        # @copydoc RobotJiminyEnv::_compute_reward
+        # @copydoc BaseJiminyEnv::_compute_reward
 
         # Add a small positive reward as long as the terminal condition
         # has never been reached during the same episode.
@@ -189,10 +198,11 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
         return reward
 
     def step(self, action):
-        # @copydoc RobotJiminyEnv::step
+        # @copydoc BaseJiminyEnv::step
         if action is not None:
             # Make sure that the action is within bounds
-            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+            assert self.action_space.contains(action), \
+                "%r (%s) invalid" % (action, type(action))
 
             # Compute the actual force to apply
             if not self.continuous:
