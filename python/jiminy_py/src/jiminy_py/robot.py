@@ -17,6 +17,7 @@ from .engine_asynchronous import EngineAsynchronous
 
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
+                   ContactSensor as contact,
                    ForceSensor as force,
                    ImuSensor as imu)
 
@@ -400,26 +401,36 @@ class BaseJiminyRobot(jiminy.Robot):
                 elif sensor_type == effort.type:
                     motor_name = sensor_descr.pop('motor_name')
                     sensor.initialize(motor_name)
+                elif sensor_type == contact.type:
+                    frame_name = sensor_descr.pop('frame_name')
+                    sensor.initialize(frame_name)
                 elif sensor_type in [force.type, imu.type]:
                     # Create the frame and add it to the robot model
-                    body_name = sensor_descr.pop('body_name')
+                    frame_name = sensor_descr.pop('frame_name', None)
 
-                    # Generate a frame name that is intelligible and available
-                    i = 0
-                    frame_name = sensor_name + "Frame"
-                    while self.pinocchio_model.existFrame(frame_name):
-                        frame_name = sensor_name + "Frame_%d" % i
-                        i += 1
+                    if frame_name is None:
+                        # Create a frame is a frame name has been specified.
+                        # In this case, the body name must be specified.
 
-                    # Compute SE3 object representing the frame placement
-                    frame_pose_xyzrpy = np.array(
-                        sensor_descr.pop('frame_pose'))
-                    frame_trans = frame_pose_xyzrpy[:3]
-                    frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
-                    frame_placement = pin.SE3(frame_rot, frame_trans)
+                        ## Get the body name
+                        body_name = sensor_descr.pop('body_name')
 
-                    # Add the frame to the robot model
-                    self.add_frame(frame_name, body_name, frame_placement)
+                        ## Generate a frame name that is intelligible and available
+                        i = 0
+                        frame_name = sensor_name + "Frame"
+                        while self.pinocchio_model.existFrame(frame_name):
+                            frame_name = sensor_name + "Frame_%d" % i
+                            i += 1
+
+                        ## Compute SE3 object representing the frame placement
+                        frame_pose_xyzrpy = np.array(
+                            sensor_descr.pop('frame_pose'))
+                        frame_trans = frame_pose_xyzrpy[:3]
+                        frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
+                        frame_placement = pin.SE3(frame_rot, frame_trans)
+
+                        ## Add the frame to the robot model
+                        self.add_frame(frame_name, body_name, frame_placement)
 
                     # Initialize the sensor
                     sensor.initialize(frame_name)
@@ -438,9 +449,9 @@ class BaseJiminyRobot(jiminy.Robot):
                 sensor.set_options(options)
 
         # Add the contact points
-        force_sensor_frame_names = [self.get_sensor(force.type, e).frame_name
+        force_sensor_frame_names = [self.get_sensor(force.type, e).body_name
                                     for e in self.sensors_names[force.type]]
-        self.add_contact_points(force_sensor_frame_names)
+        self.add_collision_bodies(force_sensor_frame_names)
 
     def set_model_options(self, model_options):
         super().set_model_options(model_options)

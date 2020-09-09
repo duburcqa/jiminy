@@ -40,11 +40,11 @@ namespace jiminy
         quaternion_t sensorRotationBias_; ///< Sensor rotation bias.
     };
 
-    class ForceSensor : public AbstractSensorTpl<ForceSensor>
+    class ContactSensor : public AbstractSensorTpl<ContactSensor>
     {
     public:
-        ForceSensor(std::string const & name);
-        ~ForceSensor(void) = default;
+        ContactSensor(std::string const & name);
+        ~ContactSensor(void) = default;
 
         auto shared_from_this() { return shared_from(this); }
 
@@ -65,6 +65,36 @@ namespace jiminy
     private:
         std::string frameName_;
         int32_t frameIdx_;
+    };
+
+    class ForceSensor : public AbstractSensorTpl<ForceSensor>
+    {
+    public:
+        ForceSensor(std::string const & name);
+        ~ForceSensor(void) = default;
+
+        auto shared_from_this() { return shared_from(this); }
+
+        hresult_t initialize(std::string const & frameName);
+
+        virtual hresult_t refreshProxies(void) final override;
+
+        std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
+        std::string const & getBodyName(void) const;
+        int32_t getJointIdx(void) const;
+
+    private:
+        virtual hresult_t set(float64_t                   const & t,
+                              Eigen::Ref<vectorN_t const> const & q,
+                              Eigen::Ref<vectorN_t const> const & v,
+                              Eigen::Ref<vectorN_t const> const & a,
+                              vectorN_t                   const & uMotor) final override;
+
+    private:
+        std::string frameName_;
+        int32_t frameIdx_;
+        int32_t parentBodyFrameIdx_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>

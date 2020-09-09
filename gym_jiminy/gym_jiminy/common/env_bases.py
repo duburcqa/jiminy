@@ -17,6 +17,7 @@ from gym.utils import seeding
 from pinocchio import neutral
 from jiminy_py.core import (EncoderSensor as enc,
                             EffortSensor as effort,
+                            ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
@@ -35,6 +36,7 @@ JOINT_VEL_UNIVERSAL_MAX = 100.0
 FLEX_VEL_ANG_UNIVERSAL_MAX = 10000.0
 MOTOR_EFFORT_UNIVERSAL_MAX = 1000.0
 SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
+SENSOR_MOMENT_UNIVERSAL_MAX = 10000.0
 SENSOR_GYRO_UNIVERSAL_MAX = 100.0
 SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
 T_UNIVERSAL_MAX = 10000.0
@@ -278,12 +280,23 @@ class BaseJiminyEnv(gym.core.Env):
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = \
                     action_high[motor_idx]
 
+        # Replace inf bounds by the appropriate universal bound for the Contact sensors
+        if contact.type in sensors_data.keys():
+            sensor_space_raw[contact.type]['min'][:,:] = \
+                -SENSOR_FORCE_UNIVERSAL_MAX
+            sensor_space_raw[contact.type]['max'][:,:] = \
+                +SENSOR_FORCE_UNIVERSAL_MAX
+
         # Replace inf bounds by the appropriate universal bound for the Force sensors
         if force.type in sensors_data.keys():
-            sensor_space_raw[force.type]['min'][:,:] = \
+            sensor_space_raw[force.type]['min'][:3,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][:,:] = \
+            sensor_space_raw[force.type]['max'][:3,:] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
+            sensor_space_raw[force.type]['min'][3:,:] = \
+                -SENSOR_MOMENT_UNIVERSAL_MAX
+            sensor_space_raw[force.type]['max'][3:,:] = \
+                +SENSOR_MOMENT_UNIVERSAL_MAX
 
         # Replace inf bounds by the appropriate universal bound for the IMU sensors
         if imu.type in sensors_data.keys():

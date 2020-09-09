@@ -100,7 +100,7 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
-    
+
     // ======================== is_vector ===========================
 
     template<typename T>
@@ -281,6 +281,13 @@ namespace jiminy
 
     hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut);
+
+    hresult_t getBodyIdx(pinocchio::Model const & model,
+                         std::string      const & bodyName,
+                         int32_t                & bodyIdx);
+    hresult_t getBodiesIdx(pinocchio::Model         const & model,
+                           std::vector<std::string> const & bodiesNames,
+                           std::vector<int32_t>           & bodiesIdx);
 
     hresult_t getFrameIdx(pinocchio::Model const & model,
                           std::string      const & frameName,

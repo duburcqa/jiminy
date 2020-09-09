@@ -814,7 +814,7 @@ namespace python
 
             template<class Q = TSensor>
             static enable_if_t<std::is_same<Q, ImuSensor>::value
-                            || std::is_same<Q, ForceSensor>::value, void>
+                            || std::is_same<Q, ContactSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -825,6 +825,25 @@ namespace python
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    ;
+            }
+
+            template<class Q = TSensor>
+            static enable_if_t<std::is_same<Q, ForceSensor>::value, void>
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+                visitBasicSensors(cl);
+
+                cl
+                    .add_property("frame_name", bp::make_function(&TSensor::getFrameName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("body_name", bp::make_function(&TSensor::getBodyName,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&TSensor::getJointIdx,
+                                               bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
@@ -896,6 +915,11 @@ namespace python
                        boost::noncopyable>("ImuSensor", bp::init<std::string>())
                 .def(PySensorVisitor());
 
+            bp::class_<ContactSensor, bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<ContactSensor>,
+                       boost::noncopyable>("ContactSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
+
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor", bp::init<std::string>())
@@ -930,6 +954,11 @@ namespace python
                                   (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
                 .def("remove_frame", &Model::removeFrame,
                                      (bp::arg("self"), "frame_name"))
+                .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
+                                             (bp::arg("self"),
+                                              bp::arg("link_names") = std::vector<std::string>()))
+                .def("remove_collision_bodies", &PyModelVisitor::removeCollisionBodies,
+                                                (bp::arg("self"), "link_names"))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
@@ -968,6 +997,8 @@ namespace python
                 .add_property("nx", bp::make_function(&Model::nx,
                                     bp::return_value_policy<bp::copy_const_reference>()))
 
+                .add_property("collision_bodies_names", bp::make_function(&Model::getCollisionBodiesNames,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
@@ -1004,6 +1035,20 @@ namespace python
         static pinocchio::GeometryData & getGeometryData(Model & self)
         {
             return *(self.pncGeometryData_);
+        }
+
+        static hresult_t addCollisionBodies(Model          & self,
+                                          bp::list const & linkNamesPy)
+        {
+            auto linkNames = convertFromPython<std::vector<std::string> >(linkNamesPy);
+            return self.addCollisionBodies(linkNames);
+        }
+
+        static hresult_t removeCollisionBodies(Model          & self,
+                                             bp::list const & linkNamesPy)
+        {
+            auto linkNames = convertFromPython<std::vector<std::string> >(linkNamesPy);
+            return self.removeCollisionBodies(linkNames);
         }
 
         static hresult_t addContactPoints(Model          & self,

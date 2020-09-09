@@ -123,8 +123,8 @@ namespace jiminy
                            std::string    const & parentBodyName,
                            pinocchio::SE3 const & framePlacement);
         hresult_t removeFrame(std::string const & frameName);
-        hresult_t addContactBodies(std::vector<std::string> const & bodyNames);
-        hresult_t removeContactBodies(std::vector<std::string> const & frameNames = {});
+        hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames);
+        hresult_t removeCollisionBodies(std::vector<std::string> const & frameNames = {});
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
@@ -142,6 +142,7 @@ namespace jiminy
         int32_t const & nv(void) const;
         int32_t const & nx(void) const;
 
+        std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
@@ -169,6 +170,7 @@ namespace jiminy
                                 bool_t      const & hasFreeflyer);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
+        hresult_t refreshCollisionProxies(void);
         hresult_t refreshContactsProxies(void);
         virtual hresult_t refreshProxies(void);
 
@@ -188,7 +190,7 @@ namespace jiminy
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> contactBodiesNames_;       ///< Name of the contact bodies of the robot
+        std::vector<std::string> collisionBodiesNames_;     ///< Name of the collision bodies of the robot
         std::vector<std::string> contactFramesNames_;       ///< Name of the contact frames of the robot
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
