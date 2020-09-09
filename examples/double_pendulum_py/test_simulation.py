@@ -11,8 +11,8 @@ from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
 # ################################ User parameters #######################################
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
-urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "double_pendulum/double_pendulum.urdf")
+os.environ["JIMINY_DATA_PATH"] = os.path.join(script_dir, "../../data")
+urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"], "double_pendulum/double_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 

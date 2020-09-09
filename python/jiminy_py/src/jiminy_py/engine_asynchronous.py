@@ -277,7 +277,7 @@ class EngineAsynchronous:
         """
         @brief      Close the connection with the renderer.
         """
-        if self._viewer is not None:
+        if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
             self._viewer = None
 

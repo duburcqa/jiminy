@@ -949,6 +949,10 @@ namespace python
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
                                                    bp::return_internal_reference<>()))
+                .add_property("collision_model", bp::make_getter(&Model::pncGeometryModel_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("collision_data", bp::make_function(&PyModelVisitor::getGeometryData,
+                                                bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
@@ -995,6 +999,11 @@ namespace python
                 .add_property("logfile_acceleration_headers", bp::make_function(&Model::getAccelerationFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
                 ;
+        }
+
+        static pinocchio::GeometryData & getGeometryData(Model & self)
+        {
+            return *(self.pncGeometryData_);
         }
 
         static hresult_t addContactPoints(Model          & self,

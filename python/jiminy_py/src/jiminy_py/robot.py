@@ -1,10 +1,12 @@
 ## @file
 
 import os
+import re
 import toml
 import copy
-import pathlib
 import logging
+import pathlib
+import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import OrderedDict
@@ -243,6 +245,50 @@ def generate_hardware_description_file(
         toml.dump(hardware_info, f)
 
 
+def fix_urdf_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
+    """
+    @brief      Generate an URDF with updated mesh paths.
+
+    @param[in]  urdf_path           Full path of the URDF file.
+    @param[in]  mesh_root_path      Root path of the meshes.
+    @param[in]  output_root_path    Root directory of the fixed URDF file.
+                                    Optional: temporary directory by default.
+
+    @return     Full path of the fixed URDF file.
+    """
+    # Extract all the mesh path that are not package path, continue if any
+    with open(urdf_path, 'r') as urdf_file:
+        urdf_contents = urdf_file.read()
+    pathlists = [
+        filename
+        for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
+        if not filename.startswith('package://')]
+    if not pathlists:
+        return urdf_path
+
+    # If mesh root path already matching, then nothing to do
+    mesh_root_path_orig = os.path.commonpath(pathlists)
+    if mesh_root_path == mesh_root_path_orig:
+        return urdf_path
+
+    # Create the output directory
+    if output_root_path is None:
+        output_root_path = tempfile.mkdtemp()
+    fixed_urdf_dir = os.path.join(output_root_path,
+        "fixed_urdf" + mesh_root_path.replace('/', '_'))
+    os.makedirs(fixed_urdf_dir, exist_ok=True)
+    fixed_urdf_path = os.path.join(
+        fixed_urdf_dir, os.path.basename(urdf_path))
+
+    # Override the root mesh path with the desired one
+    urdf_contents = urdf_contents.replace(
+        mesh_root_path_orig, mesh_root_path)
+    with open(fixed_urdf_path, 'w') as f:
+        f.write(urdf_contents)
+
+    return fixed_urdf_path
+
+
 class BaseJiminyRobot(jiminy.Robot):
     """
     @brief     Base class to instantiate a Jiminy robot based on a standard
@@ -267,11 +313,38 @@ class BaseJiminyRobot(jiminy.Robot):
     def __init__(self):
         super().__init__()
         self.robot_options = None
+        self.urdf_path_orig = None
 
     def initialize(self,
                    urdf_path : str,
                    toml_path : Optional[str] = None,
+                   mesh_root_path : Optional[str] = None,
                    has_freeflyer : bool = True):
+        """
+        @brief  Initialize the robot.
+
+        @param  urdf_path        Path of the URDF file of the robot.
+        @param  toml_path        Path of the Jiminy hardware description file.
+                                 Optional: Looking for toml file in the same
+                                 folder and with the same name. If not found,
+                                 then no hardware is added to the robot, which
+                                 is valid and can be used for display.
+        @param  mesh_root_path   Path to the folder containing the URDF meshes.
+                                 It will overwrite any absolute mesh path.
+                                 Optional: Env variable 'JIMINY_DATA_PATH' will
+                                 be used if available.
+        @param  has_freeflyer    Whether the robot is fixed-based wrt its root
+                                 link, or can move freely in the world.
+        """
+        # Backup the original URDF path
+        self.urdf_path_orig = urdf_path
+
+        # Fix the URDF mesh paths
+        if mesh_root_path is None:
+            mesh_root_path = os.environ.get('JIMINY_DATA_PATH', None)
+        if mesh_root_path is not None:
+            urdf_path = fix_urdf_mesh_path(urdf_path, mesh_root_path)
+
         # Initialize the robot without motors nor sensors
         return_code = super().initialize(urdf_path, has_freeflyer)
 
@@ -279,13 +352,14 @@ class BaseJiminyRobot(jiminy.Robot):
             raise ValueError("Impossible to load the URDF file. "
                 "Either the file is corrupted or does not exit.")
 
-        # Load the hardware description file
+        # Load the hardware description file if available
         if toml_path is None:
-            toml_path = pathlib.Path(urdf_path).with_suffix('.toml')
+            toml_path = pathlib.Path(self.urdf_path_orig).with_suffix('.toml')
         if not os.path.exists(toml_path):
-            raise FileNotFoundError("Hardware configuration file not found. "
-                "Default file can be generated automatically using "
-                "'generate_hardware_description_file' method.")
+            logger.warning("Hardware configuration file not found. Not adding "
+                "any hardware to the robot.\n Default file can be generated "
+                "automatically using 'generate_hardware_description_file'.")
+            return
         hardware_info = toml.load(toml_path)
         global_info = hardware_info.pop('Global')
         motors_info = hardware_info.pop('Motor')
@@ -338,8 +412,9 @@ class BaseJiminyRobot(jiminy.Robot):
                         i += 1
 
                     # Compute SE3 object representing the frame placement
-                    frame_pose_xyzrpy = sensor_descr.pop('frame_pose')
-                    frame_trans = np.array(frame_pose_xyzrpy[:3])
+                    frame_pose_xyzrpy = np.array(
+                        sensor_descr.pop('frame_pose'))
+                    frame_trans = frame_pose_xyzrpy[:3]
                     frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
                     frame_placement = pin.SE3(frame_rot, frame_trans)
 
@@ -431,12 +506,13 @@ class BaseJiminyEngine(EngineAsynchronous):
     def __init__(self,
                  urdf_path: str,
                  toml_path : Optional[str] = None,
+                 mesh_root_path : Optional[str] = None,
                  has_freeflyer : bool = True,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, toml_path, has_freeflyer)
+        robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)
 
         # Instantiate the controller (initialization is managed by the engine)
         controller = BaseJiminyController(self._send_command)

@@ -36,8 +36,8 @@ acceleration_control = args.acceleration
 position_control = not acceleration_control
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
-urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple_pendulum.urdf")
+os.environ["JIMINY_DATA_PATH"] = os.path.join(script_dir, "../../data")
+urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"], "simple_pendulum/simple_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 

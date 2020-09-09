@@ -158,7 +158,6 @@ class Viewer:
     def __init__(self,
                  robot,
                  use_theoretical_model=False,
-                 mesh_root_path=None,
                  urdf_rgba=None,
                  lock=None,
                  backend=None,
@@ -173,9 +172,6 @@ class Viewer:
         @param robot          The jiminy.Robot to display.
         @param use_theoretical_model   Whether to use the theoretical (rigid) model or the flexible
                                        model for this robot.
-        @param mesh_root_path    Path to the folder containing the URDF meshes.
-                                 Optional: Must only be specified for relative mesh paths.
-                                           It will override any absolute mesh path if specified.
         @param urdf_rgba      RGBA color to use to display this robot, as a list of 4 floating-point
                               values between 0.0 and 1.0.
                               Optional: It will override the original color of the meshes if specified.
@@ -233,6 +229,7 @@ class Viewer:
         else:
             self.pinocchio_model = robot.pinocchio_model
             self.pinocchio_data = robot.pinocchio_data
+        self.collision_model = robot.collision_model
 
         # Select the desired backend
         if backend is None:
@@ -330,32 +327,20 @@ class Viewer:
         self._tempdir = tempfile.mkdtemp(
             prefix= "_".join([window_name, scene_name, robot_name, ""]))
 
-        # Check for conflict in mesh path specification
-        if mesh_root_path != None:
-            self.urdf_path = Viewer._urdf_fix_mesh_path(
-                self.urdf_path, mesh_root_path, self._tempdir)
-
         # Create a RobotWrapper
-        if mesh_root_path is not None:
-            root_path = mesh_root_path
-        else:
-            root_path = os.environ.get('JIMINY_MESH_PATH', [])
         if Viewer.backend == 'gepetto-gui':
             Viewer._delete_nodes_viewer([scene_name + '/' + self.robot_name])
             if urdf_rgba is not None:
                 alpha = urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    self.urdf_path, urdf_rgba[:3], root_path, self._tempdir)
+                    self.urdf_path, urdf_rgba[:3], self._tempdir)
             else:
                 alpha = 1.0
-        collision_model = pin.buildGeomFromUrdf(
-            self.pinocchio_model, self.urdf_path,
-            root_path, pin.GeometryType.COLLISION)
         visual_model = pin.buildGeomFromUrdf(
             self.pinocchio_model, self.urdf_path,
-            root_path, pin.GeometryType.VISUAL)
+            [], pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
-                                collision_model=collision_model,
+                                collision_model=self.collision_model,
                                 visual_model=visual_model)
         if not self.use_theoretical_model:
             self._rb.data = robot.pinocchio_data
@@ -369,12 +354,12 @@ class Viewer:
             self._client.setFloatProperty(scene_name + '/' + self.robot_name,
                                           'Transparency', 1 - alpha)
         else:
-            self._client.collision_model = collision_model
+            self._client.collision_model = self.collision_model
             self._client.visual_model = visual_model
             (self._client.data,
              self._client.collision_data,
              self._client.visual_data) = createDatas(
-                 self.pinocchio_model, collision_model, visual_model)
+                 self.pinocchio_model, self.collision_model, visual_model)
             self._client.loadViewerModel(
                 rootNodeName=self.robot_name, color=urdf_rgba)
             self._rb.viz = self._client
@@ -540,7 +525,6 @@ class Viewer:
     @staticmethod
     def _get_colorized_urdf(urdf_path,
                             rgb,
-                            mesh_root_path=None,
                             output_root_path=None):
         """
         @brief      Generate a unique colorized URDF.
@@ -550,7 +534,6 @@ class Viewer:
 
         @param[in]  urdf_path           Full path of the URDF file.
         @param[in]  rgb                 RGB code defining the color of the model. It is the same for each link.
-        @param[in]  mesh_root_path      Root path of the meshes (optional).
         @param[in]  output_root_path    Root directory of the colorized URDF data (optional).
 
         @return     Full path of the colorized URDF file.
@@ -574,10 +557,6 @@ class Viewer:
 
         for mesh_fullpath in re.findall(
                 '<mesh filename="(.*)"', colorized_contents):
-            if mesh_root_path is not None:
-                # Replace package path by mesh_root_path for convenience
-                if mesh_fullpath.startswith('package://'):
-                    mesh_fullpath = mesh_root_path + mesh_fullpath[9:]
             colorized_mesh_fullpath = os.path.join(
                 colorized_data_dir, mesh_fullpath[1:])
             colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
@@ -593,49 +572,6 @@ class Viewer:
             f.write(colorized_contents)
 
         return colorized_urdf_path
-
-    @staticmethod
-    def _urdf_fix_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
-        """
-        @brief      Generate an URDF with updated mesh paths.
-
-        @param[in]  urdf_path           Full path of the URDF file.
-        @param[in]  mesh_root_path      Root path of the meshes (optional).
-        @param[in]  output_root_path    Root directory of the fixed URDF file (optional).
-
-        @return     Full path of the fixed URDF file.
-        """
-        # Extract all the mesh path that are not package path, continue if any
-        with open(urdf_path, 'r') as urdf_file:
-            urdf_contents = urdf_file.read()
-        pathlists = [
-            filename
-            for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
-            if not filename.startswith('package://')]
-        if not pathlists:
-            return urdf_path
-
-        # If mesh root path already matching, then nothing to do
-        mesh_root_path_orig = os.path.commonpath(pathlists)
-        if mesh_root_path == mesh_root_path_orig:
-            return urdf_path
-
-        # Create the output directory
-        if output_root_path is None:
-            output_root_path = tempfile.mkdtemp()
-        fixed_urdf_dir = os.path.join(output_root_path,
-            "fixed_urdf" + mesh_root_path.replace('/', '_'))
-        os.makedirs(fixed_urdf_dir, exist_ok=True)
-        fixed_urdf_path = os.path.join(
-            fixed_urdf_dir, os.path.basename(urdf_path))
-
-        # Override the root mesh path with the desired one
-        urdf_contents = urdf_contents.replace(
-            mesh_root_path_orig, mesh_root_path)
-        with open(fixed_urdf_path, 'w') as f:
-            f.write(urdf_contents)
-
-        return fixed_urdf_path
 
     @staticmethod
     def __get_client(start_if_needed=False,
@@ -1113,7 +1049,6 @@ def extract_viewer_data_from_log(log_data, robot):
             'use_theoretical_model': use_theoretical_model}
 
 def play_trajectories(trajectory_data,
-                      mesh_root_path=None,
                       replay_speed=1.0,
                       record_video_path=None,
                       viewers=None,
@@ -1141,7 +1076,6 @@ def play_trajectories(trajectory_data,
                                     'evolution_robot': list of State object of increasing time
                                     'robot': jiminy robot (None if omitted)
                                     'use_theoretical_model': whether to use the theoretical or actual model
-    @param[in]  mesh_root_path      Optional, path to the folder containing the URDF meshes.
     @param[in]  replay_speed        Speed ratio of the simulation.
                                     Optional: 1.0 by default
     @param[in]  record_video_path   Fullpath location where to save generated video (.mp4 extension is
@@ -1214,7 +1148,6 @@ def play_trajectories(trajectory_data,
             viewer = Viewer(
                 robot,
                 use_theoretical_model=use_theoretical_model,
-                mesh_root_path=mesh_root_path,
                 urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None,
                 robot_name=robot_name,
                 lock=lock,
