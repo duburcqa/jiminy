@@ -9,8 +9,9 @@ from math import atan2, pi, sqrt
 
 import pinocchio as pin
 
-warnings.filterwarnings("ignore", message=("This function signature is now "
-    "deprecated and will be removed in future releases of Pinocchio."))
+# Disable all deprecation warnings of Pinocchio because, for now, Jiminy
+# supports many releases, for which some methods have different signatures.
+warnings.filterwarnings("ignore", category=pin.DeprecatedWarning)
 
 from pinocchio.rpy import npToTTuple
 
@@ -80,3 +81,13 @@ def display(self, q):
         self.viewer[self.getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
 
 pin.visualize.meshcat_visualizer.MeshcatVisualizer.display = display
+
+loadPrimitive_orig = pin.visualize.gepetto_visualizer.GepettoVisualizer.loadPrimitive
+def loadPrimitive(self, meshName, geometry_object):
+    # Do not load the geometry of the ground is is not an actually geometry
+    # but rather a calculus artifact.
+    if geometry_object.name != "ground":
+        result = loadPrimitive_orig(self, meshName, geometry_object)
+    else:
+        return False
+pin.visualize.gepetto_visualizer.GepettoVisualizer.loadPrimitive = loadPrimitive
