@@ -41,11 +41,21 @@ namespace jiminy
             return config;
         };
 
+        virtual configHolder_t getDefaultCollisionOptions()
+        {
+            // Add extra options or update default values
+            configHolder_t config;
+            config["maxContactPointsPerBody"] = 3U;  // Max number of contact points per collision pairs
+
+            return config;
+        };
+
         virtual configHolder_t getDefaultModelOptions()
         {
             configHolder_t config;
             config["dynamics"] = getDefaultDynamicsOptions();
             config["joints"] = getDefaultJointOptions();
+            config["collisions"] = getDefaultCollisionOptions();
 
             return config;
         };
@@ -94,14 +104,27 @@ namespace jiminy
             }
         };
 
+        struct collisionOptions_t
+        {
+            uint32_t const maxContactPointsPerBody;
+
+            collisionOptions_t(configHolder_t const & options) :
+            maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
+            {
+                // Empty.
+            }
+        };
+
         struct modelOptions_t
         {
             dynamicsOptions_t const dynamics;
             jointOptions_t const joints;
+            collisionOptions_t const collisions;
 
             modelOptions_t(configHolder_t const & options) :
             dynamics(boost::get<configHolder_t>(options.at("dynamics"))),
-            joints(boost::get<configHolder_t>(options.at("joints")))
+            joints(boost::get<configHolder_t>(options.at("joints"))),
+            collisions(boost::get<configHolder_t>(options.at("collisions")))
             {
                 // Empty.
             }
@@ -170,7 +193,7 @@ namespace jiminy
                                 bool_t      const & hasFreeflyer);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
-        hresult_t refreshCollisionProxies(void);
+        hresult_t refreshCollisionsProxies(void);
         hresult_t refreshContactsProxies(void);
         virtual hresult_t refreshProxies(void);
 

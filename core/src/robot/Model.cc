@@ -278,12 +278,16 @@ namespace jiminy
                 }
             }
 
-            // Create and add the collision pair with the ground
-            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
+            /* Create and add the collision pair with the ground.
+               Note that the ground must come first for the normal to be properly computed
+               since the contact information only reports the normal of the second geometry
+               wrt the world, which is the only one that is really interesting since the
+               ground normal never changes for flat ground, as it is the case now. */
+            pinocchio::CollisionPair const collisionPair(groundId, bodyId);
             pncGeometryModel_.addCollisionPair(collisionPair);
 
             // Refresh proxies associated with the collisions only
-            refreshCollisionProxies();
+            refreshCollisionsProxies();
         }
 
         return hresult_t::SUCCESS;
@@ -338,11 +342,11 @@ namespace jiminy
             }
 
             // Create and remove the collision pair with the ground
-            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
+            pinocchio::CollisionPair const collisionPair(groundId, bodyId);
             pncGeometryModel_.removeCollisionPair(collisionPair);
 
             // Refresh proxies associated with the collisions only
-            refreshCollisionProxies();
+            refreshCollisionsProxies();
         }
 
         return hresult_t::SUCCESS;
@@ -734,7 +738,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = refreshCollisionProxies();
+            returnCode = refreshCollisionsProxies();
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -745,13 +749,13 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::refreshCollisionProxies(void)
+    hresult_t Model::refreshCollisionsProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Model::refreshCollisionProxies - Model not initialized." << std::endl;
+            std::cout << "Error - Model::refreshCollisionsProxies - Model not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -763,6 +767,17 @@ namespace jiminy
                                                 pncData_,
                                                 pncGeometryModel_,
                                                 *pncGeometryData_);
+
+            // Set the max number of contact points per collision pairs
+            // Only a global collisionRequest is available for Pinocchio < 2.4.4, instead of one for each collision pair.
+            # if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
+                for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
+                {
+                    collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
+                }
+            #else
+                pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
+            #endif
         }
 
         return returnCode;
@@ -795,6 +810,7 @@ namespace jiminy
         bool_t internalBuffersMustBeUpdated = false;
         bool_t isFlexibleModelInvalid = false;
         bool_t isCurrentModelInvalid = false;
+        bool_t isCollisionDataInvalid = false;
         if (isInitialized_)
         {
             /* Check that the following user parameters has the right dimension,
@@ -832,7 +848,7 @@ namespace jiminy
                 internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
             }
 
-            // Check if the flexible model and its associated proxies must be regenerated
+            // Check if the flexible model and its proxies must be regenerated
             configHolder_t & dynOptionsHolder =
                 boost::get<configHolder_t>(modelOptions.at("dynamics"));
             bool_t const & enableFlexibleModel = boost::get<bool_t>(dynOptionsHolder.at("enableFlexibleModel"));
@@ -850,6 +866,20 @@ namespace jiminy
             else if (mdlOptions_ && enableFlexibleModel != mdlOptions_->dynamics.enableFlexibleModel)
             {
                 isCurrentModelInvalid = true;
+            }
+
+            // Check that the collisions options are valid
+            configHolder_t & collisionOptionsHolder =
+                boost::get<configHolder_t>(modelOptions.at("collisions"));
+            uint32_t const & maxContactPointsPerBody = boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
+            if (maxContactPointsPerBody < 1)
+            {
+                std::cout << "Error - Model::setOptions - The number of contact points by collision pair 'maxContactPointsPerBody' must be at least 1." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+            if (mdlOptions_ && maxContactPointsPerBody != mdlOptions_->collisions.maxContactPointsPerBody)
+            {
+                isCollisionDataInvalid = true;
             }
         }
 
@@ -874,6 +904,11 @@ namespace jiminy
         {
             // Update the info extracted from the model
             refreshProxies();
+        }
+        else if (isCollisionDataInvalid)
+        {
+            // Update the collision data
+            refreshCollisionsProxies();
         }
 
         return hresult_t::SUCCESS;
@@ -934,10 +969,10 @@ namespace jiminy
         // Build the robot geometry model
         pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_);
 
-        // Instantiate ground plane FCL geometry, wrapped as a pinocchio collision geometry
+        // Instantiate ground FCL half-space geometry, wrapped as a pinocchio collision geometry
         hpp::fcl::Vec3f const normal(0.0, 0.0, 1.0);
         float64_t const offset = 0;
-        auto groudPlane = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Plane(normal, offset));
+        auto groudPlane = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Halfspace(normal, offset));
 
         // Create a Pinocchio Geometry object associated with the ground plan.
         // Its parent frame and parent joint are the universe, and it is centered and aligned with world frame.

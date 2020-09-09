@@ -458,10 +458,11 @@ class BaseJiminyRobot(jiminy.Robot):
         self.robot_options = copy.deepcopy(model_options)
 
     def get_model_options(self):
-        if self.is_initialized:
+        if self.robot_options is not None:
             return self.robot_options
         else:
-            return super().get_model_options()
+            self.robot_options = super().get_model_options()
+            return self.get_model_options()
 
     def set_options(self, options):
         super().set_options(options)

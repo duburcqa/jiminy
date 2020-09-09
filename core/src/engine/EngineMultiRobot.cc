@@ -1760,7 +1760,10 @@ namespace jiminy
                                             system.robot->pncGeometryModel_,
                                             *system.robot->pncGeometryData_);
         pinocchio::computeCollisions(system.robot->pncGeometryModel_,
-                                     *system.robot->pncGeometryData_);
+                                     *system.robot->pncGeometryData_,
+                                     false);  // Update collision results
+        pinocchio::computeDistances(system.robot->pncGeometryModel_,
+                                    *system.robot->pncGeometryData_); // Update distance results.
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,

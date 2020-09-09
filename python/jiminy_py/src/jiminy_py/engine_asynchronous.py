@@ -198,6 +198,10 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
+        if self._state is None:
+            raise RuntimeError("Simulation not initialized. "
+                "Please call 'reset' once before calling 'step'.")
+
         if not self.engine.is_simulation_running:
             flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
