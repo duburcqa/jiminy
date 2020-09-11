@@ -283,7 +283,7 @@ namespace jiminy
                since the contact information only reports the normal of the second geometry
                wrt the world, which is the only one that is really interesting since the
                ground normal never changes for flat ground, as it is the case now. */
-            pinocchio::CollisionPair const collisionPair(groundId, bodyId);
+            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
             pncGeometryModel_.addCollisionPair(collisionPair);
 
             // Refresh proxies associated with the collisions only
@@ -771,12 +771,12 @@ namespace jiminy
             // Set the max number of contact points per collision pairs
             // Only a global collisionRequest is available for Pinocchio < 2.4.4, instead of one for each collision pair.
             # if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
-                for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
-                {
-                    collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
-                }
+            for (hpp::fcl::CollisionRequest & collisionRequest : pncGeometryData_->collisionRequests)
+            {
+                collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
+            }
             #else
-                pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
+            pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             #endif
         }
 
@@ -968,6 +968,16 @@ namespace jiminy
 
         // Build the robot geometry model
         pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_);
+
+        // Replace the geometry object by their convex representation for efficiency
+        #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
+        for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+        {
+            hpp::fcl::BVHModelPtr_t bvh = boost::dynamic_pointer_cast<hpp::fcl::BVHModelBase>(pncGeometryModel_.geometryObjects[i].geometry);
+            bvh->buildConvexRepresentation(false);
+            pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+        }
+        #endif
 
         // Instantiate ground FCL half-space geometry, wrapped as a pinocchio collision geometry
         hpp::fcl::Vec3f const normal(0.0, 0.0, 1.0);

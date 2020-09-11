@@ -312,6 +312,9 @@ class BaseJiminyRobot(jiminy.Robot):
                without requiring to manually specify its path.
     """
     def __init__(self):
+        """
+        @brief    TODO
+        """
         super().__init__()
         self.robot_options = None
         self.urdf_path_orig = None
@@ -454,10 +457,17 @@ class BaseJiminyRobot(jiminy.Robot):
         self.add_collision_bodies(force_sensor_frame_names)
 
     def set_model_options(self, model_options):
-        super().set_model_options(model_options)
-        self.robot_options = copy.deepcopy(model_options)
+        """
+        @brief    TODO
+        """
+        hresult = super().set_model_options(model_options)
+        if hresult == jiminy.hresult_t.SUCCESS:
+            self.robot_options = copy.deepcopy(model_options)
 
     def get_model_options(self):
+        """
+        @brief    TODO
+        """
         if self.robot_options is not None:
             return self.robot_options
         else:
@@ -465,10 +475,17 @@ class BaseJiminyRobot(jiminy.Robot):
             return self.get_model_options()
 
     def set_options(self, options):
-        super().set_options(options)
-        self.robot_options = copy.deepcopy(options["model"])
+        """
+        @brief    TODO
+        """
+        hresult = super().set_options(options)
+        if hresult == jiminy.hresult_t.SUCCESS:
+            self.robot_options = copy.deepcopy(options["model"])
 
     def get_options(self):
+        """
+        @brief    TODO
+        """
         options = super().get_options()
         if self.robot_options is not None:
             options["model"] = self.robot_options
@@ -485,10 +502,16 @@ class BaseJiminyController(jiminy.ControllerFunctor):
                prototyping.
     """
     def __init__(self, compute_command_fn: Callable):
+        """
+        @brief    TODO
+        """
         self.__robot = None
         super().__init__(compute_command_fn, self.internal_dynamics)
 
     def initialize(self, robot: BaseJiminyRobot):
+        """
+        @brief    TODO
+        """
         self.__robot = robot
         return_code = super().initialize(self.__robot)
 
@@ -522,6 +545,9 @@ class BaseJiminyEngine(EngineAsynchronous):
                  has_freeflyer : bool = True,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
+        """
+        @brief    TODO
+        """
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
         robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)

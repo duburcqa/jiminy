@@ -70,9 +70,11 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/ass
 
 ### Checkout hpp-fcl
 git clone -b "v1.5.3" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
-cd "$RootDir/hpp-fcl"
+Set-Location -Path "$RootDir/hpp-fcl"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
+Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
+git checkout v8.0.2
 
 ### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 git clone -b "v2.5.0" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
@@ -163,7 +165,7 @@ cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GEN
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-############################## Build and install urdfdom_headers ######################################
+############################### Build and install urdfdom_headers ######################################
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
@@ -175,7 +177,7 @@ cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus" "$RootDir/urdfdom_headers"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-################################# Build and install urdfdom ###########################################
+################################## Build and install urdfdom ###########################################
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
@@ -188,7 +190,7 @@ cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-############################## Build and install assimp ######################################
+###################################### Build and install assimp ########################################
 
 ###
 if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
@@ -203,7 +205,17 @@ cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus -D_USE_MATH_DEFINES"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-################################# Build and install hpp-fcl ###########################################
+############################# Build and install qhull and hpp-fcl ######################################
+
+### Build qhull
+if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/third-parties/qhull/build")) {
+  New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
+}
+Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus" -DCMAKE_C_FLAGS="/EHsc /bigobj"
+cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ### Build hpp-fcl
 if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
@@ -215,7 +227,7 @@ cmake "$RootDir/hpp-fcl" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=OFF `
-      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=OFF -DINSTALL_DOCUMENTATION=OFF `
+      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DINSTALL_DOCUMENTATION=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4267 /permissive- /Zc:__cplusplus $(
 )     -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2

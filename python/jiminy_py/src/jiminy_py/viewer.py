@@ -351,8 +351,13 @@ class Viewer:
             self._rb.initViewer(
                 windowName=window_name, sceneName=scene_name, loadModel=False)
             self._rb.loadViewerModel(self.robot_name)
-            self._client.setFloatProperty(scene_name + '/' + self.robot_name,
-                                          'Transparency', 1 - alpha)
+            try:
+                self._client.setFloatProperty(scene_name + '/' + self.robot_name,
+                                            'Alpha', alpha)
+            except gepetto.corbaserver.gepetto.Error:
+                # Old Gepetto versions do no have 'Alpha' attribute but rather 'Transparency'
+                self._client.setFloatProperty(scene_name + '/' + self.robot_name,
+                                            'Transparency', 1 - alpha)
         else:
             self._client.collision_model = self.collision_model
             self._client.visual_model = visual_model
@@ -609,7 +614,7 @@ class Viewer:
                 if not get_proc_info:
                     return client
                 proc = [p for p in psutil.process_iter()
-                        if 'gepetto-gui' in p.cmdline()[0]][0]
+                        if p.cmdline() and 'gepetto-gui' in p.cmdline()[0]][0]
                 return client, ProcessWrapper(proc, close_at_exit)
 
             try:
@@ -915,6 +920,7 @@ class Viewer:
         with self._lock:
             if Viewer.backend == 'gepetto-gui':
                 if self._rb.displayCollisions:
+                    self.__updateGeometryPlacements(visual=False)
                     self._client.applyConfigurations(
                         [self.__getViewerNodeName(collision, pin.GeometryType.COLLISION)
                             for collision in self._rb.collision_model.geometryObjects],
