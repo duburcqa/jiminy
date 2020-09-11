@@ -24,7 +24,7 @@ if(NOT LEGACY_MODE)
 
     find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
 
-    find_package(pinocchio 2.4.0 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # It adds target pinocchio::pinocchio. Pinocchio was header-only before 2.4.0.
+    find_package(pinocchio 2.4.4 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio >= 2.4.4 is required to support convex mesh collision and display
     if(pinocchio_FOUND)
         message("-- Found pinocchio: version ${pinocchio_VERSION}")
     else()
@@ -105,7 +105,7 @@ if(pinocchio_FOUND)
 elseif(hpp-fcl_FOUND)
     target_link_libraries_system(${PROJECT_NAME} hpp-fcl::hpp-fcl)
 elseif(LEGACY_MODE)
-    target_link_libraries(${PROJECT_NAME} hpp-fcl)
+    target_link_libraries(${PROJECT_NAME} pinocchio hpp-fcl)  # It is necessary to link to Pinocchio shared lib since 2.4.0
 endif()
 if(NOT LEGACY_MODE)
     if (NOT "${urdfdom_LIBRARIES}" MATCHES ".*tinyxml.*")
