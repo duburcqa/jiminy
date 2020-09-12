@@ -167,6 +167,7 @@ namespace jiminy
 
         std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
+        std::vector<int32_t> const & getCollisionBodiesIdx(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
@@ -215,6 +216,7 @@ namespace jiminy
 
         std::vector<std::string> collisionBodiesNames_;     ///< Name of the collision bodies of the robot
         std::vector<std::string> contactFramesNames_;       ///< Name of the contact frames of the robot
+        std::vector<int32_t> collisionBodiesIdx_;           ///< Indices of the collision bodies in the frame list of the robot
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot

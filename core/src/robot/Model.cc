@@ -32,6 +32,7 @@ namespace jiminy
     mdlOptionsHolder_(),
     collisionBodiesNames_(),
     contactFramesNames_(),
+    collisionBodiesIdx_(),
     contactFramesIdx_(),
     rigidJointsNames_(),
     rigidJointsModelIdx_(),
@@ -778,6 +779,9 @@ namespace jiminy
             #else
             pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             #endif
+
+            // Extract the contact frames indices in the model
+            getFramesIdx(pncModel_, collisionBodiesNames_, collisionBodiesIdx_);
         }
 
         return returnCode;
@@ -974,19 +978,23 @@ namespace jiminy
         for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
         {
             hpp::fcl::BVHModelPtr_t bvh = boost::dynamic_pointer_cast<hpp::fcl::BVHModelBase>(pncGeometryModel_.geometryObjects[i].geometry);
-            bvh->buildConvexRepresentation(false);
+            bvh->buildConvexHull(true);
             pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
         }
         #endif
 
-        // Instantiate ground FCL half-space geometry, wrapped as a pinocchio collision geometry
-        hpp::fcl::Vec3f const normal(0.0, 0.0, 1.0);
-        float64_t const offset = 0;
-        auto groudPlane = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Halfspace(normal, offset));
+        // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
+        // Note that half-space cannot be used for Shape-Shape collision because it has no
+        // shape support. So a very large box is used instead. In the future, it could be
+        // a more complex topological object, even a mesh would be supported.
+        auto groudBox = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Box(1000.0, 1000.0, 2.0));
 
         // Create a Pinocchio Geometry object associated with the ground plan.
-        // Its parent frame and parent joint are the universe, and it is centered and aligned with world frame.
-        pinocchio::GeometryObject groundPlane("ground", 0, 0, groudPlane, pinocchio::SE3::Identity()); // pinocchio::FrameIndex / pinocchio::JointIndex required ?
+        // Its parent frame and parent joint are the universe. It is aligned with world frame,
+        // and the top face is the actual ground surface.
+        pinocchio::SE3 groundPose = pinocchio::SE3::Identity();
+        groundPose.translation() = (vector3_t() << 0.0, 0.0, -1.0).finished();
+        pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
         // Add the ground plane pinocchio to the robot model
         pncGeometryModel_.addGeometryObject(groundPlane, pncModel_);
@@ -1095,6 +1103,11 @@ namespace jiminy
     std::vector<std::string> const & Model::getContactFramesNames(void) const
     {
         return contactFramesNames_;
+    }
+
+    std::vector<int32_t> const & Model::getCollisionBodiesIdx(void) const
+    {
+        return collisionBodiesIdx_;
     }
 
     std::vector<int32_t> const & Model::getContactFramesIdx(void) const

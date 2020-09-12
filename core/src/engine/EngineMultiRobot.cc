@@ -679,20 +679,28 @@ namespace jiminy
                 vectorN_t const & a = system.state.a;
                 computeForwardKinematics(system, q, v, a);
 
-                // Make sure that the contact forces are bounded
+                // Make sure that the contact forces are bounded.
+                // TODO: One should rather use something like 10 * m * g instead of a fix threshold
+                float64_t forceMax = 0.0;
                 auto const & contactFramesIdx = system.robot->getContactFramesIdx();
                 for (uint32_t i=0; i < contactFramesIdx.size(); i++)
                 {
-                    pinocchio::Force fextInFrame;
-                    fextInFrame = computeContactDynamics(system, contactFramesIdx[i]);
-                    //TODO: One should rather use something like 10 * m * g instead of a fix threshold
-                    if (fextInFrame.linear().norm() > 1e5)
-                    {
-                        std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
-                                     "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
-                        returnCode = hresult_t::ERROR_BAD_INPUT;
-                    }
-                    break;
+                    pinocchio::Force fext = computeContactDynamicsAtFrame(system, contactFramesIdx[i]);
+                    forceMax = std::max(forceMax, fext.linear().norm());
+                }
+
+                auto const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+                for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
+                {
+                    pinocchio::Force fext = computeContactDynamicsAtBody(system, i);
+                    forceMax = std::max(forceMax, fext.linear().norm());
+                }
+
+                if (forceMax > 1e5)
+                {
+                    std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
+                                 "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
 
                 // Activate every force impulse starting at t=0
@@ -1766,32 +1774,107 @@ namespace jiminy
                                     *system.robot->pncGeometryData_); // Update distance results.
     }
 
-    pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
-                                                              int32_t            const & frameIdx) const
+    pinocchio::Force EngineMultiRobot::computeContactDynamicsAtBody(systemDataHolder_t const & system,
+                                                                    int32_t            const & collisionPairIdx) const
+    {
+        // TODO: It is assumed that the ground is flat. For now ground profile is not supported
+        // with body collision. Nevertheless it should not be to hard to generated a collision
+        // object simply by sampling points on the profile.
+
+        // Get the frame Idx
+        uint32_t geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
+        uint32_t parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
+
+        // Get the pose of the frame wrt the world
+        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx];
+        matrix3_t const & rotFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx].rotation();
+
+        // Extract collision and distance results
+        hpp::fcl::CollisionResult collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
+        hpp::fcl::DistanceResult distanceResult = system.robot->pncGeometryData_->distanceResults[collisionPairIdx];
+
+        if (collisionResult.isCollision())
+        {
+            // Extract the contact information.
+            // Note that there is always a single contact point while computing the collision
+            // between two shape objects, as it is the case there (convex-box).
+            vector3_t nGround = vector3_t::Zero();
+            float64_t depth = collisionResult.getContact(0).penetration_depth;
+            pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
+            posContactInWorld.translation() = distanceResult.nearest_points[0];
+
+            // Get frame motion in the motion frame.
+            vector3_t const motionFrameInWorld = pinocchio::getFrameVelocity(
+                system.robot->pncModel_, system.robot->pncData_, parentFrameIdx).linear();
+            vector3_t const vFrameInWorld = rotFrameInWorld * motionFrameInWorld;
+
+            // Compute the ground reaction force at contact point in world frame
+            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vFrameInWorld);
+
+            // Move the force at parent frame location
+            // TODO: 1. Compute the position of the contact point in local frame
+            //       2. Move the force at parent frame location
+            pinocchio::SE3 const posContactLocal = transformFrameInWorld.actInv(posContactInWorld);
+            pinocchio::Force fextAtParentFrameInGlobal = posContactLocal.actInv(fextAtContactInGlobal);
+
+            return fextAtParentFrameInGlobal;
+        }
+        else
+        {
+            return pinocchio::Force::Zero();
+        }
+    }
+
+    pinocchio::Force EngineMultiRobot::computeContactDynamicsAtFrame(systemDataHolder_t const & system,
+                                                                     int32_t            const & frameIdx) const
     {
         /* Returns the external force in the contact frame.
            It must then be converted into a force onto the parent joint.
            /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
-        contactOptions_t const & contactOptions_ = engineOptions_->contacts;
-
-        matrix3_t const & tformFrameRot = system.robot->pncData_.oMf[frameIdx].rotation();
+        // Get the pose of the frame wrt the world
         vector3_t const & posFrame = system.robot->pncData_.oMf[frameIdx].translation();
+        matrix3_t const & rotFrame = system.robot->pncData_.oMf[frameIdx].rotation();
 
-        // Initialize the contact force
-        vector3_t fextInWorld;
+        // Compute the ground normal and penetration depth at the contact point
         auto ground = engineOptions_->world.groundProfile(posFrame);
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();
         float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
+        // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
         {
             // Get frame motion in the motion frame.
             vector3_t const motionFrame = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
-            vector3_t const vFrameInWorld = tformFrameRot * motionFrame;
+            vector3_t const vFrameInWorld = rotFrame * motionFrame;
+
+            // Compute the ground reaction force in world frame
+            return computeContactDynamics(system, nGround, depth, vFrameInWorld);
+        }
+        else
+        {
+            // Not in contact with the ground, thus no force applied
+            return pinocchio::Force::Zero();
+        }
+    }
+
+    pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
+                                                              vector3_t          const & nGround,
+                                                              float64_t          const & depth,
+                                                              vector3_t          const & vFrameInWorld) const
+    {
+        // Initialize the contact force
+        vector3_t fextInWorld;
+
+        if (depth < 0.0)
+        {
+            // Extract some proxies
+            contactOptions_t const & contactOptions_ = engineOptions_->contacts;
+
+            // Compute the penetration speed
             float64_t const vDepth = vFrameInWorld.dot(nGround);
 
             // Compute normal force
@@ -1968,14 +2051,13 @@ namespace jiminy
                                                  Eigen::Ref<vectorN_t const> const & v,
                                                  forceVector_t                     & fext)
     {
-        // Compute the contact forces
+        // Compute the forces at contact points
         std::vector<int32_t> const & contactFramesIdx = system.robot->getContactFramesIdx();
         for (uint32_t i=0; i < contactFramesIdx.size(); i++)
         {
             // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force & fextInGlobal = system.robot->contactForces_[i];
-            fextInGlobal = computeContactDynamics(system, frameIdx);
+            pinocchio::Force const fextInGlobal = computeContactDynamicsAtFrame(system, frameIdx);
 
             // Apply the force at the origin of the parent joint frame
             pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
@@ -1984,8 +2066,23 @@ namespace jiminy
             fext[parentIdx] += fextLocal;
 
             // Convert contact force from the global frame to the local frame to store it in contactForces_.
+            // TODO: Why not to use fextLocal directly ?
             system.robot->contactForces_[i].linear() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.linear();
             system.robot->contactForces_[i].angular() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.angular();
+        }
+
+        // Compute the force at collision bodies
+        std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+        for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
+        {
+            // Compute force at the given contact frame.
+            int32_t const & bodyIdx = collisionBodiesIdx[i];
+            pinocchio::Force const fextInGlobal = computeContactDynamicsAtBody(system, i);
+
+            // Apply the force at the origin of the parent joint frame
+            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
+                system.robot->pncModel_, system.robot->pncData_, bodyIdx, fextInGlobal);
+            fext[bodyIdx] += fextLocal;
         }
 
         // Add the effect of user-defined external impulse forces

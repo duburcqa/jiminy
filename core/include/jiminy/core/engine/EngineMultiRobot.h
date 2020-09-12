@@ -625,13 +625,27 @@ namespace jiminy
                                              vectorN_t          const & v,
                                              vectorN_t          const & a);
 
+        /// \brief Compute the force resulting from ground contact on a given body.
+        ///
+        /// \param[in] system              System for which to perform computation.
+        /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
+        /// \return Contact force, at parent frame, in the global frame.
+        pinocchio::Force computeContactDynamicsAtBody(systemDataHolder_t const & system,
+                                                      int32_t            const & collisionPairIdx) const;
+
         /// \brief Compute the force resulting from ground contact on a given frame.
         ///
         /// \param[in] system      System for which to perform computation.
-        /// \param[in] header      Id of the frame in contact.
+        /// \param[in] frameIdx    Id of the frame in contact.
         /// \return Contact force, in the global frame.
+        pinocchio::Force computeContactDynamicsAtFrame(systemDataHolder_t const & system,
+                                                       int32_t            const & frameIdx) const;
+
+        /// \brief Compute the force resulting from ground contact for a given normal direction and depth.
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
-                                                int32_t            const & frameIdx) const;
+                                                vector3_t          const & nGround,
+                                                float64_t          const & depth,
+                                                vector3_t          const & vFrameInWorld) const;
 
         void computeCommand(systemDataHolder_t                & system,
                             float64_t                   const & t,
