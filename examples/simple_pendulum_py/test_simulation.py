@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from jiminy_py import core as jiminy
 from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
-from jiminy_py.core import HeatMapFunctor, heatMapType_t, ForceSensor
+from jiminy_py.core import HeatMapFunctor, heatMapType_t, ContactSensor
 import pinocchio as pin
 
 from interactive_plot_util import interactive_legend
@@ -36,8 +36,8 @@ acceleration_control = args.acceleration
 position_control = not acceleration_control
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-os.environ["JIMINY_MESH_PATH"] = os.path.join(script_dir, "../../data")
-urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "simple_pendulum/simple_pendulum.urdf")
+os.environ["JIMINY_DATA_PATH"] = os.path.join(script_dir, "../../data")
+urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"], "simple_pendulum/simple_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 
@@ -56,7 +56,7 @@ for joint_name in motor_joint_names:
     robot.attach_motor(motor)
     motor.initialize(joint_name)
 for sensor_name, frame_name in force_sensor_def.items():
-    force_sensor = jiminy.ForceSensor(sensor_name)
+    force_sensor = jiminy.ContactSensor(sensor_name)
     robot.attach_sensor(force_sensor)
     force_sensor.initialize(frame_name)
 robot.add_contact_points(contact_points)
@@ -171,7 +171,7 @@ def updateState(robot, q, v, sensors_data):
     dcmOut = comOut + vcomOut / omega
 
     # Create zmp from forces
-    forces = np.asarray(sensors_data[ForceSensor.type])
+    forces = np.asarray(sensors_data[ContactSensor.type])
     newWrench = pin.Force.Zero()
     for i,name in enumerate(contact_points):
         update_frame(robot.pinocchio_model_th, robot.pinocchio_data_th, name)
@@ -306,27 +306,27 @@ robot_options["model"]["dynamics"]["enableFlexibleModel"] = False
 robot_options["telemetry"]["enableImuSensors"] = True
 robot_options["telemetry"]["enableForceSensors"] = True
 
-robot_options["sensors"]['ForceSensor'] = {}
-robot_options["sensors"]['ForceSensor']['F1'] = {}
-robot_options["sensors"]['ForceSensor']['F1']["noiseStd"] = []
-robot_options["sensors"]['ForceSensor']['F1']["bias"] = []
-robot_options["sensors"]['ForceSensor']['F1']["delay"] = 0.0
-robot_options["sensors"]['ForceSensor']['F1']["delayInterpolationOrder"] = 0
-robot_options["sensors"]['ForceSensor']['F2'] = {}
-robot_options["sensors"]['ForceSensor']['F2']["noiseStd"] = []
-robot_options["sensors"]['ForceSensor']['F2']["bias"] = []
-robot_options["sensors"]['ForceSensor']['F2']["delay"] = 0.0
-robot_options["sensors"]['ForceSensor']['F2']["delayInterpolationOrder"] = 0
-robot_options["sensors"]['ForceSensor']['F3'] = {}
-robot_options["sensors"]['ForceSensor']['F3']["noiseStd"] = []
-robot_options["sensors"]['ForceSensor']['F3']["bias"] = []
-robot_options["sensors"]['ForceSensor']['F3']["delay"] = 0.0
-robot_options["sensors"]['ForceSensor']['F3']["delayInterpolationOrder"] = 0
-robot_options["sensors"]['ForceSensor']['F4'] = {}
-robot_options["sensors"]['ForceSensor']['F4']["noiseStd"] = []
-robot_options["sensors"]['ForceSensor']['F4']["bias"] = []
-robot_options["sensors"]['ForceSensor']['F4']["delay"] = 0.0
-robot_options["sensors"]['ForceSensor']['F4']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ContactSensor'] = {}
+robot_options["sensors"]['ContactSensor']['F1'] = {}
+robot_options["sensors"]['ContactSensor']['F1']["noiseStd"] = []
+robot_options["sensors"]['ContactSensor']['F1']["bias"] = []
+robot_options["sensors"]['ContactSensor']['F1']["delay"] = 0.0
+robot_options["sensors"]['ContactSensor']['F1']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ContactSensor']['F2'] = {}
+robot_options["sensors"]['ContactSensor']['F2']["noiseStd"] = []
+robot_options["sensors"]['ContactSensor']['F2']["bias"] = []
+robot_options["sensors"]['ContactSensor']['F2']["delay"] = 0.0
+robot_options["sensors"]['ContactSensor']['F2']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ContactSensor']['F3'] = {}
+robot_options["sensors"]['ContactSensor']['F3']["noiseStd"] = []
+robot_options["sensors"]['ContactSensor']['F3']["bias"] = []
+robot_options["sensors"]['ContactSensor']['F3']["delay"] = 0.0
+robot_options["sensors"]['ContactSensor']['F3']["delayInterpolationOrder"] = 0
+robot_options["sensors"]['ContactSensor']['F4'] = {}
+robot_options["sensors"]['ContactSensor']['F4']["noiseStd"] = []
+robot_options["sensors"]['ContactSensor']['F4']["bias"] = []
+robot_options["sensors"]['ContactSensor']['F4']["delay"] = 0.0
+robot_options["sensors"]['ContactSensor']['F4']["delayInterpolationOrder"] = 0
 
 engine_options["telemetry"]["enableConfiguration"] = True
 engine_options["telemetry"]["enableVelocity"] = True

@@ -4,10 +4,11 @@ from operator import __mul__
 
 from gym import Wrapper, ObservationWrapper, spaces
 
-from jiminy_py.core import EncoderSensor as enc, \
-                           EffortSensor as effort, \
-                           ForceSensor as force, \
-                           ImuSensor as imu
+from jiminy_py.core import (EncoderSensor as enc,
+                            EffortSensor as effort,
+                            ContactSensor as contact,
+                            ForceSensor as force,
+                            ImuSensor as imu)
 
 
 # Define universal scale for the observation and action space
@@ -164,19 +165,19 @@ class ObservationActionNormalization(Wrapper):
                     dtype=sensors_data[imu.type].dtype)
 
                 # Set the quaternion scale
-                quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
+                quat_imu_idx = [field.startswith('Quat') for field in imu.fieldnames]
                 imu_sensors_scale[quat_imu_idx] = np.full(
                     (sum(quat_imu_idx), len(self.robot.sensors_names[imu.type])),
                     1.0)
 
                 # Set the gyroscope scale
-                gyro_imu_idx = ['Gyro' in field for field in imu.fieldnames]
+                gyro_imu_idx = [field.startswith('Gyro') for field in imu.fieldnames]
                 imu_sensors_scale[gyro_imu_idx] = np.full(
                     (sum(gyro_imu_idx), len(self.robot.sensors_names[imu.type])),
                     SENSOR_GYRO_SCALE)
 
                 # Set the accelerometer scale
-                accel_imu_idx = ['Accel' in field for field in imu.fieldnames]
+                accel_imu_idx = [field.startswith('Accel') for field in imu.fieldnames]
                 imu_sensors_scale[accel_imu_idx] = np.full(
                     (sum(accel_imu_idx), len(self.robot.sensors_names[imu.type])),
                     SENSOR_ACCEL_SCALE)
@@ -184,15 +185,40 @@ class ObservationActionNormalization(Wrapper):
                 # Set the scale
                 self.observation_scale['sensors'][imu.type] = imu_sensors_scale
 
-            # Handling of Force sensors data scale
-            if force.type in sensors_space.spaces.keys():
+            # Handling of Contact sensors data scale
+            if contact.type in sensors_space.spaces.keys():
                 total_mass = self.robot.pinocchio_data_th.mass[0]
                 gravity = - self.robot.pinocchio_model_th.gravity.linear[2]
                 total_weight = total_mass * gravity
 
-                force_sensors_scale = np.full(
+                contact_sensors_scale = np.full(
+                    (len(contact.fieldnames), len(self.robot.sensors_names[contact.type])),
+                    total_weight, dtype=sensors_data[contact.type].dtype)
+
+                self.observation_scale['sensors'][contact.type] = contact_sensors_scale
+
+            # Handling of Force sensors data scale
+            if force.type in sensors_space.spaces.keys():
+                force_sensors_scale = np.zeros(
                     (len(force.fieldnames), len(self.robot.sensors_names[force.type])),
-                    total_weight, dtype=sensors_data[force.type].dtype)
+                    dtype=sensors_data[force.type].dtype)
+
+                total_mass = self.robot.pinocchio_data_th.mass[0]
+                gravity = - self.robot.pinocchio_model_th.gravity.linear[2]
+                total_weight = total_mass * gravity
+
+                # Set the linear force scale
+                lin_force_idx = [field.startswith('F') for field in force.fieldnames]
+                force_sensors_scale[lin_force_idx] = np.full(
+                    (sum(lin_force_idx), len(self.robot.sensors_names[force.type])),
+                    total_weight)
+
+                # Set the moment scale
+                # TODO: Defining the moment scale using 'total_weight' does not really make sense.
+                moment_idx = [field.startswith('M') for field in force.fieldnames]
+                force_sensors_scale[moment_idx] = np.full(
+                    (sum(moment_idx), len(self.robot.sensors_names[force.type])),
+                    total_weight)
 
                 self.observation_scale['sensors'][force.type] = force_sensors_scale
 

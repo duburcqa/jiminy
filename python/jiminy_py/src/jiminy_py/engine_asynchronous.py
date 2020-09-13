@@ -198,6 +198,10 @@ class EngineAsynchronous:
 
         @return     Final state of the simulation
         """
+        if self._state is None:
+            raise RuntimeError("Simulation not initialized. "
+                "Please call 'reset' once before calling 'step'.")
+
         if not self.engine.is_simulation_running:
             flag = self.engine.start(self._state, self.use_theoretical_model)
             if (flag != jiminy.hresult_t.SUCCESS):
@@ -277,7 +281,7 @@ class EngineAsynchronous:
         """
         @brief      Close the connection with the renderer.
         """
-        if self._viewer is not None:
+        if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
             self._viewer = None
 

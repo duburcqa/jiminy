@@ -198,6 +198,104 @@ namespace jiminy
 
     }
 
+    // ===================== ContactSensor =========================
+
+    template<>
+    std::string const AbstractSensorTpl<ContactSensor>::type_("ContactSensor");
+    template<>
+    bool_t const AbstractSensorTpl<ContactSensor>::areFieldnamesGrouped_(false);
+    template<>
+    std::vector<std::string> const AbstractSensorTpl<ContactSensor>::fieldNames_({"FX", "FY", "FZ"});
+
+    ContactSensor::ContactSensor(std::string const & name) :
+    AbstractSensorTpl(name),
+    frameName_(),
+    frameIdx_(0)
+    {
+        // Empty.
+    }
+
+    hresult_t ContactSensor::initialize(std::string const & frameName)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!isAttached_)
+        {
+            std::cout << "Error - ContactSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            frameName_ = frameName;
+            isInitialized_ = true;
+            returnCode = refreshProxies();
+        }
+
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            isInitialized_ = false;
+        }
+
+        return returnCode;
+    }
+
+    hresult_t ContactSensor::refreshProxies(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (!robot_->getIsInitialized())
+        {
+            std::cout << "Error - ContactSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!isInitialized_)
+            {
+                std::cout << "Error - ContactSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+        }
+
+        return returnCode;
+    }
+
+    std::string const & ContactSensor::getFrameName(void) const
+    {
+        return frameName_;
+    }
+
+    int32_t const & ContactSensor::getFrameIdx(void) const
+    {
+        return frameIdx_;
+    }
+
+    hresult_t ContactSensor::set(float64_t                   const & t,
+                                 Eigen::Ref<vectorN_t const> const & q,
+                                 Eigen::Ref<vectorN_t const> const & v,
+                                 Eigen::Ref<vectorN_t const> const & a,
+                                 vectorN_t                   const & uMotor)
+    {
+        if (!isInitialized_)
+        {
+            std::cout << "Error - ContactSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        std::vector<int32_t> const & contactFramesIdx = robot_->getContactFramesIdx();
+        std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
+        data() = robot_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+
+        return hresult_t::SUCCESS;
+    }
+
     // ===================== ForceSensor =========================
 
     template<>
@@ -205,12 +303,13 @@ namespace jiminy
     template<>
     bool_t const AbstractSensorTpl<ForceSensor>::areFieldnamesGrouped_(false);
     template<>
-    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ"});
+    std::vector<std::string> const AbstractSensorTpl<ForceSensor>::fieldNames_({"FX", "FY", "FZ", "MX", "MY", "MZ"});
 
     ForceSensor::ForceSensor(std::string const & name) :
     AbstractSensorTpl(name),
     frameName_(),
-    frameIdx_(0)
+    frameIdx_(0),
+    parentBodyFrameIdx_(0)
     {
         // Empty.
     }
@@ -264,6 +363,17 @@ namespace jiminy
             returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
         }
 
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            parentBodyFrameIdx_ = robot_->pncModel_.frames[frameIdx_].parent;
+            pinocchio::Frame const & parentBodyFrame = robot_->pncModel_.frames[parentBodyFrameIdx_];
+            if (parentBodyFrame.type != pinocchio::FrameType::BODY)
+            {
+                std::cout << "Error - ForceSensor::refreshProxies - The parent of the frame is not a body. Impossible to refresh model-dependent proxies." << std::endl;
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+        }
+
         return returnCode;
     }
 
@@ -275,6 +385,16 @@ namespace jiminy
     int32_t const & ForceSensor::getFrameIdx(void) const
     {
         return frameIdx_;
+    }
+
+    std::string const & ForceSensor::getBodyName(void) const
+    {
+        return robot_->pncModel_.frames[parentBodyFrameIdx_].name;
+    }
+
+    int32_t ForceSensor::getJointIdx(void) const
+    {
+        return robot_->pncModel_.frames[parentBodyFrameIdx_].parent;
     }
 
     hresult_t ForceSensor::set(float64_t                   const & t,
@@ -289,9 +409,9 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::vector<int32_t> const & contactFramesIdx = robot_->getContactFramesIdx();
-        std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-        data() = robot_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+        pinocchio::SE3 const & framePlacement = robot_->pncModel_.frames[frameIdx_].placement;
+        pinocchio::Force f = framePlacement.actInv(robot_->pncData_.f[getJointIdx()]);
+        data() = f.toVector();
 
         return hresult_t::SUCCESS;
     }

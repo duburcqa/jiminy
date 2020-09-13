@@ -8,9 +8,11 @@ from pkg_resources import parse_version as version
 from math import atan2, pi, sqrt
 
 import pinocchio as pin
+import hppfcl
 
-warnings.filterwarnings("ignore", message=("This function signature is now "
-    "deprecated and will be removed in future releases of Pinocchio."))
+# Disable all deprecation warnings of Pinocchio because, for now, Jiminy
+# supports many releases, for which some methods have different signatures.
+warnings.filterwarnings("ignore", category=pin.DeprecatedWarning)
 
 from pinocchio.rpy import npToTTuple
 
@@ -80,3 +82,21 @@ def display(self, q):
         self.viewer[self.getViewerNodeName(visual, pin.GeometryType.VISUAL)].set_transform(T)
 
 pin.visualize.meshcat_visualizer.MeshcatVisualizer.display = display
+
+loadPrimitive_orig = pin.visualize.gepetto_visualizer.GepettoVisualizer.loadPrimitive
+def loadPrimitive(self, meshName, geometry_object):
+    # Do not load the geometry of the ground is is not an actually geometry
+    # but rather a calculus artifact.
+    geom = geometry_object.geometry
+    if geometry_object.name == "ground":
+        return False
+    elif isinstance(geom, hppfcl.Convex):
+        pts = [npToTuple(geom.points(geom.polygons(f)[i]))
+               for f in range(geom.num_polygons) for i in range(3)]
+        self.viewer.gui.addCurve(meshName, pts, npToTuple(geometry_object.meshColor))
+        self.viewer.gui.setCurveMode(meshName, "TRIANGLES")
+        self.viewer.gui.setLightingMode(meshName, "ON")
+        return True
+    else:
+        return loadPrimitive_orig(self, meshName, geometry_object)
+pin.visualize.gepetto_visualizer.GepettoVisualizer.loadPrimitive = loadPrimitive

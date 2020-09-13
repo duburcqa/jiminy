@@ -30,7 +30,7 @@ class SimulatePointMass(unittest.TestCase):
         self.robot = jiminy.Robot()
         self.robot.initialize(urdf_path, has_freeflyer=True)
         self.robot.add_contact_points(['MassBody'])
-        force_sensor = jiminy.ForceSensor('MassBody')
+        force_sensor = jiminy.ContactSensor('MassBody')
         self.robot.attach_sensor(force_sensor)
         force_sensor.initialize('MassBody')
 
@@ -118,7 +118,7 @@ class SimulatePointMass(unittest.TestCase):
         idx = self.robot.pinocchio_model.getFrameId("MassBody")
         def computeCommand(t, q, v, sensors_data, u):
             # Verify sensor data.
-            f = Force(sensors_data[jiminy.ForceSensor.type, "MassBody"], np.zeros(3))
+            f = Force(sensors_data[jiminy.ContactSensor.type, "MassBody"], np.zeros(3))
             f_joint_sensor = self.robot.pinocchio_model.frames[idx].placement * f
             f_jiminy = engine.system_state.f_external[self.robot.pinocchio_model.frames[idx].parent]
             self.assertTrue(np.allclose(f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))

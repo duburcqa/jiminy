@@ -84,9 +84,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # ############################### Initialize Jiminy ####################################
 
-        os.environ["JIMINY_MESH_PATH"] = \
+        os.environ["JIMINY_DATA_PATH"] = \
             resource_filename('gym_jiminy.envs', 'data')
-        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"],
+        urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"],
             "cartpole/cartpole.urdf")
 
         robot = jiminy.Robot()

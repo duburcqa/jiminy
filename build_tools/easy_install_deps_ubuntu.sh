@@ -60,17 +60,12 @@ if ! [-d "/opt/openrobots/lib/${PYTHON_BIN}/site-packages/" ] ; then
     curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | apt-key add - && \
     apt update
 
-    if [ $DISTRIB_RELEASE == "18.04" ] ; then
-        apt install -y --allow-downgrades robotpkg-urdfdom=0.3.0r2 robotpkg-urdfdom-headers=0.3.0 robotpkg-hpp-fcl=1.4.2 \
-                                          robotpkg-gepetto-viewer=4.4.0 robotpkg-py36-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py36-omniorbpy \
-                                          robotpkg-py36-eigenpy=2.3.0 robotpkg-py36-hpp-fcl=1.4.2 \
-                                          robotpkg-pinocchio=2.3.1 robotpkg-py36-pinocchio=2.3.1
-    else
-        apt install -y --allow-downgrades robotpkg-urdfdom=1.0.3 robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.4.5 \
-                                          robotpkg-py38-qt5-gepetto-viewer=4.9.0r3 robotpkg-py38-qt5-gepetto-viewer-corba=5.4.0r2 robotpkg-py38-omniorbpy=4.2.4 \
-                                          robotpkg-py38-eigenpy=2.5.0 robotpkg-py38-hpp-fcl=1.4.5 \
-                                          robotpkg-pinocchio=2.4.7 robotpkg-py38-pinocchio=2.4.7
-    fi
+    # apt-get must be used instead of apt to support wildcard in package name on Ubuntu 20
+    apt-get install -y --allow-downgrades --allow-unauthenticated \
+        robotpkg-urdfdom=1.0.3 robotpkg-urdfdom-headers=1.0.4 robotpkg-hpp-fcl=1.4.5 \
+        robotpkg-py3*-qt5-gepetto-viewer=4.9.0r3 robotpkg-py3*-qt5-gepetto-viewer-corba=5.4.0r2 robotpkg-py3*-omniorbpy=4.2.4 \
+        robotpkg-py3*-eigenpy=2.5.0 robotpkg-py3*-hpp-fcl=1.4.5 \
+        robotpkg-pinocchio=2.4.7 robotpkg-py3*-pinocchio=2.4.7
 
     sudo -H -u $(id -nu $SUDO_UID) bash -c " \
     echo 'export LD_LIBRARY_PATH=\"/opt/openrobots/lib:\${LD_LIBRARY_PATH}\"' >> \$HOME/.bashrc && \

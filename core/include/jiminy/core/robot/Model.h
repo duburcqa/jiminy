@@ -41,11 +41,21 @@ namespace jiminy
             return config;
         };
 
+        virtual configHolder_t getDefaultCollisionOptions()
+        {
+            // Add extra options or update default values
+            configHolder_t config;
+            config["maxContactPointsPerBody"] = 3U;  // Max number of contact points per collision pairs
+
+            return config;
+        };
+
         virtual configHolder_t getDefaultModelOptions()
         {
             configHolder_t config;
             config["dynamics"] = getDefaultDynamicsOptions();
             config["joints"] = getDefaultJointOptions();
+            config["collisions"] = getDefaultCollisionOptions();
 
             return config;
         };
@@ -94,14 +104,27 @@ namespace jiminy
             }
         };
 
+        struct collisionOptions_t
+        {
+            uint32_t const maxContactPointsPerBody;
+
+            collisionOptions_t(configHolder_t const & options) :
+            maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
+            {
+                // Empty.
+            }
+        };
+
         struct modelOptions_t
         {
             dynamicsOptions_t const dynamics;
             jointOptions_t const joints;
+            collisionOptions_t const collisions;
 
             modelOptions_t(configHolder_t const & options) :
             dynamics(boost::get<configHolder_t>(options.at("dynamics"))),
-            joints(boost::get<configHolder_t>(options.at("joints")))
+            joints(boost::get<configHolder_t>(options.at("joints"))),
+            collisions(boost::get<configHolder_t>(options.at("collisions")))
             {
                 // Empty.
             }
@@ -123,8 +146,8 @@ namespace jiminy
                            std::string    const & parentBodyName,
                            pinocchio::SE3 const & framePlacement);
         hresult_t removeFrame(std::string const & frameName);
-        hresult_t addContactBodies(std::vector<std::string> const & bodyNames);
-        hresult_t removeContactBodies(std::vector<std::string> const & frameNames = {});
+        hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames);
+        hresult_t removeCollisionBodies(std::vector<std::string> const & frameNames = {});
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
@@ -142,7 +165,9 @@ namespace jiminy
         int32_t const & nv(void) const;
         int32_t const & nx(void) const;
 
+        std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
+        std::vector<int32_t> const & getCollisionBodiesIdx(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
@@ -169,6 +194,7 @@ namespace jiminy
                                 bool_t      const & hasFreeflyer);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
+        hresult_t refreshCollisionsProxies(void);
         hresult_t refreshContactsProxies(void);
         virtual hresult_t refreshProxies(void);
 
@@ -176,7 +202,7 @@ namespace jiminy
         pinocchio::Model pncModel_;
         mutable pinocchio::Data pncData_;
         pinocchio::GeometryModel pncGeometryModel_;
-        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using ptr to avoid having to initialize it with an empty GeometryModel, which causes segfault for Pinocchio < 2.4.0.
+        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes segfault for Pinocchio < 2.4.0.
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
@@ -188,8 +214,9 @@ namespace jiminy
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> contactBodiesNames_;       ///< Name of the contact bodies of the robot
+        std::vector<std::string> collisionBodiesNames_;     ///< Name of the collision bodies of the robot
         std::vector<std::string> contactFramesNames_;       ///< Name of the contact frames of the robot
+        std::vector<int32_t> collisionBodiesIdx_;           ///< Indices of the collision bodies in the frame list of the robot
         std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
         std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
         std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot

@@ -921,6 +921,41 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t getBodyIdx(pinocchio::Model const & model,
+                          std::string     const & bodyName,
+                          int32_t               & bodyIdx)
+    {
+        if (!model.existBodyName(bodyName))
+        {
+            std::cout << "Error - Utilities::getFrameIdx - Frame not found in urdf." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        bodyIdx = model.getBodyId(bodyName);
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t getBodiesIdx(pinocchio::Model         const & model,
+                           std::vector<std::string> const & bodiesNames,
+                           std::vector<int32_t>           & bodiesIdx)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        bodiesIdx.resize(0);
+        for (std::string const & name : bodiesNames)
+        {
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                int32_t idx;
+                returnCode = getFrameIdx(model, name, idx);
+                bodiesIdx.push_back(std::move(idx));
+            }
+        }
+
+        return returnCode;
+    }
+
     hresult_t getJointPositionIdx(pinocchio::Model     const & model,
                                   std::string          const & jointName,
                                   std::vector<int32_t>       & jointPositionIdx)
