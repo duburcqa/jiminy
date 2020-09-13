@@ -568,7 +568,7 @@ namespace python
                     std::string const & sensorName = sensorData.name;
                     int32_t const & sensorIdx = sensorData.idx;
                     Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorData.value;
-                    s << "    " << sensorName << " (" << sensorIdx << "): "
+                    s << "    (" << sensorIdx << ") " <<  sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
                 }
             }
@@ -781,7 +781,39 @@ namespace python
                                           bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("data", &PySensorVisit::getData)
+                    .def("__repr__", &PySensorVisit::repr)
                     ;
+            }
+
+            static bp::object getData(AbstractSensorBase & self)
+            {
+                // Be careful, it removes the const qualifier, so that the data can be modified from Python
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                return bp::object(valuePy);
+            }
+
+            static std::string repr(AbstractSensorBase & self)
+            {
+                std::stringstream s;
+                s << "type: " << self.getType() << "\n";
+                s << "name: " << self.getName() << "\n";
+                s << "idx: " << self.getIdx() << "\n";
+                s << "data:\n    ";
+                std::vector<std::string> const & fieldnames = self.getFieldnames();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                for (uint32_t i=0; i<fieldnames.size(); ++i)
+                {
+                    std::string const & field = fieldnames[i];
+                    float64_t const & value = sensorDataValue[i];
+                    if (i > 0)
+                    {
+                       s << ", ";
+                    }
+                    s << field << ": " << value;
+                }
+                return s.str();
             }
 
             template<class Q = TSensor>
