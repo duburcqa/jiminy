@@ -872,8 +872,6 @@ namespace python
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
                                                bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("body_name", bp::make_function(&TSensor::getBodyName,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_idx", bp::make_function(&TSensor::getJointIdx,
                                                bp::return_value_policy<bp::return_by_value>()))
                     ;

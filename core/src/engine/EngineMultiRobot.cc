@@ -1814,13 +1814,10 @@ namespace jiminy
         // with body collision. Nevertheless it should not be to hard to generated a collision
         // object simply by sampling points on the profile.
 
-        // Get the frame Idx
-        uint32_t geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
-        uint32_t parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
-
-        // Get the pose of the frame wrt the world
-        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx];
-        matrix3_t const & rotFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx].rotation();
+        // Get the frame and joint indices
+        uint32_t const & geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
+        uint32_t const & parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
+        uint32_t const & parentJointIdx =  system.robot->pncModel_.frames[parentFrameIdx].parent;
 
         // Extract collision and distance results
         hpp::fcl::CollisionResult collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
@@ -1830,27 +1827,34 @@ namespace jiminy
         {
             // Extract the contact information.
             // Note that there is always a single contact point while computing the collision
-            // between two shape objects, as it is the case there (convex-box).
-            vector3_t nGround = vector3_t::Zero();
-            float64_t depth = collisionResult.getContact(0).penetration_depth;
+            // between two shape objects, for instance convex geometry and box primitive.
+            vector3_t nGround = - distanceResult.normal;  // Normal of the ground in world (at least in the case of box primitive)
+            float64_t depth = - collisionResult.getContact(0).penetration_depth;
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
             posContactInWorld.translation() = distanceResult.nearest_points[0];
 
             // Get frame motion in the motion frame.
-            vector3_t const motionFrameInWorld = pinocchio::getFrameVelocity(
-                system.robot->pncModel_, system.robot->pncData_, parentFrameIdx).linear();
-            vector3_t const vFrameInWorld = rotFrameInWorld * motionFrameInWorld;
+            // Note that for Pinocchio >= v2.4.4, it is possible to specify directly the desired reference frame.
+            // 1. Get the spatial velocity of the parent joint in local frame
+            // 2. Get the pose of the joint in world frame
+            // 3. Compute the linear velocity of the contact point
+            pinocchio::Motion const & motionJointLocal = system.robot->pncData_.v[parentJointIdx];
+            vector3_t const vContactLocal = posContactInWorld.actInv(motionJointLocal).linear();
+            pinocchio::SE3 const & transformJointFrameInWorld = system.robot->pncData_.oMi[parentJointIdx];
+            matrix3_t const & rotJointFrame = transformJointFrameInWorld.rotation();
+            vector3_t const vFrameInWorld = rotJointFrame * vContactLocal;
 
             // Compute the ground reaction force at contact point in world frame
             pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vFrameInWorld);
 
-            // Move the force at parent frame location
-            // TODO: 1. Compute the position of the contact point in local frame
-            //       2. Move the force at parent frame location
-            pinocchio::SE3 const posContactLocal = transformFrameInWorld.actInv(posContactInWorld);
-            pinocchio::Force fextAtParentFrameInGlobal = posContactLocal.actInv(fextAtContactInGlobal);
+            // Move the force at parent frame location.
+            // 1. Compute the position of the contact point in local frame
+            // 2. Move the force at parent joint location
+            pinocchio::SE3 posContactLocal = transformJointFrameInWorld.actInv(posContactInWorld);
+            posContactLocal.rotation() = matrix3_t::Identity();  // No rotation to apply to the force, only changing the application point
+            pinocchio::Force fextAtParentJointInGlobal = posContactLocal.actInv(fextAtContactInGlobal);
 
-            return fextAtParentFrameInGlobal;
+            return fextAtParentJointInGlobal;
         }
         else
         {
@@ -1866,10 +1870,10 @@ namespace jiminy
            /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
         // Get the pose of the frame wrt the world
-        vector3_t const & posFrame = system.robot->pncData_.oMf[frameIdx].translation();
-        matrix3_t const & rotFrame = system.robot->pncData_.oMf[frameIdx].rotation();
+        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[frameIdx];
 
         // Compute the ground normal and penetration depth at the contact point
+        vector3_t const & posFrame = transformFrameInWorld.translation();
         auto ground = engineOptions_->world.groundProfile(posFrame);
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
@@ -1880,9 +1884,10 @@ namespace jiminy
         if (depth < 0.0)
         {
             // Get frame motion in the motion frame.
-            vector3_t const motionFrame = pinocchio::getFrameVelocity(
+            vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
-            vector3_t const vFrameInWorld = rotFrame * motionFrame;
+            matrix3_t const & rotFrame = transformFrameInWorld.rotation();
+            vector3_t const vFrameInWorld = rotFrame * motionFrameLocal;
 
             // Compute the ground reaction force in world frame
             return computeContactDynamics(system, nGround, depth, vFrameInWorld);
@@ -2093,29 +2098,32 @@ namespace jiminy
             pinocchio::Force const fextInGlobal = computeContactDynamicsAtFrame(system, frameIdx);
 
             // Apply the force at the origin of the parent joint frame
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
             pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInGlobal);
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentIdx] += fextLocal;
+            fext[parentJointIdx] += fextLocal;
 
-            // Convert contact force from the global frame to the local frame to store it in contactForces_.
-            // TODO: Why not to use fextLocal directly ?
-            system.robot->contactForces_[i].linear() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.linear();
-            system.robot->contactForces_[i].angular() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.angular();
+            // Convert contact force from the global frame to the local frame to store it in contactForces_
+            matrix3_t const & joint_R_world = system.robot->pncData_.oMf[frameIdx].rotation().transpose();
+            system.robot->contactForces_[i].linear() = joint_R_world * fextInGlobal.linear();
+            system.robot->contactForces_[i].angular() = joint_R_world * fextInGlobal.angular();
         }
 
         // Compute the force at collision bodies
         std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
         for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
         {
-            // Compute force at the given contact frame.
-            int32_t const & bodyIdx = collisionBodiesIdx[i];
+            // Compute force at the given collision body.
+            int32_t const & frameIdx = collisionBodiesIdx[i];
             pinocchio::Force const fextInGlobal = computeContactDynamicsAtBody(system, i);
 
             // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, bodyIdx, fextInGlobal);
-            fext[bodyIdx] += fextLocal;
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            matrix3_t const & joint_R_world = system.robot->pncData_.oMf[frameIdx].rotation().transpose();
+            pinocchio::Force fextLocal;
+            fextLocal.linear() = joint_R_world * fextInGlobal.linear();
+            fextLocal.angular() = joint_R_world * fextInGlobal.angular();
+            fext[parentJointIdx] += fextLocal;
         }
 
         // Add the effect of user-defined external impulse forces
@@ -2130,10 +2138,10 @@ namespace jiminy
             if (*forcesImpulseActiveIt)
             {
                 int32_t const & frameIdx = forcesImpulseIt->frameIdx;
-                int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+                int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
                 pinocchio::Force const & F = forcesImpulseIt->F;
 
-                fext[parentIdx] += convertForceGlobalFrameToJoint(
+                fext[parentJointIdx] += convertForceGlobalFrameToJoint(
                     system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
@@ -2142,11 +2150,11 @@ namespace jiminy
         for (auto const & forceProfile : system.forcesProfile)
         {
             int32_t const & frameIdx = forceProfile.frameIdx;
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
             forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
 
             pinocchio::Force const force = forceFct(t, q, v);
-            fext[parentIdx] += convertForceGlobalFrameToJoint(
+            fext[parentJointIdx] += convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
         }
     }
@@ -2172,15 +2180,15 @@ namespace jiminy
             forceVector_t & fext2 = system2.state.fExternal;
 
             pinocchio::Force const force = forceFct(t, q1, v1, q2, v2);
-            int32_t const & parentIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
-            fext1[parentIdx1] += convertForceGlobalFrameToJoint(
+            int32_t const & parentJointIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
+            fext1[parentJointIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
-            int32_t const & parentIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
+            int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
             // Move force from frame1 to frame2 to apply it to the second system.
             pinocchio::SE3 offset(
                 matrix3_t::Identity(),
                 system1.robot->pncData_.oMf[frameIdx2].translation() - system1.robot->pncData_.oMf[frameIdx1].translation());
-            fext2[parentIdx2] += convertForceGlobalFrameToJoint(
+            fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));
         }
     }

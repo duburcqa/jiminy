@@ -391,6 +391,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 motor.set_options(options)
 
         # Add the sensors to the robot
+        collision_bodies_names = []
         for sensor_type, sensors_descr in sensors_info.items():
             for sensor_name, sensor_descr in sensors_descr.items():
                 # Create the sensor and attach it
@@ -417,6 +418,10 @@ class BaseJiminyRobot(jiminy.Robot):
 
                         ## Get the body name
                         body_name = sensor_descr.pop('body_name')
+
+                        ## Add the body to the list for collision bodies if it is a force sensor
+                        if sensor_type in force.type:
+                            collision_bodies_names.append(body_name)
 
                         ## Generate a frame name that is intelligible and available
                         i = 0
@@ -452,9 +457,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 sensor.set_options(options)
 
         # Add the contact points
-        force_sensor_frame_names = [self.get_sensor(force.type, e).body_name
-                                    for e in self.sensors_names[force.type]]
-        self.add_collision_bodies(force_sensor_frame_names)
+        self.add_collision_bodies(collision_bodies_names)
 
     def set_model_options(self, model_options):
         """

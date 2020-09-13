@@ -126,32 +126,45 @@ namespace jiminy
                               std::string    const & parentBodyName,
                               pinocchio::SE3 const & framePlacement)
     {
+        // Note that since it is not possible to add a frame to another frame,
+        // the frame is added directly to the parent joint, thus relative transform
+        // of the frame wrt the parent joint must be computed.
         hresult_t returnCode = hresult_t::SUCCESS;
 
         pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
 
+        int32_t parentFrameId;
+
         // Add the frame to the the current model
-        int32_t parentBodyId;
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModel_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModel_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModel_.addFrame(frame);
         }
 
         // Add the frame to the the original rigid model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelRigidOrig_.addFrame(frame);
         }
 
         // Add the frame to the the original flexible model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelFlexibleOrig_.addFrame(frame);
         }
 

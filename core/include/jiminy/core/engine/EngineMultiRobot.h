@@ -632,7 +632,7 @@ namespace jiminy
         ///
         /// \param[in] system              System for which to perform computation.
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
-        /// \return Contact force, at parent frame, in the global frame.
+        /// \return Contact force, at parent joint, in the global frame.
         pinocchio::Force computeContactDynamicsAtBody(systemDataHolder_t const & system,
                                                       int32_t            const & collisionPairIdx) const;
 

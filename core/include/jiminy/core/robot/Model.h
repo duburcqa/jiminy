@@ -142,6 +142,11 @@ namespace jiminy
         hresult_t initialize(std::string const & urdfPath,
                              bool_t      const & hasFreeflyer = true);
 
+        /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
+        ///
+        /// \param[in] frameName        Name of the frame to be added
+        /// \param[in] parentBodyName   Name of the parent body frame
+        /// \param[in] framePlacement   Frame placement wrt the parent body frame
         hresult_t addFrame(std::string    const & frameName,
                            std::string    const & parentBodyName,
                            pinocchio::SE3 const & framePlacement);

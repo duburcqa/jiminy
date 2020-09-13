@@ -309,7 +309,7 @@ namespace jiminy
     AbstractSensorTpl(name),
     frameName_(),
     frameIdx_(0),
-    parentBodyFrameIdx_(0)
+    parentJointIdx_(0)
     {
         // Empty.
     }
@@ -365,13 +365,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            parentBodyFrameIdx_ = robot_->pncModel_.frames[frameIdx_].parent;
-            pinocchio::Frame const & parentBodyFrame = robot_->pncModel_.frames[parentBodyFrameIdx_];
-            if (parentBodyFrame.type != pinocchio::FrameType::BODY)
-            {
-                std::cout << "Error - ForceSensor::refreshProxies - The parent of the frame is not a body. Impossible to refresh model-dependent proxies." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            parentJointIdx_ = robot_->pncModel_.frames[frameIdx_].parent;  // parent always returns the parent joint
         }
 
         return returnCode;
@@ -387,14 +381,9 @@ namespace jiminy
         return frameIdx_;
     }
 
-    std::string const & ForceSensor::getBodyName(void) const
-    {
-        return robot_->pncModel_.frames[parentBodyFrameIdx_].name;
-    }
-
     int32_t ForceSensor::getJointIdx(void) const
     {
-        return robot_->pncModel_.frames[parentBodyFrameIdx_].parent;
+        return parentJointIdx_;
     }
 
     hresult_t ForceSensor::set(float64_t                   const & t,
@@ -403,6 +392,8 @@ namespace jiminy
                                Eigen::Ref<vectorN_t const> const & a,
                                vectorN_t                   const & uMotor)
     {
+        // Returns the force applied at frame location, in the local frame of the parent joint
+
         if (!isInitialized_)
         {
             std::cout << "Error - ForceSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
@@ -410,7 +401,7 @@ namespace jiminy
         }
 
         pinocchio::SE3 const & framePlacement = robot_->pncModel_.frames[frameIdx_].placement;
-        pinocchio::Force f = framePlacement.actInv(robot_->pncData_.f[getJointIdx()]);
+        pinocchio::Force f = framePlacement.actInv(robot_->pncData_.f[parentJointIdx_]);  // f is in the local frame of the joint
         data() = f.toVector();
 
         return hresult_t::SUCCESS;
