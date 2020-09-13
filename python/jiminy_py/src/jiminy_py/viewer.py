@@ -252,9 +252,10 @@ class Viewer:
 
         # Configure exception handling
         if Viewer.backend == 'gepetto-gui':
+            import gepetto
             import omniORB
             Viewer._backend_exceptions = \
-                (omniORB.CORBA.COMM_FAILURE, omniORB.CORBA.TRANSIENT)
+                (omniORB.CORBA.COMM_FAILURE, omniORB.CORBA.TRANSIENT, gepetto.corbaserver.gepetto.Error)
         else:
             Viewer._backend_exceptions = (zmq.error.Again, zmq.error.ZMQError)
 
@@ -353,11 +354,11 @@ class Viewer:
             self._rb.loadViewerModel(self.robot_name)
             try:
                 self._client.setFloatProperty(scene_name + '/' + self.robot_name,
-                                            'Alpha', alpha)
-            except gepetto.corbaserver.gepetto.Error:
+                                              'Alpha', alpha)
+            except Viewer._backend_exceptions:
                 # Old Gepetto versions do no have 'Alpha' attribute but rather 'Transparency'
                 self._client.setFloatProperty(scene_name + '/' + self.robot_name,
-                                            'Transparency', 1 - alpha)
+                                              'Transparency', 1 - alpha)
         else:
             self._client.collision_model = self.collision_model
             self._client.visual_model = visual_model
