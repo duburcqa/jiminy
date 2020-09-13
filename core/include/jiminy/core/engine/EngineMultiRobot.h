@@ -312,6 +312,7 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
+            config["successiveIterFailedMax"] = 100U;
             config["iterMax"] = -1; // <= 0: disable
             config["timeout"] = 0.0; // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
@@ -407,6 +408,7 @@ namespace jiminy
             float64_t   const tolRel;
             float64_t   const dtMax;
             float64_t   const dtRestoreThresholdRel;
+            uint32_t    const successiveIterFailedMax;
             int32_t     const iterMax;
             float64_t   const timeout;
             float64_t   const sensorsUpdatePeriod;
@@ -421,6 +423,7 @@ namespace jiminy
             tolRel(boost::get<float64_t>(options.at("tolRel"))),
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
+            successiveIterFailedMax(boost::get<uint32_t>(options.at("successiveIterFailedMax"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             timeout(boost::get<float64_t>(options.at("timeout"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),

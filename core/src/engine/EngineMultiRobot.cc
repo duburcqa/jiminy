@@ -975,6 +975,9 @@ namespace jiminy
         // Define a failure checker for the stepper
         failed_step_checker fail_checker;
 
+        // Successive iteration failure
+        uint32_t sucessiveIterFailed = 0;
+
         /* Flag monitoring if the current time step depends of a breakpoint
            or the integration tolerance. It will be used by the restoration
            mechanism, if dt gets very small to reach a breakpoint, in order
@@ -1138,6 +1141,7 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
+                sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
                     /* Adjust stepsize to end up exactly at the next breakpoint,
@@ -1175,6 +1179,12 @@ namespace jiminy
                     timer_.toc();
                     if (EPS < engineOptions_->stepper.timeout
                         && engineOptions_->stepper.timeout < timer_.dt)
+                    {
+                        break;
+                    }
+
+                    // Break the loop in case of too many successive failed inner iteration
+                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
                     }
@@ -1248,7 +1258,8 @@ namespace jiminy
                            in step size adjustment. */
                         fail_checker();
 
-                        // Increment the failed iteration counter
+                        // Increment the failed iteration counters
+                        sucessiveIterFailed++;
                         stepperState_.iterFailed++;
                     }
 
@@ -1275,6 +1286,12 @@ namespace jiminy
                 {
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
+
+                    // Break the loop in case of too many successive failed inner iteration
+                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    {
+                        break;
+                    }
 
                     // Try to do a step
                     isStepSuccessful = try_step(stepper_, systemOde, x, dxdt, t, dtLargest);
@@ -1325,12 +1342,20 @@ namespace jiminy
                         fail_checker();
 
                         // Increment the failed iteration counter
+                        sucessiveIterFailed++;
                         stepperState_.iterFailed++;
                     }
 
                     // Initialize the next dt
                     dt = dtLargest;
                 }
+            }
+
+            if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+            {
+                std::cout << "Error - EngineMultiRobot::step - Too many successive iteration failures. "\
+                             "Probably something is going wrong with the physics. Aborting integration." << std::endl;
+                return hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
@@ -1498,6 +1523,14 @@ namespace jiminy
         if (SIMULATION_MAX_TIMESTEP < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
             std::cout << "Error - EngineMultiRobot::setOptions - 'dtMax' option is out of range." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Make sure successiveIterFailedMax is strictly positive
+        uint32_t const & successiveIterFailedMax = boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
+        if (successiveIterFailedMax < 1)
+        {
+            std::cout << "Error - EngineMultiRobot::setOptions - 'successiveIterFailedMax' must be strictly positive." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
