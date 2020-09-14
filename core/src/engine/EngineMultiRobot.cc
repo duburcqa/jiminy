@@ -1831,30 +1831,29 @@ namespace jiminy
             vector3_t nGround = - distanceResult.normal;  // Normal of the ground in world (at least in the case of box primitive)
             float64_t depth = - collisionResult.getContact(0).penetration_depth;
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
-            posContactInWorld.translation() = distanceResult.nearest_points[0];
+            posContactInWorld.translation() = distanceResult.nearest_points[1]; // The point at the surface of the ground (it is hill-defined for the body geometry since it depends on its type)
 
-            // Get frame motion in the motion frame.
-            // Note that for Pinocchio >= v2.4.4, it is possible to specify directly the desired reference frame.
-            // 1. Get the spatial velocity of the parent joint in local frame
-            // 2. Get the pose of the joint in world frame
-            // 3. Compute the linear velocity of the contact point
+            /* Make sure the collision computation didn't failed. If it happends the
+               norm of the distance normal close to zero. It so, just assume there is
+               no collision at all. */
+            if (nGround.norm() < EPS)
+            {
+                return pinocchio::Force::Zero();
+            }
+
+            // Compute the linear velocity of the contact point in world frame
             pinocchio::Motion const & motionJointLocal = system.robot->pncData_.v[parentJointIdx];
-            vector3_t const vContactLocal = posContactInWorld.actInv(motionJointLocal).linear();
             pinocchio::SE3 const & transformJointFrameInWorld = system.robot->pncData_.oMi[parentJointIdx];
-            matrix3_t const & rotJointFrame = transformJointFrameInWorld.rotation();
-            vector3_t const vFrameInWorld = rotJointFrame * vContactLocal;
+            pinocchio::SE3 const transformJointFrameInContact = posContactInWorld.actInv(transformJointFrameInWorld);
+            vector3_t const vContactInWorld = transformJointFrameInContact.act(motionJointLocal).linear();
 
             // Compute the ground reaction force at contact point in world frame
-            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vFrameInWorld);
+            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vContactInWorld);
 
-            // Move the force at parent frame location.
-            // 1. Compute the position of the contact point in local frame
-            // 2. Move the force at parent joint location
-            pinocchio::SE3 posContactLocal = transformJointFrameInWorld.actInv(posContactInWorld);
-            posContactLocal.rotation() = matrix3_t::Identity();  // No rotation to apply to the force, only changing the application point
-            pinocchio::Force fextAtParentJointInGlobal = posContactLocal.actInv(fextAtContactInGlobal);
+            // Move the force at parent frame location
+            pinocchio::Force fextAtParentJointInLocal = transformJointFrameInContact.actInv(fextAtContactInGlobal);
 
-            return fextAtParentJointInGlobal;
+            return fextAtParentJointInLocal;
         }
         else
         {
@@ -1883,14 +1882,21 @@ namespace jiminy
         // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
         {
-            // Get frame motion in the motion frame.
+            // Compute the linear velocity of the contact point in world frame.
+            // Note that for Pinocchio >= v2.4.4, it is possible to specify directly the desired reference frame.
             vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
             matrix3_t const & rotFrame = transformFrameInWorld.rotation();
-            vector3_t const vFrameInWorld = rotFrame * motionFrameLocal;
+            vector3_t const vContactInWorld = rotFrame * motionFrameLocal;
 
             // Compute the ground reaction force in world frame
-            return computeContactDynamics(system, nGround, depth, vFrameInWorld);
+            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vContactInWorld);
+
+            // Apply the force at the origin of the parent joint frame
+            pinocchio::Force const fextAtParentJointInLocal = convertForceGlobalFrameToJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextAtContactInGlobal);
+
+            return fextAtParentJointInLocal;
         }
         else
         {
@@ -1902,7 +1908,7 @@ namespace jiminy
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
                                                               vector3_t          const & nGround,
                                                               float64_t          const & depth,
-                                                              vector3_t          const & vFrameInWorld) const
+                                                              vector3_t          const & vContactInWorld) const
     {
         // Initialize the contact force
         vector3_t fextInWorld;
@@ -1913,7 +1919,7 @@ namespace jiminy
             contactOptions_t const & contactOptions_ = engineOptions_->contacts;
 
             // Compute the penetration speed
-            float64_t const vDepth = vFrameInWorld.dot(nGround);
+            float64_t const vDepth = vContactInWorld.dot(nGround);
 
             // Compute normal force
             float64_t fextNormal = 0.0;
@@ -1925,7 +1931,7 @@ namespace jiminy
             fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
-            vector3_t const vTangential = vFrameInWorld - vDepth * nGround;
+            vector3_t const vTangential = vContactInWorld - vDepth * nGround;
             float64_t const vNorm = vTangential.norm();
 
             float64_t frictionCoeff = 0.0;
@@ -2095,18 +2101,15 @@ namespace jiminy
         {
             // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force const fextInGlobal = computeContactDynamicsAtFrame(system, frameIdx);
+            pinocchio::Force const fextLocal = computeContactDynamicsAtFrame(system, frameIdx);
 
-            // Apply the force at the origin of the parent joint frame
+            // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInGlobal);
             fext[parentJointIdx] += fextLocal;
 
             // Convert contact force from the global frame to the local frame to store it in contactForces_
-            matrix3_t const & joint_R_world = system.robot->pncData_.oMf[frameIdx].rotation().transpose();
-            system.robot->contactForces_[i].linear() = joint_R_world * fextInGlobal.linear();
-            system.robot->contactForces_[i].angular() = joint_R_world * fextInGlobal.angular();
+            pinocchio::SE3 const & transformContactInJoint = system.robot->pncModel_.frames[frameIdx].placement;
+            system.robot->contactForces_[i] = transformContactInJoint.act(fextLocal);
         }
 
         // Compute the force at collision bodies
@@ -2114,15 +2117,12 @@ namespace jiminy
         for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
         {
             // Compute force at the given collision body.
+            // It returns the force applied at the origin of the parent joint frame, in global frame
             int32_t const & frameIdx = collisionBodiesIdx[i];
-            pinocchio::Force const fextInGlobal = computeContactDynamicsAtBody(system, i);
+            pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, i);
 
-            // Apply the force at the origin of the parent joint frame
+            // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            matrix3_t const & joint_R_world = system.robot->pncData_.oMf[frameIdx].rotation().transpose();
-            pinocchio::Force fextLocal;
-            fextLocal.linear() = joint_R_world * fextInGlobal.linear();
-            fextLocal.angular() = joint_R_world * fextInGlobal.angular();
             fext[parentJointIdx] += fextLocal;
         }
 

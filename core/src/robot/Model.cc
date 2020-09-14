@@ -988,13 +988,18 @@ namespace jiminy
         // Build the robot geometry model
         pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
 
-        // Replace the geometry object by their convex representation for efficiency
+        // Replace the mesh geometry object by its convex representation for efficiency
         #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
         for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
         {
             hpp::fcl::BVHModelPtr_t bvh = boost::dynamic_pointer_cast<hpp::fcl::BVHModelBase>(pncGeometryModel_.geometryObjects[i].geometry);
-            bvh->buildConvexHull(true);
-            pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+            if (bvh)
+            {
+                // If the dynamic cast succeeded (bvh is not nullptr), it means that the object
+                // actually derive from the BVH model (cloud points or triangles).
+                bvh->buildConvexHull(true);
+                pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+            }
         }
         #endif
 

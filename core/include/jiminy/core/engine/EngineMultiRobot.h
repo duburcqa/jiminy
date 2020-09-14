@@ -312,7 +312,7 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
-            config["successiveIterFailedMax"] = 100U;
+            config["successiveIterFailedMax"] = 1000U;
             config["iterMax"] = -1; // <= 0: disable
             config["timeout"] = 0.0; // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
@@ -632,7 +632,7 @@ namespace jiminy
         ///
         /// \param[in] system              System for which to perform computation.
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
-        /// \return Contact force, at parent joint, in the global frame.
+        /// \return Contact force, at parent joint, in the local frame.
         pinocchio::Force computeContactDynamicsAtBody(systemDataHolder_t const & system,
                                                       int32_t            const & collisionPairIdx) const;
 
@@ -640,7 +640,7 @@ namespace jiminy
         ///
         /// \param[in] system      System for which to perform computation.
         /// \param[in] frameIdx    Id of the frame in contact.
-        /// \return Contact force, in the global frame.
+        /// \return Contact force, at parent joint, in the local frame.
         pinocchio::Force computeContactDynamicsAtFrame(systemDataHolder_t const & system,
                                                        int32_t            const & frameIdx) const;
 
@@ -648,7 +648,7 @@ namespace jiminy
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
                                                 vector3_t          const & nGround,
                                                 float64_t          const & depth,
-                                                vector3_t          const & vFrameInWorld) const;
+                                                vector3_t          const & vContactInWorld) const;
 
         void computeCommand(systemDataHolder_t                & system,
                             float64_t                   const & t,
