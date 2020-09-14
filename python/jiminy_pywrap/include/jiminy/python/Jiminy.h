@@ -1145,7 +1145,8 @@ namespace python
             cl
                 .def("initialize", &Robot::initialize,
                                    (bp::arg("self"), "urdf_path",
-                                    bp::arg("has_freeflyer") = false))
+                                    bp::arg("has_freeflyer") = false,
+                                    bp::arg("mesh_package_dirs") = std::vector<std::string>()))
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))

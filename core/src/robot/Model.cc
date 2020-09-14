@@ -54,13 +54,14 @@ namespace jiminy
         setOptions(getDefaultModelOptions());
     }
 
-    hresult_t Model::initialize(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer)
+    hresult_t Model::initialize(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Initialize the URDF model
-        returnCode = loadUrdfModel(urdfPath, hasFreeflyer);
+        returnCode = loadUrdfModel(urdfPath, hasFreeflyer, meshPackageDirs);
         isInitialized_ = true;
 
         if (returnCode == hresult_t::SUCCESS)
@@ -951,8 +952,9 @@ namespace jiminy
         return hasFreeflyer_;
     }
 
-    hresult_t Model::loadUrdfModel(std::string const & urdfPath,
-                                   bool_t      const & hasFreeflyer)
+    hresult_t Model::loadUrdfModel(std::string              const & urdfPath,
+                                   bool_t                   const & hasFreeflyer,
+                                   std::vector<std::string> const & meshPackageDirs)
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
@@ -984,7 +986,7 @@ namespace jiminy
         }
 
         // Build the robot geometry model
-        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_);
+        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
 
         // Replace the geometry object by their convex representation for efficiency
         #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4

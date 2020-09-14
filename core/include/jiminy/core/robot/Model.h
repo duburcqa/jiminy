@@ -139,8 +139,9 @@ namespace jiminy
         Model(void);
         virtual ~Model(void) = default;
 
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string              const & urdfPath,
+                             bool_t                   const & hasFreeflyer = true,
+                             std::vector<std::string> const & meshPackageDirs = {});
 
         /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
         ///
@@ -195,8 +196,9 @@ namespace jiminy
                                             vectorN_t       & xRigid) const;
 
     protected:
-        hresult_t loadUrdfModel(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer);
+        hresult_t loadUrdfModel(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
         hresult_t refreshCollisionsProxies(void);

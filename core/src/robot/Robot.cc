@@ -48,8 +48,9 @@ namespace jiminy
         detachSensors();
     }
 
-    hresult_t Robot::initialize(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer)
+    hresult_t Robot::initialize(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -62,7 +63,7 @@ namespace jiminy
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
-        returnCode = Model::initialize(urdfPath, hasFreeflyer);
+        returnCode = Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs);
 
         return returnCode;
     }
