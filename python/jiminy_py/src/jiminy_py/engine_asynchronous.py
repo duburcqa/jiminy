@@ -241,41 +241,42 @@ class EngineAsynchronous:
         """
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
-        if not self._is_viewer_available:
-            uniq_id = next(tempfile._get_candidate_names())
+        if not (self._is_viewer_available and self._viewer.is_alive()):
+            # Reset viewer backend if the existing viewer backend is no
+            # longer available for some reason.
+            if self._is_viewer_available:
+                self._viewer.close()
+                self._is_viewer_available = False
+
+            # Generate a new unique identifier if necessary
+            if self._viewer is None:
+                uniq_id = next(tempfile._get_candidate_names())
+                robot_name = "_".join(("robot", uniq_id))
+                scene_name = "_".join(("scene", uniq_id))
+                window_name = "_".join(("window", uniq_id))
+            else:
+                robot_name = self._viewer.robot_name
+                scene_name = self._viewer.scene_name
+                window_name = self._viewer.window_name
+
+            # Create a new viewer client
             self._viewer = Viewer(self.robot,
                                   use_theoretical_model=False,
                                   backend=self.viewer_backend,
                                   open_gui_if_parent=(not return_rgb_array),
                                   delete_robot_on_close=True,
-                                  robot_name="_".join(("robot", uniq_id)),
-                                  scene_name="_".join(("scene", uniq_id)),
-                                  window_name="_".join(("window", uniq_id)))
+                                  robot_name=robot_name,
+                                  scene_name=scene_name,
+                                  window_name=window_name)
             if self._viewer.is_backend_parent:
                 self._viewer.set_camera_transform(
                     translation=[9.0, 0.0, 2e-5],
                     rotation=[np.pi/2, 0.0, np.pi/2])
             self._viewer.wait(False)  # Wait for backend to finish loading
+            self._is_viewer_available = True
 
         # Try refreshing the viewer
-        try:
-            self._viewer.refresh()
-            self._is_viewer_available = True
-        except RuntimeError as e:
-            # Check if it failed because viewer backend is no longer available
-            if self._is_viewer_available and (Viewer._backend_obj is None or \
-                (self._viewer.is_backend_parent and \
-                    not self._viewer._backend_proc.is_alive())):
-                # Reset viewer backend
-                self._viewer.close()
-                self._viewer = None
-                self._is_viewer_available = False
-
-                # Retry rendering one more time
-                return self.render(return_rgb_array, width, height)
-            else:
-                raise RuntimeError(
-                    "Unrecoverable Viewer backend exception.") from e
+        self._viewer.refresh()
 
         # Compute rgb array if needed
         if return_rgb_array:
