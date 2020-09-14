@@ -3,7 +3,7 @@ meant to unit test the contact and friction model in Jiminy.
 The force sensor is mounted with an offset rotation to verify frame computations.
 -->
 <?xml version="1.0" ?>
-<robot name="point_mass">
+<robot name="sphere">
     <link name="root"/>
     <joint name="base" type="fixed">
         <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
@@ -17,5 +17,17 @@ The force sensor is mounted with an offset rotation to verify frame computations
             <mass value="1.0"/>
             <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
         </inertial>
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0.5"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <sphere radius="0.5"/>
+            </geometry>
+        </collision>
     </link>
 </robot>
