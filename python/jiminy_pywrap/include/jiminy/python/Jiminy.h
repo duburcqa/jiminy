@@ -1753,6 +1753,9 @@ namespace python
                 .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
+
+                .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
+                                               bp::return_value_policy<bp::return_by_value>()))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,

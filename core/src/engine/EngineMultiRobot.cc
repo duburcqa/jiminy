@@ -1641,6 +1641,19 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    std::vector<std::string> EngineMultiRobot::getSystemsNames(void) const
+    {
+        std::vector<std::string> systemsNames;
+        systemsNames.reserve(systemsDataHolder_.size());
+        std::transform(systemsDataHolder_.begin(), systemsDataHolder_.end(),
+                       std::back_inserter(systemsNames),
+                       [](auto const & sys) -> std::string
+                       {
+                           return sys.name;
+                       });
+        return systemsNames;
+    }
+
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
                                           systemDataHolder_t const * & system) const
     {

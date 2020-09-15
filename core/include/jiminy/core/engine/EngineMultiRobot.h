@@ -579,6 +579,7 @@ namespace jiminy
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsTelemetryConfigured(void) const;
+        std::vector<std::string> getSystemsNames(void) const;
         hresult_t getSystem(std::string        const   & systemName,
                             systemDataHolder_t const * & system) const;
         hresult_t getSystem(std::string        const   & systemName,
