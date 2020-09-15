@@ -339,7 +339,7 @@ class Viewer:
                 alpha = 1.0
         visual_model = pin.buildGeomFromUrdf(
             self.pinocchio_model, self.urdf_path,
-            [], pin.GeometryType.VISUAL)
+            robot.mesh_package_dirs, pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=self.collision_model,
                                 visual_model=visual_model)

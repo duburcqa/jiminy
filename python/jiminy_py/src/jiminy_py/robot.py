@@ -260,15 +260,18 @@ def fix_urdf_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
         urdf_contents = urdf_file.read()
-    pathlists = [
+    pathlists = {
         filename
         for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
-        if not filename.startswith('package://')]
+        if not filename.startswith('package://')}
     if not pathlists:
         return urdf_path
 
     # If mesh root path already matching, then nothing to do
-    mesh_root_path_orig = os.path.commonpath(pathlists)
+    if len(pathlists) > 1:
+        mesh_root_path_orig = os.path.commonpath(pathlists)
+    else:
+        mesh_root_path_orig = os.path.dirname(next(iter(pathlists)))
     if mesh_root_path == mesh_root_path_orig:
         return urdf_path
 
@@ -344,13 +347,17 @@ class BaseJiminyRobot(jiminy.Robot):
         self.urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
-        if mesh_root_path is None:
-            mesh_root_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_root_path is not None:
             urdf_path = fix_urdf_mesh_path(urdf_path, mesh_root_path)
 
         # Initialize the robot without motors nor sensors
-        return_code = super().initialize(urdf_path, has_freeflyer)
+        mesh_root_dirs = []
+        if mesh_root_path is not None:
+            mesh_root_dirs += [mesh_root_path]
+        mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
+        if mesh_env_path is not None:
+            mesh_root_path += [mesh_env_path]
+        return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError("Impossible to load the URDF file. "

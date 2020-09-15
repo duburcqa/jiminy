@@ -28,6 +28,7 @@ namespace jiminy
     contactForces_(),
     isInitialized_(false),
     urdfPath_(),
+    meshPackageDirs_(),
     hasFreeflyer_(false),
     mdlOptionsHolder_(),
     collisionBodiesNames_(),
@@ -947,6 +948,11 @@ namespace jiminy
         return urdfPath_;
     }
 
+    std::vector<std::string> const & Model::getMeshPackageDirs(void) const
+    {
+        return meshPackageDirs_;
+    }
+
     bool_t const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
@@ -954,7 +960,7 @@ namespace jiminy
 
     hresult_t Model::loadUrdfModel(std::string              const & urdfPath,
                                    bool_t                   const & hasFreeflyer,
-                                   std::vector<std::string> const & meshPackageDirs)
+                                   std::vector<std::string>         meshPackageDirs)
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
@@ -963,6 +969,7 @@ namespace jiminy
         }
 
         urdfPath_ = urdfPath;
+        meshPackageDirs_ = meshPackageDirs;
         hasFreeflyer_ = hasFreeflyer;
 
         // Build the robot model
@@ -985,7 +992,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Build the robot geometry model
+        // Build the robot geometry model.
         pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
 
         // Replace the mesh geometry object by its convex representation for efficiency

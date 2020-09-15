@@ -1191,7 +1191,7 @@ namespace jiminy
 
                     /* A breakpoint has been reached dt has been decreased
                        wrt the largest possible dt within integration tol. */
-                    isBreakpointReached = (stepperState_.dtLargest > dt);
+                    isBreakpointReached = (dtLargest > dt);
 
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
@@ -1246,7 +1246,7 @@ namespace jiminy
                              iteration is used to update the sensors' data in
                              case of continuous sensing. */
                         stepperState_.tPrev = t;
-                        stepperState_.dtLargestPrev = stepperState_.dtLargest;
+                        stepperState_.dtLargestPrev = dtLargest;
                         for (auto & system : systemsDataHolder_)
                         {
                             system.statePrev = system.state;
@@ -1272,13 +1272,13 @@ namespace jiminy
                 /* Make sure it ends exactly at the tEnd, never exceeds
                    dtMax, and stop to apply impulse forces. */
                 dt = min(dt,
-                            engineOptions_->stepper.dtMax,
-                            tEnd - t,
-                            tForceImpulseNext - t);
+                         engineOptions_->stepper.dtMax,
+                         tEnd - t,
+                         tForceImpulseNext - t);
 
-                /* A breakpoint has been reached dt has been decreased
+                /* A breakpoint has been reached, because dt has been decreased
                    wrt the largest possible dt within integration tol. */
-                isBreakpointReached = (stepperState_.dtLargest > dt);
+                isBreakpointReached = (dtLargest > dt);
 
                 // Compute the next step using adaptive step method
                 bool_t isStepSuccessful = false;

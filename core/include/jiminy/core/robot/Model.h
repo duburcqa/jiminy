@@ -165,6 +165,7 @@ namespace jiminy
 
         bool_t const & getIsInitialized(void) const;
         std::string const & getUrdfPath(void) const;
+        std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nq(void) const;
@@ -198,7 +199,7 @@ namespace jiminy
     protected:
         hresult_t loadUrdfModel(std::string              const & urdfPath,
                                 bool_t                   const & hasFreeflyer,
-                                std::vector<std::string> const & meshPackageDirs);
+                                std::vector<std::string>         meshPackageDirs);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
         hresult_t refreshCollisionsProxies(void);
@@ -218,6 +219,7 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         std::string urdfPath_;
+        std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 

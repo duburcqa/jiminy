@@ -1015,6 +1015,8 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
+                                                   bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
