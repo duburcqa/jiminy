@@ -727,12 +727,12 @@ namespace jiminy
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
+        std::vector<systemDataHolder_t> systemsDataHolder_;
 
     protected:
         bool_t isTelemetryConfigured_;
         bool_t isSimulationRunning_;
         configHolder_t engineOptionsHolder_;
-        std::vector<systemDataHolder_t> systemsDataHolder_;
 
     private:
         TelemetrySender telemetrySender_;

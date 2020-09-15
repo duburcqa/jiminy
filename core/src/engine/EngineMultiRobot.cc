@@ -93,10 +93,10 @@ namespace jiminy
 
     EngineMultiRobot::EngineMultiRobot(void):
     engineOptions_(nullptr),
+    systemsDataHolder_(),
     isTelemetryConfigured_(false),
     isSimulationRunning_(false),
     engineOptionsHolder_(),
-    systemsDataHolder_(),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),

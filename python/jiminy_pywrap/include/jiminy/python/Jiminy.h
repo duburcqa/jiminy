@@ -1653,13 +1653,22 @@ namespace python
             cl
                 .add_property("name", bp::make_getter(&systemDataHolder_t::name,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("robot", bp::make_getter(&systemDataHolder_t::robot,
-                                       bp::return_internal_reference<>()))
-                .add_property("controller", bp::make_getter(&systemDataHolder_t::controller,
-                                            bp::return_internal_reference<>()))
+                .add_property("robot", &systemDataHolder_t::robot)
+                .add_property("controller", &systemDataHolder_t::controller)
                 .add_property("callbackFct", bp::make_getter(&systemDataHolder_t::callbackFct,
                                              bp::return_internal_reference<>()))
                 ;
+        }
+
+        static uint32_t getLength(std::vector<systemDataHolder_t> & self)
+        {
+            return self.size();
+        }
+
+        static systemDataHolder_t & getItem(std::vector<systemDataHolder_t>       & self,
+                                            int32_t                         const & idx)
+        {
+            return self[idx];
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1668,9 +1677,18 @@ namespace python
         static void expose()
         {
             bp::class_<systemDataHolder_t,
-                       std::shared_ptr<systemDataHolder_t>,
                        boost::noncopyable>("systemData", bp::no_init)
                 .def(PySystemDataVisitor());
+
+            bp::class_<std::vector<systemDataHolder_t>,
+                       boost::noncopyable>("systemDataVector", bp::no_init)
+                .def("__len__", bp::make_function(&PySystemDataVisitor::getLength,
+                                bp::return_value_policy<bp::return_by_value>()))
+                .def("__iter__", bp::iterator<std::vector<systemDataHolder_t>,
+                                 bp::return_internal_reference<> >())
+                .def("__getitem__", bp::make_function(&PySystemDataVisitor::getItem,
+                                    bp::return_internal_reference<>(),
+                                    (bp::arg("self"), "idx")));
         }
     };
 
@@ -1754,6 +1772,8 @@ namespace python
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
 
+                .add_property("systems", bp::make_getter(&EngineMultiRobot::systemsDataHolder_,
+                                         bp::return_internal_reference<>()))
                 .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
                                                bp::return_value_policy<bp::return_by_value>()))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
