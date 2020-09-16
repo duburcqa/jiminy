@@ -1820,18 +1820,18 @@ namespace jiminy
         uint32_t const & parentJointIdx =  system.robot->pncModel_.frames[parentFrameIdx].parent;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
-        hpp::fcl::DistanceResult distanceResult = system.robot->pncGeometryData_->distanceResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
+        hpp::fcl::DistanceResult const & distanceResult = system.robot->pncGeometryData_->distanceResults[collisionPairIdx];
 
         if (collisionResult.isCollision())
         {
             // Extract the contact information.
             // Note that there is always a single contact point while computing the collision
             // between two shape objects, for instance convex geometry and box primitive.
-            vector3_t nGround = - distanceResult.normal;  // Normal of the ground in world (at least in the case of box primitive)
-            float64_t depth = - collisionResult.getContact(0).penetration_depth;
+            vector3_t const & nGround = - distanceResult.normal;  // Normal of the ground in world (at least in the case of box primitive ground)
+            float64_t const & depth = distanceResult.min_distance;
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
-            posContactInWorld.translation() = distanceResult.nearest_points[1]; // The point at the surface of the ground (it is hill-defined for the body geometry since it depends on its type)
+            posContactInWorld.translation() = distanceResult.nearest_points[1]; //  Point at the surface of the ground (it is hill-defined for the body geometry since it depends on its type)
 
             /* Make sure the collision computation didn't failed. If it happends the
                norm of the distance normal close to zero. It so, just assume there is
@@ -1851,7 +1851,7 @@ namespace jiminy
             pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vContactInWorld);
 
             // Move the force at parent frame location
-            pinocchio::Force fextAtParentJointInLocal = transformJointFrameInContact.actInv(fextAtContactInGlobal);
+            pinocchio::Force const fextAtParentJointInLocal = transformJointFrameInContact.actInv(fextAtContactInGlobal);
 
             return fextAtParentJointInLocal;
         }
@@ -1876,7 +1876,7 @@ namespace jiminy
         auto ground = engineOptions_->world.groundProfile(posFrame);
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
-        nGround.normalize();
+        nGround.normalize();  // Make sure the ground normal is normalized
         float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
         // Only compute the ground reaction force if the penetration depth is positive
