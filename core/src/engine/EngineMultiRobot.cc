@@ -93,10 +93,10 @@ namespace jiminy
 
     EngineMultiRobot::EngineMultiRobot(void):
     engineOptions_(nullptr),
+    systemsDataHolder_(),
     isTelemetryConfigured_(false),
     isSimulationRunning_(false),
     engineOptionsHolder_(),
-    systemsDataHolder_(),
     telemetrySender_(),
     telemetryData_(nullptr),
     telemetryRecorder_(nullptr),
@@ -975,6 +975,9 @@ namespace jiminy
         // Define a failure checker for the stepper
         failed_step_checker fail_checker;
 
+        // Successive iteration failure
+        uint32_t sucessiveIterFailed = 0;
+
         /* Flag monitoring if the current time step depends of a breakpoint
            or the integration tolerance. It will be used by the restoration
            mechanism, if dt gets very small to reach a breakpoint, in order
@@ -1138,6 +1141,7 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
+                sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
                     /* Adjust stepsize to end up exactly at the next breakpoint,
@@ -1179,9 +1183,15 @@ namespace jiminy
                         break;
                     }
 
+                    // Break the loop in case of too many successive failed inner iteration
+                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    {
+                        break;
+                    }
+
                     /* A breakpoint has been reached dt has been decreased
                        wrt the largest possible dt within integration tol. */
-                    isBreakpointReached = (stepperState_.dtLargest > dt);
+                    isBreakpointReached = (dtLargest > dt);
 
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
@@ -1236,7 +1246,7 @@ namespace jiminy
                              iteration is used to update the sensors' data in
                              case of continuous sensing. */
                         stepperState_.tPrev = t;
-                        stepperState_.dtLargestPrev = stepperState_.dtLargest;
+                        stepperState_.dtLargestPrev = dtLargest;
                         for (auto & system : systemsDataHolder_)
                         {
                             system.statePrev = system.state;
@@ -1248,7 +1258,8 @@ namespace jiminy
                            in step size adjustment. */
                         fail_checker();
 
-                        // Increment the failed iteration counter
+                        // Increment the failed iteration counters
+                        sucessiveIterFailed++;
                         stepperState_.iterFailed++;
                     }
 
@@ -1261,13 +1272,13 @@ namespace jiminy
                 /* Make sure it ends exactly at the tEnd, never exceeds
                    dtMax, and stop to apply impulse forces. */
                 dt = min(dt,
-                            engineOptions_->stepper.dtMax,
-                            tEnd - t,
-                            tForceImpulseNext - t);
+                         engineOptions_->stepper.dtMax,
+                         tEnd - t,
+                         tForceImpulseNext - t);
 
-                /* A breakpoint has been reached dt has been decreased
+                /* A breakpoint has been reached, because dt has been decreased
                    wrt the largest possible dt within integration tol. */
-                isBreakpointReached = (stepperState_.dtLargest > dt);
+                isBreakpointReached = (dtLargest > dt);
 
                 // Compute the next step using adaptive step method
                 bool_t isStepSuccessful = false;
@@ -1275,6 +1286,12 @@ namespace jiminy
                 {
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
+
+                    // Break the loop in case of too many successive failed inner iteration
+                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    {
+                        break;
+                    }
 
                     // Try to do a step
                     isStepSuccessful = try_step(stepper_, systemOde, x, dxdt, t, dtLargest);
@@ -1325,12 +1342,20 @@ namespace jiminy
                         fail_checker();
 
                         // Increment the failed iteration counter
+                        sucessiveIterFailed++;
                         stepperState_.iterFailed++;
                     }
 
                     // Initialize the next dt
                     dt = dtLargest;
                 }
+            }
+
+            if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+            {
+                std::cout << "Error - EngineMultiRobot::step - Too many successive iteration failures. "\
+                             "Probably something is going wrong with the physics. Aborting integration." << std::endl;
+                return hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
@@ -1501,6 +1526,14 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
+        // Make sure successiveIterFailedMax is strictly positive
+        uint32_t const & successiveIterFailedMax = boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
+        if (successiveIterFailedMax < 1)
+        {
+            std::cout << "Error - EngineMultiRobot::setOptions - 'successiveIterFailedMax' must be strictly positive." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
         // Make sure the selected ode solver is available and instantiate it
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
@@ -1606,6 +1639,19 @@ namespace jiminy
         engineOptions_ = std::make_unique<engineOptions_t const>(engineOptionsHolder_);
 
         return hresult_t::SUCCESS;
+    }
+
+    std::vector<std::string> EngineMultiRobot::getSystemsNames(void) const
+    {
+        std::vector<std::string> systemsNames;
+        systemsNames.reserve(systemsDataHolder_.size());
+        std::transform(systemsDataHolder_.begin(), systemsDataHolder_.end(),
+                       std::back_inserter(systemsNames),
+                       [](auto const & sys) -> std::string
+                       {
+                           return sys.name;
+                       });
+        return systemsNames;
     }
 
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
@@ -1781,43 +1827,46 @@ namespace jiminy
         // with body collision. Nevertheless it should not be to hard to generated a collision
         // object simply by sampling points on the profile.
 
-        // Get the frame Idx
-        uint32_t geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
-        uint32_t parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
-
-        // Get the pose of the frame wrt the world
-        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx];
-        matrix3_t const & rotFrameInWorld = system.robot->pncData_.oMf[parentFrameIdx].rotation();
+        // Get the frame and joint indices
+        uint32_t const & geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
+        uint32_t const & parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
+        uint32_t const & parentJointIdx =  system.robot->pncModel_.frames[parentFrameIdx].parent;
 
         // Extract collision and distance results
-        hpp::fcl::CollisionResult collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
-        hpp::fcl::DistanceResult distanceResult = system.robot->pncGeometryData_->distanceResults[collisionPairIdx];
+        hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
+        hpp::fcl::DistanceResult const & distanceResult = system.robot->pncGeometryData_->distanceResults[collisionPairIdx];
 
         if (collisionResult.isCollision())
         {
             // Extract the contact information.
             // Note that there is always a single contact point while computing the collision
-            // between two shape objects, as it is the case there (convex-box).
-            vector3_t nGround = vector3_t::Zero();
-            float64_t depth = collisionResult.getContact(0).penetration_depth;
+            // between two shape objects, for instance convex geometry and box primitive.
+            vector3_t const & nGround = - distanceResult.normal;  // Normal of the ground in world (at least in the case of box primitive ground)
+            float64_t const & depth = distanceResult.min_distance;
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
-            posContactInWorld.translation() = distanceResult.nearest_points[0];
+            posContactInWorld.translation() = distanceResult.nearest_points[1]; //  Point at the surface of the ground (it is hill-defined for the body geometry since it depends on its type)
 
-            // Get frame motion in the motion frame.
-            vector3_t const motionFrameInWorld = pinocchio::getFrameVelocity(
-                system.robot->pncModel_, system.robot->pncData_, parentFrameIdx).linear();
-            vector3_t const vFrameInWorld = rotFrameInWorld * motionFrameInWorld;
+            /* Make sure the collision computation didn't failed. If it happends the
+               norm of the distance normal close to zero. It so, just assume there is
+               no collision at all. */
+            if (nGround.norm() < EPS)
+            {
+                return pinocchio::Force::Zero();
+            }
+
+            // Compute the linear velocity of the contact point in world frame
+            pinocchio::Motion const & motionJointLocal = system.robot->pncData_.v[parentJointIdx];
+            pinocchio::SE3 const & transformJointFrameInWorld = system.robot->pncData_.oMi[parentJointIdx];
+            pinocchio::SE3 const transformJointFrameInContact = posContactInWorld.actInv(transformJointFrameInWorld);
+            vector3_t const vContactInWorld = transformJointFrameInContact.act(motionJointLocal).linear();
 
             // Compute the ground reaction force at contact point in world frame
-            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vFrameInWorld);
+            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vContactInWorld);
 
             // Move the force at parent frame location
-            // TODO: 1. Compute the position of the contact point in local frame
-            //       2. Move the force at parent frame location
-            pinocchio::SE3 const posContactLocal = transformFrameInWorld.actInv(posContactInWorld);
-            pinocchio::Force fextAtParentFrameInGlobal = posContactLocal.actInv(fextAtContactInGlobal);
+            pinocchio::Force const fextAtParentJointInLocal = transformJointFrameInContact.actInv(fextAtContactInGlobal);
 
-            return fextAtParentFrameInGlobal;
+            return fextAtParentJointInLocal;
         }
         else
         {
@@ -1833,26 +1882,34 @@ namespace jiminy
            /!\ Note that the contact dynamics depends only on kinematics data. /!\ */
 
         // Get the pose of the frame wrt the world
-        vector3_t const & posFrame = system.robot->pncData_.oMf[frameIdx].translation();
-        matrix3_t const & rotFrame = system.robot->pncData_.oMf[frameIdx].rotation();
+        pinocchio::SE3 const & transformFrameInWorld = system.robot->pncData_.oMf[frameIdx];
 
         // Compute the ground normal and penetration depth at the contact point
+        vector3_t const & posFrame = transformFrameInWorld.translation();
         auto ground = engineOptions_->world.groundProfile(posFrame);
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
-        nGround.normalize();
+        nGround.normalize();  // Make sure the ground normal is normalized
         float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
 
         // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
         {
-            // Get frame motion in the motion frame.
-            vector3_t const motionFrame = pinocchio::getFrameVelocity(
+            // Compute the linear velocity of the contact point in world frame.
+            // Note that for Pinocchio >= v2.4.4, it is possible to specify directly the desired reference frame.
+            vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
-            vector3_t const vFrameInWorld = rotFrame * motionFrame;
+            matrix3_t const & rotFrame = transformFrameInWorld.rotation();
+            vector3_t const vContactInWorld = rotFrame * motionFrameLocal;
 
             // Compute the ground reaction force in world frame
-            return computeContactDynamics(system, nGround, depth, vFrameInWorld);
+            pinocchio::Force const fextAtContactInGlobal = computeContactDynamics(system, nGround, depth, vContactInWorld);
+
+            // Apply the force at the origin of the parent joint frame
+            pinocchio::Force const fextAtParentJointInLocal = convertForceGlobalFrameToJoint(
+                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextAtContactInGlobal);
+
+            return fextAtParentJointInLocal;
         }
         else
         {
@@ -1864,7 +1921,7 @@ namespace jiminy
     pinocchio::Force EngineMultiRobot::computeContactDynamics(systemDataHolder_t const & system,
                                                               vector3_t          const & nGround,
                                                               float64_t          const & depth,
-                                                              vector3_t          const & vFrameInWorld) const
+                                                              vector3_t          const & vContactInWorld) const
     {
         // Initialize the contact force
         vector3_t fextInWorld;
@@ -1875,7 +1932,7 @@ namespace jiminy
             contactOptions_t const & contactOptions_ = engineOptions_->contacts;
 
             // Compute the penetration speed
-            float64_t const vDepth = vFrameInWorld.dot(nGround);
+            float64_t const vDepth = vContactInWorld.dot(nGround);
 
             // Compute normal force
             float64_t fextNormal = 0.0;
@@ -1887,7 +1944,7 @@ namespace jiminy
             fextInWorld = fextNormal * nGround;
 
             // Compute friction forces
-            vector3_t const vTangential = vFrameInWorld - vDepth * nGround;
+            vector3_t const vTangential = vContactInWorld - vDepth * nGround;
             float64_t const vNorm = vTangential.norm();
 
             float64_t frictionCoeff = 0.0;
@@ -2057,32 +2114,29 @@ namespace jiminy
         {
             // Compute force at the given contact frame.
             int32_t const & frameIdx = contactFramesIdx[i];
-            pinocchio::Force const fextInGlobal = computeContactDynamicsAtFrame(system, frameIdx);
+            pinocchio::Force const fextLocal = computeContactDynamicsAtFrame(system, frameIdx);
 
-            // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, frameIdx, fextInGlobal);
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentIdx] += fextLocal;
+            // Apply the force at the origin of the parent joint frame, in local joint frame
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            fext[parentJointIdx] += fextLocal;
 
-            // Convert contact force from the global frame to the local frame to store it in contactForces_.
-            // TODO: Why not to use fextLocal directly ?
-            system.robot->contactForces_[i].linear() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.linear();
-            system.robot->contactForces_[i].angular() = system.robot->pncData_.oMf[frameIdx].rotation().transpose() * fextInGlobal.angular();
+            // Convert contact force from the global frame to the local frame to store it in contactForces_
+            pinocchio::SE3 const & transformContactInJoint = system.robot->pncModel_.frames[frameIdx].placement;
+            system.robot->contactForces_[i] = transformContactInJoint.act(fextLocal);
         }
 
         // Compute the force at collision bodies
         std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
         for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
         {
-            // Compute force at the given contact frame.
-            int32_t const & bodyIdx = collisionBodiesIdx[i];
-            pinocchio::Force const fextInGlobal = computeContactDynamicsAtBody(system, i);
+            // Compute force at the given collision body.
+            // It returns the force applied at the origin of the parent joint frame, in global frame
+            int32_t const & frameIdx = collisionBodiesIdx[i];
+            pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, i);
 
-            // Apply the force at the origin of the parent joint frame
-            pinocchio::Force const fextLocal = convertForceGlobalFrameToJoint(
-                system.robot->pncModel_, system.robot->pncData_, bodyIdx, fextInGlobal);
-            fext[bodyIdx] += fextLocal;
+            // Apply the force at the origin of the parent joint frame, in local joint frame
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            fext[parentJointIdx] += fextLocal;
         }
 
         // Add the effect of user-defined external impulse forces
@@ -2097,10 +2151,10 @@ namespace jiminy
             if (*forcesImpulseActiveIt)
             {
                 int32_t const & frameIdx = forcesImpulseIt->frameIdx;
-                int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+                int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
                 pinocchio::Force const & F = forcesImpulseIt->F;
 
-                fext[parentIdx] += convertForceGlobalFrameToJoint(
+                fext[parentJointIdx] += convertForceGlobalFrameToJoint(
                     system.robot->pncModel_, system.robot->pncData_, frameIdx, F);
             }
         }
@@ -2109,11 +2163,11 @@ namespace jiminy
         for (auto const & forceProfile : system.forcesProfile)
         {
             int32_t const & frameIdx = forceProfile.frameIdx;
-            int32_t const & parentIdx = system.robot->pncModel_.frames[frameIdx].parent;
+            int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
             forceProfileFunctor_t const & forceFct = forceProfile.forceFct;
 
             pinocchio::Force const force = forceFct(t, q, v);
-            fext[parentIdx] += convertForceGlobalFrameToJoint(
+            fext[parentJointIdx] += convertForceGlobalFrameToJoint(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx, force);
         }
     }
@@ -2139,15 +2193,15 @@ namespace jiminy
             forceVector_t & fext2 = system2.state.fExternal;
 
             pinocchio::Force const force = forceFct(t, q1, v1, q2, v2);
-            int32_t const & parentIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
-            fext1[parentIdx1] += convertForceGlobalFrameToJoint(
+            int32_t const & parentJointIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
+            fext1[parentJointIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
-            int32_t const & parentIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
+            int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
             // Move force from frame1 to frame2 to apply it to the second system.
             pinocchio::SE3 offset(
                 matrix3_t::Identity(),
                 system1.robot->pncData_.oMf[frameIdx2].translation() - system1.robot->pncData_.oMf[frameIdx1].translation());
-            fext2[parentIdx2] += convertForceGlobalFrameToJoint(
+            fext2[parentJointIdx2] += convertForceGlobalFrameToJoint(
                 system2.robot->pncModel_, system2.robot->pncData_, frameIdx2, -offset.act(force));
         }
     }

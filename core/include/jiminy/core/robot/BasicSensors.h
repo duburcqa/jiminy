@@ -81,7 +81,6 @@ namespace jiminy
 
         std::string const & getFrameName(void) const;
         int32_t const & getFrameIdx(void) const;
-        std::string const & getBodyName(void) const;
         int32_t getJointIdx(void) const;
 
     private:
@@ -94,7 +93,7 @@ namespace jiminy
     private:
         std::string frameName_;
         int32_t frameIdx_;
-        int32_t parentBodyFrameIdx_;
+        int32_t parentJointIdx_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>

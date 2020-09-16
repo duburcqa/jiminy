@@ -26,7 +26,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - AbstractSensorBase::configureTelemetry - The sensor is not initialized." << std::endl;
+            std::cout << "Error - AbstractSensorBase::configureTelemetry - Sensor '" << name_ << "' of type '" << getType() << "' is not initialized." << std::endl;
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 

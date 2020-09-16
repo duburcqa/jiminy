@@ -568,7 +568,7 @@ namespace python
                     std::string const & sensorName = sensorData.name;
                     int32_t const & sensorIdx = sensorData.idx;
                     Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorData.value;
-                    s << "    " << sensorName << " (" << sensorIdx << "): "
+                    s << "    (" << sensorIdx << ") " <<  sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
                 }
             }
@@ -781,7 +781,39 @@ namespace python
                                           bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("data", &PySensorVisit::getData)
+                    .def("__repr__", &PySensorVisit::repr)
                     ;
+            }
+
+            static bp::object getData(AbstractSensorBase & self)
+            {
+                // Be careful, it removes the const qualifier, so that the data can be modified from Python
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                return bp::object(valuePy);
+            }
+
+            static std::string repr(AbstractSensorBase & self)
+            {
+                std::stringstream s;
+                s << "type: " << self.getType() << "\n";
+                s << "name: " << self.getName() << "\n";
+                s << "idx: " << self.getIdx() << "\n";
+                s << "data:\n    ";
+                std::vector<std::string> const & fieldnames = self.getFieldnames();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                for (uint32_t i=0; i<fieldnames.size(); ++i)
+                {
+                    std::string const & field = fieldnames[i];
+                    float64_t const & value = sensorDataValue[i];
+                    if (i > 0)
+                    {
+                       s << ", ";
+                    }
+                    s << field << ": " << value;
+                }
+                return s.str();
             }
 
             template<class Q = TSensor>
@@ -839,8 +871,6 @@ namespace python
                     .add_property("frame_name", bp::make_function(&TSensor::getFrameName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("body_name", bp::make_function(&TSensor::getBodyName,
                                                bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("joint_idx", bp::make_function(&TSensor::getJointIdx,
                                                bp::return_value_policy<bp::return_by_value>()))
@@ -985,6 +1015,8 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
+                                                   bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
@@ -1115,7 +1147,8 @@ namespace python
             cl
                 .def("initialize", &Robot::initialize,
                                    (bp::arg("self"), "urdf_path",
-                                    bp::arg("has_freeflyer") = false))
+                                    bp::arg("has_freeflyer") = false,
+                                    bp::arg("mesh_package_dirs") = std::vector<std::string>()))
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
@@ -1620,13 +1653,22 @@ namespace python
             cl
                 .add_property("name", bp::make_getter(&systemDataHolder_t::name,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("robot", bp::make_getter(&systemDataHolder_t::robot,
-                                       bp::return_internal_reference<>()))
-                .add_property("controller", bp::make_getter(&systemDataHolder_t::controller,
-                                            bp::return_internal_reference<>()))
+                .add_property("robot", &systemDataHolder_t::robot)
+                .add_property("controller", &systemDataHolder_t::controller)
                 .add_property("callbackFct", bp::make_getter(&systemDataHolder_t::callbackFct,
                                              bp::return_internal_reference<>()))
                 ;
+        }
+
+        static uint32_t getLength(std::vector<systemDataHolder_t> & self)
+        {
+            return self.size();
+        }
+
+        static systemDataHolder_t & getItem(std::vector<systemDataHolder_t>       & self,
+                                            int32_t                         const & idx)
+        {
+            return self[idx];
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1635,9 +1677,18 @@ namespace python
         static void expose()
         {
             bp::class_<systemDataHolder_t,
-                       std::shared_ptr<systemDataHolder_t>,
                        boost::noncopyable>("systemData", bp::no_init)
                 .def(PySystemDataVisitor());
+
+            bp::class_<std::vector<systemDataHolder_t>,
+                       boost::noncopyable>("systemDataVector", bp::no_init)
+                .def("__len__", bp::make_function(&PySystemDataVisitor::getLength,
+                                bp::return_value_policy<bp::return_by_value>()))
+                .def("__iter__", bp::iterator<std::vector<systemDataHolder_t>,
+                                 bp::return_internal_reference<> >())
+                .def("__getitem__", bp::make_function(&PySystemDataVisitor::getItem,
+                                    bp::return_internal_reference<>(),
+                                    (bp::arg("self"), "idx")));
         }
     };
 
@@ -1720,6 +1771,11 @@ namespace python
                 .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
+
+                .add_property("systems", bp::make_getter(&EngineMultiRobot::systemsDataHolder_,
+                                         bp::return_internal_reference<>()))
+                .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
+                                               bp::return_value_policy<bp::return_by_value>()))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,

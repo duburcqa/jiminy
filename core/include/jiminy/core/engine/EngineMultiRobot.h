@@ -312,6 +312,7 @@ namespace jiminy
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
+            config["successiveIterFailedMax"] = 1000U;
             config["iterMax"] = -1; // <= 0: disable
             config["timeout"] = 0.0; // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
@@ -407,6 +408,7 @@ namespace jiminy
             float64_t   const tolRel;
             float64_t   const dtMax;
             float64_t   const dtRestoreThresholdRel;
+            uint32_t    const successiveIterFailedMax;
             int32_t     const iterMax;
             float64_t   const timeout;
             float64_t   const sensorsUpdatePeriod;
@@ -421,6 +423,7 @@ namespace jiminy
             tolRel(boost::get<float64_t>(options.at("tolRel"))),
             dtMax(boost::get<float64_t>(options.at("dtMax"))),
             dtRestoreThresholdRel(boost::get<float64_t>(options.at("dtRestoreThresholdRel"))),
+            successiveIterFailedMax(boost::get<uint32_t>(options.at("successiveIterFailedMax"))),
             iterMax(boost::get<int32_t>(options.at("iterMax"))),
             timeout(boost::get<float64_t>(options.at("timeout"))),
             sensorsUpdatePeriod(boost::get<float64_t>(options.at("sensorsUpdatePeriod"))),
@@ -576,6 +579,7 @@ namespace jiminy
         configHolder_t getOptions(void) const;
         hresult_t setOptions(configHolder_t const & engineOptions);
         bool_t getIsTelemetryConfigured(void) const;
+        std::vector<std::string> getSystemsNames(void) const;
         hresult_t getSystem(std::string        const   & systemName,
                             systemDataHolder_t const * & system) const;
         hresult_t getSystem(std::string        const   & systemName,
@@ -629,7 +633,7 @@ namespace jiminy
         ///
         /// \param[in] system              System for which to perform computation.
         /// \param[in] collisionPairIdx    Id of the collision pair associated with the body
-        /// \return Contact force, at parent frame, in the global frame.
+        /// \return Contact force, at parent joint, in the local frame.
         pinocchio::Force computeContactDynamicsAtBody(systemDataHolder_t const & system,
                                                       int32_t            const & collisionPairIdx) const;
 
@@ -637,7 +641,7 @@ namespace jiminy
         ///
         /// \param[in] system      System for which to perform computation.
         /// \param[in] frameIdx    Id of the frame in contact.
-        /// \return Contact force, in the global frame.
+        /// \return Contact force, at parent joint, in the local frame.
         pinocchio::Force computeContactDynamicsAtFrame(systemDataHolder_t const & system,
                                                        int32_t            const & frameIdx) const;
 
@@ -645,7 +649,7 @@ namespace jiminy
         pinocchio::Force computeContactDynamics(systemDataHolder_t const & system,
                                                 vector3_t          const & nGround,
                                                 float64_t          const & depth,
-                                                vector3_t          const & vFrameInWorld) const;
+                                                vector3_t          const & vContactInWorld) const;
 
         void computeCommand(systemDataHolder_t                & system,
                             float64_t                   const & t,
@@ -723,12 +727,12 @@ namespace jiminy
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
+        std::vector<systemDataHolder_t> systemsDataHolder_;
 
     protected:
         bool_t isTelemetryConfigured_;
         bool_t isSimulationRunning_;
         configHolder_t engineOptionsHolder_;
-        std::vector<systemDataHolder_t> systemsDataHolder_;
 
     private:
         TelemetrySender telemetrySender_;

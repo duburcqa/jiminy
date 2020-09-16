@@ -47,8 +47,9 @@ namespace jiminy
         Robot(void);
         virtual ~Robot(void);
 
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string              const & urdfPath,
+                             bool_t                   const & hasFreeflyer = true,
+                             std::vector<std::string> const & meshPackageDirs = {});
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(std::string const & motorName,

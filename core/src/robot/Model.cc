@@ -28,6 +28,7 @@ namespace jiminy
     contactForces_(),
     isInitialized_(false),
     urdfPath_(),
+    meshPackageDirs_(),
     hasFreeflyer_(false),
     mdlOptionsHolder_(),
     collisionBodiesNames_(),
@@ -54,13 +55,14 @@ namespace jiminy
         setOptions(getDefaultModelOptions());
     }
 
-    hresult_t Model::initialize(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer)
+    hresult_t Model::initialize(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Initialize the URDF model
-        returnCode = loadUrdfModel(urdfPath, hasFreeflyer);
+        returnCode = loadUrdfModel(urdfPath, hasFreeflyer, meshPackageDirs);
         isInitialized_ = true;
 
         if (returnCode == hresult_t::SUCCESS)
@@ -126,32 +128,45 @@ namespace jiminy
                               std::string    const & parentBodyName,
                               pinocchio::SE3 const & framePlacement)
     {
+        // Note that since it is not possible to add a frame to another frame,
+        // the frame is added directly to the parent joint, thus relative transform
+        // of the frame wrt the parent joint must be computed.
         hresult_t returnCode = hresult_t::SUCCESS;
 
         pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
 
+        int32_t parentFrameId;
+
         // Add the frame to the the current model
-        int32_t parentBodyId;
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModel_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModel_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModel_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModel_.addFrame(frame);
         }
 
         // Add the frame to the the original rigid model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelRigidOrig_.addFrame(frame);
         }
 
         // Add the frame to the the original flexible model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentBodyId);
+        returnCode = getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::Frame const frame(frameName, parentBodyId, 0, framePlacement, frameType);
+            int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
+            pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelFlexibleOrig_.addFrame(frame);
         }
 
@@ -933,13 +948,19 @@ namespace jiminy
         return urdfPath_;
     }
 
+    std::vector<std::string> const & Model::getMeshPackageDirs(void) const
+    {
+        return meshPackageDirs_;
+    }
+
     bool_t const & Model::getHasFreeflyer(void) const
     {
         return hasFreeflyer_;
     }
 
-    hresult_t Model::loadUrdfModel(std::string const & urdfPath,
-                                   bool_t      const & hasFreeflyer)
+    hresult_t Model::loadUrdfModel(std::string              const & urdfPath,
+                                   bool_t                   const & hasFreeflyer,
+                                   std::vector<std::string>         meshPackageDirs)
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
@@ -948,6 +969,7 @@ namespace jiminy
         }
 
         urdfPath_ = urdfPath;
+        meshPackageDirs_ = meshPackageDirs;
         hasFreeflyer_ = hasFreeflyer;
 
         // Build the robot model
@@ -970,16 +992,21 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Build the robot geometry model
-        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_);
+        // Build the robot geometry model.
+        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
 
-        // Replace the geometry object by their convex representation for efficiency
+        // Replace the mesh geometry object by its convex representation for efficiency
         #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
         for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
         {
             hpp::fcl::BVHModelPtr_t bvh = boost::dynamic_pointer_cast<hpp::fcl::BVHModelBase>(pncGeometryModel_.geometryObjects[i].geometry);
-            bvh->buildConvexHull(true);
-            pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+            if (bvh)
+            {
+                // If the dynamic cast succeeded (bvh is not nullptr), it means that the object
+                // actually derive from the BVH model (cloud points or triangles).
+                bvh->buildConvexHull(true);
+                pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+            }
         }
         #endif
 

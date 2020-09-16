@@ -139,9 +139,15 @@ namespace jiminy
         Model(void);
         virtual ~Model(void) = default;
 
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string              const & urdfPath,
+                             bool_t                   const & hasFreeflyer = true,
+                             std::vector<std::string> const & meshPackageDirs = {});
 
+        /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
+        ///
+        /// \param[in] frameName        Name of the frame to be added
+        /// \param[in] parentBodyName   Name of the parent body frame
+        /// \param[in] framePlacement   Frame placement wrt the parent body frame
         hresult_t addFrame(std::string    const & frameName,
                            std::string    const & parentBodyName,
                            pinocchio::SE3 const & framePlacement);
@@ -159,6 +165,7 @@ namespace jiminy
 
         bool_t const & getIsInitialized(void) const;
         std::string const & getUrdfPath(void) const;
+        std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nq(void) const;
@@ -190,8 +197,9 @@ namespace jiminy
                                             vectorN_t       & xRigid) const;
 
     protected:
-        hresult_t loadUrdfModel(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer);
+        hresult_t loadUrdfModel(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string>         meshPackageDirs);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
         hresult_t refreshCollisionsProxies(void);
@@ -211,6 +219,7 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         std::string urdfPath_;
+        std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 

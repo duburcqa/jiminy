@@ -25,7 +25,7 @@ import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix
 
 
-DEFAULT_UPDATE_RATE = 1000.0
+DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
 logger = logging.getLogger(__name__)
@@ -236,8 +236,8 @@ def generate_hardware_description_file(
             gazebo_update_rate = default_update_rate
         else:
             gazebo_update_rate = DEFAULT_UPDATE_RATE
-    hardware_info['Global']['sensorsUpdatePeriod'] = gazebo_update_rate
-    hardware_info['Global']['controllerUpdatePeriod'] = gazebo_update_rate
+    hardware_info['Global']['sensorsUpdatePeriod'] = 1 / gazebo_update_rate
+    hardware_info['Global']['controllerUpdatePeriod'] = 1 / gazebo_update_rate
 
     # Write the sensor description file
     if toml_path is None:
@@ -260,15 +260,18 @@ def fix_urdf_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
         urdf_contents = urdf_file.read()
-    pathlists = [
+    pathlists = {
         filename
         for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
-        if not filename.startswith('package://')]
+        if not filename.startswith('package://')}
     if not pathlists:
         return urdf_path
 
     # If mesh root path already matching, then nothing to do
-    mesh_root_path_orig = os.path.commonpath(pathlists)
+    if len(pathlists) > 1:
+        mesh_root_path_orig = os.path.commonpath(pathlists)
+    else:
+        mesh_root_path_orig = os.path.dirname(next(iter(pathlists)))
     if mesh_root_path == mesh_root_path_orig:
         return urdf_path
 
@@ -316,6 +319,7 @@ class BaseJiminyRobot(jiminy.Robot):
         @brief    TODO
         """
         super().__init__()
+        self.global_info = None
         self.robot_options = None
         self.urdf_path_orig = None
 
@@ -344,13 +348,17 @@ class BaseJiminyRobot(jiminy.Robot):
         self.urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
-        if mesh_root_path is None:
-            mesh_root_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_root_path is not None:
             urdf_path = fix_urdf_mesh_path(urdf_path, mesh_root_path)
 
         # Initialize the robot without motors nor sensors
-        return_code = super().initialize(urdf_path, has_freeflyer)
+        mesh_root_dirs = []
+        if mesh_root_path is not None:
+            mesh_root_dirs += [mesh_root_path]
+        mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
+        if mesh_env_path is not None:
+            mesh_root_path += [mesh_env_path]
+        return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError("Impossible to load the URDF file. "
@@ -365,7 +373,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 "automatically using 'generate_hardware_description_file'.")
             return
         hardware_info = toml.load(toml_path)
-        global_info = hardware_info.pop('Global')
+        self.global_info = hardware_info.pop('Global')
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
 
@@ -391,6 +399,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 motor.set_options(options)
 
         # Add the sensors to the robot
+        collision_bodies_names = []
         for sensor_type, sensors_descr in sensors_info.items():
             for sensor_name, sensor_descr in sensors_descr.items():
                 # Create the sensor and attach it
@@ -417,6 +426,10 @@ class BaseJiminyRobot(jiminy.Robot):
 
                         ## Get the body name
                         body_name = sensor_descr.pop('body_name')
+
+                        ## Add the body to the list for collision bodies if it is a force sensor
+                        if sensor_type in force.type:
+                            collision_bodies_names.append(body_name)
 
                         ## Generate a frame name that is intelligible and available
                         i = 0
@@ -452,9 +465,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 sensor.set_options(options)
 
         # Add the contact points
-        force_sensor_frame_names = [self.get_sensor(force.type, e).body_name
-                                    for e in self.sensors_names[force.type]]
-        self.add_collision_bodies(force_sensor_frame_names)
+        self.add_collision_bodies(collision_bodies_names)
 
     def set_model_options(self, model_options):
         """
@@ -564,3 +575,11 @@ class BaseJiminyEngine(EngineAsynchronous):
             use_theoretical_model,
             viewer_backend
         )
+
+        # Set engine controller and sensor update period if available
+        engine_options = self.get_engine_options()
+        engine_options["stepper"]["controllerUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        self.set_engine_options(engine_options)

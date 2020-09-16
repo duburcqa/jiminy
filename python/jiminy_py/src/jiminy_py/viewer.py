@@ -339,7 +339,7 @@ class Viewer:
                 alpha = 1.0
         visual_model = pin.buildGeomFromUrdf(
             self.pinocchio_model, self.urdf_path,
-            [], pin.GeometryType.VISUAL)
+            robot.mesh_package_dirs, pin.GeometryType.VISUAL)
         self._rb = RobotWrapper(model=self.pinocchio_model,
                                 collision_model=self.collision_model,
                                 visual_model=visual_model)
@@ -469,9 +469,12 @@ class Viewer:
         else:
             Viewer._backend_obj.wait(require_client)
 
+    @staticmethod
+    def is_alive():
+        return Viewer._backend_proc is not None and Viewer._backend_proc.is_alive()
+
     def is_open(self=None):
-        is_open_ = Viewer._backend_proc is not None and \
-            Viewer._backend_proc.is_alive()
+        is_open_ = Viewer.is_alive()
         if self is not None:
             is_open_ = is_open_ and self.__is_open
         return is_open_
