@@ -250,6 +250,14 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
+        std::vector<std::string> const & contactFramesNames = robot_->getContactFramesNames();
+        auto contactFrameNameIt = std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
+        if (contactFrameNameIt == contactFramesNames.end())
+        {
+            std::cout << "Error - ContactSensor::refreshProxies - Sensor frame not associated with any contact point of the robot. Impossible to refresh model-dependent proxies." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             if (!isInitialized_)

@@ -70,7 +70,7 @@ jobs:
 
         mkdir -p "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         cp -r "$InstallDir/lib/python${{ matrix.PYTHON_VERSION }}/site-packages/." "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        find "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -name "*.so*" -exec strip --strip-unneeded {} +
+        find "$RootDir/build/pypi/" -name "*.so*" -exec strip --strip-unneeded -v {} +
 
         make install
 
