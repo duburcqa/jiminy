@@ -25,7 +25,7 @@ import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix
 
 
-DEFAULT_UPDATE_RATE = 1000.0
+DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
 logger = logging.getLogger(__name__)
@@ -236,8 +236,8 @@ def generate_hardware_description_file(
             gazebo_update_rate = default_update_rate
         else:
             gazebo_update_rate = DEFAULT_UPDATE_RATE
-    hardware_info['Global']['sensorsUpdatePeriod'] = gazebo_update_rate
-    hardware_info['Global']['controllerUpdatePeriod'] = gazebo_update_rate
+    hardware_info['Global']['sensorsUpdatePeriod'] = 1 / gazebo_update_rate
+    hardware_info['Global']['controllerUpdatePeriod'] = 1 / gazebo_update_rate
 
     # Write the sensor description file
     if toml_path is None:
@@ -319,6 +319,7 @@ class BaseJiminyRobot(jiminy.Robot):
         @brief    TODO
         """
         super().__init__()
+        self.global_info = None
         self.robot_options = None
         self.urdf_path_orig = None
 
@@ -372,7 +373,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 "automatically using 'generate_hardware_description_file'.")
             return
         hardware_info = toml.load(toml_path)
-        global_info = hardware_info.pop('Global')
+        self.global_info = hardware_info.pop('Global')
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
 
@@ -574,3 +575,11 @@ class BaseJiminyEngine(EngineAsynchronous):
             use_theoretical_model,
             viewer_backend
         )
+
+        # Set engine controller and sensor update period if available
+        engine_options = self.get_engine_options()
+        engine_options["stepper"]["controllerUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        self.set_engine_options(engine_options)
