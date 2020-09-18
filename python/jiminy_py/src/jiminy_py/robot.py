@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 
 def generate_hardware_description_file(
-        urdf_path : str,
-        toml_path : Optional[str] = None,
-        default_update_rate : Optional[float] = None):
+        urdf_path: str,
+        toml_path: Optional[str] = None,
+        default_update_rate: Optional[float] = None):
     """
     @brief     Generate a default hardware description file, based on the
                information grabbed from the URDF when available, using best
@@ -246,7 +246,9 @@ def generate_hardware_description_file(
         toml.dump(hardware_info, f)
 
 
-def fix_urdf_mesh_path(urdf_path, mesh_root_path, output_root_path=None):
+def fix_urdf_mesh_path(urdf_path: str,
+                       mesh_root_path: str,
+                       output_root_path: Optional[str]=None):
     """
     @brief      Generate an URDF with updated mesh paths.
 
@@ -324,10 +326,10 @@ class BaseJiminyRobot(jiminy.Robot):
         self.urdf_path_orig = None
 
     def initialize(self,
-                   urdf_path : str,
-                   toml_path : Optional[str] = None,
-                   mesh_root_path : Optional[str] = None,
-                   has_freeflyer : bool = True):
+                   urdf_path: str,
+                   toml_path: Optional[str] = None,
+                   mesh_root_path: Optional[str] = None,
+                   has_freeflyer: bool = True):
         """
         @brief  Initialize the robot.
 
@@ -551,9 +553,9 @@ class BaseJiminyController(jiminy.ControllerFunctor):
 class BaseJiminyEngine(EngineAsynchronous):
     def __init__(self,
                  urdf_path: str,
-                 toml_path : Optional[str] = None,
-                 mesh_root_path : Optional[str] = None,
-                 has_freeflyer : bool = True,
+                 toml_path: Optional[str] = None,
+                 mesh_root_path: Optional[str] = None,
+                 has_freeflyer: bool = True,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
         """
@@ -563,23 +565,19 @@ class BaseJiminyEngine(EngineAsynchronous):
         robot = BaseJiminyRobot()
         robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)
 
-        # Instantiate the controller (initialization is managed by the engine)
-        controller = BaseJiminyController(self._send_command)
-
         # Instantiate and initialize the engine
-        engine = jiminy.Engine()
         super().__init__(
             robot,
-            controller,
-            engine,
+            BaseJiminyController,
+            jiminy.Engine,
             use_theoretical_model,
-            viewer_backend
+            viewer_backend,
         )
 
         # Set engine controller and sensor update period if available
-        engine_options = self.get_engine_options()
+        engine_options = self.get_options()
         engine_options["stepper"]["controllerUpdatePeriod"] = \
             robot.global_info.get('sensorsUpdatePeriod', 0.0)
         engine_options["stepper"]["sensorsUpdatePeriod"] = \
             robot.global_info.get('sensorsUpdatePeriod', 0.0)
-        self.set_engine_options(engine_options)
+        self.set_options(engine_options)

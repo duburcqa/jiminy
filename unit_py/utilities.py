@@ -85,14 +85,6 @@ def setup_controller_and_engine(engine,
                                        f(t, q, v, sensors_data, uFull) -> None
                                    Optional: No internal dynamics by default.
     """
-    # Handle default control law and internal dynamics
-    def set_zero_function(t, q, v, sensors_data, u):
-        u[:] = 0.0
-    if compute_command is None:
-        compute_command = set_zero_function
-    if internal_dynamics is None:
-        internal_dynamics = set_zero_function
-
     # Instantiate the controller
     controller = jiminy.ControllerFunctor(
         compute_command, internal_dynamics)

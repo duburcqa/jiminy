@@ -216,6 +216,12 @@ namespace python
                                                    Eigen::Ref<vectorN_t const> /* v */,
                                                    sensorsDataMap_t /* sensorsData*/>;
 
+    using ControllerFct = std::function<void(float64_t        const & /* t */,
+                                             vectorN_t        const & /* q */,
+                                             vectorN_t        const & /* v */,
+                                             sensorsDataMap_t const & /* sensorsData */,
+                                             vectorN_t              & /* u */)>;
+
     // ************************** HeatMapFunctorPyWrapper ******************************
 
     enum class heatMapType_t : uint8_t
@@ -1483,7 +1489,13 @@ namespace python
         : public bp::def_visitor<PyControllerFunctorVisitor>
     {
     public:
-        using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
+        /* Take advantage of type erasure of std::function to support both
+           lambda functions and python handle wrapper depending whether or not
+           'compute_command' and 'internal_dynamics' has been specified.
+           It is likely to cause a small overhead because the compiler will
+           probably not be able to inline ControllerFctWrapper, as it would have
+           been the case otherwise, but it is the price to pay for versatility. */
+        using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1495,15 +1507,40 @@ namespace python
             cl
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
-                                (bp::arg("command_function"), "internal_dynamics_function")));
+                                (bp::arg("compute_command") = bp::object(),  // bp::object() means None in Python
+                                 bp::arg("internal_dynamics") = bp::object())));
                 ;
         }
 
         static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
                                                     bp::object & internalDynamicsPy)
         {
-            ControllerFctWrapper commandFct(commandPy);
-            ControllerFctWrapper internalDynamicsFct(internalDynamicsPy);
+            ControllerFct commandFct;
+            if (!commandPy.is_none())
+            {
+                commandFct = ControllerFctWrapper(commandPy);
+            }
+            else
+            {
+                commandFct = [](float64_t        const & t,
+                                vectorN_t        const & q,
+                                vectorN_t        const & v,
+                                sensorsDataMap_t const & sensorsData,
+                                vectorN_t              & uCommand) {};
+            }
+            ControllerFct internalDynamicsFct;
+            if (!internalDynamicsPy.is_none())
+            {
+                internalDynamicsFct = ControllerFctWrapper(internalDynamicsPy);
+            }
+            else
+            {
+                internalDynamicsFct = [](float64_t        const & t,
+                                         vectorN_t        const & q,
+                                         vectorN_t        const & v,
+                                         sensorsDataMap_t const & sensorsData,
+                                         vectorN_t              & uCommand) {};
+            }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));
         }
@@ -1806,9 +1843,9 @@ namespace python
             auto controller = std::make_shared<
                 ControllerFunctor<decltype(commandFct),
                                   decltype(internalDynamicsFct)>
-            >(commandFct, internalDynamicsFct);
+            >(std::move(commandFct), std::move(internalDynamicsFct));
             controller->initialize(robot.get());
-            return self.addSystem(systemName, robot, controller, callbackFct);
+            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
         static hresult_t addSystem(EngineMultiRobot                          & self,
@@ -1822,7 +1859,7 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.addSystem(systemName, robot, controller, callbackFct);
+            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
         static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
@@ -1852,7 +1889,7 @@ namespace python
         {
             TimeBistateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(
-                systemName1, systemName2, frameName1, frameName2, forceFct);
+                systemName1, systemName2, frameName1, frameName2, std::move(forceFct));
         }
 
         static hresult_t start(EngineMultiRobot       & self,
