@@ -1,36 +1,31 @@
-## @file src/jiminy_py/engine_asynchronous.py
-
-"""
-@package    jiminy_py
-
-@brief      Package containing python-native helper methods for Jiminy Open Source.
-"""
-
+## @file src/jiminy_py/engine.py
 import tempfile
 import numpy as np
 from typing import Optional, List, Any
 
 from . import core as jiminy
+from .robot import BaseJiminyRobot
+from .controller import BaseJiminyController
 from .viewer import Viewer
 from .dynamics import update_quantities
 
 
 class EngineAsynchronous:
     """
-    @brief      Wrapper of Jiminy enabling to update of the command and run
-                simulation steps asynchronously. Convenient helper methods are
-                available to set the seed of the simulation, reset it, and
-                display it.
+    @brief Wrapper of Jiminy enabling to update of the command and run
+           simulation steps asynchronously. Convenient helper methods are
+           available to set the seed of the simulation, reset it, and display
+           it.
 
-    @details    The method `action` is used to update the command, which is
-                kept in memory until `action` is called again. On its side,
-                the method `step` without argument is used to run simulation
-                steps. The method `step` has an optional argument `dt_desired`
-                to specify the number of simulation steps to perform at once.
+    @details The method `action` is used to update the command, which is kept
+             in memory until `action` is called again. On its side, the method
+             `step` without argument is used to run simulation steps. The
+             method `step` has an optional argument `dt_desired` to specify the
+             number of simulation steps to perform at once.
 
-    @remark     This class can be used for synchronous purpose. In such a case,
-                one has to call the method `step` specifying the optional
-                argument `action_next`.
+    @remark This class can be used for synchronous purpose. In such a case, one
+            has to call the method `step` specifying the optional argument
+            `action_next`.
     """
     def __init__(self,
                  robot: jiminy.Robot,
@@ -40,21 +35,21 @@ class EngineAsynchronous:
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
         """
-        @brief      Constructor
+        @brief Constructor
 
-        @param[in]  robot  Jiminy robot instance already initialized.
-        @param[in]  controller_class  The type of controller to use.
-                                      Optional: core.ControllerFunctor
-                                      without internal dynamics by default.
-        @param[in]  engine_class  The class of engine to use.
-                                  Optional: core.Engine by default.
-        @param[in]  use_theoretical_model  Whether the state corresponds to the
-                                           theoretical model when updating and
-                                           fetching the robot's state.
-        @param[in]  viewer_backend  Backend of the viewer, ie gepetto-gui or
-                                    meshcat.
+        @param robot  Jiminy robot instance already initialized.
+        @param controller_class  The type of controller to use.
+                                 Optional: core.ControllerFunctor without
+                                 internal dynamics by default.
+        @param engine_class  The class of engine to use.
+                             Optional: core.Engine by default.
+        @param use_theoretical_model  Whether the state corresponds to the
+                                      theoretical model when updating and
+                                      fetching the robot's state.
+        @param viewer_backend  Backend of the viewer, ie gepetto-gui or
+                               meshcat.
 
-        @return     Instance of the wrapper.
+        @return Instance of the wrapper.
         """
         # Backup the user arguments
         self.robot = robot
@@ -69,7 +64,7 @@ class EngineAsynchronous:
 
         # Instantiate the Jiminy controller if necessary, then initialize it
         self._controller = controller_class(
-            self._send_command)
+            compute_command=self._send_command)
         self._controller.initialize(robot)
 
         # Instantiate the low-level Jiminy engine, then initialize it
@@ -95,47 +90,47 @@ class EngineAsynchronous:
                       q: np.ndarray,
                       v: np.ndarray,
                       sensors_data: jiminy.sensorsData,
-                      uCommand: np.ndarray) -> None:
+                      u_command: np.ndarray) -> None:
         """
-        @brief      This method implement the callback function required by
-                    Jiminy Controller to get the command. In practice, it only
-                    updates a variable shared between C++ and Python to the
-                    internal value stored by this class.
+        @brief This method implement the callback function required by
+               Jiminy Controller to get the command. In practice, it only
+               updates a variable shared between C++ and Python to the
+               internal value stored by this class.
 
-        @remark     This is a hidden function that is not listed as part of the
-                    member methods of the class. It is not intended to be
-                    called manually.
+        @remark This is a hidden function that is not listed as part of the
+                member methods of the class. It is not intended to be called
+                manually.
         """
         self._sensors_data = sensors_data  # It is already a snapshot copy of robot.sensors_data
-        uCommand[:] = self._action
+        u_command[:] = self._action
 
     def __getattr__(self, name: str) -> Any:
         """
-        @brief    Fallback attribute getter.
+        @brief Fallback attribute getter.
 
-        @details  Implemented for convenience. It enables to get access to the
-                  attribute and methods of the low-level Jiminy engine
-                  directly, without having to do it through `_engine`.
+        @details Implemented for convenience. It enables to get access to the
+                 attribute and methods of the low-level Jiminy engine directly,
+                 without having to do it through `_engine`.
         """
         return getattr(self._engine, name)
 
     def __dir__(self) -> List[str]:
         """
-        @brief    Attribute lookup.
+        @brief Attribute lookup.
 
-        @details  It is used for by autocomplete feature of Ipython. It is
-                  overloaded to get consistent autocompletion wrt `getattr`.
+        @details It is used for by autocomplete feature of Ipython. It is
+                 overloaded to get consistent autocompletion wrt `getattr`.
         """
         return super().__dir__() + self._engine.__dir__()
 
     def seed(self, seed: int) -> None:
         """
-        @brief      Set the seed of the simulation and reset the simulation.
+        @brief Set the seed of the simulation and reset the simulation.
 
-        @details    Note that it also resets the low-level jiminy Engine.
-                    One must call the `reset` method manually afterward.
+        @details Note that it also resets the low-level jiminy Engine. One must
+                 call the `reset` method manually afterward.
 
-        @param[in]  seed    Desired seed (Unsigned integer 32 bits)
+        @param seed  Desired seed (Unsigned integer 32 bits).
         """
         assert isinstance(seed, np.uint32), "'seed' must have type np.uint32."
 
@@ -149,18 +144,19 @@ class EngineAsynchronous:
               x0: np.ndarray,
               is_state_theoretical: Optional[bool] = None) -> None:
         """
-        @brief      Reset the simulation.
+        @brief Reset the simulation.
 
-        @remark    It does NOT start the simulation immediately but rather wait
-                   for the first 'step' call. At this point, the sensors data
-                   are zeroed, until the simulation actually starts.
-                   Note that once the simulations starts, it is no longer
-                   possible to changed the robot (included options).
+        @details It does NOT start the simulation immediately but rather wait
+                 for the first 'step' call. At this point, the sensors data are
+                 zeroed, until the simulation actually starts.
 
-        @param[in]  x0  Desired initial state
-        @param[in]  is_state_theoretical  Wether the provided initial state is
-                                          associated with the theoretical or
-                                          actual model.
+        @remark Note that once the simulations starts, it is no longer possible
+                to changed the robot (included options).
+
+        @param x0  Desired initial state.
+        @param is_state_theoretical  Wether the provided initial state is
+                                     associated with the theoretical or actual
+                                     model.
         """
         # Handling of default argument(s)
         if is_state_theoretical is None:
@@ -211,20 +207,19 @@ class EngineAsynchronous:
              action_next: Optional[np.ndarray] = None,
              dt_desired: float = -1) -> None:
         """
-        @brief      Run simulation steps.
+        @brief Run simulation steps.
 
-        @details    Even if Jiminy Engine performs several simulation steps
-                    internally, this method only output the final state.
+        @details Even if Jiminy Engine performs several simulation steps
+                 internally, this method only output the final state.
 
-        @param[in]  action_next     Updated command
-                                    Optional: Use the value in the internal
-                                    buffer otherwise.
-        @param[in]  dt_desired      Simulation time difference between before
-                                    and after the steps.
-                                    Optional: Perform a single integration step
-                                    otherwise.
+        @param action_next  Updated command.
+                            Optional: Use the value in the internal buffer by
+                            default, namely the previous action.
+        @param dt_desired  Time duration of the integration step.
+                           Optional: It depends on the configuration of the
+                           low-level engine.
 
-        @return     Final state of the simulation
+        @return Final state of the simulation
         """
         if not self._engine.is_simulation_running:
             if not self.is_ready:
@@ -253,20 +248,20 @@ class EngineAsynchronous:
                width: Optional[int] = None,
                height: Optional[int] = None) -> Optional[np.ndarray]:
         """
-        @brief      Render the current state of the simulation. One can display
-                    it or return an RGB array instead.
+        @brief Render the current state of the simulation. One can display it
+               or return an RGB array instead.
 
-        @remark     Note that gepetto-gui supports parallel rendering, which
-                    means that one can display multiple simulations at the same
-                    time in different tabs.
+        @remark Note that gepetto-gui supports parallel rendering, which means
+                that one can display multiple simulations at the same time in
+                different tabs.
 
-        @param[in]  return_rgb_array  Whether or not to return the current
-                                      frame as an rgb array.
-        @param[in]  width   Width of the returned RGB frame, if enabled.
-        @param[in]  height  Height of the returned RGB frame, if enabled.
+        @param return_rgb_array  Whether or not to return the current frame as
+                                 an rgb array.
+        @param width  Width of the returned RGB frame, if enabled.
+        @param height  Height of the returned RGB frame, if enabled.
 
-        @return     Rendering as an RGB array (3D numpy array), if enabled,
-                    None otherwise.
+        @return Rendering as an RGB array (3D numpy array), if enabled,
+                None otherwise.
         """
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
@@ -313,7 +308,7 @@ class EngineAsynchronous:
 
     def close(self) -> None:
         """
-        @brief      Close the connection with the renderer.
+        @brief Close the connection with the renderer.
         """
         if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
@@ -322,18 +317,14 @@ class EngineAsynchronous:
     @property
     def t(self) -> float:
         """
-        @brief      Getter of the current time of the simulation.
-
-        @return     Time of the simulation
+        @brief Getter of the current time of the simulation.
         """
         return self._t
 
     @property
     def state(self) -> np.ndarray:
         """
-        @brief      Getter of the current state of the robot.
-
-        @return     State of the robot
+        @brief Getter of the current state of the robot.
         """
         if (self._state is None):
             x = self._engine.stepper_state.x
@@ -346,27 +337,21 @@ class EngineAsynchronous:
     @property
     def sensors_data(self) -> jiminy.sensorsData:
         """
-        @brief      Getter of the current sensor data of the robot.
-
-        @return     Sensor data of the robot
+        @brief Getter of the current sensor data of the robot.
         """
         return self._sensors_data
 
     @property
     def action(self) -> np.ndarray:
         """
-        @brief      Getter of the current command.
-
-        @return     Command
+        @brief Getter of the current command.
         """
         return self._action
 
     @action.setter
     def action(self, action_next: np.ndarray) -> None:
         """
-        @brief      Setter of the command.
-
-        @param[in]  action_next     Updated command
+        @brief Setter of the command.
         """
         if (not isinstance(action_next, np.ndarray) or \
                 action_next.shape[-1] != self.robot.nmotors):
@@ -378,16 +363,43 @@ class EngineAsynchronous:
 
     def get_controller_options(self) -> dict:
         """
-        @brief      Getter of the options of Jiminy Controller.
-
-        @return     Dictionary of options.
+        @brief Getter of the options of Jiminy Controller.
         """
         return self._controller.get_options()
 
     def set_controller_options(self, options: dict) -> None:
         """
-        @brief      Setter of the options of Jiminy Controller.
-
-        @param[in]  options     Dictionary of options
+        @brief Setter of the options of Jiminy Controller.
         """
         self._controller.set_options(options)
+
+
+class BaseJiminyEngine(EngineAsynchronous):
+    def __init__(self,
+                 urdf_path: str,
+                 toml_path: Optional[str] = None,
+                 mesh_root_path: Optional[str] = None,
+                 has_freeflyer: bool = True,
+                 use_theoretical_model: bool = False,
+                 viewer_backend: Optional[str] = None):
+        """
+        @brief    TODO
+        """
+        # Instantiate and initialize the robot
+        robot = BaseJiminyRobot()
+        robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)
+
+        # Instantiate and initialize the engine
+        super().__init__(robot,
+                         BaseJiminyController,
+                         jiminy.Engine,
+                         use_theoretical_model,
+                         viewer_backend)
+
+        # Set engine controller and sensor update period if available
+        engine_options = self.get_options()
+        engine_options["stepper"]["controllerUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        engine_options["stepper"]["sensorsUpdatePeriod"] = \
+            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        self.set_options(engine_options)

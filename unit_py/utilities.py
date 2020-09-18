@@ -64,26 +64,26 @@ def setup_controller_and_engine(engine,
                                 compute_command=None,
                                 internal_dynamics=None):
     """
-    @brief    Setup an engine to integrate the dynamics of a given robot,
-              for a specific user-defined control law and internal dynamics.
+    @brief Setup an engine to integrate the dynamics of a given robot,
+           for a specific user-defined control law and internal dynamics.
 
-    @details  The goal of this function is to ease the configuration of
-              jiminy.Engine by doing the following operations:
-                 - Wrapping the control law and internal dynamics in a
-                   jiminy.ControllerFunctor.
-                 - Register the system robot/controller in the engine to
-                   integrate its dynamics.
+    @details The goal of this function is to ease the configuration of
+             jiminy.Engine by doing the following operations:
+               - Wrapping the control law and internal dynamics in a
+                 jiminy.ControllerFunctor.
+               - Register the system robot/controller in the engine to
+                 integrate its dynamics.
 
-    @param[in]  engine   Engine used to integrate the system dynamics.
-    @param[in]  robot    Robot to control.
-    @param[in]  compute_command  Control law, which must be an function handle
-                                 with the following signature:
-                                     f(t, q, v, sensors_data, uMotors) -> None
-                                 Optional: zero command torques by default.
-    @param[in]  internal_dynamics  Internal dynamics function handle with
-                                   signature:
-                                       f(t, q, v, sensors_data, uFull) -> None
-                                   Optional: No internal dynamics by default.
+    @param engine  Engine used to integrate the system dynamics.
+    @param robot  Robot to control.
+    @param compute_command  Control law, which must be an function handle
+                            with the following signature:
+                                f(t, q, v, sensors_data, uMotors) -> None
+                            Optional: zero command torques by default.
+    @param internal_dynamics  Internal dynamics function handle with
+                              signature:
+                                  f(t, q, v, sensors_data, uFull) -> None
+                              Optional: No internal dynamics by default.
     """
     # Instantiate the controller
     controller = jiminy.ControllerFunctor(
@@ -105,7 +105,7 @@ def neutral_state(robot):
              positions and unit quaternions regarding the configuration, and
              zero velocity vector.
 
-    @param[in]  robot    Robot for which to comput the neutral state.
+    @param robot  Robot for which to comput the neutral state.
     """
     q0 = neutral(robot.pinocchio_model)
     v0 = np.zeros(robot.nv)
@@ -114,7 +114,7 @@ def neutral_state(robot):
 
 def integrate_dynamics(time, x0, dynamics):
     """
-    @brief   Integrate the dynamics function f(t, x) over timesteps time.
+    @brief Integrate the dynamics function f(t, x) over timesteps time.
 
     @details This function solves an initial value problem, similar to
              scipy.solve_ivp, with specified stop points: namely, it solves
@@ -126,12 +126,12 @@ def integrate_dynamics(time, x0, dynamics):
              doing the simulation 'manually' with ode and a Runge-Kutta
              integrator yields much higher precision.
 
-    @param[in] time      Timesteps at which to evaluate the solution.
-    @param[in] x0        Initial state of the system.
-    @param[in] dynamics  Dynamics of the system, with signature:
-                            dynamics(t,x) -> dx.
+    @param time  Timesteps at which to evaluate the solution.
+    @param x0  Initial state of the system.
+    @param dynamics  Dynamics of the system, with signature:
+                         dynamics(t,x) -> dx.
 
-    @return  np.ndarray[len(time), dim(x0)]: each line is the solution x at
+    @return np.ndarray[len(time), dim(x0)]: each line is the solution x at
              time time[i]
     """
     solver = ode(dynamics)
@@ -145,12 +145,12 @@ def integrate_dynamics(time, x0, dynamics):
 
 def simulate_and_get_state_evolution(engine, tf, x0, split=False):
     """
-    @brief   Simulate the dynamics of the system and retrieve the state
-             evolution over time.
+    @brief Simulate the dynamics of the system and retrieve the state
+           evolution over time.
 
-    @param[in] engine   List of time instant at which to evaluate the solution.
-    @param[in] tf       Duration of the simulation.
-    @param[in] x0       Initial state of the system.
+    @param engine  List of time instant at which to evaluate the solution.
+    @param tf  Duration of the simulation.
+    @param x0  Initial state of the system.
 
     @return  - time: np.ndarray[len(time)]
              - state evoluion: np.ndarray[len(time), dim(x0)]: each line is the

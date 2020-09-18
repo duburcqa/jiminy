@@ -1,5 +1,8 @@
+## @file jiminy_py/simulator.py
 import os
+import pathlib
 import numpy as np
+from typing import Optional, Tuple, Dict
 
 from . import core as jiminy
 from .viewer import is_notebook
@@ -10,27 +13,33 @@ else:
     from tqdm import tqdm
 
 
-class BasicSimulator(object):
+class BasicSimulator:
     """
-    @brief   A helper class for launching simulations.
+    @brief Helper class for launching simulations.
 
-    @details This class handles creation of the engine, the jiminy.controller object, configuration...
-              so that the user only has to worry about creating a controller, implemented as a callback
-              function, and give high-level instructions to the simulation.
-              While this class provides an already functional simulation environment, it is expect that the
-              user will develop a child class to customize it to his needs.
+    @details This class handles creation of the low-level Jiminy engine and
+             controller, along their configuration. The user only has to
+             worry about defining the controller entry-point, implemented as
+             a callback function, and give high-level instructions to the
+             simulator.
+
+    @remark While this class provides an already functional simulation
+            environment, it is expected that the user will develop a child
+            class to customize it to better fit his needs.
     """
-    def __init__(self, robot, jiminy_controller=None):
+    def __init__(self,
+                 robot: jiminy.Robot,
+                 controller_class: Optional[jiminy.ControllerFunctor] = \
+                     jiminy.ControllerFunctor):
         """
         @brief Constructor
 
-        @param robot jiminy.Robot to use
-        @param jiminy_controller Optional, a jiminy controller to use. If None, a ControllerFunctor is created.
+        @param robot  Jiminy robot. It must be already initialized.
+        @param controller_class  The type of controller to use.
+                                 Optional: core.ControllerFunctor without
+                                 internal dynamics by default.
         """
-        assert issubclass(robot.__class__, jiminy.Robot), \
-               "'robot' must inherit from jiminy.Robot"
-        assert (jiminy_controller is None or issubclass(jiminy_controller.__class__, jiminy.AbstractController)), \
-                "'jiminy_controller' must inherit from jiminy.Controller"
+
         assert robot.is_initialized, "'robot' must be initialized."
 
         # Default arguments
@@ -44,16 +53,12 @@ class BasicSimulator(object):
 
         # User-defined controller handle
         self.controller_handle = lambda *kargs, **kwargs: None
-        self.internal_dynamics = lambda *kargs, **kwargs: None
-        self._is_controller_handle_init = False
+        self._is_controller_handle_initialized = False
 
-        # Instantiate the controller if necessary and initialize it
-        if jiminy_controller is None:
-            self.controller = jiminy.ControllerFunctor(self._compute_command_wrapper, self.internal_dynamics)
-            self.controller.initialize(self.robot)
-        else:
-            self.controller = jiminy_controller
-            self.controller.initialize(self.robot, self._compute_command_wrapper)
+        # Instantiate the controller and initialize it
+        self.controller = controller_class(
+            compute_command=self._compute_command_wrapper)
+        self.controller.initialize(self.robot)
 
         # Instantiate and initialize the engine
         self.engine = jiminy.Engine()
@@ -65,18 +70,23 @@ class BasicSimulator(object):
         # Extract some constant
         self.n_motors = len(self.robot.motors_names)
 
-    def configure_simulation(self):
+    def configure_simulation(self) -> None:
         """
-        @brief User-specific configuration, applied once at the end of the constructor.
+        @brief User-specific configuration.
+
+        @details It is applied once, at the end of the constructor, before
+                 extracting information about the robot, engine...
         """
         pass
 
-    def set_controller(self, controller_handle):
+    def set_controller(self, controller_handle) -> None:
         """
-        @brief Set the controller callback function to be used. It must follow the following signature:
-        controller_handle(t, y, dy, sensors_data, u_command).
+        @brief Set the controller callback function to be used.
 
-        @param controller_handle Controller callback to set.
+        @details It must have the following signature:
+                   controller_handle(t, y, dy, sensors_data, u_command) -> None
+
+        @param controller_handle  Controller callback to set.
         """
         try:
             t = 0.0
@@ -85,19 +95,28 @@ class BasicSimulator(object):
             u_command = np.zeros(self.n_motors)
             controller_handle(t, y, dy, sensors_data, u_command)
             self.controller_handle = controller_handle
-            self._is_controller_handle_init = True
+            self._is_controller_handle_initialized = True
         except:
-            raise RuntimeError("The controller handle has a wrong signature. It is expected " + \
-                               "controller_handle(t, y, dy, sensorsData, u_command)")
+            raise RuntimeError(
+                "The controller handle has a wrong signature. It is expected "
+                "controller_handle(t, y, dy, sensorsData, u_command) -> None")
 
-    @staticmethod
-    def callback(t, q, v, out):
+    def _callback(self,
+                  t: float,
+                  q: np.ndarray,
+                  v: np.ndarray,
+                  out: np.ndarray) -> None:
         """
         @brief Callback method for the simulation.
         """
-        out[:] = True
+        out[0] = True
 
-    def _compute_command_wrapper(self, t, q, v, sensors_data, u):
+    def _compute_command_wrapper(self,
+                                 t: float,
+                                 q: np.ndarray,
+                                 v: np.ndarray,
+                                 sensors_data: jiminy.sensorsData,
+                                 u: np.ndarray) -> None:
         """
         @brief Internal controller callback, should not be called directly.
         """
@@ -106,23 +125,37 @@ class BasicSimulator(object):
         self.controller_handle(t, q, v, sensors_data, u)
         self._t_pbar = t
 
-    def get_log(self):
+    def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """
         @brief Get log data from the engine.
         """
         return self.engine.get_log()
 
-    def run(self, tf, x0, is_state_theoretical=True, log_path=None, show_progress_bar=True):
+    def run(self,
+            tf: float,
+            x0: np.ndarray,
+            is_state_theoretical: bool = True,
+            log_path: Optional[str] = None,
+            show_progress_bar: bool = True) -> None:
         """
-        @brief Run a simulation, starting from x0 at t=0 up to tf. Optionally, log results in a logfile.
+        @brief Run a simulation, starting from x0 at t=0 up to tf.
+               Optionally, log the result of the simulation.
 
-        @param x0 Initial condition
-        @param tf Simulation end time
-        @param log_path Optional, if set save log data to given file.
-        @param show_progress_bar Optional, if set display a progress bar during the simulation
+        @param x0  Initial state.
+        @param tf  Simulation end time.
+        @param is_state_theoretical  Whether or not the initial state is
+                                     associated with the actual or theoretical
+                                     model of the robot.
+        @param log_path  Save log data to this location. Disable if None.
+                         Note that the format extension '.data' is enforced.
+                         Optional, disable by default.
+        @param show_progress_bar  Whether or not to display a progress bar
+                                  during the simulation.
+                                  Optional: Enable by default.
         """
-        assert self._is_controller_handle_init, "The controller handle is not initialized." + \
-                                                "Please call 'set_controller' before running a simulation."
+        assert self._is_controller_handle_initialized, (
+            "The controller handle is not initialized."
+            "Please call 'set_controller' before running a simulation.")
         # Run the simulation
         self._t_pbar = 0.0
         if show_progress_bar:
@@ -137,4 +170,5 @@ class BasicSimulator(object):
 
         # Write log
         if log_path is not None:
+            log_path = pathlib.Path(log_path).with_suffix('.data')
             self.engine.write_log(log_path, True)

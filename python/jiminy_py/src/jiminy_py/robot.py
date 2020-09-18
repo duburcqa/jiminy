@@ -1,5 +1,4 @@
-## @file
-
+## @file src/jiminy_py/robot.py
 import os
 import re
 import toml
@@ -10,10 +9,9 @@ import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import OrderedDict
-from typing import Optional, Callable
+from typing import Optional
 
 from . import core as jiminy
-from .engine_asynchronous import EngineAsynchronous
 
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
@@ -36,43 +34,43 @@ def generate_hardware_description_file(
         toml_path: Optional[str] = None,
         default_update_rate: Optional[float] = None):
     """
-    @brief     Generate a default hardware description file, based on the
-               information grabbed from the URDF when available, using best
-               guess otherwise.
+    @brief Generate a default hardware description file, based on the
+           information grabbed from the URDF when available, using best
+           guess otherwise.
 
-    @details   If no Gazebo plugin is available, a single IMU is added on the
-               root body, and force sensors are added on every leaf of the
-               robot kinematic tree. Otherwise, the definition of the plugins
-               in use to infer them.
+    @details If no Gazebo plugin is available, a single IMU is added on the
+             root body, and force sensors are added on every leaf of the robot
+             kinematic tree. Otherwise, the definition of the plugins in use
+             to infer them.
 
-               Joint fields are parsed to extract the every joints, actuated
-               or not. Fixed joints are not considered as actual joints.
-               Transmission fields are parsed to determine which one of those
-               joints are actuated. If no transmission is found, it is assumed
-               that every joint is actuated, with a transmission ratio of 1:1.
+             Joint fields are parsed to extract the every joints, actuated
+             or not. Fixed joints are not considered as actual joints.
+             Transmission fields are parsed to determine which one of those
+             joints are actuated. If no transmission is found, it is assumed
+             that every joint is actuated, with a transmission ratio of 1:1.
 
-               It is assumed that every joints have an encoder attached, as it
-               is the case in Gazebo. Every actuated joint have an effort
-               sensor attached by default.
+             It is assumed that every joints have an encoder attached, as it is
+             the case in Gazebo. Every actuated joint have an effort sensor
+             attached by default.
 
-               When the default update rate is unspecified, then the default
-               sensor update rate is 1KHz if no Gazebo plugin has been found,
-               otherwise the highest one among found plugins will be used.
+             When the default update rate is unspecified, then the default
+             sensor update rate is 1KHz if no Gazebo plugin has been found,
+             otherwise the highest one among found plugins will be used.
 
-    @remark    Under the hood, it is a configuration in TOML format to be as
-               human-friendly as possible to reading and editing it.
+    @remark Under the hood, it is a configuration in TOML format to be as
+            human-friendly as possible to reading and editing it.
 
-    @param     urdf_path    Fullpath of the URDF file.
-    @param     toml_path    Fullpath of the hardware description file.
-                            Optional: By default, it is the same location than
-                            the URDF file, using '.toml' extension.
-    @param     default_update_rate    Default update rate of the sensors and
-                                      the controller in Hz. It will be used
-                                      for sensors whose the update rate is
-                                      unspecified. 0.0 for continuous update.
-                                      Optional: DEFAULT_UPDATE_RATE if no
-                                      Gazebo plugin has been found, the lowest
-                                      among the Gazebo plugins otherwise.
+    @param urdf_path  Fullpath of the URDF file.
+    @param toml_path  Fullpath of the hardware description file.
+                      Optional: By default, it is the same location than the
+                      URDF file, using '.toml' extension.
+    @param default_update_rate  Default update rate of the sensors and the
+                                controller in Hz. It will be used for sensors
+                                whose the update rate is unspecified. 0.0 for
+                                continuous update.
+                                Optional: DEFAULT_UPDATE_RATE if no Gazebo
+                                plugin has been found, the lowest among the
+                                Gazebo plugins otherwise.
     """
     # Read the XML
     tree = ET.parse(urdf_path)
@@ -250,14 +248,14 @@ def fix_urdf_mesh_path(urdf_path: str,
                        mesh_root_path: str,
                        output_root_path: Optional[str]=None):
     """
-    @brief      Generate an URDF with updated mesh paths.
+    @brief Generate an URDF with updated mesh paths.
 
-    @param[in]  urdf_path           Full path of the URDF file.
-    @param[in]  mesh_root_path      Root path of the meshes.
-    @param[in]  output_root_path    Root directory of the fixed URDF file.
-                                    Optional: temporary directory by default.
+    @param urdf_path  Full path of the URDF file.
+    @param mesh_root_path  Root path of the meshes.
+    @param output_root_path  Root directory of the fixed URDF file.
+                             Optional: temporary directory by default.
 
-    @return     Full path of the fixed URDF file.
+    @return Full path of the fixed URDF file.
     """
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
@@ -297,31 +295,31 @@ def fix_urdf_mesh_path(urdf_path: str,
 
 class BaseJiminyRobot(jiminy.Robot):
     """
-    @brief     Base class to instantiate a Jiminy robot based on a standard
-               URDF file and Jiminy-specific hardware description file.
+    @brief Base class to instantiate a Jiminy robot based on a standard
+           URDF file and Jiminy-specific hardware description file.
 
-    @details   The utility 'generate_hardware_description_file' is provided to
-               automatically generate a default hardware description file for
-               any given URDF file. URDF file containing Gazebo plugins
-               description should not require any further modification as it
-               usually includes the information required to fully characterize
-               the motors and sensors, along with some of there properties.
+    @details The utility 'generate_hardware_description_file' is provided to
+             automatically generate a default hardware description file for any
+             given URDF file. URDF file containing Gazebo plugins description
+             should not require any further modification as it usually includes
+             the information required to fully characterize the motors and
+             sensors, along with some of there properties.
 
-               Note that it is assumed that the contact points of the robot
-               matches one-by-one the frames of the force sensors. So it is
-               not possible to use non-instrumented contact points by default.
-               Overload this class if you need finer-grained capability.
+             Note that it is assumed that the contact points of the robot
+             matches one-by-one the frames of the force sensors. So it is not
+             possible to use non-instrumented contact points by default.
+             Overload this class if you need finer-grained capability.
 
-    @remark    hardware description files within the same directory and having
-               the name than the URDF file will be detected automatically
-               without requiring to manually specify its path.
+    @remark Hardware description files within the same directory and having the
+            name than the URDF file will be detected automatically without
+            requiring to manually specify its path.
     """
     def __init__(self):
         """
         @brief    TODO
         """
         super().__init__()
-        self.global_info = None
+        self.global_info = {}
         self.robot_options = None
         self.urdf_path_orig = None
 
@@ -331,20 +329,20 @@ class BaseJiminyRobot(jiminy.Robot):
                    mesh_root_path: Optional[str] = None,
                    has_freeflyer: bool = True):
         """
-        @brief  Initialize the robot.
+        @brief Initialize the robot.
 
-        @param  urdf_path        Path of the URDF file of the robot.
-        @param  toml_path        Path of the Jiminy hardware description file.
-                                 Optional: Looking for toml file in the same
-                                 folder and with the same name. If not found,
-                                 then no hardware is added to the robot, which
-                                 is valid and can be used for display.
-        @param  mesh_root_path   Path to the folder containing the URDF meshes.
-                                 It will overwrite any absolute mesh path.
-                                 Optional: Env variable 'JIMINY_DATA_PATH' will
-                                 be used if available.
-        @param  has_freeflyer    Whether the robot is fixed-based wrt its root
-                                 link, or can move freely in the world.
+        @param urdf_path  Path of the URDF file of the robot.
+        @param toml_path  Path of the Jiminy hardware description file.
+                          Optional: Looking for toml file in the same folder
+                          and with the same name. If not found, then no
+                          hardware is added to the robot, which is valid and
+                          can be used for display.
+        @param mesh_root_path  Path to the folder containing the URDF meshes.
+                               It will overwrite any absolute mesh path.
+                               Optional: Env variable 'JIMINY_DATA_PATH' will
+                               be used if available.
+        @param has_freeflyer  Whether the robot is fixed-based wrt its root
+                              link, or can move freely in the world.
         """
         # Backup the original URDF path
         self.urdf_path_orig = urdf_path
@@ -503,81 +501,3 @@ class BaseJiminyRobot(jiminy.Robot):
         if self.robot_options is not None:
             options["model"] = self.robot_options
         return options
-
-
-class BaseJiminyController(jiminy.ControllerFunctor):
-    """
-    @brief     Base class to instantiate a Jiminy controller based on a
-               callable function.
-
-    @details   This class is primarily helpful for those who want to
-               implement a custom internal dynamics with hysteresis for
-               prototyping.
-    """
-    def __init__(self, compute_command_fn: Callable):
-        """
-        @brief    TODO
-        """
-        self.__robot = None
-        super().__init__(compute_command_fn, self.internal_dynamics)
-
-    def initialize(self, robot: BaseJiminyRobot):
-        """
-        @brief    TODO
-        """
-        self.__robot = robot
-        return_code = super().initialize(self.__robot)
-
-        if return_code == jiminy.hresult_t.SUCCESS:
-            raise ValueError("Impossible to instantiate the controller. "
-                "There is something wrong with the robot.")
-
-    def internal_dynamics(self, t, q, v, sensors_data, uCommand):
-        """
-        @brief     Internal dynamics of the robot.
-
-        @details   Overload this method to implement a custom internal dynamics
-                   for the robot. Note that is results in an overhead of about
-                   100% of the simulation in most cases, which is not often not
-                   acceptable in production, but still useful for prototyping.
-
-                   One way to solve this issue would be to compile it using
-                   CPython.
-
-        @remark   This method is time-continuous as it is designed to implement
-                  physical laws.
-        """
-        pass
-
-
-class BaseJiminyEngine(EngineAsynchronous):
-    def __init__(self,
-                 urdf_path: str,
-                 toml_path: Optional[str] = None,
-                 mesh_root_path: Optional[str] = None,
-                 has_freeflyer: bool = True,
-                 use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None):
-        """
-        @brief    TODO
-        """
-        # Instantiate and initialize the robot
-        robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)
-
-        # Instantiate and initialize the engine
-        super().__init__(
-            robot,
-            BaseJiminyController,
-            jiminy.Engine,
-            use_theoretical_model,
-            viewer_backend,
-        )
-
-        # Set engine controller and sensor update period if available
-        engine_options = self.get_options()
-        engine_options["stepper"]["controllerUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
-        engine_options["stepper"]["sensorsUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
-        self.set_options(engine_options)
