@@ -20,18 +20,11 @@
 #include <eigenpy/eigenpy.hpp>
 
 
-#if PY_MAJOR_VERSION == 2
-static void initNumpy()
-{
-    import_array();
-}
-#else
 static void * initNumpy()
 {
     import_array();
     return NULL;
 }
-#endif
 
 
 namespace jiminy

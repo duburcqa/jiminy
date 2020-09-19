@@ -1441,7 +1441,6 @@ namespace python
             {
                 return self.registerConstant(fieldName, PyLong_AsLong(dataPy));
             }
-            #if PY_VERSION_HEX >= 0x03000000
             else if (PyBytes_Check(dataPy))
             {
                 return self.registerConstant(fieldName, PyBytes_AsString(dataPy));
@@ -1450,12 +1449,6 @@ namespace python
             {
                 return self.registerConstant(fieldName, PyUnicode_AsUTF8(dataPy));
             }
-            #else
-            else if (PyString_Check(dataPy))
-            {
-                return self.registerConstant(fieldName, PyString_AsString(dataPy));
-            }
-            #endif
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
