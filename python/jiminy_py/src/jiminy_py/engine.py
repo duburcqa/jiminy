@@ -112,7 +112,11 @@ class EngineAsynchronous:
                  attribute and methods of the low-level Jiminy engine directly,
                  without having to do it through `_engine`.
         """
-        return getattr(self._engine, name)
+        if name != '_engine' and hasattr(self, '_engine'):
+            return getattr(self._engine, name)
+        else:
+            return AttributeError(
+                f"'{self.__class__}' object has no attribute '{name}'.")
 
     def __dir__(self) -> List[str]:
         """
@@ -378,7 +382,7 @@ class BaseJiminyEngine(EngineAsynchronous):
     def __init__(self,
                  urdf_path: str,
                  toml_path: Optional[str] = None,
-                 mesh_root_path: Optional[str] = None,
+                 mesh_path: Optional[str] = None,
                  has_freeflyer: bool = True,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
@@ -387,7 +391,7 @@ class BaseJiminyEngine(EngineAsynchronous):
         """
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, toml_path, mesh_root_path, has_freeflyer)
+        robot.initialize(urdf_path, toml_path, mesh_path, has_freeflyer)
 
         # Instantiate and initialize the engine
         super().__init__(robot,

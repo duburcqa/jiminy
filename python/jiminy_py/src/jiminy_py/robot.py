@@ -245,13 +245,13 @@ def generate_hardware_description_file(
 
 
 def fix_urdf_mesh_path(urdf_path: str,
-                       mesh_root_path: str,
+                       mesh_path: str,
                        output_root_path: Optional[str]=None):
     """
     @brief Generate an URDF with updated mesh paths.
 
     @param urdf_path  Full path of the URDF file.
-    @param mesh_root_path  Root path of the meshes.
+    @param mesh_path  Root path of the meshes.
     @param output_root_path  Root directory of the fixed URDF file.
                              Optional: temporary directory by default.
 
@@ -269,24 +269,23 @@ def fix_urdf_mesh_path(urdf_path: str,
 
     # If mesh root path already matching, then nothing to do
     if len(pathlists) > 1:
-        mesh_root_path_orig = os.path.commonpath(pathlists)
+        mesh_path_orig = os.path.commonpath(pathlists)
     else:
-        mesh_root_path_orig = os.path.dirname(next(iter(pathlists)))
-    if mesh_root_path == mesh_root_path_orig:
+        mesh_path_orig = os.path.dirname(next(iter(pathlists)))
+    if mesh_path == mesh_path_orig:
         return urdf_path
 
     # Create the output directory
     if output_root_path is None:
         output_root_path = tempfile.mkdtemp()
     fixed_urdf_dir = os.path.join(output_root_path,
-        "fixed_urdf" + mesh_root_path.replace('/', '_'))
+        "fixed_urdf" + mesh_path.replace('/', '_'))
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
         fixed_urdf_dir, os.path.basename(urdf_path))
 
     # Override the root mesh path with the desired one
-    urdf_contents = urdf_contents.replace(
-        mesh_root_path_orig, mesh_root_path)
+    urdf_contents = urdf_contents.replace(mesh_path_orig, mesh_path)
     with open(fixed_urdf_path, 'w') as f:
         f.write(urdf_contents)
 
@@ -326,7 +325,7 @@ class BaseJiminyRobot(jiminy.Robot):
     def initialize(self,
                    urdf_path: str,
                    toml_path: Optional[str] = None,
-                   mesh_root_path: Optional[str] = None,
+                   mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True):
         """
         @brief Initialize the robot.
@@ -337,10 +336,10 @@ class BaseJiminyRobot(jiminy.Robot):
                           and with the same name. If not found, then no
                           hardware is added to the robot, which is valid and
                           can be used for display.
-        @param mesh_root_path  Path to the folder containing the URDF meshes.
-                               It will overwrite any absolute mesh path.
-                               Optional: Env variable 'JIMINY_DATA_PATH' will
-                               be used if available.
+        @param mesh_path  Path to the folder containing the URDF meshes. It
+                          will overwrite any absolute mesh path.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
         @param has_freeflyer  Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
         """
@@ -348,16 +347,16 @@ class BaseJiminyRobot(jiminy.Robot):
         self.urdf_path_orig = urdf_path
 
         # Fix the URDF mesh paths
-        if mesh_root_path is not None:
-            urdf_path = fix_urdf_mesh_path(urdf_path, mesh_root_path)
+        if mesh_path is not None:
+            urdf_path = fix_urdf_mesh_path(urdf_path, mesh_path)
 
         # Initialize the robot without motors nor sensors
         mesh_root_dirs = []
-        if mesh_root_path is not None:
-            mesh_root_dirs += [mesh_root_path]
+        if mesh_path is not None:
+            mesh_root_dirs += [mesh_path]
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
-            mesh_root_path += [mesh_env_path]
+            mesh_path += [mesh_env_path]
         return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
