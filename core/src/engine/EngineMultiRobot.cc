@@ -1548,10 +1548,13 @@ namespace jiminy
         float64_t const & controllerUpdatePeriod =
             boost::get<float64_t>(stepperOptions.at("controllerUpdatePeriod"));
         if ((EPS < sensorsUpdatePeriod && sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
-        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP))
+        || sensorsUpdatePeriod > SIMULATION_MAX_TIMESTEP
+        || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+        || controllerUpdatePeriod > SIMULATION_MAX_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - Cannot simulate a discrete system with period smaller than";
-            std::cout << SIMULATION_MIN_TIMESTEP << "s. Increase period or switch to continuous mode by setting period to zero." << std::endl;
+            std::cout << "Error - EngineMultiRobot::setOptions - Cannot simulate a discrete system with update period smaller than"
+                      << SIMULATION_MIN_TIMESTEP << "s or larger than" << SIMULATION_MAX_TIMESTEP << "s. "
+                      << "Increase period or switch to continuous mode by setting period to zero." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:

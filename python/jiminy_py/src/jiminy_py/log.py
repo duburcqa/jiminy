@@ -1,21 +1,19 @@
-#!/usr/bin/env python
-
 ## @file jiminy_py/log.py
-
-import argparse
-from csv import DictReader
-from collections import OrderedDict
-import fnmatch
-from itertools import cycle
-import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-import numpy as np
 import os
+import fnmatch
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+from csv import DictReader
+from itertools import cycle
+from collections import OrderedDict
+from matplotlib.lines import Line2D
+from typing import Tuple, Dict
 
 from .core import Engine
 
 
-def is_log_binary(filename):
+def is_log_binary(filename: str) -> bool:
     """
     @brief   Return True if the given filename appears to be binary log file.
 
@@ -28,16 +26,16 @@ def is_log_binary(filename):
                 return True
     return False
 
-def read_log(filename):
+def read_log(filename: str) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
     """
-    Read a logfile from jiminy. This function supports both text (csv)
-    and binary log.
+    @brief Read a logfile from jiminy.
 
-    Parameters:
-        - filename: Name of the file to load.
-    Retunrs:
-        - A dictionnary containing the logged values, and a dictionnary
-        containing the constants.
+    @details This function supports both text (csv) and binary log.
+
+    @param filename  Name of the file to load.
+
+    @return Pair of dictionaries containing respectively the logged values,
+            and the constants.
     """
 
     if is_log_binary(filename):
