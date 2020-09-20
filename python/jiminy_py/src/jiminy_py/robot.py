@@ -465,6 +465,10 @@ class BaseJiminyRobot(jiminy.Robot):
         # Add the contact points
         self.add_collision_bodies(collision_bodies_names)
 
+    def __del__(self):
+        if self.urdf_path != self.urdf_path_orig:
+            os.remove(self.urdf_path)
+
     def set_model_options(self, model_options):
         """
         @brief    TODO

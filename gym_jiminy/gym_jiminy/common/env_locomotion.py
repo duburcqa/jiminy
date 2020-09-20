@@ -1,34 +1,19 @@
 ## @file
 
-import os
-import math
-import tempfile
 import numpy as np
 import numba as nb
-from pathlib import Path
-from collections import OrderedDict
-from functools import lru_cache
-from scipy.interpolate import make_interp_spline
-from typing import List, Dict, Optional, Callable
+from typing import Optional
 
-import torch
-from gym import core, spaces
-from gym.utils import seeding
-
-from jiminy_py import core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.viewer import Viewer, play_logfiles
-from jiminy_py.dynamics import update_quantities, \
-                               get_body_world_transform, \
-                               compute_freeflyer_state_from_fixed_body
-from jiminy_py.robot import BaseJiminyRobot
+from jiminy_py.engine import BaseJiminyEngine
+from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 
-from pinocchio import Quaternion, neutral
-from pinocchio.rpy import matrixToRpy, rpyToMatrix
+import pinocchio as pin
+from pinocchio import neutral
 
 from .env_base import BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
@@ -43,14 +28,26 @@ F_XY_IMPULSE_SCALE = 1000.0
 F_XY_PROFILE_SCALE = 50.0
 FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
-ENCODER_DELAY_SCALE = 3.0e-3
-ENCODER_NOISE_SCALE = np.array([0.0, 0.02], dtype=np.float64)
-IMU_NOISE_SCALE = np.array(
-    [0.0, 0.0, 0.0, 0.02, 0.02, 0.02, 0.2, 0.2, 0.2], dtype=np.float64)
-FORCE_NOISE_SCALE = np.array([0.0, 0.0, 2.0], dtype=np.float64)
 
-DEFAULT_ENGINE_DT = 1.0e-3  # Stepper update period
+SENSOR_DELAY_SCALE = {
+    encoder.type: 3.0e-3,
+    effort.type: 0.0,
+    contact.type: 0.0,
+    force.type: 0.0,
+    imu.type: 0.0
+}
+SENSOR_NOISE_SCALE = {
+    encoder.type:  np.array([0.0, 0.02]),
+    effort.type: np.array([10.0]),
+    contact.type: np.array([2.0, 2.0, 2.0, 10.0, 10.0, 10.0]),
+    force.type: np.array([2.0, 2.0, 2.0]),
+    imu.type:  np.array([0.0, 0.0, 0.0, 0.02, 0.02, 0.02, 0.2, 0.2, 0.2])
+}
 
+DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
+DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
+
+DEFAULT_HLC_TO_LLC_RATIO = 1 # (NA)
 PID_KP = 20000.0
 PID_KD = 0.01
 
@@ -67,11 +64,11 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
     }
 
     def __init__(self,
-                 simu_duration_max: float,
-                 dt: float = DEFAULT_ENGINE_DT,
-                 urdf_path: str = None,
+                 urdf_path: str,
                  toml_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
+                 simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
+                 dt: float = DEFAULT_ENGINE_DT,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
@@ -123,66 +120,40 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         self.std_ratio = std_ratio
 
         # Robot and engine internal buffers
-        self.log_path = None
-        self.forces_impulse = None
-        self.forces_profile = None
-        self._total_weight = None
-        self._power_consumption_max = None
-        self._quat_imu_frame_inv = None
-        self._F_xy_profile_spline = None
         self._log_data = None
+        self._forces_impulse = None
+        self._forces_profile = None
+        self._power_consumption_max = None
 
         # Configure and initialize the learning environment
         super().__init__(None, dt, debug)
 
-    def __del__(self):
-        if not self.debug:
-            if self.robot_name != "atalante":
-                os.remove(self.urdf_path)
-
     def _setup_environment(self):
+        """
+        @brief    TODO
+        """
         # Make sure a valid engine is available
         if self.engine_py is None:
             # Instantiate a new engine
             self.engine_py = BaseJiminyEngine(
                 self.urdf_path, self.toml_path, self.mesh_path,
-                has_freeflyer = True, use_theoretical_model = False)
+                has_freeflyer=True, use_theoretical_model=False)
 
-            # Set the log path
-            if debug:
-                robot_name = self.robot.pinocchio_model.name
-                self.log_path = os.path.join(
-                    tempfile.gettempdir(), f"log_{robot_name}.data")
+        # Discard log data since no longer relevant
+        self._log_data = None
 
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
         self.engine.remove_forces()
 
-        # Discard log data since no longer relevant
-        self._log_data = None
-
-        # Compute the weight of the robot and the IMUs frame rotation.
-        # It will be used later for computing the reward.
-        total_mass = self.robot.pinocchio_data_th.mass[0]
-        gravity = - self.robot.pinocchio_model_th.gravity.linear[2]
-        self._total_weight = total_mass * gravity
-
+        # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
             self.robot.motors_velocity_idx]
         motor_velocity_limit = self.robot.velocity_limit[
             self.robot.motors_velocity_idx]
         self._power_consumption_max = sum(
             motor_effort_limit * motor_velocity_limit)
-
-        self._quat_imu_frame_inv = {}
-        for imu_sensor_name in self.robot.sensors_names[imu.type]:
-            sensor = self.robot.get_sensor(imu.type, imu_sensor_name)
-            frame_name = sensor.frame_name
-            frame_idx = self.robot.pinocchio_model_th.getFrameId(frame_name)
-            frame = self.robot.pinocchio_model_th.frames[frame_idx]
-            frame_rot = frame.placement.rotation
-            self._quat_imu_frame_inv[imu_sensor_name] = Quaternion(frame_rot.T)
 
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
@@ -228,25 +199,18 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         engine_options['contacts']['frictionViscous'] = \
             engine_options['contacts']['frictionDry']
 
+        # Add sensor noise, bias and delay
         if 'sensors' in self.std_ratio.keys():
-            # Add sensor noise, bias and delay
-            encoders_options = robot_options["sensors"][enc.type]
-            for sensor_options in encoders_options.values():
-                sensor_options['delay'] = self.std_ratio['sensors'] * \
-                    self.rg.uniform() * ENCODER_DELAY_SCALE
-                sensor_options['noiseStd'] = self.std_ratio['sensors'] * \
-                    self.rg.uniform() * ENCODER_NOISE_SCALE
-            imus_options = robot_options["sensors"][imu.type]
-            for sensor_options in imus_options.values():
-                sensor_options['noiseStd'] = self.std_ratio['sensors'] * \
-                    self.rg.uniform() * IMU_NOISE_SCALE
-            forces_options = robot_options["sensors"][imu.type]
-            for sensor_options in forces_options.values():
-                sensor_options['noiseStd'] = self.std_ratio['sensors'] * \
-                    self.rg.uniform() * FORCE_NOISE_SCALE
+            for sensor in (encoder, effort, contact, force, imu):
+                sensors_options = robot_options["sensors"][sensor.type]
+                for sensor_options in sensors_options.values():
+                    sensor_options['delay'] = self.std_ratio['sensors'] * \
+                        self.rg.uniform() * SENSOR_DELAY_SCALE[sensor.type]
+                    sensor_options['noiseStd'] = self.std_ratio['sensors'] * \
+                        self.rg.uniform() * SENSOR_NOISE_SCALE[sensor.type]
 
+        # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
-            # Randomize the flexibility parameters
             dynamics_options = robot_options["model"]["dynamics"]
             for flexibility in dynamics_options["flexibilityConfig"]:
                 flexibility['stiffness'] += self.std_ratio['model'] * \
@@ -254,16 +218,10 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
                 flexibility['damping'] += self.std_ratio['model'] * \
                     FLEX_DAMPING_SCALE * self.rg.uniform(low=-1.0, high=1.0)
 
-            # TODO: Add biases to the URDF model
-            dynamics_options["inertiaBodiesBiasStd"] = 0.0
-            dynamics_options["massBodiesBiasStd"] = 0.0
-            dynamics_options["centerOfMassPositionBodiesBiasStd"] = 0.0
-            dynamics_options["relativePositionBodiesBiasStd"] = 0.0
-
+        # Apply the disturbance to the first actual body
         if 'disturbance' in self.std_ratio.keys():
-            # Apply the disturbance to the first frame being attached to the
-            # first actual body.
-            for frame in engine.robot.pinocchio_model.frames:
+            # Determine the actual root body of the kinematic tree
+            for frame in self.robot.pinocchio_model.frames:
                 if frame.type == pin.FrameType.BODY and frame.parent == 1:
                     break
             frame_name = frame.name
@@ -289,14 +247,13 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             n_timesteps = 50
             t_profile = np.linspace(0.0, 1.0, n_timesteps + 1)
             F_xy_profile = PeriodicGaussianProcess(
-                loc=torch.zeros((2, n_timesteps + 1)),
+                loc=np.zeros((2, n_timesteps + 1)),
                 scale=self.std_ratio['disturbance'] * \
-                    F_XY_PROFILE_SCALE * torch.ones(2),
-                wavelength=torch.tensor([1.0, 1.0]),
-                period=torch.tensor([1.0]),
-                dt=torch.tensor([1 / n_timesteps]),
-                reg=1.0e-6
-            ).sample().squeeze().numpy().T
+                    F_XY_PROFILE_SCALE * np.ones(2),
+                wavelength=np.tensor([1.0, 1.0]),
+                period=np.tensor([1.0]),
+                dt=np.tensor([1 / n_timesteps])
+            ).sample().T
             @nb.jit(nopython=True, nogil=True)
             def F_xy_profile_interp1d(t):
                 t_rel = t % 1.0
@@ -329,6 +286,9 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         F[:2] = self.F_xy_profile_spline(t_scaled)
 
     def _is_done(self):
+        """
+        @brief    TODO
+        """
         # Simulation termination conditions:
         # - Fall detection (if the robot has a freeflyer):
         #     The freeflyer goes lower than 90% of its height in standing pose.
@@ -342,11 +302,10 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         reward = {}
 
         # Define some proxies
-        sensors_data = self.engine_py.sensors_data
         reward_mixture_keys = self.reward_mixture.keys()
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.engine_py.sensors_data[env.type][1]
+            v_mot = self.engine_py.sensors_data[encoder.type][1]
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
@@ -385,6 +344,9 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         return reward
 
     def step(self, action):
+        """
+        @brief    TODO
+        """
         # Perform a single simulation step
         try:
             obs, reward_info, done, info = super().step(action)
@@ -418,12 +380,12 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
 
 class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
     def __init__(self,
-                 simu_duration_max: float,
-                 dt: float = DEFAULT_ENGINE_DT,
-                 hlc_to_llc_ratio: int = 1,
-                 urdf_path: str = None,
+                 urdf_path: str,
                  toml_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
+                 simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
+                 dt: float = DEFAULT_ENGINE_DT,
+                 hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
@@ -435,12 +397,15 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         self._v_target = None
 
         # Initialize the environment
-        super().__init__(simu_duration_max, dt, hlc_to_llc_ratio, urdf_path,
-            toml_path, mesh_path, reward_mixture, std_ratio, debug)
+        super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
+            dt, reward_mixture, std_ratio, debug)
 
     def _compute_command(self):
+        """
+        @brief    TODO
+        """
         # Extract estimated motor state based on sensors data
-        q_enc, v_enc = self.engine_py.sensors_data[enc.type]
+        q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
 
         # Compute PD command
         u = - PID_KP * ((q_enc - self._q_target) + \
@@ -448,6 +413,9 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         return u
 
     def step(self, action):
+        """
+        @brief    TODO
+        """
         # Update target motor state
         self._q_target, self._v_target = np.split(action, 2, axis=-1)
 

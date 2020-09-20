@@ -105,6 +105,10 @@ def update_quantities(robot: jiminy.Robot,
                     pnc_model, pnc_data, position, velocity, acceleration)
             pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
+        pin.computeCollisions(robot.collision_model, robot.collision_data,
+            stop_at_first_collision=False)
+        pin.computeDistances(robot.collision_model, robot.collision_data)
+
         if update_energy:
             if velocity is not None:
                 pin.kineticEnergy(
@@ -171,7 +175,7 @@ def get_body_world_velocity(robot: jiminy.Robot,
     """
     @brief Get the spatial velocity wrt world in body frame for a given body.
 
-    @details It is assumed that `update_quantities` has been called.
+    @remark It is assumed that `update_quantities` has been called.
 
     @param robot  Jiminy robot.
     @param body_name  Name of the body.
@@ -239,9 +243,9 @@ def get_body_world_acceleration(robot: jiminy.Robot,
 
     return spatial_acceleration
 
-def _compute_closest_contact_frame(robot: jiminy.Robot,
-                                   ground_profile: Optional[Callable] = None,
-                                   use_theoretical_model: bool = True) -> str:
+def compute_closest_contact_frame(robot: jiminy.Robot,
+                                  ground_profile: Optional[Callable] = None,
+                                  use_theoretical_model: bool = True) -> str:
     """
     @brief Compute the closest contact point to the ground, in their
            respective local frame and wrt the ground position and orientation.
@@ -251,15 +255,17 @@ def _compute_closest_contact_frame(robot: jiminy.Robot,
              fixed_body_name that ensures no contact points are going through
              the ground and a single one is touching it.
 
+             Note that collision bodies are NOT supported for now.
+
+             If the robot has no contact point, then `None` is returned.
+
     @remark It is assumed that `update_quantities` has been called.
 
     @param robot  Jiminy robot.
     @param ground_profile  Ground profile callback.
-    @param position  Robot position vector.
 
-    @return Name of the frame of the contact point.
+    @return Name of the frame of the contact point, if any. `None` otherwise.
     """
-
     if use_theoretical_model:
         pnc_data = robot.pinocchio_data_th
     else:
@@ -270,6 +276,10 @@ def _compute_closest_contact_frame(robot: jiminy.Robot,
     for frame_idx in robot.contact_frames_idx:
         transform = pnc_data.oMf[frame_idx]
         contact_frames_transform.append(transform)
+
+    # Early return if no candidate contact frame
+    if not contact_frames_transform:
+        return None
 
     # Compute the transform of the ground at these points
     if ground_profile is not None:
@@ -285,7 +295,7 @@ def _compute_closest_contact_frame(robot: jiminy.Robot,
             pin.SE3.Identity() for _ in range(len(contact_frames_transform))]
 
     # Compute the position and normal of the contact points wrt their
-    # respective ground transform
+    # respective ground transform.
     contact_frames_pos_rel = []
     contact_frames_normal_rel = []
     for frame_transform, ground_transform in \
@@ -299,7 +309,7 @@ def _compute_closest_contact_frame(robot: jiminy.Robot,
     for i in range(len(robot.contact_frames_idx)):
         height_frame = contact_frames_pos_rel[i] @ contact_frames_normal_rel[i]
         is_closest = True
-        for j in range(i+1, len(robot.contact_frames_idx)):
+        for j in range(i + 1, len(robot.contact_frames_idx)):
             height = contact_frames_pos_rel[j] @ contact_frames_normal_rel[i]
             if (height_frame > height + 1e-6):  # Add a small 1um tol since "closest" is meaningless at this point
                 is_closest = False
@@ -329,6 +339,13 @@ def compute_freeflyer_state_from_fixed_body(
              world frame. So this method computes the position of freeflyer
              rootjoint in the fixed body frame.
 
+             Note that collision bodies are not supported for now. Yet, the
+             vertical position of the freeflyer is updated in order to make
+             sure the minimum collision distance is zero.
+
+             `None` is returned if their is no contact frame or if the robot
+             has no freeflyer.
+
     @remark This function modifies the internal robot data.
 
     @param robot Jiminy robot.
@@ -341,10 +358,10 @@ def compute_freeflyer_state_from_fixed_body(
                             parallel to world frame.
     @param ground_profile  Ground profile callback.
 
-    @return Name of the contact frame.
+    @return Name of the contact frame, if any.
     """
     if not robot.has_freeflyer:
-        raise RuntimeError("The robot does not have a freeflyer.")
+        return None
 
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -368,24 +385,36 @@ def compute_freeflyer_state_from_fixed_body(
     pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
     if fixed_body_name is None:
-        fixed_body_name = _compute_closest_contact_frame(
+        fixed_body_name = compute_closest_contact_frame(
             robot, ground_profile, use_theoretical_model)
 
-    ff_M_fixed_body = get_body_world_transform(
-        robot, fixed_body_name, use_theoretical_model, copy=False)
+    if fixed_body_name is not None:
+        ff_M_fixed_body = get_body_world_transform(
+            robot, fixed_body_name, use_theoretical_model, copy=False)
 
-    if ground_profile is not None:
-        ground_translation = np.zeros(3)
-        ground_translation[2], normal = ground_profile(
-            ff_M_fixed_body.translation)
-        ground_rotation = pin.Quaternion.FromTwoVectors(
-            np.array([0.0, 0.0, 1.0]), normal).matrix()
-        w_M_ground = pin.SE3(ground_rotation, ground_translation)
-    else:
-        w_M_ground = pin.SE3.Identity()
+        if ground_profile is not None:
+            ground_translation = np.zeros(3)
+            ground_translation[2], normal = ground_profile(
+                ff_M_fixed_body.translation)
+            ground_rotation = pin.Quaternion.FromTwoVectors(
+                np.array([0.0, 0.0, 1.0]), normal).matrix()
+            w_M_ground = pin.SE3(ground_rotation, ground_translation)
+        else:
+            w_M_ground = pin.SE3.Identity()
+        w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
+        position[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
-    w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
-    position[:7] = pin.se3ToXYZQUAT(w_M_ff)
+    update_quantities(robot, position, velocity, acceleration,
+        update_physics=False, use_theoretical_model=use_theoretical_model)
+    z_cumulative_offset = 0.0
+    for dist_req in robot.collision_data.distanceResults:
+        penetration_depth = z_cumulative_offset - dist_req.min_distance
+        if penetration_depth > 0.0:
+            position[2] += penetration_depth
+            z_cumulative_offset -= penetration_depth
+
+    if fixed_body_name is None:
+        return None
 
     if velocity is not None:
         ff_v_fixed_body = get_body_world_velocity(

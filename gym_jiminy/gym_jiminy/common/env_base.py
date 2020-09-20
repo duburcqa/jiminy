@@ -116,8 +116,8 @@ class BaseJiminyEnv(gym.core.Env):
         return self.engine_py.robot
 
     @property
-    def engine(self) -> jiminy.Engnine:
-        return self.engine_py.engine
+    def engine(self) -> jiminy.Engine:
+        return self.engine_py._engine
 
     @property
     def log_path(self) -> Optional[str]:
