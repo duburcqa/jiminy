@@ -226,18 +226,20 @@ namespace jiminy
         {
             systemIdx2 = std::distance(systemsDataHolder_.begin(), systemIt2);
             returnCode = getFrameIdx(systemIt1->robot->pncModel_, frameName2, frameIdx2);
-
         }
 
-        forcesCoupling_.emplace_back(systemName1,
-                                     std::move(systemIdx1),
-                                     systemName2,
-                                     std::move(systemIdx2),
-                                     frameName1,
-                                     std::move(frameIdx1),
-                                     frameName2,
-                                     std::move(frameIdx2),
-                                     std::move(forceFct));
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            forcesCoupling_.emplace_back(systemName1,
+                                         std::move(systemIdx1),
+                                         systemName2,
+                                         std::move(systemIdx2),
+                                         frameName1,
+                                         std::move(frameIdx1),
+                                         frameName2,
+                                         std::move(frameIdx2),
+                                         std::move(forceFct));
+        }
 
         return returnCode;
     }
