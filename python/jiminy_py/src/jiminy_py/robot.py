@@ -12,7 +12,6 @@ from collections import OrderedDict
 from typing import Optional
 
 from . import core as jiminy
-
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
                    ContactSensor as contact,
