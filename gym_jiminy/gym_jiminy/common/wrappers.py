@@ -1,14 +1,19 @@
 import numpy as np
 from functools import reduce
 from operator import __mul__
+from typing import Optional, Union, Tuple, Dict, Any
 
-from gym import Wrapper, ObservationWrapper, spaces
+import gym
+from gym import spaces
 
 from jiminy_py.core import (EncoderSensor as enc,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
+
+
+SpaceDictRecursive = Union[Dict[str, 'SpaceDictRecursive'], np.ndarray]
 
 
 # Define universal scale for the observation and action space
@@ -24,9 +29,12 @@ SENSOR_ACCEL_SCALE = 10.0
 T_SCALE = 1.0
 
 
-def flatten_observation(space, x=None):
+def flatten_observation(
+        space: spaces.Space,
+        x: Optional[np.ndarray] = None) -> Union[spaces.Box, np.ndarray]:
     # Note that it does not preserve dtype
-    def _flatten_bounds(space, bounds_type):
+    def _flatten_bounds(space: spaces.Space,
+                        bounds_type: str) -> np.ndarray:
         if isinstance(space, spaces.Box):
             if bounds_type == 'high':
                 return np.asarray(space.high).flatten()
@@ -63,30 +71,34 @@ def flatten_observation(space, x=None):
         return spaces.flatten(space, x)
 
 
-class FlattenObservation(ObservationWrapper):
+class FlattenObservation(gym.ObservationWrapper):
     r"""Observation wrapper that flattens the observation."""
-    def __init__(self, env):
+    def __init__(self, env: gym.core.Env):
         super().__init__(env)
         self.observation_space = flatten_observation(
             self.env.observation_space)
 
-    def observation(self, observation):
+    def observation(self, observation: spaces.Space) -> np.ndarray:
         return flatten_observation(
             self.env.observation_space, observation)
 
 
-class ObservationActionNormalization(Wrapper):
-    def __init__(self, env):
+class ObservationActionNormalization(gym.Wrapper):
+    def __init__(self, env: gym.core.Env):
         super().__init__(env)
         self.observation_scale = None
         self.action_scale = None
 
-    def _refresh_learning_spaces_scale(self):
+    def _refresh_learning_spaces_scale(self) -> None:
         self.observation_scale = {}
 
         ## Define some proxies for convenience
         sensors_data = self.engine_py.sensors_data
         model_options = self.robot.get_model_options()
+
+        num_sensors = {}
+        for sensor in (enc, effort, contact, force, imu):
+            num_sensors[sensor] = len(self.robot.sensors_names[sensor.type])
 
         ## Compute the full robot configuration and velocity scale
 
@@ -106,10 +118,12 @@ class ObservationActionNormalization(Wrapper):
             velocity_scale[jointVelIdx + np.arange(3)] = FLEX_VEL_ANG_SCALE
 
         if not model_options['joints']['enablePositionLimit']:
-            position_scale[self.robot.rigid_joints_position_idx] = JOINT_POS_SCALE
+            position_scale[
+                self.robot.rigid_joints_position_idx] = JOINT_POS_SCALE
 
         if not model_options['joints']['enableVelocityLimit']:
-            velocity_scale[self.robot.rigid_joints_velocity_idx] = JOINT_VEL_SCALE
+            velocity_scale[
+                self.robot.rigid_joints_velocity_idx] = JOINT_VEL_SCALE
 
         ## Compute the robot motor effort scale
 
@@ -143,7 +157,7 @@ class ObservationActionNormalization(Wrapper):
             self.observation_scale['sensors'] = {}
             if enc.type in sensors_space.spaces.keys():
                 enc_sensors_scale = np.full(
-                    (len(enc.fieldnames), len(self.robot.sensors_names[enc.type])),
+                    (len(enc.fieldnames), num_sensors[enc]),
                     np.inf, dtype=np.float64)
 
                 # Replace inf bounds by the appropriate scale
@@ -161,26 +175,26 @@ class ObservationActionNormalization(Wrapper):
             # Handling of IMUs data scale
             if imu.type in sensors_space.spaces.keys():
                 imu_sensors_scale = np.zeros(
-                    (len(imu.fieldnames), len(self.robot.sensors_names[imu.type])),
+                    (len(imu.fieldnames), num_sensors[imu]),
                     dtype=sensors_data[imu.type].dtype)
 
                 # Set the quaternion scale
-                quat_imu_idx = [field.startswith('Quat') for field in imu.fieldnames]
+                quat_imu_idx = [field.startswith('Quat')
+                                for field in imu.fieldnames]
                 imu_sensors_scale[quat_imu_idx] = np.full(
-                    (sum(quat_imu_idx), len(self.robot.sensors_names[imu.type])),
-                    1.0)
+                    (sum(quat_imu_idx), num_sensors[imu]), 1.0)
 
                 # Set the gyroscope scale
-                gyro_imu_idx = [field.startswith('Gyro') for field in imu.fieldnames]
+                gyro_imu_idx = [field.startswith('Gyro')
+                                for field in imu.fieldnames]
                 imu_sensors_scale[gyro_imu_idx] = np.full(
-                    (sum(gyro_imu_idx), len(self.robot.sensors_names[imu.type])),
-                    SENSOR_GYRO_SCALE)
+                    (sum(gyro_imu_idx), num_sensors[imu]), SENSOR_GYRO_SCALE)
 
                 # Set the accelerometer scale
-                accel_imu_idx = [field.startswith('Accel') for field in imu.fieldnames]
+                accel_imu_idx = [field.startswith('Accel')
+                                 for field in imu.fieldnames]
                 imu_sensors_scale[accel_imu_idx] = np.full(
-                    (sum(accel_imu_idx), len(self.robot.sensors_names[imu.type])),
-                    SENSOR_ACCEL_SCALE)
+                    (sum(accel_imu_idx), num_sensors[imu]), SENSOR_ACCEL_SCALE)
 
                 # Set the scale
                 self.observation_scale['sensors'][imu.type] = imu_sensors_scale
@@ -192,15 +206,16 @@ class ObservationActionNormalization(Wrapper):
                 total_weight = total_mass * gravity
 
                 contact_sensors_scale = np.full(
-                    (len(contact.fieldnames), len(self.robot.sensors_names[contact.type])),
+                    (len(contact.fieldnames), num_sensors[contact]),
                     total_weight, dtype=sensors_data[contact.type].dtype)
 
-                self.observation_scale['sensors'][contact.type] = contact_sensors_scale
+                self.observation_scale['sensors'][contact.type] = \
+                    contact_sensors_scale
 
             # Handling of Force sensors data scale
             if force.type in sensors_space.spaces.keys():
                 force_sensors_scale = np.zeros(
-                    (len(force.fieldnames), len(self.robot.sensors_names[force.type])),
+                    (len(force.fieldnames), num_sensors[force]),
                     dtype=sensors_data[force.type].dtype)
 
                 total_mass = self.robot.pinocchio_data_th.mass[0]
@@ -208,24 +223,25 @@ class ObservationActionNormalization(Wrapper):
                 total_weight = total_mass * gravity
 
                 # Set the linear force scale
-                lin_force_idx = [field.startswith('F') for field in force.fieldnames]
+                lin_force_idx = [field.startswith('F')
+                                 for field in force.fieldnames]
                 force_sensors_scale[lin_force_idx] = np.full(
-                    (sum(lin_force_idx), len(self.robot.sensors_names[force.type])),
-                    total_weight)
+                    (sum(lin_force_idx), num_sensors[force]), total_weight)
 
                 # Set the moment scale
                 # TODO: Defining the moment scale using 'total_weight' does not really make sense.
-                moment_idx = [field.startswith('M') for field in force.fieldnames]
+                moment_idx = [field.startswith('M')
+                              for field in force.fieldnames]
                 force_sensors_scale[moment_idx] = np.full(
-                    (sum(moment_idx), len(self.robot.sensors_names[force.type])),
-                    total_weight)
+                    (sum(moment_idx), num_sensors[force]), total_weight)
 
-                self.observation_scale['sensors'][force.type] = force_sensors_scale
+                self.observation_scale['sensors'][force.type] = \
+                    force_sensors_scale
 
             # Handling of Effort sensors data scale
             if effort.type in sensors_space.spaces.keys():
                 effort_sensors_scale = np.zeros(
-                    (len(effort.fieldnames), len(self.robot.sensors_names[effort.type])),
+                    (len(effort.fieldnames), num_sensors[effort]),
                     dtype=sensors_data[effort.type].dtype)
 
                 sensor_list = self.robot.sensors_names[effort.type]
@@ -233,27 +249,31 @@ class ObservationActionNormalization(Wrapper):
                     sensor = self.robot.get_sensor(effort.type, sensor_name)
                     sensor_idx = sensor.idx
                     motor_idx = sensor.motor_idx
-                    effort_sensors_scale[0, sensor_idx] = effort_scale[motor_idx]
+                    effort_sensors_scale[0, sensor_idx] = \
+                        effort_scale[motor_idx]
 
                 self.observation_scale['sensors'][effort.type] = effort_scale
 
         ## Handling of action scale
         self.action_scale = effort_scale
 
-    def reset(self, **kwargs):
+    def reset(self, **kwargs) -> SpaceDictRecursive:
         obs = self.env.reset(**kwargs)
         self._refresh_learning_spaces_scale()
         obs_n = self.normalize(obs, self.observation_scale)
         return obs_n
 
-    def step(self, action_n):
+    def step(self, action_n
+            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         action = self.reverse_normalize(action_n, self.action_scale)
         obs, reward, done, info = self.env.step(action)
         obs_n = self.normalize(obs, self.observation_scale)
         return obs_n, reward, done, info
 
     @classmethod
-    def normalize(cls, value, scale):
+    def normalize(cls,
+                  value: SpaceDictRecursive,
+                  scale: SpaceDictRecursive) -> SpaceDictRecursive:
         if isinstance(scale, dict):
             value_n = {}
             for k, v in value.items():
@@ -263,7 +283,9 @@ class ObservationActionNormalization(Wrapper):
             return value / scale
 
     @classmethod
-    def reverse_normalize(cls, value_n, scale):
+    def reverse_normalize(cls,
+                          value_n: SpaceDictRecursive,
+                          scale:  SpaceDictRecursive) -> SpaceDictRecursive:
         if isinstance(scale, dict):
             value = {}
             for k, v in value_n.items():

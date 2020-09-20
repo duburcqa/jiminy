@@ -8,14 +8,13 @@ import psutil
 import shutil
 import base64
 import atexit
+import logging
 import pathlib
 import asyncio
 import tempfile
 import subprocess
-import logging
 import webbrowser
 import numpy as np
-import tornado.web
 import multiprocessing
 from tqdm import tqdm
 from PIL import Image
@@ -39,22 +38,28 @@ from .state import State
 from .meshcat.wrapper import MeshcatWrapper, is_notebook
 
 
-# Determine if the various backends are available
+CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
+DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])
+DEFAULT_CAPTURE_SIZE = 500
+VIDEO_FRAMERATE = 30
+VIDEO_SIZE = (1000, 1000)
+
+
+# Determine set the of available backends
 backends_available = ['meshcat']
 if __import__('platform').system() == 'Linux':
-    try:
-        import gepetto as _gepetto
-        import omniORB as _omniORB
+    import importlib
+    if (importlib.util.find_spec("gepetto") is not None and
+            importlib.util.find_spec("omniORB") is not None):
         backends_available.append('gepetto-gui')
-    except ImportError:
-        pass
 
+# Determine the default backend viewer, depending on the running environment
+# and the set of available backends.
 def default_backend():
     if is_notebook() or not 'gepetto-gui' in backends_available:
         return 'meshcat'
     else:
         return 'gepetto-gui'
-
 
 # Create logger
 class DuplicateFilter:
@@ -68,13 +73,6 @@ class DuplicateFilter:
 
 logger = logging.getLogger(__name__)
 logger.addFilter(DuplicateFilter())
-
-
-CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])
-DEFAULT_CAPTURE_SIZE = 500
-VIDEO_FRAMERATE = 30
-VIDEO_SIZE = (1000, 1000)
 
 
 def sleep(dt: float) -> None:
@@ -1098,8 +1096,8 @@ def extract_viewer_data_from_log(log_data, robot):
 
     # Create state sequence
     evolution_robot = []
-    for i in range(len(t)):
-        evolution_robot.append(State(t=t[i], q=qe[i]))
+    for t_i, q_i in zip(t, qe):
+        evolution_robot.append(State(t=t_i, q=q_i))
 
     return {'evolution_robot': evolution_robot,
             'robot': robot,
@@ -1215,7 +1213,7 @@ def play_trajectories(trajectory_data,
         for i in range(len(trajectory_data)):
             # Create a new viewer instance, and load the robot in it
             robot = trajectory_data[i]['robot']
-            robot_name = "_".join(("robot",  str(i)))
+            robot_name = f"robot_{i}"
             use_theoretical_model = trajectory_data[i]['use_theoretical_model']
             viewer = Viewer(
                 robot,
@@ -1276,8 +1274,8 @@ def play_trajectories(trajectory_data,
         time_evolution = np.arange(
             0.0, time_max, replay_speed / VIDEO_FRAMERATE)
         position_evolution = []
-        for j in range(len(trajectory_data)):
-            data_orig = trajectory_data[j]['evolution_robot']
+        for traj in trajectory_data:
+            data_orig = traj['evolution_robot']
             t_orig = np.array([s.t for s in data_orig])
             pos_orig = np.stack([s.q for s in data_orig], axis=0)
             pos_interp = interp1d(

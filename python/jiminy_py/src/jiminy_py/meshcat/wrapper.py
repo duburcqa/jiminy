@@ -1,9 +1,11 @@
 import atexit
 import asyncio
 import logging
+import ipykernel.comm
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout
+from typing import Optional, List, Dict, Any
 
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
@@ -14,7 +16,7 @@ from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-def is_notebook():
+def is_notebook() -> None:
     """
     @brief Determine whether Python is running inside a Notebook or not.
     """
@@ -66,14 +68,14 @@ if is_notebook():
 
     class CommProcessor:
         """
-        @brief     Re-implementation of ipykernel.kernelbase.do_one_iteration
-                   to only handle comm messages on the spot, and put back in
-                   the stack the other ones.
+        @brief Re-implementation of ipykernel.kernelbase.do_one_iteration to
+               only handle comm messages on the spot, and put back in the
+               stack the other ones.
 
-        @details   Calling 'do_one_iteration' messes up with kernel
-                   'msg_queue'. Some messages will be processed too soon,
-                   which is likely to corrupt the kernel state. This method
-                   only processes comm messages to avoid such side effects.
+        @details Calling 'do_one_iteration' messes up with kernel `msg_queue`.
+                 Some messages will be processed too soon, which is likely to
+                 corrupt the kernel state. This method only processes comm
+                 messages to avoid such side effects.
         """
 
         def __init__(self):
@@ -87,19 +89,19 @@ if is_notebook():
                 self.__kernel.pre_handler_hook = lambda : None
             self.qsize_old = 0
 
-        def __call__(self, unsafe=False):
+        def __call__(self, unsafe: bool = False) -> None:
             """
-            @brief      Check once if there is pending comm related event in
-                        the shell stream message priority queue.
+            @brief Check once if there is pending comm related event in the
+                   shell stream message priority queue.
 
-            @param[in]  unsafe     Whether or not to assume check if the number
-                                   of pending message has changed is enough. It
-                                   makes the evaluation much faster but flawed.
+            @param unsafe  Whether or not to assume check if the number of
+                           pending message has changed is enough. It makes the
+                           evaluation much faster but flawed.
             """
-            # Flush every IN messages on shell_stream only
+            # Flush every IN messages on shell_stream only.
             # Note that it is a faster implementation of ZMQStream.flush
-            # to only handle incoming messages. It reduces the computation
-            # from about 15us to 15ns.
+            # to only handle incoming messages. It reduces the computation from
+            # about 15us to 15ns.
             # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
             shell_stream = self.__kernel.shell_streams[0]
             shell_stream.poller.register(shell_stream.socket, zmq.POLLIN)
@@ -154,7 +156,7 @@ if is_notebook():
     # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
     # messages. Otherwise, new opening comm will not be detected soon enough.
     _send_orig = meshcat.visualizer.ViewerWindow.send
-    def _send(self, command):
+    def _send(self, command: Any) -> None:
         _send_orig(self, command)
         # Check on new comm related messages. Unsafe in enabled to avoid
         # potentially significant overhead. At this point several safe should
@@ -166,7 +168,7 @@ if is_notebook():
 
 
 class CommManager:
-    def __init__(self, comm_url):
+    def __init__(self, comm_url: str):
         self.n_comm = 0
         self.n_message = 0
 
@@ -192,7 +194,7 @@ class CommManager:
     def __del__(self):
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         self.n_comm = 0
         self.n_message = 0
         self.__kernel.comm_manager.unregister_target(
@@ -201,7 +203,7 @@ class CommManager:
         self.__comm_stream.close(linger=5)
         self.__comm_socket.close(linger=5)
 
-    def __forward_to_ipython(self, frames):
+    def __forward_to_ipython(self, frames: List[bytes]) -> None:
         comm_id, cmd = frames  # There must be always two parts each messages
         comm_id = comm_id.decode()
         try:
@@ -213,23 +215,25 @@ class CommManager:
         else:
             comm.send(buffers=[cmd])
 
-    def __comm_register(self, comm, msg):
-        # There is a major limitation of using 'comm.on_msg' callback
+    def __comm_register(self,
+                        comm: ipykernel.comm.Comm,
+                        msg: Dict[str, Any]) -> None:
+        # There is a major limitation of using `comm.on_msg` callback
         # mechanism: if the main thread is already busy for some reason, for
         # instance waiting for a reply from the server ZMQ socket, then
-        # 'comm.on_msg' will NOT triggered automatically. It is only triggered
+        # `comm.on_msg` will NOT triggered automatically. It is only triggered
         # automatically once every other tacks has been process. The workaround
-        # is to interleave blocking code with call of 'kernel.do_one_iteration'
-        # or 'await kernel.process_one(wait=True)'. See Stackoverflow for ref.
+        # is to interleave blocking code with call of `kernel.do_one_iteration`
+        # or `await kernel.process_one(wait=True)`. See Stackoverflow for ref.
         # https://stackoverflow.com/questions/63651823/direct-communication-between-javascript-in-jupyter-and-server-via-ipython-kernel/63666477#63666477
         @comm.on_msg
-        def _on_msg(msg):
+        def _on_msg(msg: Dict[str, Any]) -> None:
             self.n_message += 1
             data = msg['content']['data']
             self.__comm_socket.send(f"data:{comm.comm_id}:{data}".encode())
 
         @comm.on_close
-        def _close(evt):
+        def _close(evt: Any) -> None:
             self.n_comm -= 1
             self.__comm_socket.send(f"close:{comm.comm_id}".encode())
 
@@ -238,7 +242,9 @@ class CommManager:
 
 
 class MeshcatWrapper:
-    def __init__(self, zmq_url=None, comm_url=None):
+    def __init__(self,
+                 zmq_url: Optional[str] = None,
+                 comm_url: Optional[str] = None):
         # Launch a custom meshcat server if necessary
         must_launch_server = zmq_url is None
         self.server_proc = None
@@ -279,19 +285,18 @@ class MeshcatWrapper:
     def __del__(self):
         self.close()
 
-    def close(self):
+    def close(self) -> None:
         if self.comm_manager is not None:
             self.comm_manager.close()
         self.recorder.release()
 
-    def wait(self, require_client=False):
+    def wait(self, require_client: bool = False) -> str:
         if require_client:
-            # Calling the original 'wait' method must be avoided
-            # since it is blocking. Here we are waiting for a
-            # new comm to connect. Always perform a single
-            # 'do_one_iteration', just in case there is already
-            # comm waiting in the queue to be registered, but it
-            # should not be necessary.
+            # Calling the original `wait` method must be avoided since it is
+            # blocking. Here we are waiting for a new comm to connect. Always
+            # perform a single `do_one_iteration`, just in case there is
+            # already comm waiting in the queue to be registered, but it should
+            # not be necessary.
             self.__zmq_socket.send(b"wait")
             if self.comm_manager is None:
                 self.__zmq_socket.recv()
@@ -316,19 +321,21 @@ class MeshcatWrapper:
                 process_kernel_comm()
         return self.__zmq_socket.recv().decode("utf-8")
 
-    def start_recording(self, fps, width, height):
+    def start_recording(self, fps: float, width: int, height: int) -> None:
         if not self.recorder.is_open:
             self.recorder.open()
             self.wait(require_client=True)
         self.recorder.start_video_recording(fps, width, height)
 
-    def stop_recording(self, path):
+    def stop_recording(self, path: str) -> None:
         self.recorder.stop_and_save_video(path)
 
-    def add_frame(self):
+    def add_frame(self) -> None:
         self.recorder.add_video_frame()
 
-    def capture_frame(self, width=None, height=None):
+    def capture_frame(self,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> str:
         if not self.recorder.is_open:
             self.recorder.open()
             self.wait(require_client=True)

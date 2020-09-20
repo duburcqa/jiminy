@@ -1,5 +1,4 @@
 ## @file jiminy_py/simulator.py
-import os
 import pathlib
 import numpy as np
 from typing import Optional, Tuple, Dict
