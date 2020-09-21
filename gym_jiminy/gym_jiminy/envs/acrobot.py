@@ -7,9 +7,9 @@ from pkg_resources import resource_filename
 from gym import spaces
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.engine import EngineAsynchronous
 
-from ..common.robots import BaseJiminyEnv, BaseJiminyGoalEnv
+from ..common.env_bases import BaseJiminyGoalEnv
 
 
 DT = 2.0e-3          ## Stepper update period
@@ -77,9 +77,9 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         # ############################### Initialize Jiminy ####################################
 
         os.environ["JIMINY_DATA_PATH"] = \
-            resource_filename('gym_jiminy.envs', 'data')
+            resource_filename('gym_jiminy.envs', 'data/toys_models')
         urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"],
-            "double_pendulum/double_pendulum.urdf")
+            "toys_models/double_pendulum/double_pendulum.urdf")
 
         robot = jiminy.Robot()
         robot.initialize(urdf_path)

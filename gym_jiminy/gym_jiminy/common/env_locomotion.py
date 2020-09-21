@@ -15,7 +15,7 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 import pinocchio as pin
 from pinocchio import neutral
 
-from .env_base import BaseJiminyEnv
+from .env_bases import BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
 
 
