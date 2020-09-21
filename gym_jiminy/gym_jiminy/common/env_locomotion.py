@@ -137,7 +137,8 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             # Instantiate a new engine
             self.engine_py = BaseJiminyEngine(
                 self.urdf_path, self.toml_path, self.mesh_path,
-                has_freeflyer=True, use_theoretical_model=False)
+                has_freeflyer=True, use_theoretical_model=False,
+                debug=self.debug)
 
         # Discard log data since no longer relevant
         self._log_data = None
@@ -291,10 +292,10 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         """
         # Simulation termination conditions:
         # - Fall detection (if the robot has a freeflyer):
-        #     The freeflyer goes lower than 90% of its height in standing pose.
+        #     The freeflyer goes lower than 75% of its height in standing pose.
         # - Maximum simulation duration exceeded
         return (self.robot.has_freeflyer and
-                    self.engine_py.state[2] < self._height_neutral * 0.9) or \
+                    self.engine_py.state[2] < self._height_neutral * 0.75) or \
                (self.engine_py.t >= self.simu_duration_max)
 
     def _compute_reward(self):
