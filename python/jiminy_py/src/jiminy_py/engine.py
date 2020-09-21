@@ -400,10 +400,14 @@ class BaseJiminyEngine(EngineAsynchronous):
                          use_theoretical_model,
                          viewer_backend)
 
-        # Set engine controller and sensor update period if available
+        # Set some engine options, based on extra toml information
         engine_options = self.get_options()
-        engine_options["stepper"]["controllerUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
-        engine_options["stepper"]["sensorsUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        engine_options['stepper']['controllerUpdatePeriod'] = \
+            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
+        engine_options['stepper']['sensorsUpdatePeriod'] = \
+            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
+        engine_options['contacts']['stiffness'] = \
+            robot.extra_info.pop('groundStiffness', 4.0e6)
+        engine_options['contacts']['damping'] = \
+            robot.extra_info.pop('groundDamping', 2.0e3)
         self.set_options(engine_options)
