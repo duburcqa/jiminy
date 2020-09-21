@@ -38,22 +38,20 @@ def generate_hardware_description_file(
            information grabbed from the URDF when available, using best
            guess otherwise.
 
-    @details If no Gazebo plugin is available, a single IMU is added on the
-             root body, and force sensors are added on every leaf of the robot
-             kinematic tree. Otherwise, the definition of the plugins in use
-             to infer them.
+    @details If no Gazebo IMU sensor is found, a single IMU is added on the
+             root body of the kinematic tree. If no Gazebo plugin is available,
+             force sensors are added on every leaf bodies of the robot.
+             Otherwise, the definition of the plugins in use to infer them.
 
-             Joint fields are parsed to extract the every joints, actuated
-             or not. Fixed joints are not considered as actual joints.
+             'joint' fields are parsed to extract the every joints, actuated
+             or not. 'fixed' joints are not considered as actual joints.
              Transmission fields are parsed to determine which one of those
              joints are actuated. If no transmission is found, it is assumed
              that every joint is actuated, with a transmission ratio of 1:1.
 
-             It is assumed that every joints have an encoder attached, as it is
-             the case in Gazebo. Every actuated joint have an effort sensor
-             attached by default. Every collision bodies have a force sensor
-             attached, even though it is not the case in Gazebo, because it is
-             usually expected.
+             It is assumed that every joints have an encoder attached. Every
+             actuated joint have an effort sensor attached by default. In
+             addition, every collision bodies have a force sensor attached.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
@@ -89,6 +87,19 @@ def generate_hardware_description_file(
         Motor=OrderedDict(),
         Sensor=OrderedDict()
     )
+
+    # Extract the list of parent and child links, excluding the one related
+    # to fixed joints, because they are likely not "real" joint.
+    parent_links = set()
+    child_links = set()
+    for joint_descr in root.findall('./joint'):
+        if joint_descr.get('type').casefold() != 'fixed':
+            parent_links.add(joint_descr.find('./parent').get('link'))
+            child_links.add(joint_descr.find('./child').get('link'))
+
+    # Compute the root link and the leaf ones
+    root_links = list(parent_links.difference(child_links))
+    leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
     # Note that it is only useful to extract "advanced" hardware, not basic
@@ -178,22 +189,8 @@ def generate_hardware_description_file(
     if gazebo_ground_damping is not None:
         hardware_info['Global']['groundDamping'] = gazebo_ground_damping
 
-    # Fallback if no Gazebo plugin has been found
-    if not gazebo_plugins_found:
-        # Extract the list of parent and child links, excluding the one related
-        # to fixed joints, because they are likely not "real" joint.
-        parent_links = set()
-        child_links = set()
-        for joint_descr in root.findall('./joint'):
-            if joint_descr.get('type').casefold() != 'fixed':
-                parent_links.add(joint_descr.find('./parent').get('link'))
-                child_links.add(joint_descr.find('./child').get('link'))
-
-        # Compute the root link and the leaf ones
-        root_links = list(parent_links.difference(child_links))
-        leaf_links = list(child_links.difference(parent_links))
-
-        # Add IMU sensor to the root link
+    # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
+    if not imu.type in hardware_info['Sensor'].keys():
         for root_link in root_links:
             hardware_info['Sensor'].setdefault(imu.type, {}).update({
                 root_link: OrderedDict(
@@ -202,7 +199,8 @@ def generate_hardware_description_file(
                 )
             })
 
-        # Add force sensors to the leaf links
+    # Add force sensors if no Gazebo plugin is available at all
+    if not gazebo_plugins_found:
         for leaf_link in leaf_links:
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
