@@ -127,8 +127,8 @@ def generate_hardware_description_file(
                 collision_bodies_names.add(body_name)
                 sensor_type = force.type
             else:
-                logger.warning(
-                    f'Unsupported Gazebo sensor plugin {gazebo_sensor_descr}')
+                logger.warning("Unsupported Gazebo sensor plugin of type "
+                    f"'{sensor_type}'")
                 continue
 
             # Extract the sensor update period
@@ -403,12 +403,13 @@ class BaseJiminyRobot(jiminy.Robot):
             urdf_path = fix_urdf_mesh_path(urdf_path, mesh_path)
 
         # Initialize the robot without motors nor sensors
-        mesh_root_dirs = []
         if mesh_path is not None:
-            mesh_root_dirs += [mesh_path]
+            mesh_root_dirs = [mesh_path]
+        else:
+            mesh_root_dirs = [os.path.dirname(urdf_path)]
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
-            mesh_path += [mesh_env_path]
+            mesh_root_dirs += [mesh_env_path]
         return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:

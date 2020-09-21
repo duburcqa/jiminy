@@ -1,10 +1,12 @@
 ## @file src/jiminy_py/engine.py
+import os
+import pathlib
 import tempfile
 import numpy as np
 from typing import Optional, List, Any
 
 from . import core as jiminy
-from .robot import BaseJiminyRobot
+from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyController
 from .viewer import Viewer
 from .dynamics import update_quantities
@@ -393,13 +395,11 @@ class BaseJiminyEngine(EngineAsynchronous):
         # Generate a temporary Hardware Description File if necessary
         if toml_path is None:
             toml_path = pathlib.Path(urdf_path).with_suffix('.toml')
-        if not os.path.exists(toml_path):
-            self._toml_file = tempfile.NamedTemporaryFile(
+            if not os.path.exists(toml_path):
+                self._toml_file = tempfile.NamedTemporaryFile(
                     prefix="anymal_hdf_", suffix=".toml", delete=(not debug))
-            generate_hardware_description_file(urdf_path,
-                self._toml_file.name, default_update_rate=1.0/ENGINE_DT)
-        else:
-            self._toml_file = open(toml_path, "r")
+                toml_path = self._toml_file.name
+                generate_hardware_description_file(urdf_path, toml_path)
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()

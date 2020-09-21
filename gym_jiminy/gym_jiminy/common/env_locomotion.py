@@ -2,7 +2,7 @@
 
 import numpy as np
 import numba as nb
-from typing import Optional
+from typing import Optional, Union
 
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
@@ -17,6 +17,7 @@ from pinocchio import neutral
 
 from .env_bases import BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
+from .wrappers import flatten_observation
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5
@@ -47,7 +48,7 @@ SENSOR_NOISE_SCALE = {
 DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
 DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
 
-DEFAULT_HLC_TO_LLC_RATIO = 1 # (NA)
+DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 PID_KP = 20000.0
 PID_KD = 0.01
 
@@ -71,7 +72,8 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
                  dt: float = DEFAULT_ENGINE_DT,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
-                 debug: bool = False):
+                 debug: bool = False,
+                 **kwargs):
         """
         @brief Constructor.
 
@@ -126,7 +128,7 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         self._power_consumption_max = None
 
         # Configure and initialize the learning environment
-        super().__init__(None, dt, debug)
+        super().__init__(None, dt, debug, **kwargs)
 
     def _setup_environment(self):
         """
@@ -384,11 +386,15 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
                  hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
+                 pid_kp: Union[float, np.ndarray] = PID_KP,
+                 pid_kd: Union[float, np.ndarray] = PID_KD,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
         # Backup some user arguments
         self.hlc_to_llc_ratio = hlc_to_llc_ratio
+        self.pid_kp = pid_kp
+        self.pid_kd = pid_kd
 
         # Low-level controller buffers
         self._q_target = None
@@ -398,6 +404,13 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
             dt, reward_mixture, std_ratio, debug)
 
+    def _refresh_action_space(self):
+        """
+        @brief    TODO
+        """
+        self.action_space = flatten_observation(
+            self.observation_space['sensors']['EncoderSensor'])
+
     def _compute_command(self):
         """
         @brief    TODO
@@ -406,8 +419,8 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
 
         # Compute PD command
-        u = - PID_KP * ((q_enc - self._q_target) + \
-            PID_KD * (v_enc - self._v_target))
+        u = - self.pid_kp * ((q_enc - self._q_target) + \
+            self.pid_kd * (v_enc - self._v_target))
 
         return u
 
