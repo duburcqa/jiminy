@@ -53,7 +53,7 @@ PID_KP = 20000.0
 PID_KD = 0.01
 
 
-class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
+class WalkerJiminyEnv(BaseJiminyEnv):
     """
     @brief Implementation of a Gym environment for learning locomotion task for
            legged robots. It uses Jiminy Engine to perform physics evaluation
@@ -378,7 +378,7 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         return obs, reward, done, info
 
 
-class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
+class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
     def __init__(self,
                  urdf_path: str,
                  toml_path: Optional[str] = None,
