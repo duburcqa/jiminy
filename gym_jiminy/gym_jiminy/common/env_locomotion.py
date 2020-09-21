@@ -299,7 +299,7 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
 
     def _compute_reward(self):
         # @copydoc BaseJiminyRobot::_compute_reward
-        reward = {}
+        reward_dict = {}
 
         # Define some proxies
         reward_mixture_keys = self.reward_mixture.keys()
@@ -309,24 +309,28 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
-            reward['energy'] = - power_consumption_rel
+            reward_dict['energy'] = - power_consumption_rel
 
         if 'done' in reward_mixture_keys:
-            reward['done'] = 1
+            reward_dict['done'] = 1
 
         # Rescale the reward so that the maximum cumulative reward is
         # independent from both the engine timestep and the maximum
         # simulation duration.
-        reward = {k: v * (self.dt / self.simu_duration_max)
-                  for k, v in reward.items()}
+        reward_dict = {k: v * (self.dt / self.simu_duration_max)
+                       for k, v in reward_dict.items()}
 
-        return reward
+        # Compute the total reward
+        reward_total = sum([self.reward_mixture[name] * value
+                            for name, value in reward_dict.items()])
+
+        return reward_total, reward_dict
 
     def _compute_reward_terminal(self):
         """
         @brief Compute the reward at the end of the episode.
         """
-        reward = {}
+        reward_dict = {}
 
         reward_mixture_keys = self.reward_mixture.keys()
 
@@ -339,9 +343,13 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
                     'HighLevelController.currentFreeflyerPositionTransY']))
             else:
                 frontal_displacement = 0.0
-            reward['direction'] = - frontal_displacement
+            reward_dict['direction'] = - frontal_displacement
 
-        return reward
+        # Compute the total reward
+        reward_total = sum([self.reward_mixture[name] * value
+                            for name, value in reward_dict.items()])
+
+        return reward_total, reward_dict
 
     def step(self, action):
         """
@@ -349,12 +357,12 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         """
         # Perform a single simulation step
         try:
-            obs, reward_info, done, info = super().step(action)
+            obs, reward, done, info = super().step(action)
         except RuntimeError:
             obs = self.observation
+            reward = 0.0
             done = True
             info = {'is_success': False}
-            reward_info = {}
 
         if done:
             # Extract the log data from the simulation
@@ -363,17 +371,6 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             # Write log file if simulation is over (debug mode only)
             if self.debug and self._steps_beyond_done == 0:
                 self.engine.write_log(self.log_path)
-
-            # Add the final reward if the simulation is over
-            reward_final = self._compute_reward_terminal()
-            reward_info.update(reward_final)
-
-        # Compute the total reward
-        reward = sum([self.reward_mixture[name] * value
-                      for name, value in reward_info.items()])
-
-        # Extract additional information
-        info.update({'reward': reward_info})
 
         return obs, reward, done, info
 
@@ -410,6 +407,7 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         # Compute PD command
         u = - PID_KP * ((q_enc - self._q_target) + \
             PID_KD * (v_enc - self._v_target))
+
         return u
 
     def step(self, action):
@@ -421,12 +419,12 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
 
         # Run the whole simulation in one go
         reward = 0.0
-        reward_info = {k: 0.0 for k in self.reward_mixture.keys()}
+        reward_info = {k: [] for k in self.reward_mixture.keys()}
         for _ in range(self.hlc_to_llc_ratio):
             action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
             for k, v in info_step['reward'].items():
-                reward_info[k] += v
+                reward_info[k].append(v)
             reward += reward_step
             if done:
                 break

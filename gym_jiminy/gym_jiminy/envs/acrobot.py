@@ -59,8 +59,6 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
                                  If not continuous, the action space has only 3
                                  states, i.e. low, zero, and high.
                                  Optional: True by default.
-
-        @return     Instance of the environment.
         """
 
         #  @copydoc BaseJiminyEnv::__init__

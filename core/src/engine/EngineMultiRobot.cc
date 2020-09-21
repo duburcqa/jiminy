@@ -1554,8 +1554,8 @@ namespace jiminy
         || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         || controllerUpdatePeriod > SIMULATION_MAX_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - Cannot simulate a discrete system with update period smaller than"
-                      << SIMULATION_MIN_TIMESTEP << "s or larger than" << SIMULATION_MAX_TIMESTEP << "s. "
+            std::cout << "Error - EngineMultiRobot::setOptions - Cannot simulate a discrete system with update period smaller than "
+                      << SIMULATION_MIN_TIMESTEP << "s or larger than " << SIMULATION_MAX_TIMESTEP << "s. "
                       << "Increase period or switch to continuous mode by setting period to zero." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }

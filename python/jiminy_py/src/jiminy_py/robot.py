@@ -197,7 +197,7 @@ def generate_hardware_description_file(
         # Add the motor and sensor to the robot's hardware
         hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
             {motor_name: motor_info})
-        hardware_info['Sensor'].setdefault(effort.type, {}).update(
+        hardware_info['Motor'].setdefault(effort.type, {}).update(
             {joint_name: sensor_info})
 
     # Define default encoder sensors, and default effort sensors if no
@@ -220,7 +220,7 @@ def generate_hardware_description_file(
 
         # Add motors to robot hardware by default if no transmission found
         if not transmission_found:
-            hardware_info['Sensor'].setdefault('SimpleMotor', {}).update(
+            hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
                 {name: OrderedDict(
                     joint_name=name,
                     mechanicalReduction=1.0,

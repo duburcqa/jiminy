@@ -65,12 +65,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                 equal to 195.0 over 100 consecutive trials.
     """
     def __init__(self, continuous=False):
-        """
-        @brief      Constructor
-
-        @return     Instance of the environment.
-        """
-
         #  @copydoc BaseJiminyEnv::__init__
         # ## @var state_random_high
         #  @copydoc BaseJiminyEnv::state_random_high

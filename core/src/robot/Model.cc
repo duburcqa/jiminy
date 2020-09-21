@@ -226,13 +226,6 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        // Make sure that the body list is not empty
-        if (bodyNames.empty())
-        {
-            std::cout << "Error - Model::addCollisionBodies - The list of bodies must not be empty." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
@@ -346,13 +339,6 @@ namespace jiminy
         {
             std::cout << "Error - Model::addContactPoints - Model not initialized." << std::endl;
             return hresult_t::ERROR_INIT_FAILED;
-        }
-
-        // Make sure that the frame list is not empty
-        if (frameNames.empty())
-        {
-            std::cout << "Error - Model::addContactPoints - The list of frames must not be empty." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that no frame are duplicates
@@ -944,9 +930,9 @@ namespace jiminy
         meshPackageDirs_ = meshPackageDirs;
         hasFreeflyer_ = hasFreeflyer;
 
-        // Build the robot model
         try
         {
+            // Build robot physics model
             if (hasFreeflyer)
             {
                 pinocchio::urdf::buildModel(urdfPath,
@@ -957,15 +943,15 @@ namespace jiminy
             {
                 pinocchio::urdf::buildModel(urdfPath, pncModel_);
             }
+
+            // Build robot geometry model
+            pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
         }
         catch (std::exception& e)
         {
             std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
-
-        // Build the robot geometry model.
-        pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
 
         // Replace the mesh geometry object by its convex representation for efficiency
         #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4

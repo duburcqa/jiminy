@@ -77,11 +77,7 @@ class BaseJiminyEnv(gym.core.Env):
         self.dt = dt
         self.debug = debug
         self._log_data = None
-        if self.debug is not None:
-            self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".data", delete=(not debug))
-        else:
-            self._log_file = None
+        self._log_file = None
 
         ## Set the metadata of the environment. Those information are used by
         #  some gym wrappers such as VideoRecorder.
@@ -469,9 +465,12 @@ class BaseJiminyEnv(gym.core.Env):
         self._steps_beyond_done = None
         self._log_data = None
 
-        # Clear the log file
+        # Create a new log file
         if self.debug is not None:
-            self._log_file.truncate(0)
+            if self._log_file is not None:
+                self._log_file.close()
+            self._log_file = tempfile.NamedTemporaryFile(
+                prefix="log_", suffix=".data", delete=(not self.debug))
 
     def reset(self) -> SpaceDictRecursive:
         """
