@@ -257,24 +257,6 @@ namespace jiminy
             }
         }
 
-        // Make sure that one and only one geometry is associated with each body
-        for (std::string const & name : bodyNames)
-        {
-            int32_t nChildGeom = 0;
-            for (pinocchio::GeometryObject const & geom : pncGeometryModel_.geometryObjects)
-            {
-                if (pncModel_.frames[geom.parentFrame].name == name)
-                {
-                    nChildGeom++;
-                }
-            }
-            if (nChildGeom != 1)
-            {
-                std::cout << "Error - Model::addCollisionBodies - Collision is only supported for bodies associated with one and only one geometry." << std::endl;
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-        }
-
         // Add the list of bodies to the set of collision bodies
         collisionBodiesNames_.insert(collisionBodiesNames_.end(), bodyNames.begin(), bodyNames.end());
 
@@ -282,25 +264,19 @@ namespace jiminy
         pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
-            // Find the body id by looking at the first geometry having it for parent
-            pinocchio::GeomIndex bodyId;
+            // Find the geometries having the body for parent, and add a collision pair for each of them
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
                 {
-                    bodyId = i;
-                    break;
+                    /* Create and add the collision pair with the ground.
+                       Note that the ground always comes second for the normal to be
+                       consistently compute wrt the ground instead of the body. */
+                    pinocchio::CollisionPair const collisionPair(i, groundId);
+                    pncGeometryModel_.addCollisionPair(collisionPair);
                 }
             }
-
-            /* Create and add the collision pair with the ground.
-               Note that the ground must come first for the normal to be properly computed
-               since the contact information only reports the normal of the second geometry
-               wrt the world, which is the only one that is really interesting since the
-               ground normal never changes for flat ground, as it is the case now. */
-            pinocchio::CollisionPair const collisionPair(bodyId, groundId);
-            pncGeometryModel_.addCollisionPair(collisionPair);
 
             // Refresh proxies associated with the collisions only
             refreshCollisionsProxies();
@@ -345,21 +321,17 @@ namespace jiminy
         pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
         for (std::string const & name : bodyNames)
         {
-            // Find the body id by looking at the first geometry having it for parent
-            pinocchio::GeomIndex bodyId;
+            // Find the geometries having the body for parent, and remove the collision pair for each of them
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
                 if (pncModel_.frames[geom.parentFrame].name == name)
                 {
-                    bodyId = i;
-                    break;
+                    // Create and remove the collision pair with the ground
+                    pinocchio::CollisionPair const collisionPair(i, groundId);
+                    pncGeometryModel_.removeCollisionPair(collisionPair);
                 }
             }
-
-            // Create and remove the collision pair with the ground
-            pinocchio::CollisionPair const collisionPair(groundId, bodyId);
-            pncGeometryModel_.removeCollisionPair(collisionPair);
 
             // Refresh proxies associated with the collisions only
             refreshCollisionsProxies();
