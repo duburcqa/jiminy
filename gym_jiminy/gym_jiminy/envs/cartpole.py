@@ -4,12 +4,12 @@ import os
 import numpy as np
 from pkg_resources import resource_filename
 
-from gym import spaces, logger
+from gym import spaces
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.engine import EngineAsynchronous
 
-from ..common.robots import BaseJiminyEnv
+from ..common.env_bases import BaseJiminyEnv
 
 
 DT = 2.0e-3      ## Stepper update period
@@ -65,12 +65,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                 equal to 195.0 over 100 consecutive trials.
     """
     def __init__(self, continuous=False):
-        """
-        @brief      Constructor
-
-        @return     Instance of the environment.
-        """
-
         #  @copydoc BaseJiminyEnv::__init__
         # ## @var state_random_high
         #  @copydoc BaseJiminyEnv::state_random_high
@@ -85,9 +79,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # ############################### Initialize Jiminy ####################################
 
         os.environ["JIMINY_DATA_PATH"] = \
-            resource_filename('gym_jiminy.envs', 'data')
+            resource_filename('gym_jiminy.envs', 'data/toys_models')
         urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"],
-            "cartpole/cartpole.urdf")
+            "toys_models/cartpole/cartpole.urdf")
 
         robot = jiminy.Robot()
         robot.initialize(urdf_path)

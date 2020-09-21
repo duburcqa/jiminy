@@ -8,6 +8,7 @@ import pathlib
 import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
+from fractions import gcd
 from collections import OrderedDict
 from typing import Optional
 
@@ -31,26 +32,26 @@ logger = logging.getLogger(__name__)
 def generate_hardware_description_file(
         urdf_path: str,
         toml_path: Optional[str] = None,
-        default_update_rate: Optional[float] = None):
+        default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
     """
     @brief Generate a default hardware description file, based on the
            information grabbed from the URDF when available, using best
            guess otherwise.
 
-    @details If no Gazebo plugin is available, a single IMU is added on the
-             root body, and force sensors are added on every leaf of the robot
-             kinematic tree. Otherwise, the definition of the plugins in use
-             to infer them.
+    @details If no Gazebo IMU sensor is found, a single IMU is added on the
+             root body of the kinematic tree. If no Gazebo plugin is available,
+             force sensors are added on every leaf bodies of the robot.
+             Otherwise, the definition of the plugins in use to infer them.
 
-             Joint fields are parsed to extract the every joints, actuated
-             or not. Fixed joints are not considered as actual joints.
+             'joint' fields are parsed to extract the every joints, actuated
+             or not. 'fixed' joints are not considered as actual joints.
              Transmission fields are parsed to determine which one of those
              joints are actuated. If no transmission is found, it is assumed
              that every joint is actuated, with a transmission ratio of 1:1.
 
-             It is assumed that every joints have an encoder attached, as it is
-             the case in Gazebo. Every actuated joint have an effort sensor
-             attached by default.
+             It is assumed that every joints have an encoder attached. Every
+             actuated joint have an effort sensor attached by default. In
+             addition, every collision bodies have a force sensor attached.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
@@ -76,19 +77,42 @@ def generate_hardware_description_file(
     root = tree.getroot()
 
     # Initialize the hardware information
-    hardware_info = OrderedDict()
-    hardware_info['Global'] = OrderedDict()
-    hardware_info['Motor'] = OrderedDict()
-    hardware_info['Sensor'] = OrderedDict()
+    hardware_info = OrderedDict(
+        Global=OrderedDict(
+            sensorsUpdatePeriod=1.0/default_update_rate,
+            controllerUpdatePeriod=1.0/default_update_rate,
+            collisionBodiesNames=[],
+            contactFramesNames=[]
+        ),
+        Motor=OrderedDict(),
+        Sensor=OrderedDict()
+    )
+
+    # Extract the list of parent and child links, excluding the one related
+    # to fixed joints, because they are likely not "real" joint.
+    parent_links = set()
+    child_links = set()
+    for joint_descr in root.findall('./joint'):
+        if joint_descr.get('type').casefold() != 'fixed':
+            parent_links.add(joint_descr.find('./parent').get('link'))
+            child_links.add(joint_descr.find('./child').get('link'))
+
+    # Compute the root link and the leaf ones
+    root_links = list(parent_links.difference(child_links))
+    leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
     # Note that it is only useful to extract "advanced" hardware, not basic
     # motors, encoders and effort sensors.
+    gazebo_ground_stiffness = None
+    gazebo_ground_damping = None
     gazebo_update_rate = None
+    collision_bodies_names = set()
     gazebo_plugins_found = root.find('gazebo') is not None
     for gazebo_plugin_descr in root.iterfind('gazebo'):
         body_name = gazebo_plugin_descr.get('reference')
 
+        # Extract sensors
         for gazebo_sensor_descr in gazebo_plugin_descr.iterfind('sensor'):
             sensor_info = OrderedDict(body_name=body_name)
 
@@ -100,10 +124,11 @@ def generate_hardware_description_file(
             if 'imu' in sensor_type:
                 sensor_type = imu.type
             elif 'contact' in sensor_type:
+                collision_bodies_names.add(body_name)
                 sensor_type = force.type
             else:
-                logger.warning(
-                    f'Unsupported Gazebo sensor plugin {gazebo_sensor_descr}')
+                logger.warning("Unsupported Gazebo sensor plugin of type "
+                    f"'{sensor_type}'")
                 continue
 
             # Extract the sensor update period
@@ -112,9 +137,10 @@ def generate_hardware_description_file(
                 gazebo_update_rate = update_rate
             else:
                 if gazebo_update_rate != update_rate:
-                    logger.warning("Jiminy does not support sensors with"
-                        "different update rate. Using the highest one.")
-                    gazebo_update_rate = update_rate
+                    logger.warning("Jiminy does not support sensors with "
+                        "different update rate. Using greatest common "
+                        "divisor instead.")
+                    gazebo_update_rate = gcd(gazebo_update_rate, update_rate)
 
             # Extract the pose of the frame associate with the sensor.
             # Note that it is optional but usually defined since sensors
@@ -130,22 +156,41 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(sensor_type, {}).update(
                 {sensor_name: sensor_info})
 
-    # Fallback if no Gazebo plugin has been found
-    if not gazebo_plugins_found:
-        # Extract the list of parent and child links, excluding the one related
-        # to fixed joints, because they are likely not "real" joint.
-        parent_links = set()
-        child_links = set()
-        for joint_descr in root.findall('./joint'):
-            if joint_descr.get('type').casefold() != 'fixed':
-                parent_links.add(joint_descr.find('./parent').get('link'))
-                child_links.add(joint_descr.find('./child').get('link'))
+        # Extract the collision bodies and ground model, then add force sensors
+        if gazebo_plugin_descr.find('kp') is not None:
+            # Add a force sensor, if not already in the collision set
+            if not body_name in collision_bodies_names:
+                hardware_info['Sensor'].setdefault(force.type, {}).update({
+                    f"{body_name}Contact": OrderedDict(
+                        body_name=body_name,
+                        frame_pose=6*[0.0])
+                })
 
-        # Compute the root link and the leaf ones
-        root_links = list(parent_links.difference(child_links))
-        leaf_links = list(child_links.difference(parent_links))
+            # Add the related body to the collision set
+            collision_bodies_names.add(body_name)
 
-        # Add IMU sensor to the root link
+            # Update the ground model
+            ground_stiffness = float(gazebo_plugin_descr.find('kp').text)
+            ground_damping = float(gazebo_plugin_descr.find('kd').text)
+            if gazebo_ground_stiffness is None:
+                gazebo_ground_stiffness = ground_stiffness
+            if gazebo_ground_damping is None:
+                gazebo_ground_damping = ground_damping
+            if (gazebo_ground_stiffness != ground_stiffness or
+                    gazebo_ground_damping != ground_damping):
+                raise RuntimeError("Jiminy does not support contacts with"
+                    "different ground models.")
+
+    # Specify collision bodies and ground model in global config options
+    hardware_info['Global']['collisionBodiesNames'] = \
+        list(collision_bodies_names)
+    if gazebo_ground_stiffness is not None:
+        hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
+    if gazebo_ground_damping is not None:
+        hardware_info['Global']['groundDamping'] = gazebo_ground_damping
+
+    # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
+    if not imu.type in hardware_info['Sensor'].keys():
         for root_link in root_links:
             hardware_info['Sensor'].setdefault(imu.type, {}).update({
                 root_link: OrderedDict(
@@ -154,7 +199,8 @@ def generate_hardware_description_file(
                 )
             })
 
-        # Add force sensors to the leaf links
+    # Add force sensors if no Gazebo plugin is available at all
+    if not gazebo_plugins_found:
         for leaf_link in leaf_links:
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
@@ -163,7 +209,7 @@ def generate_hardware_description_file(
                 )
             })
 
-    # Extract the effort sensors.
+    # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
     # URDF standard, so it should be available on any URDF file.
     transmission_found = root.find('transmission') is not None
@@ -178,6 +224,15 @@ def generate_hardware_description_file(
         # Extract the associated joint name
         joint_name = transmission_descr.find('./joint').get('name')
         motor_info['joint_name'] = joint_name
+
+        # Make sure that the joint is revolute
+        joint_type = root.find(
+            f"./joint[@name='{joint_name}']").get("type").casefold()
+        if joint_type != "revolute":
+            logger.warning(
+                "Jiminy only support revolute actuators and effort sensors. "
+                f"Attached joint cannot of type '{joint_type}'.")
+            continue
 
         # Extract the transmission ratio (motor / joint)
         ratio = transmission_descr.find('./actuator/mechanicalReduction')
@@ -220,21 +275,19 @@ def generate_hardware_description_file(
 
         # Add motors to robot hardware by default if no transmission found
         if not transmission_found:
-            hardware_info['Sensor'].setdefault('SimpleMotor', {}).update(
+            hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
                 {name: OrderedDict(
                     joint_name=name,
                     mechanicalReduction=1.0,
                     rotorInertia=0.0)
             })
 
-    # Handling of default update rate for the controller and the sensors
-    if gazebo_update_rate is None:
-        if default_update_rate is not None:
-            gazebo_update_rate = default_update_rate
-        else:
-            gazebo_update_rate = DEFAULT_UPDATE_RATE
-    hardware_info['Global']['sensorsUpdatePeriod'] = 1 / gazebo_update_rate
-    hardware_info['Global']['controllerUpdatePeriod'] = 1 / gazebo_update_rate
+    # Specify custom update rate for the controller and the sensors, if any
+    if gazebo_update_rate is not None:
+        hardware_info['Global']['sensorsUpdatePeriod'] = \
+            1.0 / gazebo_update_rate
+        hardware_info['Global']['controllerUpdatePeriod'] = \
+            1.0 / gazebo_update_rate
 
     # Write the sensor description file
     if toml_path is None:
@@ -317,7 +370,7 @@ class BaseJiminyRobot(jiminy.Robot):
         @brief    TODO
         """
         super().__init__()
-        self.global_info = {}
+        self.extra_info = {}
         self.robot_options = None
         self.urdf_path_orig = None
 
@@ -350,12 +403,13 @@ class BaseJiminyRobot(jiminy.Robot):
             urdf_path = fix_urdf_mesh_path(urdf_path, mesh_path)
 
         # Initialize the robot without motors nor sensors
-        mesh_root_dirs = []
         if mesh_path is not None:
-            mesh_root_dirs += [mesh_path]
+            mesh_root_dirs = [mesh_path]
+        else:
+            mesh_root_dirs = [os.path.dirname(urdf_path)]
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
-            mesh_path += [mesh_env_path]
+            mesh_root_dirs += [mesh_env_path]
         return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
@@ -371,7 +425,7 @@ class BaseJiminyRobot(jiminy.Robot):
                 "automatically using 'generate_hardware_description_file'.")
             return
         hardware_info = toml.load(toml_path)
-        self.global_info = hardware_info.pop('Global')
+        self.extra_info = hardware_info.pop('Global')
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
 
@@ -397,7 +451,6 @@ class BaseJiminyRobot(jiminy.Robot):
                 motor.set_options(options)
 
         # Add the sensors to the robot
-        collision_bodies_names = []
         for sensor_type, sensors_descr in sensors_info.items():
             for sensor_name, sensor_descr in sensors_descr.items():
                 # Create the sensor and attach it
@@ -424,10 +477,6 @@ class BaseJiminyRobot(jiminy.Robot):
 
                         ## Get the body name
                         body_name = sensor_descr.pop('body_name')
-
-                        ## Add the body to the list for collision bodies if it is a force sensor
-                        if sensor_type in force.type:
-                            collision_bodies_names.append(body_name)
 
                         ## Generate a frame name that is intelligible and available
                         i = 0
@@ -463,7 +512,10 @@ class BaseJiminyRobot(jiminy.Robot):
                 sensor.set_options(options)
 
         # Add the contact points
+        collision_bodies_names = self.extra_info.pop('collisionBodiesNames', [])
         self.add_collision_bodies(collision_bodies_names)
+        contact_frames_names = self.extra_info.pop('contactFramesNames', [])
+        self.add_contact_points(contact_frames_names)
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:

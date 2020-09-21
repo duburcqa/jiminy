@@ -28,7 +28,9 @@ setup(name = 'jiminy_py',
       download_url = 'https://github.com/Wandercraft/jiminy/archive/@PROJECT_VERSION@.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js']},
+      package_data = {'jiminy_py': [
+          '**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js'
+      ]},
       entry_points = {'console_scripts': [
           'jiminy_plot=jiminy_py.log:plot_log',
           'jiminy_meshcat_server=jiminy_py.meshcat.server:start_meshcat_server_standalone'

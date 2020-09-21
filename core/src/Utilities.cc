@@ -774,28 +774,30 @@ namespace jiminy
         }
 
         auto const & joint = model.joints[idIn];
+        std::string const & jointTypeStr = joint.shortname();
 
-        if (joint.shortname() == "JointModelFreeFlyer")
+        if (jointTypeStr == "JointModelFreeFlyer")
         {
             jointTypeOut = joint_t::FREE;
         }
-        else if (joint.shortname() == "JointModelSpherical")
+        else if (jointTypeStr == "JointModelSpherical")
         {
             jointTypeOut = joint_t::SPHERICAL;
         }
-        else if (joint.shortname() == "JointModelPlanar")
+        else if (jointTypeStr == "JointModelPlanar")
         {
             jointTypeOut = joint_t::PLANAR;
         }
-        else if (joint.shortname() == "JointModelPX" ||
-                    joint.shortname() == "JointModelPY" ||
-                    joint.shortname() == "JointModelPZ")
+        else if (jointTypeStr == "JointModelPX" ||
+                 jointTypeStr == "JointModelPY" ||
+                 jointTypeStr == "JointModelPZ")
         {
             jointTypeOut = joint_t::LINEAR;
         }
-        else if (joint.shortname() == "JointModelRX" ||
-                    joint.shortname() == "JointModelRY" ||
-                    joint.shortname() == "JointModelRZ")
+        else if (jointTypeStr == "JointModelRX" ||
+                 jointTypeStr == "JointModelRY" ||
+                 jointTypeStr == "JointModelRZ" ||
+                 jointTypeStr == "JointModelRevoluteUnaligned")
         {
             jointTypeOut = joint_t::ROTARY;
         }
@@ -803,7 +805,8 @@ namespace jiminy
         {
             // Unknown joint, throw an error to avoid any wrong manipulation.
             jointTypeOut = joint_t::NONE;
-            std::cout << "Error - Utilities::getJointTypeFromIdx - Unknown joint type." << std::endl;
+            std::cout << "Error - Utilities::getJointTypeFromIdx - Unknown joint type '"
+                      <<  jointTypeStr << "'." << std::endl;
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -892,7 +895,8 @@ namespace jiminy
     {
         if (!model.existFrame(frameName))
         {
-            std::cout << "Error - Utilities::getFrameIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - Utilities::getFrameIdx - Frame '"
+                      << frameName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -927,7 +931,8 @@ namespace jiminy
     {
         if (!model.existBodyName(bodyName))
         {
-            std::cout << "Error - Utilities::getFrameIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - Utilities::getBodyIdx - Body '"
+                      << bodyName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -964,7 +969,8 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointPositionIdx - Joint not found in urdf." << std::endl;
+            std::cout << "Error - Utilities::getJointPositionIdx - Joint '"
+                      << jointName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -985,7 +991,8 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointPositionIdx - Joint not found in urdf." << std::endl;
+            std::cout << "Error - Utilities::getJointPositionIdx - Joint '"
+                      << jointName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1045,7 +1052,8 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointPositionIdx - Joint not found in urdf." << std::endl;
+            std::cout << "Error - Utilities::getJointModelIdx - Joint '"
+                      << jointName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1085,7 +1093,8 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - getJointVelocityIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - getJointVelocityIdx - Joint '"
+                      << jointName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1106,7 +1115,8 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - getJointVelocityIdx - Frame not found in urdf." << std::endl;
+            std::cout << "Error - getJointVelocityIdx - Joint '"
+                      << jointName << "' not found in robot model." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 

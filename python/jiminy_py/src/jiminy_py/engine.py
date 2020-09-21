@@ -1,10 +1,12 @@
 ## @file src/jiminy_py/engine.py
+import os
+import pathlib
 import tempfile
 import numpy as np
 from typing import Optional, List, Any
 
 from . import core as jiminy
-from .robot import BaseJiminyRobot
+from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyController
 from .viewer import Viewer
 from .dynamics import update_quantities
@@ -385,10 +387,20 @@ class BaseJiminyEngine(EngineAsynchronous):
                  mesh_path: Optional[str] = None,
                  has_freeflyer: bool = True,
                  use_theoretical_model: bool = False,
-                 viewer_backend: Optional[str] = None):
+                 viewer_backend: Optional[str] = None,
+                 debug: bool = False):
         """
         @brief    TODO
         """
+        # Generate a temporary Hardware Description File if necessary
+        if toml_path is None:
+            toml_path = pathlib.Path(urdf_path).with_suffix('.toml')
+            if not os.path.exists(toml_path):
+                self._toml_file = tempfile.NamedTemporaryFile(
+                    prefix="anymal_hdf_", suffix=".toml", delete=(not debug))
+                toml_path = self._toml_file.name
+                generate_hardware_description_file(urdf_path, toml_path)
+
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
         robot.initialize(urdf_path, toml_path, mesh_path, has_freeflyer)
@@ -400,10 +412,17 @@ class BaseJiminyEngine(EngineAsynchronous):
                          use_theoretical_model,
                          viewer_backend)
 
-        # Set engine controller and sensor update period if available
+        # Set some engine options, based on extra toml information
         engine_options = self.get_options()
-        engine_options["stepper"]["controllerUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
-        engine_options["stepper"]["sensorsUpdatePeriod"] = \
-            robot.global_info.get('sensorsUpdatePeriod', 0.0)
+        engine_options['stepper']['controllerUpdatePeriod'] = \
+            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
+        engine_options['stepper']['sensorsUpdatePeriod'] = \
+            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
+        engine_options['contacts']['stiffness'] = \
+            robot.extra_info.pop('groundStiffness', 4.0e6)
+        engine_options['contacts']['damping'] = \
+            robot.extra_info.pop('groundDamping', 2.0e3)
         self.set_options(engine_options)
+
+    def __del__(self):
+        self._toml_file.close()

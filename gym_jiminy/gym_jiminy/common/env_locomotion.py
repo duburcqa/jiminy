@@ -2,7 +2,7 @@
 
 import numpy as np
 import numba as nb
-from typing import Optional
+from typing import Optional, Union
 
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
@@ -15,8 +15,9 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 import pinocchio as pin
 from pinocchio import neutral
 
-from .env_base import BaseJiminyEnv
+from .env_bases import BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
+from .wrappers import flatten_observation
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5
@@ -47,12 +48,12 @@ SENSOR_NOISE_SCALE = {
 DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
 DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
 
-DEFAULT_HLC_TO_LLC_RATIO = 1 # (NA)
+DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 PID_KP = 20000.0
 PID_KD = 0.01
 
 
-class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
+class WalkerJiminyEnv(BaseJiminyEnv):
     """
     @brief Implementation of a Gym environment for learning locomotion task for
            legged robots. It uses Jiminy Engine to perform physics evaluation
@@ -71,7 +72,8 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
                  dt: float = DEFAULT_ENGINE_DT,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
-                 debug: bool = False):
+                 debug: bool = False,
+                 **kwargs):
         """
         @brief Constructor.
 
@@ -126,7 +128,7 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         self._power_consumption_max = None
 
         # Configure and initialize the learning environment
-        super().__init__(None, dt, debug)
+        super().__init__(None, dt, debug, **kwargs)
 
     def _setup_environment(self):
         """
@@ -137,7 +139,8 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             # Instantiate a new engine
             self.engine_py = BaseJiminyEngine(
                 self.urdf_path, self.toml_path, self.mesh_path,
-                has_freeflyer=True, use_theoretical_model=False)
+                has_freeflyer=True, use_theoretical_model=False,
+                debug=self.debug)
 
         # Discard log data since no longer relevant
         self._log_data = None
@@ -291,15 +294,15 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         """
         # Simulation termination conditions:
         # - Fall detection (if the robot has a freeflyer):
-        #     The freeflyer goes lower than 90% of its height in standing pose.
+        #     The freeflyer goes lower than 75% of its height in standing pose.
         # - Maximum simulation duration exceeded
         return (self.robot.has_freeflyer and
-                    self.engine_py.state[2] < self._height_neutral * 0.9) or \
+                    self.engine_py.state[2] < self._height_neutral * 0.75) or \
                (self.engine_py.t >= self.simu_duration_max)
 
     def _compute_reward(self):
         # @copydoc BaseJiminyRobot::_compute_reward
-        reward = {}
+        reward_dict = {}
 
         # Define some proxies
         reward_mixture_keys = self.reward_mixture.keys()
@@ -309,24 +312,28 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
-            reward['energy'] = - power_consumption_rel
+            reward_dict['energy'] = - power_consumption_rel
 
         if 'done' in reward_mixture_keys:
-            reward['done'] = 1
+            reward_dict['done'] = 1
 
         # Rescale the reward so that the maximum cumulative reward is
         # independent from both the engine timestep and the maximum
         # simulation duration.
-        reward = {k: v * (self.dt / self.simu_duration_max)
-                  for k, v in reward.items()}
+        reward_dict = {k: v * (self.dt / self.simu_duration_max)
+                       for k, v in reward_dict.items()}
 
-        return reward
+        # Compute the total reward
+        reward_total = sum([self.reward_mixture[name] * value
+                            for name, value in reward_dict.items()])
+
+        return reward_total, reward_dict
 
     def _compute_reward_terminal(self):
         """
         @brief Compute the reward at the end of the episode.
         """
-        reward = {}
+        reward_dict = {}
 
         reward_mixture_keys = self.reward_mixture.keys()
 
@@ -339,9 +346,13 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
                     'HighLevelController.currentFreeflyerPositionTransY']))
             else:
                 frontal_displacement = 0.0
-            reward['direction'] = - frontal_displacement
+            reward_dict['direction'] = - frontal_displacement
 
-        return reward
+        # Compute the total reward
+        reward_total = sum([self.reward_mixture[name] * value
+                            for name, value in reward_dict.items()])
+
+        return reward_total, reward_dict
 
     def step(self, action):
         """
@@ -349,12 +360,12 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
         """
         # Perform a single simulation step
         try:
-            obs, reward_info, done, info = super().step(action)
+            obs, reward, done, info = super().step(action)
         except RuntimeError:
             obs = self.observation
+            reward = 0.0
             done = True
             info = {'is_success': False}
-            reward_info = {}
 
         if done:
             # Extract the log data from the simulation
@@ -364,21 +375,10 @@ class WalkerTorqueControlJiminyEnv(BaseJiminyEnv):
             if self.debug and self._steps_beyond_done == 0:
                 self.engine.write_log(self.log_path)
 
-            # Add the final reward if the simulation is over
-            reward_final = self._compute_reward_terminal()
-            reward_info.update(reward_final)
-
-        # Compute the total reward
-        reward = sum([self.reward_mixture[name] * value
-                      for name, value in reward_info.items()])
-
-        # Extract additional information
-        info.update({'reward': reward_info})
-
         return obs, reward, done, info
 
 
-class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
+class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
     def __init__(self,
                  urdf_path: str,
                  toml_path: Optional[str] = None,
@@ -386,11 +386,15 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
                  hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
+                 pid_kp: Union[float, np.ndarray] = PID_KP,
+                 pid_kd: Union[float, np.ndarray] = PID_KD,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
         # Backup some user arguments
         self.hlc_to_llc_ratio = hlc_to_llc_ratio
+        self.pid_kp = pid_kp
+        self.pid_kd = pid_kd
 
         # Low-level controller buffers
         self._q_target = None
@@ -400,6 +404,13 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
             dt, reward_mixture, std_ratio, debug)
 
+    def _refresh_action_space(self):
+        """
+        @brief    TODO
+        """
+        self.action_space = flatten_observation(
+            self.observation_space['sensors']['EncoderSensor'])
+
     def _compute_command(self):
         """
         @brief    TODO
@@ -408,8 +419,9 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
         q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
 
         # Compute PD command
-        u = - PID_KP * ((q_enc - self._q_target) + \
-            PID_KD * (v_enc - self._v_target))
+        u = - self.pid_kp * ((q_enc - self._q_target) + \
+            self.pid_kd * (v_enc - self._v_target))
+
         return u
 
     def step(self, action):
@@ -421,12 +433,12 @@ class WalkerPDControlJiminyEnv(WalkerTorqueControlJiminyEnv):
 
         # Run the whole simulation in one go
         reward = 0.0
-        reward_info = {k: 0.0 for k in self.reward_mixture.keys()}
+        reward_info = {k: [] for k in self.reward_mixture.keys()}
         for _ in range(self.hlc_to_llc_ratio):
             action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
             for k, v in info_step['reward'].items():
-                reward_info[k] += v
+                reward_info[k].append(v)
             reward += reward_step
             if done:
                 break

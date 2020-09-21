@@ -114,7 +114,7 @@ def plot_log():
     linestyles = ["--","-.",":"]
 
     # Parse plotting arguments.
-    plotted_elements = [
+    plotted_elements = []
     for cmd in plotting_commands:
         # Check that the command is valid, i.e. that all elements exits.
         # If it is the case, add it to the list.

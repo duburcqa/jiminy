@@ -56,7 +56,8 @@ class BaseJiminyEnv(gym.core.Env):
     def __init__(self,
                  engine_py: Optional[BaseJiminyEngine],
                  dt: float,
-                 debug: bool = False):
+                 debug: bool = False,
+                 **kwargs):
         """
         @brief Constructor
 
@@ -77,11 +78,7 @@ class BaseJiminyEnv(gym.core.Env):
         self.dt = dt
         self.debug = debug
         self._log_data = None
-        if self.debug is not None:
-            self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".data", delete=(not debug))
-        else:
-            self._log_file = None
+        self._log_file = None
 
         ## Set the metadata of the environment. Those information are used by
         #  some gym wrappers such as VideoRecorder.
@@ -90,7 +87,8 @@ class BaseJiminyEnv(gym.core.Env):
             'video.frames_per_second': int(np.round(1.0 / self.dt))
         }
 
-        ## Configure the action and observation spaces
+        ## Use instance-specific action and observation spaces instead of the
+        #  class-wide ones provided by `gym.core.Env`.
         self.action_space = None
         self.observation_space = None
 
@@ -179,9 +177,9 @@ class BaseJiminyEnv(gym.core.Env):
         self.robot.set_options(robot_options)
         self.engine_py.set_engine_options(engine_options)
 
-    def _refresh_learning_spaces(self) -> None:
+    def _refresh_observation_space(self) -> None:
         """
-        @brief Configure the observation and action space of the environment.
+        @brief Configure the observation of the environment.
 
         @details By default, the observation is a dictionary gathering the
                  current simulation time, the real robot state, and the sensors
@@ -199,7 +197,6 @@ class BaseJiminyEnv(gym.core.Env):
         ## Extract some proxies
         joints_position_idx = self.robot.rigid_joints_position_idx
         joints_velocity_idx = self.robot.rigid_joints_velocity_idx
-        motors_velocity_idx = self.robot.motors_velocity_idx
         position_limit_upper = self.robot.position_limit_upper
         position_limit_lower = self.robot.position_limit_lower
         velocity_limit = self.robot.velocity_limit
@@ -234,13 +231,6 @@ class BaseJiminyEnv(gym.core.Env):
                 effort_limit[motor.joint_velocity_idx] = \
                     MOTOR_EFFORT_UNIVERSAL_MAX
 
-        ## Action space
-        action_low  = -effort_limit[motors_velocity_idx]
-        action_high = +effort_limit[motors_velocity_idx]
-
-        self.action_space = gym.spaces.Box(
-            low=action_low, high=action_high, dtype=np.float64)
-
         ## Sensor space
         sensor_space_raw = {
             key: {'min': np.full(value.shape, -np.inf),
@@ -271,11 +261,11 @@ class BaseJiminyEnv(gym.core.Env):
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
                 sensor_idx = sensor.idx
-                motor_idx = sensor.motor_idx
+                motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
                 sensor_space_raw[effort.type]['min'][0, sensor_idx] = \
-                    action_low[motor_idx]
+                    -effort_limit[motor_idx]
                 sensor_space_raw[effort.type]['max'][0, sensor_idx] = \
-                    action_high[motor_idx]
+                    +effort_limit[motor_idx]
 
         # Replace inf bounds of the contact sensor space
         if contact.type in sensors_data.keys():
@@ -339,6 +329,30 @@ class BaseJiminyEnv(gym.core.Env):
 
         self._observation = {'t': None, 'state': None, 'sensors': None}
 
+    def _refresh_action_space(self) -> None:
+        """
+        @brief Configure the action space of the environment.
+
+        @details By default, the action is a vector gathering the torques of
+                 the actuator of the robot.
+
+        @remark This method is called internally by 'reset' method.
+        """
+        # Replace inf bounds of the effort limit
+        effort_limit = self.robot.effort_limit
+        for motor_name in self.robot.motors_names:
+            motor = self.robot.get_motor(motor_name)
+            motor_options = motor.get_options()
+            if not motor_options["enableEffortLimit"]:
+                effort_limit[motor.joint_velocity_idx] = \
+                    MOTOR_EFFORT_UNIVERSAL_MAX
+
+        # Set the action space
+        self.action_space = gym.spaces.Box(
+            low=-effort_limit[self.robot.motors_velocity_idx],
+            high=effort_limit[self.robot.motors_velocity_idx],
+            dtype=np.float64)
+
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         @brief Returns a random valid configuration and velocity for the robot.
@@ -368,7 +382,7 @@ class BaseJiminyEnv(gym.core.Env):
         @details By default, no filtering is applied on the raw data extracted
                  from the engine.
 
-        @remark This method, alongside '_refresh_learning_spaces', must be
+        @remark This method, alongside '_refresh_observation_space', must be
                 overwritten in order to use a custom observation space.
         """
         obs['t'] = self.engine_py.t
@@ -469,9 +483,12 @@ class BaseJiminyEnv(gym.core.Env):
         self._steps_beyond_done = None
         self._log_data = None
 
-        # Clear the log file
+        # Create a new log file
         if self.debug is not None:
-            self._log_file.truncate(0)
+            if self._log_file is not None:
+                self._log_file.close()
+            self._log_file = tempfile.NamedTemporaryFile(
+                prefix="log_", suffix=".data", delete=(not self.debug))
 
     def reset(self) -> SpaceDictRecursive:
         """
@@ -488,8 +505,9 @@ class BaseJiminyEnv(gym.core.Env):
         self.set_state(*self._sample_state())
 
         # Refresh the observation and action spaces
-        self._refresh_learning_spaces()
+        self._refresh_observation_space()
         self._update_obs(self._observation)
+        self._refresh_action_space()
 
         return self._get_obs()
 
@@ -635,10 +653,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         ## Sample a new goal
         self.goal = self._sample_goal()
 
-    def _refresh_learning_spaces(self) -> None:
-        super()._refresh_learning_spaces()
+    def _refresh_observation_space(self) -> None:
+        # Initialize the original observation space first
+        super()._refresh_observation_space()
 
-        ## Append default desired and achieved goal spaces to observation space
+        # Append default desired and achieved goal spaces to observation space
         self.observation_space = gym.spaces.Dict(
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
@@ -646,7 +665,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                 -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
             observation=self.observation_space)
 
-        ## Current observation of the robot
+        # Current observation of the robot
         self.observation = {'observation': self.observation,
                             'achieved_goal': None,
                             'desired_goal': None}
