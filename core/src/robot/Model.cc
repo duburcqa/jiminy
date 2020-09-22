@@ -270,15 +270,15 @@ namespace jiminy
                     pncGeometryModel_.addCollisionPair(collisionPair);
                 }
             }
-
-            // Refresh proxies associated with the collisions only
-            refreshCollisionsProxies();
         }
+
+        // Refresh proxies associated with the collisions only
+        refreshCollisionsProxies();
 
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::removeCollisionBodies(std::vector<std::string> const & bodyNames)
+    hresult_t Model::removeCollisionBodies(std::vector<std::string> bodyNames)
     {
         if (!isInitialized_)
         {
@@ -301,14 +301,11 @@ namespace jiminy
         }
 
         // Remove the list of bodies from the set of collision bodies
-        if (!bodyNames.empty())
+        if (bodyNames.empty())
         {
-            eraseVector(collisionBodiesNames_, bodyNames);
+            bodyNames = collisionBodiesNames_;
         }
-        else
-        {
-            collisionBodiesNames_.clear();
-        }
+        eraseVector(collisionBodiesNames_, bodyNames);
 
         // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
         pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
@@ -325,10 +322,10 @@ namespace jiminy
                     pncGeometryModel_.removeCollisionPair(collisionPair);
                 }
             }
-
-            // Refresh proxies associated with the collisions only
-            refreshCollisionsProxies();
         }
+
+        // Refresh proxies associated with the collisions only
+        refreshCollisionsProxies();
 
         return hresult_t::SUCCESS;
     }
