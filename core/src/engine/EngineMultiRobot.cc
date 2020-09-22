@@ -1819,6 +1819,7 @@ namespace jiminy
     {
         pinocchio::forwardKinematics(system.robot->pncModel_, system.robot->pncData_, q, v, a);
         pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
+        pinocchio::centerOfMass(system.robot->pncModel_, system.robot->pncData_);
         pinocchio::updateGeometryPlacements(system.robot->pncModel_,
                                             system.robot->pncData_,
                                             system.robot->pncGeometryModel_,
