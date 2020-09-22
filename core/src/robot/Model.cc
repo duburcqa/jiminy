@@ -34,6 +34,7 @@ namespace jiminy
     collisionBodiesNames_(),
     contactFramesNames_(),
     collisionBodiesIdx_(),
+    collisionPairsIdx_(),
     contactFramesIdx_(),
     rigidJointsNames_(),
     rigidJointsModelIdx_(),
@@ -300,12 +301,26 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Remove the list of bodies from the set of collision bodies
+        /* Remove the list of bodies from the set of collision bodies, then
+           remove the associated set of collision pairs for each of them. */
         if (bodyNames.empty())
         {
             bodyNames = collisionBodiesNames_;
         }
-        eraseVector(collisionBodiesNames_, bodyNames);
+
+        for (uint32_t i=0; i<bodyNames.size(); ++i)
+        {
+            std::string const & bodyName = bodyNames[i];
+            auto collisionBodiesNameIt = std::find(
+                collisionBodiesNames_.begin(),
+                collisionBodiesNames_.end(),
+                bodyName);
+            int32_t collisionBodiesNameIdx = std::distance(
+                collisionBodiesNames_.begin(),
+                collisionBodiesNameIt);
+            collisionBodiesNames_.erase(collisionBodiesNameIt);
+            collisionPairsIdx_.erase(collisionPairsIdx_.begin() + collisionBodiesNameIdx);
+        }
 
         // Get the indices of the corresponding collision pairs in the geometry model of the robot and remove them
         pinocchio::GeomIndex const & groundId = pncGeometryModel_.getGeometryId("ground");
@@ -750,6 +765,23 @@ namespace jiminy
             pncGeometryData_->collisionRequest.num_max_contacts = mdlOptions_->collisions.maxContactPointsPerBody;
             #endif
 
+            // Extract the indices of the collision pairs associated with each body
+            collisionPairsIdx_.clear();
+            for (std::string const & name : collisionBodiesNames_)
+            {
+                std::vector<int32_t> collisionPairsIdx;
+                for (uint32_t i=0; i<pncGeometryModel_.collisionPairs.size(); ++i)
+                {
+                    pinocchio::CollisionPair const & pair = pncGeometryModel_.collisionPairs[i];
+                    pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[pair.first];
+                    if (pncModel_.frames[geom.parentFrame].name == name)
+                    {
+                        collisionPairsIdx.push_back(i);
+                    }
+                }
+                collisionPairsIdx_.push_back(std::move(collisionPairsIdx));
+            }
+
             // Extract the contact frames indices in the model
             getFramesIdx(pncModel_, collisionBodiesNames_, collisionBodiesIdx_);
         }
@@ -1090,6 +1122,11 @@ namespace jiminy
     std::vector<int32_t> const & Model::getCollisionBodiesIdx(void) const
     {
         return collisionBodiesIdx_;
+    }
+
+    std::vector<std::vector<int32_t> > const & Model::getCollisionPairsIdx(void) const
+    {
+        return collisionPairsIdx_;
     }
 
     std::vector<int32_t> const & Model::getContactFramesIdx(void) const

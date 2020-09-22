@@ -691,11 +691,16 @@ namespace jiminy
                     forceMax = std::max(forceMax, fext.linear().norm());
                 }
 
-                auto const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+                std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+                std::vector<std::vector<int32_t> > const & collisionPairsIdx = system.robot->getCollisionPairsIdx();
                 for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
                 {
-                    pinocchio::Force fext = computeContactDynamicsAtBody(system, i);
-                    forceMax = std::max(forceMax, fext.linear().norm());
+                    for (uint32_t j=0; j < collisionPairsIdx[i].size(); j++)
+                    {
+                        int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                        pinocchio::Force fext = computeContactDynamicsAtBody(system, collisionPairIdx);
+                        forceMax = std::max(forceMax, fext.linear().norm());
+                    }
                 }
 
                 if (forceMax > 1e5)
@@ -2132,16 +2137,21 @@ namespace jiminy
 
         // Compute the force at collision bodies
         std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+        std::vector<std::vector<int32_t> > const & collisionPairsIdx = system.robot->getCollisionPairsIdx();
         for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
         {
             // Compute force at the given collision body.
             // It returns the force applied at the origin of the parent joint frame, in global frame
             int32_t const & frameIdx = collisionBodiesIdx[i];
-            pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, i);
-
-            // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentJointIdx] += fextLocal;
+            for (uint32_t j=0; j < collisionPairsIdx[i].size(); j++)
+            {
+                int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, collisionPairIdx);
+
+                // Apply the force at the origin of the parent joint frame, in local joint frame
+                fext[parentJointIdx] += fextLocal;
+            }
         }
 
         // Add the effect of user-defined external impulse forces

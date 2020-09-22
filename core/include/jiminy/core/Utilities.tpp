@@ -189,7 +189,7 @@ namespace jiminy
     void eraseVector(std::vector<T>       & vect1,
                      std::vector<T> const & vect2)
     {
-        vect1.erase(std::remove_if (vect1.begin(), vect1.end(),
+        vect1.erase(std::remove_if(vect1.begin(), vect1.end(),
         [&vect2](auto const & elem1)
         {
             auto vect2It = std::find(vect2.begin(), vect2.end(), elem1);
