@@ -2,15 +2,49 @@
 
 ## Description
 
-Jiminy is an open-source C++ simulator of poly-articulated systems, under the first restriction that the contact with the ground can be reduced to a dynamic set of points and the second restriction that the collisions between bodies or the environment can be neglected.
+Jiminy is a fast and lightweight open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
-It is built upon [Pinocchio](https://github.com/stack-of-tasks/pinocchio), which is an open-source implementing highly efficient Rigid Body Algorithms for poly-articulated systems. It is used to handle low-level physics calculations related to the system, while the effect of the environment on it is handled by Jiminy itself. The integration of time is based on the open-source library [Boost Odeint](https://github.com/boostorg/odeint).
+ - **provide a fast yet physically accurate simulator for robotics research.** Jiminy is built around
+ [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and
+ dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated
+ system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of
+ joint violation.
 
-The visualisation relies on the open-source client [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer), which is based on `CORBA` and `omniORB` at low-level, or alternatively [Meshcat](https://github.com/rdeits/meshcat-python), which is a remotely-controllable web-based visualizer especially well suited to Jupyter notebook running on remote servers as one can display directly in a Jupyter cell. It is possible to do real-time visual rendering and to replay a simulation afterward.
+- **build an efficient and flexible plateform for machine learning in robotics.** Beside a strong focus on
+ performance to answer machine learning's need for numerous simulations, Jiminy is natively integrated in
+ the `gym` framework. Furthermore, Jiminy enables easy modification of many parameters of the system, required for robust learning. From sensor bias to modification of mass and inertia, body length, or gravity itself, many aspects of the simulation can be easily modified to provider richer exploration.
 
-The data of the simulation can be exported in CSV, raw binary format, or read directly from the RAM memory to avoid any disk access. The complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
-Python bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python). It supports both Python2 and Python3, yet it is recommended to use Python3 over Python2 since support will be dropped in the future.
+Here are some of the key features of Jiminy:
+
+### General
+
+ - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
+
+ - Fully binded in python, and designed with machine learning in mind, with a `gym` plugin.
+
+ - Easy to install: a simple `pip install jiminy_py` is all that is needed to get you started !
+
+ - 3D visualisation using either [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer) for desktop
+ view, or [Meshcat](https://github.com/rdeits/MeshCat.jl) for integration in web browsers, inclusing jupyter notebooks.
+
+ - Available for both Linux and Windows platform.
+
+### Physics
+
+ - Support contact and collision, using either a fixed set of contact points, or a collision mesh, and
+ a spring-damper reaction force.
+
+ - Able to simulate multiple articulated systems simulatneously, interacting with each other.
+
+ - Support of compliant joints with spring-damper dynamics.
+
+ - Support of simple geometrical constraints on the system.
+
+ - Simulate both continuous or discrete-time controller, with possibly different controller and sensor
+ update frequencies.
+
+A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
 **The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`. **
 
