@@ -913,6 +913,8 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::step(float64_t stepSize)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
@@ -1031,7 +1033,7 @@ namespace jiminy
         timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
-        while (tEnd - t > STEPPER_MIN_TIMESTEP)
+        while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
             float64_t tNext = t;
 
@@ -1377,14 +1379,14 @@ namespace jiminy
             {
                 std::cout << "Error - EngineMultiRobot::step - Too many successive iteration failures. "\
                              "Probably something is going wrong with the physics. Aborting integration." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
             {
                 std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
                              "Impossible to integrate physics further in time." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
 
             timer_.toc();
@@ -1392,7 +1394,7 @@ namespace jiminy
                 && engineOptions_->stepper.timeout < timer_.dt)
             {
                 std::cout << "Error - EngineMultiRobot::step - Step computation timeout." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
         }
 
@@ -1400,8 +1402,11 @@ namespace jiminy
            to the desired values and avoid compounding of error.
            Anyway the user asked for a step of exactly stepSize,
            so he is expecting this value to be reached. */
-        stepperState_.t = tEnd;
-        stepperState_.dt = stepSize;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            stepperState_.t = tEnd;
+            stepperState_.dt = stepSize;
+        }
 
         /* Monitor current iteration number, and log the current time,
            state, command, and sensors data. */
@@ -1410,7 +1415,12 @@ namespace jiminy
             updateTelemetry();
         }
 
-        return hresult_t::SUCCESS;
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            stop();
+        }
+
+        return returnCode;
     }
 
     void EngineMultiRobot::stop(void)

@@ -79,7 +79,7 @@ class EngineAsynchronous:
 
         # Real time rendering management
         self.step_dt_prev = -1
-        self.is_ready = False
+        self.is_ready_to_start = False
 
         # Reset the low-level jiminy engine
         self._engine.reset()
@@ -196,7 +196,7 @@ class EngineAsynchronous:
         # Initialize some internal buffers
         self._t = 0.0
         self.step_dt_prev = -1
-        self.is_ready = True
+        self.is_ready_to_start = True
 
         # Stop the engine, to avoid locking the robot and the telemetry
         # too early, so that it remains possible to register external
@@ -228,12 +228,13 @@ class EngineAsynchronous:
         @return Final state of the simulation
         """
         if not self._engine.is_simulation_running:
-            if not self.is_ready:
+            if not self.is_ready_to_start:
                 raise RuntimeError("Simulation not initialized. "
                     "Please call 'reset' once before calling 'step'.")
             hresult = self._engine.start(self._state, self.use_theoretical_model)
             if (hresult != jiminy.hresult_t.SUCCESS):
                 raise RuntimeError("Failed to start the simulation.")
+            self.is_ready_to_start = False
 
         if (action_next is not None):
             self.action = action_next
