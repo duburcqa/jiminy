@@ -4,6 +4,8 @@ import numpy as np
 import numba as nb
 from typing import Optional, Union
 
+import gym
+
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
@@ -368,12 +370,24 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
+        """
+        @brief    TODO
+
+        @param hlc_to_llc_ratio  High-level to Low-level control frequency
+                                 ratio. More precisely, at each step, the
+                                 command torque is  updated 'hlc_to_llc_ratio'
+                                 times while the target motor state is only
+                                 updated once.
+        @param pid_kp  PD controller position-proportional gain in motor order.
+        @param pid_kd  PD controller velocity-proportional gain in motor order.
+        """
         # Backup some user arguments
         self.hlc_to_llc_ratio = hlc_to_llc_ratio
         self.pid_kp = pid_kp
         self.pid_kd = pid_kd
 
         # Low-level controller buffers
+        self.motor_to_encoder = None
         self._q_target = None
         self._v_target = None
 
@@ -381,29 +395,81 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
             dt, reward_mixture, std_ratio, debug)
 
+    def _setup_environment(self):
+        """
+        @brief    TODO
+        """
+        # Setup the environment as usual
+        super()._setup_environment()
+
+        # Refresh the mapping between the motors and encoders
+        encoder_joints = []
+        for name in self.robot.sensors_names[encoder.type]:
+            sensor = self.robot.get_sensor(encoder.type, name)
+            encoder_joints.append(sensor.joint_name)
+
+        self.motor_to_encoder = []
+        for name in self.robot.motors_names:
+            motor = self.robot.get_motor(name)
+            motor_joint = motor.joint_name
+            encoder_found = False
+            for i, encoder_joint in enumerate(encoder_joints):
+                if motor_joint == encoder_joint:
+                    self.motor_to_encoder.append(i)
+                    encoder_found = True
+                    break
+            if not encoder_found:
+                raise RuntimeError(
+                    "No encoder sensor associated with motor '{name}'. Every "
+                    "actuated joint must have an encoder sensor attached.")
+
     def _refresh_action_space(self):
         """
         @brief    TODO
         """
-        self.action_space = flatten_observation(
-            self.observation_space['sensors']['EncoderSensor'])
+        # Extract the position and velocity bounds for the observation space
+        encoder_space = self.observation_space['sensors'][encoder.type]
+        pos_high, vel_high = encoder_space.high
+        pos_low, vel_low = encoder_space.low
+
+        # Reorder the position and velocity bounds to match motors order
+        pos_high[self.motor_to_encoder] = pos_high
+        vel_high[self.motor_to_encoder] = pos_high
+        pos_low[self.motor_to_encoder] = pos_low
+        vel_low[self.motor_to_encoder] = vel_low
+
+        # Set the action space. Note that it is flattened.
+        self.action_space = gym.spaces.Box(
+            low=np.concatenate((pos_low, vel_low)),
+            high=np.concatenate((pos_high, vel_high)),
+            dtype=np.float64)
 
     def _compute_command(self):
         """
         @brief    TODO
         """
-        # Extract estimated motor state based on sensors data
+        # Extract encoder data from the sensors data
         q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
 
+        # Reorder the encoder data to match motors order
+        q_enc = q_enc[self.motor_to_encoder]
+        v_enc = v_enc[self.motor_to_encoder]
+
+        # Compute the joint tracking error
+        q_err = q_enc - self._q_target
+        v_err = v_enc - self._v_target
+
         # Compute PD command
-        u = - self.pid_kp * ((q_enc - self._q_target) + \
-            self.pid_kd * (v_enc - self._v_target))
+        u = - self.pid_kp * (q_err + self.pid_kd * v_err)
 
         return u
 
     def step(self, action):
         """
         @brief    TODO
+
+        @params action  Flattened array gathering the target motors positions
+                        and velocities in this order.
         """
         # Update target motor state
         self._q_target, self._v_target = np.split(action, 2, axis=-1)
