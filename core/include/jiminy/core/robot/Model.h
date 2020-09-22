@@ -153,11 +153,11 @@ namespace jiminy
                            pinocchio::SE3 const & framePlacement);
         hresult_t removeFrame(std::string const & frameName);
         hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames);
-        hresult_t removeCollisionBodies(std::vector<std::string> const & frameNames = {});
+        hresult_t removeCollisionBodies(std::vector<std::string> frameNames = {});  // Make a copy
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
-        hresult_t setOptions(configHolder_t modelOptions); // Make a copy !
+        hresult_t setOptions(configHolder_t modelOptions); // Make a copy
         configHolder_t getOptions(void) const;
 
         /// This method are not intended to be called manually. The Engine is taking care of it.
@@ -175,6 +175,7 @@ namespace jiminy
         std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
         std::vector<int32_t> const & getCollisionBodiesIdx(void) const;
+        std::vector<std::vector<int32_t> > const & getCollisionPairsIdx(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
@@ -223,24 +224,25 @@ namespace jiminy
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> collisionBodiesNames_;     ///< Name of the collision bodies of the robot
-        std::vector<std::string> contactFramesNames_;       ///< Name of the contact frames of the robot
-        std::vector<int32_t> collisionBodiesIdx_;           ///< Indices of the collision bodies in the frame list of the robot
-        std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
-        std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
-        std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot
-        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
-        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
-        std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
-        std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
+        std::vector<std::string> collisionBodiesNames_;         ///< Name of the collision bodies of the robot
+        std::vector<std::string> contactFramesNames_;           ///< Name of the contact frames of the robot
+        std::vector<int32_t> collisionBodiesIdx_;               ///< Indices of the collision bodies in the frame list of the robot
+        std::vector<std::vector<int32_t> > collisionPairsIdx_;  ///< Indices of the collision pairs associated with each collision body
+        std::vector<int32_t> contactFramesIdx_;                 ///< Indices of the contact frames in the frame list of the robot
+        std::vector<std::string> rigidJointsNames_;             ///< Name of the actual joints of the robot, not taking into account the freeflyer
+        std::vector<int32_t> rigidJointsModelIdx_;              ///< Index of the actual joints in the pinocchio robot
+        std::vector<int32_t> rigidJointsPositionIdx_;           ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
+        std::vector<int32_t> rigidJointsVelocityIdx_;           ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
+        std::vector<std::string> flexibleJointsNames_;          ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
+        std::vector<int32_t> flexibleJointsModelIdx_;           ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
-        vectorN_t positionLimitMin_;                        ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t positionLimitMax_;                        ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t velocityLimit_;                           ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
 
-        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
-        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot
-        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid robot
+        std::vector<std::string> positionFieldnames_;           ///< Fieldnames of the elements in the configuration vector of the rigid robot
+        std::vector<std::string> velocityFieldnames_;           ///< Fieldnames of the elements in the velocity vector of the rigid robot
+        std::vector<std::string> accelerationFieldnames_;       ///< Fieldnames of the elements in the acceleration vector of the rigid robot
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;

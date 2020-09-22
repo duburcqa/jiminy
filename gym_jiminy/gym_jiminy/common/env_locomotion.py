@@ -4,6 +4,8 @@ import numpy as np
 import numba as nb
 from typing import Optional, Union
 
+import gym
+
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
@@ -148,7 +150,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
-        self.engine.remove_forces()
+        self.engine_py.remove_forces()
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
@@ -161,16 +163,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
         if self.robot.has_freeflyer:
-            q0 = neutral(self.robot.pinocchio_model)
-            compute_freeflyer_state_from_fixed_body(self.robot, q0,
-                ground_profile=None, use_theoretical_model=False)
+            q0, _ = self._sample_state()
             self._height_neutral = q0[2]
         else:
             self._height_neutral = None
 
         # Override some options of the robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.engine.get_options()
+        engine_options = self.engine_py.get_options()
 
         ### Make sure to log at least required data for reward
         #   computation and log replay
@@ -237,11 +237,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     F_XY_IMPULSE_SCALE * self.rg.uniform()
                 F = np.concatenate((F_xy_impulse, np.zeros(4)))
                 t = t_ref + self.rg.uniform(low=-1.0, high=1.0) * 250e-3
-                self._forces_impulse.append({
+                force_impulse = {
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': F
-                })
-                self.engine.register_force_impulse(**self._forces_impulse[-1])
+                }
+                self.engine_py.register_force_impulse(**forces_impulse)
+                self._forces_impulse.append(force_impulse)
 
             # Schedule a single force profile applied on PelvisLink.
             # Internally, it relies on a linear interpolation instead
@@ -266,15 +267,16 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     ratio * F_xy_profile[t_ind + 1]
             F_xy_profile_interp1d(0)  # Pre-compilation
             self.F_xy_profile_spline = F_xy_profile_interp1d
-            self._forces_profile.append({
+            force_profile.append({
                 'frame_name': 'PelvisLink',
                 'force_function': self._force_external_profile
             })
-            self.engine.register_force_profile(**self._forces_profile[-1])
+            self.engine_py.register_force_profile(**force_profile)
+            self._forces_profile.append(force_profile)
 
         ### Set the options, finally
         self.robot.set_options(robot_options)
-        self.engine.set_options(engine_options)
+        self.engine_py.set_options(engine_options)
 
     def _force_external_profile(self, t, q, v, F):
         """
@@ -354,29 +356,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return reward_total, reward_dict
 
-    def step(self, action):
-        """
-        @brief    TODO
-        """
-        # Perform a single simulation step
-        try:
-            obs, reward, done, info = super().step(action)
-        except RuntimeError:
-            obs = self.observation
-            reward = 0.0
-            done = True
-            info = {'is_success': False}
-
-        if done:
-            # Extract the log data from the simulation
-            self._log_data, _ = self.engine.get_log()
-
-            # Write log file if simulation is over (debug mode only)
-            if self.debug and self._steps_beyond_done == 0:
-                self.engine.write_log(self.log_path)
-
-        return obs, reward, done, info
-
 
 class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
     def __init__(self,
@@ -391,12 +370,24 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  debug: bool = False):
+        """
+        @brief    TODO
+
+        @param hlc_to_llc_ratio  High-level to Low-level control frequency
+                                 ratio. More precisely, at each step, the
+                                 command torque is  updated 'hlc_to_llc_ratio'
+                                 times while the target motor state is only
+                                 updated once.
+        @param pid_kp  PD controller position-proportional gain in motor order.
+        @param pid_kd  PD controller velocity-proportional gain in motor order.
+        """
         # Backup some user arguments
         self.hlc_to_llc_ratio = hlc_to_llc_ratio
         self.pid_kp = pid_kp
         self.pid_kd = pid_kd
 
         # Low-level controller buffers
+        self.motor_to_encoder = None
         self._q_target = None
         self._v_target = None
 
@@ -404,29 +395,81 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
             dt, reward_mixture, std_ratio, debug)
 
+    def _setup_environment(self):
+        """
+        @brief    TODO
+        """
+        # Setup the environment as usual
+        super()._setup_environment()
+
+        # Refresh the mapping between the motors and encoders
+        encoder_joints = []
+        for name in self.robot.sensors_names[encoder.type]:
+            sensor = self.robot.get_sensor(encoder.type, name)
+            encoder_joints.append(sensor.joint_name)
+
+        self.motor_to_encoder = []
+        for name in self.robot.motors_names:
+            motor = self.robot.get_motor(name)
+            motor_joint = motor.joint_name
+            encoder_found = False
+            for i, encoder_joint in enumerate(encoder_joints):
+                if motor_joint == encoder_joint:
+                    self.motor_to_encoder.append(i)
+                    encoder_found = True
+                    break
+            if not encoder_found:
+                raise RuntimeError(
+                    "No encoder sensor associated with motor '{name}'. Every "
+                    "actuated joint must have an encoder sensor attached.")
+
     def _refresh_action_space(self):
         """
         @brief    TODO
         """
-        self.action_space = flatten_observation(
-            self.observation_space['sensors']['EncoderSensor'])
+        # Extract the position and velocity bounds for the observation space
+        encoder_space = self.observation_space['sensors'][encoder.type]
+        pos_high, vel_high = encoder_space.high
+        pos_low, vel_low = encoder_space.low
+
+        # Reorder the position and velocity bounds to match motors order
+        pos_high[self.motor_to_encoder] = pos_high
+        vel_high[self.motor_to_encoder] = pos_high
+        pos_low[self.motor_to_encoder] = pos_low
+        vel_low[self.motor_to_encoder] = vel_low
+
+        # Set the action space. Note that it is flattened.
+        self.action_space = gym.spaces.Box(
+            low=np.concatenate((pos_low, vel_low)),
+            high=np.concatenate((pos_high, vel_high)),
+            dtype=np.float64)
 
     def _compute_command(self):
         """
         @brief    TODO
         """
-        # Extract estimated motor state based on sensors data
+        # Extract encoder data from the sensors data
         q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
 
+        # Reorder the encoder data to match motors order
+        q_enc = q_enc[self.motor_to_encoder]
+        v_enc = v_enc[self.motor_to_encoder]
+
+        # Compute the joint tracking error
+        q_err = q_enc - self._q_target
+        v_err = v_enc - self._v_target
+
         # Compute PD command
-        u = - self.pid_kp * ((q_enc - self._q_target) + \
-            self.pid_kd * (v_enc - self._v_target))
+        u = - self.pid_kp * (q_err + self.pid_kd * v_err)
 
         return u
 
     def step(self, action):
         """
         @brief    TODO
+
+        @params action  Flattened array gathering the target motors positions
+                        and velocities in this order.
         """
         # Update target motor state
         self._q_target, self._v_target = np.split(action, 2, axis=-1)
@@ -437,7 +480,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         for _ in range(self.hlc_to_llc_ratio):
             action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
-            for k, v in info_step['reward'].items():
+            for k, v in info_step.get('reward', {}).items():
                 reward_info[k].append(v)
             reward += reward_step
             if done:

@@ -1037,6 +1037,10 @@ namespace python
 
                 .add_property("collision_bodies_names", bp::make_function(&Model::getCollisionBodiesNames,
                                                         bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("collision_bodies_idx", bp::make_function(&Model::getCollisionBodiesIdx,
+                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("collision_pairs_idx_by_body", bp::make_function(&Model::getCollisionPairsIdx,
+                                                             bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,

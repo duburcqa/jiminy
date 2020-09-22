@@ -90,10 +90,11 @@ namespace python
 
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> > >();
-        bp::to_python_converter<std::vector<int32_t>,     converterToPython<std::vector<int32_t> > >();
-        bp::to_python_converter<std::vector<vectorN_t>,   converterToPython<std::vector<vectorN_t> > >();
-        bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
-        bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
+        bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > > >();
+        bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> > >();
+        bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> > >();
+        bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> > >();
+        bp::to_python_converter<configHolder_t, converterToPython<configHolder_t> >();
 
         // Expose classes
         TIME_STATE_FCT_EXPOSE(bool_t)

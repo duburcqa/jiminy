@@ -528,7 +528,7 @@ namespace jiminy
             auto xInitIt = xInit.find(system.name);
             if (xInitIt == xInit.end())
             {
-                    std::cout << "Error - EngineMultiRobot::start - At least one system does not have an initial state." << std::endl;
+                    std::cout << "Error - EngineMultiRobot::start - At least one of the systems does not have an initial state." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -536,7 +536,22 @@ namespace jiminy
                 if (xInitIt->second.rows() != system.robot->nx())
                 {
                     std::cout << "Error - EngineMultiRobot::start - The size of the initial state is inconsistent "
-                                 "with model size for at least one system." << std::endl;
+                                 "with model size for at least one of the systems." << std::endl;
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                auto const & qInit = xInitIt->second.head(system.robot->nq()).array();
+                auto const & vInit = xInitIt->second.tail(system.robot->nv()).array();
+
+                // Note that EPS allows to be very slightly out-of-bounds.
+                if ((EPS < qInit - system.robot->getPositionLimitMax().array()).any() ||
+                    (EPS < system.robot->getPositionLimitMin().array() - qInit).any() ||
+                    (EPS < vInit.abs() - system.robot->getVelocityLimit().array()).any())
+                {
+                    std::cout << "Error - EngineMultiRobot::start - The initial state is out of bounds "
+                                 "for at least one of the systems." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -691,11 +706,16 @@ namespace jiminy
                     forceMax = std::max(forceMax, fext.linear().norm());
                 }
 
-                auto const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+                std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+                std::vector<std::vector<int32_t> > const & collisionPairsIdx = system.robot->getCollisionPairsIdx();
                 for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
                 {
-                    pinocchio::Force fext = computeContactDynamicsAtBody(system, i);
-                    forceMax = std::max(forceMax, fext.linear().norm());
+                    for (uint32_t j=0; j < collisionPairsIdx[i].size(); j++)
+                    {
+                        int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                        pinocchio::Force fext = computeContactDynamicsAtBody(system, collisionPairIdx);
+                        forceMax = std::max(forceMax, fext.linear().norm());
+                    }
                 }
 
                 if (forceMax > 1e5)
@@ -893,6 +913,8 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::step(float64_t stepSize)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
@@ -1011,7 +1033,7 @@ namespace jiminy
         timer_.tic();
 
         // Perform the integration. Do not simulate extremely small time steps.
-        while (tEnd - t > STEPPER_MIN_TIMESTEP)
+        while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
             float64_t tNext = t;
 
@@ -1357,14 +1379,14 @@ namespace jiminy
             {
                 std::cout << "Error - EngineMultiRobot::step - Too many successive iteration failures. "\
                              "Probably something is going wrong with the physics. Aborting integration." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
             {
                 std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
                              "Impossible to integrate physics further in time." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
 
             timer_.toc();
@@ -1372,7 +1394,7 @@ namespace jiminy
                 && engineOptions_->stepper.timeout < timer_.dt)
             {
                 std::cout << "Error - EngineMultiRobot::step - Step computation timeout." << std::endl;
-                return hresult_t::ERROR_GENERIC;
+                returnCode = hresult_t::ERROR_GENERIC;
             }
         }
 
@@ -1380,8 +1402,11 @@ namespace jiminy
            to the desired values and avoid compounding of error.
            Anyway the user asked for a step of exactly stepSize,
            so he is expecting this value to be reached. */
-        stepperState_.t = tEnd;
-        stepperState_.dt = stepSize;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            stepperState_.t = tEnd;
+            stepperState_.dt = stepSize;
+        }
 
         /* Monitor current iteration number, and log the current time,
            state, command, and sensors data. */
@@ -1390,7 +1415,12 @@ namespace jiminy
             updateTelemetry();
         }
 
-        return hresult_t::SUCCESS;
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            stop();
+        }
+
+        return returnCode;
     }
 
     void EngineMultiRobot::stop(void)
@@ -1814,6 +1844,7 @@ namespace jiminy
     {
         pinocchio::forwardKinematics(system.robot->pncModel_, system.robot->pncData_, q, v, a);
         pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
+        pinocchio::centerOfMass(system.robot->pncModel_, system.robot->pncData_);
         pinocchio::updateGeometryPlacements(system.robot->pncModel_,
                                             system.robot->pncData_,
                                             system.robot->pncGeometryModel_,
@@ -2132,16 +2163,21 @@ namespace jiminy
 
         // Compute the force at collision bodies
         std::vector<int32_t> const & collisionBodiesIdx = system.robot->getCollisionBodiesIdx();
+        std::vector<std::vector<int32_t> > const & collisionPairsIdx = system.robot->getCollisionPairsIdx();
         for (uint32_t i=0; i < collisionBodiesIdx.size(); i++)
         {
             // Compute force at the given collision body.
             // It returns the force applied at the origin of the parent joint frame, in global frame
             int32_t const & frameIdx = collisionBodiesIdx[i];
-            pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, i);
-
-            // Apply the force at the origin of the parent joint frame, in local joint frame
             int32_t const & parentJointIdx = system.robot->pncModel_.frames[frameIdx].parent;
-            fext[parentJointIdx] += fextLocal;
+            for (uint32_t j=0; j < collisionPairsIdx[i].size(); j++)
+            {
+                int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                pinocchio::Force const fextLocal = computeContactDynamicsAtBody(system, collisionPairIdx);
+
+                // Apply the force at the origin of the parent joint frame, in local joint frame
+                fext[parentJointIdx] += fextLocal;
+            }
         }
 
         // Add the effect of user-defined external impulse forces
