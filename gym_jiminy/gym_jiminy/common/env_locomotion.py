@@ -148,7 +148,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
-        self.engine.remove_forces()
+        self.engine_py.remove_forces()
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
@@ -170,7 +170,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Override some options of the robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.engine.get_options()
+        engine_options = self.engine_py.get_options()
 
         ### Make sure to log at least required data for reward
         #   computation and log replay
@@ -237,11 +237,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     F_XY_IMPULSE_SCALE * self.rg.uniform()
                 F = np.concatenate((F_xy_impulse, np.zeros(4)))
                 t = t_ref + self.rg.uniform(low=-1.0, high=1.0) * 250e-3
-                self._forces_impulse.append({
+                force_impulse = {
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': F
-                })
-                self.engine.register_force_impulse(**self._forces_impulse[-1])
+                }
+                self.engine_py.register_force_impulse(**forces_impulse)
+                self._forces_impulse.append(force_impulse)
 
             # Schedule a single force profile applied on PelvisLink.
             # Internally, it relies on a linear interpolation instead
@@ -266,15 +267,16 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     ratio * F_xy_profile[t_ind + 1]
             F_xy_profile_interp1d(0)  # Pre-compilation
             self.F_xy_profile_spline = F_xy_profile_interp1d
-            self._forces_profile.append({
+            force_profile.append({
                 'frame_name': 'PelvisLink',
                 'force_function': self._force_external_profile
             })
-            self.engine.register_force_profile(**self._forces_profile[-1])
+            self.engine_py.register_force_profile(**force_profile)
+            self._forces_profile.append(force_profile)
 
         ### Set the options, finally
         self.robot.set_options(robot_options)
-        self.engine.set_options(engine_options)
+        self.engine_py.set_options(engine_options)
 
     def _force_external_profile(self, t, q, v, F):
         """
@@ -354,29 +356,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return reward_total, reward_dict
 
-    def step(self, action):
-        """
-        @brief    TODO
-        """
-        # Perform a single simulation step
-        try:
-            obs, reward, done, info = super().step(action)
-        except RuntimeError:
-            obs = self.observation
-            reward = 0.0
-            done = True
-            info = {'is_success': False}
-
-        if done:
-            # Extract the log data from the simulation
-            self._log_data, _ = self.engine.get_log()
-
-            # Write log file if simulation is over (debug mode only)
-            if self.debug and self._steps_beyond_done == 0:
-                self.engine.write_log(self.log_path)
-
-        return obs, reward, done, info
-
 
 class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
     def __init__(self,
@@ -437,7 +416,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         for _ in range(self.hlc_to_llc_ratio):
             action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
-            for k, v in info_step['reward'].items():
+            for k, v in info_step.get('reward', {}).items():
                 reward_info[k].append(v)
             reward += reward_step
             if done:

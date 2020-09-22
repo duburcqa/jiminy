@@ -52,6 +52,9 @@ class BaseJiminyEnv(gym.core.Env):
            It creates an Gym environment wrapping Jiminy Engine and behaves
            like any other Gym environment.
     """
+    metadata = {
+        'render.modes': ['human', 'rgb_array'],
+    }
 
     def __init__(self,
                  engine_py: Optional[BaseJiminyEngine],
@@ -80,13 +83,6 @@ class BaseJiminyEnv(gym.core.Env):
         self._log_data = None
         self._log_file = None
 
-        ## Set the metadata of the environment. Those information are used by
-        #  some gym wrappers such as VideoRecorder.
-        self.metadata = {
-            'render.modes': ['human', 'rgb_array'],
-            'video.frames_per_second': int(np.round(1.0 / self.dt))
-        }
-
         ## Use instance-specific action and observation spaces instead of the
         #  class-wide ones provided by `gym.core.Env`.
         self.action_space = None
@@ -112,10 +108,6 @@ class BaseJiminyEnv(gym.core.Env):
     @property
     def robot(self) -> jiminy.Robot:
         return self.engine_py.robot
-
-    @property
-    def engine(self) -> jiminy.Engine:
-        return self.engine_py._engine
 
     @property
     def log_path(self) -> Optional[str]:
@@ -368,7 +360,7 @@ class BaseJiminyEnv(gym.core.Env):
         """
         qpos = neutral(self.robot.pinocchio_model)
         if self.robot.has_freeflyer:
-            ground_fun = self.engine.get_options()['world']['groundProfile']
+            ground_fun = self.engine_py.get_options()['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
                 self.robot, qpos, ground_profile=ground_fun,
                 use_theoretical_model=False)
@@ -523,54 +515,57 @@ class BaseJiminyEnv(gym.core.Env):
                 (done or not), and a dictionary of extra information
         """
         # Try to perform a single simulation step
+        is_step_failed = True
         try:
             self.engine_py.step(action_next=action, dt_desired=self.dt)
+            is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
-            self._update_obs(self._observation)
-            return self._get_obs(), 0.0, True, {'is_success': False}
         self._update_obs(self._observation)
 
-        # Check if the simulation is over and if not already the case
-        done = self._is_done()
-        if done:
-            if self._steps_beyond_done is None:
+        # Check if the simulation is over
+        done = is_step_failed or self._is_done()
+        self._info = {'is_success': done}
+
+        # Check if stepping after done and if it is an undefined behavior
+        if self._steps_beyond_done is None:
+            if done:
                 self._steps_beyond_done = 0
-            else:
-                if self._steps_beyond_done == 0:
-                    logger.warn(
-                        "Calling 'step' even though this environment has "
-                        "already returned done = True whereas debug mode or "
-                        "terminal reward is enabled. You must call 'reset' "
-                        "to avoid further undefined behavior.")
-                self._steps_beyond_done += 1
+        else:
+            if self._enable_reward_terminal and self._steps_beyond_done == 0:
+                logger.error(
+                    "Calling 'step' even though this environment has "
+                    "already returned done = True whereas terminal "
+                    "reward is enabled. You must call 'reset' "
+                    "to avoid further undefined behavior.")
+            self._steps_beyond_done += 1
+
+        # Early return in case of low-level engine integration failure
+        if is_step_failed:
+            return self._get_obs(), 0.0, done, self._info
 
         # Compute reward and extra information
-        self._info = {'is_success': done}
         reward, reward_info = self._compute_reward()
         if reward_info is not None:
             self._info['reward'] = reward_info
 
         # Finalize the episode is the simulation is over
-        if done:
-            if self._steps_beyond_done is None:
-                # Write log file if simulation is over (debug mode only)
-                if self.debug:
-                    self.engine.write_log(self.log_path)
+        if done and self._steps_beyond_done == 0:
+            # Write log file if simulation is over (debug mode only)
+            if self.debug:
+                self.engine_py.write_log(self.log_path)
 
-                if self._steps_beyond_done == 0 and \
-                        self._enable_reward_terminal:
-                    # Extract log data from the simulation, which could be used
-                    # for computing terminal reward.
-                    self._log_data, _ = self.engine.get_log()
+            # Extract log data from the simulation, which could be used
+            # for computing terminal reward.
+            self._log_data, _ = self.engine_py.get_log()
 
-                    # Compute the terminal reward
-                    reward_final, reward_final_info = \
-                        self._compute_reward_terminal()
-                    reward += reward_final
-                    if reward_final_info is not None:
-                        self._info.setdefault('reward', {}).update(
-                            reward_final_info)
+            # Compute the terminal reward
+            reward_final, reward_final_info = \
+                self._compute_reward_terminal()
+            reward += reward_final
+            if reward_final_info is not None:
+                self._info.setdefault('reward', {}).update(
+                    reward_final_info)
 
         return self._get_obs(), reward, done, self._info
 
@@ -603,7 +598,7 @@ class BaseJiminyEnv(gym.core.Env):
         if self._log_data is not None:
             log_data = self._log_data
         else:
-            log_data, _ = self.engine.get_log()
+            log_data, _ = self.engine_py.get_log()
         self.engine_py._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self.engine_py._viewer],
             close_backend=False, verbose=True, **kwargs
