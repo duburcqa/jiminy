@@ -528,7 +528,7 @@ namespace jiminy
             auto xInitIt = xInit.find(system.name);
             if (xInitIt == xInit.end())
             {
-                    std::cout << "Error - EngineMultiRobot::start - At least one system does not have an initial state." << std::endl;
+                    std::cout << "Error - EngineMultiRobot::start - At least one of the systems does not have an initial state." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (returnCode == hresult_t::SUCCESS)
@@ -536,7 +536,22 @@ namespace jiminy
                 if (xInitIt->second.rows() != system.robot->nx())
                 {
                     std::cout << "Error - EngineMultiRobot::start - The size of the initial state is inconsistent "
-                                 "with model size for at least one system." << std::endl;
+                                 "with model size for at least one of the systems." << std::endl;
+                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                }
+            }
+            if (returnCode == hresult_t::SUCCESS)
+            {
+                auto const & qInit = xInitIt->second.head(system.robot->nq()).array();
+                auto const & vInit = xInitIt->second.tail(system.robot->nv()).array();
+
+                // Note that EPS allows to be very slightly out-of-bounds.
+                if ((EPS < qInit - system.robot->getPositionLimitMax().array()).any() ||
+                    (EPS < system.robot->getPositionLimitMin().array() - qInit).any() ||
+                    (EPS < vInit.abs() - system.robot->getVelocityLimit().array()).any())
+                {
+                    std::cout << "Error - EngineMultiRobot::start - The initial state is out of bounds "
+                                 "for at least one of the systems." << std::endl;
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
