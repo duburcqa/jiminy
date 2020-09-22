@@ -161,9 +161,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
         if self.robot.has_freeflyer:
-            q0 = neutral(self.robot.pinocchio_model)
-            compute_freeflyer_state_from_fixed_body(self.robot, q0,
-                ground_profile=None, use_theoretical_model=False)
+            q0, _ = self._sample_state()
             self._height_neutral = q0[2]
         else:
             self._height_neutral = None
