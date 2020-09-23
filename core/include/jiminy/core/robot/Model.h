@@ -152,7 +152,8 @@ namespace jiminy
                            std::string    const & parentBodyName,
                            pinocchio::SE3 const & framePlacement);
         hresult_t removeFrame(std::string const & frameName);
-        hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames);
+        hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames,
+                                     bool_t const & ignoreMeshes = false);
         hresult_t removeCollisionBodies(std::vector<std::string> frameNames = {});  // Make a copy
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});

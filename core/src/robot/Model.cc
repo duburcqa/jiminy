@@ -210,7 +210,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Model::addCollisionBodies(std::vector<std::string> const & bodyNames)
+    hresult_t Model::addCollisionBodies(std::vector<std::string> const & bodyNames,
+                                        bool_t const & ignoreMeshes)
     {
         if (!isInitialized_)
         {
@@ -248,7 +249,10 @@ namespace jiminy
             bool_t hasGeometry = false;
             for (pinocchio::GeometryObject const & geom : pncGeometryModel_.geometryObjects)
             {
-                if (pncModel_.frames[geom.parentFrame].name == name)
+                bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                           geom.meshPath.find('\\') != std::string::npos);
+                if (!(ignoreMeshes && isGeomMesh) &&  // geom.meshPath is the geometry type if it is not an actual mesh
+                    pncModel_.frames[geom.parentFrame].name == name)
                 {
                     hasGeometry = true;
                     break;
@@ -256,7 +260,7 @@ namespace jiminy
             }
             if (!hasGeometry)
             {
-                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is not associated with any collision geometry." << std::endl;
+                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is not associated with any collision geometry of requested type." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -272,7 +276,10 @@ namespace jiminy
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
-                if (pncModel_.frames[geom.parentFrame].name == name)
+                bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                           geom.meshPath.find('\\') != std::string::npos);
+                if (!(ignoreMeshes && isGeomMesh) &&
+                    pncModel_.frames[geom.parentFrame].name == name)
                 {
                     /* Create and add the collision pair with the ground.
                        Note that the ground always comes second for the normal to be
