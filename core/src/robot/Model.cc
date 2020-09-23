@@ -237,7 +237,7 @@ namespace jiminy
         // Make sure that there is no collision already associated with any of the bodies in the list
         if (checkIntersection(collisionBodiesNames_, bodyNames))
         {
-            std::cout << "Error - Model::addCollisionBodies - At least one of the body is already been associated with a collision." << std::endl;
+            std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is already been associated with a collision." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -246,7 +246,26 @@ namespace jiminy
         {
             if (!pncModel_.existBodyName(name))
             {
-                std::cout << "Error - Model::addCollisionBodies - At least one of the body does not exist." << std::endl;
+                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies does not exist." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Make sure that at least one geometry is associated with each body
+        for (std::string const & name : bodyNames)
+        {
+            bool_t hasGeometry = false;
+            for (pinocchio::GeometryObject const & geom : pncGeometryModel_.geometryObjects)
+            {
+                if (pncModel_.frames[geom.parentFrame].name == name)
+                {
+                    hasGeometry = true;
+                    break;
+                }
+            }
+            if (!hasGeometry)
+            {
+                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is not associated with any collision geometry." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -297,7 +316,7 @@ namespace jiminy
         // Make sure that every body in the list is associated with a collision
         if (!checkInclusion(collisionBodiesNames_, bodyNames))
         {
-            std::cout << "Error - Model::removeCollisionBodies - At least one of the body is not associated with any collision." << std::endl;
+            std::cout << "Error - Model::removeCollisionBodies - At least one of the bodies is not associated with any collision." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -363,7 +382,7 @@ namespace jiminy
         // Make sure that there is no contact already associated with any of the frames in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact." << std::endl;
+            std::cout << "Error - Model::addContactPoints - At least one of the frames is already been associated with a contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -372,7 +391,7 @@ namespace jiminy
         {
             if (!pncModel_.existFrame(name))
             {
-                std::cout << "Error - Model::addContactPoints - At least one of the frame does not exist." << std::endl;
+                std::cout << "Error - Model::addContactPoints - At least one of the frames does not exist." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -404,7 +423,7 @@ namespace jiminy
         // Make sure that every frame in the list is associated with a contact
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact." << std::endl;
+            std::cout << "Error - Model::removeContactPoints - At least one of the frames is not associated with any contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
