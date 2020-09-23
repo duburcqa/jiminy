@@ -13,6 +13,7 @@
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/robot/WheelConstraint.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
@@ -754,6 +755,11 @@ namespace python
             bp::class_<FixedFrameConstraint, bp::bases<AbstractConstraint>,
                        std::shared_ptr<FixedFrameConstraint>,
                        boost::noncopyable>("FixedFrameConstraint", bp::init<std::string>())
+                .def(PyConstraintVisitor());
+
+            bp::class_<WheelConstraint, bp::bases<AbstractConstraint>,
+                       std::shared_ptr<WheelConstraint>,
+                       boost::noncopyable>("WheelConstraint", bp::init<std::string, float64_t, vector3_t, vector3_t>())
                 .def(PyConstraintVisitor());
         }
     };
