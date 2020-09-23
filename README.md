@@ -8,7 +8,7 @@ Jiminy is a fast and lightweight open-source simulator for poly-articulated syst
  [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and
  dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated
  system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of
- joint violation.
+ joint violation. Ground reaction is modeled as a spring-damper external force applied to the system.
 
 - **build an efficient and flexible plateform for machine learning in robotics.** Beside a strong focus on
  performance to answer machine learning's need for numerous simulations, Jiminy is natively integrated in
@@ -21,12 +21,17 @@ Here are some of the key features of Jiminy:
 
  - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
 
- - Fully binded in python, and designed with machine learning in mind, with a `gym` plugin.
+ - C++ core with full python bindings, providing the same level of API in both languages.
+
+ - Designed with machine learning in mind, with seemless integration into the `gym` environment. Jiminy
+ provides both the physical engine and the robot model (including sensors) required for learning.
 
  - Easy to install: a simple `pip install jiminy_py` is all that is needed to get you started !
 
- - 3D visualisation using either [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer) for desktop
- view, or [Meshcat](https://github.com/rdeits/MeshCat.jl) for integration in web browsers, inclusing jupyter notebooks.
+ - Well integrated in jupyter notebook - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnment such as machine learning clusters.
+
+ - Rich simulation log output, easily customizable for introspection and debugging. The simulation log
+ is made available in RAM directly for fast access, or can be stored as CSV or binary data.
 
  - Available for both Linux and Windows platform.
 
@@ -35,11 +40,11 @@ Here are some of the key features of Jiminy:
  - Support contact and collision, using either a fixed set of contact points, or a collision mesh, and
  a spring-damper reaction force.
 
- - Able to simulate multiple articulated systems simulatneously, interacting with each other.
+ - Able to simulate multiple articulated systems simulatneously, interacting with each other, to support
+ use cases such as multi-agent reinforcement learning or swarm robotics.
 
- - Support of compliant joints with spring-damper dynamics.
-
- - Support of simple geometrical constraints on the system.
+ - Support of compliant joints with spring-damper dynamics, to model joint elasticiy, a common phenomenon
+ particularly in legged robotics.
 
  - Simulate both continuous or discrete-time controller, with possibly different controller and sensor
  update frequencies.
