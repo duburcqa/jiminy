@@ -184,14 +184,6 @@ def generate_hardware_description_file(
                 raise RuntimeError("Jiminy does not support contacts with"
                     "different ground models.")
 
-    # Specify collision bodies and ground model in global config options
-    hardware_info['Global']['collisionBodiesNames'] = \
-        list(collision_bodies_names)
-    if gazebo_ground_stiffness is not None:
-        hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
-    if gazebo_ground_damping is not None:
-        hardware_info['Global']['groundDamping'] = gazebo_ground_damping
-
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if not imu.type in hardware_info['Sensor'].keys():
         for root_link in root_links:
@@ -202,15 +194,25 @@ def generate_hardware_description_file(
                 )
             })
 
-    # Add force sensors if no Gazebo plugin is available at all
+    # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
         for leaf_link in leaf_links:
+            collision_bodies_names.add(leaf_link)
+
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
-                    body_name=root_link,
-                    frame_pose=6 * [0.0]
+                    body_name=leaf_link,
+                    frame_pose=6*[0.0]
                 )
             })
+
+    # Specify collision bodies and ground model in global config options
+    hardware_info['Global']['collisionBodiesNames'] = \
+        list(collision_bodies_names)
+    if gazebo_ground_stiffness is not None:
+        hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
+    if gazebo_ground_damping is not None:
+        hardware_info['Global']['groundDamping'] = gazebo_ground_damping
 
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
