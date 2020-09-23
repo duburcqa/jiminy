@@ -35,23 +35,26 @@ def generate_hardware_description_file(
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
     """
     @brief Generate a default hardware description file, based on the
-           information grabbed from the URDF when available, using best
+           information grabbed from the URDF when available, using educated
            guess otherwise.
 
     @details If no Gazebo IMU sensor is found, a single IMU is added on the
              root body of the kinematic tree. If no Gazebo plugin is available,
-             force sensors are added on every leaf bodies of the robot.
-             Otherwise, the definition of the plugins in use to infer them.
+             collision bodies and force sensors are added on every leaf body
+             of the robot. Otherwise, the definition of the plugins in use to
+             infer them.
 
-             'joint' fields are parsed to extract the every joints, actuated
+             'joint' fields are parsed to extract every joint, actuated
              or not. 'fixed' joints are not considered as actual joints.
              Transmission fields are parsed to determine which one of those
              joints are actuated. If no transmission is found, it is assumed
              that every joint is actuated, with a transmission ratio of 1:1.
 
-             It is assumed that every joints have an encoder attached. Every
-             actuated joint have an effort sensor attached by default. In
-             addition, every collision bodies have a force sensor attached.
+             It is assumed that:
+               - every joint has an encoder attached,
+               - every actuated joint has an effort sensor attached
+               - for every force sensor, the associated body is added to the
+                 set of the collision bodies, but not conversely.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
@@ -228,10 +231,10 @@ def generate_hardware_description_file(
         # Make sure that the joint is revolute
         joint_type = root.find(
             f"./joint[@name='{joint_name}']").get("type").casefold()
-        if joint_type != "revolute":
+        if not joint_type in ["revolute", "continuous", "prismatic"]:  # "continuous" is a revolute joint without bounds
             logger.warning(
-                "Jiminy only support revolute actuators and effort sensors. "
-                f"Attached joint cannot of type '{joint_type}'.")
+                "Jiminy only support 1-dof joint actuators and effort "
+                f"sensors. Attached joint cannot of type '{joint_type}'.")
             continue
 
         # Extract the transmission ratio (motor / joint)

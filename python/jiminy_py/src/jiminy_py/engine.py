@@ -12,6 +12,9 @@ from .viewer import Viewer
 from .dynamics import update_quantities
 
 
+DEFAULT_GROUND_STIFFNESS = 4.0e6
+DEFAULT_GROUND_DAMPING = 2.0e3
+
 class EngineAsynchronous:
     """
     @brief Wrapper of Jiminy enabling to update of the command and run
@@ -415,14 +418,25 @@ class BaseJiminyEngine(EngineAsynchronous):
 
         # Set some engine options, based on extra toml information
         engine_options = self.get_options()
-        engine_options['stepper']['controllerUpdatePeriod'] = \
-            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
-        engine_options['stepper']['sensorsUpdatePeriod'] = \
-            robot.extra_info.pop('sensorsUpdatePeriod', 0.0)
+
+        ## Handling of controller and sensors update period
+        control_period = robot.extra_info.pop('controllerUpdatePeriod', None)
+        sensors_period = robot.extra_info.pop('sensorsUpdatePeriod', None)
+        if control_period is None and sensors_period is None:
+            control_period, sensors_period = 0.0, 0.0
+        elif control_period is None:
+            control_period = sensors_period
+        else:
+            sensors_period = control_period
+        engine_options['stepper']['controllerUpdatePeriod'] = control_period
+        engine_options['stepper']['sensorsUpdatePeriod'] = sensors_period
+
+        ## Handling of ground model parameters
         engine_options['contacts']['stiffness'] = \
-            robot.extra_info.pop('groundStiffness', 4.0e6)
+            robot.extra_info.pop('groundStiffness', DEFAULT_GROUND_STIFFNESS)
         engine_options['contacts']['damping'] = \
-            robot.extra_info.pop('groundDamping', 2.0e3)
+            robot.extra_info.pop('groundDamping', DEFAULT_GROUND_DAMPING)
+
         self.set_options(engine_options)
 
     def __del__(self):

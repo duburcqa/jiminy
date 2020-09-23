@@ -6,6 +6,7 @@ from typing import Optional, Union, Tuple, Dict, Any
 import gym
 from gym import spaces
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as enc,
                             EffortSensor as effort,
                             ContactSensor as contact,
@@ -176,8 +177,8 @@ class ObservationActionNormalization(gym.Wrapper):
                     sensor_velocity_scale = velocity_scale[joint.idx_v]
 
                     # Update the scale accordingly
-                    enc_sensors_scale[0, sensor_idx] = position_scale[pos_idx]
-                    enc_sensors_scale[1, sensor_idx] = velocity_scale[vel_idx]
+                    enc_sensors_scale[0, sensor_idx] = sensor_position_scale
+                    enc_sensors_scale[1, sensor_idx] = sensor_velocity_scale
 
                 # Set the scale
                 self.observation_scale['sensors'][enc.type] = enc_sensors_scale

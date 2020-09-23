@@ -433,10 +433,10 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         pos_low, vel_low = encoder_space.low
 
         # Reorder the position and velocity bounds to match motors order
-        pos_high[self.motor_to_encoder] = pos_high
-        vel_high[self.motor_to_encoder] = pos_high
-        pos_low[self.motor_to_encoder] = pos_low
-        vel_low[self.motor_to_encoder] = vel_low
+        pos_high = pos_high[self.motor_to_encoder]
+        pos_low = pos_low[self.motor_to_encoder]
+        vel_high = vel_high[self.motor_to_encoder]
+        vel_low = vel_low[self.motor_to_encoder]
 
         # Set the action space. Note that it is flattened.
         self.action_space = gym.spaces.Box(
@@ -449,11 +449,10 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         @brief    TODO
         """
         # Extract encoder data from the sensors data
-        q_enc, v_enc = self.engine_py.sensors_data[encoder.type]
+        encoder_data = self.engine_py.sensors_data[encoder.type]
 
-        # Reorder the encoder data to match motors order
-        q_enc = q_enc[self.motor_to_encoder]
-        v_enc = v_enc[self.motor_to_encoder]
+        # Estimate position and motor velocity from encoder data
+        q_enc, v_enc = encoder_data[:, self.motor_to_encoder]
 
         # Compute the joint tracking error
         q_err = q_enc - self._q_target
