@@ -134,22 +134,16 @@ namespace jiminy
         // of the frame wrt the parent joint must be computed.
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-
-        int32_t parentFrameId;
-
-        // Add the frame to the the current model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentFrameId);
-        if (returnCode == hresult_t::SUCCESS)
+        // Check that no frame with the same name already exists.
+        if (pncModelRigidOrig_.existFrame(frameName))
         {
-            int32_t const & parentJointId = pncModel_.frames[parentFrameId].parent;
-            pinocchio::SE3 const & parentFramePlacement = pncModel_.frames[parentFrameId].placement;
-            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
-            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
-            pncModel_.addFrame(frame);
+            std::cout << "Error - Model::addFrame - A frame with the same name already exists." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Add the frame to the the original rigid model
+        int32_t parentFrameId;
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
         returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -160,16 +154,23 @@ namespace jiminy
             pncModelRigidOrig_.addFrame(frame);
         }
 
-        // Add the frame to the the original flexible model
-        returnCode = getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
+        /* Add the frame to the the original flexible model.
+           It can no longer fail at this point. */
         if (returnCode == hresult_t::SUCCESS)
         {
+            getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
             int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
             pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
             pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
             pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelFlexibleOrig_.addFrame(frame);
         }
+
+        /* One must re-generate the model after adding a frame.
+           Note that it is unecessary to call 'reset' since the proxies
+           are still up-to-date, because the frame is added at the end
+           of the vector. */
+        generateModelBiased();
 
         return returnCode;
     }
@@ -178,11 +179,10 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-
-        // Check that the frame can be removed from the current model.
-        // If so, assuming it is also the case for the original models.
+        /* Check that the frame can be safely removed from the original rigid model.
+           If so, it is also the case for the original flexible models. */
         int32_t frameId;
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
         returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -192,29 +192,20 @@ namespace jiminy
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
-
-        // Remove the frame from the the current model
         if (returnCode == hresult_t::SUCCESS)
         {
-            pncModel_.frames.erase(pncModel_.frames.begin() + frameId);
-            pncModel_.nframes--;
-        }
-
-        // Remove the frame from the the current model
-        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            // Remove the frame from the the original rigid model
             pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
             pncModelRigidOrig_.nframes--;
-        }
 
-        // Remove the frame from the the current model
-        returnCode = getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            // Remove the frame from the the original flexible model
+            getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
             pncModelFlexibleOrig_.frames.erase(pncModelFlexibleOrig_.frames.begin() + frameId);
             pncModelFlexibleOrig_.nframes--;
         }
+
+        // One must reset the model after removing a frame
+        reset();
 
         return returnCode;
     }
