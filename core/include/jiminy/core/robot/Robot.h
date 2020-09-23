@@ -165,7 +165,7 @@ namespace jiminy
 
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> getMotorsModelIdx(void) const;
-        std::vector<int32_t> getMotorsPositionIdx(void) const;
+        std::vector<std::vector<int32_t> > getMotorsPositionIdx(void) const;
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;

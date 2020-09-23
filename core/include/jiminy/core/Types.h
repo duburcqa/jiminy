@@ -82,9 +82,10 @@ namespace jiminy
         NONE = 0,
         LINEAR = 1,
         ROTARY = 2,
-        PLANAR = 3,
-        SPHERICAL = 4,
-        FREE = 5,
+        ROTARY_UNBOUNDED = 3,  // Must be treated separately because the position is encoded using [cos(theta), sin(theta)] instead of theta
+        PLANAR = 4,
+        SPHERICAL = 5,
+        FREE = 6
     };
 
     /* Ground profile signature.

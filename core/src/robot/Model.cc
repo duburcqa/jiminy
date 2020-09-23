@@ -662,24 +662,6 @@ namespace jiminy
             // Get the joint position limits from the URDF or the user options
             positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
             positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
-            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
-            {
-                joint_t jointType(joint_t::NONE);
-                getJointTypeFromIdx(pncModel_, i, jointType);
-                // The "position" of spherical joints is bounded between -1.0 and 1.0 since it corresponds to normalized quaternions
-                if (jointType == joint_t::SPHERICAL)
-                {
-                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
-                }
-                if (jointType == joint_t::FREE)
-                {
-                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
-                }
-            }
 
             if (mdlOptions_->joints.enablePositionLimit)
             {
@@ -698,6 +680,33 @@ namespace jiminy
                         positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
                         positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
                     }
+                }
+            }
+
+            /* Overwrite the position bounds for some specific joint type, mainly
+               due to quaternion normalization and cos/sin representation. */
+            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
+            {
+                joint_t jointType(joint_t::NONE);
+                getJointTypeFromIdx(pncModel_, i, jointType);
+
+                if (jointType == joint_t::SPHERICAL)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
+                }
+                if (jointType == joint_t::FREE)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
+                }
+                if (jointType == joint_t::ROTARY_UNBOUNDED)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0);
                 }
             }
 

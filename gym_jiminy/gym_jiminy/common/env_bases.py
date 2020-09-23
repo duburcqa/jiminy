@@ -234,18 +234,32 @@ class BaseJiminyEnv(gym.core.Env):
         if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
+                # Get the position and velocity bounds of the sensor.
+                # Note that for rotary unbounded encoders, the sensor bounds
+                # cannot be extracted from the configuration vector limits
+                # since the representation is different: cos/sin for the
+                # configuration, and principal value of the angle for the
+                # sensor.
                 sensor = self.robot.get_sensor(enc.type, sensor_name)
                 sensor_idx = sensor.idx
-                pos_idx = sensor.joint_position_idx
+                joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
+                if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                    sensor_position_lower = -np.pi
+                    sensor_position_upper = np.pi
+                else:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
+                sensor_velocity_limit = velocity_limit[joint.idx_v]
+
+                # Update the bounds accordingly
                 sensor_space_raw[enc.type]['min'][0, sensor_idx] = \
-                    position_limit_lower[pos_idx]
+                    sensor_position_lower
                 sensor_space_raw[enc.type]['max'][0, sensor_idx] = \
-                    position_limit_upper[pos_idx]
-                vel_idx = sensor.joint_velocity_idx
+                    sensor_position_upper
                 sensor_space_raw[enc.type]['min'][1, sensor_idx] = \
-                    - velocity_limit[vel_idx]
+                    - sensor_velocity_limit
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] = \
-                    velocity_limit[vel_idx]
+                    sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
         if effort.type in sensors_data.keys():

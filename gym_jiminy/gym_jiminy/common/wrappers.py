@@ -162,10 +162,20 @@ class ObservationActionNormalization(gym.Wrapper):
 
                 # Replace inf bounds by the appropriate scale
                 for sensor_name in self.robot.sensors_names[enc.type]:
+                    # Get the sensor scaling.
+                    # Note that for rotary unbounded encoders, the bounds
+                    # cannot be extracted from the configuration vector scale,
+                    # but rather are known in advance.
                     sensor = self.robot.get_sensor(enc.type, sensor_name)
                     sensor_idx = sensor.idx
-                    pos_idx = sensor.joint_position_idx
-                    vel_idx = sensor.joint_velocity_idx
+                    joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
+                    if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                        sensor_position_scale = 2 * np.pi
+                    else:
+                        sensor_position_scale = position_scale[joint.idx_q]
+                    sensor_velocity_scale = velocity_scale[joint.idx_v]
+
+                    # Update the scale accordingly
                     enc_sensors_scale[0, sensor_idx] = position_scale[pos_idx]
                     enc_sensors_scale[1, sensor_idx] = velocity_scale[vel_idx]
 

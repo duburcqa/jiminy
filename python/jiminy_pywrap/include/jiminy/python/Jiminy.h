@@ -893,10 +893,10 @@ namespace python
                 cl
                     .add_property("joint_name", bp::make_function(&EncoderSensor::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_position_idx", bp::make_function(&EncoderSensor::getJointPositionIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_velocity_idx", bp::make_function(&EncoderSensor::getJointVelocityIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&EncoderSensor::getJointIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_type", bp::make_function(&EncoderSensor::getJointType,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
