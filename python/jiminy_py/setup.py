@@ -44,6 +44,7 @@ setup(name = 'jiminy_py',
           'numpy',            # Standard library for matrix algebra
           'scipy',            # Used internally for interpolation and filtering
           'matplotlib',       # Standard library for showing figures
+          'trimesh',          # Used internally to compute the minimal volume bounding box associated with a mesh
           'toml',             # Parser for Jiminy-specific robot sensor description files
           'meshcat>=0.0.18',  # Web-based mesh visualizer used by default as viewer's backend
           'psutil',           # Used internally to detect running meshcat servers and to avoid orphan child processes

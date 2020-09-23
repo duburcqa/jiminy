@@ -12,6 +12,8 @@ from fractions import gcd
 from collections import OrderedDict
 from typing import Optional
 
+import trimesh
+
 from . import core as jiminy
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
@@ -190,7 +192,7 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(imu.type, {}).update({
                 root_link: OrderedDict(
                     body_name=root_link,
-                    frame_pose=6 * [0.0]
+                    frame_pose=6*[0.0]
                 )
             })
 
@@ -364,6 +366,14 @@ class BaseJiminyRobot(jiminy.Robot):
              Note that it is assumed that the contact points of the robot
              matches one-by-one the frames of the force sensors. So it is not
              possible to use non-instrumented contact points by default.
+
+             If the body requiring collision handling do not have primitive
+             geometry associated, contact points are generated based on the
+             collision mesh, if any, the visual mesh otherwise. The contact
+             points are the vertices of the minimum volume bounding box
+             associated with the mesh. If no mesh is available at all, then
+             the body frame is used instead.
+
              Overload this class if you need finer-grained capability.
 
     @remark Hardware description files within the same directory and having the
@@ -485,9 +495,11 @@ class BaseJiminyRobot(jiminy.Robot):
 
                         ## Generate a frame name that is intelligible and available
                         i = 0
-                        frame_name = sensor_name + "Frame"
+                        frame_name = "_".join((
+                            sensor_name, sensor_type, "Frame"))
                         while self.pinocchio_model.existFrame(frame_name):
-                            frame_name = sensor_name + "Frame_%d" % i
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
                             i += 1
 
                         ## Compute SE3 object representing the frame placement
@@ -516,11 +528,115 @@ class BaseJiminyRobot(jiminy.Robot):
                     options[name] = value
                 sensor.set_options(options)
 
-        # Add the contact points
+        # Checking the collision bodies, to make sure they are associated with
+        # supported collision geometries. If not, fixing the issue after
+        # throwing a warning.
         collision_bodies_names = self.extra_info.pop('collisionBodiesNames', [])
-        self.add_collision_bodies(collision_bodies_names)
         contact_frames_names = self.extra_info.pop('contactFramesNames', [])
-        self.add_contact_points(contact_frames_names)
+
+        ## Parse the URDF
+        tree = ET.parse(urdf_path)
+        root = tree.getroot()
+
+        ## Extract the list of bodies having visual and collision meshes or
+        #  primitives.
+        geometry_info = {'visual': {'primitive': None, 'mesh': None},
+                         'collision': {'primitive': None, 'mesh': None}}
+        for geometry_type in geometry_info.keys():
+            geometry_links = set(link.get('name') for link in
+                root.findall(f"./link/{geometry_type}/geometry/../.."))
+            mesh_links = [name for name in geometry_links if 'mesh' in set(
+                link.getchildren()[0].tag for link in
+                    root.find(f"./link[@name='{name}']").findall(
+                        f'{geometry_type}/geometry'))]
+            primitive_links = [name for name in geometry_links if set(
+                link.getchildren()[0].tag for link in
+                    root.find(f"./link[@name='{name}']").findall(
+                        f'{geometry_type}/geometry')).difference('mesh')]
+            geometry_info[geometry_type]['mesh'] = mesh_links
+            geometry_info[geometry_type]['primitive'] = primitive_links
+
+        ## Fix the collision bodies requiring it
+        for body_name in collision_bodies_names.copy():
+            # Filter out the different cases.
+            # After this filter, we know that their is no collision geometry
+            # associated with the body but their is a visual mesh, or there is
+            # only collision meshes.
+            if body_name in geometry_info['collision']['mesh'] and \
+                    body_name in geometry_info['collision']['primitive']:
+                logger.warning("Collision body having both primitive and mesh "
+                    "geometries is not supported. Enabling only primitive "
+                    "collision for this body.")
+                continue
+            elif body_name in geometry_info['collision']['primitive']:
+                continue
+            elif body_name in geometry_info['collision']['mesh']:
+                logger.warning("Collision body associated with mesh geometry "
+                    "is not supported for now. Replacing it by contact points "
+                    "at the vertices of the minimal volume bounding box.")
+            elif not body_name in geometry_info['visual']['mesh']:
+                logger.warning("No visual mesh nor collision geometry "
+                    "associated with the collision body. Fallback to adding a "
+                    "single contact point at body frame.")
+                contact_frames_names.append(body_name)
+                continue
+            else:
+                logger.warning("No collision geometry associated with the "
+                    "collision body. Fallback to replacing it by contact "
+                    "points at the vertices of the minimal volume bounding "
+                    "box of the available visual meshes.")
+
+            # Remove the body from the collision detection set
+            collision_bodies_names.remove(body_name)
+
+            # Extract meshes paths and origins
+            body_link = root.find(f"./link[@name='{body_name}']")
+            if body_name in geometry_info['collision']['mesh']:
+                mesh_links = body_link.findall('collision')
+            else:
+                mesh_links = body_link.findall('visual')
+            mesh_paths = [link.find('geometry/mesh').get('filename')
+                        for link in mesh_links]
+            mesh_origins = []
+            for link in mesh_links:
+                mesh_origin_info = link.get('origin')
+                if mesh_origin_info is not None:
+                    mesh_origin_xyz = list(map(float,
+                        mesh_origin_info.attrib['xyz']))
+                    mesh_origin_rpy = list(map(float,
+                        mesh_origin_info.attrib['rpy']))
+                    mesh_origin_transform = pin.SE3(
+                        rpyToMatrix(mesh_origin_rpy), mesh_origin_xyz)
+                else:
+                    mesh_origin_transform = pin.SE3.Identity()
+                mesh_origins.append(mesh_origin_transform)
+
+            # Replace the collision body by contact points
+            for mesh_path, mesh_origin in zip(mesh_paths, mesh_origins):
+                # Replace relative mesh path by absolute one
+                if mesh_path.startswith("package://"):
+                    mesh_path_orig = mesh_path
+                    for root_dir in mesh_root_dirs:
+                        mesh_path = mesh_path_orig.replace("package:/", root_dir)
+                        if os.path.exists(mesh_path):
+                            break
+
+                # Compute the minimal volume bounding box, then add new frames
+                # to the robot model at its vertices and register contact
+                # points at their location.
+                mesh = trimesh.load(mesh_path)
+                box = mesh.bounding_box_oriented
+                for i in range(8):
+                    frame_name = "_".join((body_name, "BoundingBox", str(i)))
+                    frame_transform_rel = \
+                        pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
+                    frame_transform = mesh_origin.actInv(frame_transform_rel)
+                    self.add_frame(frame_name, body_name, frame_transform)
+                    contact_frames_names.append(frame_name)
+
+        # Add the collision bodies and contact points
+        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # TODO: Mesh collisions is not numerically stable for now, so disabling it
+        self.add_contact_points(list(set(contact_frames_names)))
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:
