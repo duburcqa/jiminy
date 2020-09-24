@@ -243,43 +243,32 @@ def get_body_world_acceleration(robot: jiminy.Robot,
 
     return spatial_acceleration
 
-def compute_closest_contact_frame(robot: jiminy.Robot,
-                                  ground_profile: Optional[Callable] = None,
-                                  use_theoretical_model: bool = True) -> str:
+def compute_transform_contact(robot: jiminy.Robot,
+                              ground_profile: Optional[Callable] = None) -> pin.SE3:
     """
-    @brief Compute the closest contact point to the ground, in their
-           respective local frame and wrt the ground position and orientation.
+    @brief Compute the transform the apply to the freeflyer to touch the ground
+           with up to 3 contact points.
 
     @details This method can be used in conjunction with
-             `compute_freeflyer_state_from_fixed_body` to determine the right
-             fixed_body_name that ensures no contact points are going through
-             the ground and a single one is touching it.
+             `compute_freeflyer_state_from_fixed_body` to ensures no contact
+             points are going through the ground and up to 3 are in contact.
 
              Note that collision bodies are NOT supported for now.
 
-             If the robot has no contact point, then `None` is returned.
+             If the robot has no contact point, then the identity is returned.
 
     @remark It is assumed that `update_quantities` has been called.
 
     @param robot  Jiminy robot.
     @param ground_profile  Ground profile callback.
 
-    @return Name of the frame of the contact point, if any. `None` otherwise.
+    @return The transform the apply in order to touch the ground.
     """
-    if use_theoretical_model:
-        pnc_data = robot.pinocchio_data_th
-    else:
-        pnc_data = robot.pinocchio_data
-
     # Compute the transform in the world of the contact points
     contact_frames_transform = []
     for frame_idx in robot.contact_frames_idx:
-        transform = pnc_data.oMf[frame_idx]
+        transform = robot.pinocchio_data.oMf[frame_idx]
         contact_frames_transform.append(transform)
-
-    # Early return if no candidate contact frame
-    if not contact_frames_transform:
-        return None
 
     # Compute the transform of the ground at these points
     if ground_profile is not None:
@@ -297,27 +286,53 @@ def compute_closest_contact_frame(robot: jiminy.Robot,
     # Compute the position and normal of the contact points wrt their
     # respective ground transform.
     contact_frames_pos_rel = []
-    contact_frames_normal_rel = []
     for frame_transform, ground_transform in \
             zip(contact_frames_transform, contact_ground_transform):
         transform_rel = ground_transform.actInv(frame_transform)
         contact_frames_pos_rel.append(transform_rel.translation)
-        contact_frames_normal_rel.append(transform_rel.rotation[:, 2])
 
-    # Compute the closest contact points to the ground in their respective
-    # local frame
-    for i in range(len(robot.contact_frames_idx)):
-        height_frame = contact_frames_pos_rel[i] @ contact_frames_normal_rel[i]
-        is_closest = True
-        for j in range(i + 1, len(robot.contact_frames_idx)):
-            height = contact_frames_pos_rel[j] @ contact_frames_normal_rel[i]
-            if (height_frame > height + 1e-6):  # Add a small 1um tol since "closest" is meaningless at this point
-                is_closest = False
+    # Order the contact points by depth
+    contact_frames_pos_rel = [contact_frames_pos_rel[i] for i in np.argsort(
+        [pos[2] for pos in contact_frames_pos_rel])]
+
+    # Compute the contact plane normal
+    if len(contact_frames_pos_rel) > 2:
+        contact_edge_ref = contact_frames_pos_rel[0] - contact_frames_pos_rel[1]
+        contact_edge_ref /= np.linalg.norm(contact_edge_ref)
+        for i in range(2, len(contact_frames_pos_rel)):
+            contact_edge_alt = contact_frames_pos_rel[0] - contact_frames_pos_rel[i]
+            contact_edge_alt /= np.linalg.norm(contact_edge_alt)
+            normal_offset = np.cross(contact_edge_ref, contact_edge_alt)
+            if np.linalg.norm(normal_offset) > 0.2:  # At least 11 degrees of angle
                 break
-        if is_closest:
-            break
+        if normal_offset[2] < 0.0:
+            normal_offset *= -1.0
+    else:
+        normal_offset = np.array([0.0, 0.0, 1.0])
 
-    return robot.contact_frames_names[i]
+    # Make sure that the normal is valid, otherwise use the default one
+    if np.linalg.norm(normal_offset) < 0.2:
+        normal_offset = np.array([0.0, 0.0, 1.0])
+
+    # Compute the translation and rotation to apply the touch the ground
+    rot_offset = pin.Quaternion.FromTwoVectors(
+        normal_offset, np.array([0.0, 0.0, 1.0])).matrix()
+    if contact_frames_pos_rel:
+        pos_offset = np.array([
+            0.0, 0.0, -(rot_offset.T @ contact_frames_pos_rel[0])[2]])
+    else:
+        pos_offset = np.zeros(3)
+    transform_offset = pin.SE3(rot_offset, pos_offset)
+
+    # Take into account the collision bodies
+    # TODO: Take into account the ground profile
+    min_distance = np.inf
+    for dist_req in robot.collision_data.distanceResults:
+        min_distance = min(min_distance, dist_req.min_distance)
+    transform_offset.translation[2] = max(
+        transform_offset.translation[2], -min_distance)
+
+    return transform_offset
 
 def compute_freeflyer_state_from_fixed_body(
         robot: jiminy.Robot,
@@ -325,8 +340,7 @@ def compute_freeflyer_state_from_fixed_body(
         velocity: Optional[np.ndarray] = None,
         acceleration: Optional[np.ndarray] = None,
         fixed_body_name: Optional[str] = None,
-        ground_profile: Optional[Callable] = None,
-        use_theoretical_model: bool = True) -> str:
+        ground_profile: Optional[Callable] = None) -> str:
     """
     @brief Fill rootjoint data from articular data when a body is fixed
            parallel to world.
@@ -363,35 +377,20 @@ def compute_freeflyer_state_from_fixed_body(
     if not robot.has_freeflyer:
         return None
 
-    if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
-    else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
-
     position[:6].fill(0.0)
     position[6] = 1.0
-    if velocity is not None and acceleration is not None:
+    if velocity is not None:
         velocity[:6].fill(0.0)
+    if acceleration is not None:
         acceleration[:6].fill(0.0)
-        pin.forwardKinematics(
-            pnc_model, pnc_data, position, velocity, acceleration)
-    elif velocity is not None:
-        velocity[:6].fill(0.0)
-        pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
-    else:
-        pin.forwardKinematics(pnc_model, pnc_data, position)
-    pin.framesForwardKinematics(pnc_model, pnc_data, position)
+    update_quantities(robot, position, velocity, acceleration,
+        update_physics=False, use_theoretical_model=False)
 
     if fixed_body_name is None:
-        fixed_body_name = compute_closest_contact_frame(
-            robot, ground_profile, use_theoretical_model)
-
-    if fixed_body_name is not None:
+        w_M_ff = compute_transform_contact(robot, ground_profile)
+    else:
         ff_M_fixed_body = get_body_world_transform(
-            robot, fixed_body_name, use_theoretical_model, copy=False)
-
+            robot, fixed_body_name, use_theoretical_model=False, copy=False)
         if ground_profile is not None:
             ground_translation = np.zeros(3)
             ground_translation[2], normal = ground_profile(
@@ -402,31 +401,20 @@ def compute_freeflyer_state_from_fixed_body(
         else:
             w_M_ground = pin.SE3.Identity()
         w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
-        position[:7] = pin.se3ToXYZQUAT(w_M_ff)
-
-    update_quantities(robot, position, velocity, acceleration,
-        update_physics=False, use_theoretical_model=use_theoretical_model)
-    z_cumulative_offset = 0.0
-    for dist_req in robot.collision_data.distanceResults:
-        penetration_depth = z_cumulative_offset - dist_req.min_distance
-        if penetration_depth > 0.0:
-            position[2] += penetration_depth
-            z_cumulative_offset -= penetration_depth
+    position[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
     if fixed_body_name is None:
-        return None
+        if velocity is not None:
+            ff_v_fixed_body = get_body_world_velocity(
+                robot, fixed_body_name, use_theoretical_model=False)
+            base_link_velocity = - ff_v_fixed_body
+            velocity[:6] = base_link_velocity.vector
 
-    if velocity is not None:
-        ff_v_fixed_body = get_body_world_velocity(
-            robot, fixed_body_name, use_theoretical_model)
-        base_link_velocity = - ff_v_fixed_body
-        velocity[:6] = base_link_velocity.vector
-
-    if acceleration is not None:
-        ff_a_fixedBody = get_body_world_acceleration(
-            robot, fixed_body_name, use_theoretical_model)
-        base_link_acceleration = - ff_a_fixedBody
-        acceleration[:6] = base_link_acceleration.vector
+        if acceleration is not None:
+            ff_a_fixedBody = get_body_world_acceleration(
+                robot, fixed_body_name, use_theoretical_model=False)
+            base_link_acceleration = - ff_a_fixedBody
+            acceleration[:6] = base_link_acceleration.vector
 
     return fixed_body_name
 
@@ -501,8 +489,7 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
     for s in trajectory_data['evolution_robot']:
         # Compute freeflyer using contact frame as reference frame
         s.contact_frame = compute_freeflyer_state_from_fixed_body(
-            robot, s.q, s.v, s.a, s.contact_frame,
-            None, use_theoretical_model)
+            robot, s.q, s.v, s.a, s.contact_frame, None)
 
         # Move freeflyer to ensure continuity over time, if requested
         if freeflyer_continuity:
