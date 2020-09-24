@@ -801,6 +801,13 @@ namespace jiminy
         {
             jointTypeOut = joint_t::ROTARY;
         }
+        else if (jointTypeStr == "JointModelRUBX" ||
+                 jointTypeStr == "JointModelRUBY" ||
+                 jointTypeStr == "JointModelRUBZ" ||
+                 jointTypeStr == "JointModelRevoluteUnboundedUnaligned")
+        {
+            jointTypeOut = joint_t::ROTARY_UNBOUNDED;
+        }
         else
         {
             // Unknown joint, throw an error to avoid any wrong manipulation.
@@ -822,6 +829,10 @@ namespace jiminy
         case joint_t::LINEAR:
             break;
         case joint_t::ROTARY:
+            break;
+        case joint_t::ROTARY_UNBOUNDED:
+            jointTypeSuffixesOut = std::vector<std::string>({std::string("Cos"),
+                                                             std::string("Sin")});
             break;
         case joint_t::PLANAR:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
@@ -861,6 +872,8 @@ namespace jiminy
         case joint_t::LINEAR:
             break;
         case joint_t::ROTARY:
+            break;
+        case joint_t::ROTARY_UNBOUNDED:
             break;
         case joint_t::PLANAR:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),

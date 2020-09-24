@@ -109,8 +109,8 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getJointName(void) const;
-        int32_t const & getJointPositionIdx(void) const;
-        int32_t const & getJointVelocityIdx(void) const;
+        int32_t const & getJointIdx(void) const;
+        joint_t const & getJointType(void) const;
 
     private:
         virtual hresult_t set(float64_t                   const & t,
@@ -121,8 +121,8 @@ namespace jiminy
 
     private:
         std::string jointName_;
-        int32_t jointPositionIdx_;
-        int32_t jointVelocityIdx_;
+        int32_t jointIdx_;
+        joint_t jointType_;
     };
 
     class EffortSensor : public AbstractSensorTpl<EffortSensor>

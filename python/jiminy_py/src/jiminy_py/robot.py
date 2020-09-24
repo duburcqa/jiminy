@@ -12,6 +12,8 @@ from fractions import gcd
 from collections import OrderedDict
 from typing import Optional
 
+import trimesh
+
 from . import core as jiminy
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
@@ -35,23 +37,26 @@ def generate_hardware_description_file(
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
     """
     @brief Generate a default hardware description file, based on the
-           information grabbed from the URDF when available, using best
+           information grabbed from the URDF when available, using educated
            guess otherwise.
 
     @details If no Gazebo IMU sensor is found, a single IMU is added on the
              root body of the kinematic tree. If no Gazebo plugin is available,
-             force sensors are added on every leaf bodies of the robot.
-             Otherwise, the definition of the plugins in use to infer them.
+             collision bodies and force sensors are added on every leaf body
+             of the robot. Otherwise, the definition of the plugins in use to
+             infer them.
 
-             'joint' fields are parsed to extract the every joints, actuated
+             'joint' fields are parsed to extract every joint, actuated
              or not. 'fixed' joints are not considered as actual joints.
              Transmission fields are parsed to determine which one of those
              joints are actuated. If no transmission is found, it is assumed
              that every joint is actuated, with a transmission ratio of 1:1.
 
-             It is assumed that every joints have an encoder attached. Every
-             actuated joint have an effort sensor attached by default. In
-             addition, every collision bodies have a force sensor attached.
+             It is assumed that:
+               - every joint has an encoder attached,
+               - every actuated joint has an effort sensor attached
+               - for every force sensor, the associated body is added to the
+                 set of the collision bodies, but not conversely.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
@@ -181,6 +186,28 @@ def generate_hardware_description_file(
                 raise RuntimeError("Jiminy does not support contacts with"
                     "different ground models.")
 
+    # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
+    if not imu.type in hardware_info['Sensor'].keys():
+        for root_link in root_links:
+            hardware_info['Sensor'].setdefault(imu.type, {}).update({
+                root_link: OrderedDict(
+                    body_name=root_link,
+                    frame_pose=6*[0.0]
+                )
+            })
+
+    # Add force sensors and collision bodies if no Gazebo plugin is available
+    if not gazebo_plugins_found:
+        for leaf_link in leaf_links:
+            collision_bodies_names.add(leaf_link)
+
+            hardware_info['Sensor'].setdefault(force.type, {}).update({
+                leaf_link: OrderedDict(
+                    body_name=leaf_link,
+                    frame_pose=6*[0.0]
+                )
+            })
+
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
         list(collision_bodies_names)
@@ -188,26 +215,6 @@ def generate_hardware_description_file(
         hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
     if gazebo_ground_damping is not None:
         hardware_info['Global']['groundDamping'] = gazebo_ground_damping
-
-    # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if not imu.type in hardware_info['Sensor'].keys():
-        for root_link in root_links:
-            hardware_info['Sensor'].setdefault(imu.type, {}).update({
-                root_link: OrderedDict(
-                    body_name=root_link,
-                    frame_pose=6 * [0.0]
-                )
-            })
-
-    # Add force sensors if no Gazebo plugin is available at all
-    if not gazebo_plugins_found:
-        for leaf_link in leaf_links:
-            hardware_info['Sensor'].setdefault(force.type, {}).update({
-                leaf_link: OrderedDict(
-                    body_name=root_link,
-                    frame_pose=6 * [0.0]
-                )
-            })
 
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
@@ -228,22 +235,21 @@ def generate_hardware_description_file(
         # Make sure that the joint is revolute
         joint_type = root.find(
             f"./joint[@name='{joint_name}']").get("type").casefold()
-        if joint_type != "revolute":
+        if not joint_type in ["revolute", "continuous", "prismatic"]:  # "continuous" is a revolute joint without bounds
             logger.warning(
-                "Jiminy only support revolute actuators and effort sensors. "
-                f"Attached joint cannot of type '{joint_type}'.")
+                "Jiminy only support 1-dof joint actuators and effort "
+                f"sensors. Attached joint cannot of type '{joint_type}'.")
             continue
 
         # Extract the transmission ratio (motor / joint)
-        ratio = transmission_descr.find('./actuator/mechanicalReduction')
+        ratio = transmission_descr.find('./mechanicalReduction')
         if ratio is None:
             motor_info['mechanicalReduction'] = 1
         else:
             motor_info['mechanicalReduction'] = float(ratio.text)
 
         # Extract the armature (rotor) inertia
-        armature_inertia = transmission_descr.find(
-            './actuator/motorInertia')
+        armature_inertia = transmission_descr.find('./motorInertia')
         if armature_inertia is None:
             motor_info['rotorInertia'] = 0.0
         else:
@@ -359,6 +365,14 @@ class BaseJiminyRobot(jiminy.Robot):
              Note that it is assumed that the contact points of the robot
              matches one-by-one the frames of the force sensors. So it is not
              possible to use non-instrumented contact points by default.
+
+             If the body requiring collision handling do not have primitive
+             geometry associated, contact points are generated based on the
+             collision mesh, if any, the visual mesh otherwise. The contact
+             points are the vertices of the minimum volume bounding box
+             associated with the mesh. If no mesh is available at all, then
+             the body frame is used instead.
+
              Overload this class if you need finer-grained capability.
 
     @remark Hardware description files within the same directory and having the
@@ -448,6 +462,7 @@ class BaseJiminyRobot(jiminy.Robot):
                         logger.warning(f"'{name}' is not a valid option for "
                             f"the motor {motor_name} of type {motor_type}.")
                     options[name] = value
+                options['enableRotorInertia'] = True
                 motor.set_options(options)
 
         # Add the sensors to the robot
@@ -480,9 +495,11 @@ class BaseJiminyRobot(jiminy.Robot):
 
                         ## Generate a frame name that is intelligible and available
                         i = 0
-                        frame_name = sensor_name + "Frame"
+                        frame_name = "_".join((
+                            sensor_name, sensor_type, "Frame"))
                         while self.pinocchio_model.existFrame(frame_name):
-                            frame_name = sensor_name + "Frame_%d" % i
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
                             i += 1
 
                         ## Compute SE3 object representing the frame placement
@@ -511,11 +528,115 @@ class BaseJiminyRobot(jiminy.Robot):
                     options[name] = value
                 sensor.set_options(options)
 
-        # Add the contact points
+        # Checking the collision bodies, to make sure they are associated with
+        # supported collision geometries. If not, fixing the issue after
+        # throwing a warning.
         collision_bodies_names = self.extra_info.pop('collisionBodiesNames', [])
-        self.add_collision_bodies(collision_bodies_names)
         contact_frames_names = self.extra_info.pop('contactFramesNames', [])
-        self.add_contact_points(contact_frames_names)
+
+        ## Parse the URDF
+        tree = ET.parse(urdf_path)
+        root = tree.getroot()
+
+        ## Extract the list of bodies having visual and collision meshes or
+        #  primitives.
+        geometry_info = {'visual': {'primitive': None, 'mesh': None},
+                         'collision': {'primitive': None, 'mesh': None}}
+        for geometry_type in geometry_info.keys():
+            geometry_links = set(link.get('name') for link in
+                root.findall(f"./link/{geometry_type}/geometry/../.."))
+            mesh_links = [name for name in geometry_links if 'mesh' in set(
+                link.getchildren()[0].tag for link in
+                    root.find(f"./link[@name='{name}']").findall(
+                        f'{geometry_type}/geometry'))]
+            primitive_links = [name for name in geometry_links if set(
+                link.getchildren()[0].tag for link in
+                    root.find(f"./link[@name='{name}']").findall(
+                        f'{geometry_type}/geometry')).difference('mesh')]
+            geometry_info[geometry_type]['mesh'] = mesh_links
+            geometry_info[geometry_type]['primitive'] = primitive_links
+
+        ## Fix the collision bodies requiring it
+        for body_name in collision_bodies_names.copy():
+            # Filter out the different cases.
+            # After this filter, we know that their is no collision geometry
+            # associated with the body but their is a visual mesh, or there is
+            # only collision meshes.
+            if body_name in geometry_info['collision']['mesh'] and \
+                    body_name in geometry_info['collision']['primitive']:
+                logger.warning("Collision body having both primitive and mesh "
+                    "geometries is not supported. Enabling only primitive "
+                    "collision for this body.")
+                continue
+            elif body_name in geometry_info['collision']['primitive']:
+                continue
+            elif body_name in geometry_info['collision']['mesh']:
+                logger.warning("Collision body associated with mesh geometry "
+                    "is not supported for now. Replacing it by contact points "
+                    "at the vertices of the minimal volume bounding box.")
+            elif not body_name in geometry_info['visual']['mesh']:
+                logger.warning("No visual mesh nor collision geometry "
+                    "associated with the collision body. Fallback to adding a "
+                    "single contact point at body frame.")
+                contact_frames_names.append(body_name)
+                continue
+            else:
+                logger.warning("No collision geometry associated with the "
+                    "collision body. Fallback to replacing it by contact "
+                    "points at the vertices of the minimal volume bounding "
+                    "box of the available visual meshes.")
+
+            # Remove the body from the collision detection set
+            collision_bodies_names.remove(body_name)
+
+            # Extract meshes paths and origins
+            body_link = root.find(f"./link[@name='{body_name}']")
+            if body_name in geometry_info['collision']['mesh']:
+                mesh_links = body_link.findall('collision')
+            else:
+                mesh_links = body_link.findall('visual')
+            mesh_paths = [link.find('geometry/mesh').get('filename')
+                        for link in mesh_links]
+            mesh_origins = []
+            for link in mesh_links:
+                mesh_origin_info = link.get('origin')
+                if mesh_origin_info is not None:
+                    mesh_origin_xyz = list(map(float,
+                        mesh_origin_info.attrib['xyz']))
+                    mesh_origin_rpy = list(map(float,
+                        mesh_origin_info.attrib['rpy']))
+                    mesh_origin_transform = pin.SE3(
+                        rpyToMatrix(mesh_origin_rpy), mesh_origin_xyz)
+                else:
+                    mesh_origin_transform = pin.SE3.Identity()
+                mesh_origins.append(mesh_origin_transform)
+
+            # Replace the collision body by contact points
+            for mesh_path, mesh_origin in zip(mesh_paths, mesh_origins):
+                # Replace relative mesh path by absolute one
+                if mesh_path.startswith("package://"):
+                    mesh_path_orig = mesh_path
+                    for root_dir in mesh_root_dirs:
+                        mesh_path = mesh_path_orig.replace("package:/", root_dir)
+                        if os.path.exists(mesh_path):
+                            break
+
+                # Compute the minimal volume bounding box, then add new frames
+                # to the robot model at its vertices and register contact
+                # points at their location.
+                mesh = trimesh.load(mesh_path)
+                box = mesh.bounding_box_oriented
+                for i in range(8):
+                    frame_name = "_".join((body_name, "BoundingBox", str(i)))
+                    frame_transform_rel = \
+                        pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
+                    frame_transform = mesh_origin.actInv(frame_transform_rel)
+                    self.add_frame(frame_name, body_name, frame_transform)
+                    contact_frames_names.append(frame_name)
+
+        # Add the collision bodies and contact points
+        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # TODO: Mesh collisions is not numerically stable for now, so disabling it
+        self.add_contact_points(list(set(contact_frames_names)))
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:

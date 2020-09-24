@@ -427,8 +427,8 @@ namespace jiminy
     EncoderSensor::EncoderSensor(std::string const & name) :
     AbstractSensorTpl(name),
     jointName_(),
-    jointPositionIdx_(0),
-    jointVelocityIdx_(0)
+    jointIdx_(0),
+    jointType_(joint_t::NONE)
     {
         // Empty.
     }
@@ -474,14 +474,21 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!robot_->pncModel_.existJointName(jointName_))
         {
-            returnCode = ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
+            std::cout << "Error - EncoderSensor::refreshProxies - Sensor attached to a joint that does not exist." << std::endl;
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        jointIdx_ = robot_->pncModel_.getJointId(jointName_);
+
+        getJointTypeFromIdx(robot_->pncModel_, jointIdx_, jointType_);  // No need to catch the return flag, since the joint type will be NONE anyway
+
+        // Motors are only supported for linear and rotary joints
+        if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
         {
-            ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
+            std::cout << "Error - EncoderSensor::refreshProxies - An encoder sensor can only be associated with a 1-dof linear or rotary joint." << std::endl;
+            returnCode =  hresult_t::ERROR_BAD_INPUT;
         }
 
         return returnCode;
@@ -492,14 +499,14 @@ namespace jiminy
         return jointName_;
     }
 
-    int32_t const & EncoderSensor::getJointPositionIdx(void)  const
+    int32_t const & EncoderSensor::getJointIdx(void) const
     {
-
-        return jointPositionIdx_;
+        return jointIdx_;
     }
-    int32_t const & EncoderSensor::getJointVelocityIdx(void)  const
+
+    joint_t const & EncoderSensor::getJointType(void) const
     {
-        return jointVelocityIdx_;
+        return jointType_;
     }
 
     hresult_t EncoderSensor::set(float64_t                   const & t,
@@ -514,8 +521,20 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        data()[0] = q[jointPositionIdx_];
-        data()[1] = v[jointVelocityIdx_];
+        auto const & joint = robot_->pncModel_.joints[jointIdx_];
+        int32_t const & jointPositionIdx = joint.idx_q();
+        int32_t const & jointVelocityIdx = joint.idx_v();
+        if (jointType_ == joint_t::ROTARY_UNBOUNDED)
+        {
+            float64_t const & cosTheta = q[jointPositionIdx];
+            float64_t const & sinTheta = q[jointPositionIdx + 1];
+            data()[0] = std::atan2(sinTheta, cosTheta);
+        }
+        else
+        {
+            data()[0] = q[jointPositionIdx];
+        }
+        data()[1] = v[jointVelocityIdx];
 
         return hresult_t::SUCCESS;
     }

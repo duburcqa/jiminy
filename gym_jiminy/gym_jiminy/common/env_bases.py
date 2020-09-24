@@ -234,18 +234,32 @@ class BaseJiminyEnv(gym.core.Env):
         if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
+                # Get the position and velocity bounds of the sensor.
+                # Note that for rotary unbounded encoders, the sensor bounds
+                # cannot be extracted from the configuration vector limits
+                # since the representation is different: cos/sin for the
+                # configuration, and principal value of the angle for the
+                # sensor.
                 sensor = self.robot.get_sensor(enc.type, sensor_name)
                 sensor_idx = sensor.idx
-                pos_idx = sensor.joint_position_idx
+                joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
+                if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                    sensor_position_lower = -np.pi
+                    sensor_position_upper = np.pi
+                else:
+                    sensor_position_lower = position_limit_lower[joint.idx_q]
+                    sensor_position_upper = position_limit_upper[joint.idx_q]
+                sensor_velocity_limit = velocity_limit[joint.idx_v]
+
+                # Update the bounds accordingly
                 sensor_space_raw[enc.type]['min'][0, sensor_idx] = \
-                    position_limit_lower[pos_idx]
+                    sensor_position_lower
                 sensor_space_raw[enc.type]['max'][0, sensor_idx] = \
-                    position_limit_upper[pos_idx]
-                vel_idx = sensor.joint_velocity_idx
+                    sensor_position_upper
                 sensor_space_raw[enc.type]['min'][1, sensor_idx] = \
-                    - velocity_limit[vel_idx]
+                    - sensor_velocity_limit
                 sensor_space_raw[enc.type]['max'][1, sensor_idx] = \
-                    velocity_limit[vel_idx]
+                    sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
         if effort.type in sensors_data.keys():
@@ -349,21 +363,14 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Returns a random valid configuration and velocity for the robot.
 
-        @details The default implementation only return the neural
-                 configuration, with offsets on the freeflyer to ensure no
-                 contact points are going through the ground and a single one
-                 is touching it.
+        @details The default implementation returns the neutral configuration
+                 and zero velocity.
 
         @remark This method is called internally by 'reset' to generate the
                 initial state. It can be overloaded to act as a random state
                 generator.
         """
         qpos = neutral(self.robot.pinocchio_model)
-        if self.robot.has_freeflyer:
-            ground_fun = self.engine_py.get_options()['world']['groundProfile']
-            compute_freeflyer_state_from_fixed_body(
-                self.robot, qpos, ground_profile=ground_fun,
-                use_theoretical_model=False)
         qvel = np.zeros(self.robot.nv)
         return qpos, qvel
 
@@ -467,7 +474,17 @@ class BaseJiminyEnv(gym.core.Env):
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """
         @brief Reset the simulation and specify the initial state of the robot.
+
+        @details Offsets are applied on the freeflyer to ensure no contact
+                 points are going through the ground and up to three are in
+                 contact.
         """
+        # Make sure the robot touches the ground
+        if self.robot.has_freeflyer:
+            ground_fun = self.engine_py.get_options()['world']['groundProfile']
+            compute_freeflyer_state_from_fixed_body(
+                self.robot, qpos, ground_profile=ground_fun)
+
         # Reset the simulator and set the initial state
         self.engine_py.reset(np.concatenate((qpos, qvel)))
 

@@ -893,10 +893,10 @@ namespace python
                 cl
                     .add_property("joint_name", bp::make_function(&EncoderSensor::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_position_idx", bp::make_function(&EncoderSensor::getJointPositionIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_velocity_idx", bp::make_function(&EncoderSensor::getJointVelocityIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&EncoderSensor::getJointIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_type", bp::make_function(&EncoderSensor::getJointType,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
@@ -992,9 +992,10 @@ namespace python
                                      (bp::arg("self"), "frame_name"))
                 .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
                                              (bp::arg("self"),
-                                              bp::arg("link_names") = std::vector<std::string>()))
+                                              bp::arg("bodies_names") = std::vector<std::string>(),
+                                              bp::arg("ignore_meshes") = false))
                 .def("remove_collision_bodies", &PyModelVisitor::removeCollisionBodies,
-                                                (bp::arg("self"), "link_names"))
+                                                (bp::arg("self"), "bodies_names"))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
@@ -1080,10 +1081,11 @@ namespace python
         }
 
         static hresult_t addCollisionBodies(Model          & self,
-                                          bp::list const & linkNamesPy)
+                                            bp::list const & linkNamesPy,
+                                            bool_t   const & ignoreMeshes)
         {
             auto linkNames = convertFromPython<std::vector<std::string> >(linkNamesPy);
-            return self.addCollisionBodies(linkNames);
+            return self.addCollisionBodies(linkNames, ignoreMeshes);
         }
 
         static hresult_t removeCollisionBodies(Model          & self,

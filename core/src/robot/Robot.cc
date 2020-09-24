@@ -1448,22 +1448,30 @@ namespace jiminy
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](auto const & elem) -> int32_t
+                       [](auto const & motor) -> int32_t
                        {
-                           return elem->getJointModelIdx();
+                           return motor->getJointModelIdx();
                        });
         return motorsModelIdx;
     }
 
-    std::vector<int32_t> Robot::getMotorsPositionIdx(void) const
+    std::vector<std::vector<int32_t> > Robot::getMotorsPositionIdx(void) const
     {
-        std::vector<int32_t> motorsPositionIdx;
+        std::vector<std::vector<int32_t> > motorsPositionIdx;
         motorsPositionIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsPositionIdx),
-                       [](auto const & elem) -> int32_t
+                       [](auto const & elem) -> std::vector<int32_t>
                        {
-                           return elem->getJointPositionIdx();
+                           int32_t const & jointPositionIdx = elem->getJointPositionIdx();
+                           if (elem->getJointType() == joint_t::ROTARY_UNBOUNDED)
+                           {
+                               return {jointPositionIdx, jointPositionIdx + 1};
+                           }
+                           else
+                           {
+                               return {jointPositionIdx};
+                           }
                        });
         return motorsPositionIdx;
     }

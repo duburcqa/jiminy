@@ -134,22 +134,16 @@ namespace jiminy
         // of the frame wrt the parent joint must be computed.
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-
-        int32_t parentFrameId;
-
-        // Add the frame to the the current model
-        returnCode = getFrameIdx(pncModel_, parentBodyName, parentFrameId);
-        if (returnCode == hresult_t::SUCCESS)
+        // Check that no frame with the same name already exists.
+        if (pncModelRigidOrig_.existFrame(frameName))
         {
-            int32_t const & parentJointId = pncModel_.frames[parentFrameId].parent;
-            pinocchio::SE3 const & parentFramePlacement = pncModel_.frames[parentFrameId].placement;
-            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
-            pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
-            pncModel_.addFrame(frame);
+            std::cout << "Error - Model::addFrame - A frame with the same name already exists." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Add the frame to the the original rigid model
+        int32_t parentFrameId;
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
         returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -160,16 +154,23 @@ namespace jiminy
             pncModelRigidOrig_.addFrame(frame);
         }
 
-        // Add the frame to the the original flexible model
-        returnCode = getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
+        /* Add the frame to the the original flexible model.
+           It can no longer fail at this point. */
         if (returnCode == hresult_t::SUCCESS)
         {
+            getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
             int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
             pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
             pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
             pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelFlexibleOrig_.addFrame(frame);
         }
+
+        /* One must re-generate the model after adding a frame.
+           Note that it is unecessary to call 'reset' since the proxies
+           are still up-to-date, because the frame is added at the end
+           of the vector. */
+        generateModelBiased();
 
         return returnCode;
     }
@@ -178,11 +179,10 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-
-        // Check that the frame can be removed from the current model.
-        // If so, assuming it is also the case for the original models.
+        /* Check that the frame can be safely removed from the original rigid model.
+           If so, it is also the case for the original flexible models. */
         int32_t frameId;
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
         returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -192,34 +192,26 @@ namespace jiminy
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
-
-        // Remove the frame from the the current model
         if (returnCode == hresult_t::SUCCESS)
         {
-            pncModel_.frames.erase(pncModel_.frames.begin() + frameId);
-            pncModel_.nframes--;
-        }
-
-        // Remove the frame from the the current model
-        returnCode = getFrameIdx(pncModelRigidOrig_, frameName, frameId);
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            // Remove the frame from the the original rigid model
             pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
             pncModelRigidOrig_.nframes--;
-        }
 
-        // Remove the frame from the the current model
-        returnCode = getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
-        if (returnCode == hresult_t::SUCCESS)
-        {
+            // Remove the frame from the the original flexible model
+            getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
             pncModelFlexibleOrig_.frames.erase(pncModelFlexibleOrig_.frames.begin() + frameId);
             pncModelFlexibleOrig_.nframes--;
         }
 
+        // One must reset the model after removing a frame
+        reset();
+
         return returnCode;
     }
 
-    hresult_t Model::addCollisionBodies(std::vector<std::string> const & bodyNames)
+    hresult_t Model::addCollisionBodies(std::vector<std::string> const & bodyNames,
+                                        bool_t const & ignoreMeshes)
     {
         if (!isInitialized_)
         {
@@ -237,7 +229,7 @@ namespace jiminy
         // Make sure that there is no collision already associated with any of the bodies in the list
         if (checkIntersection(collisionBodiesNames_, bodyNames))
         {
-            std::cout << "Error - Model::addCollisionBodies - At least one of the body is already been associated with a collision." << std::endl;
+            std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is already been associated with a collision." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -246,7 +238,29 @@ namespace jiminy
         {
             if (!pncModel_.existBodyName(name))
             {
-                std::cout << "Error - Model::addCollisionBodies - At least one of the body does not exist." << std::endl;
+                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies does not exist." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        // Make sure that at least one geometry is associated with each body
+        for (std::string const & name : bodyNames)
+        {
+            bool_t hasGeometry = false;
+            for (pinocchio::GeometryObject const & geom : pncGeometryModel_.geometryObjects)
+            {
+                bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                           geom.meshPath.find('\\') != std::string::npos);
+                if (!(ignoreMeshes && isGeomMesh) &&  // geom.meshPath is the geometry type if it is not an actual mesh
+                    pncModel_.frames[geom.parentFrame].name == name)
+                {
+                    hasGeometry = true;
+                    break;
+                }
+            }
+            if (!hasGeometry)
+            {
+                std::cout << "Error - Model::addCollisionBodies - At least one of the bodies is not associated with any collision geometry of requested type." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -262,7 +276,10 @@ namespace jiminy
             for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
                 pinocchio::GeometryObject const & geom = pncGeometryModel_.geometryObjects[i];
-                if (pncModel_.frames[geom.parentFrame].name == name)
+                bool_t const isGeomMesh = (geom.meshPath.find('/') != std::string::npos ||
+                                           geom.meshPath.find('\\') != std::string::npos);
+                if (!(ignoreMeshes && isGeomMesh) &&
+                    pncModel_.frames[geom.parentFrame].name == name)
                 {
                     /* Create and add the collision pair with the ground.
                        Note that the ground always comes second for the normal to be
@@ -297,7 +314,7 @@ namespace jiminy
         // Make sure that every body in the list is associated with a collision
         if (!checkInclusion(collisionBodiesNames_, bodyNames))
         {
-            std::cout << "Error - Model::removeCollisionBodies - At least one of the body is not associated with any collision." << std::endl;
+            std::cout << "Error - Model::removeCollisionBodies - At least one of the bodies is not associated with any collision." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -363,7 +380,7 @@ namespace jiminy
         // Make sure that there is no contact already associated with any of the frames in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::addContactPoints - At least one of the frame is already been associated with a contact." << std::endl;
+            std::cout << "Error - Model::addContactPoints - At least one of the frames is already been associated with a contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -372,7 +389,7 @@ namespace jiminy
         {
             if (!pncModel_.existFrame(name))
             {
-                std::cout << "Error - Model::addContactPoints - At least one of the frame does not exist." << std::endl;
+                std::cout << "Error - Model::addContactPoints - At least one of the frames does not exist." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -404,7 +421,7 @@ namespace jiminy
         // Make sure that every frame in the list is associated with a contact
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            std::cout << "Error - Model::removeContactPoints - At least one of the frame is not associated with any contact." << std::endl;
+            std::cout << "Error - Model::removeContactPoints - At least one of the frames is not associated with any contact." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -662,24 +679,6 @@ namespace jiminy
             // Get the joint position limits from the URDF or the user options
             positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
             positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
-            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
-            {
-                joint_t jointType(joint_t::NONE);
-                getJointTypeFromIdx(pncModel_, i, jointType);
-                // The "position" of spherical joints is bounded between -1.0 and 1.0 since it corresponds to normalized quaternions
-                if (jointType == joint_t::SPHERICAL)
-                {
-                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
-                }
-                if (jointType == joint_t::FREE)
-                {
-                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
-                }
-            }
 
             if (mdlOptions_->joints.enablePositionLimit)
             {
@@ -698,6 +697,33 @@ namespace jiminy
                         positionLimitMin_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMin[i];
                         positionLimitMax_[rigidJointsPositionIdx_[i]] = mdlOptions_->joints.positionLimitMax[i];
                     }
+                }
+            }
+
+            /* Overwrite the position bounds for some specific joint type, mainly
+               due to quaternion normalization and cos/sin representation. */
+            for (int32_t i=0 ; i < pncModel_.njoints ; i++)
+            {
+                joint_t jointType(joint_t::NONE);
+                getJointTypeFromIdx(pncModel_, i, jointType);
+
+                if (jointType == joint_t::SPHERICAL)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
+                }
+                if (jointType == joint_t::FREE)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
+                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
+                }
+                if (jointType == joint_t::ROTARY_UNBOUNDED)
+                {
+                    uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
+                    positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0);
+                    positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0);
                 }
             }
 

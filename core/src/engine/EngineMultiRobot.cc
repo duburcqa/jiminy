@@ -1865,8 +1865,7 @@ namespace jiminy
 
         // Get the frame and joint indices
         uint32_t const & geometryIdx = system.robot->pncGeometryModel_.collisionPairs[collisionPairIdx].first;
-        uint32_t const & parentFrameIdx = system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentFrame;
-        uint32_t const & parentJointIdx =  system.robot->pncModel_.frames[parentFrameIdx].parent;
+        uint32_t const & parentJointIdx =  system.robot->pncGeometryModel_.geometryObjects[geometryIdx].parentJoint;
 
         // Extract collision and distance results
         hpp::fcl::CollisionResult const & collisionResult = system.robot->pncGeometryData_->collisionResults[collisionPairIdx];
@@ -2050,7 +2049,8 @@ namespace jiminy
         auto const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
 
-        // Enforce the position limit for the rigid joints only (TODO: Add support of spherical and planar joints)
+        /* Enforce the position limit for the rigid joints only.
+           Note that posiiton limits are not supported for spherical and revolute unbounded joints. */
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
@@ -2059,13 +2059,13 @@ namespace jiminy
             {
                 uint32_t const & positionIdx = pncModel.joints[rigidIdx].idx_q();
                 uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
-                int32_t const & jointDof = pncModel.joints[rigidIdx].nq();
+                int32_t const & jointDof = pncModel.joints[rigidIdx].nq();  // Assuming joint.nq == joint.nv, which is not always the case
                 for (int32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & qJoint = q[positionIdx + j];
-                    float64_t const & vJoint = v[velocityIdx + j];
                     float64_t const & qJointMin = positionLimitMin[positionIdx + j];
                     float64_t const & qJointMax = positionLimitMax[positionIdx + j];
+                    float64_t const & vJoint = v[velocityIdx + j];  // It is wrong for revolute unbounded and spherical joints, but no big deal since never out-of-bound
 
                     float64_t qJointError = 0.0;
                     float64_t vJointError = 0.0;
@@ -2089,14 +2089,14 @@ namespace jiminy
             }
         }
 
-        // Enforce the velocity limit (do not support spherical joints)
+        // Enforce the velocity limit
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
             vectorN_t const & velocityLimitMax = system.robot->getVelocityLimit();
             for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
                 uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
-                uint32_t const & jointDof = pncModel.joints[rigidIdx].nq();
+                uint32_t const & jointDof = pncModel.joints[rigidIdx].nv();
                 for (uint32_t j = 0; j < jointDof; j++)
                 {
                     float64_t const & vJoint = v[velocityIdx + j];
