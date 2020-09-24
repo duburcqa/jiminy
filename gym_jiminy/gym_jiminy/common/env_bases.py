@@ -363,21 +363,14 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Returns a random valid configuration and velocity for the robot.
 
-        @details The default implementation only return the neural
-                 configuration, with offsets on the freeflyer to ensure no
-                 contact points are going through the ground and a single one
-                 is touching it.
+        @details The default implementation returns the neutral configuration
+                 and zero velocity.
 
         @remark This method is called internally by 'reset' to generate the
                 initial state. It can be overloaded to act as a random state
                 generator.
         """
         qpos = neutral(self.robot.pinocchio_model)
-        if self.robot.has_freeflyer:
-            ground_fun = self.engine_py.get_options()['world']['groundProfile']
-            compute_freeflyer_state_from_fixed_body(
-                self.robot, qpos, ground_profile=ground_fun,
-                use_theoretical_model=False)
         qvel = np.zeros(self.robot.nv)
         return qpos, qvel
 
@@ -481,7 +474,17 @@ class BaseJiminyEnv(gym.core.Env):
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """
         @brief Reset the simulation and specify the initial state of the robot.
+
+        @details Offsets are applied on the freeflyer to ensure no contact
+                 points are going through the ground and up to three are in
+                 contact.
         """
+        # Make sure the robot touches the ground
+        if self.robot.has_freeflyer:
+            ground_fun = self.engine_py.get_options()['world']['groundProfile']
+            compute_freeflyer_state_from_fixed_body(
+                self.robot, qpos, ground_profile=ground_fun)
+
         # Reset the simulator and set the initial state
         self.engine_py.reset(np.concatenate((qpos, qvel)))
 

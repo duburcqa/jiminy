@@ -12,7 +12,6 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ForceSensor as force,
                             ImuSensor as imu)
 from jiminy_py.engine import BaseJiminyEngine
-from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 
 import pinocchio as pin
 from pinocchio import neutral
