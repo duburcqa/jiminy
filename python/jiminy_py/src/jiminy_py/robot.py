@@ -242,15 +242,14 @@ def generate_hardware_description_file(
             continue
 
         # Extract the transmission ratio (motor / joint)
-        ratio = transmission_descr.find('./actuator/mechanicalReduction')
+        ratio = transmission_descr.find('./mechanicalReduction')
         if ratio is None:
             motor_info['mechanicalReduction'] = 1
         else:
             motor_info['mechanicalReduction'] = float(ratio.text)
 
         # Extract the armature (rotor) inertia
-        armature_inertia = transmission_descr.find(
-            './actuator/motorInertia')
+        armature_inertia = transmission_descr.find('./motorInertia')
         if armature_inertia is None:
             motor_info['rotorInertia'] = 0.0
         else:
@@ -463,6 +462,7 @@ class BaseJiminyRobot(jiminy.Robot):
                         logger.warning(f"'{name}' is not a valid option for "
                             f"the motor {motor_name} of type {motor_type}.")
                     options[name] = value
+                options['enableRotorInertia'] = True
                 motor.set_options(options)
 
         # Add the sensors to the robot
