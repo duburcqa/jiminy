@@ -13,7 +13,7 @@ from gym_jiminy.envs import AtlasPDControlJiminyEnv
 from gym_jiminy.envs import CassiePDControlJiminyEnv
 
 
-class PipelineControlAtlas(unittest.TestCase):
+class PipelineControl(unittest.TestCase):
     """ TODO: Write documentation
     """
     def setUp(self):
