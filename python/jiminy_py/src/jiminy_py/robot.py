@@ -28,7 +28,17 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
+class DuplicateFilter:
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg not in self.msgs
+        self.msgs.add(record.msg)
+        return rv
+
 logger = logging.getLogger(__name__)
+logger.addFilter(DuplicateFilter())
 
 
 def generate_hardware_description_file(
@@ -46,24 +56,31 @@ def generate_hardware_description_file(
              of the robot. Otherwise, the definition of the plugins in use to
              infer them.
 
-             'joint' fields are parsed to extract every joint, actuated
-             or not. 'fixed' joints are not considered as actual joints.
-             Transmission fields are parsed to determine which one of those
-             joints are actuated. If no transmission is found, it is assumed
-             that every joint is actuated, with a transmission ratio of 1:1.
+             'joint' fields are parsed to extract every joint, actuated or not.
+             'fixed' joints are not considered as actual joints. Transmission
+             fields are parsed to determine which one of those joints are
+             actuated. If no transmission is found, it is assumed that every
+             joint is actuated, with a transmission ratio of 1:1.
 
              It is assumed that:
-               - every joint has an encoder attached,
-               - every actuated joint has an effort sensor attached
-               - for every force sensor, the associated body is added to the
-                 set of the collision bodies, but not conversely.
+             - every joint has an encoder attached,
+             - every actuated joint has an effort sensor attached,
+             - every collision body has a force sensor attached
+             - for every Gazebo contact sensor, the associated body is added
+               to the set of the collision bodies, but it is not the case
+               for Gazebo force plugin.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
              otherwise the highest one among found plugins will be used.
 
-    @remark Under the hood, it is a configuration in TOML format to be as
-            human-friendly as possible to reading and editing it.
+    @remark It has been primarily designed for robots with freeflyer. The
+            default configuration should work out-of-the-box for walking robot,
+            but substantial modification may be required for different types of
+            robots such as wheeled robots or robotics manipulator arms.
+
+            TOML format as be chosen to make reading and manually editing of
+            the file as human-friendly as possible.
 
     @param urdf_path  Fullpath of the URDF file.
     @param toml_path  Fullpath of the hardware description file.
@@ -103,7 +120,7 @@ def generate_hardware_description_file(
             child_links.add(joint_descr.find('./child').get('link'))
 
     # Compute the root link and the leaf ones
-    root_links = list(parent_links.difference(child_links))
+    root_link = next(iter(parent_links.difference(child_links)))
     leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
@@ -161,7 +178,9 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(sensor_type, {}).update(
                 {sensor_name: sensor_info})
 
-        # Extract the collision bodies and ground model, then add force sensors
+        # Extract the collision bodies and ground model, then add force
+        # sensors. At this point, every force sensor is associated with a
+        # collision body.
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
             if not body_name in collision_bodies_names:
@@ -186,27 +205,41 @@ def generate_hardware_description_file(
                 raise RuntimeError("Jiminy does not support contacts with"
                     "different ground models.")
 
+        # Extract plugins not wrapped into a sensor
+        for gazebo_plugin_descr in gazebo_plugin_descr.iterfind('plugin'):
+            plugin = gazebo_plugin_descr.get('filename')
+            if plugin == "libgazebo_ros_force.so":
+                body_name = gazebo_plugin_descr.find('bodyName').text
+                hardware_info['Sensor'].setdefault(force.type, {}).update({
+                    f"{body_name}Wrench": OrderedDict(
+                        body_name=body_name,
+                        frame_pose=6*[0.0])
+                })
+            else:
+                logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
+
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if not imu.type in hardware_info['Sensor'].keys():
-        for root_link in root_links:
-            hardware_info['Sensor'].setdefault(imu.type, {}).update({
-                root_link: OrderedDict(
-                    body_name=root_link,
-                    frame_pose=6*[0.0]
-                )
-            })
+        hardware_info['Sensor'].setdefault(imu.type, {}).update({
+            root_link: OrderedDict(
+                body_name=root_link,
+                frame_pose=6*[0.0]
+            )
+        })
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
         for leaf_link in leaf_links:
-            collision_bodies_names.add(leaf_link)
-
+            # Add a force sensor
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
                     body_name=leaf_link,
                     frame_pose=6*[0.0]
                 )
             })
+
+            # Add the related body to the collision set
+            collision_bodies_names.add(leaf_link)
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
