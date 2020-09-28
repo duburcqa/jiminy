@@ -56,10 +56,10 @@ index d675c2c..c503cf1 100644
  pkg_config_append_libs("hpp-fcl")
  IF(HPP_FCL_HAVE_OCTOMAP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index dfef812..fee68b9 100644
+index 043d18b..dcc79be 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -146,7 +146,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
+@@ -148,7 +148,6 @@ FOREACH(header ${${PROJECT_NAME}_HEADERS})
  ENDFOREACH()
  LIST(APPEND PROJECT_HEADERS_FULL_PATH ${PROJECT_BINARY_DIR}/include/hpp/fcl/config.hh)
  add_library(${LIBRARY_NAME}
@@ -67,20 +67,20 @@ index dfef812..fee68b9 100644
    ${PROJECT_HEADERS_FULL_PATH}
    ${${LIBRARY_NAME}_SOURCES}
    )
-@@ -155,16 +154,19 @@ add_library(${LIBRARY_NAME}
+@@ -157,6 +156,9 @@ add_library(${LIBRARY_NAME}
  ADD_SOURCE_GROUP(${LIBRARY_NAME}_SOURCES)
  ADD_HEADER_GROUP(PROJECT_HEADERS_FULL_PATH)
  
 +find_package(zlib NO_MODULE)
 +find_package(IrrXML NO_MODULE)
 +find_package(assimp NO_MODULE)
+ TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
+   SYSTEM PUBLIC
+   ${Boost_INCLUDE_DIRS}
+@@ -164,9 +166,14 @@ TARGET_INCLUDE_DIRECTORIES(${LIBRARY_NAME}
+ 
  TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
-   PUBLIC
--  Boost::boost
--  )
--
--TARGET_LINK_LIBRARIES(${LIBRARY_NAME}
--  PRIVATE
+   PRIVATE
 -  ${assimp_LIBRARIES}
 -  # assimp::assimp # Not working
 +  Boost::boost assimp::assimp IrrXML::IrrXML zlib::zlib

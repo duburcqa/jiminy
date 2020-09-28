@@ -28,7 +28,7 @@ if(NOT LEGACY_MODE)
     if(pinocchio_FOUND)
         message("-- Found pinocchio: version ${pinocchio_VERSION}")
     else()
-        find_package(hpp-fcl 1.4.0 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Old pinocchio releases do not export hpp-fcl dependency
+        find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
     endif()
 endif()
 

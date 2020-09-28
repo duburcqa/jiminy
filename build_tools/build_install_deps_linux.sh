@@ -69,7 +69,7 @@ cd "$RootDir/assimp"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/assimp.patch"
 
 ### Checkout hpp-fcl, and update qhull to the latest release v8.0.2
-git clone -b "v1.5.3" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+git clone -b "v1.5.4" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
 cd "$RootDir/hpp-fcl"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"

@@ -359,19 +359,56 @@ class BaseJiminyEnv(gym.core.Env):
             high=effort_limit[self.robot.motors_velocity_idx],
             dtype=np.float64)
 
+    def _neutral(self) -> np.ndarray:
+        """
+        @brief Returns a neutral valid configuration for the robot.
+
+        @details The default implementation returns the neutral configuration
+                 if valid, the "mean" configuration otherwise (right in the
+                 middle of the position lower and upper bounds).
+
+                 Beware there is no guarantee for this configuration to be
+                 statically stable.
+
+        @remark This method is called internally by '_sample_state' to
+                generate the initial state. It can be overloaded to ensure
+                static stability of the configuration.
+        """
+        qpos = neutral(self.robot.pinocchio_model)
+        if np.any(self.robot.position_limit_upper < qpos) or \
+                np.any(qpos < self.robot.position_limit_lower):
+            mask = np.isfinite(self.robot.position_limit_upper)
+            qpos[mask] = 0.5 * (self.robot.position_limit_upper[mask] +
+                self.robot.position_limit_lower[mask])
+        return qpos
+
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """
-        @brief Returns a random valid configuration and velocity for the robot.
+        @brief Returns a valid configuration and velocity for the robot.
 
         @details The default implementation returns the neutral configuration
                  and zero velocity.
+
+                 Offsets are applied on the freeflyer to ensure no contact
+                 points are going through the ground and up to three are in
+                 contact.
 
         @remark This method is called internally by 'reset' to generate the
                 initial state. It can be overloaded to act as a random state
                 generator.
         """
-        qpos = neutral(self.robot.pinocchio_model)
+        # Get the neutral configuration
+        qpos = self._neutral()
+
+        # Make sure the robot touches the ground
+        if self.robot.has_freeflyer:
+            ground_fun = self.engine_py.get_options()['world']['groundProfile']
+            compute_freeflyer_state_from_fixed_body(
+                self.robot, qpos, ground_profile=ground_fun)
+
+        # Zero velocity
         qvel = np.zeros(self.robot.nv)
+
         return qpos, qvel
 
     def _update_obs(self, obs: SpaceDictRecursive) -> None:
@@ -474,17 +511,7 @@ class BaseJiminyEnv(gym.core.Env):
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """
         @brief Reset the simulation and specify the initial state of the robot.
-
-        @details Offsets are applied on the freeflyer to ensure no contact
-                 points are going through the ground and up to three are in
-                 contact.
         """
-        # Make sure the robot touches the ground
-        if self.robot.has_freeflyer:
-            ground_fun = self.engine_py.get_options()['world']['groundProfile']
-            compute_freeflyer_state_from_fixed_body(
-                self.robot, qpos, ground_profile=ground_fun)
-
         # Reset the simulator and set the initial state
         self.engine_py.reset(np.concatenate((qpos, qvel)))
 

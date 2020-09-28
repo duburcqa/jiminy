@@ -28,7 +28,28 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
+class DuplicateFilter:
+    def __init__(self):
+        self.msgs = set()
+
+    def filter(self, record):
+        rv = record.msg not in self.msgs
+        self.msgs.add(record.msg)
+        return rv
+
 logger = logging.getLogger(__name__)
+logger.addFilter(DuplicateFilter())
+
+
+def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
+    if origin_info is not None:
+        origin_xyz = np.array(
+            list(map(float, origin_info.attrib['xyz'].split())))
+        origin_rpy = np.array(
+            list(map(float, origin_info.attrib['rpy'].split())))
+        return pin.SE3(rpyToMatrix(origin_rpy), origin_xyz)
+    else:
+        return pin.SE3.Identity()
 
 
 def generate_hardware_description_file(
@@ -46,24 +67,31 @@ def generate_hardware_description_file(
              of the robot. Otherwise, the definition of the plugins in use to
              infer them.
 
-             'joint' fields are parsed to extract every joint, actuated
-             or not. 'fixed' joints are not considered as actual joints.
-             Transmission fields are parsed to determine which one of those
-             joints are actuated. If no transmission is found, it is assumed
-             that every joint is actuated, with a transmission ratio of 1:1.
+             'joint' fields are parsed to extract every joint, actuated or not.
+             'fixed' joints are not considered as actual joints. Transmission
+             fields are parsed to determine which one of those joints are
+             actuated. If no transmission is found, it is assumed that every
+             joint is actuated, with a transmission ratio of 1:1.
 
              It is assumed that:
-               - every joint has an encoder attached,
-               - every actuated joint has an effort sensor attached
-               - for every force sensor, the associated body is added to the
-                 set of the collision bodies, but not conversely.
+             - every joint has an encoder attached,
+             - every actuated joint has an effort sensor attached,
+             - every collision body has a force sensor attached
+             - for every Gazebo contact sensor, the associated body is added
+               to the set of the collision bodies, but it is not the case
+               for Gazebo force plugin.
 
              When the default update rate is unspecified, then the default
              sensor update rate is 1KHz if no Gazebo plugin has been found,
              otherwise the highest one among found plugins will be used.
 
-    @remark Under the hood, it is a configuration in TOML format to be as
-            human-friendly as possible to reading and editing it.
+    @remark It has been primarily designed for robots with freeflyer. The
+            default configuration should work out-of-the-box for walking robot,
+            but substantial modification may be required for different types of
+            robots such as wheeled robots or robotics manipulator arms.
+
+            TOML format as be chosen to make reading and manually editing of
+            the file as human-friendly as possible.
 
     @param urdf_path  Fullpath of the URDF file.
     @param toml_path  Fullpath of the hardware description file.
@@ -103,7 +131,7 @@ def generate_hardware_description_file(
             child_links.add(joint_descr.find('./child').get('link'))
 
     # Compute the root link and the leaf ones
-    root_links = list(parent_links.difference(child_links))
+    root_link = next(iter(parent_links.difference(child_links)))
     leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
@@ -161,7 +189,9 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(sensor_type, {}).update(
                 {sensor_name: sensor_info})
 
-        # Extract the collision bodies and ground model, then add force sensors
+        # Extract the collision bodies and ground model, then add force
+        # sensors. At this point, every force sensor is associated with a
+        # collision body.
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
             if not body_name in collision_bodies_names:
@@ -186,27 +216,41 @@ def generate_hardware_description_file(
                 raise RuntimeError("Jiminy does not support contacts with"
                     "different ground models.")
 
+        # Extract plugins not wrapped into a sensor
+        for gazebo_plugin_descr in gazebo_plugin_descr.iterfind('plugin'):
+            plugin = gazebo_plugin_descr.get('filename')
+            if plugin == "libgazebo_ros_force.so":
+                body_name = gazebo_plugin_descr.find('bodyName').text
+                hardware_info['Sensor'].setdefault(force.type, {}).update({
+                    f"{body_name}Wrench": OrderedDict(
+                        body_name=body_name,
+                        frame_pose=6*[0.0])
+                })
+            else:
+                logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
+
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
     if not imu.type in hardware_info['Sensor'].keys():
-        for root_link in root_links:
-            hardware_info['Sensor'].setdefault(imu.type, {}).update({
-                root_link: OrderedDict(
-                    body_name=root_link,
-                    frame_pose=6*[0.0]
-                )
-            })
+        hardware_info['Sensor'].setdefault(imu.type, {}).update({
+            root_link: OrderedDict(
+                body_name=root_link,
+                frame_pose=6*[0.0]
+            )
+        })
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
     if not gazebo_plugins_found:
         for leaf_link in leaf_links:
-            collision_bodies_names.add(leaf_link)
-
+            # Add a force sensor
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
                     body_name=leaf_link,
                     frame_pose=6*[0.0]
                 )
             })
+
+            # Add the related body to the collision set
+            collision_bodies_names.add(leaf_link)
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
@@ -569,7 +613,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     "collision for this body.")
                 continue
             elif body_name in geometry_info['collision']['primitive']:
-                continue
+                pass
             elif body_name in geometry_info['collision']['mesh']:
                 logger.warning("Collision body associated with mesh geometry "
                     "is not supported for now. Replacing it by contact points "
@@ -589,26 +633,49 @@ class BaseJiminyRobot(jiminy.Robot):
             # Remove the body from the collision detection set
             collision_bodies_names.remove(body_name)
 
-            # Extract meshes paths and origins
+            # Check if collision primitive box are available
             body_link = root.find(f"./link[@name='{body_name}']")
+            collision_links = body_link.findall('collision')
+            collision_box_sizes_info = [link.find('geometry/box').get('size')
+                for link in collision_links]
+            collision_box_origin_info = [link.find('origin')
+                for link in collision_links]
+
+            # Replace the collision boxes by contact points, if any
+            if collision_box_sizes_info:
+                logger.warning("Collision body associated with box geometry "
+                    "is not numerically stable for now. Replacing it by "
+                    "contact points at the vertices.")
+
+                for box_size_info, box_origin_info in zip(
+                        collision_box_sizes_info, collision_box_origin_info):
+                    box_size = list(map(float, box_size_info.split()))
+                    box_origin = _origin_info_to_se3(box_origin_info)
+                    vertices = [e.flatten() for e in np.meshgrid(*[
+                        0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
+                    for i, (x, y, z) in enumerate(zip(*vertices)):
+                        frame_name = "_".join((
+                            body_name, "CollisionBox", str(i)))
+                        vertex_pos_rel = pin.SE3(
+                            np.eye(3), np.array([x, y, z]))
+                        frame_transform = box_origin.act(vertex_pos_rel)
+                        self.add_frame(frame_name, body_name, frame_transform)
+                        contact_frames_names.append(frame_name)
+
+                continue
+
+            # Extract meshes paths and origins.
             if body_name in geometry_info['collision']['mesh']:
                 mesh_links = body_link.findall('collision')
             else:
                 mesh_links = body_link.findall('visual')
             mesh_paths = [link.find('geometry/mesh').get('filename')
-                        for link in mesh_links]
+                for link in mesh_links]
             mesh_origins = []
             for link in mesh_links:
-                mesh_origin_info = link.get('origin')
-                if mesh_origin_info is not None:
-                    mesh_origin_xyz = list(map(float,
-                        mesh_origin_info.attrib['xyz']))
-                    mesh_origin_rpy = list(map(float,
-                        mesh_origin_info.attrib['rpy']))
-                    mesh_origin_transform = pin.SE3(
-                        rpyToMatrix(mesh_origin_rpy), mesh_origin_xyz)
-                else:
-                    mesh_origin_transform = pin.SE3.Identity()
+                mesh_origin_info = link.find('origin')
+                mesh_origin_transform = \
+                    _origin_info_to_se3(mesh_origin_info)
                 mesh_origins.append(mesh_origin_transform)
 
             # Replace the collision body by contact points
@@ -630,7 +697,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))
                     frame_transform_rel = \
                         pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
-                    frame_transform = mesh_origin.actInv(frame_transform_rel)
+                    frame_transform = mesh_origin.act(frame_transform_rel)
                     self.add_frame(frame_name, body_name, frame_transform)
                     contact_frames_names.append(frame_name)
 

@@ -209,7 +209,10 @@ class EngineAsynchronous:
         # Restore the initial internal pinocchio data
         update_quantities(self.robot,
                           x0[:self.robot.nq],
+                          x0[self.robot.nq:],
                           update_physics=True,
+                          update_com=True,
+                          update_energy=True,
                           use_theoretical_model=False)
 
     def step(self,
