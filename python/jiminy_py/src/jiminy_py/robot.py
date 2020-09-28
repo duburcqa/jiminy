@@ -41,6 +41,17 @@ logger = logging.getLogger(__name__)
 logger.addFilter(DuplicateFilter())
 
 
+def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
+    if origin_info is not None:
+        origin_xyz = np.array(
+            list(map(float, origin_info.attrib['xyz'].split())))
+        origin_rpy = np.array(
+            list(map(float, origin_info.attrib['rpy'].split())))
+        return pin.SE3(rpyToMatrix(origin_rpy), origin_xyz)
+    else:
+        return pin.SE3.Identity()
+
+
 def generate_hardware_description_file(
         urdf_path: str,
         toml_path: Optional[str] = None,
@@ -602,7 +613,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     "collision for this body.")
                 continue
             elif body_name in geometry_info['collision']['primitive']:
-                continue
+                pass
             elif body_name in geometry_info['collision']['mesh']:
                 logger.warning("Collision body associated with mesh geometry "
                     "is not supported for now. Replacing it by contact points "
@@ -622,26 +633,49 @@ class BaseJiminyRobot(jiminy.Robot):
             # Remove the body from the collision detection set
             collision_bodies_names.remove(body_name)
 
-            # Extract meshes paths and origins
+            # Check if collision primitive box are available
             body_link = root.find(f"./link[@name='{body_name}']")
+            collision_links = body_link.findall('collision')
+            collision_box_sizes_info = [link.find('geometry/box').get('size')
+                for link in collision_links]
+            collision_box_origin_info = [link.find('origin')
+                for link in collision_links]
+
+            # Replace the collision boxes by contact points, if any
+            if collision_box_sizes_info:
+                logger.warning("Collision body associated with box geometry "
+                    "is not numerically stable for now. Replacing it by "
+                    "contact points at the vertices.")
+
+                for box_size_info, box_origin_info in zip(
+                        collision_box_sizes_info, collision_box_origin_info):
+                    box_size = list(map(float, box_size_info.split()))
+                    box_origin = _origin_info_to_se3(box_origin_info)
+                    vertices = [e.flatten() for e in np.meshgrid(*[
+                        0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
+                    for i, (x, y, z) in enumerate(zip(*vertices)):
+                        frame_name = "_".join((
+                            body_name, "CollisionBox", str(i)))
+                        vertex_pos_rel = pin.SE3(
+                            np.eye(3), np.array([x, y, z]))
+                        frame_transform = box_origin.act(vertex_pos_rel)
+                        self.add_frame(frame_name, body_name, frame_transform)
+                        contact_frames_names.append(frame_name)
+
+                continue
+
+            # Extract meshes paths and origins.
             if body_name in geometry_info['collision']['mesh']:
                 mesh_links = body_link.findall('collision')
             else:
                 mesh_links = body_link.findall('visual')
             mesh_paths = [link.find('geometry/mesh').get('filename')
-                        for link in mesh_links]
+                for link in mesh_links]
             mesh_origins = []
             for link in mesh_links:
-                mesh_origin_info = link.get('origin')
-                if mesh_origin_info is not None:
-                    mesh_origin_xyz = list(map(float,
-                        mesh_origin_info.attrib['xyz']))
-                    mesh_origin_rpy = list(map(float,
-                        mesh_origin_info.attrib['rpy']))
-                    mesh_origin_transform = pin.SE3(
-                        rpyToMatrix(mesh_origin_rpy), mesh_origin_xyz)
-                else:
-                    mesh_origin_transform = pin.SE3.Identity()
+                mesh_origin_info = link.find('origin')
+                mesh_origin_transform = \
+                    _origin_info_to_se3(mesh_origin_info)
                 mesh_origins.append(mesh_origin_transform)
 
             # Replace the collision body by contact points
@@ -663,7 +697,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))
                     frame_transform_rel = \
                         pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
-                    frame_transform = mesh_origin.actInv(frame_transform_rel)
+                    frame_transform = mesh_origin.act(frame_transform_rel)
                     self.add_frame(frame_name, body_name, frame_transform)
                     contact_frames_names.append(frame_name)
 
