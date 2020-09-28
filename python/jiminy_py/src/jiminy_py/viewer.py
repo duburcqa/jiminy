@@ -21,7 +21,7 @@ from PIL import Image
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Dict, Any
 
 import zmq
 import meshcat.transformations as mtf
@@ -156,7 +156,7 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 urdf_rgba: Optional[List[float]] = None,
+                 urdf_rgba: Optional[Tuple[float, float, float, float]] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: bool = True,
@@ -741,9 +741,11 @@ class Viewer:
 
     @__must_be_open
     def set_camera_transform(self,
-                             translation=None,
-                             rotation=None,
-                             relative=None):
+                             translation: Union[Tuple[float, float, float],
+                                                np.ndarray] = None,
+                             rotation: Union[Tuple[float, float, float],
+                                             np.ndarray] = None,
+                             relative: Optional[str] = None) -> None:
         """
         @brief Apply transform to the camera pose.
 
@@ -811,7 +813,12 @@ class Viewer:
                 H_abs = H_orig * H_abs
                 self.set_camera_transform(H_abs.translation, rotation)  # The original rotation is not modified
 
-    def attach_camera(self, frame=None, translation=None, rotation=None):
+    def attach_camera(self,
+                      frame: Optional[str] = None,
+                      translation: Optional[Union[Tuple[float, float, float],
+                                                  np.ndarray]] = None,
+                      rotation: Optional[Union[Tuple[float, float, float],
+                                               np.ndarray]] = None) -> None:
         """
         @brief Attach the camera to a given robot frame.
 
@@ -831,7 +838,7 @@ class Viewer:
         self.__update_camera_transform = types.MethodType(
             __update_camera_transform, self)
 
-    def detach_camera(self):
+    def detach_camera(self) -> None:
         """
         @brief      Detach the camera.
 
@@ -842,9 +849,9 @@ class Viewer:
 
     @__must_be_open
     def capture_frame(self,
-                      width=DEFAULT_CAPTURE_SIZE,
-                      height=DEFAULT_CAPTURE_SIZE,
-                      raw_data=False):
+                      width: int = DEFAULT_CAPTURE_SIZE,
+                      height:int = DEFAULT_CAPTURE_SIZE,
+                      raw_data: bool = False) -> Union[np.ndarray, str]:
         """
         @brief Take a snapshot and return associated data.
 
@@ -884,9 +891,9 @@ class Viewer:
 
     @__must_be_open
     def save_frame(self,
-                   image_path,
-                   width=DEFAULT_CAPTURE_SIZE,
-                   height=DEFAULT_CAPTURE_SIZE):
+                   image_path: str,
+                   width: int = DEFAULT_CAPTURE_SIZE,
+                   height: int = DEFAULT_CAPTURE_SIZE) -> None:
         """
         @brief Save a snapshot in png format.
 
@@ -909,7 +916,10 @@ class Viewer:
                 f.write(img_data)
 
     @__must_be_open
-    def refresh(self, wait=False):
+    def refresh(self,
+                force_update_visual: bool = False,
+                force_update_collision: bool = False,
+                wait: bool = False) -> None:
         """
         @brief Refresh the configuration of Robot in the viewer.
 
@@ -920,6 +930,8 @@ class Viewer:
                 method, after removing parts responsible of update pinocchio
                 data and collision data. Visual data must still be updated.
 
+        @param force_update_visual  Force update of visual geometries.
+        @param force_update_collision  Force update of collision geometries.
         @param wait  Whether or not to wait for rendering to finish.
         """
         # Update pinocchio visual data
@@ -930,11 +942,11 @@ class Viewer:
             # Render the visual and collision geometries
             if Viewer.backend.startswith('gepetto'):
                 model_list, data_list, model_type_list = [], [], []
-                if self._client.display_collisions:
+                if self._client.display_collisions or force_update_collision:
                     model_list.append(self._client.collision_model)
                     data_list.append(self._client.collision_data)
                     model_type_list.append(pin.GeometryType.COLLISION)
-                if self._client.display_visuals:
+                if self._client.display_visuals or force_update_visual:
                     model_list.append(self._client.visual_model)
                     data_list.append(self._client.visual_data)
                     model_type_list.append(pin.GeometryType.VISUAL)
@@ -969,7 +981,10 @@ class Viewer:
                 Viewer.wait()
 
     @__must_be_open
-    def display(self, q, xyz_offset=None, wait=False):
+    def display(self,
+                q: np.ndarray,
+                xyz_offset: Optional[np.ndarray] = None,
+                wait: bool = False) -> None:
         """
         @brief Update the configuration of the robot.
 
@@ -1000,10 +1015,10 @@ class Viewer:
         self.refresh(wait)
 
     def replay(self,
-               evolution_robot,
-               replay_speed,
-               xyz_offset=None,
-               wait=False):
+               evolution_robot: List[State],
+               replay_speed: float,
+               xyz_offset: Optional[np.ndarray] = None,
+               wait: bool = False) -> None:
         """
         @brief Replay a complete robot trajectory at a given real-time ratio.
 
@@ -1028,7 +1043,8 @@ class Viewer:
             wait = False  # It is enough to wait for the first timestep
 
 
-def extract_viewer_data_from_log(log_data, robot):
+def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
+                                 robot: jiminy.Robot) -> Dict[str, Any]:
     """
     @brief Extract the minimal required information from raw log data in order
            to replay the simulation in a viewer.
@@ -1076,22 +1092,27 @@ def extract_viewer_data_from_log(log_data, robot):
             'robot': robot,
             'use_theoretical_model': use_theoretical_model}
 
-def play_trajectories(trajectory_data,
-                      replay_speed=1.0,
-                      record_video_path=None,
-                      viewers=None,
-                      start_paused=False,
-                      wait_for_client=True,
-                      travelling_frame=None,
-                      camera_xyzrpy=None,
-                      xyz_offset=None,
-                      urdf_rgba=None,
-                      backend=None,
-                      window_name='python-pinocchio',
-                      scene_name='world',
-                      close_backend=None,
-                      delete_robot_on_close=None,
-                      verbose=True):
+def play_trajectories(trajectory_data: Dict[str, Any],
+                      replay_speed: float = 1.0,
+                      record_video_path: Optional[str] = None,
+                      viewers: List[Viewer] = None,
+                      start_paused: bool = False,
+                      wait_for_client: bool = True,
+                      travelling_frame: Optional[str] = None,
+                      camera_xyzrpy: Optional[Tuple[
+                          Union[Tuple[float, float, float], np.ndarray],
+                          Union[Tuple[float, float, float],
+                                np.ndarray]]] = None,
+                      xyz_offset: Optional[List[Union[
+                          Tuple[float, float, float], np.ndarray]]] = None,
+                      urdf_rgba: Optional[List[
+                          Tuple[float, float, float, float]]] = None,
+                      backend: Optional[str] = None,
+                      window_name: str = 'jiminy',
+                      scene_name: str = 'world',
+                      close_backend: Optional[bool] = None,
+                      delete_robot_on_close: Optional[bool] = None,
+                      verbose: bool = True) -> List[Viewer]:
     """!
     @brief Replay one or several robot trajectories in a viewer.
 
@@ -1286,10 +1307,10 @@ def play_trajectories(trajectory_data,
         else:
             viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
-        def replay_thread(viewer, *args, **kwargs):
+        def replay_thread(viewer, *args):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            viewer.replay(*args, **kwargs)
+            viewer.replay(*args)
 
         # Play trajectories with multithreading
         threads = []
@@ -1318,7 +1339,10 @@ def play_trajectories(trajectory_data,
 
     return viewers
 
-def play_logfiles(robots, logs_data, **kwargs):
+def play_logfiles(robots: Union[List[jiminy.Robot], jiminy.Robot],
+                  logs_data: Union[List[Dict[str, np.ndarray]],
+                                   Dict[str, np.ndarray]],
+                  **kwargs) -> List[Viewer]:
     """
     @brief Play the content of a logfile in a viewer.
     @details This method simply formats the data then calls play_trajectories.
