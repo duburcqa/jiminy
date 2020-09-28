@@ -1327,7 +1327,7 @@ def play_trajectories(trajectory_data,
                       trajectory_data[i]['evolution_robot'],
                       replay_speed,
                       xyz_offset[i],
-                      True)))
+                      wait_for_client)))
         for i in range(len(trajectory_data)):
             threads[i].daemon = True
             threads[i].start()
