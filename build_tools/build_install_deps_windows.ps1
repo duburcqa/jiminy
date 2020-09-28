@@ -69,7 +69,7 @@ dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"  # Fix encoding,
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 
 ### Checkout hpp-fcl
-git clone -b "v1.5.3" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+git clone -b "v1.5.4" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
 Set-Location -Path "$RootDir/hpp-fcl"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
