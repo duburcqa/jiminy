@@ -487,7 +487,13 @@ namespace jiminy
                             std::shared_ptr<Robot> robot,
                             std::shared_ptr<AbstractController> controller,
                             callbackFunctor_t callbackFct);
+        hresult_t addSystem(std::string const & systemName,
+                            std::shared_ptr<Robot> robot,
+                            callbackFunctor_t callbackFct);
         hresult_t removeSystem(std::string const & systemName);
+
+        hresult_t setController(std::string const & systemName,
+                                std::shared_ptr<AbstractController> controller);
 
         /// \brief Add a force linking both systems together
         ///

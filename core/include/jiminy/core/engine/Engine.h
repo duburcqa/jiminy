@@ -20,6 +20,10 @@ namespace jiminy
         hresult_t initialize(std::shared_ptr<Robot>              robot,
                              std::shared_ptr<AbstractController> controller,
                              callbackFunctor_t                   callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot> robot,
+                             callbackFunctor_t      callbackFct);
+
+        hresult_t setController(std::shared_ptr<AbstractController> controller);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -63,6 +67,7 @@ namespace jiminy
         // Make private some methods to deter their use
         using EngineMultiRobot::addSystem;
         using EngineMultiRobot::removeSystem;
+        using EngineMultiRobot::setController;
         using EngineMultiRobot::addCouplingForce;
         using EngineMultiRobot::removeCouplingForces;
         using EngineMultiRobot::start;

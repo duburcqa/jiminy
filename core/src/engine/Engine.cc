@@ -42,6 +42,43 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
+                                 callbackFunctor_t      callbackFct)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        /* Add the system without associated name, since
+           it is irrelevant for a single robot engine. */
+        returnCode = addSystem("", std::move(robot), std::move(callbackFct));
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Get some convenience proxies
+            robot_ = systemsDataHolder_.begin()->robot.get();
+            controller_ = systemsDataHolder_.begin()->controller.get();
+
+            // Set the initialization flag
+            isInitialized_ = true;
+        }
+
+        return returnCode;
+    }
+
+    hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        returnCode = setController("", controller);
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // The update of the controller proxy must be done manually
+            controller_ = systemsDataHolder_.begin()->controller.get();
+        }
+
+        return returnCode;
+    }
+
     hresult_t Engine::start(vectorN_t const & xInit,
                             bool_t    const & isStateTheoretical,
                             bool_t    const & resetRandomNumbers,
@@ -155,6 +192,6 @@ namespace jiminy
 
     systemState_t const & Engine::getSystemState(void) const
     {
-        return EngineMultiRobot::getSystemState("");
+        return EngineMultiRobot::getSystemState("");  // Cannot get access to 'state' directly because it is private
     }
 }
