@@ -59,6 +59,7 @@ def update_quantities(robot: jiminy.Robot,
              (- center-of-mass jacobian : No Python binding available so far),
              - articular inertia matrix,
              - non-linear effects (Coriolis + gravity)
+             - collisions and distances
 
              Computation results are stored internally in the robot, and can
              be retrieved with associated getters.
@@ -69,6 +70,20 @@ def update_quantities(robot: jiminy.Robot,
     @param position  Robot position vector.
     @param velocity  Robot velocity vector.
     @param acceleration  Robot acceleration vector.
+    @param update_physics  Whether or not to compute the non-linear effects and
+                           internal/external forces.
+                           Optional: True by default.
+    @param update_com  Whether or not to compute the COM of the robot AND each
+                       link individually. The global COM is the first index.
+                       Optional: False by default.
+    @param update_energy  Whether or not to compute the energy of the robot.
+                          Optional: False by default
+    @param update_jacobian  Whether or not to compute the jacobians.
+                            Optional: False by default.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -135,6 +150,11 @@ def get_body_index_and_fixedness(
 
     @param robot  Jiminy robot.
     @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
+
     @return [0] Index of the body.
             [1] Whether or not it is a fixed body.
     """
@@ -165,6 +185,13 @@ def get_body_world_transform(robot: jiminy.Robot,
 
     @param robot  Jiminy robot.
     @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
+    @param copy  Whether to return the internal buffers (which could be
+                 altered) or copy them.
+                 Optional: True by default. It is less efficient but safer.
 
     @return Body transform.
     """
@@ -190,6 +217,10 @@ def get_body_world_velocity(robot: jiminy.Robot,
 
     @param robot  Jiminy robot.
     @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
     @return Spatial velocity.
     """
@@ -227,7 +258,12 @@ def get_body_world_acceleration(robot: jiminy.Robot,
 
     @remark It is assumed that `update_quantities` has been called.
 
+    @param robot  Jiminy robot.
     @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
     @return Spatial acceleration.
     """
@@ -480,6 +516,10 @@ def compute_efforts_from_fixed_body(
     @param velocity  Robot velocity vector.
     @param acceleration  Robot acceleration vector.
     @param fixed_body_name  Name of the body frame.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -524,6 +564,9 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
 
     @param trajectory_data  Sequence of States for which to retrieve the
                             freeflyer.
+    @param freeflyer_continuity  Whether or not to enforce the continuity
+                                 in position of the freeflyer.
+                                 Optional: True by default.
     """
     robot = trajectory_data['robot']
     use_theoretical_model = trajectory_data['use_theoretical_model']

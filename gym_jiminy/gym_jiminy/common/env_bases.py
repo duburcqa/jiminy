@@ -461,8 +461,8 @@ class BaseJiminyEnv(gym.core.Env):
 
         @details By default it always return 'nan', without extra info.
 
-        @return The computed reward, and any extra info useful for monitoring
-                as a dictionary.
+        @return [0] Total reward
+                [1] Any extra info useful for monitoring as a dictionary.
         """
         return float('nan'), {}
 

@@ -54,7 +54,7 @@ def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
 
 def generate_hardware_description_file(
         urdf_path: str,
-        toml_path: Optional[str] = None,
+        hardware_path: Optional[str] = None,
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
     """
     @brief Generate a default hardware description file, based on the
@@ -94,9 +94,9 @@ def generate_hardware_description_file(
             the file as human-friendly as possible.
 
     @param urdf_path  Fullpath of the URDF file.
-    @param toml_path  Fullpath of the hardware description file.
-                      Optional: By default, it is the same location than the
-                      URDF file, using '.toml' extension.
+    @param hardware_path  Fullpath of the hardware description file.
+                          Optional: By default, it is the same location than
+                          the URDF file, using '.hdf' extension.
     @param default_update_rate  Default update rate of the sensors and the
                                 controller in Hz. It will be used for sensors
                                 whose the update rate is unspecified. 0.0 for
@@ -340,9 +340,9 @@ def generate_hardware_description_file(
             1.0 / gazebo_update_rate
 
     # Write the sensor description file
-    if toml_path is None:
-        toml_path = pathlib.Path(urdf_path).with_suffix('.toml')
-    with open(toml_path, 'w') as f:
+    if hardware_path is None:
+        hardware_path = pathlib.Path(urdf_path).with_suffix('.hdf')
+    with open(hardware_path, 'w') as f:
         toml.dump(hardware_info, f)
 
 
@@ -429,23 +429,22 @@ class BaseJiminyRobot(jiminy.Robot):
         """
         super().__init__()
         self.extra_info = {}
-        self.robot_options = None
         self.urdf_path_orig = None
 
     def initialize(self,
                    urdf_path: str,
-                   toml_path: Optional[str] = None,
+                   hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True):
         """
         @brief Initialize the robot.
 
         @param urdf_path  Path of the URDF file of the robot.
-        @param toml_path  Path of the Jiminy hardware description file.
-                          Optional: Looking for toml file in the same folder
-                          and with the same name. If not found, then no
-                          hardware is added to the robot, which is valid and
-                          can be used for display.
+        @param hardware_path  Path of Jiminy hardware description toml file.
+                              Optional: Looking for '.hdf' file in the same
+                              folder and with the same name. If not found, then
+                              no hardware is added to the robot, which is valid
+                              and can be used for display.
         @param mesh_path  Path to the folder containing the URDF meshes. It
                           will overwrite any absolute mesh path.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
@@ -468,21 +467,23 @@ class BaseJiminyRobot(jiminy.Robot):
         mesh_env_path = os.environ.get('JIMINY_DATA_PATH', None)
         if mesh_env_path is not None:
             mesh_root_dirs += [mesh_env_path]
-        return_code = super().initialize(urdf_path, has_freeflyer, mesh_root_dirs)
+        return_code = super().initialize(
+            urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError("Impossible to load the URDF file. "
                 "Either the file is corrupted or does not exit.")
 
         # Load the hardware description file if available
-        if toml_path is None:
-            toml_path = pathlib.Path(self.urdf_path_orig).with_suffix('.toml')
-        if not os.path.exists(toml_path):
+        if hardware_path is None:
+            hardware_path = pathlib.Path(
+                self.urdf_path_orig).with_suffix('.hdf')
+        if not os.path.exists(hardware_path):
             logger.warning("Hardware configuration file not found. Not adding "
                 "any hardware to the robot.\n Default file can be generated "
                 "automatically using 'generate_hardware_description_file'.")
             return
-        hardware_info = toml.load(toml_path)
+        hardware_info = toml.load(hardware_path)
         self.extra_info = hardware_info.pop('Global')
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
@@ -702,44 +703,9 @@ class BaseJiminyRobot(jiminy.Robot):
                     contact_frames_names.append(frame_name)
 
         # Add the collision bodies and contact points
-        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # TODO: Mesh collisions is not numerically stable for now, so disabling it
+        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # Mesh collisions is not numerically stable for now, so disabling it
         self.add_contact_points(list(set(contact_frames_names)))
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:
             os.remove(self.urdf_path)
-
-    def set_model_options(self, model_options):
-        """
-        @brief    TODO
-        """
-        hresult = super().set_model_options(model_options)
-        if hresult == jiminy.hresult_t.SUCCESS:
-            self.robot_options = copy.deepcopy(model_options)
-
-    def get_model_options(self):
-        """
-        @brief    TODO
-        """
-        if self.robot_options is not None:
-            return self.robot_options
-        else:
-            self.robot_options = super().get_model_options()
-            return self.get_model_options()
-
-    def set_options(self, options):
-        """
-        @brief    TODO
-        """
-        hresult = super().set_options(options)
-        if hresult == jiminy.hresult_t.SUCCESS:
-            self.robot_options = copy.deepcopy(options["model"])
-
-    def get_options(self):
-        """
-        @brief    TODO
-        """
-        options = super().get_options()
-        if self.robot_options is not None:
-            options["model"] = self.robot_options
-        return options

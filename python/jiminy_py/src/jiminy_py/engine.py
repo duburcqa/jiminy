@@ -1,9 +1,11 @@
 ## @file src/jiminy_py/engine.py
 import os
+import toml
 import pathlib
 import tempfile
 import numpy as np
-from typing import Optional, List, Any
+from collections import OrderedDict
+from typing import Optional, Dict, List, Any
 
 from . import core as jiminy
 from .robot import generate_hardware_description_file, BaseJiminyRobot
@@ -14,6 +16,7 @@ from .dynamics import update_quantities
 
 DEFAULT_GROUND_STIFFNESS = 4.0e6
 DEFAULT_GROUND_DAMPING = 2.0e3
+
 
 class EngineAsynchronous:
     """
@@ -51,10 +54,10 @@ class EngineAsynchronous:
         @param use_theoretical_model  Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        @param viewer_backend  Backend of the viewer, ie gepetto-gui or
+        @param viewer_backend  Backend of the viewer, eg gepetto-gui or
                                meshcat.
-
-        @return Instance of the wrapper.
+                               Optional: It is setup-dependent. See Viewer
+                               documentation for details about it.
         """
         # Backup the user arguments
         self.robot = robot
@@ -390,27 +393,56 @@ class EngineAsynchronous:
 class BaseJiminyEngine(EngineAsynchronous):
     def __init__(self,
                  urdf_path: str,
-                 toml_path: Optional[str] = None,
+                 hardware_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
                  has_freeflyer: bool = True,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None,
+                 config_path: Optional[str] = None,
                  debug: bool = False):
         """
-        @brief    TODO
+        @brief Constructor
+
+        @param urdf_path  Path of the urdf model to be used for the simulation.
+        @param hardware_path  Path of Jiminy hardware description toml file.
+                              Optional: Looking for '.hdf' file in the same
+                              folder and with the same name.
+        @param mesh_path  Path to the folder containing the model meshes.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
+        @param has_freeflyer  Whether the robot is fixed-based wrt its root
+                              link, or can move freely in the world.
+                              Optional: True by default.
+        @param use_theoretical_model  Whether the state corresponds to the
+                                      theoretical model when updating and
+                                      fetching the robot's state.
+                                      Optional: True by default.
+        @param viewer_backend  Backend of the viewer, eg gepetto-gui or
+                               meshcat.
+                               Optional: It is setup-dependent. See Viewer
+                               documentation for details about it.
+        @param config_path  Configuration toml file to import. It will be
+                            imported AFTER loading the hardware description
+                            file. It can be automatically generated from an
+                            instance by calling `export_config_file` method.
+                            Optional: Looking for '.config' file in the same
+                            folder and with the same name. If not found,
+                            using default configuration.
         """
         # Generate a temporary Hardware Description File if necessary
-        if toml_path is None:
-            toml_path = pathlib.Path(urdf_path).with_suffix('.toml')
-            if not os.path.exists(toml_path):
-                self._toml_file = tempfile.NamedTemporaryFile(
-                    prefix="anymal_hdf_", suffix=".toml", delete=(not debug))
-                toml_path = self._toml_file.name
-                generate_hardware_description_file(urdf_path, toml_path)
+        if hardware_path is None:
+            hardware_path = pathlib.Path(urdf_path).with_suffix('.hdf')
+            if not os.path.exists(hardware_path):
+                urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
+                self._hardware_file = tempfile.NamedTemporaryFile(
+                    prefix=(urdf_name + "_hardware_"), suffix=".hdf",
+                    delete=(not debug))
+                hardware_path = self._hardware_file.name
+                generate_hardware_description_file(urdf_path, hardware_path)
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, toml_path, mesh_path, has_freeflyer)
+        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer)
 
         # Instantiate and initialize the engine
         super().__init__(robot,
@@ -442,5 +474,66 @@ class BaseJiminyEngine(EngineAsynchronous):
 
         self.set_options(engine_options)
 
+        # Override the default options by the one in the configuration file
+        self.import_options(config_path)
+
+    def get_options(self
+                   ) -> OrderedDict[str, OrderedDict[str, Dict[str, Any]]]:
+        """
+        @brief Get the options of robot (including controller), and engine.
+        """
+        config_options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
+        robot_options = config_options['robot']
+        robot_options['model'] = self.robot.get_model_options()
+        robot_options['motors'] = self.robot.get_motors_options()
+        robot_options['sensors'] = self.robot.get_sensors_options()
+        robot_options['telemetry'] = self.robot.get_telemetry_options()
+        robot_options['controller'] = self.engine_py.get_controller_options()
+        engine_options = config_options['engine']
+        engine_options_copy = self.engine_py.get_options()
+        engine_options['stepper'] = engine_options_copy['stepper']
+        engine_options['world'] = engine_options_copy['world']
+        engine_options['joints'] = engine_options_copy['joints']
+        engine_options['contacts'] = engine_options_copy['contacts']
+        engine_options['telemetry'] = engine_options_copy['telemetry']
+
+    def set_options(self,
+                    options: OrderedDict[str, OrderedDict[str, Dict[str, Any]]]
+                    ) -> None:
+        """
+        @brief Set the options of robot (including controller), and engine.
+        """
+        controller_options = options['robot'].pop('controller')
+        self.robot.set_options(config_options['robot'])
+        self.engine_py.set_controller_options(controller_options)
+        self.engine_py.set_options(config_options['engine'])
+
+    def export_options(self, config_path: Optional[str] = None) -> None:
+        """
+        @brief Export the full configuration, ie the options of the robot (
+               including controller), and the engine.
+
+        @remark Configuration can be imported using `import_options` method.
+        """
+        if config_path is None:
+            config_path = pathlib.Path(
+                self.robot.urdf_path_orig).with_suffix('.config')
+        with open(config_path, 'w') as f:
+            toml.dump(self.get_options(), f)
+
+    def import_options(self, config_path: Optional[str] = None) -> None:
+        """
+        @brief Import the full configuration, ie the options of the robot (
+               including controller), and the engine.
+
+        @remark Configuration can be exported using `export_options` method.
+        """
+        if config_path is not None:
+            config_path = pathlib.Path(
+                self.robot.urdf_path_orig).with_suffix('.config')
+            if not os.path.exists(config_path):
+                return
+        self.set_options(toml.load(config_path))
+
     def __del__(self):
-        self._toml_file.close()
+        self._hardware_file.close()
