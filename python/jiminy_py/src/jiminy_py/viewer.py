@@ -414,6 +414,7 @@ class Viewer:
             if Viewer._backend_obj is None:
                 Viewer._backend_obj, Viewer._backend_proc = \
                     Viewer.__get_client(start_if_needed)
+            viewer_url = Viewer._backend_obj.gui.url()
 
             if is_notebook():
                 import urllib
@@ -421,7 +422,6 @@ class Viewer:
 
                 # Scrap the viewer html content, including javascript
                 # dependencies
-                viewer_url = Viewer._backend_obj.gui.url()
                 html_content = urllib.request.urlopen(
                     viewer_url).read().decode()
                 pattern = '<script type="text/javascript" src="%s"></script>'
@@ -457,7 +457,7 @@ class Viewer:
                 try:
                     webbrowser.get()
                     webbrowser.open(viewer_url, new=2, autoraise=True)
-                except Exception:  # Fail if not browser is available
+                except webbrowser.Error:  # Fail if not browser is available
                     logger.warning(
                         "No browser available for display. "
                         "Please install one manually.")
@@ -966,7 +966,7 @@ class Viewer:
                     scale = np.asarray(visual.meshScale).flatten()
                     S = np.diag(np.concatenate((scale, [1.0])))
                     T = np.asarray(M.homogeneous).dot(S)
-                    self.viewer[self._client.getViewerNodeName(
+                    self._client.viewer[self._client.getViewerNodeName(
                         visual, pin.GeometryType.VISUAL)].set_transform(T)
 
             # Update the camera placement
@@ -1071,13 +1071,14 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
         qe = np.stack([log_data["HighLevelController." + s]
                        for s in robot.logfile_position_headers], axis=-1)
     except KeyError:
-        model_options['dynamics']['enableFlexibleModel'] = ~robot.is_flexible
+        model_options['dynamics']['enableFlexibleModel'] = \
+            not robot.is_flexible
         robot.set_model_options(model_options)
         qe = np.stack([log_data["HighLevelController." + s]
                        for s in robot.logfile_position_headers], axis=-1)
 
     # Determine whether the theoretical model of the flexible one must be used
-    use_theoretical_model = ~robot.is_flexible
+    use_theoretical_model = not robot.is_flexible
 
     # Make sure that the flexibilities are enabled
     model_options['dynamics']['enableFlexibleModel'] = True
@@ -1247,7 +1248,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             break
 
     # Wait for the meshes to finish loading if non video recording mode
-    if record_video_path is None:
+    if wait_for_client and record_video_path is None:
         if backend.startswith('meshcat'):
             if verbose:
                 print("Waiting for meshcat client in browser to connect: "

@@ -61,7 +61,7 @@ class BasicSimulator:
 
         # Instantiate and initialize the engine
         self.engine = jiminy.Engine()
-        self.engine.initialize(self.robot, self.controller, self.callback)
+        self.engine.initialize(self.robot, self.controller, self._callback)
 
         # Configuration the simulation
         self.configure_simulation()
@@ -169,5 +169,5 @@ class BasicSimulator:
 
         # Write log
         if log_path is not None:
-            log_path = pathlib.Path(log_path).with_suffix('.data')
+            log_path = str(pathlib.Path(log_path).with_suffix('.data'))
             self.engine.write_log(log_path, True)

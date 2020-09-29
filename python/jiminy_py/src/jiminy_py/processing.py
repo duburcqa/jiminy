@@ -84,7 +84,7 @@ def smoothing_filter(
             time_out > time_out[-1] * (1 - params['mixing_ratio_2'])
         time_out_mixing[1] = time_out[time_out_mixing_ind[1]]
         time_out_mixing_ind[2] = \
-            (~time_out_mixing_ind[0]) & (~time_out_mixing_ind[1])
+            (not time_out_mixing_ind[0]) & (not time_out_mixing_ind[1])
         time_out_mixing[2] = time_out[time_out_mixing_ind[2]]
 
         val_out = []
