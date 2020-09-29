@@ -11,7 +11,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.engine import BaseJiminyEngine
+from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 from pinocchio import neutral
@@ -158,9 +158,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 learning eposide for some reason.
         """
         # Make sure a valid engine is available
-        if self.engine_py is None:
+        if self.simulator is None:
             # Instantiate a new engine
-            self.engine_py = BaseJiminyEngine(
+            self.simulator = Simulator(
                 self.urdf_path, self.hardware_path, self.mesh_path,
                 has_freeflyer=True, use_theoretical_model=False,
                 config_path=self.config_path, debug=self.debug)
@@ -171,7 +171,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
-        self.engine_py.remove_forces()
+        self.simulator.remove_forces()
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
@@ -191,7 +191,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Override some options of the robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.engine_py.get_options()
+        engine_options = self.simulator.get_engine_options()
 
         ### Make sure to log at least required data for reward
         #   computation and log replay
@@ -262,7 +262,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': F
                 }
-                self.engine_py.register_force_impulse(**forces_impulse)
+                self.simulator.register_force_impulse(**forces_impulse)
                 self._forces_impulse.append(force_impulse)
 
             # Schedule a single force profile applied on PelvisLink.
@@ -292,12 +292,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 'frame_name': 'PelvisLink',
                 'force_function': self._force_external_profile
             })
-            self.engine_py.register_force_profile(**force_profile)
+            self.simulator.register_force_profile(**force_profile)
             self._forces_profile.append(force_profile)
 
         ### Set the options, finally
         self.robot.set_options(robot_options)
-        self.engine_py.set_options(engine_options)
+        self.simulator.set_engine_options(engine_options)
 
     def _force_external_profile(self,
                                 t: float,
@@ -326,8 +326,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                    - maximum simulation duration exceeded
         """
         return (self.robot.has_freeflyer and
-                    self.engine_py.state[2] < self._height_neutral * 0.75) or \
-               (self.engine_py.t >= self.simu_duration_max)
+                    self.simulator.state[2] < self._height_neutral * 0.75) or \
+               (self.simulator.t >= self.simu_duration_max)
 
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
@@ -348,7 +348,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         reward_mixture_keys = self.reward_mixture.keys()
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.engine_py.sensors_data[encoder.type][1]
+            v_mot = self.simulator.sensors_data[encoder.type][1]
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
@@ -525,7 +525,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  and velocities and the desired one.
         """
         # Extract encoder data from the sensors data
-        encoder_data = self.engine_py.sensors_data[encoder.type]
+        encoder_data = self.simulator.sensors_data[encoder.type]
 
         # Estimate position and motor velocity from encoder data
         q_enc, v_enc = encoder_data[:, self.motor_to_encoder]
@@ -566,7 +566,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
 
         # Extract additional information
         info = {'reward': reward_info,
-                't_end': self.engine_py.t,
-                'is_success': self.engine_py.t >= self.simu_duration_max}
+                't_end': self.simulator.t,
+                'is_success': self.simulator.t >= self.simu_duration_max}
 
         return obs, reward, done, info

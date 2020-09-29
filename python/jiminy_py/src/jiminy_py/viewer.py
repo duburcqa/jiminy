@@ -1249,7 +1249,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
 
     # Wait for the meshes to finish loading if non video recording mode
     if wait_for_client and record_video_path is None:
-        if backend.startswith('meshcat'):
+        if Viewer.backend.startswith('meshcat'):
             if verbose:
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
