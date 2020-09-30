@@ -1344,6 +1344,8 @@ namespace python
             cl
                 .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
+                .add_property("is_initialized", bp::make_function(&AbstractController::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -1806,7 +1808,7 @@ namespace python
                 .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
                                    bp::return_internal_reference<>(),
                                    (bp::arg("self"), "system_name")))
-                .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
+                .def("get_system_state", bp::make_function(&PyEngineMultiRobotVisitor::getSystemState,
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
 
@@ -1862,8 +1864,16 @@ namespace python
                                               std::string const & systemName)
         {
             systemDataHolder_t * system;
-            self.getSystem(systemName, system);
+            self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemDataHolder_t
             return *system;
+        }
+
+        static systemState_t const & getSystemState(EngineMultiRobot  & self,
+                                                    std::string const & systemName)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemName, systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         static hresult_t addCouplingForce(EngineMultiRobot       & self,
@@ -2128,21 +2138,12 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",
-                    static_cast<
-                        std::shared_ptr<Robot> (Engine::*)(void)
-                    >(&Engine::getRobot))
-                .add_property("controller",
-                    static_cast<
-                        std::shared_ptr<AbstractController> (Engine::*)(void)
-                    >(&Engine::getController))
+                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("system_state", bp::make_function(
-                    static_cast<
-                        systemState_t const & (Engine::*)(void) const
-                    >(&Engine::getSystemState),
-                    bp::return_internal_reference<>()))
+                .add_property("system_state", bp::make_function(&PyEngineVisitor::getSystemState,
+                                                                bp::return_internal_reference<>()))
                 ;
         }
 
@@ -2195,6 +2196,27 @@ namespace python
         {
             TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
+        }
+
+        static std::shared_ptr<Robot> getRobot(Engine & self)
+        {
+            std::shared_ptr<Robot> robot;
+            self.getRobot(robot);
+            return robot;
+        }
+
+        static std::shared_ptr<AbstractController> getController(Engine & self)
+        {
+            std::shared_ptr<AbstractController> controller;
+            self.getController(controller);
+            return controller;
+        }
+
+        static systemState_t const & getSystemState(Engine & self)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         ///////////////////////////////////////////////////////////////////////////////

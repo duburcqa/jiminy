@@ -31,7 +31,7 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Get some proxies
+            // Get some convenience proxies
             robot_ = systemsDataHolder_.begin()->robot.get();
             controller_ = systemsDataHolder_.begin()->controller.get();
 
@@ -66,17 +66,7 @@ namespace jiminy
 
     hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        returnCode = setController("", controller);
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // The update of the controller proxy must be done manually
-            controller_ = systemsDataHolder_.begin()->controller.get();
-        }
-
-        return returnCode;
+        return setController("", controller);
     }
 
     hresult_t Engine::start(vectorN_t const & xInit,
@@ -170,28 +160,51 @@ namespace jiminy
         return isInitialized_;
     }
 
-    Robot const & Engine::getRobot(void) const
+    hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
     {
-        return *robot_;
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        robot = systemsDataHolder_.begin()->robot;
+
+        return hresult_t::SUCCESS;
     }
 
-    std::shared_ptr<Robot> Engine::getRobot(void)
+    hresult_t Engine::getController(std::shared_ptr<AbstractController> & controller)
     {
-        return systemsDataHolder_.begin()->robot;
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        controller = systemsDataHolder_.begin()->controller;
+
+        return hresult_t::SUCCESS;
     }
 
-    AbstractController const & Engine::getController(void) const
+    hresult_t Engine::getSystemState(systemState_t const * & systemState) const
     {
-        return *controller_;
-    }
+        static systemState_t const systemStateEmpty;
 
-    std::shared_ptr<AbstractController> Engine::getController(void)
-    {
-        return systemsDataHolder_.begin()->controller;
-    }
+        hresult_t returnCode = hresult_t::SUCCESS;
 
-    systemState_t const & Engine::getSystemState(void) const
-    {
-        return EngineMultiRobot::getSystemState("");  // Cannot get access to 'state' directly because it is private
+        if (!isInitialized_)
+        {
+            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            EngineMultiRobot::getSystemState("", systemState);  // It cannot fail at this point
+            return returnCode;
+        }
+
+        systemState = &systemStateEmpty;
+        return returnCode;
     }
 }

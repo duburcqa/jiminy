@@ -72,8 +72,11 @@ namespace jiminy
     forcesImpulseBreakNextIt(),
     forcesImpulseActive()
     {
-        state.initialize(robot.get());
-        statePrev.initialize(robot.get());
+        if (robot)
+        {
+            state.initialize(robot.get());
+            statePrev.initialize(robot.get());
+        }
     }
 
     systemDataHolder_t::systemDataHolder_t(void) :
@@ -82,7 +85,7 @@ namespace jiminy
        vectorN_t const & q,
        vectorN_t const & v) -> bool_t
     {
-        return true;
+        return false;
     })
     {
         // Empty on purpose.
@@ -1754,6 +1757,10 @@ namespace jiminy
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
                                           systemDataHolder_t const * & system) const
     {
+        static systemDataHolder_t const systemEmpty;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         auto systemIt = std::find_if(systemsDataHolder_.begin(), systemsDataHolder_.end(),
                                      [&systemName](auto const & sys)
                                      {
@@ -1762,12 +1769,17 @@ namespace jiminy
         if (systemIt == systemsDataHolder_.end())
         {
             std::cout << "Error - EngineMultiRobot::getSystem - No system with this name has been added to the engine." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        system = &(*systemIt);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            system = &(*systemIt);
+            return returnCode;
+        }
 
-        return hresult_t::SUCCESS;
+        system = &systemEmpty;
+        return returnCode;
     }
 
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
@@ -1785,18 +1797,23 @@ namespace jiminy
         return returnCode;
     }
 
-    systemState_t const & EngineMultiRobot::getSystemState(std::string const & systemName) const
+    hresult_t EngineMultiRobot::getSystemState(std::string   const   & systemName,
+                                               systemState_t const * & systemState) const
     {
         static systemState_t const systemStateEmpty;
 
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         systemDataHolder_t const * system;
-        hresult_t returnCode = getSystem(systemName, system);
+        returnCode = getSystem(systemName, system);
         if (returnCode == hresult_t::SUCCESS)
         {
-            return system->state;
+            systemState = &(system->state);
+            return returnCode;
         }
 
-        return systemStateEmpty;
+        systemState = &systemStateEmpty;
+        return returnCode;
     }
 
     stepperState_t const & EngineMultiRobot::getStepperState(void) const

@@ -57,11 +57,9 @@ namespace jiminy
                                        forceProfileFunctor_t         forceFct);
 
         bool_t const & getIsInitialized(void) const;
-        Robot const & getRobot(void) const;
-        std::shared_ptr<Robot> getRobot(void);
-        AbstractController const & getController(void) const;
-        std::shared_ptr<AbstractController> getController(void);
-        systemState_t const & getSystemState(void) const;
+        hresult_t getRobot(std::shared_ptr<Robot> & robot);
+        hresult_t getController(std::shared_ptr<AbstractController> & controller);
+        hresult_t getSystemState(systemState_t const * & systemState) const;
 
     private:
         // Make private some methods to deter their use
