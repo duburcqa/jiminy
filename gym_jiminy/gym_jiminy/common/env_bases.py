@@ -22,6 +22,7 @@ from jiminy_py.core import (EncoderSensor as enc,
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
+from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
@@ -166,6 +167,9 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Reset the simulation and specify the initial state of the robot.
 
+        @details This method is also in charge of setting the initial action
+                 (at the beginning) and observation (at the end).
+
         @remark It does NOT start the simulation immediately but rather wait
                 for the first 'step' call. Note that once the simulations
                 starts, it is no longer possible to changed the robot (included
@@ -176,6 +180,9 @@ class BaseJiminyEnv(gym.core.Env):
         """
         # Reset the simulator
         self.simulator.reset()
+
+        # Set default action. It will be used for doing the initial step.
+        self._action = np.zeros(self.robot.nmotors)
 
         # Start the engine, in order to initialize the sensors data
         x0 = np.concatenate((qpos, qvel))
@@ -214,6 +221,9 @@ class BaseJiminyEnv(gym.core.Env):
             self._log_file = tempfile.NamedTemporaryFile(
                 prefix="log_", suffix=".data", delete=(not self.debug))
 
+        # Update the observation
+        self._update_obs(self._observation)
+
     def reset(self) -> SpaceDictRecursive:
         """
         @brief Reset the environment.
@@ -225,17 +235,22 @@ class BaseJiminyEnv(gym.core.Env):
         # Make sure the environment is properly setup
         self._setup_environment()
 
+        # Refresh the observation and action spaces
+        self._refresh_observation_space()
+        self._refresh_action_space()
+
+        # Enforce the low-level controller
+        controller = jiminy.ControllerFunctor(
+            compute_command=self._send_command)
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
+
         # Reset the low-level engine
         self.set_state(*self._sample_state())
 
-        # Refresh the observation and action spaces
-        self._refresh_observation_space()
-        self._update_obs(self._observation)
-        self._refresh_action_space()
+        return self.get_obs()
 
-        return self._get_obs()
-
-    def step(self, action: np.ndarray
+    def step(self, action: Optional[np.ndarray] = None
             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
@@ -250,7 +265,8 @@ class BaseJiminyEnv(gym.core.Env):
         is_step_failed = True
         try:
             # Set the desired action
-            self._action = action
+            if action is not None:
+                self._action = action
 
             # Start the simulation if it is not already the case
             if not self.simulator.is_simulation_running:
@@ -291,7 +307,7 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Early return in case of low-level engine integration failure
         if is_step_failed:
-            return self._get_obs(), 0.0, done, self._info
+            return self.get_obs(), 0.0, done, self._info
 
         # Compute reward and extra information
         reward, reward_info = self._compute_reward()
@@ -316,7 +332,7 @@ class BaseJiminyEnv(gym.core.Env):
                 self._info.setdefault('reward', {}).update(
                     reward_final_info)
 
-        return self._get_obs(), reward, done, self._info
+        return self.get_obs(), reward, done, self._info
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
         """
@@ -393,14 +409,9 @@ class BaseJiminyEnv(gym.core.Env):
                 that it alleviates the requirement to specify a valid the
                 engine at environment instantiation.
         """
-        # Enforce the controller
-        controller = controller_class(compute_command=self._send_command)
-        controller.initialize(robot)
-        self.simulator.set_controller(controller)
-
         # Extract some proxies
         robot_options = self.robot.get_options()
-        engine_options = self.simulator.get_engine_options()
+        engine_options = self.simulator.engine.get_options()
 
         # Disable part of the telemetry in non debug mode, to speed up the
         # simulation. Only the required data for log replay are enabled. It is
@@ -421,19 +432,17 @@ class BaseJiminyEnv(gym.core.Env):
         for motor_name in robot_options["motors"].keys():
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
-        # Configure the stepper update period, and disable max number of
-        # iterations and timeout.
+        # Configure the stepper
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
         engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
         engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
-
-        ### Set the seed
         engine_options["stepper"]["randomSeed"] = self._seed
 
+        # Set the options
         self.robot.set_options(robot_options)
-        self.simulator.set_engine_options(engine_options)
+        self.simulator.engine.set_options(engine_options)
 
     def _refresh_observation_space(self) -> None:
         """
@@ -449,7 +458,6 @@ class BaseJiminyEnv(gym.core.Env):
                 overwritten in order to use a custom observation space.
         """
         # Define some proxies for convenience
-        sensors_data = self.simulator.sensors_data
         model_options = self.robot.get_model_options()
         joints_position_idx = self.robot.rigid_joints_position_idx
         joints_velocity_idx = self.robot.rigid_joints_velocity_idx
@@ -491,11 +499,11 @@ class BaseJiminyEnv(gym.core.Env):
         sensor_space_raw = {
             key: {'min': np.full(value.shape, -np.inf),
                   'max': np.full(value.shape, np.inf)}
-            for key, value in self.simulator.sensors_data.items()
+            for key, value in self.robot.sensors_data.items()
         }
 
         # Replace inf bounds of the encoder sensor space
-        if enc.type in sensors_data.keys():
+        if enc.type in self.robot.sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
                 # Get the position and velocity bounds of the sensor.
@@ -526,7 +534,7 @@ class BaseJiminyEnv(gym.core.Env):
                     sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in sensors_data.keys():
+        if effort.type in self.robot.sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
@@ -538,14 +546,14 @@ class BaseJiminyEnv(gym.core.Env):
                     +effort_limit[motor_idx]
 
         # Replace inf bounds of the contact sensor space
-        if contact.type in sensors_data.keys():
+        if contact.type in self.robot.sensors_data.keys():
             sensor_space_raw[contact.type]['min'][:,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[contact.type]['max'][:,:] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds of the force sensor space
-        if force.type in sensors_data.keys():
+        if force.type in self.robot.sensors_data.keys():
             sensor_space_raw[force.type]['min'][:3,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[force.type]['max'][:3,:] = \
@@ -556,7 +564,7 @@ class BaseJiminyEnv(gym.core.Env):
                 +SENSOR_MOMENT_UNIVERSAL_MAX
 
         # Replace inf bounds of the imu sensor space
-        if imu.type in sensors_data.keys():
+        if imu.type in self.robot.sensors_data.keys():
             quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][quat_imu_idx,:] = -1.0
             sensor_space_raw[imu.type]['max'][quat_imu_idx,:] = 1.0
@@ -683,7 +691,7 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Make sure the robot impacts the ground
         if self.robot.has_freeflyer:
-            engine_options = self.simulator.get_engine_options()
+            engine_options = self.simulator.engine.get_options()
             ground_fun = engine_options['world']['groundProfile']
             compute_freeflyer_state_from_fixed_body(
                 self.robot, qpos, ground_profile=ground_fun)
@@ -703,19 +711,11 @@ class BaseJiminyEnv(gym.core.Env):
         @remark This method, alongside '_refresh_observation_space', must be
                 overwritten in order to use a custom observation space.
         """
-        # Backup the time. It is a scalar, so no need to copy it.
         obs['t'] = self.simulator.stepper_state.t
-
-        # Backup the state. Note that it is already a copy because 'state' is
-        # actually a property getter.
         obs['state'] = self.simulator.state
+        obs['sensors'] = self._sensors_data
 
-        # Backup the sensor data by doing a deep copy manually
-        sensors_data = self.simulator.stepper_state.sensors_data
-        obs['sensors'] = {sensor_type: sensors_data[sensor_type].copy()
-                          for sensor_type in sensors_data.keys()}
-
-    def _get_obs(self) -> SpaceDictRecursive:
+    def get_obs(self) -> SpaceDictRecursive:
         """
         @brief Post-processed observation.
 
@@ -778,9 +778,12 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
              means that the Jiminy Robot and Controller are already setup.
     """
     def __init__(self,
-                 simulator: Optional[BaseJiminyEngine],
+                 simulator: Optional[Simulator],
                  dt: float,
                  debug: bool = False):
+        """
+        @brief TODO
+        """
         super().__init__(simulator, dt, debug)
 
         ## Sample a new goal
@@ -805,7 +808,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
     def _sample_goal(self) -> np.ndarray:
         """
-        @brief      Samples a new goal and returns it.
+        @brief Samples a new goal and returns it.
         """
         raise NotImplementedError
 

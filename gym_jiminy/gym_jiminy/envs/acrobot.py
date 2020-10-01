@@ -7,7 +7,7 @@ from pkg_resources import resource_filename
 from gym import spaces
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine import EngineAsynchronous
+from jiminy_py.simulator import Simulator
 
 from ..common.env_bases import BaseJiminyGoalEnv
 
@@ -92,7 +92,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(robot)
+        simulator = Simulator(robot)
 
         # ##################### Define some problem-specific variables #########################
 
@@ -117,7 +117,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
         # ####################### Configure the learning environment ###########################
 
-        super().__init__("acrobot", engine_py, DT)
+        super().__init__("acrobot", simulator, DT)
 
     def _setup_environment(self):
         super()._setup_environment()
@@ -181,7 +181,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
     def _update_obs(self, obs):
         # @copydoc BaseJiminyEnv::_update_observation
-        theta1, theta2, theta1_dot, theta2_dot  = self.engine_py.state
+        theta1, theta2, theta1_dot, theta2_dot  = self.simulator.state
         obs['observation'] = np.array([np.cos(theta1 + np.pi),
                                        np.sin(theta1 + np.pi),
                                        np.cos(theta2 + np.pi),

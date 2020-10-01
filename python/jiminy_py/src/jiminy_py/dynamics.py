@@ -376,7 +376,7 @@ def compute_transform_contact(robot: jiminy.Robot,
     # Take into account the collision bodies
     # TODO: Take into account the ground profile
     min_distance = np.inf
-    deepest_idx = -1
+    deepest_idx = None
     for i, dist_req in enumerate(robot.collision_data.distanceResults):
         if np.linalg.norm(dist_req.normal) > 1e-6:
             body_idx = robot.collision_model.collisionPairs[0].first
@@ -396,8 +396,8 @@ def compute_transform_contact(robot: jiminy.Robot,
         else:
             logger.warning("Collision computation failed for some reason. "
                            "Skipping this collision pair.")
-    if not contact_frames_pos_rel or \
-            transform_offset.translation[2] < -min_distance:
+    if deepest_idx is not None and (not contact_frames_pos_rel or
+            transform_offset.translation[2] < -min_distance):
         transform_offset.translation[2] = -min_distance
         if not contact_frames_pos_rel:
             geom_idx = robot.collision_model.collisionPairs[deepest_idx].first

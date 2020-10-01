@@ -1,6 +1,7 @@
 ## @file src/jiminy_py/simulator.py
 import os
 import toml
+import atexit
 import pathlib
 import tempfile
 import numpy as np
@@ -13,7 +14,6 @@ from . import core as jiminy
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyController
 from .viewer import Viewer
-from .dynamics import update_quantities
 
 
 DEFAULT_GROUND_STIFFNESS = 4.0e6
@@ -72,15 +72,14 @@ class Simulator:
         self.engine.reset()
 
     @classmethod
-    def setup(cls,
+    def build(cls,
               urdf_path: str,
               hardware_path: Optional[str] = None,
               mesh_path: Optional[str] = None,
               has_freeflyer: bool = True,
-              use_theoretical_model: bool = False,
-              viewer_backend: Optional[str] = None,
               config_path: Optional[str] = None,
-              debug: bool = False):
+              debug: bool = False,
+              **kwargs) -> 'Simulator':
         """
         @brief Constructor
 
@@ -94,14 +93,6 @@ class Simulator:
         @param has_freeflyer  Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
                               Optional: True by default.
-        @param use_theoretical_model  Whether the state corresponds to the
-                                      theoretical model when updating and
-                                      fetching the robot's state.
-                                      Optional: True by default.
-        @param viewer_backend  Backend of the viewer, eg gepetto-gui or
-                               meshcat.
-                               Optional: It is setup-dependent. See Viewer
-                               documentation for details about it.
         @param config_path  Configuration toml file to import. It will be
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
@@ -109,6 +100,9 @@ class Simulator:
                             Optional: Looking for '.config' file in the same
                             folder and with the same name. If not found,
                             using default configuration.
+        @param debug  Whether or not the debug mode must be activated.
+                      Doing it enables temporary files automatic deletion.
+        @param kwargs  Keyword arguments to forward to class constructor.
         """
         # Generate a temporary Hardware Description File if necessary
         if hardware_path is None:
@@ -116,15 +110,15 @@ class Simulator:
             if not os.path.exists(hardware_path):
                 # Create a file that will be closed (thus deleted) at exit
                 urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
-                self._hardware_file = tempfile.NamedTemporaryFile(
+                hardware_file = tempfile.NamedTemporaryFile(
                     prefix=(urdf_name + "_hardware_"), suffix=".hdf",
                     delete=(not debug))
-                def close_file_at_exit(file=self._hardware_file):
+                def close_file_at_exit(file=hardware_file):
                     file.close()
                 atexit.register(close_file_at_exit)
 
                 # Generate default Hardware Description File
-                hardware_path = self._hardware_file.name
+                hardware_path = hardware_file.name
                 generate_hardware_description_file(urdf_path, hardware_path)
 
         # Instantiate and initialize the robot
@@ -132,10 +126,7 @@ class Simulator:
         robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer)
 
         # Instantiate and initialize the engine
-        simulator = cls(robot,
-                        jiminy.Engine,
-                        use_theoretical_model,
-                        viewer_backend)
+        simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)
 
         # Set some engine options, based on extra toml information
         engine_options = simulator.engine.get_options()
@@ -158,10 +149,12 @@ class Simulator:
         engine_options['contacts']['damping'] = \
             robot.extra_info.pop('groundDamping', DEFAULT_GROUND_DAMPING)
 
-        simulator.set_options(engine_options)
+        simulator.engine.set_options(engine_options)
 
         # Override the default options by the one in the configuration file
         simulator.import_options(config_path)
+
+        return simulator
 
     def __del__(self) -> None:
         self.close()
@@ -210,9 +203,9 @@ class Simulator:
                'use_theoretical_model'.
         """
         if self.robot.is_flexible and self.use_theoretical_model:
-            return self.pinocchio_model_th
+            return self.robot.pinocchio_model_th
         else:
-            return self.pinocchio_model
+            return self.robot.pinocchio_model
 
     @property
     def pinocchio_data(self) -> pin.Model:
@@ -221,9 +214,9 @@ class Simulator:
                'use_theoretical_model'.
         """
         if self.robot.is_flexible and self.use_theoretical_model:
-            return self.pinocchio_data_th
+            return self.robot.pinocchio_data_th
         else:
-            return self.pinocchio_data
+            return self.robot.pinocchio_data
 
     def _callback(self,
                   t: float,
@@ -377,20 +370,21 @@ class Simulator:
         """
         @brief Get the options of robot (including controller), and engine.
         """
-        config_options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
-        robot_options = config_options['robot']
+        options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
+        robot_options = options['robot']
         robot_options['model'] = self.robot.get_model_options()
         robot_options['motors'] = self.robot.get_motors_options()
         robot_options['sensors'] = self.robot.get_sensors_options()
         robot_options['telemetry'] = self.robot.get_telemetry_options()
         robot_options['controller'] = self.get_controller_options()
-        engine_options = config_options['engine']
-        engine_options_copy = self.get_options()
+        engine_options = options['engine']
+        engine_options_copy = self.engine.get_options()
         engine_options['stepper'] = engine_options_copy['stepper']
         engine_options['world'] = engine_options_copy['world']
         engine_options['joints'] = engine_options_copy['joints']
         engine_options['contacts'] = engine_options_copy['contacts']
         engine_options['telemetry'] = engine_options_copy['telemetry']
+        return options
 
     def set_options(self,
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
@@ -398,9 +392,9 @@ class Simulator:
         @brief Set the options of robot (including controller), and engine.
         """
         controller_options = options['robot'].pop('controller')
-        self.robot.set_options(config_options['robot'])
+        self.robot.set_options(options['robot'])
         self.set_controller_options(controller_options)
-        self.set_options(config_options['engine'])
+        self.engine.set_options(options['engine'])
 
     def export_options(self, config_path: Optional[str] = None) -> None:
         """
@@ -413,7 +407,7 @@ class Simulator:
             config_path = pathlib.Path(
                 self.robot.urdf_path_orig).with_suffix('.config')
         with open(config_path, 'w') as f:
-            toml.dump(self.get_options(), f)
+            toml.dump(self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self, config_path: Optional[str] = None) -> None:
         """
@@ -422,9 +416,13 @@ class Simulator:
 
         @remark Configuration can be exported using `export_options` method.
         """
-        if config_path is not None:
+        if config_path is None:
             config_path = pathlib.Path(
                 self.robot.urdf_path_orig).with_suffix('.config')
             if not os.path.exists(config_path):
                 return
-        self.set_options(toml.load(config_path))
+        options = toml.load(config_path)
+        # TODO: Ground profile import/export is not supported for now
+        options['engine']['world']['groundProfile'] = \
+            jiminy.HeatMapFunctor(0.0, jiminy.heatMapType_t.CONSTANT)
+        self.set_options(options)

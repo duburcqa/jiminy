@@ -52,5 +52,8 @@ class PeriodicGaussianProcess:
         self._cov_sqrt = cov_sqrt
 
     def sample(self):
+        """
+        @brief    TODO
+        """
         return self.mean + (np.random.standard_normal(self.mean.shape) @
             self._cov_sqrt)[..., 0, :]

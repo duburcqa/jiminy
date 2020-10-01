@@ -7,7 +7,7 @@ from pkg_resources import resource_filename
 from gym import spaces
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine import EngineAsynchronous
+from jiminy_py.simulator import Simulator
 
 from ..common.env_bases import BaseJiminyEnv
 
@@ -99,7 +99,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(robot)
+        simulator = Simulator(robot)
 
         # ##################### Define some problem-specific variables #########################
 
@@ -119,7 +119,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # ####################### Configure the learning environment ###########################
 
-        super().__init__("cartpole", engine_py, DT)
+        super().__init__("cartpole", simulator, DT)
 
     def _setup_environment(self):
         super()._setup_environment()
@@ -159,7 +159,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     def _update_obs(self, obs):
         # @copydoc BaseJiminyEnv::_update_observation
-        obs[:] = self.engine_py.state
+        obs[:] = self.simulator.state
 
     @staticmethod
     def _key_to_action(key):

@@ -2,7 +2,6 @@
 import os
 import re
 import toml
-import copy
 import logging
 import pathlib
 import tempfile
@@ -268,11 +267,26 @@ def generate_hardware_description_file(
         motor_info = OrderedDict()
         sensor_info = OrderedDict()
 
+        # Check that the transmission type is supported
+        transmission_name = transmission_descr.get('name')
+        transmission_type_descr = transmission_descr.find('./type')
+        if transmission_type_descr is not None:
+            transmission_type = transmission_type_descr.text
+        else:
+            transmission_type = transmission_descr.get('type')
+        transmission_type = os.path.basename(transmission_type).casefold()
+        if transmission_type != 'simpletransmission':
+            logger.warning(
+                "Jiminy only support SimpleTransmission for now. Skipping"
+                f"transmission {transmission_name} of type "
+                f"{transmission_type}.")
+            continue
+
         # Extract the motor name
         motor_name = transmission_descr.find('./actuator').get('name')
         sensor_info['motor_name'] = motor_name
 
-        # Extract the associated joint name
+        # Extract the associated joint name.
         joint_name = transmission_descr.find('./joint').get('name')
         motor_info['joint_name'] = joint_name
 
@@ -630,17 +644,14 @@ class BaseJiminyRobot(jiminy.Robot):
                     "collision body. Fallback to replacing it by contact "
                     "points at the vertices of the minimal volume bounding "
                     "box of the available visual meshes.")
-
-            # Remove the body from the collision detection set
-            collision_bodies_names.remove(body_name)
-
             # Check if collision primitive box are available
             body_link = root.find(f"./link[@name='{body_name}']")
-            collision_links = body_link.findall('collision')
-            collision_box_sizes_info = [link.find('geometry/box').get('size')
-                for link in collision_links]
-            collision_box_origin_info = [link.find('origin')
-                for link in collision_links]
+            collision_box_sizes_info, collision_box_origin_info = [], []
+            for link in body_link.findall('collision'):
+                box_link = link.find('geometry/box')
+                if box_link is not None:
+                    collision_box_sizes_info.append(box_link.get('size'))
+                    collision_box_origin_info.append(link.find('origin'))
 
             # Replace the collision boxes by contact points, if any
             if collision_box_sizes_info:
@@ -662,7 +673,15 @@ class BaseJiminyRobot(jiminy.Robot):
                         frame_transform = box_origin.act(vertex_pos_rel)
                         self.add_frame(frame_name, body_name, frame_transform)
                         contact_frames_names.append(frame_name)
+            elif body_name in geometry_info['collision']['primitive']:
+                # Do nothing if the primitive is not a box. It should be fine.
+                continue
 
+            # Remove the body from the collision detection set
+            collision_bodies_names.remove(body_name)
+
+            # Early return if collision box primitives have been replaced
+            if collision_box_sizes_info:
                 continue
 
             # Extract meshes paths and origins.

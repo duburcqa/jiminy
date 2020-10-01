@@ -2,10 +2,11 @@
 
 import numpy as np
 import numba as nb
-from typing import Optional, Union, Tuple, Dict
+from typing import Optional, Union, Tuple, Dict, Any
 
 import gym
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
@@ -16,13 +17,14 @@ from jiminy_py.simulator import Simulator
 import pinocchio as pin
 from pinocchio import neutral
 
-from .env_bases import BaseJiminyEnv
+from .env_bases import SpaceDictRecursive, BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
 from .wrappers import flatten_observation
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5
-MAX_GROUND_STIFFNESS_LOG = 7.5
+MAX_GROUND_STIFFNESS_LOG = 7.0
+MAX_GROUND_DAMPING_RATIO = 0.5
 MIN_GROUND_FRICTION = 0.8
 MAX_GROUND_FRICTION = 8.0
 
@@ -157,10 +159,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 custom low-level robot if the model must be different for each
                 learning eposide for some reason.
         """
-        # Make sure a valid engine is available
+        # Check that a valid engine is available, and if not, create one
         if self.simulator is None:
-            # Instantiate a new engine
-            self.simulator = Simulator(
+            self.simulator = Simulator.build(
                 self.urdf_path, self.hardware_path, self.mesh_path,
                 has_freeflyer=True, use_theoretical_model=False,
                 config_path=self.config_path, debug=self.debug)
@@ -191,7 +192,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Override some options of the robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.simulator.get_engine_options()
+        engine_options = self.simulator.engine.get_options()
 
         ### Make sure to log at least required data for reward
         #   computation and log replay
@@ -215,6 +216,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             self.rg.uniform(low=-1.0, high=1.0) +
             (MAX_GROUND_STIFFNESS_LOG + MIN_GROUND_STIFFNESS_LOG) / 2)
         engine_options['contacts']['damping'] = \
+            self.rg.uniform(MAX_GROUND_DAMPING_RATIO) * \
             2.0 * np.sqrt(engine_options['contacts']['stiffness'])
         engine_options['contacts']['frictionDry'] = \
             ((MAX_GROUND_FRICTION - MIN_GROUND_FRICTION) * \
@@ -262,7 +264,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': F
                 }
-                self.simulator.register_force_impulse(**forces_impulse)
+                self.simulator.register_force_impulse(**force_impulse)
                 self._forces_impulse.append(force_impulse)
 
             # Schedule a single force profile applied on PelvisLink.
@@ -288,16 +290,16 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     ratio * F_xy_profile[t_ind + 1]
             F_xy_profile_interp1d(0)  # Pre-compilation
             self.F_xy_profile_spline = F_xy_profile_interp1d
-            force_profile.append({
+            force_profile = {
                 'frame_name': 'PelvisLink',
                 'force_function': self._force_external_profile
-            })
+            }
             self.simulator.register_force_profile(**force_profile)
             self._forces_profile.append(force_profile)
 
         ### Set the options, finally
         self.robot.set_options(robot_options)
-        self.simulator.set_engine_options(engine_options)
+        self.simulator.engine.set_options(engine_options)
 
     def _force_external_profile(self,
                                 t: float,
@@ -327,7 +329,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         return (self.robot.has_freeflyer and
                     self.simulator.state[2] < self._height_neutral * 0.75) or \
-               (self.simulator.t >= self.simu_duration_max)
+               (self.simulator.stepper_state.t >= self.simu_duration_max)
 
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
@@ -348,7 +350,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         reward_mixture_keys = self.reward_mixture.keys()
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.simulator.sensors_data[encoder.type][1]
+            v_mot = self.robot.sensors_data[encoder.type][1]
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
@@ -467,7 +469,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         @brief Configure the environment.
 
         @details In addition of doing the same than the base implementation, it
-                 updates the mapping from motors to encoders indices.
+                 also updates the mapping from motors to encoders indices.
         """
         # Setup the environment as usual
         super()._setup_environment()
@@ -517,29 +519,48 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
             high=np.concatenate((pos_high, vel_high)),
             dtype=np.float64)
 
-    def _compute_command(self):
+    def _send_command(self,
+                      t: float,
+                      q: np.ndarray,
+                      v: np.ndarray,
+                      sensors_data: jiminy.sensorsData,
+                      u_command: np.ndarray) -> None:
         """
         @brief Compute the motor torques using a PD controller.
 
         @details It is based on the error between the measured motors positions
                  and velocities and the desired one.
         """
-        # Extract encoder data from the sensors data
-        encoder_data = self.simulator.sensors_data[encoder.type]
+        # Backup the sensor state
+        self._sensors_data = sensors_data
 
-        # Estimate position and motor velocity from encoder data
-        q_enc, v_enc = encoder_data[:, self.motor_to_encoder]
+        # Compute command if the simulation is running, otherwise do nothing
+        if self.simulator.is_simulation_running:
+            # Estimate position and motor velocity from encoder data
+            q_enc, v_enc = sensors_data[encoder.type][:, self.motor_to_encoder]
 
-        # Compute the joint tracking error
-        q_err = q_enc - self._q_target
-        v_err = v_enc - self._v_target
+            # Compute the joint tracking error
+            q_err = q_enc - self._q_target
+            v_err = v_enc - self._v_target
 
-        # Compute PD command
-        u = - self.pid_kp * (q_err + self.pid_kd * v_err)
+            # Compute PD command
+            u_command[:] = - self.pid_kp * (q_err + self.pid_kd * v_err)
+        else:
+            u_command[:] = 0.0
 
-        return u
+    def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
+        """
+        @brief Reset the simulation and specify the initial state of the robot.
 
-    def step(self, action):
+        @details It is the same that the base implementation, except that it
+                 also reset the internal state of the PD controller.
+        """
+        self._q_target = qpos[sum(self.robot.motors_position_idx, [])]
+        self._v_target = qvel[self.robot.motors_velocity_idx]
+        super().set_state(qpos, qvel)
+
+    def step(self, action: Optional[np.ndarray] = None
+            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
 
@@ -556,7 +577,6 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         reward = 0.0
         reward_info = {k: [] for k in self.reward_mixture.keys()}
         for _ in range(self.hlc_to_llc_ratio):
-            action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
             for k, v in info_step.get('reward', {}).items():
                 reward_info[k].append(v)
@@ -566,7 +586,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
 
         # Extract additional information
         info = {'reward': reward_info,
-                't_end': self.simulator.t,
-                'is_success': self.simulator.t >= self.simu_duration_max}
+                't_end': self.simulator.stepper_state.t,
+                'is_success': self.simulator.stepper_state.t >= self.simu_duration_max}
 
         return obs, reward, done, info
