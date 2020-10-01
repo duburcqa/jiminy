@@ -21,7 +21,7 @@
             var handle_command = viewer.handle_command;
             viewer.handle_command = function(cmd) {
                 if (cmd.type == "ready") {
-                    viewer.connection.send("ok");
+                    viewer.connection.send("meshcat:ok");
                 } else {
                     handle_command.call(this, cmd);
                 }
@@ -33,7 +33,7 @@
             try {
                 if (typeof google !== 'undefined') {
                     (async () => {
-                        viewer.connection = await google.colab.kernel.comms.open('meshcat');
+                        viewer.connection = await google.colab.kernel.comms.open("meshcat", "meshcat:open");
                         console.log("connection to Google Colab kernel:", viewer.connection);
 
                         (async function() {
@@ -45,7 +45,7 @@
                     })();
                 }
                 else if (typeof window.parent.Jupyter !== 'undefined') {
-                    viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm('meshcat');
+                    viewer.connection = window.parent.Jupyter.notebook.kernel.comm_manager.new_comm("meshcat", "meshcat:open");
                     console.log("connection to Jupyter kernel:", viewer.connection);
                     viewer.connection.on_msg(function(message) {
                         viewer.handle_command_bytearray(new Uint8Array(message.buffers[0].buffer));

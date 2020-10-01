@@ -4,8 +4,7 @@
     <link name="slideBar">
     <visual>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/slideBar.STL"/>
-        <!-- <box size="30 0.05 0.05"/> -->
+        <box size="30 0.05 0.05"/>
       </geometry>
       <origin xyz="0 0 0"/>
       <material name="green">
@@ -21,8 +20,7 @@
   <link name="cart">
     <visual>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/cart.STL"/>
-        <!-- <box size="0.5 0.5 0.2"/> -->
+        <box size="0.5 0.5 0.2"/>
       </geometry>
       <origin xyz="0 0 0"/>
       <material name="blue">
@@ -31,8 +29,7 @@
     </visual>
     <collision>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/cart.STL"/>
-          <!-- <box size="0.5 0.5 0.2"/> -->
+        <box size="0.5 0.5 0.2"/>
       </geometry>
       <origin xyz="0 0 0"/>
     </collision>
@@ -53,8 +50,7 @@
   <link name="pole1">
     <visual>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/pole1.STL"/>
-        <!-- <box size="0.05 0.05 1.0"/>	 -->
+        <box size="0.05 0.05 1.0"/>
       </geometry>
       <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.05 0.5"/>
       <material name="white">
@@ -68,8 +64,7 @@
     </inertial>
      <collision>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/pole1.STL"/>
-        <!-- <box size="0.05 0.05 1.0"/>	 -->
+        <box size="0.05 0.05 1.0"/>
       </geometry>
       <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.05 0.5"/>
     </collision>
@@ -86,8 +81,7 @@
   <link name="pole2">
     <visual>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/pole2.STL"/>
-        <!-- <box size="0.05 0.05 1.6"/>	 -->
+        <box size="0.05 0.05 1.6"/>
       </geometry>
       <origin rpy="0.0 0.0 0.0" xyz="0.0 0.05 0.8"/>
       <material name="white">
@@ -101,8 +95,7 @@
     </inertial>
      <collision>
       <geometry>
-        <mesh filename="package://meshes/cart_two_poles/pole2.STL"/>
-        <!-- <box size="0.05 0.05 1.6"/>	 -->
+        <box size="0.05 0.05 1.6"/>
       </geometry>
       <origin rpy="0.0 0.0 0.0" xyz="0.0 0.05 0.8"/>
     </collision>

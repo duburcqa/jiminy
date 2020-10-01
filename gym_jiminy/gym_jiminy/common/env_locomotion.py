@@ -2,27 +2,29 @@
 
 import numpy as np
 import numba as nb
-from typing import Optional, Union
+from typing import Optional, Union, Tuple, Dict, Any
 
 import gym
 
+import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
                             ImuSensor as imu)
-from jiminy_py.engine import BaseJiminyEngine
+from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 from pinocchio import neutral
 
-from .env_bases import BaseJiminyEnv
+from .env_bases import SpaceDictRecursive, BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
 from .wrappers import flatten_observation
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5
-MAX_GROUND_STIFFNESS_LOG = 7.5
+MAX_GROUND_STIFFNESS_LOG = 7.0
+MAX_GROUND_DAMPING_RATIO = 0.5
 MIN_GROUND_FRICTION = 0.8
 MAX_GROUND_FRICTION = 8.0
 
@@ -67,36 +69,44 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
     def __init__(self,
                  urdf_path: str,
-                 toml_path: Optional[str] = None,
+                 hardware_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
+                 config_path: Optional[str] = None,
                  debug: bool = False,
                  **kwargs):
         """
         @brief Constructor.
 
+        @param urdf_path  Path of the urdf model to be used for the simulation.
+        @param hardware_path  Path of Jiminy hardware description toml file.
+                              Optional: Looking for '.hdf' file in the same
+                              folder and with the same name.
+        @param mesh_path  Path to the folder containing the model meshes.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
         @param simu_duration_max  Maximum duration of a simulation before
                                   returning done.
         @param dt  Engine timestep. It corresponds to the controller and
                    sensors update period.
-        @param urdf_path  Path of the urdf model to be used for the simulation.
-        @param toml_path  Path of the Jiminy hardware description file.
-                          Optional: Looking for toml file in the same folder
-                          and with the same name.
-        @param mesh_path  Path to the folder containing the model meshes.
-                          Optional: Env variable 'JIMINY_DATA_PATH' will be
-                          used if available.
         @param reward_mixture  Weighting factors of selected contributions to
                                total reward.
         @param std_ratio  Relative standard deviation of selected contributions
                           to environment stochasticity.
+        @param config_path  Configuration toml file to import. It will be
+                            imported AFTER loading the hardware description
+                            file. It can be automatically generated from an
+                            instance by calling `export_config_file` method.
+                            Optional: Looking for '.config' file in the same
+                            folder and with the same name. If not found,
+                            using default configuration.
         @param debug  Whether or not the debug mode must be activated.
                       Doing it enables telemetry recording.
+        @param kwargs  Keyword arguments to forward to `BaseJiminyEnv` class.
         """
-
         # Handling of default arguments
         if reward_mixture is None:
             reward_mixture = {
@@ -118,8 +128,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.simu_duration_max = simu_duration_max
         self.reward_mixture = reward_mixture
         self.urdf_path = urdf_path
-        self.toml_path = toml_path
         self.mesh_path = mesh_path
+        self.hardware_path = hardware_path
+        self.config_path = config_path
         self.std_ratio = std_ratio
 
         # Robot and engine internal buffers
@@ -131,17 +142,29 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Configure and initialize the learning environment
         super().__init__(None, dt, debug, **kwargs)
 
-    def _setup_environment(self):
+    def _setup_environment(self) -> None:
         """
-        @brief    TODO
+        @brief Configure the environment.
+
+        @details It is doing the following steps, successively:
+                   - creates a low-level engine is necessary,
+                   - updates some proxies that will be used for computing the
+                     reward and termination condition,
+                   - enforce some options of the low-level robot and engine,
+                   - randomize the environment according to 'std_ratio'.
+
+        @remark This method is called internally by 'reset' method at the very
+                beginning. This method can be overwritten to implement new
+                contributions to the environment stochasticity, or to create
+                custom low-level robot if the model must be different for each
+                learning eposide for some reason.
         """
-        # Make sure a valid engine is available
-        if self.engine_py is None:
-            # Instantiate a new engine
-            self.engine_py = BaseJiminyEngine(
-                self.urdf_path, self.toml_path, self.mesh_path,
+        # Check that a valid engine is available, and if not, create one
+        if self.simulator is None:
+            self.simulator = Simulator.build(
+                self.urdf_path, self.hardware_path, self.mesh_path,
                 has_freeflyer=True, use_theoretical_model=False,
-                debug=self.debug)
+                config_path=self.config_path, debug=self.debug)
 
         # Discard log data since no longer relevant
         self._log_data = None
@@ -149,7 +172,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
-        self.engine_py.remove_forces()
+        self.simulator.remove_forces()
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
@@ -169,7 +192,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Override some options of the robot and engine
         robot_options = self.robot.get_options()
-        engine_options = self.engine_py.get_options()
+        engine_options = self.simulator.engine.get_options()
 
         ### Make sure to log at least required data for reward
         #   computation and log replay
@@ -193,6 +216,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             self.rg.uniform(low=-1.0, high=1.0) +
             (MAX_GROUND_STIFFNESS_LOG + MIN_GROUND_STIFFNESS_LOG) / 2)
         engine_options['contacts']['damping'] = \
+            self.rg.uniform(MAX_GROUND_DAMPING_RATIO) * \
             2.0 * np.sqrt(engine_options['contacts']['stiffness'])
         engine_options['contacts']['frictionDry'] = \
             ((MAX_GROUND_FRICTION - MIN_GROUND_FRICTION) * \
@@ -240,7 +264,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': F
                 }
-                self.engine_py.register_force_impulse(**forces_impulse)
+                self.simulator.register_force_impulse(**force_impulse)
                 self._forces_impulse.append(force_impulse)
 
             # Schedule a single force profile applied on PelvisLink.
@@ -266,18 +290,22 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                     ratio * F_xy_profile[t_ind + 1]
             F_xy_profile_interp1d(0)  # Pre-compilation
             self.F_xy_profile_spline = F_xy_profile_interp1d
-            force_profile.append({
+            force_profile = {
                 'frame_name': 'PelvisLink',
                 'force_function': self._force_external_profile
-            })
-            self.engine_py.register_force_profile(**force_profile)
+            }
+            self.simulator.register_force_profile(**force_profile)
             self._forces_profile.append(force_profile)
 
         ### Set the options, finally
         self.robot.set_options(robot_options)
-        self.engine_py.set_options(engine_options)
+        self.simulator.engine.set_options(engine_options)
 
-    def _force_external_profile(self, t, q, v, F):
+    def _force_external_profile(self,
+                                t: float,
+                                q: np.ndarray,
+                                v: np.ndarray,
+                                F: np.ndarray) -> None:
         """
         @brief User-specified pre- or post- processing of the external force
                profile.
@@ -289,27 +317,40 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         t_scaled = t / (2 * self.gait_features["step_length"])
         F[:2] = self.F_xy_profile_spline(t_scaled)
 
-    def _is_done(self):
+    def _is_done(self) -> bool:
         """
-        @brief    TODO
-        """
-        # Simulation termination conditions:
-        # - Fall detection (if the robot has a freeflyer):
-        #     The freeflyer goes lower than 75% of its height in standing pose.
-        # - Maximum simulation duration exceeded
-        return (self.robot.has_freeflyer and
-                    self.engine_py.state[2] < self._height_neutral * 0.75) or \
-               (self.engine_py.t >= self.simu_duration_max)
+        @brief Determine whether the episode is over.
 
-    def _compute_reward(self):
-        # @copydoc BaseJiminyRobot::_compute_reward
+        @details The termination conditions are the following:
+                   - fall detection (enabled if the robot has a freeflyer):
+                       the freeflyer goes lower than 75% of its height in
+                       neutral configuration.
+                   - maximum simulation duration exceeded
+        """
+        return (self.robot.has_freeflyer and
+                    self.simulator.state[2] < self._height_neutral * 0.75) or \
+               (self.simulator.stepper_state.t >= self.simu_duration_max)
+
+    def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
+        """
+        @brief Compute reward at current episode state.
+
+        @details It computes the reward associated with each individual
+                 contribution according to 'reward_mixture'.
+
+        @remark This method can be overwritten to implement new contributions
+                to the reward, or to monitor more information.
+
+        @return [0] Total reward.
+                [1] Value of each contribution as a dictionary.
+        """
         reward_dict = {}
 
         # Define some proxies
         reward_mixture_keys = self.reward_mixture.keys()
 
         if 'energy' in reward_mixture_keys:
-            v_mot = self.engine_py.sensors_data[encoder.type][1]
+            v_mot = self.robot.sensors_data[encoder.type][1]
             power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
@@ -333,6 +374,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
     def _compute_reward_terminal(self):
         """
         @brief Compute the reward at the end of the episode.
+
+        @details It computes the terminal reward associated with each
+                 individual contribution according to 'reward_mixture'.
         """
         reward_dict = {}
 
@@ -359,7 +403,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
     def __init__(self,
                  urdf_path: str,
-                 toml_path: Optional[str] = None,
+                 hardware_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
@@ -368,10 +412,22 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  pid_kd: Union[float, np.ndarray] = PID_KD,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
+                 config_path: Optional[str] = None,
                  debug: bool = False):
         """
-        @brief    TODO
+        @brief Constructor
 
+        @param urdf_path  Path of the urdf model to be used for the simulation.
+        @param hardware_path  Path of Jiminy hardware description toml file.
+                              Optional: Looking for '.hdf' file in the same
+                              folder and with the same name.
+        @param mesh_path  Path to the folder containing the model meshes.
+                          Optional: Env variable 'JIMINY_DATA_PATH' will be
+                          used if available.
+        @param simu_duration_max  Maximum duration of a simulation before
+                                  returning done.
+        @param dt  Engine timestep. It corresponds to the controller and
+                   sensors update period.
         @param hlc_to_llc_ratio  High-level to Low-level control frequency
                                  ratio. More precisely, at each step, the
                                  command torque is  updated 'hlc_to_llc_ratio'
@@ -379,6 +435,19 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                                  updated once.
         @param pid_kp  PD controller position-proportional gain in motor order.
         @param pid_kd  PD controller velocity-proportional gain in motor order.
+        @param reward_mixture  Weighting factors of selected contributions to
+                               total reward.
+        @param std_ratio  Relative standard deviation of selected contributions
+                          to environment stochasticity.
+        @param config_path  Configuration toml file to import. It will be
+                            imported AFTER loading the hardware description
+                            file. It can be automatically generated from an
+                            instance by calling `export_config_file` method.
+                            Optional: Looking for '.config' file in the same
+                            folder and with the same name. If not found,
+                            using default configuration.
+        @param debug  Whether or not the debug mode must be activated.
+                      Doing it enables telemetry recording.
         """
         # Backup some user arguments
         self.hlc_to_llc_ratio = hlc_to_llc_ratio
@@ -391,12 +460,16 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         self._v_target = None
 
         # Initialize the environment
-        super().__init__(urdf_path, toml_path, mesh_path, simu_duration_max,
-            dt, reward_mixture, std_ratio, debug)
+        super().__init__(urdf_path, hardware_path, mesh_path,
+            simu_duration_max, dt, reward_mixture, std_ratio, config_path,
+            debug)
 
     def _setup_environment(self):
         """
-        @brief    TODO
+        @brief Configure the environment.
+
+        @details In addition of doing the same than the base implementation, it
+                 also updates the mapping from motors to encoders indices.
         """
         # Setup the environment as usual
         super()._setup_environment()
@@ -424,7 +497,10 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
 
     def _refresh_action_space(self):
         """
-        @brief    TODO
+        @brief Configure the action space of the environment.
+
+        @details The action spaces corresponds to the position and velocity of
+                 motors instead of the torque, as it is the case by default.
         """
         # Extract the position and velocity bounds for the observation space
         encoder_space = self.observation_space['sensors'][encoder.type]
@@ -443,31 +519,56 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
             high=np.concatenate((pos_high, vel_high)),
             dtype=np.float64)
 
-    def _compute_command(self):
+    def _send_command(self,
+                      t: float,
+                      q: np.ndarray,
+                      v: np.ndarray,
+                      sensors_data: jiminy.sensorsData,
+                      u_command: np.ndarray) -> None:
         """
-        @brief    TODO
+        @brief Compute the motor torques using a PD controller.
+
+        @details It is based on the error between the measured motors positions
+                 and velocities and the desired one.
         """
-        # Extract encoder data from the sensors data
-        encoder_data = self.engine_py.sensors_data[encoder.type]
+        # Backup the sensor state
+        self._sensors_data = sensors_data
 
-        # Estimate position and motor velocity from encoder data
-        q_enc, v_enc = encoder_data[:, self.motor_to_encoder]
+        # Compute command if the simulation is running, otherwise do nothing
+        if self.simulator.is_simulation_running:
+            # Estimate position and motor velocity from encoder data
+            q_enc, v_enc = sensors_data[encoder.type][:, self.motor_to_encoder]
 
-        # Compute the joint tracking error
-        q_err = q_enc - self._q_target
-        v_err = v_enc - self._v_target
+            # Compute the joint tracking error
+            q_err = q_enc - self._q_target
+            v_err = v_enc - self._v_target
 
-        # Compute PD command
-        u = - self.pid_kp * (q_err + self.pid_kd * v_err)
+            # Compute PD command
+            u_command[:] = - self.pid_kp * (q_err + self.pid_kd * v_err)
+        else:
+            u_command[:] = 0.0
 
-        return u
-
-    def step(self, action):
+    def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """
-        @brief    TODO
+        @brief Reset the simulation and specify the initial state of the robot.
+
+        @details It is the same that the base implementation, except that it
+                 also reset the internal state of the PD controller.
+        """
+        self._q_target = qpos[sum(self.robot.motors_position_idx, [])]
+        self._v_target = qvel[self.robot.motors_velocity_idx]
+        super().set_state(qpos, qvel)
+
+    def step(self, action: Optional[np.ndarray] = None
+            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+        """
+        @brief Run a simulation step for a given action.
 
         @params action  Flattened array gathering the target motors positions
                         and velocities in this order.
+
+        @return The next observation, the reward, the status of the episode
+                (done or not), and a dictionary of extra information
         """
         # Update target motor state
         self._q_target, self._v_target = np.split(action, 2, axis=-1)
@@ -476,7 +577,6 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         reward = 0.0
         reward_info = {k: [] for k in self.reward_mixture.keys()}
         for _ in range(self.hlc_to_llc_ratio):
-            action = self._compute_command()
             obs, reward_step, done, info_step = super().step(action)
             for k, v in info_step.get('reward', {}).items():
                 reward_info[k].append(v)
@@ -486,7 +586,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
 
         # Extract additional information
         info = {'reward': reward_info,
-                't_end': self.engine_py.t,
-                'is_success': self.engine_py.t >= self.simu_duration_max}
+                't_end': self.simulator.stepper_state.t,
+                'is_success': self.simulator.stepper_state.t >= self.simu_duration_max}
 
         return obs, reward, done, info

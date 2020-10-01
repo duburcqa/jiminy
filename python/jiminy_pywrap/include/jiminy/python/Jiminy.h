@@ -1344,6 +1344,8 @@ namespace python
             cl
                 .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
+                .add_property("is_initialized", bp::make_function(&AbstractController::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -1751,6 +1753,8 @@ namespace python
                                     "robot", "controller", "callback_function"))
                 .def("remove_system", &EngineMultiRobot::removeSystem,
                                       (bp::arg("self"), "system_name"))
+                .def("set_controller", &EngineMultiRobot::setController,
+                                      (bp::arg("self"), "system_name", "controller"))
                 .def("add_coupling_force", &PyEngineMultiRobotVisitor::addCouplingForce,
                                            (bp::arg("self"),
                                             "system_name_1", "system_name_2",
@@ -1804,7 +1808,7 @@ namespace python
                 .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
                                    bp::return_internal_reference<>(),
                                    (bp::arg("self"), "system_name")))
-                .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
+                .def("get_system_state", bp::make_function(&PyEngineMultiRobotVisitor::getSystemState,
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
 
@@ -1819,31 +1823,13 @@ namespace python
                 ;
         }
 
-        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
-                                                    std::string            const & systemName,
-                                                    std::shared_ptr<Robot> const & robot)
+        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
+                                               std::string                         const & systemName,
+                                               std::shared_ptr<Robot>              const & robot,
+                                               std::shared_ptr<AbstractController> const & controller,
+                                               bp::object                          const & callbackPy)
         {
-            auto commandFct = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & uCommand) {};
-            auto internalDynamicsFct = [](float64_t        const & t,
-                                          vectorN_t        const & q,
-                                          vectorN_t        const & v,
-                                          sensorsDataMap_t const & sensorsData,
-                                          vectorN_t              & uCommand) {};
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            auto controller = std::make_shared<
-                ControllerFunctor<decltype(commandFct),
-                                  decltype(internalDynamicsFct)>
-            >(std::move(commandFct), std::move(internalDynamicsFct));
-            controller->initialize(robot.get());
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
             return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
@@ -1861,22 +1847,33 @@ namespace python
             return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
-        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
-                                               std::string                         const & systemName,
-                                               std::shared_ptr<Robot>              const & robot,
-                                               std::shared_ptr<AbstractController> const & controller,
-                                               bp::object                          const & callbackPy)
+        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
+                                                    std::string            const & systemName,
+                                                    std::shared_ptr<Robot> const & robot)
         {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            return self.addSystem(systemName, robot, std::move(callbackFct));
         }
 
         static systemDataHolder_t & getSystem(EngineMultiRobot  & self,
                                               std::string const & systemName)
         {
             systemDataHolder_t * system;
-            self.getSystem(systemName, system);
+            self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemDataHolder_t
             return *system;
+        }
+
+        static systemState_t const & getSystemState(EngineMultiRobot  & self,
+                                                    std::string const & systemName)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemName, systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         static hresult_t addCouplingForce(EngineMultiRobot       & self,
@@ -2115,6 +2112,10 @@ namespace python
                                    (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
                                    (bp::arg("self"), "robot", "controller", "callback_function"))
+                .def("set_controller", static_cast<
+                        hresult_t (Engine::*)(std::shared_ptr<AbstractController>)
+                    >(&Engine::setController),
+                    (bp::arg("self"), "controller"))
 
                 .def("start",
                     static_cast<
@@ -2137,49 +2138,22 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",
-                    static_cast<
-                        std::shared_ptr<Robot> (Engine::*)(void)
-                    >(&Engine::getRobot))
-                .add_property("controller",
-                    static_cast<
-                        std::shared_ptr<AbstractController> (Engine::*)(void)
-                    >(&Engine::getController))
+                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("system_state", bp::make_function(
-                    static_cast<
-                        systemState_t const & (Engine::*)(void) const
-                    >(&Engine::getSystemState),
-                    bp::return_internal_reference<>()))
+                .add_property("system_state", bp::make_function(&PyEngineVisitor::getSystemState,
+                                                                bp::return_internal_reference<>()))
                 ;
         }
 
-        static hresult_t initializeWithoutController(Engine                       & self,
-                                                     std::shared_ptr<Robot> const & robot)
+        static hresult_t initializeWithCallback(Engine                                    & self,
+                                                std::shared_ptr<Robot>              const & robot,
+                                                std::shared_ptr<AbstractController> const & controller,
+                                                bp::object                          const & callbackPy)
         {
-            auto commandFct = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & uCommand) {};
-            auto internalDynamicsFct = [](float64_t        const & t,
-                                          vectorN_t        const & q,
-                                          vectorN_t        const & v,
-                                          sensorsDataMap_t const & sensorsData,
-                                          vectorN_t              & uCommand) {};
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            auto controller = std::make_shared<
-                ControllerFunctor<decltype(commandFct),
-                                  decltype(internalDynamicsFct)>
-            >(commandFct, internalDynamicsFct);
-            controller->initialize(robot.get());
-            return self.initialize(robot, controller, callbackFct);
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
         static hresult_t initialize(Engine                                    & self,
@@ -2192,16 +2166,19 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.initialize(robot, controller, callbackFct);
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
-        static hresult_t initializeWithCallback(Engine                                    & self,
-                                                std::shared_ptr<Robot>              const & robot,
-                                                std::shared_ptr<AbstractController> const & controller,
-                                                bp::object                          const & callbackPy)
+        static hresult_t initializeWithoutController(Engine                       & self,
+                                                     std::shared_ptr<Robot> const & robot)
         {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.initialize(robot, controller, std::move(callbackFct));
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            return self.initialize(robot, std::move(callbackFct));
         }
 
         static void registerForceImpulse(Engine            & self,
@@ -2219,6 +2196,27 @@ namespace python
         {
             TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
+        }
+
+        static std::shared_ptr<Robot> getRobot(Engine & self)
+        {
+            std::shared_ptr<Robot> robot;
+            self.getRobot(robot);
+            return robot;
+        }
+
+        static std::shared_ptr<AbstractController> getController(Engine & self)
+        {
+            std::shared_ptr<AbstractController> controller;
+            self.getController(controller);
+            return controller;
+        }
+
+        static systemState_t const & getSystemState(Engine & self)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         ///////////////////////////////////////////////////////////////////////////////

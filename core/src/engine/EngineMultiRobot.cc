@@ -13,6 +13,7 @@
 #include "jiminy/core/robot/AbstractSensor.h"
 #include "jiminy/core/robot/Robot.h"
 #include "jiminy/core/control/AbstractController.h"
+#include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
@@ -71,8 +72,11 @@ namespace jiminy
     forcesImpulseBreakNextIt(),
     forcesImpulseActive()
     {
-        state.initialize(robot.get());
-        statePrev.initialize(robot.get());
+        if (robot)
+        {
+            state.initialize(robot.get());
+            statePrev.initialize(robot.get());
+        }
     }
 
     systemDataHolder_t::systemDataHolder_t(void) :
@@ -81,7 +85,7 @@ namespace jiminy
        vectorN_t const & q,
        vectorN_t const & v) -> bool_t
     {
-        return true;
+        return false;
     })
     {
         // Empty on purpose.
@@ -145,6 +149,67 @@ namespace jiminy
                                         std::move(robot),
                                         std::move(controller),
                                         std::move(callbackFct));
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::addSystem(std::string const & systemName,
+                                          std::shared_ptr<Robot> robot,
+                                          callbackFunctor_t callbackFct)
+    {
+        if (!robot->getIsInitialized())
+        {
+            std::cout << "Error - EngineMultiRobot::initialize - Robot not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        // Create and initialize a controller doing nothing
+        auto setZeroFunctor = [](float64_t        const & t,
+                                 vectorN_t        const & q,
+                                 vectorN_t        const & v,
+                                 sensorsDataMap_t const & sensorsData,
+                                 vectorN_t              & u)
+                              {
+                                  u.setZero();
+                              };
+        auto controller = std::make_shared<ControllerFunctor<
+            decltype(setZeroFunctor), decltype(setZeroFunctor)> >(setZeroFunctor, setZeroFunctor);
+        controller->initialize(robot.get());
+
+        return addSystem(systemName, robot, controller, std::move(callbackFct));
+    }
+
+    hresult_t EngineMultiRobot::setController(std::string const & systemName,
+                                              std::shared_ptr<AbstractController> controller)
+    {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            std::cout << "Error - EngineMultiRobot::setController - A simulation is already running. Stop it before setting a new controller for a system." << std::endl;
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Make sure that the controller is initialized
+        if (!controller->getIsInitialized())
+        {
+            std::cout << "Error - EngineMultiRobot::setController - Controller not initialized." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        // Make sure that the system for which to set the controller exists
+        auto systemIt = std::find_if(systemsDataHolder_.begin(), systemsDataHolder_.end(),
+                                     [&systemName](auto const & sys)
+                                     {
+                                         return (sys.name == systemName);
+                                     });
+        if (systemIt == systemsDataHolder_.end())
+        {
+            std::cout << "Error - EngineMultiRobot::setController - No system with this name has been added to the engine." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Set the controller
+        systemIt->controller = controller;
 
         return hresult_t::SUCCESS;
     }
@@ -1692,6 +1757,10 @@ namespace jiminy
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
                                           systemDataHolder_t const * & system) const
     {
+        static systemDataHolder_t const systemEmpty;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         auto systemIt = std::find_if(systemsDataHolder_.begin(), systemsDataHolder_.end(),
                                      [&systemName](auto const & sys)
                                      {
@@ -1700,12 +1769,17 @@ namespace jiminy
         if (systemIt == systemsDataHolder_.end())
         {
             std::cout << "Error - EngineMultiRobot::getSystem - No system with this name has been added to the engine." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        system = &(*systemIt);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            system = &(*systemIt);
+            return returnCode;
+        }
 
-        return hresult_t::SUCCESS;
+        system = &systemEmpty;
+        return returnCode;
     }
 
     hresult_t EngineMultiRobot::getSystem(std::string        const   & systemName,
@@ -1723,18 +1797,23 @@ namespace jiminy
         return returnCode;
     }
 
-    systemState_t const & EngineMultiRobot::getSystemState(std::string const & systemName) const
+    hresult_t EngineMultiRobot::getSystemState(std::string   const   & systemName,
+                                               systemState_t const * & systemState) const
     {
         static systemState_t const systemStateEmpty;
 
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         systemDataHolder_t const * system;
-        hresult_t returnCode = getSystem(systemName, system);
+        returnCode = getSystem(systemName, system);
         if (returnCode == hresult_t::SUCCESS)
         {
-            return system->state;
+            systemState = &(system->state);
+            return returnCode;
         }
 
-        return systemStateEmpty;
+        systemState = &systemStateEmpty;
+        return returnCode;
     }
 
     stepperState_t const & EngineMultiRobot::getStepperState(void) const

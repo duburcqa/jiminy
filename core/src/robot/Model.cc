@@ -998,13 +998,23 @@ namespace jiminy
             {
                 pinocchio::urdf::buildModel(urdfPath, pncModel_);
             }
+        }
+        catch (std::exception& e)
+        {
+            std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it.\n"
+                      << "Raised by exception: " << e.what() << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
 
+        try
+        {
             // Build robot geometry model
             pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
         }
         catch (std::exception& e)
         {
-            std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to build a model from it." << std::endl;
+            std::cout << "Error - Model::loadUrdfModel - Something is wrong with the URDF. Impossible to load the collision geometries.\n"
+                      << "Raised by exception: " << e.what() << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
 

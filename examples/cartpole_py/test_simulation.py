@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep
 
 
@@ -25,11 +25,11 @@ for sensor_name, joint_name in encoder_sensors_def.items():
     robot.attach_sensor(encoder)
     encoder.initialize(joint_name)
 
-engine_py = EngineAsynchronous(robot)
+simulator = Simulator(robot)
 
 robot_options = robot.get_options()
-engine_options = engine_py.get_engine_options()
-ctrl_options = engine_py.get_controller_options()
+engine_options = simulator.engine.get_options()
+ctrl_options = simulator.get_controller_options()
 
 robot_options["telemetry"]["enableImuSensors"] = False
 engine_options["telemetry"]["enableConfiguration"] = False
@@ -44,16 +44,16 @@ engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
 engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
 
 robot.set_options(robot_options)
-engine_py.set_engine_options(engine_options)
-engine_py.set_controller_options(ctrl_options)
+simulator.engine.set_options(engine_options)
+simulator.set_controller_options(ctrl_options)
 
-engine_py.seed(np.uint32(0))
-engine_py.reset(np.zeros(robot.nx))
+simulator.seed(np.uint32(0))
+simulator.reset(np.zeros(robot.nx))
 
 refresh_time_prev = time.time()
 for i in range(10000):
-    engine_py.step(np.array([0.001]))
-    engine_py.render()
+    simulator.step(np.array([0.001]))
+    simulator.render()
 
-    sleep(engine_py.step_dt_prev - (time.time() - refresh_time_prev))
+    sleep(simulator.step_dt_prev - (time.time() - refresh_time_prev))
     refresh_time_prev = time.time()

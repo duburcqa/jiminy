@@ -94,7 +94,7 @@ class ObservationActionNormalization(gym.Wrapper):
         self.observation_scale = {}
 
         ## Define some proxies for convenience
-        sensors_data = self.engine_py.sensors_data
+        sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
 
         num_sensors = {}

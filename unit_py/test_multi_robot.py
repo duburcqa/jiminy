@@ -38,7 +38,7 @@ class SimulateMultiRobot(unittest.TestCase):
         nu = np.array([0.1, 0.2, 0.2])
 
         # Create controllers
-        class Controllers():
+        class Controllers:
             def __init__(self, k, nu):
                 self.k = k
                 self.nu = nu

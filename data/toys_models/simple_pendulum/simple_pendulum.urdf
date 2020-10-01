@@ -4,7 +4,7 @@
         <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
             <geometry>
-                <mesh filename="package://meshes/simple_pendulum/Foot.STL"/>
+                <box size="0.2 0.2 0.01"/>
             </geometry>
             <material name="">
                 <color rgba="1.0 0.0 0.0 1.0"/>
@@ -57,8 +57,7 @@
         <visual>
             <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0" />
             <geometry>
-                <mesh filename="package://meshes/simple_pendulum/PendulumArm.STL"/>
-                <!-- <box size="0.01 0.01 0.5"/> -->
+                <box size="0.01 0.01 1.0"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 0.0 1.0 1.0"/>
@@ -80,8 +79,7 @@
         <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
             <geometry>
-                <mesh filename="package://meshes/simple_pendulum/PendulumMass.STL"/>
-                <!-- <sphere radius="0.06"/> -->
+                <sphere radius="0.06"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 0.0 1.0 1.0"/>

@@ -258,7 +258,7 @@ namespace jiminy
         ///             use.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t getIsInitialized(void) const;
+        bool_t const & getIsInitialized(void) const;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -268,7 +268,7 @@ namespace jiminy
         ///             initialized.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        bool_t getIsTelemetryConfigured(void) const;
+        bool_t const & getIsTelemetryConfigured(void) const;
 
     public:
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller

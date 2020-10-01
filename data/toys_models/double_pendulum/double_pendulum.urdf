@@ -4,8 +4,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://meshes/double_pendulum/world.STL"/>
-                <!-- <sphere radius="0.005"/> -->
+                <sphere radius="0.005"/>
             </geometry>
             <material name="">
                 <color rgba="1.0 0.0 0.0 1.0"/>
@@ -30,8 +29,7 @@
         <visual>
             <origin xyz="0 0 0.25" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://meshes/double_pendulum/SecondPendulumArm.STL"/>
-                <!-- <box size="0.01 0.01 0.5"/> -->
+                <box size="0.01 0.01 0.5"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 0.0 1.0 1.0"/>
@@ -53,8 +51,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://meshes/double_pendulum/SecondPendulumMass.STL"/>
-                <!-- <sphere radius="0.06"/> -->
+                <sphere radius="0.06"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 0.0 1.0 1.0"/>
@@ -79,8 +76,7 @@
         <visual>
             <origin xyz="0 0 0.5" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://meshes/double_pendulum/PendulumArm.STL"/>
-                <!-- <box size="0.02 0.02 1.0"/> -->
+                <box size="0.02 0.02 1.0"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 1.0 0.0 1.0"/>
@@ -102,8 +98,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://meshes/double_pendulum/PendulumMass.STL"/>
-                <!-- <sphere radius="0.06"/> -->
+                <sphere radius="0.06"/>
             </geometry>
             <material name="">
                 <color rgba="0.0 1.0 0.0 1.0"/>
