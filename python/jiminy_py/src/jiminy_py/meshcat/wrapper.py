@@ -99,7 +99,7 @@ if is_notebook():
                            evaluation much faster but flawed.
             """
             # Flush every IN messages on shell_stream only.
-            # Note that it is a faster implementation of ZMQStream.flush
+            # Note that it is a faster implementation of `ZMQStream.flush()`
             # to only handle incoming messages. It reduces the computation from
             # about 15us to 15ns.
             # https://github.com/zeromq/pyzmq/blob/e424f83ceb0856204c96b1abac93a1cfe205df4a/zmq/eventloop/zmqstream.py#L313
@@ -129,26 +129,46 @@ if is_notebook():
                 priority, t, dispatch, args = \
                     self.__kernel.msg_queue.get_nowait()
                 if priority <= SHELL_PRIORITY:
+                     # New message: reading message without deserializing its
+                     # content at this point for efficiency.
                     _, msg = self.__kernel.session.feed_identities(
                         args[1], copy=False)
                     msg = self.__kernel.session.deserialize(
                         msg, content=False, copy=False)
                 else:
-                    # Do not spend time analyzing already rejected message
+                    # Do not spend time analyzing messages already rejected
                     msg = None
-                if msg is None or not 'comm_' in msg['header']['msg_type']:
-                    # The message is not related to comm, so putting it back in
-                    # the queue after lowering its priority so that it is send
-                    # at the "end of the queue", ie just at the right place:
-                    # after the next unchecked messages, after the other
-                    # messages already put back in the queue, but before the
-                    # next one to go the same way. Note that every shell
-                    # messages have SHELL_PRIORITY by default.
-                    self.__kernel.msg_queue.put_nowait(
-                        (SHELL_PRIORITY + 1, t, dispatch, args))
-                else:
-                    # Comm message. Processing it right now.
-                    tornado.gen.maybe_future(dispatch(*args))
+
+                if msg is not None and \
+                        msg['header']['msg_type'].startswith('comm_'):
+                    # Comm message. Analyzing message content to determine if
+                    # it is related to meshcat or not.
+                    if not msg['header']['msg_type'] == 'comm_close':
+                        content = self.__kernel.session.unpack(msg['content'])
+                        data = content['data']
+                    else:
+                        # All comm_close messages are processed because Google
+                        # Colab API does not support sending data on close.
+                        data = "'meshcat:close"
+                    if isinstance(data, str) and data.startswith('meshcat:'):
+                        # Comm message related to meshcat. Processing it right
+                        # now and moving to the next message without puting it
+                        # back into the queue.
+                        tornado.gen.maybe_future(dispatch(*args))
+                    continue
+
+                # The message is not related to meshcat comm, so putting it
+                # back in the queue after lowering its priority so that it is
+                # send at the "end of the queue", ie just at the right place:
+                # after the next unchecked messages, after the other messages
+                # already put back in the queue, but before the next one to go
+                # the same way. Note that every shell messages have
+                # SHELL_PRIORITY by default.
+                self.__kernel.msg_queue.put_nowait(
+                    (SHELL_PRIORITY + 1, t, dispatch, args))
+
+                # Ensure the eventloop wakes up
+                self.__kernel.io_loop.add_callback(lambda: None)
             self.qsize_old = self.__kernel.msg_queue.qsize()
 
     process_kernel_comm = CommProcessor()
@@ -175,13 +195,13 @@ class CommManager:
         def forward_comm_thread():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            ioloop = tornado.ioloop.IOLoop()
+            self.__ioloop = tornado.ioloop.IOLoop()
             context = zmq.Context()
             self.__comm_socket = context.socket(zmq.XREQ)
             self.__comm_socket.connect(comm_url)
-            self.__comm_stream = ZMQStream(self.__comm_socket)
+            self.__comm_stream = ZMQStream(self.__comm_socket, self.__ioloop)
             self.__comm_stream.on_recv(self.__forward_to_ipython)
-            ioloop.start()
+            self.__ioloop.start()
 
         self.__thread = threading.Thread(target=forward_comm_thread)
         self.__thread.daemon = True
@@ -229,7 +249,7 @@ class CommManager:
         @comm.on_msg
         def _on_msg(msg: Dict[str, Any]) -> None:
             self.n_message += 1
-            data = msg['content']['data']
+            data = msg['content']['data'][8:]  # Remove 'meshcat:' header
             self.__comm_socket.send(f"data:{comm.comm_id}:{data}".encode())
 
         @comm.on_close
@@ -303,7 +323,7 @@ class MeshcatWrapper:
             else:
                 while True:
                     try:
-                        # First try, just in case there is already a comm for
+                        # Try first, just in case there is already a comm for
                         # websocket available.
                         self.__zmq_socket.recv(flags=zmq.NOBLOCK)
                         break
@@ -314,6 +334,18 @@ class MeshcatWrapper:
                         # be enough to successfully recv the acknowledgement.
                         process_kernel_comm()
 
+        # Process every waiting messages
+        if self.comm_manager is not None:
+            qsize_old = -1
+            while qsize_old != process_kernel_comm.qsize_old:
+                process_kernel_comm()
+                qsize_old = process_kernel_comm.qsize_old
+
+        # Send 'ready' request and wait for reply. Note that while a single zmq
+        # reply is expected whatever the number of comms, the number of comm
+        # messages to forward should always match the number of comms currently
+        # registered. New opening/closing connection while awaiting for 'ready'
+        # acknowledgement is handled by the server.
         self.__zmq_socket.send(b"ready")
         if self.comm_manager is not None:
             self.comm_manager.n_message = 0

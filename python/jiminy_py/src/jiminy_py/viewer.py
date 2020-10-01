@@ -359,10 +359,12 @@ class Viewer:
                     if self.is_backend_parent and open_gui_if_parent:
                         self.open_gui()
                 else:
-                    if Viewer._backend_obj.comm_manager.n_comm == 0:
-                        # There is no display cell already opened. So opening
-                        # one since it is probably what the user is expecting,
-                        # but there is no fixed rule.
+                    # Opening a new display cell automatically if not backend
+                    # parent, or if there is no display cell already opened.
+                    # Indeed, the user is probably expecting a display cell to
+                    # open in such cases, but there is no fixed rule.
+                    if not Viewer._backend_proc.is_parent() or \
+                            Viewer._backend_obj.comm_manager.n_comm == 0:
                         self.open_gui()
         except Exception as e:
             raise RuntimeError(
@@ -659,8 +661,6 @@ class Viewer:
                         raise RuntimeError(
                             "Impossible to open Gepetto-viewer.")
             return None, None
-
-
         else:
             # Get the list of connections that are likely to correspond to meshcat servers
             meshcat_candidate_conn = []
@@ -1250,11 +1250,11 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     # Wait for the meshes to finish loading if non video recording mode
     if wait_for_client and record_video_path is None:
         if Viewer.backend.startswith('meshcat'):
-            if verbose:
+            if verbose and not is_notebook():
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
             Viewer.wait(require_client=True)
-            if verbose:
+            if verbose and not is_notebook():
                 print("Browser connected! Starting to replay the simulation.")
 
     # Handle start-in-pause mode
