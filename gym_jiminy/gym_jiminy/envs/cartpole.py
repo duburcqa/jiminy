@@ -80,14 +80,13 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Initialize Jiminy simulator
 
         ## Get URDF path
-        os.environ["JIMINY_DATA_PATH"] = \
-            resource_filename('gym_jiminy.envs', 'data/toys_models')
-        urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"],
-            "toys_models/cartpole/cartpole.urdf")
+        data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
+        urdf_path = os.path.join(data_dir, "cartpole/cartpole.urdf")
 
         ## Instantiate robot
         robot = jiminy.Robot()
-        robot.initialize(urdf_path)
+        robot.initialize(urdf_path,
+            has_freeflyer=False, mesh_package_dirs=[data_dir])
 
         ## Add motors and sensors
         motor_joint_name = "slider_to_cart"
@@ -123,12 +122,12 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.state_random_low = -self.state_random_high
 
         self.position_random_high = np.array([0.5, 0.15])
-        self.position_random_low  = -self.position_random_low
+        self.position_random_low  = -self.position_random_high
         self.velocity_random_high = np.full((2,), 0.1)
         self.velocity_random_low  = -self.velocity_random_high
 
         # Configure the learning environment
-        super().__init__("cartpole", simulator, DT)
+        super().__init__(simulator, DT, debug=False)
 
     def _setup_environment(self) -> None:
         """
@@ -136,13 +135,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         """
         super()._setup_environment()
 
-        robot_options = self.robot.get_options()
-
         # Set the effort limit of the motor
+        robot_options = self.robot.get_options()
         motor_name = self.robot.motors_names[0]
         robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
         robot_options["motors"][motor_name]["effortLimit"] = MAX_FORCE
-
         self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
@@ -189,9 +186,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_high)
         return qpos, qvel
 
-    def _update_obs(self, obs: SpaceDictRecursive) -> None:
-        # @copydoc BaseJiminyEnv::_update_observation
-        obs[:] = self.simulator.state
+    def _fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::_fetch_obs
+        return self.simulator.state.copy()
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
@@ -228,7 +225,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             done = self._is_done()
             if not done:
                 reward += 1.0 #self.dt # For the cumulative reward to be invariant wrt the simulation timestep
-        return reward
+        return reward, {}
 
     def step(self, action: Optional[np.ndarray] = None
             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
