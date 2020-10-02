@@ -52,7 +52,8 @@ int main(int argc, char_t * argv[])
     // Set URDF and log output.
     boost::filesystem::path const filePath(__FILE__);
     auto const jiminySrcPath = filePath.parent_path().parent_path().parent_path();
-    auto const urdfPath = jiminySrcPath / "data/double_pendulum/double_pendulum.urdf";
+    auto const dataPath = jiminySrcPath / "data/toys_models";
+    auto const urdfPath = dataPath / "double_pendulum/double_pendulum.urdf";
     auto const outputDirPath = boost::filesystem::temp_directory_path();
 
     // =====================================================================
@@ -72,7 +73,7 @@ int main(int argc, char_t * argv[])
     boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("positionLimitFromUrdf")) = true;
     boost::get<bool_t>(boost::get<configHolder_t>(modelOptions.at("joints")).at("velocityLimitFromUrdf")) = true;
     robot->setModelOptions(modelOptions);
-    robot->initialize(urdfPath.string(), false);
+    robot->initialize(urdfPath.string(), false, {dataPath.string()});
     for (std::string const & jointName : motorJointNames)
     {
         auto motor = std::make_shared<SimpleMotor>(jointName);

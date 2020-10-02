@@ -11,15 +11,15 @@ from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
 # ################################ User parameters #######################################
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-os.environ["JIMINY_DATA_PATH"] = os.path.join(script_dir, "../../data")
-urdf_path = os.path.join(os.environ["JIMINY_DATA_PATH"], "double_pendulum/double_pendulum.urdf")
+mesh_root_dir = os.path.join(script_dir, "../../data/toys_models")
+urdf_path = os.path.join(mesh_root_dir, "double_pendulum/double_pendulum.urdf")
 
 # ########################### Initialize the simulation #################################
 
 # Instantiate the robot
 motor_joint_names = ("SecondPendulumJoint",)
 robot = jiminy.Robot()
-robot.initialize(urdf_path, False)
+robot.initialize(urdf_path, has_freeflyer=False, mesh_package_dirs=[mesh_root_dir])
 for joint_name in motor_joint_names:
     motor = jiminy.SimpleMotor(joint_name)
     robot.attach_motor(motor)
@@ -104,5 +104,7 @@ plt.grid()
 plt.show()
 
 # Display the simulation trajectory and the reference
-play_trajectories([trajectory_data_log], replay_speed=0.5,
-                  camera_xyzrpy=[0.0, 7.0, 0.0, np.pi/2, 0.0, np.pi])
+play_trajectories([trajectory_data_log],
+                  replay_speed=0.5,
+                  camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
+                  delete_robot_on_close=False)

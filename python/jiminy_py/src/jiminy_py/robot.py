@@ -506,91 +506,6 @@ class BaseJiminyRobot(jiminy.Robot):
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
 
-        # Add the motors to the robot
-        for motor_type, motors_descr in motors_info.items():
-            for motor_name, motor_descr in motors_descr.items():
-                # Create the sensor and attach it
-                motor = getattr(jiminy, motor_type)(motor_name)
-                self.attach_motor(motor)
-
-                # Initialize the motor
-                joint_name = motor_descr.pop('joint_name')
-                motor.initialize(joint_name)
-
-                # Set the motor options
-                options = motor.get_options()
-                option_fields = options.keys()
-                for name, value in motor_descr.items():
-                    if name not in option_fields:
-                        logger.warning(f"'{name}' is not a valid option for "
-                            f"the motor {motor_name} of type {motor_type}.")
-                    options[name] = value
-                options['enableRotorInertia'] = True
-                motor.set_options(options)
-
-        # Add the sensors to the robot
-        for sensor_type, sensors_descr in sensors_info.items():
-            for sensor_name, sensor_descr in sensors_descr.items():
-                # Create the sensor and attach it
-                sensor = getattr(jiminy, sensor_type)(sensor_name)
-                self.attach_sensor(sensor)
-
-                # Initialize the sensor
-                if sensor_type == encoder.type:
-                    joint_name = sensor_descr.pop('joint_name')
-                    sensor.initialize(joint_name)
-                elif sensor_type == effort.type:
-                    motor_name = sensor_descr.pop('motor_name')
-                    sensor.initialize(motor_name)
-                elif sensor_type == contact.type:
-                    frame_name = sensor_descr.pop('frame_name')
-                    sensor.initialize(frame_name)
-                elif sensor_type in [force.type, imu.type]:
-                    # Create the frame and add it to the robot model
-                    frame_name = sensor_descr.pop('frame_name', None)
-
-                    if frame_name is None:
-                        # Create a frame is a frame name has been specified.
-                        # In this case, the body name must be specified.
-
-                        ## Get the body name
-                        body_name = sensor_descr.pop('body_name')
-
-                        ## Generate a frame name that is intelligible and available
-                        i = 0
-                        frame_name = "_".join((
-                            sensor_name, sensor_type, "Frame"))
-                        while self.pinocchio_model.existFrame(frame_name):
-                            frame_name = "_".join((
-                                sensor_name, sensor_type, "Frame", str(i)))
-                            i += 1
-
-                        ## Compute SE3 object representing the frame placement
-                        frame_pose_xyzrpy = np.array(
-                            sensor_descr.pop('frame_pose'))
-                        frame_trans = frame_pose_xyzrpy[:3]
-                        frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
-                        frame_placement = pin.SE3(frame_rot, frame_trans)
-
-                        ## Add the frame to the robot model
-                        self.add_frame(frame_name, body_name, frame_placement)
-
-                    # Initialize the sensor
-                    sensor.initialize(frame_name)
-                else:
-                    raise ValueError(
-                        f"Unsupported sensor type {sensor_type}.")
-
-                # Set the sensor options
-                options = sensor.get_options()
-                option_fields = options.keys()
-                for name, value in sensor_descr.items():
-                    if name not in option_fields:
-                        logger.warning(f"'{name}' is not a valid option for "
-                            f"the sensor {sensor_name} of type {sensor_type}.")
-                    options[name] = value
-                sensor.set_options(options)
-
         # Checking the collision bodies, to make sure they are associated with
         # supported collision geometries. If not, fixing the issue after
         # throwing a warning.
@@ -725,9 +640,96 @@ class BaseJiminyRobot(jiminy.Robot):
                     self.add_frame(frame_name, body_name, frame_transform)
                     contact_frames_names.append(frame_name)
 
-        # Add the collision bodies and contact points
+        # Add the collision bodies and contact points.
+        # Note that it must be done before adding the sensors because
+        # Contact sensors requires contact points to be defined.
         self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # Mesh collisions is not numerically stable for now, so disabling it
         self.add_contact_points(list(set(contact_frames_names)))
+
+        # Add the motors to the robot
+        for motor_type, motors_descr in motors_info.items():
+            for motor_name, motor_descr in motors_descr.items():
+                # Create the sensor and attach it
+                motor = getattr(jiminy, motor_type)(motor_name)
+                self.attach_motor(motor)
+
+                # Initialize the motor
+                joint_name = motor_descr.pop('joint_name')
+                motor.initialize(joint_name)
+
+                # Set the motor options
+                options = motor.get_options()
+                option_fields = options.keys()
+                for name, value in motor_descr.items():
+                    if name not in option_fields:
+                        logger.warning(f"'{name}' is not a valid option for "
+                            f"the motor {motor_name} of type {motor_type}.")
+                    options[name] = value
+                options['enableRotorInertia'] = True
+                motor.set_options(options)
+
+        # Add the sensors to the robot
+        for sensor_type, sensors_descr in sensors_info.items():
+            for sensor_name, sensor_descr in sensors_descr.items():
+                # Create the sensor and attach it
+                sensor = getattr(jiminy, sensor_type)(sensor_name)
+                self.attach_sensor(sensor)
+
+                # Initialize the sensor
+                if sensor_type == encoder.type:
+                    joint_name = sensor_descr.pop('joint_name')
+                    sensor.initialize(joint_name)
+                elif sensor_type == effort.type:
+                    motor_name = sensor_descr.pop('motor_name')
+                    sensor.initialize(motor_name)
+                elif sensor_type == contact.type:
+                    frame_name = sensor_descr.pop('frame_name')
+                    sensor.initialize(frame_name)
+                elif sensor_type in [force.type, imu.type]:
+                    # Create the frame and add it to the robot model
+                    frame_name = sensor_descr.pop('frame_name', None)
+
+                    if frame_name is None:
+                        # Create a frame is a frame name has been specified.
+                        # In this case, the body name must be specified.
+
+                        ## Get the body name
+                        body_name = sensor_descr.pop('body_name')
+
+                        ## Generate a frame name that is intelligible and available
+                        i = 0
+                        frame_name = "_".join((
+                            sensor_name, sensor_type, "Frame"))
+                        while self.pinocchio_model.existFrame(frame_name):
+                            frame_name = "_".join((
+                                sensor_name, sensor_type, "Frame", str(i)))
+                            i += 1
+
+                        ## Compute SE3 object representing the frame placement
+                        frame_pose_xyzrpy = np.array(
+                            sensor_descr.pop('frame_pose'))
+                        frame_trans = frame_pose_xyzrpy[:3]
+                        frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
+                        frame_placement = pin.SE3(frame_rot, frame_trans)
+
+                        ## Add the frame to the robot model
+                        self.add_frame(frame_name, body_name, frame_placement)
+
+                    # Initialize the sensor
+                    sensor.initialize(frame_name)
+                else:
+                    raise ValueError(
+                        f"Unsupported sensor type {sensor_type}.")
+
+                # Set the sensor options
+                options = sensor.get_options()
+                option_fields = options.keys()
+                for name, value in sensor_descr.items():
+                    if name not in option_fields:
+                        logger.warning(f"'{name}' is not a valid option for "
+                            f"the sensor {sensor_name} of type {sensor_type}.")
+                    options[name] = value
+                sensor.set_options(options)
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:
