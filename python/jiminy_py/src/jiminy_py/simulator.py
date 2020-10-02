@@ -6,15 +6,37 @@ import pathlib
 import tempfile
 import numpy as np
 from collections import OrderedDict
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button
 from typing import Optional, Type, Dict, List, Any
 
 import pinocchio as pin
 
 from . import core as jiminy
+from .core import (EncoderSensor as enc,
+                   EffortSensor as effort,
+                   ContactSensor as contact,
+                   ForceSensor as force,
+                   ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyController
 from .viewer import Viewer
 
+
+SENSORS_FIELDS = {
+    enc: enc.fieldnames,
+    effort: effort.fieldnames,
+    contact: contact.fieldnames,
+    force: {
+        k: [e[len(k):] for e in force.fieldnames if e.startswith(k)]
+        for k in ['F', 'M']
+    },
+    imu: {
+        k: [e[len(k):] for e in imu.fieldnames if e.startswith(k)]
+        for k in ['Quat', 'Gyro', 'Accel']
+    }
+}
 
 DEFAULT_GROUND_STIFFNESS = 4.0e6
 DEFAULT_GROUND_DAMPING = 2.0e3
@@ -353,6 +375,145 @@ class Simulator:
         if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
             self._viewer = None
+
+    def plot(self) -> None:
+        """
+        @brief TODO.
+        """
+        # Define some internal helper functions
+        def extract_fields(log_data: Dict[str, np.ndarray],
+                           namespace: Optional[str],
+                           fieldnames: List[str],
+                           ) -> Optional[np.ndarray]:
+            """
+            @brief TODO.
+            """
+            field_values = [log_data.get(
+                    '.'.join((filter(None, (namespace, field)))), None)
+                for field in fieldnames]
+            if not field_values or all(v is None for v in field_values):
+                return None
+            else:
+                return field_values
+
+        # Extract log data
+        log_data, _ = self.get_log()
+        t = log_data["Global.Time"]
+
+        # Figures data structure as a dictionary
+        data = OrderedDict()
+
+        # Get robot positions, velocities, and acceleration
+        for fields_type in ["Position", "Velocity", "Acceleration"]:
+            fieldnames = getattr(self.robot,
+                "logfile_" + fields_type.lower() + "_headers")
+            values = extract_fields(log_data, 'HighLevelController',
+                fieldnames)
+            if values is not None:
+                data[' '.join(("State", fields_type))] = OrderedDict(
+                    (field[len("current"):].replace(fields_type, ""), val)
+                    for field, val in zip(fieldnames, values))
+
+        # Get motors information
+        u = extract_fields(log_data, 'HighLevelController',
+            self.robot.logfile_motor_effort_headers)
+        if u is not None:
+            data['Motors Effort'] = OrderedDict((field, val)
+                for field, val in zip(self.robot.motors_names, u))
+
+        # Get sensors information
+        for sensors_class, sensors_fields in SENSORS_FIELDS.items():
+            sensors_type = sensors_class.type
+            sensors_names = self.robot.sensors_names.get(sensors_type, [])
+            namespace = sensors_type if sensors_class.has_prefix else None
+            if isinstance(sensors_fields, dict):
+                for fields_prefix, fieldnames in sensors_fields.items():
+                    sensors_data = [extract_fields(log_data, namespace, [
+                        '.'.join((name, fields_prefix + field))
+                        for name in sensors_names]) for field in fieldnames]
+                    if sensors_data[0] is not None:
+                        type_name = ' '.join((sensors_type, fields_prefix))
+                        data[type_name] = OrderedDict((field,
+                            OrderedDict((name, val)
+                            for name, val in zip(sensors_names, values))
+                        ) for field, values in zip(fieldnames, sensors_data))
+            else:
+                for field in sensors_fields:
+                    sensors_data = extract_fields(log_data, namespace,
+                        ['.'.join((name, field)) for name in sensors_names])
+                    if sensors_data is not None:
+                        data[' '.join((sensors_type, field))] = OrderedDict(
+                            (name, val)
+                            for name, val in zip(sensors_names, sensors_data))
+
+        # Plot the data
+        fig = plt.figure()
+        fig_axes = {}
+        for fig_name, fig_data in data.items():
+            n_cols = len(fig_data)
+            n_rows = 1
+            while n_cols > n_rows + 2:
+                n_rows = n_rows + 1
+                n_cols = int(np.ceil(len(fig_data) / (1.0 * n_rows)))
+
+            axes = []
+            for i, plot_name in enumerate(fig_data.keys()):
+                uniq_label = '_'.join((fig_name, plot_name))
+                ax = fig.add_subplot(n_rows, n_cols, i+1, label=uniq_label)
+                ax.set_visible(False)
+                axes.append(ax)
+            fig_axes[fig_name] = axes
+
+            for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
+                if isinstance(plot_data, dict):
+                    for line_name, line_data in plot_data.items():
+                        line = ax.plot(t, line_data, label=line_name)
+                    ax.legend()
+                else:
+                    ax.plot(t, plot_data)
+                ax.set_title(plot_name, fontsize='medium')
+                ax.grid()
+            fig.canvas.draw_idle()
+
+        # Add buttons to show/hide information
+        button_axcut = {}
+        buttons = {}
+        buttons_width = 1.0 / (len(data) + 1)
+        for i, fig_name in enumerate(data.keys()):
+            button_axcut[fig_name] = plt.axes(
+                [buttons_width * (i + 0.5), 0.01, buttons_width, 0.05])
+            buttons[fig_name] = Button(
+                button_axcut[fig_name], fig_name, color='white')
+
+        def click(event: matplotlib.backend_bases.Event) -> None:
+            for b in buttons.values():
+                if b.ax == event.inaxes:
+                    b.ax.set_facecolor('green')
+                    b.color = 'green'
+                    button_name = b.label.get_text()
+                    for fig_name, axes in fig_axes.items():
+                        for ax in axes:
+                            ax.set_visible(button_name == fig_name)
+                    fig.suptitle(button_name)
+                else:
+                    b.ax.set_facecolor('white')
+                    b.color = 'white'
+            fig.canvas.draw_idle()
+
+        for b in buttons.values():
+            b.on_clicked(click)
+
+        # Adjust layout and show figure (without blocking)
+        fig.subplots_adjust(bottom=0.1, top=0.92, left=0.05, right=0.95,
+            wspace=0.15, hspace=0.35)
+        fig_name = list(fig_axes.keys())[0]
+        for ax in fig_axes[fig_name]:
+            ax.set_visible(True)
+        fig.suptitle(fig_name)
+        buttons[fig_name].ax.set_facecolor('green')
+        buttons[fig_name].color = 'green'
+        fig.canvas.draw_idle()
+        plt.show(block=False)
 
     def get_controller_options(self) -> dict:
         """

@@ -845,6 +845,7 @@ namespace python
                 cl
                     .def("initialize", &TSensor::initialize)
                     .def_readonly("type", &TSensor::type_)
+                    .def_readonly("has_prefix", &TSensor::areFieldnamesGrouped_)
                     .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldNames_,
                                                        bp::return_value_policy<bp::return_by_value>()))
                     ;
