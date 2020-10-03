@@ -13,8 +13,8 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
-DT = 2.0e-3      ## Stepper update period
-MAX_FORCE = 40.0 ## Max force of the motor
+DT = 2.0e-3       # Stepper update period
+MAX_FORCE = 40.0  # Max force of the motor
 
 
 class CartPoleJiminyEnv(BaseJiminyEnv):

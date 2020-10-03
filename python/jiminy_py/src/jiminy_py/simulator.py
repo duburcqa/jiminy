@@ -38,6 +38,7 @@ SENSORS_FIELDS = {
     }
 }
 
+DEFAULT_UPDATE_PERIOD = 1.0e-3  # 0.0 for time continuous update
 DEFAULT_GROUND_STIFFNESS = 4.0e6
 DEFAULT_GROUND_DAMPING = 2.0e3
 
@@ -157,7 +158,8 @@ class Simulator:
         control_period = robot.extra_info.pop('controllerUpdatePeriod', None)
         sensors_period = robot.extra_info.pop('sensorsUpdatePeriod', None)
         if control_period is None and sensors_period is None:
-            control_period, sensors_period = 0.0, 0.0
+            control_period = DEFAULT_UPDATE_PERIOD
+            sensors_period = DEFAULT_UPDATE_PERIOD
         elif control_period is None:
             control_period = sensors_period
         else:
@@ -459,6 +461,7 @@ class Simulator:
         # Plot the data
         fig = plt.figure()
         fig_axes = {}
+        ref_ax = None
         for fig_name, fig_data in data.items():
             n_cols = len(fig_data)
             n_rows = 1
@@ -471,19 +474,22 @@ class Simulator:
                 uniq_label = '_'.join((fig_name, plot_name))
                 ax = fig.add_subplot(n_rows, n_cols, i+1, label=uniq_label)
                 ax.set_visible(False)
+                if ref_ax is not None:
+                    ax.get_shared_x_axes().join(ref_ax, ax)
+                else:
+                    ref_ax = ax
                 axes.append(ax)
             fig_axes[fig_name] = axes
 
             for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
                 if isinstance(plot_data, dict):
                     for line_name, line_data in plot_data.items():
-                        line = ax.plot(t, line_data, label=line_name)
+                        ax.plot(t, line_data, label=line_name)
                     ax.legend()
                 else:
                     ax.plot(t, plot_data)
                 ax.set_title(plot_name, fontsize='medium')
                 ax.grid()
-            fig.canvas.draw_idle()
 
         # Add buttons to show/hide information
         button_axcut = {}

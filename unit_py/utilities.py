@@ -6,6 +6,7 @@ import numpy as np
 from scipy.integrate import ode
 
 from jiminy_py import core as jiminy
+from jiminy_py.core import ImuSensor as imu
 
 from pinocchio import neutral
 

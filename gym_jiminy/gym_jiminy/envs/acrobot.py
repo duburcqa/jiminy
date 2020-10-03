@@ -13,10 +13,10 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
-DT = 2.0e-3          ## Stepper update period
-MAX_VEL = 4 * np.pi  ## Max velocity of the joints
-MAX_TORQUE = 10.0    ## Max torque of the motor
-ACTION_NOISE = 0.0   ## Standard deviation of the noise added to the action
+DT = 2.0e-3          # Stepper update period
+MAX_VEL = 4 * np.pi  # Max velocity of the joints
+MAX_TORQUE = 10.0    # Max torque of the motor
+ACTION_NOISE = 0.0   # Standard deviation of the noise added to the action
 
 
 class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
