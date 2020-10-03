@@ -214,11 +214,12 @@ class Simulator:
         @remark Beware that it returns a copy, which is computationally
                 inefficient but intentional.
         """
-        x = self.engine.stepper_state.x
+        q = self.engine.system_state.q
+        v = self.engine.system_state.v
         if self.robot.is_flexible and self.use_theoretical_model:
-            return self.robot.get_rigid_state_from_flexible(x)
+            return self.robot.get_rigid_state_from_flexible(q, v)
         else:
-            return x.copy()
+            return q, v  # It is already a copy
 
     @property
     def pinocchio_model(self) -> pin.Model:
@@ -271,16 +272,18 @@ class Simulator:
 
     def run(self,
             tf: float,
-            x0: np.ndarray,
+            q0: np.ndarray,
+            v0: np.ndarray,
             is_state_theoretical: bool = True,
             log_path: Optional[str] = None,
             show_progress_bar: bool = True) -> None:
         """
-        @brief Run a simulation, starting from x0 at t=0 up to tf.
+        @brief Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
 
         @remark Optionally, log the result of the simulation.
 
-        @param x0  Initial state.
+        @param q0  Initial configuration.
+        @param v0  Initial velocity.
         @param tf  Simulation end time.
         @param is_state_theoretical  Whether or not the initial state is
                                      associated with the actual or theoretical
@@ -299,7 +302,7 @@ class Simulator:
             except AttributeError as e:
                 raise RuntimeError("'show_progress_bar' can only be used with "
                     "controller inherited from `BaseJiminyController`.") from e
-        self.engine.simulate(tf, x0, is_state_theoretical)
+        self.engine.simulate(tf, q0, v0, is_state_theoretical)
         self.engine.controller.close_progress_bar()
 
         # Write log

@@ -266,7 +266,7 @@ namespace jiminy
                 // In header, look for timeUnit constant - if not found, use default time unit.
                 float64_t timeUnit = TELEMETRY_DEFAULT_TIME_UNIT;
                 auto const lastConstantIt = std::find(header.begin(), header.end(), START_COLUMNS);
-                for (auto constantIt = header.begin() ; constantIt != lastConstantIt ; constantIt++)
+                for (auto constantIt = header.begin() ; constantIt != lastConstantIt ; ++constantIt)
                 {
                     int32_t const delimiter = constantIt->find("=");
                     if (constantIt->substr(0, delimiter) == TIME_UNIT)

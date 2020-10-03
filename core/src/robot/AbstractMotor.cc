@@ -85,7 +85,7 @@ namespace jiminy
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             --sharedHolder_->motors_[i]->motorIdx_;
         }

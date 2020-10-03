@@ -1110,20 +1110,24 @@ namespace python
             return self.removeContactPoints(frameNames);
         }
 
-        static vectorN_t getFlexibleStateFromRigid(Model           & self,
-                                                   vectorN_t const & xRigid)
+        static bp::tuple getFlexibleStateFromRigid(Model           & self,
+                                                   vectorN_t const & qRigid,
+                                                   vectorN_t const & vRigid)
         {
-            vectorN_t xFlexible;
-            self.getFlexibleStateFromRigid(xRigid, xFlexible);
-            return xFlexible;
+            vectorN_t qFlexible;
+            vectorN_t vFlexible;
+            self.getFlexibleStateFromRigid(qRigid, vRigid, qFlexible, vFlexible);
+            return bp::make_tuple(qFlexible, vFlexible);
         }
 
-        static vectorN_t getRigidStateFromFlexible(Model           & self,
-                                                   vectorN_t const & xFlexible)
+        static bp::tuple getRigidStateFromFlexible(Model           & self,
+                                                   vectorN_t const & qFlexible,
+                                                   vectorN_t const & vFlexible)
         {
-            vectorN_t xRigid;
-            self.getRigidStateFromFlexible(xFlexible, xRigid);
-            return xRigid;
+            vectorN_t qRigid;
+            vectorN_t vRigid;
+            self.getRigidStateFromFlexible(qFlexible, vFlexible, qRigid, vRigid);
+            return bp::make_tuple(qRigid, vRigid);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1576,12 +1580,26 @@ namespace python
                 .def_readonly("iter_failed", &stepperState_t::iterFailed)
                 .def_readonly("t", &stepperState_t::t)
                 .def_readonly("dt", &stepperState_t::dt)
-                .add_property("x", bp::make_getter(&stepperState_t::x,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("dxdt", bp::make_getter(&stepperState_t::dxdt,
-                                      bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("q", &PyStepperStateVisitor::getPosition)
+                .add_property("v", &PyStepperStateVisitor::getVelocity)
+                .add_property("a", &PyStepperStateVisitor::getAcceleration)
                 .def("__repr__", &PyStepperStateVisitor::repr)
                 ;
+        }
+
+        static bp::object getPosition(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.qSplit);
+        }
+
+        static bp::object getVelocity(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.vSplit);
+        }
+
+        static bp::object getAcceleration(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.aSplit);
         }
 
         static std::string repr(stepperState_t & self)
@@ -1592,8 +1610,21 @@ namespace python
             s << "\niter_failed:\n    " << self.iterFailed;
             s << "\nt:\n    " << self.t;
             s << "\ndt:\n    " << self.dt;
-            s << "\nx:\n    " << self.x.transpose().format(HeavyFmt);
-            s << "dxdt:\n    " << self.dxdt.transpose().format(HeavyFmt);
+            s << "\nq:";
+            for (uint32_t i=0; i < self.qSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.qSplit[i].transpose().format(HeavyFmt);
+            }
+            s << "\nv:";
+            for (uint32_t i=0; i < self.vSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.vSplit[i].transpose().format(HeavyFmt);
+            }
+            s << "\na:";
+            for (uint32_t i=0; i < self.aSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.aSplit[i].transpose().format(HeavyFmt);
+            }
             return s.str();
         }
 
@@ -1626,8 +1657,6 @@ namespace python
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("v", bp::make_getter(&systemState_t::v,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("qDot", bp::make_getter(&systemState_t::qDot,
-                                      bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("a", bp::make_getter(&systemState_t::a,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u", bp::make_getter(&systemState_t::u,
@@ -1650,7 +1679,6 @@ namespace python
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
             s << "q:\n    " << self.q.transpose().format(HeavyFmt);
             s << "v:\n    " << self.v.transpose().format(HeavyFmt);
-            s << "qDot:\n    " << self.qDot.transpose().format(HeavyFmt);
             s << "a:\n    " << self.a.transpose().format(HeavyFmt);
             s << "u:\n    " << self.u.transpose().format(HeavyFmt);
             s << "u_motor:\n    " << self.uMotor.transpose().format(HeavyFmt);
@@ -1677,10 +1705,10 @@ namespace python
         }
     };
 
-    // ***************************** PySystemDataVisitor ***********************************
+    // ***************************** PySystemVisitor ***********************************
 
-    struct PySystemDataVisitor
-        : public bp::def_visitor<PySystemDataVisitor>
+    struct PySystemVisitor
+        : public bp::def_visitor<PySystemVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1690,21 +1718,21 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .add_property("name", bp::make_getter(&systemDataHolder_t::name,
+                .add_property("name", bp::make_getter(&systemHolder_t::name,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("robot", &systemDataHolder_t::robot)
-                .add_property("controller", &systemDataHolder_t::controller)
-                .add_property("callbackFct", bp::make_getter(&systemDataHolder_t::callbackFct,
+                .add_property("robot", &systemHolder_t::robot)
+                .add_property("controller", &systemHolder_t::controller)
+                .add_property("callbackFct", bp::make_getter(&systemHolder_t::callbackFct,
                                              bp::return_internal_reference<>()))
                 ;
         }
 
-        static uint32_t getLength(std::vector<systemDataHolder_t> & self)
+        static uint32_t getLength(std::vector<systemHolder_t> & self)
         {
             return self.size();
         }
 
-        static systemDataHolder_t & getItem(std::vector<systemDataHolder_t>       & self,
+        static systemHolder_t & getItem(std::vector<systemHolder_t>       & self,
                                             int32_t                         const & idx)
         {
             return self[idx];
@@ -1715,17 +1743,17 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<systemDataHolder_t,
-                       boost::noncopyable>("systemData", bp::no_init)
-                .def(PySystemDataVisitor());
+            bp::class_<systemHolder_t,
+                       boost::noncopyable>("system", bp::no_init)
+                .def(PySystemVisitor());
 
-            bp::class_<std::vector<systemDataHolder_t>,
-                       boost::noncopyable>("systemDataVector", bp::no_init)
-                .def("__len__", bp::make_function(&PySystemDataVisitor::getLength,
+            bp::class_<std::vector<systemHolder_t>,
+                       boost::noncopyable>("systemVector", bp::no_init)
+                .def("__len__", bp::make_function(&PySystemVisitor::getLength,
                                 bp::return_value_policy<bp::return_by_value>()))
-                .def("__iter__", bp::iterator<std::vector<systemDataHolder_t>,
+                .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
                                  bp::return_internal_reference<> >())
-                .def("__getitem__", bp::make_function(&PySystemDataVisitor::getItem,
+                .def("__getitem__", bp::make_function(&PySystemVisitor::getItem,
                                     bp::return_internal_reference<>(),
                                     (bp::arg("self"), "idx")));
         }
@@ -1778,14 +1806,16 @@ namespace python
                     >(&EngineMultiRobot::reset),
                     (bp::arg("self"), bp::arg("remove_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
-                              (bp::arg("self"), "x_init",
+                              (bp::arg("self"), "q_init_list", "v_init_list",
                                bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
-                                 (bp::arg("self"), "end_time", "x_init"))
+                                 (bp::arg("self"), "t_end", "q_init_list", "q_init_list"))
+                .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
+                                              (bp::arg("self"), "t_end", "q_list", "v_list", "a_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
@@ -1813,7 +1843,7 @@ namespace python
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
 
-                .add_property("systems", bp::make_getter(&EngineMultiRobot::systemsDataHolder_,
+                .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
                                          bp::return_internal_reference<>()))
                 .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
                                                bp::return_value_policy<bp::return_by_value>()))
@@ -1861,11 +1891,11 @@ namespace python
             return self.addSystem(systemName, robot, std::move(callbackFct));
         }
 
-        static systemDataHolder_t & getSystem(EngineMultiRobot  & self,
+        static systemHolder_t & getSystem(EngineMultiRobot  & self,
                                               std::string const & systemName)
         {
-            systemDataHolder_t * system;
-            self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemDataHolder_t
+            systemHolder_t * system;
+            self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemHolder_t
             return *system;
         }
 
@@ -1890,11 +1920,13 @@ namespace python
         }
 
         static hresult_t start(EngineMultiRobot       & self,
-                               bp::object       const & xInit,
+                               bp::object       const & qInit,
+                               bp::object       const & vInit,
                                bool             const & resetRandomGenerator,
                                bool             const & removeForces)
         {
-            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(xInit),
+            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(qInit),
+                              convertFromPython<std::map<std::string, vectorN_t> >(vInit),
                               resetRandomGenerator,
                               removeForces);
         }
@@ -1908,10 +1940,35 @@ namespace python
 
         static hresult_t simulate(EngineMultiRobot       & self,
                                   float64_t        const & endTime,
-                                  bp::object       const & xInit)
+                                  bp::object       const & qInit,
+                                  bp::object       const & vInit)
         {
             return self.simulate(endTime,
-                                 convertFromPython<std::map<std::string, vectorN_t> >(xInit));
+                                 convertFromPython<std::map<std::string, vectorN_t> >(qInit),
+                                 convertFromPython<std::map<std::string, vectorN_t> >(vInit));
+        }
+
+        static hresult_t computeSystemDynamics(EngineMultiRobot       & self,
+                                               float64_t        const & endTime,
+                                               bp::object       const & qSplitPy,
+                                               bp::object       const & vSplitPy,
+                                               bp::object             & aSplitPy)
+        {
+            if (!self.getIsSimulationRunning())
+            {
+                std::cout << "Error - EngineMultiRobot::computeSystemDynamics - No simulation running." << std::endl;
+                return hresult_t::ERROR_GENERIC;
+            }
+
+            auto aSplit = convertFromPython<std::vector<vectorN_t> >(aSplitPy);
+            self.computeSystemDynamics(
+                endTime,
+                convertFromPython<std::vector<vectorN_t> >(qSplitPy),
+                convertFromPython<std::vector<vectorN_t> >(vSplitPy),
+                aSplit
+            );
+
+            return hresult_t::SUCCESS;
         }
 
         static void writeLog(EngineMultiRobot       & self,
@@ -2120,17 +2177,18 @@ namespace python
 
                 .def("start",
                     static_cast<
-                        hresult_t (Engine::*)(vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
+                        hresult_t (Engine::*)(vectorN_t const &, vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
                     >(&Engine::start),
-                    (bp::arg("self"), "x_init",
+                    (bp::arg("self"), "q_init", "v_init",
                      bp::arg("is_state_theoretical") = false,
                      bp::arg("reset_random_generator") = false,
                      bp::arg("remove_forces") = false))
                 .def("simulate",
                     static_cast<
-                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, bool_t const &)
+                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, vectorN_t const &, bool_t const &)
                     >(&Engine::simulate),
-                    (bp::arg("self"), "end_time", "x_init", bp::arg("is_state_theoretical") = false))
+                    (bp::arg("self"), "t_end", "q_init", "v_init",
+                     bp::arg("is_state_theoretical") = false))
 
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))

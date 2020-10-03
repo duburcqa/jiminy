@@ -124,7 +124,7 @@ namespace python
         PyControllerFunctorVisitor::expose();
         PyStepperStateVisitor::expose();
         PySystemStateVisitor::expose();
-        PySystemDataVisitor::expose();
+        PySystemVisitor::expose();
         PyEngineMultiRobotVisitor::expose();
         PyEngineVisitor::expose();
     }

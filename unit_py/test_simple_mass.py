@@ -222,9 +222,9 @@ class SimulateSimpleMass(unittest.TestCase):
             internal_dynamics=spinning_force)
 
         # Run simulation
-        x0 = neutral_state(robot)
+        q0, v0 = neutral_state(robot)
         tf = 1.5
-        engine.simulate(tf, x0)
+        engine.simulate(tf, q0, v0)
 
     def _test_friction_model(self, shape):
         """

@@ -64,7 +64,13 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/BasicSensors.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/FixedFrameConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractStepper.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/ExplicitEulerStepper.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/LieGroup.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKuttaDOPRIStepper.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/RungeKuttaStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/control/AbstractController.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/System.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/EngineMultiRobot.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/engine/Engine.cc"
 )

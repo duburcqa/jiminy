@@ -123,13 +123,14 @@ int main(int argc, char_t * argv[])
     // =====================================================================
 
     // Prepare options
-    Eigen::VectorXd x0 = Eigen::VectorXd::Zero(4);
-    x0(1) = 0.1;
+    Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
+    q0(1) = 0.1;
+    Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
     float64_t const tf = 3.0;
 
     // Run simulation
     timer.tic();
-    engine->simulate(tf, x0);
+    engine->simulate(tf, q0, v0);
     timer.toc();
     std::cout << "Simulation time: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 

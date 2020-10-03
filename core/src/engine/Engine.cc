@@ -32,8 +32,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get some convenience proxies
-            robot_ = systemsDataHolder_.begin()->robot.get();
-            controller_ = systemsDataHolder_.begin()->controller.get();
+            robot_ = systems_.begin()->robot.get();
+            controller_ = systems_.begin()->controller.get();
 
             // Set the initialization flag
             isInitialized_ = true;
@@ -54,8 +54,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get some convenience proxies
-            robot_ = systemsDataHolder_.begin()->robot.get();
-            controller_ = systemsDataHolder_.begin()->controller.get();
+            robot_ = systems_.begin()->robot.get();
+            controller_ = systems_.begin()->controller.get();
 
             // Set the initialization flag
             isInitialized_ = true;
@@ -69,7 +69,8 @@ namespace jiminy
         return setController("", controller);
     }
 
-    hresult_t Engine::start(vectorN_t const & xInit,
+    hresult_t Engine::start(vectorN_t const & qInit,
+                            vectorN_t const & vInit,
                             bool_t    const & isStateTheoretical,
                             bool_t    const & resetRandomNumbers,
                             bool_t    const & resetDynamicForceRegister)
@@ -82,32 +83,37 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::map<std::string, vectorN_t> xInitList;
+        std::map<std::string, vectorN_t> qInitList;
+        std::map<std::string, vectorN_t> vInitList;
         if (returnCode == hresult_t::SUCCESS)
         {
             if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
-                vectorN_t x0;
-                returnCode = robot_->getFlexibleStateFromRigid(xInit, x0);
-                xInitList.emplace("", std::move(x0));
+                vectorN_t q0;
+                vectorN_t v0;
+                returnCode = robot_->getFlexibleStateFromRigid(qInit, vInit, q0, v0);
+                qInitList.emplace("", std::move(q0));
+                vInitList.emplace("", std::move(v0));
             }
             else
             {
-                xInitList.emplace("", xInit);
+                qInitList.emplace("", std::move(qInit));
+                vInitList.emplace("", std::move(vInit));
             }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = EngineMultiRobot::start(
-                xInitList, resetRandomNumbers, resetDynamicForceRegister);
+                qInitList, vInitList, resetRandomNumbers, resetDynamicForceRegister);
         }
 
         return returnCode;
     }
 
     hresult_t Engine::simulate(float64_t const & tEnd,
-                               vectorN_t const & xInit,
+                               vectorN_t const & qInit,
+                               vectorN_t const & vInit,
                                bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -118,24 +124,28 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::map<std::string, vectorN_t> xInitList;
+        std::map<std::string, vectorN_t> qInitList;
+        std::map<std::string, vectorN_t> vInitList;
         if (returnCode == hresult_t::SUCCESS)
         {
             if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
             {
-                vectorN_t x0;
-                returnCode = robot_->getFlexibleStateFromRigid(xInit, x0);
-                xInitList.emplace("", std::move(x0));
+                vectorN_t q0;
+                vectorN_t v0;
+                returnCode = robot_->getFlexibleStateFromRigid(qInit, vInit, q0, v0);
+                qInitList.emplace("", std::move(q0));
+                vInitList.emplace("", std::move(v0));
             }
             else
             {
-                xInitList.emplace("", xInit);
+                qInitList.emplace("", std::move(qInit));
+                vInitList.emplace("", std::move(vInit));
             }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = EngineMultiRobot::simulate(tEnd, xInitList);
+            returnCode = EngineMultiRobot::simulate(tEnd, qInitList, vInitList);
         }
 
         return returnCode;
@@ -168,7 +178,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        robot = systemsDataHolder_.begin()->robot;
+        robot = systems_.begin()->robot;
 
         return hresult_t::SUCCESS;
     }
@@ -181,7 +191,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        controller = systemsDataHolder_.begin()->controller;
+        controller = systems_.begin()->controller;
 
         return hresult_t::SUCCESS;
     }

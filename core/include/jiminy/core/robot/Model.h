@@ -193,10 +193,14 @@ namespace jiminy
         std::vector<std::string> const & getVelocityFieldnames(void) const;
         std::vector<std::string> const & getAccelerationFieldnames(void) const;
 
-        hresult_t getFlexibleStateFromRigid(vectorN_t const & xRigid,
-                                            vectorN_t       & xFlex) const;
-        hresult_t getRigidStateFromFlexible(vectorN_t const & xFlex,
-                                            vectorN_t       & xRigid) const;
+        hresult_t getFlexibleStateFromRigid(vectorN_t const & qRigid,
+                                            vectorN_t const & vRigid,
+                                            vectorN_t       & qFlex,
+                                            vectorN_t       & vFlex) const;
+        hresult_t getRigidStateFromFlexible(vectorN_t const & qFlex,
+                                            vectorN_t const & vFlex,
+                                            vectorN_t       & qRigid,
+                                            vectorN_t       & vRigid) const;
 
     protected:
         hresult_t loadUrdfModel(std::string              const & urdfPath,

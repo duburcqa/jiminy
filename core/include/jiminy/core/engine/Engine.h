@@ -35,7 +35,8 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        hresult_t start(vectorN_t const & xInit,
+        hresult_t start(vectorN_t const & qInit,
+                        vectorN_t const & vInit,
                         bool_t    const & isStateTheoretical = false,
                         bool_t    const & resetRandomNumbers = false,
                         bool_t    const & resetDynamicForceRegister = false);
@@ -46,7 +47,8 @@ namespace jiminy
         /// \param[in] xInit Initial state, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         hresult_t simulate(float64_t const & tEnd,
-                           vectorN_t const & xInit,
+                           vectorN_t const & qInit,
+                           vectorN_t const & vInit,
                            bool_t    const & isStateTheoretical = false);
 
         hresult_t registerForceImpulse(std::string      const & frameName,
