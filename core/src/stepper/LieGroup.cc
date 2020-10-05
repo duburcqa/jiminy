@@ -29,11 +29,10 @@ namespace jiminy
         assert(v.size() == velocity.v.size());
 
         state_t s(*this);
-
         for (uint32_t i = 0; i < v.size(); ++i)
         {
             // 'Sum' q = q + v, remember q is part of a Lie group (dim(q) != dim(v))
-            pinocchio::integrate(robots_[i]->pncModel_, s.q[i], velocity.v[i]);
+            pinocchio::integrate(robots_[i]->pncModel_, q[i], velocity.v[i], s.q[i]);
             s.v[i] += velocity.a[i];
         }
         return s;
@@ -47,7 +46,7 @@ namespace jiminy
         for (uint32_t i = 0; i < v.size(); ++i)
         {
             // 'Sum' q = q + v, remember q is part of a Lie group (dim(q) != dim(v))
-            pinocchio::integrate(robots_[i]->pncModel_, q[i], velocity.v[i]);
+            pinocchio::integrate(robots_[i]->pncModel_, q[i], velocity.v[i], q[i]);
             v[i] += velocity.a[i];
         }
     }

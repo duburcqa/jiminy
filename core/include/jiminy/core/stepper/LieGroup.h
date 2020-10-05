@@ -27,6 +27,8 @@ namespace jiminy
 
             state_t(state_t const & state);
 
+            state_t& operator=(state_t const &) = default;
+
             /// \brief Compute the state reached from the current state given the velocity.
             /// \details This function returns the state reached from this with the velocity
             ///          v (integrated over 1s): a vector-space equivalent would be the simple
@@ -60,6 +62,8 @@ namespace jiminy
                               std::vector<vectorN_t> const & aIn);
 
             stateDerivative_t(stateDerivative_t const & stateIn);
+
+            stateDerivative_t& operator=(stateDerivative_t const &) = default;
 
             /// \brief Sum operator.
             /// \details Given (v1, a1) and (v2, a2), this simply returns (v1 + v2, a1 + a2)
