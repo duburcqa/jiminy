@@ -451,10 +451,10 @@ namespace jiminy
                                         std::vector<std::string>       & header,
                                         matrixN_t                      & logData);
 
-        void computeSystemDynamics(float64_t              const & t,
-                                   std::vector<vectorN_t> const & qSplit,
-                                   std::vector<vectorN_t> const & vSplit,
-                                   std::vector<vectorN_t>       & aSplit);
+        hresult_t computeSystemDynamics(float64_t              const & t,
+                                        std::vector<vectorN_t> const & qSplit,
+                                        std::vector<vectorN_t> const & vSplit,
+                                        std::vector<vectorN_t>       & aSplit);
     protected:
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);

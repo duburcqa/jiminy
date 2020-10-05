@@ -3,9 +3,9 @@
 namespace jiminy
 {
     RungeKuttaDOPRIStepper::RungeKuttaDOPRIStepper(systemDynamics f, /* Copy on purpose */
-                                                   std::vector<Robot const *> robots,
-                                                   float64_t const& tolRel,
-                                                   float64_t const& tolAbs):
+                                                   std::vector<Robot const *> const & robots,
+                                                   float64_t const & tolRel,
+                                                   float64_t const & tolAbs):
     RungeKuttaStepper(f,
                       robots,
                       tolRel,

@@ -5,39 +5,41 @@
 namespace jiminy
 {
     AbstractStepper::AbstractStepper(systemDynamics f,
-                                     std::vector<Robot const *> robots):
-        f_(std::move(f)),
-        robots_(robots)
+                                     std::vector<Robot const *> const & robots):
+    f_(std::move(f)),
+    robots_(robots),
+    state_(robots),
+    stateDerivative_(robots)
     {
-        // Empty
+        // Empty on purpose.
     }
 
-    bool AbstractStepper::try_step(std::vector<vectorN_t> & q,
-                                   std::vector<vectorN_t> & v,
-                                   std::vector<vectorN_t> & a,
-                                   float64_t              & t,
-                                   float64_t              & dt)
+    bool_t AbstractStepper::tryStep(std::vector<vectorN_t> & q,
+                                    std::vector<vectorN_t> & v,
+                                    std::vector<vectorN_t> & a,
+                                    float64_t              & t,
+                                    float64_t              & dt)
     {
         float64_t t_next = t + dt;
-        state_t state(robots_, q, v);
-        stateDerivative_t stateDerivative(v, a);
-        bool result = try_step_impl(state, stateDerivative, t, dt);
+        state_.q = q;
+        state_.v = v;
+        stateDerivative_.v = v;
+        stateDerivative_.a = a;
+        bool_t result = tryStepImpl(state_, stateDerivative_, t, dt);
         if (result)
         {
             t = t_next;
-            q = state.q;
-            v = state.v;
-            a = stateDerivative.a;
+            q = state_.q;
+            v = state_.v;
+            a = stateDerivative_.a;
         }
         return result;
     }
 
-    stateDerivative_t AbstractStepper::fWrapper(float64_t const & t,
-                                                state_t   const & state)
+    stateDerivative_t const & AbstractStepper::f(float64_t const & t,
+                                                 state_t   const & state)
     {
-        std::vector<vectorN_t> a;
-        a.resize(state.v.size());
-        f_(t, state.q, state.v, a);
-        return {state.v, a};
+        f_(t, state.q, state.v, stateDerivative_.a);
+        return stateDerivative_;
     }
 }

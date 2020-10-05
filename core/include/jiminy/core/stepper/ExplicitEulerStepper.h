@@ -20,14 +20,14 @@ namespace jiminy
             /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
             /// \param[in] robots Robots whose dynamics the stepper will work on.
             ExplicitEulerStepper(systemDynamics f, /* Copy on purpose */
-                                 std::vector<Robot const *> robots);
+                                 std::vector<Robot const *> const & robots);
 
         protected:
-            /// \brief Internal try_step method wrapping the arguments as state_t and stateDerivative_t.
-            bool try_step_impl(state_t & state,
-                               stateDerivative_t & stateDerivative,
-                               float64_t const & t,
-                               float64_t & dt);
+            /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
+            bool_t tryStepImpl(state_t                 & state,
+                               stateDerivative_t       & stateDerivative,
+                               float64_t         const & t,
+                               float64_t               & dt) final override;
     };
 }
 

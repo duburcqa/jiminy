@@ -1008,7 +1008,7 @@ namespace jiminy
         /* Flag monitoring if the dynamics has changed because of impulse
            forces or the command (only in the case of discrete control).
 
-           `try_step(rhs, x, dxdt, t, dt)` method of error controlled boost
+           `tryStep(rhs, x, dxdt, t, dt)` method of error controlled boost
            steppers leverage the FSAL (first same as last) principle. It is
            implemented by considering at the value of (x, dxdt) in argument
            have been initialized by the user with the system dynamics at
@@ -1220,7 +1220,7 @@ namespace jiminy
                     // Set the timestep to be tried by the stepper
                     dtLargest = dt;
 
-                    if (stepper_->try_step(qSplit, vSplit, aSplit, t, dtLargest))
+                    if (stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest))
                     {
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
@@ -1308,7 +1308,7 @@ namespace jiminy
                     }
 
                     // Try to do a step
-                    isStepSuccessful = stepper_->try_step(qSplit, vSplit, aSplit, t, dtLargest);
+                    isStepSuccessful = stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest);
 
                     if (isStepSuccessful)
                     {
@@ -2257,14 +2257,24 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::computeSystemDynamics(float64_t              const & t,
-                                                 std::vector<vectorN_t> const & qSplit,
-                                                 std::vector<vectorN_t> const & vSplit,
-                                                 std::vector<vectorN_t>       & aSplit)
+    hresult_t EngineMultiRobot::computeSystemDynamics(float64_t              const & t,
+                                                      std::vector<vectorN_t> const & qSplit,
+                                                      std::vector<vectorN_t> const & vSplit,
+                                                      std::vector<vectorN_t>       & aSplit)
     {
         /* - Note that the position of the free flyer is in world frame,
              whereas the velocities and accelerations are relative to
              the parent body frame. */
+
+        // Make sure that a simulation is running
+        if (!self.getIsInitialized())
+        {
+            std::cout << "Error - EngineMultiRobot::computeSystemDynamics - Engine not initialized." << std::endl;
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Make sure memory has been allocated for the output acceleration
+        aSplit.resize(vSplit.size());
 
         // Update the kinematics of each system
         auto systemIt = systems_.begin();
@@ -2338,6 +2348,8 @@ namespace jiminy
             // Compute the dynamics
             *aIt = computeAcceleration(*systemIt, *qIt, *vIt, u, fext);
         }
+
+        return hresult_t::SUCCESS;
     }
 
     // ===================================================================
