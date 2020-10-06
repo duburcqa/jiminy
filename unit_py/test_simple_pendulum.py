@@ -6,6 +6,7 @@ import unittest
 import numpy as np
 import scipy
 from scipy.interpolate import interp1d
+from typing import Union, Dict, Tuple, List
 
 from jiminy_py import core as jiminy
 from pinocchio import neutral
@@ -16,6 +17,7 @@ from utilities import (
     load_urdf_default,
     setup_controller_and_engine,
     integrate_dynamics,
+    neutral_state,
     simulate_and_get_state_evolution)
 
 # Small tolerance for numerical equality.
@@ -605,12 +607,10 @@ class SimulateSimplePendulum(unittest.TestCase):
         engine_options["world"]["gravity"] = np.zeros(6)
         engine.set_options(engine_options)
 
-        # Run simulation and extract some information from log data.
+        # Run simulation and extract some information from log data
         x0 = np.array([0.1, 0.0])
-        qInit = neutral(robot.pinocchio_model)
-        qInit[-1] = x0[0]
-        vInit = np.zeros(robot.pinocchio_model.nv)
-        vInit[-1] = x0[1]
+        qInit, vInit = neutral_state(self.robot, split=True)
+        qInit[-1], vInit[-1] = x0
         xInit = np.concatenate((qInit, vInit))
         tf = 2.0
         time, q_jiminy, v_jiminy = simulate_and_get_state_evolution(

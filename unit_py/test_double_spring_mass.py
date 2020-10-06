@@ -65,15 +65,14 @@ class SimulateTwoMasses(unittest.TestCase):
         """
         u[-2:] = - self.k * q[-2:] - self.nu * v[-2:]
 
-    def _get_simulated_and_analytical_solutions(self, engine, tf, x0):
+    def _get_simulated_and_analytical_solutions(self, engine, tf, xInit):
         """
         @brief   Simulate the system dynamics and compute the corresponding
                  analytical solution at the same timesteps.
         """
         # Run simulation and extract some information from log data
-        q0, v0 = np.split(x0, 2)
         time, x_jiminy = simulate_and_get_state_evolution(
-            engine, tf, q0, v0, split=False)
+            engine, tf, xInit, split=False)
 
         # Compute analytical solution
         x_analytical = np.stack([
@@ -274,7 +273,7 @@ class SimulateTwoMasses(unittest.TestCase):
         # Initialize with a random freeflyer configuration and zero velocity
         x_init = np.zeros(17)
         x_init[:7] = np.random.rand(7)
-        x_init[3:7] /= np.linalg.norm(q_init[3:7])
+        x_init[3:7] /= np.linalg.norm(x_init[3:7])
         x_init[7:9], v_init[-2:] = np.split(self.x0, 2)
 
         # The acceleration of the second mass should be the opposite of that of

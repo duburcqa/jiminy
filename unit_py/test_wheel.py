@@ -7,6 +7,7 @@ from pinocchio.rpy import rpyToMatrix
 
 from jiminy_py import core as jiminy
 
+from utilities import neutral_state
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
@@ -63,8 +64,7 @@ class SimulateWheel(unittest.TestCase):
         engine.initialize(self.robot, controller)
 
         # Run simulation
-        x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, # [TX,TY,TZ], [QX,QY,QZ,QW]
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ])
+        q0, v0 = neutral_state(self.robot, split=True)
         tf = 2.0
 
         dt_list = np.logspace(-2, -5, 5)

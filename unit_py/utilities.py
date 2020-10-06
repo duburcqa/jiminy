@@ -101,7 +101,8 @@ def setup_controller_and_engine(
     else:
         engine.initialize(robot)
 
-def neutral_state(robot: jiminy.Robot) -> Tuple[np.ndarray, np.ndarray]:
+def neutral_state(robot: jiminy.Robot,
+                  split: bool = False) -> Union[List[np.ndarray], np.ndarray]:
     """
     @brief   Return the neutral state of the robot, namely zero joint
              positions and unit quaternions regarding the configuration, and
@@ -111,7 +112,10 @@ def neutral_state(robot: jiminy.Robot) -> Tuple[np.ndarray, np.ndarray]:
     """
     q0 = neutral(robot.pinocchio_model)
     v0 = np.zeros(robot.nv)
-    return q0, v0
+    if split:
+        return q0, v0
+    else:
+        return np.concatenate((q0, v0))
 
 def integrate_dynamics(time: np.ndarray,
                        x0: np.ndarray,
@@ -172,8 +176,8 @@ def simulate_and_get_state_evolution(
         q0, v0 = {}, {}
         for system in engine.systems:
            name = system.name
-           q0[name] = x0[name][engine.robot.nq:]
-           v0[name] = x0[name][-engine.robot.nv:]
+           q0[name] = x0[name][system.robot.nq:]
+           v0[name] = x0[name][-system.robot.nv:]
     engine.simulate(tf, q0, v0)
 
     # Get log data
