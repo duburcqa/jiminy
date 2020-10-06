@@ -330,20 +330,24 @@ def generate_hardware_description_file(
             continue
 
         # Extract the joint name
-        name = joint_descr.get('name')
-        encoder_info['joint_name'] = name
+        joint_name = joint_descr.get('name')
+        encoder_info['joint_name'] = joint_name
 
         # Add the sensor to the robot's hardware
         hardware_info['Sensor'].setdefault(encoder.type, {}).update(
-            {name: encoder_info})
+            {joint_name: encoder_info})
 
         # Add motors to robot hardware by default if no transmission found
         if not transmission_found:
             hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
-                {name: OrderedDict(
-                    joint_name=name,
+                {joint_name: OrderedDict(
+                    joint_name=joint_name,
                     mechanicalReduction=1.0,
                     rotorInertia=0.0)
+            })
+            hardware_info['Sensor'].setdefault(effort.type, {}).update(
+                {joint_name: OrderedDict(
+                    motor_name=joint_name)
             })
 
     # Specify custom update rate for the controller and the sensors, if any

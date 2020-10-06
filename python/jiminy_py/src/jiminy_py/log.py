@@ -158,12 +158,12 @@ def plot_log():
         n_rows = n_rows + 1
         n_cols = np.ceil(n_plot / (1.0 * n_rows))
 
-    axs = []
+    axes = []
     for i in range(n_plot):
         ax = fig.add_subplot(int(n_rows), int(n_cols), i+1)
         if i > 0:
-            ax.get_shared_x_axes().join(axs[0], ax)
-        axs.append(ax)
+            ax.get_shared_x_axes().join(axes[0], ax)
+        axes.append(ax)
 
     # Store lines in dictionnary {file_name: plotted lines}, to enable to
     # toggle individually the visibility the data related to each of them.
@@ -176,9 +176,9 @@ def plot_log():
     t = log_data['Global.Time']
 
     # Plot each element.
-    for ax, plotted_elem in zip(axs, plotted_elements):
+    for ax, plotted_elem in zip(axes, plotted_elements):
         for name in plotted_elem:
-            line = ax.plot(t, log_data[name], label = name)
+            line = ax.plot(t, log_data[name], label=name)
             plotted_lines[main_name].append(line[0])
 
             linecycler = cycle(linestyles)
@@ -190,7 +190,7 @@ def plot_log():
                 plotted_lines[os.path.basename(c)].append(l[0])
 
     # Add legend and grid for each plot.
-    for ax in axs:
+    for ax in axes:
         ax.set_xlabel('time (s)')
         ax.legend()
         ax.grid()

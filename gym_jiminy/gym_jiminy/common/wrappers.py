@@ -30,10 +30,14 @@ SENSOR_ACCEL_SCALE = 10.0
 T_SCALE = 1.0
 
 
-def flatten_observation(
-        space: spaces.Space,
-        x: Optional[np.ndarray] = None) -> Union[spaces.Box, np.ndarray]:
-    # Note that it does not preserve dtype
+def flatten_observation(space: spaces.Space,
+                        x: Optional[np.ndarray] = None
+                        ) -> Union[spaces.Box, np.ndarray]:
+    """
+    @brief    TODO
+
+    @remark It does not preserve dtype.
+    """
     def _flatten_bounds(space: spaces.Space,
                         bounds_type: str) -> np.ndarray:
         if isinstance(space, spaces.Box):
@@ -73,24 +77,38 @@ def flatten_observation(
 
 
 class FlattenObservation(gym.ObservationWrapper):
-    r"""Observation wrapper that flattens the observation."""
+    """
+    @brief Observation wrapper that flattens the observation.
+    """
     def __init__(self, env: gym.core.Env):
+        """
+        @brief    TODO
+        """
         super().__init__(env)
         self.observation_space = flatten_observation(
             self.env.observation_space)
 
     def observation(self, observation: spaces.Space) -> np.ndarray:
+        """
+        @brief    TODO
+        """
         return flatten_observation(
             self.env.observation_space, observation)
 
 
 class ObservationActionNormalization(gym.Wrapper):
     def __init__(self, env: gym.core.Env):
+        """
+        @brief    TODO
+        """
         super().__init__(env)
         self.observation_scale = None
         self.action_scale = None
 
-    def _refresh_learning_spaces_scale(self) -> None:
+    def _refresh_observation_space(self) -> None:
+        """
+        @brief    TODO
+        """
         self.observation_scale = {}
 
         ## Define some proxies for convenience
@@ -240,7 +258,8 @@ class ObservationActionNormalization(gym.Wrapper):
                     (sum(lin_force_idx), num_sensors[force]), total_weight)
 
                 # Set the moment scale
-                # TODO: Defining the moment scale using 'total_weight' does not really make sense.
+                # TODO: Defining the moment scale using 'total_weight' does not
+                # really make sense.
                 moment_idx = [field.startswith('M')
                               for field in force.fieldnames]
                 force_sensors_scale[moment_idx] = np.full(
@@ -268,15 +287,41 @@ class ObservationActionNormalization(gym.Wrapper):
         ## Handling of action scale
         self.action_scale = effort_scale
 
+    def _refresh_action_space(self) -> None:
+        """
+        @brief    TODO
+        """
+        # Extract pre-defined scale from the robot
+        effort_scale = self.robot.effort_limit
+
+        # Replace inf bounds by the appropriate scale
+        for motor_name in self.robot.motors_names:
+            motor = self.robot.get_motor(motor_name)
+            motor_options = motor.get_options()
+            if not motor_options["enableEffortLimit"]:
+                effort_scale[motor.joint_velocity_idx] = MOTOR_EFFORT_SCALE
+
+        # Keep only the actual motor effort
+        self.action_scale = effort_scale[self.robot.motors_velocity_idx]
+
     def reset(self, **kwargs) -> SpaceDictRecursive:
+        """
+        @brief    TODO
+        """
         obs = self.env.reset(**kwargs)
         self._refresh_learning_spaces_scale()
         obs_n = self.normalize(obs, self.observation_scale)
         return obs_n
 
-    def step(self, action_n
+    def step(self, action: Optional[np.ndarray] = None
             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        action = self.reverse_normalize(action_n, self.action_scale)
+        """
+        @brief    TODO
+
+        @param action  Normalized action.
+        """
+        if action is not None:
+            action = self.reverse_normalize(action, self.action_scale)
         obs, reward, done, info = self.env.step(action)
         obs_n = self.normalize(obs, self.observation_scale)
         return obs_n, reward, done, info
@@ -285,6 +330,9 @@ class ObservationActionNormalization(gym.Wrapper):
     def normalize(cls,
                   value: SpaceDictRecursive,
                   scale: SpaceDictRecursive) -> SpaceDictRecursive:
+        """
+        @brief    TODO
+        """
         if isinstance(scale, dict):
             value_n = {}
             for k, v in value.items():
@@ -297,6 +345,9 @@ class ObservationActionNormalization(gym.Wrapper):
     def reverse_normalize(cls,
                           value_n: SpaceDictRecursive,
                           scale:  SpaceDictRecursive) -> SpaceDictRecursive:
+        """
+        @brief    TODO
+        """
         if isinstance(scale, dict):
             value = {}
             for k, v in value_n.items():

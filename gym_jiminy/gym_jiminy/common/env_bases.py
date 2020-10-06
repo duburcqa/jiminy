@@ -189,12 +189,13 @@ class BaseJiminyEnv(gym.core.Env):
         self.simulator.start(x0, self.simulator.use_theoretical_model)
 
         # Backup the sensor data by doing a deep copy manually
+        sensor_data = self.robot.sensors_data
         self._sensors_data = jiminy.sensorsData({
             _type: {
-                name: self.robot.sensors_data[_type, name].copy()
-                for name in self.robot.sensors_data.keys(_type)
+                name: sensor_data[_type, name].copy()
+                for name in sensor_data.keys(_type)
             }
-            for _type in self.robot.sensors_data.keys()
+            for _type in sensor_data.keys()
         })
 
         # Initialize some internal buffers
@@ -376,22 +377,6 @@ class BaseJiminyEnv(gym.core.Env):
         """
         self.simulator.close()
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
-        raise NotImplementedError
-
-    @loop_interactive()
-    def play_interactive(self, key: str = None) -> bool:
-        t_init = time.time()
-        if key is not None:
-            action = self._key_to_action(key)
-        else:
-            action = None
-        _, _, done, _ = self.step(action)
-        self.render()
-        sleep(self.dt - (time.time() - t_init))
-        return done
-
     # methods to override:
     # ----------------------------
 
@@ -420,7 +405,7 @@ class BaseJiminyEnv(gym.core.Env):
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
-            if field[:6] == 'enable':
+            if field.startswith('enable'):
                 engine_options["telemetry"][field] = self.debug
         engine_options['telemetry']['enableConfiguration'] = True
 
@@ -458,6 +443,7 @@ class BaseJiminyEnv(gym.core.Env):
                 overwritten in order to use a custom observation space.
         """
         # Define some proxies for convenience
+        sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
         joints_position_idx = self.robot.rigid_joints_position_idx
         joints_velocity_idx = self.robot.rigid_joints_velocity_idx
@@ -499,11 +485,11 @@ class BaseJiminyEnv(gym.core.Env):
         sensor_space_raw = {
             key: {'min': np.full(value.shape, -np.inf),
                   'max': np.full(value.shape, np.inf)}
-            for key, value in self.robot.sensors_data.items()
+            for key, value in sensors_data.items()
         }
 
         # Replace inf bounds of the encoder sensor space
-        if enc.type in self.robot.sensors_data.keys():
+        if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
                 # Get the position and velocity bounds of the sensor.
@@ -534,7 +520,7 @@ class BaseJiminyEnv(gym.core.Env):
                     sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in self.robot.sensors_data.keys():
+        if effort.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
@@ -546,14 +532,14 @@ class BaseJiminyEnv(gym.core.Env):
                     +effort_limit[motor_idx]
 
         # Replace inf bounds of the contact sensor space
-        if contact.type in self.robot.sensors_data.keys():
+        if contact.type in sensors_data.keys():
             sensor_space_raw[contact.type]['min'][:,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[contact.type]['max'][:,:] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds of the force sensor space
-        if force.type in self.robot.sensors_data.keys():
+        if force.type in sensors_data.keys():
             sensor_space_raw[force.type]['min'][:3,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[force.type]['max'][:3,:] = \
@@ -564,18 +550,21 @@ class BaseJiminyEnv(gym.core.Env):
                 +SENSOR_MOMENT_UNIVERSAL_MAX
 
         # Replace inf bounds of the imu sensor space
-        if imu.type in self.robot.sensors_data.keys():
-            quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
+        if imu.type in sensors_data.keys():
+            quat_imu_idx = [
+                field.startswith('Quat') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][quat_imu_idx,:] = -1.0
             sensor_space_raw[imu.type]['max'][quat_imu_idx,:] = 1.0
 
-            gyro_imu_idx = ['Gyro' in field for field in imu.fieldnames]
+            gyro_imu_idx = [
+                field.startswith('Gyro') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][gyro_imu_idx,:] = \
                 -SENSOR_GYRO_UNIVERSAL_MAX
             sensor_space_raw[imu.type]['max'][gyro_imu_idx,:] = \
                 +SENSOR_GYRO_UNIVERSAL_MAX
 
-            accel_imu_idx = ['Accel' in field for field in imu.fieldnames]
+            accel_imu_idx = [
+                field.startswith('Accel') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][accel_imu_idx,:] = \
                 -SENSOR_ACCEL_UNIVERSAL_MAX
             sensor_space_raw[imu.type]['max'][accel_imu_idx,:] = \
@@ -765,6 +754,28 @@ class BaseJiminyEnv(gym.core.Env):
         """
         raise NotImplementedError
 
+    @staticmethod
+    def _key_to_action(key: str) -> np.ndarray:
+        """
+        @brief    TODO
+        """
+        raise NotImplementedError
+
+    @loop_interactive()
+    def play_interactive(self, key: str = None) -> bool:
+        """
+        @brief    TODO
+        """
+        t_init = time.time()
+        if key is not None:
+            action = self._key_to_action(key)
+        else:
+            action = None
+        _, _, done, _ = self.step(action)
+        self.render()
+        sleep(self.dt - (time.time() - t_init))
+        return done
+
 
 class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
     """
@@ -834,12 +845,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
         @param achieved_goal  Achieved goal.
         @param desired_goal  Desired goal.
-
-        @details By default, it returns True if the observation reaches or
-                 exceeds the lower or upper limit.
         """
-        return not self.observation_space.spaces['observation'].contains(
-            self._observation['observation'])
+        raise NotImplementedError
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
         # @copydoc BaseJiminyEnv::_compute_reward

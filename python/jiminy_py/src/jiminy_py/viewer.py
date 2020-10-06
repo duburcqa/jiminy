@@ -370,10 +370,6 @@ class Viewer:
             raise RuntimeError(
                 "Impossible to create or connect to backend.") from e
 
-        # Set the default camera pose if the viewer is not running before
-        if self.is_backend_parent:
-            self.set_camera_transform()
-
         # Refresh the viewer since the position of the meshes is not
         # initialized at this point
         self.refresh()
@@ -467,6 +463,9 @@ class Viewer:
 
             # Wait for the display to finish loading
             Viewer.wait(require_client=True)
+
+        # Set default camera pose
+        self.set_camera_transform()
 
     @staticmethod
     @__must_be_open
