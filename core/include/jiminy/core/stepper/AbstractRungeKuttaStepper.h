@@ -13,15 +13,6 @@
 
 namespace jiminy
 {
-    // Constants describing the behavior of step adjustement.
-    namespace RK
-    {
-        float64_t const ERROR_EXPONENT = -1.0 / 3.0; ///< Exponent used to scale the error.
-        float64_t const SAFETY = 0.9; ///< Safety factor when updating the error, should be less than 1.
-        float64_t const MIN_FACTOR = 0.2; ///< Miminum allowed relative step decrease.
-        float64_t const MAX_FACTOR = 10.0; ///< Maximum allowed relative step increase.
-    }
-
     class AbstractRungeKuttaStepper: public AbstractStepper
     {
         public:

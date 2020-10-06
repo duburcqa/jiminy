@@ -42,34 +42,31 @@ namespace jiminy
         state_t alternativeSolution = initialState + dvIntAlt;
 
         // Evaluate error between both states to adjust step
-        float64_t errorNorm = initialState.difference(alternativeSolution).norm();
+        float64_t errorNorm = solution.difference(alternativeSolution).norm();
 
         // Compute error scale
         float64_t scale = tolAbs_ + tolRel_ * initialState.normInf();
         return  errorNorm / scale;
     }
 
-
     void RungeKuttaDOPRIStepper::adjustStepImpl(float64_t const& error, float64_t & dt)
     {
-        float64_t factor = 0.0;
+        // Adjustment algorithm from boost implementation.
         if (error < 1.0)
         {
-            if (error < EPS)
+            // Only increase if error is sufficiently small.
+            if (error < 0.5)
             {
-                factor = RK::MIN_FACTOR;
-            }
-            else
-            {
-                factor = std::min(RK::MAX_FACTOR,
-                                  RK::SAFETY * std::pow(error, RK::ERROR_EXPONENT));
+                // Prevent numeric rounding error when close to zero.
+                float64_t newError = std::max(error,
+                                              std::pow(DOPRI::MAX_FACTOR, -DOPRI::STEPPER_ORDER));
+                dt *= DOPRI::SAFETY * std::pow(newError, -1.0 / DOPRI::STEPPER_ORDER);
             }
         }
         else
         {
-            factor = std::max(RK::MIN_FACTOR,
-                              RK::SAFETY * std::pow(error, RK::ERROR_EXPONENT));
+            dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 1)),
+                              DOPRI::MIN_FACTOR);
         }
-        dt *= factor;
     }
 }
