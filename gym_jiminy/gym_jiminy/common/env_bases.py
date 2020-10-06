@@ -96,7 +96,7 @@ class BaseJiminyEnv(gym.core.Env):
         self._action = None
 
         # Information about the learning process
-        self._info = {'is_success': False}
+        self._info = {}
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
             is not BaseJiminyEnv._compute_reward_terminal
 
@@ -298,7 +298,7 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Check if the simulation is over
         done = is_step_failed or self._is_done()
-        self._info = {'is_success': done}
+        self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
         if self._steps_beyond_done is None:
@@ -350,7 +350,8 @@ class BaseJiminyEnv(gym.core.Env):
                  possible to create window in new tabs programmatically.
 
         @param mode  Unused. Defined for compatibility with Gym OpenAI.
-        @param kwargs  Extra keyword arguments for 'Viewer' delegation.
+        @param kwargs  Extra keyword arguments to forward to
+                       `jiminy_py.simulator.Simulator.render` method.
 
         @return Fake output for compatibility with Gym OpenAI.
         """

@@ -585,8 +585,6 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                 break
 
         # Extract additional information
-        info = {'reward': reward_info,
-                't_end': self.simulator.stepper_state.t,
-                'is_success': self.simulator.stepper_state.t >= self.simu_duration_max}
+        info = {'reward': reward_info, 't_end': self.simulator.stepper_state.t}
 
         return obs, reward, done, info

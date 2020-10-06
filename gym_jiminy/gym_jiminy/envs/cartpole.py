@@ -243,10 +243,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                 action = self.AVAIL_FORCE[action]
 
         # Perform the step
-        obs, reward, done, info = super().step(action)
+        return super().step(action)
 
-        # Update success flag, since in this case success actually
-        # means never reaching terminal condition.
-        info['is_success'] = not done
-
-        return obs, reward, done, info
+    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
+        kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        return super().render(mode, **kwargs)

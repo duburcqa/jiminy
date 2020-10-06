@@ -260,6 +260,10 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         # Perform the step
         return super().step(action)
 
+    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
+        kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        return super().render(mode, **kwargs)
+
 
 class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
     """

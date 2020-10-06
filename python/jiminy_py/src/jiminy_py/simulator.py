@@ -9,7 +9,7 @@ from collections import OrderedDict
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from typing import Optional, Type, Dict, List, Any
+from typing import Optional, Union, Type, Dict, Tuple, List, Any
 
 import pinocchio as pin
 
@@ -308,7 +308,11 @@ class Simulator:
     def render(self,
                return_rgb_array: bool = False,
                width: Optional[int] = None,
-               height: Optional[int] = None) -> Optional[np.ndarray]:
+               height: Optional[int] = None,
+               camera_xyzrpy: Optional[Tuple[
+                   Union[Tuple[float, float, float], np.ndarray],
+                   Union[Tuple[float, float, float],
+                       np.ndarray]]] = None) -> Optional[np.ndarray]:
         """
         @brief Render the current state of the simulation. One can display it
                or return an RGB array instead.
@@ -321,6 +325,10 @@ class Simulator:
                                  an rgb array.
         @param width  Width of the returned RGB frame, if enabled.
         @param height  Height of the returned RGB frame, if enabled.
+        @param camera_xyzrpy  Tuple position [X, Y, Z], rotation [Roll, Pitch,
+                              Yaw] corresponding to the absolute pose of the
+                              camera. None to disable.
+                              Optional:None by default.
 
         @return Rendering as an RGB array (3D numpy array), if enabled, None
                 otherwise.
@@ -354,12 +362,14 @@ class Simulator:
                                   robot_name=robot_name,
                                   scene_name=scene_name,
                                   window_name=window_name)
-            if self._viewer.is_backend_parent:
-                self._viewer.set_camera_transform(
-                    translation=[9.0, 0.0, 2e-5],
-                    rotation=[np.pi/2, 0.0, np.pi/2])
+            if self._viewer.is_backend_parent and camera_xyzrpy is None:
+                camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
             self._viewer.wait(False)  # Wait for backend to finish loading
             self._is_viewer_available = True
+
+        # Set the camera pose if requested
+        if camera_xyzrpy is not None:
+            self._viewer.set_camera_transform(*camera_xyzrpy)
 
         # Try refreshing the viewer
         self._viewer.refresh()
