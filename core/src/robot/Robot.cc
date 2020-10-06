@@ -587,7 +587,7 @@ namespace jiminy
         // Resize zeroAccelerationVector_ to the right size
         zeroAccelerationVector_ = vectorN_t::Zero(pncModel_.nv);
 
-        int constraintSize = 0;
+        uint32_t constraintSize = 0;
         for (auto & constraint : constraintsHolder_)
         {
             if (returnCode == hresult_t::SUCCESS)

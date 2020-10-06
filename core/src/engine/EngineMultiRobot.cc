@@ -2556,7 +2556,7 @@ namespace jiminy
             // Project external forces from cartesian space to joint space.
             vectorN_t uTotal = u;
             matrixN_t jointJacobian = matrixN_t::Zero(6, system.robot->pncModel_.nv);
-            for (int i = 1; i < system.robot->pncModel_.njoints; ++i)
+            for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
             {
                 jointJacobian.setZero();
                 pinocchio::getJointJacobian(system.robot->pncModel_,
