@@ -2267,10 +2267,10 @@ namespace jiminy
              the parent body frame. */
 
         // Make sure that a simulation is running
-        if (!self.getIsInitialized())
+        if (systems_.empty())
         {
-            std::cout << "Error - EngineMultiRobot::computeSystemDynamics - Engine not initialized." << std::endl;
-            return hresult_t::ERROR_GENERIC;
+            std::cout << "Error - EngineMultiRobot::computeSystemDynamics - No system to simulate. Please add one before computing system dynamics." << std::endl;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure memory has been allocated for the output acceleration

@@ -1815,7 +1815,7 @@ namespace python
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "t_end", "q_init_list", "q_init_list"))
                 .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
-                                              (bp::arg("self"), "t_end", "q_list", "v_list", "a_list"))
+                                              (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
@@ -1948,27 +1948,19 @@ namespace python
                                  convertFromPython<std::map<std::string, vectorN_t> >(vInit));
         }
 
-        static hresult_t computeSystemDynamics(EngineMultiRobot       & self,
-                                               float64_t        const & endTime,
-                                               bp::object       const & qSplitPy,
-                                               bp::object       const & vSplitPy,
-                                               bp::object             & aSplitPy)
+        static bp::object computeSystemDynamics(EngineMultiRobot       & self,
+                                                float64_t        const & endTime,
+                                                bp::object       const & qSplitPy,
+                                                bp::object       const & vSplitPy)
         {
-            if (!self.getIsSimulationRunning())
-            {
-                std::cout << "Error - EngineMultiRobot::computeSystemDynamics - No simulation running." << std::endl;
-                return hresult_t::ERROR_GENERIC;
-            }
-
-            auto aSplit = convertFromPython<std::vector<vectorN_t> >(aSplitPy);
+            std::vector<vectorN_t> aSplit;
             self.computeSystemDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
                 aSplit
             );
-
-            return hresult_t::SUCCESS;
+            return convertToPython<std::vector<vectorN_t> >(aSplit);
         }
 
         static void writeLog(EngineMultiRobot       & self,
