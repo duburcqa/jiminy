@@ -90,11 +90,11 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) override final;
 
     private:
-        std::string frameName_;     ///< Name of the frame on which the constraint operates.
+        std::string const frameName_;     ///< Name of the frame on which the constraint operates.
         int frameIdx_;              ///< Corresponding frame index.
-        float64_t radius_;          ///< Wheel radius.
-        vector3_t normal_;          ///< Ground normal, world frame.
-        vector3_t axis_;            ///< Wheel axis, local frame.
+        float64_t const radius_;          ///< Wheel radius.
+        vector3_t const normal_;          ///< Ground normal, world frame.
+        vector3_t const axis_;            ///< Wheel axis, local frame.
         matrixN_t frameJacobian_;   ///< Stores full frame jacobian in world.
         matrixN_t jLas_;   ///< Stores full frame jacobian in world.
     };

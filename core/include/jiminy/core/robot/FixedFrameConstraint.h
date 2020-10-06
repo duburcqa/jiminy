@@ -83,8 +83,8 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) override final;
 
     private:
-        std::string frameName_;     ///< Name of the frame on which the constraint operates.
-        int frameIdx_;              ///< Corresponding frame index.
+        std::string const frameName_;     ///< Name of the frame on which the constraint operates.
+        int frameIdx_;                    ///< Corresponding frame index.
     };
 }
 
