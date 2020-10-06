@@ -39,7 +39,7 @@ namespace jiminy
     }
 
 
-    matrixN_t const & WheelConstraint::getJacobian(Eigen::Ref<vectorN_t const> const & q)
+    matrixN_t const & WheelConstraint::getJacobian(vectorN_t const & q)
     {
         jacobian_.setZero();
         if (isAttached_)
@@ -63,8 +63,8 @@ namespace jiminy
     }
 
 
-    vectorN_t const & WheelConstraint::getDrift(Eigen::Ref<vectorN_t const> const & q,
-                                                     Eigen::Ref<vectorN_t const> const & v)
+    vectorN_t const & WheelConstraint::getDrift(vectorN_t const & q,
+                                                vectorN_t const & v)
     {
         if (isAttached_)
         {

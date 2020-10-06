@@ -39,9 +39,9 @@ namespace jiminy
         /// \param[in]  wheelAxis   Axis of the wheel, in the local frame.
         ///////////////////////////////////////////////////////////////////////////////////////////////
         WheelConstraint(std::string const & frameName,
-                        float64_t const & wheelRadius,
-                        vector3_t const & groundNormal,
-                        vector3_t const & wheelAxis);
+                        float64_t   const & wheelRadius,
+                        vector3_t   const & groundNormal,
+                        vector3_t   const & wheelAxis);
         virtual ~WheelConstraint(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +54,7 @@ namespace jiminy
         /// \param[in] q    Current joint position.
         /// \return         Jacobian of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t const & getJacobian(Eigen::Ref<vectorN_t const> const & q) override final;
+        virtual matrixN_t const & getJacobian(vectorN_t const & q) override final;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the drift of the constraint.
@@ -67,8 +67,8 @@ namespace jiminy
         /// \param[in] v    Current joint velocity.
         /// \return         Drift of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual vectorN_t const & getDrift(Eigen::Ref<vectorN_t const>  const & q,
-                                           Eigen::Ref<vectorN_t const>  const & v) override final;
+        virtual vectorN_t const & getDrift(vectorN_t const & q,
+                                           vectorN_t const & v) override final;
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////

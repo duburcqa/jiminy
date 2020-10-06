@@ -177,8 +177,8 @@ namespace python
     template<typename T>
     using TimeStateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                   float64_t /* t */,
-                                                  Eigen::Ref<vectorN_t const> /* q */,
-                                                  Eigen::Ref<vectorN_t const> /* v */>;
+                                                  vectorN_t /* q */,
+                                                  vectorN_t /* v */>;
 
     template<typename T>
     using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
@@ -189,10 +189,10 @@ namespace python
     template<typename T>
     using TimeBistateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                     float64_t /* t */,
-                                                    Eigen::Ref<vectorN_t const> /* q1 */,
-                                                    Eigen::Ref<vectorN_t const> /* v1 */,
-                                                    Eigen::Ref<vectorN_t const> /* q2 */,
-                                                    Eigen::Ref<vectorN_t const> /* v2 */ >;
+                                                    vectorN_t /* q1 */,
+                                                    vectorN_t /* v1 */,
+                                                    vectorN_t /* q2 */,
+                                                    vectorN_t /* v2 */ >;
 
     // **************************** FctInOutPyWrapper *******************************
 

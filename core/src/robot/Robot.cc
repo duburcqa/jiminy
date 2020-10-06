@@ -1277,11 +1277,11 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsEfforts(float64_t            const  & t,
-                                     Eigen::Ref<vectorN_t const> const & q,
-                                     Eigen::Ref<vectorN_t const> const & v,
-                                     vectorN_t                   const & a,
-                                     vectorN_t                   const & u)
+    void Robot::computeMotorsEfforts(float64_t const & t,
+                                     vectorN_t const & q,
+                                     vectorN_t const & v,
+                                     vectorN_t const & a,
+                                     vectorN_t const & u)
     {
         if (!motorsHolder_.empty())
         {
@@ -1318,11 +1318,11 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    void Robot::setSensorsData(float64_t                   const & t,
-                               Eigen::Ref<vectorN_t const> const & q,
-                               Eigen::Ref<vectorN_t const> const & v,
-                               Eigen::Ref<vectorN_t const> const & a,
-                               vectorN_t                   const & u)
+    void Robot::setSensorsData(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & u)
     {
         // Update kinematic quantities before updating sensors.
         pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
@@ -1337,8 +1337,8 @@ namespace jiminy
         }
     }
 
-    void Robot::computeConstraints(Eigen::Ref<vectorN_t const> const & q,
-                                   Eigen::Ref<vectorN_t const> const & v)
+    void Robot::computeConstraints(vectorN_t const & q,
+                                   vectorN_t const & v)
     {
         // Compute joint jacobian.
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);

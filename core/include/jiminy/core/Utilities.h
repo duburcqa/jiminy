@@ -253,17 +253,6 @@ namespace jiminy
 
     // ******************** Pinocchio utilities *********************
 
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        Eigen::Ref<vectorN_t>             & qDot,
-                                        float64_t                   const & dt);
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        vectorN_t                         & qDot,
-                                        float64_t                   const & dt);
-
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
                                           int32_t          const & idIn,
                                           std::string            & jointNameOut);
