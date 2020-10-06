@@ -332,13 +332,14 @@ class BaseJiminyEnv(gym.core.Env):
             # for computing terminal reward.
             self._log_data, _ = self.simulator.get_log()
 
-            # Compute the terminal reward
-            reward_final, reward_final_info = \
-                self._compute_reward_terminal()
-            reward += reward_final
-            if reward_final_info is not None:
-                self._info.setdefault('reward', {}).update(
-                    reward_final_info)
+            # Compute the terminal reward, if any
+            if self._enable_reward_terminal:
+                reward_final, reward_final_info = \
+                    self._compute_reward_terminal()
+                reward += reward_final
+                if reward_final_info is not None:
+                    self._info.setdefault('reward', {}).update(
+                        reward_final_info)
 
         return self.get_obs(), reward, done, self._info
 
