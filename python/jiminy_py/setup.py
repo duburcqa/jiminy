@@ -43,7 +43,7 @@ setup(name = 'jiminy_py',
           'tqdm',             # Used to display elegant and versatile process bar
           'numpy',            # Standard library for matrix algebra
           'scipy',            # Used internally for interpolation and filtering
-          'matplotlib',       # Standard library for showing figures
+          'matplotlib<3.3',   # Standard library for showing figures
           'trimesh',          # Used internally to compute the minimal volume bounding box associated with a mesh
           'toml',             # Parser for Jiminy-specific robot sensor description files
           'meshcat>=0.0.18',  # Web-based mesh visualizer used by default as viewer's backend

@@ -96,7 +96,7 @@ class BaseJiminyEnv(gym.core.Env):
         self._action = None
 
         # Information about the learning process
-        self._info = {'is_success': False}
+        self._info = {}
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
             is not BaseJiminyEnv._compute_reward_terminal
 
@@ -109,7 +109,10 @@ class BaseJiminyEnv(gym.core.Env):
 
     @property
     def robot(self) -> jiminy.Robot:
-        return self.simulator.robot
+        if self.simulator is not None:
+            return self.simulator.robot
+        else:
+            return None
 
     @property
     def log_path(self) -> Optional[str]:
@@ -189,12 +192,13 @@ class BaseJiminyEnv(gym.core.Env):
         self.simulator.start(x0, self.simulator.use_theoretical_model)
 
         # Backup the sensor data by doing a deep copy manually
+        sensor_data = self.robot.sensors_data
         self._sensors_data = jiminy.sensorsData({
             _type: {
-                name: self.robot.sensors_data[_type, name].copy()
-                for name in self.robot.sensors_data.keys(_type)
+                name: sensor_data[_type, name].copy()
+                for name in sensor_data.keys(_type)
             }
-            for _type in self.robot.sensors_data.keys()
+            for _type in sensor_data.keys()
         })
 
         # Initialize some internal buffers
@@ -222,7 +226,7 @@ class BaseJiminyEnv(gym.core.Env):
                 prefix="log_", suffix=".data", delete=(not self.debug))
 
         # Update the observation
-        self._update_obs(self._observation)
+        self._observation = self._fetch_obs()
 
     def reset(self) -> SpaceDictRecursive:
         """
@@ -232,6 +236,10 @@ class BaseJiminyEnv(gym.core.Env):
 
         @return Initial state of the episode.
         """
+        # Stop simulator if still running
+        if self.simulator is not None:
+            self.simulator.stop()
+
         # Make sure the environment is properly setup
         self._setup_environment()
 
@@ -255,10 +263,10 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Run a simulation step for a given action.
 
-        @param action  The action to perform in the action space. `None` to NOT
+        @param action  Action to perform in the action space. `None` to NOT
                        update the action.
 
-        @return The next observation, the reward, the status of the episode
+        @return Next observation, the reward, the status of the episode
                 (done or not), and a dictionary of extra information
         """
         # Try to perform a single simulation step
@@ -286,11 +294,11 @@ class BaseJiminyEnv(gym.core.Env):
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
-        self._update_obs(self._observation)
+        self._observation = self._fetch_obs()
 
         # Check if the simulation is over
         done = is_step_failed or self._is_done()
-        self._info = {'is_success': done}
+        self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
         if self._steps_beyond_done is None:
@@ -324,13 +332,14 @@ class BaseJiminyEnv(gym.core.Env):
             # for computing terminal reward.
             self._log_data, _ = self.simulator.get_log()
 
-            # Compute the terminal reward
-            reward_final, reward_final_info = \
-                self._compute_reward_terminal()
-            reward += reward_final
-            if reward_final_info is not None:
-                self._info.setdefault('reward', {}).update(
-                    reward_final_info)
+            # Compute the terminal reward, if any
+            if self._enable_reward_terminal:
+                reward_final, reward_final_info = \
+                    self._compute_reward_terminal()
+                reward += reward_final
+                if reward_final_info is not None:
+                    self._info.setdefault('reward', {}).update(
+                        reward_final_info)
 
         return self.get_obs(), reward, done, self._info
 
@@ -342,7 +351,8 @@ class BaseJiminyEnv(gym.core.Env):
                  possible to create window in new tabs programmatically.
 
         @param mode  Unused. Defined for compatibility with Gym OpenAI.
-        @param kwargs  Extra keyword arguments for 'Viewer' delegation.
+        @param kwargs  Extra keyword arguments to forward to
+                       `jiminy_py.simulator.Simulator.render` method.
 
         @return Fake output for compatibility with Gym OpenAI.
         """
@@ -376,22 +386,6 @@ class BaseJiminyEnv(gym.core.Env):
         """
         self.simulator.close()
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
-        raise NotImplementedError
-
-    @loop_interactive()
-    def play_interactive(self, key: str = None) -> bool:
-        t_init = time.time()
-        if key is not None:
-            action = self._key_to_action(key)
-        else:
-            action = None
-        _, _, done, _ = self.step(action)
-        self.render()
-        sleep(self.dt - (time.time() - t_init))
-        return done
-
     # methods to override:
     # ----------------------------
 
@@ -420,7 +414,7 @@ class BaseJiminyEnv(gym.core.Env):
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():
-            if field[:6] == 'enable':
+            if field.startswith('enable'):
                 engine_options["telemetry"][field] = self.debug
         engine_options['telemetry']['enableConfiguration'] = True
 
@@ -454,10 +448,11 @@ class BaseJiminyEnv(gym.core.Env):
 
         @remark This method is called internally by 'reset' method at the very
                 end, just before computing and returning the initial
-                observation. This method, alongside '_update_obs', must be
+                observation. This method, alongside '_fetch_obs', must be
                 overwritten in order to use a custom observation space.
         """
         # Define some proxies for convenience
+        sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
         joints_position_idx = self.robot.rigid_joints_position_idx
         joints_velocity_idx = self.robot.rigid_joints_velocity_idx
@@ -499,11 +494,11 @@ class BaseJiminyEnv(gym.core.Env):
         sensor_space_raw = {
             key: {'min': np.full(value.shape, -np.inf),
                   'max': np.full(value.shape, np.inf)}
-            for key, value in self.robot.sensors_data.items()
+            for key, value in sensors_data.items()
         }
 
         # Replace inf bounds of the encoder sensor space
-        if enc.type in self.robot.sensors_data.keys():
+        if enc.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[enc.type]
             for sensor_name in sensor_list:
                 # Get the position and velocity bounds of the sensor.
@@ -534,7 +529,7 @@ class BaseJiminyEnv(gym.core.Env):
                     sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
-        if effort.type in self.robot.sensors_data.keys():
+        if effort.type in sensors_data.keys():
             sensor_list = self.robot.sensors_names[effort.type]
             for sensor_name in sensor_list:
                 sensor = self.robot.get_sensor(effort.type, sensor_name)
@@ -546,14 +541,14 @@ class BaseJiminyEnv(gym.core.Env):
                     +effort_limit[motor_idx]
 
         # Replace inf bounds of the contact sensor space
-        if contact.type in self.robot.sensors_data.keys():
+        if contact.type in sensors_data.keys():
             sensor_space_raw[contact.type]['min'][:,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[contact.type]['max'][:,:] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds of the force sensor space
-        if force.type in self.robot.sensors_data.keys():
+        if force.type in sensors_data.keys():
             sensor_space_raw[force.type]['min'][:3,:] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
             sensor_space_raw[force.type]['max'][:3,:] = \
@@ -564,18 +559,21 @@ class BaseJiminyEnv(gym.core.Env):
                 +SENSOR_MOMENT_UNIVERSAL_MAX
 
         # Replace inf bounds of the imu sensor space
-        if imu.type in self.robot.sensors_data.keys():
-            quat_imu_idx = ['Quat' in field for field in imu.fieldnames]
+        if imu.type in sensors_data.keys():
+            quat_imu_idx = [
+                field.startswith('Quat') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][quat_imu_idx,:] = -1.0
             sensor_space_raw[imu.type]['max'][quat_imu_idx,:] = 1.0
 
-            gyro_imu_idx = ['Gyro' in field for field in imu.fieldnames]
+            gyro_imu_idx = [
+                field.startswith('Gyro') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][gyro_imu_idx,:] = \
                 -SENSOR_GYRO_UNIVERSAL_MAX
             sensor_space_raw[imu.type]['max'][gyro_imu_idx,:] = \
                 +SENSOR_GYRO_UNIVERSAL_MAX
 
-            accel_imu_idx = ['Accel' in field for field in imu.fieldnames]
+            accel_imu_idx = [
+                field.startswith('Accel') for field in imu.fieldnames]
             sensor_space_raw[imu.type]['min'][accel_imu_idx,:] = \
                 -SENSOR_ACCEL_UNIVERSAL_MAX
             sensor_space_raw[imu.type]['max'][accel_imu_idx,:] = \
@@ -701,9 +699,9 @@ class BaseJiminyEnv(gym.core.Env):
 
         return qpos, qvel
 
-    def _update_obs(self, obs: SpaceDictRecursive) -> None:
+    def _fetch_obs(self) -> SpaceDictRecursive:
         """
-        @brief Update the observation based on the current state of the robot.
+        @brief Fetch the observation based on the current state of the robot.
 
         @details By default, no filtering is applied on the raw data extracted
                  from the engine.
@@ -711,9 +709,11 @@ class BaseJiminyEnv(gym.core.Env):
         @remark This method, alongside '_refresh_observation_space', must be
                 overwritten in order to use a custom observation space.
         """
+        obs = {}
         obs['t'] = self.simulator.stepper_state.t
         obs['state'] = self.simulator.state
         obs['sensors'] = self._sensors_data
+        return obs
 
     def get_obs(self) -> SpaceDictRecursive:
         """
@@ -724,10 +724,8 @@ class BaseJiminyEnv(gym.core.Env):
         """
         def _clamp(space, x):
             if isinstance(space, gym.spaces.Dict):
-                return {
-                    k: _clamp(subspace, x[k])
-                    for k, subspace in space.spaces.items()
-                }
+                return {k: _clamp(subspace, x[k])
+                    for k, subspace in space.spaces.items()}
             else:
                 return np.clip(x, space.low, space.high)
 
@@ -760,10 +758,32 @@ class BaseJiminyEnv(gym.core.Env):
         @details Implementation is optional. Not computing terminal reward if
                  not overloaded by the user.
 
-        @return The computed terminal reward, and any extra info useful for
-                monitoring as a dictionary.
+        @return Terminal reward, and any extra info useful for monitoring as a
+                dictionary.
         """
         raise NotImplementedError
+
+    @staticmethod
+    def _key_to_action(key: str) -> np.ndarray:
+        """
+        @brief    TODO
+        """
+        raise NotImplementedError
+
+    @loop_interactive()
+    def play_interactive(self, key: str = None) -> bool:
+        """
+        @brief    TODO
+        """
+        t_init = time.time()
+        if key is not None:
+            action = self._key_to_action(key)
+        else:
+            action = None
+        _, _, done, _ = self.step(action)
+        self.render()
+        sleep(self.dt - (time.time() - t_init))
+        return done
 
 
 class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
@@ -787,7 +807,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         super().__init__(simulator, dt, debug)
 
         ## Sample a new goal
-        self.goal = self._sample_goal()
+        self._desired_goal = self._sample_goal()
 
     def _refresh_observation_space(self) -> None:
         # Initialize the original observation space first
@@ -795,10 +815,10 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
         # Append default desired and achieved goal spaces to observation space
         self.observation_space = gym.spaces.Dict(
-            desired_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
-            achieved_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self.goal.shape, dtype=np.float64),
+            desired_goal=gym.spaces.Box(-np.inf, np.inf,
+                shape=self._desired_goal.shape, dtype=np.float64),
+            achieved_goal=gym.spaces.Box(-np.inf, np.inf,
+                shape=self._desired_goal.shape, dtype=np.float64),
             observation=self.observation_space)
 
         # Current observation of the robot
@@ -816,54 +836,58 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         @brief Compute the achieved goal based on current state of the robot.
 
-        @return The currently achieved goal.
+        @return Currently achieved goal.
         """
         raise NotImplementedError
 
-    def _update_obs(self, obs: SpaceDictRecursive) -> None:
-        # @copydoc BaseJiminyEnv::_update_obs
-        super()._update_obs(obs['observation'])
+    def _fetch_obs(self) -> SpaceDictRecursive:
+        # @copydoc BaseJiminyEnv::_fetch_obs
+        obs = {}
+        obs['observation'] = super()._fetch_obs()
         obs['achieved_goal'] = self._get_achieved_goal(),
-        obs['desired_goal'] = self.goal.copy()
+        obs['desired_goal'] = self._desired_goal.copy()
+        return obs
 
     def _is_done(self,
-                 achieved_goal: np.ndarray,
-                 desired_goal: np.ndarray) -> bool:
+                 achieved_goal: Optional[np.ndarray] = None,
+                 desired_goal: Optional[np.ndarray] = None) -> bool:
         """
         @brief Determine whether a desired goal has been achieved.
 
-        @param achieved_goal  Achieved goal.
-        @param desired_goal  Desired goal.
-
-        @details By default, it returns True if the observation reaches or
-                 exceeds the lower or upper limit.
+        @param achieved_goal  Achieved goal. If set to None, one is supposed
+                              to call `_get_achieved_goal` instead.
+                              Optional: None by default.
+        @param desired_goal  Desired goal. If set to None, one is supposed to
+                             use the internal buffer '_desired_goal' instead.
+                             Optional: None by default.
         """
-        return not self.observation_space.spaces['observation'].contains(
-            self._observation['observation'])
+        raise NotImplementedError
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
         # @copydoc BaseJiminyEnv::_compute_reward
-        return self.compute_reward(self._observation['achieved_goal'],
-                                   self._observation['desired_goal'],
-                                   self._info)
+        return self.compute_reward(None, None, self._info), {}
 
     def compute_reward(self,
-                       achieved_goal: np.ndarray,
-                       desired_goal: np.ndarray,
-                       info: Dict[str, Any]) -> Tuple[float, Dict[str, Any]]:
+                       achieved_goal: Optional[np.ndarray],
+                       desired_goal: Optional[np.ndarray],
+                       info: Dict[str, Any]) -> float:
         """
         @brief Compute the reward for any given episode state.
 
-        @param achieved_goal  Achieved goal.
-        @param desired_goal  Desired goal.
-        @param info  Dictionary of extra information
+        @remark This method is part of the standard OpenAI Gym GoalEnv API.
 
-        @return The computed reward, and any extra info useful for monitoring
-                as a dictionary.
+        @param achieved_goal  Achieved goal. Must be set to None to evalute the
+                              reward for currently achieved goal.
+        @param desired_goal  Desired goal. Must be set to None to evalute the
+                             reward for currently desired goal.
+        @param info  Dictionary of extra information.
+                     Optional: None by default
+
+        @return Total reward
         """
         raise NotImplementedError
 
     def reset(self) -> SpaceDictRecursive:
         # @copydoc BaseJiminyEnv::reset
-        self.goal = self._sample_goal()
+        self._desired_goal = self._sample_goal()
         return super().reset()

@@ -6,6 +6,7 @@ import numpy as np
 from scipy.integrate import ode
 
 from jiminy_py import core as jiminy
+from jiminy_py.core import ImuSensor as imu
 
 from pinocchio import neutral
 
@@ -203,18 +204,18 @@ def simulate_and_get_imu_data_evolution(engine, tf, x0, split=False):
     # Extract state evolution over time
     time = log_data['Global.Time']
     if split:
-        quat_jiminy = np.stack([
-            log_data['PendulumLink.Quat' + s] for s in ['x', 'y', 'z', 'w']
+        quat_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
+            for f in imu.fieldnames if f.startswith('Quat')
         ], axis=-1)
-        gyro_jiminy = np.stack([
-            log_data['PendulumLink.Gyro' + s] for s in ['x', 'y', 'z']
+        gyro_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
+            for f in imu.fieldnames if f.startswith('Gyro')
         ], axis=-1)
-        accel_jiminy = np.stack([
-            log_data['PendulumLink.Accel' + s] for s in ['x', 'y', 'z']
+        accel_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
+            for f in imu.fieldnames if f.startswith('Accel')
         ], axis=-1)
         return time, quat_jiminy, gyro_jiminy, accel_jiminy
     else:
-        imu_jiminy = np.stack([
-            log_data['PendulumLink.' + f] for f in jiminy.ImuSensor.fieldnames
+        imu_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
+                for f in jiminy.ImuSensor.fieldnames
         ], axis=-1)
         return time, imu_jiminy

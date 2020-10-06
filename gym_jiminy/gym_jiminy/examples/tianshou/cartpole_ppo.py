@@ -1,22 +1,29 @@
+
+"""
+@brief TODO
+
+@remark This script requires pytorch>=1.4 and and tianshou==0.3.0.
+"""
 import os
 import time
 import tqdm
 import numpy as np
+from typing import Dict, List, Union, Callable, Optional
+
+import torch
+from torch import nn
+from torch.distributions import Independent, Normal
+from torch.utils.tensorboard import SummaryWriter
+from tensorboard.program import TensorBoard
 
 import gym
 from gym.wrappers import TimeLimit
-import torch
-from torch import nn
-from torch.utils.tensorboard import SummaryWriter
-from tensorboard.program import TensorBoard
-from typing import Dict, List, Union, Callable, Optional
 
-from tianshou.env import SubprocVectorEnv
-from tianshou.policy import BasePolicy, PPOPolicy
-from tianshou.policy.dist import DiagGaussian
-from tianshou.trainer import test_episode, gather_info
-from tianshou.data import Collector, ReplayBuffer
 from tianshou.utils import tqdm_config, MovAvg
+from tianshou.env import SubprocVectorEnv
+from tianshou.data import Collector, ReplayBuffer
+from tianshou.policy import BasePolicy, PPOPolicy
+from tianshou.trainer import test_episode, gather_info
 
 #  User parameters
 GYM_ENV_NAME = "gym_jiminy:jiminy-cartpole-v0"
@@ -43,7 +50,7 @@ trainer_config = dict(
 ### PPO algorithm parameters
 ppo_config = dict(
     discount_factor = 0.99,
-    eps_clip= 0.2,
+    eps_clip = 0.2,
     vf_coef = 0.5,
     ent_coef = 0.01,
     gae_lambda = 0.95,
@@ -148,7 +155,7 @@ for m in list(actor.modules()) + list(critic.modules()):
 if isinstance(env.action_space, gym.spaces.Discrete):
     dist_fn = torch.distributions.Categorical
 else:
-    dist_fn = DiagGaussian
+    dist_fn = lambda logits: Independent(Normal(*logits), 1)  # Diagonal normal
     ppo_config["action_range"] = [float(env.action_space.low),
                                   float(env.action_space.high)]
 
@@ -170,63 +177,67 @@ def onpolicy_trainer(
         repeat_per_collect: int,
         episode_per_test: Union[int, List[int]],
         batch_size: int,
-        train_fn: Optional[Callable[[int], None]] = None,
-        test_fn: Optional[Callable[[int], None]] = None,
+        train_fn: Optional[Callable[[int, int], None]] = None,
+        test_fn: Optional[Callable[[int, Optional[int]], None]] = None,
         stop_fn: Optional[Callable[[float], bool]] = None,
         save_fn: Optional[Callable[[BasePolicy], None]] = None,
-        log_fn: Optional[Callable[[dict], None]] = None,
         writer: Optional[SummaryWriter] = None,
         log_interval: int = 1,
         verbose: bool = True,
-        **kwargs
-) -> Dict[str, Union[float, str]]:
+        test_in_train: bool = True,
+        **kwargs) -> Dict[str, Union[float, str]]:
     global_step = 0
-    best_epoch, best_reward = -1, -1
-    stat = {}
+    best_epoch, best_reward = -1, -1.0
+    stat: Dict[str, MovAvg] = {}
     start_time = time.time()
-    test_in_train = train_collector.policy == policy
+    train_collector.reset_stat()
+    test_collector.reset_stat()
+    test_in_train = test_in_train and train_collector.policy == policy
     for epoch in range(1, 1 + max_epoch):
         # train
         policy.train()
-        if train_fn:
-            train_fn(epoch)
-        with tqdm.tqdm(total=frame_per_epoch, desc=f'Epoch #{epoch}',
-                       **tqdm_config) as t:
+        with tqdm.tqdm(
+            total=frame_per_epoch, desc=f"Epoch #{epoch}", **tqdm_config
+        ) as t:
             while t.n < t.total:
-                result = train_collector.collect(n_step=collect_per_step,
-                                                 log_fn=log_fn)
+                if train_fn:
+                    train_fn(epoch, global_step)
+                result = train_collector.collect(n_step=frame_per_epoch)
                 data = {}
-                if test_in_train and stop_fn and stop_fn(result['rew']):
+                if test_in_train and stop_fn and stop_fn(result["rew"]):
                     test_result = test_episode(
                         policy, test_collector, test_fn,
-                        epoch, episode_per_test)
-                    if stop_fn and stop_fn(test_result['rew']):
+                        epoch, episode_per_test, writer, global_step)
+                    if stop_fn(test_result["rew"]):
                         if save_fn:
                             save_fn(policy)
                         for k in result.keys():
-                            data[k] = f'{result[k]:.2f}'
+                            data[k] = f"{result[k]:.2f}"
                         t.set_postfix(**data)
                         return gather_info(
                             start_time, train_collector, test_collector,
-                            test_result['rew'])
+                            test_result["rew"])
                     else:
                         policy.train()
-                        if train_fn:
-                            train_fn(epoch)
-                losses = policy.learn(
-                    train_collector.sample(0), batch_size, repeat_per_collect)
+                losses = policy.update(
+                    0, train_collector.buffer,
+                    batch_size=batch_size, repeat=repeat_per_collect)
                 train_collector.reset_buffer()
-                global_step += collect_per_step
+                step = 1
+                for v in losses.values():
+                    if isinstance(v, list):
+                        step = max(step, len(v))
+                global_step += step * collect_per_step
                 for k in result.keys():
-                    data[k] = f'{result[k]:.2f}'
+                    data[k] = f"{result[k]:.2f}"
                     if writer and global_step % log_interval == 0:
                         writer.add_scalar(
-                            k, result[k], global_step=global_step)
+                            "train/" + k, result[k], global_step=global_step)
                 for k in losses.keys():
                     if stat.get(k) is None:
                         stat[k] = MovAvg()
                     stat[k].add(losses[k])
-                    data[k] = f'{stat[k].get():.6f}'
+                    data[k] = f"{stat[k].get():.6f}"
                     if writer and global_step % log_interval == 0:
                         writer.add_scalar(
                             k, stat[k].get(), global_step=global_step)
@@ -235,16 +246,16 @@ def onpolicy_trainer(
             if t.n <= t.total:
                 t.update()
         # test
-        result = test_episode(
-            policy, test_collector, test_fn, epoch, episode_per_test)
-        if best_epoch == -1 or best_reward < result['rew']:
-            best_reward = result['rew']
+        result = test_episode(policy, test_collector, test_fn, epoch,
+                              episode_per_test, writer, global_step)
+        if best_epoch == -1 or best_reward < result["rew"]:
+            best_reward = result["rew"]
             best_epoch = epoch
             if save_fn:
                 save_fn(policy)
         if verbose:
-            print(f'Epoch #{epoch}: test_reward: {result["rew"]:.6f}, '
-                  f'best_reward: {best_reward:.6f} in #{best_epoch}')
+            print(f"Epoch #{epoch}: test_reward: {result['rew']:.6f}, "
+                  f"best_reward: {best_reward:.6f} in #{best_epoch}")
         if stop_fn and stop_fn(best_reward):
             break
     return gather_info(
@@ -274,13 +285,8 @@ result = onpolicy_trainer(
     writer=writer, verbose=True)
 print(f'Finished training! Use {result["duration"]}')
 
-### Stop the data collectors
-train_collector.close()
-test_collector.close()
-
 # Enjoy a trained agent !
 env = env_creator()
 collector = Collector(policy, env)
 result = collector.collect(n_episode=1, render=env.dt)
 print(f'Final reward: {result["rew"]}, length: {result["len"]}')
-collector.close()

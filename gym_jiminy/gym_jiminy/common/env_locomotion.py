@@ -464,7 +464,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
             simu_duration_max, dt, reward_mixture, std_ratio, config_path,
             debug)
 
-    def _setup_environment(self):
+    def _setup_environment(self) -> None:
         """
         @brief Configure the environment.
 
@@ -495,7 +495,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                     "No encoder sensor associated with motor '{name}'. Every "
                     "actuated joint must have an encoder sensor attached.")
 
-    def _refresh_action_space(self):
+    def _refresh_action_space(self) -> None:
         """
         @brief Configure the action space of the environment.
 
@@ -585,8 +585,6 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                 break
 
         # Extract additional information
-        info = {'reward': reward_info,
-                't_end': self.simulator.stepper_state.t,
-                'is_success': self.simulator.stepper_state.t >= self.simu_duration_max}
+        info = {'reward': reward_info, 't_end': self.simulator.stepper_state.t}
 
         return obs, reward, done, info

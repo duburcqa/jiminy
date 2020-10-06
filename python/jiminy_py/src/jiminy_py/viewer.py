@@ -370,7 +370,7 @@ class Viewer:
             raise RuntimeError(
                 "Impossible to create or connect to backend.") from e
 
-        # Set the default camera pose if the viewer is not running before
+        # Set default camera pose
         if self.is_backend_parent:
             self.set_camera_transform()
 

@@ -1,3 +1,8 @@
+"""
+@brief TODO
+
+@remark This script requires pytorch>=1.4 and and stable-baselines3[extra]==0.9.
+"""
 import os
 import time
 
@@ -6,8 +11,10 @@ from torch import nn
 from tensorboard.program import TensorBoard
 
 from stable_baselines3.ppo import PPO
-from stable_baselines3.ppo.policies import PPOPolicy
+from stable_baselines3.ppo.policies import ActorCriticPolicy
 from stable_baselines3.common.vec_env import SubprocVecEnv
+
+from jiminy_py.viewer import sleep
 
 
 ### Create a multiprocess environment
@@ -29,7 +36,7 @@ if not 'tb' in locals().keys():
 ### Create the agent or load one
 
 # Define a custom MLP policy with two hidden layers of size 64
-class CustomPolicy(PPOPolicy):
+class CustomPolicy(ActorCriticPolicy):
     # Necessary to avoid having to specify the policy when loading a agent
     __module__ = None
 
@@ -76,11 +83,14 @@ agent = PPO(
 # agent = PPO2.load("acrobot_ppo2_baseline.pkl")
 
 # Run the learning process
-agent.learn(
-    total_timesteps=1200000,
-    log_interval=5,
-    reset_num_timesteps=False
-)
+try:
+    agent.learn(
+        total_timesteps=1200000,
+        log_interval=5,
+        reset_num_timesteps=False
+    )
+except KeyboardInterrupt:
+    print("Interrupting training...")
 
 # Save the agent if desired
 # agent.save("acrobot_ppo2_baseline.pkl")
@@ -96,9 +106,11 @@ dt = env.remotes[0].recv()
 
 # Run the simulation in real-time
 obs = env.reset()
+t_prev = time.time()
 for _ in range(int(t_end/dt)):
     action, _states = agent.predict(obs)
     obs, rewards, done, info = env.step(action)
-    env.remotes[0].send(('render',((), {'mode': 'rgb_array'})))
+    env.remotes[0].send(('render', 'human'))
     env.remotes[0].recv()
-    time.sleep(dt)
+    sleep(dt - (time.time() - t_prev))
+    t_prev = time.time()

@@ -52,11 +52,14 @@ agent = PPO(
 # agent = PPO2.load("cartpole_ppo2_baseline.pkl")
 
 # Run the learning process
-agent.learn(
-    total_timesteps=400000,
-    log_interval=5,
-    reset_num_timesteps=False
-)
+try:
+    agent.learn(
+        total_timesteps=400000,
+        log_interval=5,
+        reset_num_timesteps=False
+    )
+except KeyboardInterrupt:
+    print("Interrupting training...")
 
 # Save the agent if desired
 # agent.save("cartpole_ppo2_baseline.pkl")
