@@ -71,6 +71,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                 - imu data evolution: np.ndarray[len(time), dim(imu.fieldnames)]
         """
         # Run simulation
+        q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
         engine.simulate(tf, q0, v0)
 
         # Get log data
@@ -195,7 +196,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.1, 0.1])
         tf = 2.0
         time, quat_jiminy, gyro_jiminy, accel_jiminy = \
-            _simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
 
         # Pendulum dynamics
         def dynamics(t, x):
@@ -261,7 +262,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.1, 0.0])
         tf = 2.0
         time, imu_jiminy = \
-            _simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
 
         # Deduce shifted imu data
         imu_jiminy_shifted_0 = interp1d(
@@ -281,7 +282,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Run simulation and extract imu data
         time, imu_jiminy_delayed_0 = \
-            _simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
 
         # Configure the IMU
         imu_options = self.imu_sensor.get_options()
@@ -291,7 +292,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Run simulation
         time, imu_jiminy_delayed_1 = \
-            _simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=False)
 
         # Compare sensor signals
         self.assertTrue(
@@ -323,7 +324,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         x0 = np.array([0.0, 0.0])
         tf = 200.0
         _, quat_jiminy, gyro_jiminy, accel_jiminy = \
-            _simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
+            SimulateSimplePendulum._simulate_and_get_imu_data_evolution(engine, tf, x0, split=True)
 
         # Convert quaternion to a rotation vector.
         quat_axis = np.stack([log3(Quaternion(q[:, np.newaxis]).matrix())
@@ -609,7 +610,7 @@ class SimulateSimplePendulum(unittest.TestCase):
 
         # Run simulation and extract some information from log data
         x0 = np.array([0.1, 0.0])
-        qInit, vInit = neutral_state(self.robot, split=True)
+        qInit, vInit = neutral_state(robot, split=True)
         qInit[-1], vInit[-1] = x0
         xInit = np.concatenate((qInit, vInit))
         tf = 2.0

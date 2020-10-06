@@ -176,7 +176,7 @@ def simulate_and_get_state_evolution(
         q0, v0 = {}, {}
         for system in engine.systems:
            name = system.name
-           q0[name] = x0[name][system.robot.nq:]
+           q0[name] = x0[name][:system.robot.nq]
            v0[name] = x0[name][-system.robot.nv:]
     engine.simulate(tf, q0, v0)
 

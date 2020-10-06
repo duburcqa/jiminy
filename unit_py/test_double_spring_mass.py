@@ -274,7 +274,7 @@ class SimulateTwoMasses(unittest.TestCase):
         x_init = np.zeros(17)
         x_init[:7] = np.random.rand(7)
         x_init[3:7] /= np.linalg.norm(x_init[3:7])
-        x_init[7:9], v_init[-2:] = np.split(self.x0, 2)
+        x_init[7:9], x_init[-2:] = np.split(self.x0, 2)
 
         # The acceleration of the second mass should be the opposite of that of
         # the first
