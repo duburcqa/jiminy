@@ -17,8 +17,6 @@ class SimulateWheel(unittest.TestCase):
     def setUp(self):
         # Load URDF, create robot.
         urdf_path = "data/wheel.urdf"
-        from wdc_dynamicsteller import DynamicsTeller, rootjoint
-        self.dyn = DynamicsTeller.make(urdf_path, rootjoint.FREEFLYER)
 
         # Create the jiminy robot
         self.robot = jiminy.Robot()
@@ -55,7 +53,6 @@ class SimulateWheel(unittest.TestCase):
 
         # Internal dynamics: apply constant torque onto wheel axis.
         u_wheel = 0.1
-        # u_wheel = 1.0
         def internalDynamics(t, q, v, sensors_data, u):
             u[4] = u_wheel
 
@@ -66,25 +63,19 @@ class SimulateWheel(unittest.TestCase):
         engine.initialize(self.robot, controller)
 
         # Run simulation
-        x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ]) # [TX,TY,TZ],[QX,QY,QZ,QW]
-        # tf = 0.5
+        x0 = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, # [TX,TY,TZ], [QX,QY,QZ,QW]
+                       0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ])
         tf = 2.0
 
         dt_list = np.logspace(-2, -5, 5)
-        # dt_list = np.logspace(-2, -6, 10)
-        # dt_list = np.logspace(-1, -5, 10)
         error = []
 
         for dt in dt_list:
-            print(dt)
             options = engine.get_options()
             options["stepper"]["dtMax"] = dt
             options["stepper"]["odeSolver"] = "euler_explicit"
             engine.set_options(options)
             engine.simulate(tf, x0)
-
-
 
             log_data, _ = engine.get_log()
             time = log_data['Global.Time']
@@ -92,12 +83,6 @@ class SimulateWheel(unittest.TestCase):
                                     for s in self.robot.logfile_position_headers + \
                                             self.robot.logfile_velocity_headers], axis=-1)
             error.append(np.max(np.abs(x_jiminy[-1000:, 2])))
-
-        import matplotlib.pyplot as plt
-        plt.scatter(dt_list, error)
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.show()
 
         qt = [x[:7] for x in x_jiminy]
         vt = [x[7:] for x in x_jiminy]
@@ -121,71 +106,6 @@ class SimulateWheel(unittest.TestCase):
         x_jiminy[:, 7:10] = np.array([q * v for q, v in zip(quat_wheel, x_jiminy[:, 7:10])])
         x_analytical[:, 11] = w_wheel
 
-        import matplotlib.pyplot as plt
-
-        plt.subplot(321)
-        plt.plot(x_jiminy[:, 0])
-        plt.plot(x_analytical[:, 0])
-        plt.title('px')
-
-
-        plt.subplot(323)
-        plt.plot(x_jiminy[:, 1])
-        plt.plot(x_analytical[:, 1])
-        plt.title('py')
-
-        plt.subplot(325)
-        plt.plot(x_jiminy[:, 2])
-        plt.plot(x_analytical[:, 2])
-        plt.title('pz')
-
-
-        plt.subplot(322)
-        plt.plot(x_jiminy[:, 7])
-        plt.plot(x_analytical[:, 7])
-        plt.title('vx')
-
-
-        plt.subplot(324)
-        plt.plot(x_jiminy[:, 8])
-        plt.plot(x_analytical[:, 8])
-        plt.title('vy')
-
-        plt.subplot(326)
-        plt.plot(x_jiminy[:, 9])
-        plt.plot(x_analytical[:, 9])
-        plt.title('vz')
-
-        plt.show()
-
-        # plt.subplot(321)
-        # plt.plot(x_jiminy[:, 7])
-        # plt.plot(x_analytical[:, 7])
-
-
-        # plt.subplot(322)
-        # plt.plot(x_jiminy[:, 8])
-        # plt.plot(x_analytical[:, 8])
-
-        # plt.subplot(323)
-        # plt.plot(x_jiminy[:, 9])
-        # plt.plot(x_analytical[:, 9])
-
-
-        # plt.subplot(324)
-        # plt.plot(x_jiminy[:, 10])
-        # plt.plot(x_analytical[:, 10])
-
-
-        # plt.subplot(325)
-        # plt.plot(x_jiminy[:, 11])
-        # plt.plot(x_analytical[:, 11])
-
-        # plt.subplot(326)
-        # plt.plot(x_jiminy[:, 12])
-        # plt.plot(x_analytical[:, 12])
-
-        plt.show()
         self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
 
 if __name__ == '__main__':

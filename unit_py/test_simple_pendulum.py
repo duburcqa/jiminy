@@ -16,8 +16,7 @@ from utilities import (
     load_urdf_default,
     setup_controller_and_engine,
     integrate_dynamics,
-    simulate_and_get_state_evolution,
-    _simulate_and_get_imu_data_evolution)
+    simulate_and_get_state_evolution)
 
 # Small tolerance for numerical equality.
 # The integration error is supposed to be bounded.
