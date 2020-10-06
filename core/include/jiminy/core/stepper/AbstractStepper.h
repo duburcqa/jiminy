@@ -73,6 +73,7 @@ namespace jiminy
         std::vector<Robot const *> robots_;  ///< Robots on which to perform integration.
         state_t state_;                      ///< State derivative computation buffer.
         stateDerivative_t stateDerivative_;  ///< State derivative computation buffer.
+        stateDerivative_t fOutput_;  ///< State derivative computation buffer.
     };
 }
 

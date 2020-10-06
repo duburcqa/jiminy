@@ -46,13 +46,13 @@ namespace jiminy
                                      stateDerivative_t const & velocity);
 
             /// \brief Compute the difference between two states, i.e. the velocity to go from other to this.
-            stateDerivative_t difference(state_t const & other);
+            stateDerivative_t difference(state_t const & other) const;
 
             /// \brief Compute the norm of the current state.
             ///
             /// \details This function returns the infinity-norm (max(abs(x))) of (q_, v_),
             ///          and is meant to be used for step adjustement by steppers.
-            float64_t normInf(void);
+            float64_t normInf(void)  const;
 
         public:
             uint32_t nrobots;
@@ -100,7 +100,7 @@ namespace jiminy
             ///
             /// \details This function simply computes the induced norm
             ///          sum(norm2(x) for x in v, a)
-            float64_t norm(void);
+            float64_t norm(void) const;
 
         public:
             uint32_t nrobots;

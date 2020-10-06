@@ -9,7 +9,8 @@ namespace jiminy
     f_(std::move(f)),
     robots_(robots),
     state_(robots),
-    stateDerivative_(robots)
+    stateDerivative_(robots),
+    fOutput_(robots)
     {
         // Empty on purpose.
     }
@@ -39,7 +40,8 @@ namespace jiminy
     stateDerivative_t const & AbstractStepper::f(float64_t const & t,
                                                  state_t   const & state)
     {
-        f_(t, state.q, state.v, stateDerivative_.a);
-        return stateDerivative_;
+        f_(t, state.q, state.v, fOutput_.a);
+        fOutput_.v = state.v;
+        return fOutput_;
     }
 }

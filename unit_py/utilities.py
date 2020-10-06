@@ -61,7 +61,7 @@ def load_urdf_default(urdf_name: str,
     return robot
 
 def setup_controller_and_engine(
-        engine: jiminy.EngineMultiRobot
+        engine: jiminy.EngineMultiRobot,
         robot: jiminy.Robot,
         compute_command: Optional[Callable] = None,
         internal_dynamics: Optional[Callable] = None) -> None:
@@ -167,7 +167,7 @@ def simulate_and_get_state_evolution(
     """
     # Run simulation
     if isinstance(engine, jiminy.Engine):
-        q0, v0 = x0[engine.robot.nq:], x0[-engine.robot.nv:]
+        q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
     else:
         q0, v0 = {}, {}
         for system in engine.systems:

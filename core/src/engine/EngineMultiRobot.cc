@@ -20,6 +20,7 @@
 #include "jiminy/core/stepper/AbstractStepper.h"
 #include "jiminy/core/stepper/ExplicitEulerStepper.h"
 #include "jiminy/core/stepper/RungeKuttaDOPRIStepper.h"
+#include "jiminy/core/stepper/RungeKutta4Stepper.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
 #include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
 
@@ -638,6 +639,11 @@ namespace jiminy
                                                robots,
                                                engineOptions_->stepper.tolAbs,
                                                engineOptions_->stepper.tolRel));
+            }
+            else if (engineOptions_->stepper.odeSolver == "runge_kutta_4")
+            {
+                stepper_ = std::unique_ptr<AbstractStepper>(
+                    new RungeKutta4Stepper(systemOde, robots));
             }
             else if (engineOptions_->stepper.odeSolver == "explicit_euler")
             {

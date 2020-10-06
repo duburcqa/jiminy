@@ -116,7 +116,7 @@ namespace jiminy
         return position;
     }
 
-    stateDerivative_t state_t::difference(state_t const & other)
+    stateDerivative_t state_t::difference(state_t const & other) const
     {
         assert(robots_ == other.robots_);
 
@@ -129,7 +129,7 @@ namespace jiminy
         return s;
     }
 
-    float64_t state_t::normInf(void)
+    float64_t state_t::normInf(void) const
     {
         float64_t norm = 0.0;
         for (uint32_t i = 0; i < nrobots; ++i)
@@ -262,7 +262,7 @@ namespace jiminy
         return velocity;
     }
 
-    float64_t stateDerivative_t::norm(void)
+    float64_t stateDerivative_t::norm(void) const
     {
         float64_t norm = 0.0;
         for (uint32_t i = 0; i < nrobots; ++i)

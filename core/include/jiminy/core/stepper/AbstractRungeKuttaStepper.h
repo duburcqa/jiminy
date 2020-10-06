@@ -22,22 +22,18 @@ namespace jiminy
         float64_t const MAX_FACTOR = 10.0; ///< Maximum allowed relative step increase.
     }
 
-    class RungeKuttaStepper: public AbstractStepper
+    class AbstractRungeKuttaStepper: public AbstractStepper
     {
         public:
             /// \brief Constructor
             /// \param[in] f      Dynamics function, with signature a = f(t, q, v)
             /// \param[in] robots Robots whose dynamics the stepper will work on.
-            /// \param[in] tolRel Relative tolerance, used to determine step success and timestep update.
-            /// \param[in] tolAbs Relative tolerance, used to determine step success and timestep update.
-            RungeKuttaStepper(systemDynamics f, /* Copy on purpose */
+            AbstractRungeKuttaStepper(systemDynamics f, /* Copy on purpose */
                               std::vector<Robot const *> const & robots,
-                              float64_t const & tolRel,
-                              float64_t const & tolAbs,
                               matrixN_t const & RungeKuttaMatrix,
-                              vectorN_t const & cNodes,
                               vectorN_t const & bWeights,
-                              vectorN_t const & eWeights);
+                              vectorN_t const & cNodes,
+                              bool const & isFSAL);
 
         protected:
             /// \brief Internal tryStep method wrapping the arguments as state_t and stateDerivative_t.
@@ -46,13 +42,21 @@ namespace jiminy
                              float64_t   const & t,
                              float64_t         & dt) final override;
 
+            /// \brief Determine if step has succeeded or failed, and adjust dt.
+            /// \param[in] intialState Starting state, used to compute alternative estimates of the solution.
+            /// \param[in] solution Current solution computed by the main Runge-Kutta step.
+            /// \param[in, out] dt  Timestep to be scaled.
+            /// \return True on step success, false otherwise. dt is updated in place.
+            virtual bool adjustStep(state_t const & initialState, state_t const & solution, float64_t & dt);
+
         private:
-            float64_t tolRel_; ///< Relative tolerance
-            float64_t tolAbs_; ///< Absolute tolerance
-            matrixN_t A_;      ///< A weight matrix.
-            vectorN_t c_;      ///< Nodes
-            vectorN_t b_;      ///< Solution eights
-            vectorN_t e_;      ///< Error evaluation weights
+            matrixN_t const A_; ///< A weight matrix.
+            vectorN_t const b_; ///< Solution coefficients.
+            vectorN_t const c_; ///< Nodes
+            bool const isFSAL_; ///< Does scheme support first-same-as-last.
+
+        protected:
+            std::vector<stateDerivative_t> ki_; ///< Internal computation steps.
     };
 }
 
