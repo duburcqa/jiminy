@@ -60,7 +60,7 @@ namespace jiminy
         }
         else
         {
-            dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 1)),
+            dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 2)),
                            DOPRI::MIN_FACTOR);
             return false;
         }
