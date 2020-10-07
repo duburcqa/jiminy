@@ -11,10 +11,10 @@ namespace jiminy
         // Empty
     }
 
-    bool ExplicitEulerStepper::tryStepImpl(state_t                 & state,
-                                           stateDerivative_t       & stateDerivative,
-                                           float64_t         const & t,
-                                           float64_t               & dt)
+    bool_t ExplicitEulerStepper::tryStepImpl(state_t                 & state,
+                                             stateDerivative_t       & stateDerivative,
+                                             float64_t         const & t,
+                                             float64_t               & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
         state += dt * f(t, state);

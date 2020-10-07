@@ -63,24 +63,29 @@ namespace jiminy
                                    float64_t const & tolAbs);
 
         protected:
-
             /// \brief Determine if step has succeeded or failed, and adjust dt.
             /// \param[in] intialState Starting state, used to compute alternative estimates of the solution.
             /// \param[in] solution Current solution computed by the main Runge-Kutta step.
             /// \param[in, out] dt  Timestep to be scaled.
             /// \return True on step success, false otherwise. dt is updated in place.
-            virtual bool adjustStep(state_t const & initialState, state_t const & solution, float64_t & dt) override final;
+            virtual bool adjustStep(state_t   const & initialState,
+                                    state_t   const & solution,
+                                    float64_t       & dt) override final;
 
         private:
             /// \brief Run error computation algorithm to return normalized error.
             /// \param[in] intialState Starting state, used to compute alternative estimates of the solution.
             /// \param[in] solution Current solution computed by the main Runge-Kutta step.
             /// \return Normalized error, >1 indicates step failure.
-            float64_t computeError(state_t const & initialState, state_t const & solution, float64_t const & dt);
+            float64_t computeError(state_t   const & initialState,
+                                   state_t   const & solution,
+                                   float64_t const & dt);
 
             /// \brief Scale timestep based on normalized error value.
-            void adjustStepImpl(float64_t const& error, float64_t & dt);
+            void adjustStepImpl(float64_t const & error,
+                                float64_t       & dt);
 
+        private:
             float64_t tolRel_; ///< Relative tolerance
             float64_t tolAbs_; ///< Absolute tolerance
     };

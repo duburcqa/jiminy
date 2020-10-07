@@ -27,7 +27,7 @@ namespace jiminy
         // Empty on purpose
     }
 
-    matrix3_t skew(vector3_t const & v)
+    inline matrix3_t skew(vector3_t const & v)
     {
         matrix3_t skew;
         skew <<   0.0, -v(2),  v(1),
@@ -93,27 +93,6 @@ namespace jiminy
         return drift_;
     }
 
-    hresult_t WheelConstraint::attach(Model const * model)
-    {
-        if (isAttached_)
-        {
-            std::cout << "Error - WheelConstraint::attach - Constraint already attached to a robot." << std::endl;
-            return hresult_t::ERROR_GENERIC;
-        }
-
-        model_ = model;
-
-        // Refresh proxies: this checks for the existence of frameName_ in model_.
-        hresult_t returnCode = refreshProxies();
-        if (returnCode == hresult_t::SUCCESS)
-        {
-             isAttached_ = true;
-        }
-
-        return returnCode;
-    }
-
-
     hresult_t WheelConstraint::refreshProxies()
     {
         // Resize the jacobian to the model dimension.
@@ -123,5 +102,3 @@ namespace jiminy
         return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 }
-
-

@@ -6,28 +6,21 @@ namespace jiminy
                                                    std::vector<Robot const *> const & robots,
                                                    float64_t const & tolRel,
                                                    float64_t const & tolAbs):
-    AbstractRungeKuttaStepper(f,
-                    robots,
-                    DOPRI::A,
-                    DOPRI::b,
-                    DOPRI::c,
-                    true),
+    AbstractRungeKuttaStepper(f, robots, DOPRI::A, DOPRI::b, DOPRI::c, true),
     tolRel_(tolRel),
     tolAbs_(tolAbs)
     {
         // Empty on purpose
     }
 
-
-    bool RungeKuttaDOPRIStepper::adjustStep(state_t const & initialState,
-                                            state_t const & solution,
-                                            float64_t & dt)
+    bool_t RungeKuttaDOPRIStepper::adjustStep(state_t   const & initialState,
+                                              state_t   const & solution,
+                                              float64_t       & dt)
     {
         float64_t error = computeError(initialState, solution, dt);
         adjustStepImpl(error, dt);
         return error < 1.0;
     }
-
 
     float64_t RungeKuttaDOPRIStepper::computeError(state_t const & initialState,
                                                    state_t const & solution,
@@ -49,7 +42,8 @@ namespace jiminy
         return  errorNorm / scale;
     }
 
-    void RungeKuttaDOPRIStepper::adjustStepImpl(float64_t const& error, float64_t & dt)
+    void RungeKuttaDOPRIStepper::adjustStepImpl(float64_t const & error,
+                                                float64_t       & dt)
     {
         // Adjustment algorithm from boost implementation.
         if (error < 1.0)
@@ -66,7 +60,7 @@ namespace jiminy
         else
         {
             dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 1)),
-                              DOPRI::MIN_FACTOR);
+                           DOPRI::MIN_FACTOR);
         }
     }
 }

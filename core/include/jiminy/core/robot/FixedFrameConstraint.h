@@ -63,17 +63,6 @@ namespace jiminy
         virtual vectorN_t const & getDrift(vectorN_t const & q,
                                            vectorN_t const & v) override final;
 
-    protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Link the constraint on the given model, and initialize it.
-        ///
-        /// \param[in] model    Model on which to apply the constraint.
-        /// \return     Error code: attach may fail if:
-        ///              - the constraint is already attached.
-        ///              - the target frame name does not exist in model.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(Model const * model) override final;
-
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
         ///
@@ -84,7 +73,7 @@ namespace jiminy
 
     private:
         std::string const frameName_;     ///< Name of the frame on which the constraint operates.
-        int frameIdx_;                    ///< Corresponding frame index.
+        int32_t frameIdx_;                ///< Corresponding frame index.
     };
 }
 

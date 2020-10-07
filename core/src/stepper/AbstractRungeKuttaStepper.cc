@@ -10,7 +10,7 @@ namespace jiminy
                                          matrixN_t const & RungeKuttaMatrix,
                                          vectorN_t const & bWeights,
                                          vectorN_t const & cNodes,
-                                         bool const& isFSAL):
+                                         bool_t    const & isFSAL):
     AbstractStepper(f, robots),
     A_(RungeKuttaMatrix),
     b_(bWeights),
@@ -23,10 +23,10 @@ namespace jiminy
         assert(b_.size() == b_.rows());
     }
 
-    bool AbstractRungeKuttaStepper::tryStepImpl(state_t           & state,
-                                        stateDerivative_t & stateDerivative,
-                                        float64_t   const & t,
-                                        float64_t         & dt)
+    bool_t AbstractRungeKuttaStepper::tryStepImpl(state_t                 & state,
+                                                  stateDerivative_t       & stateDerivative,
+                                                  float64_t         const & t,
+                                                  float64_t               & dt)
     {
         // First ki is simply the provided stateDerivative (fist-same-as-last scheme)
         if (isFSAL_)
@@ -48,9 +48,9 @@ namespace jiminy
             ki_[i] = f(t + c_[i] * dt, state + stateIncrement);
         }
 
-        // Now we have all the ki's: compute the solution
-        // Sum the velocities before summing into position the accuracy is greater
-        // for summing vectors than for summing velocities into lie groups.
+        /* Now we have all the ki's: compute the solution.
+           Sum the velocities before summing into position the accuracy is greater
+           for summing vectors than for summing velocities into lie groups. */
         stateDerivative_t dvInc = dt * b_[0] * ki_[0];
         for (uint32_t i = 1; i < ki_.size(); ++i)
         {
@@ -58,19 +58,22 @@ namespace jiminy
         }
         state_t solution = state + dvInc;
 
-        // Evalue the solution's error for step adjustment.
-        bool hasSucceeded = adjustStep(state, solution, dt);
+        // Evaluate the solution's error for step adjustment
+        bool_t hasSucceeded = adjustStep(state, solution, dt);
 
-        // Copy solution to output buffers.
+        // Copy solution to output buffers
         state = solution;
         stateDerivative = ki_.back();
 
         return hasSucceeded;
     }
 
-    bool AbstractRungeKuttaStepper::adjustStep(state_t const & initialState, state_t const & solution, float64_t & dt)
+    bool_t AbstractRungeKuttaStepper::adjustStep(state_t   const & initialState,
+                                                 state_t   const & solution,
+                                                 float64_t       & dt)
     {
-        // Fixed-step never fails.
+        // Fixed-step by default, which never fails
         return true;
     }
 }
+

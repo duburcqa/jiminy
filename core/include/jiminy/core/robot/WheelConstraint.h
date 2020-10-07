@@ -70,17 +70,6 @@ namespace jiminy
         virtual vectorN_t const & getDrift(vectorN_t const & q,
                                            vectorN_t const & v) override final;
 
-    protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Link the constraint on the given model, and initialize it.
-        ///
-        /// \param[in] model    Model on which to apply the constraint.
-        /// \return     Error code: attach may fail if:
-        ///              - the constraint is already attached.
-        ///              - the target frame name does not exist in model.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(Model const * model) override final;
-
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
         ///
@@ -90,13 +79,13 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) override final;
 
     private:
-        std::string const frameName_;     ///< Name of the frame on which the constraint operates.
-        int frameIdx_;              ///< Corresponding frame index.
-        float64_t const radius_;          ///< Wheel radius.
-        vector3_t const normal_;          ///< Ground normal, world frame.
-        vector3_t const axis_;            ///< Wheel axis, local frame.
+        std::string frameName_;     ///< Name of the frame on which the constraint operates.
+        int32_t frameIdx_;          ///< Corresponding frame index.
+        float64_t radius_;          ///< Wheel radius.
+        vector3_t normal_;          ///< Ground normal, world frame.
+        vector3_t axis_;            ///< Wheel axis, local frame.
         matrixN_t frameJacobian_;   ///< Stores full frame jacobian in world.
-        matrixN_t jLas_;   ///< Stores full frame jacobian in world.
+        matrixN_t jLas_;            ///< Stores full frame jacobian in world.
     };
 }
 

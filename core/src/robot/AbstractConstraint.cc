@@ -29,12 +29,27 @@ namespace jiminy
 
     hresult_t AbstractConstraint::attach(Model const * model)
     {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (isAttached_)
+        {
+            std::cout << "Error - FixedFrameConstraint::attach - Constraint already attached to a robot." << std::endl;
+            return hresult_t::ERROR_GENERIC;
+        }
+
         model_ = model;
-        isAttached_ = true;
-        return hresult_t::SUCCESS;
+
+        // Refresh proxies: this checks for the existence of frameName_ in model_.
+        returnCode = refreshProxies();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            isAttached_ = true;
+        }
+
+        return returnCode;
     }
 
-    void AbstractConstraint::detach()
+    void AbstractConstraint::detach(void)
     {
         model_ = nullptr;
         isAttached_ = false;
