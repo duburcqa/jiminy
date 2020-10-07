@@ -251,14 +251,23 @@ namespace jiminy
         return velocity;
     }
 
+    stateDerivative_t & stateDerivative_t::operator*=(float64_t const & alpha)
+    {
+        assert(robots_ == other.robots_);
+
+        for (uint32_t i = 0; i < nrobots; ++i)
+        {
+            v[i] *= alpha;
+            a[i] *= alpha;
+        }
+        return *this;
+    }
+
+
     stateDerivative_t operator*(float64_t         const & alpha,
                                 stateDerivative_t         velocity)
     {
-        for (uint32_t i = 0; i < velocity.nrobots; ++i)
-        {
-            velocity.v[i] *= alpha;
-            velocity.a[i] *= alpha;
-        }
+        velocity *= alpha;
         return velocity;
     }
 

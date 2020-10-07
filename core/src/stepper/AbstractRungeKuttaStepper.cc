@@ -56,10 +56,10 @@ namespace jiminy
         {
             dvInc += dt * b_[i] * ki_[i];
         }
-        state_t solution = state + dvInc;
+        state_t const solution = state + dvInc;
 
         // Evaluate the solution's error for step adjustment
-        bool_t hasSucceeded = adjustStep(state, solution, dt);
+        bool_t const hasSucceeded = adjustStep(state, solution, dt);
 
         // Copy solution to output buffers
         state = solution;

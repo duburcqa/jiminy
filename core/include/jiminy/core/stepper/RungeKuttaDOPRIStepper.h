@@ -82,8 +82,8 @@ namespace jiminy
                                    float64_t const & dt);
 
             /// \brief Scale timestep based on normalized error value.
-            void adjustStepImpl(float64_t const & error,
-                                float64_t       & dt);
+            bool_t adjustStepImpl(float64_t const & error,
+                                  float64_t       & dt);
 
         private:
             float64_t tolRel_; ///< Relative tolerance

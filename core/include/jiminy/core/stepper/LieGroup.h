@@ -93,6 +93,7 @@ namespace jiminy
             /// \details Given alpha and (v1, a1), this simply returns (alpha * v1, alpha * a1)
             /// \param[in] alpha Scalar coefficient.
             /// \param[in] state state_t to scale.
+            stateDerivative_t & operator*=(float64_t const & alpha);
             friend stateDerivative_t operator*(float64_t         const & alpha,
                                                stateDerivative_t         velocity);  // copy on purpose.
 
