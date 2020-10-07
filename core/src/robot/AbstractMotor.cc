@@ -85,7 +85,7 @@ namespace jiminy
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             --sharedHolder_->motors_[i]->motorIdx_;
         }
@@ -298,11 +298,11 @@ namespace jiminy
         return rotorInertia_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(float64_t                   const & t,
-                                                  Eigen::Ref<vectorN_t const> const & q,
-                                                  Eigen::Ref<vectorN_t const> const & v,
-                                                  Eigen::Ref<vectorN_t const> const & a,
-                                                  vectorN_t                   const & uCommand)
+    hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,
+                                                  vectorN_t const & q,
+                                                  vectorN_t const & v,
+                                                  vectorN_t const & a,
+                                                  vectorN_t const & uCommand)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 

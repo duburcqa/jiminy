@@ -52,7 +52,7 @@ namespace jiminy
         /// \param[in] q    Current joint position.
         /// \return         Jacobian of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t const & getJacobian(Eigen::Ref<vectorN_t const>  const & q);
+        virtual matrixN_t const & getJacobian(vectorN_t const & q);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the drift of the constraint.
@@ -64,22 +64,8 @@ namespace jiminy
         /// \param[in] v    Current joint velocity.
         /// \return         Drift of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual vectorN_t const & getDrift(Eigen::Ref<vectorN_t const>  const & q,
-                                           Eigen::Ref<vectorN_t const>  const & v);
-
-    protected:
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Link the constraint on the given model, and initialize it.
-        ///
-        /// \param[in] model    Model on which to apply the constraint.
-        /// \return     Error code: attach may fail, including if the constraint is already attached.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(Model const * model);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief      Detach the constraint from its model.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void detach();
+        virtual vectorN_t const & getDrift(vectorN_t const & q,
+                                           vectorN_t const & v);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
@@ -89,10 +75,25 @@ namespace jiminy
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t refreshProxies(void) = 0;
 
-        Model const * model_; ///< Model on which the constraint operates.
-        bool isAttached_; ///< Flag to indicate if the constraint has been attached to a model.
-        matrixN_t jacobian_; ///< Jacobian of the constraint.
-        vectorN_t drift_; ///< Drift of the constraint.
+    private:
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Link the constraint on the given model, and initialize it.
+        ///
+        /// \param[in] model    Model on which to apply the constraint.
+        /// \return     Error code: attach may fail, including if the constraint is already attached.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        hresult_t attach(Model const * model);
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief      Detach the constraint from its model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        void detach(void);
+
+    protected:
+        Model const * model_;  ///< Model on which the constraint operates.
+        bool_t isAttached_;    ///< Flag to indicate if the constraint has been attached to a model.
+        matrixN_t jacobian_;   ///< Jacobian of the constraint.
+        vectorN_t drift_;      ///< Drift of the constraint.
     };
 }
 

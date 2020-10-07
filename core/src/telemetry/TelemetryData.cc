@@ -124,7 +124,7 @@ namespace jiminy
             currentPos += entry.size();
             currentPos += 1U; // Null-terminated
 
-            position++;
+            ++position;
         }
 
         return -1;

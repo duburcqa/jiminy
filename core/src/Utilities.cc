@@ -100,7 +100,7 @@ namespace jiminy
     Json::Value convertToJson<vectorN_t>(vectorN_t const & value)
     {
         Json::Value row(Json::arrayValue);
-        for (int32_t i=0; i<value.size(); i++)
+        for (int32_t i=0; i<value.size(); ++i)
         {
             row.append(value[i]);
         }
@@ -113,10 +113,10 @@ namespace jiminy
         Json::Value mat(Json::arrayValue);
         if (value.rows() > 0)
         {
-            for (int32_t i=0; i<value.rows(); i++)
+            for (int32_t i=0; i<value.rows(); ++i)
             {
                 Json::Value row(Json::arrayValue);
-                for (int32_t j=0; j<value.cols(); j++)
+                for (int32_t j=0; j<value.cols(); ++j)
                 {
                     row.append(value(i,j));
                 }
@@ -241,9 +241,9 @@ namespace jiminy
         if (value.size() > 0)
         {
             vec.resize(value.size());
-            for (auto itr = value.begin() ; itr != value.end() ; itr++)
+            for (auto it = value.begin() ; it != value.end() ; ++it)
             {
-                vec[itr.index()] = convertFromJson<float64_t>(*itr);
+                vec[it.index()] = convertFromJson<float64_t>(*it);
             }
         }
         return vec;
@@ -255,13 +255,13 @@ namespace jiminy
         matrixN_t mat;
         if (value.size() > 0)
         {
-            auto itr = value.begin() ;
-            if (itr->size() > 0)
+            auto it = value.begin() ;
+            if (it->size() > 0)
             {
-                mat.resize(value.size(), itr->size());
-                for (; itr != value.end() ; itr++)
+                mat.resize(value.size(), it->size());
+                for (; it != value.end() ; ++it)
                 {
-                    mat.row(itr.index()) = convertFromJson<vectorN_t>(*itr);
+                    mat.row(it.index()) = convertFromJson<vectorN_t>(*it);
                 }
             }
         }
@@ -295,7 +295,7 @@ namespace jiminy
     configHolder_t convertFromJson<configHolder_t>(Json::Value const & value)
     {
         configHolder_t config;
-        for (auto root = value.begin() ; root != value.end() ; root++)
+        for (auto root = value.begin() ; root != value.end() ; ++root)
         {
             configField_t field;
 
@@ -366,19 +366,19 @@ namespace jiminy
             {
                 if (root->size() > 0)
                 {
-                    auto itr = root->begin();
-                    if (itr->type() == Json::realValue)
+                    auto it = root->begin();
+                    if (it->type() == Json::realValue)
                     {
                         field = convertFromJson<vectorN_t>(*root);
                     }
-                    else if (itr->type() == Json::arrayValue)
+                    else if (it->type() == Json::arrayValue)
                     {
                         field = convertFromJson<matrixN_t>(*root);
                     }
                     else
                     {
                         std::cout << "Error - Utilities::convertFromJson - Unknown data type: "\
-                                     "std::vector<" << itr->type() << ">" << std::endl;
+                                     "std::vector<" << it->type() << ">" << std::endl;
                         field = std::string{"ValueError"};
                     }
                 }
@@ -588,7 +588,7 @@ namespace jiminy
     {
         std::vector<std::string> fieldnames;
         fieldnames.reserve(size);
-        for (uint32_t i=0; i<size; i++)
+        for (uint32_t i=0; i<size; ++i)
         {
             fieldnames.emplace_back(std::move(baseName + TELEMETRY_DELIMITER + std::to_string(i)));
         }
@@ -673,56 +673,12 @@ namespace jiminy
 
     // ********************** Pinocchio utilities **********************
 
-    template<typename T>
-    hresult_t computePositionDerivativeImpl(pinocchio::Model            const & model,
-                                            Eigen::Ref<vectorN_t const> const & q,
-                                            Eigen::Ref<vectorN_t const> const & v,
-                                            T                                 & qDot,
-                                            float64_t                   const & dt)
-    {
-        /* "Hack" to compute the configuration vector derivative,
-           including the quaternions on SO3 automatically.
-           Note that the time difference must not be too small
-           to avoid failure. */
-
-        if (dt < STEPPER_MIN_TIMESTEP)
-        {
-            std::cout << "Error - Utilities::computePositionDerivative - dt must be larger than STEPPER_MIN_TIMESTEP." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        auto & qNext = qDot; // Use qDot as buffer to avoid allocating memory for a temporary
-        pinocchio::integrate(model, q, v*dt, qDot);
-        qDot = (qNext - q) / dt;
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        Eigen::Ref<vectorN_t>             & qDot,
-                                        float64_t                   const & dt)
-    {
-        return computePositionDerivativeImpl(model, q, v, qDot, dt);
-    }
-
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        vectorN_t                         & qDot,
-                                        float64_t                   const & dt)
-    {
-        return computePositionDerivativeImpl(model, q, v, qDot, dt);
-    }
-
-
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
                                           int32_t          const & idIn,
                                           std::string            & jointNameOut)
     {
         // Iterate over all joints.
-        for (int32_t i = 0; i < model.njoints; i++)
+        for (int32_t i = 0; i < model.njoints; ++i)
         {
             // Get joint starting and ending index in position vector.
             int32_t startIndex = model.joints[i].idx_q();
@@ -745,7 +701,7 @@ namespace jiminy
                                           std::string            & jointNameOut)
     {
         // Iterate over all joints.
-        for (int32_t i = 0; i < model.njoints; i++)
+        for (int32_t i = 0; i < model.njoints; ++i)
         {
             // Get joint starting and ending index in velocity vector.
             int32_t startIndex = model.joints[i].idx_v();
@@ -1189,7 +1145,7 @@ namespace jiminy
         if (firstJointIdx < secondJointIdx)
         {
             // Update parents for other joints.
-            for (uint32_t i = 0; i < modelInOut.parents.size(); i++)
+            for (uint32_t i = 0; i < modelInOut.parents.size(); ++i)
             {
                 if (firstJointIdx == modelInOut.parents[i])
                 {
@@ -1201,7 +1157,7 @@ namespace jiminy
                 }
             }
             // Update frame parents.
-            for (uint32_t i = 0; i < modelInOut.frames.size(); i++)
+            for (uint32_t i = 0; i < modelInOut.frames.size(); ++i)
             {
                 if (firstJointIdx == modelInOut.frames[i].parent)
                 {
@@ -1213,9 +1169,9 @@ namespace jiminy
                 }
             }
             // Update values in subtrees.
-            for (uint32_t i = 0; i < modelInOut.subtrees.size(); i++)
+            for (uint32_t i = 0; i < modelInOut.subtrees.size(); ++i)
             {
-                for (uint32_t j = 0; j < modelInOut.subtrees[i].size(); j++)
+                for (uint32_t j = 0; j < modelInOut.subtrees[i].size(); ++j)
                 {
                     if (firstJointIdx == modelInOut.subtrees[i][j])
                     {
@@ -1283,7 +1239,7 @@ namespace jiminy
                Skip 'universe' joint since it is not an actual joint. */
             uint32_t incrementalNq = 0;
             uint32_t incrementalNv = 0;
-            for (uint32_t i = 1; i < modelInOut.joints.size(); i++)
+            for (uint32_t i = 1; i < modelInOut.joints.size(); ++i)
             {
                 modelInOut.joints[i].setIndexes(i, incrementalNq, incrementalNv);
                 incrementalNq += modelInOut.joints[i].nq();
@@ -1328,7 +1284,7 @@ namespace jiminy
         modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
 
         // Update new joint subtree to include all the joints below it.
-        for (uint32_t i = 0; i < modelInOut.subtrees[childIdx].size(); i++)
+        for (uint32_t i = 0; i < modelInOut.subtrees[childIdx].size(); ++i)
         {
             modelInOut.subtrees[newIdx].push_back(modelInOut.subtrees[childIdx][i]);
         }
@@ -1348,7 +1304,7 @@ namespace jiminy
             leaves of the kinematic tree. Here this is no longer the case, as an
             intermediate joint was appended at the end. We put back this joint at the
             correct position, by doing successive permutations. */
-        for (int32_t i = childIdx; i < newIdx; i++)
+        for (int32_t i = childIdx; i < newIdx; ++i)
         {
             switchJoints(modelInOut, i, newIdx);
         }

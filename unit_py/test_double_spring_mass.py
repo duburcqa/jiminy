@@ -65,14 +65,14 @@ class SimulateTwoMasses(unittest.TestCase):
         """
         u[-2:] = - self.k * q[-2:] - self.nu * v[-2:]
 
-    def _get_simulated_and_analytical_solutions(self, engine, tf, x0):
+    def _get_simulated_and_analytical_solutions(self, engine, tf, xInit):
         """
         @brief   Simulate the system dynamics and compute the corresponding
                  analytical solution at the same timesteps.
         """
         # Run simulation and extract some information from log data
         time, x_jiminy = simulate_and_get_state_evolution(
-            engine, tf, x0, split=False)
+            engine, tf, xInit, split=False)
 
         # Compute analytical solution
         x_analytical = np.stack([
@@ -163,13 +163,12 @@ class SimulateTwoMasses(unittest.TestCase):
         robot = load_urdf_default(
             self.urdf_name, self.motors_names, has_freeflyer=True)
 
-        # Initialize with zero freeflyer velocity...
-        x_init = np.zeros(17)
-        x_init[7:9] = self.x0[:2]
-        x_init[-2:] = self.x0[2:]
-        # ... and a random freeflyer quaternion
-        x_init[:7] = np.random.rand(7)
-        x_init[3:7] /= np.linalg.norm(x_init[3:7])
+        # Initialize with a random freeflyer configuration and zero velocity
+        q_init = np.zeros(9)
+        q_init[:7] = np.random.rand(7)
+        q_init[3:7] /= np.linalg.norm(q_init[3:7])
+        v_init = np.zeros(8)
+        q_init[-2:], v_init[-2:] = np.split(self.x0, 2)
 
         # Define the external wrench to apply on the system
         f_local = np.array([1.0, 1.0, 0.0, 0.0, 0.5, 0.5])
@@ -216,7 +215,7 @@ class SimulateTwoMasses(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Run simulation: Check is done directly by control law
-        engine.simulate(self.tf, x_init)
+        engine.simulate(self.tf, q_init, v_init)
 
     def test_fixed_body_constraint(self):
         """
@@ -271,13 +270,11 @@ class SimulateTwoMasses(unittest.TestCase):
         fix_mass_constraint = jiminy.FixedFrameConstraint("SecondMass")
         robot.add_constraint("fixMass", fix_mass_constraint)
 
-        # Initialize with zero freeflyer velocity...
+        # Initialize with a random freeflyer configuration and zero velocity
         x_init = np.zeros(17)
-        x_init[7:9] = self.x0[:2]
-        x_init[-2:] = self.x0[2:]
-        # ... and a random freeflyer quaternion
         x_init[:7] = np.random.rand(7)
         x_init[3:7] /= np.linalg.norm(x_init[3:7])
+        x_init[7:9], x_init[-2:] = np.split(self.x0, 2)
 
         # The acceleration of the second mass should be the opposite of that of
         # the first
@@ -383,7 +380,7 @@ class SimulateTwoMasses(unittest.TestCase):
         x_init['FirstSystem'][6] = 1.0
 
         ## Second system: rotation by pi/2 around Z to bring X axis to Y axis
-        x_init['SecondSystem'] = np.copy(x_init['FirstSystem'])
+        x_init['SecondSystem'] = x_init['FirstSystem'].copy()
         x_init['SecondSystem'][5:7] = np.sqrt(2) / 2.0
 
         # Run simulation and extract some information from log data

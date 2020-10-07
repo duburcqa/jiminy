@@ -202,7 +202,7 @@ def onpolicy_trainer(
             while t.n < t.total:
                 if train_fn:
                     train_fn(epoch, global_step)
-                result = train_collector.collect(n_step=frame_per_epoch)
+                result = train_collector.collect(n_step=collect_per_step)
                 data = {}
                 if test_in_train and stop_fn and stop_fn(result["rew"]):
                     test_result = test_episode(

@@ -129,11 +129,11 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ImuSensor::set(float64_t                   const & t,
-                             Eigen::Ref<vectorN_t const> const & q,
-                             Eigen::Ref<vectorN_t const> const & v,
-                             Eigen::Ref<vectorN_t const> const & a,
-                             vectorN_t                   const & uMotor)
+    hresult_t ImuSensor::set(float64_t const & t,
+                             vectorN_t const & q,
+                             vectorN_t const & v,
+                             vectorN_t const & a,
+                             vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -285,11 +285,11 @@ namespace jiminy
         return frameIdx_;
     }
 
-    hresult_t ContactSensor::set(float64_t                   const & t,
-                                 Eigen::Ref<vectorN_t const> const & q,
-                                 Eigen::Ref<vectorN_t const> const & v,
-                                 Eigen::Ref<vectorN_t const> const & a,
-                                 vectorN_t                   const & uMotor)
+    hresult_t ContactSensor::set(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -394,11 +394,11 @@ namespace jiminy
         return parentJointIdx_;
     }
 
-    hresult_t ForceSensor::set(float64_t                   const & t,
-                               Eigen::Ref<vectorN_t const> const & q,
-                               Eigen::Ref<vectorN_t const> const & v,
-                               Eigen::Ref<vectorN_t const> const & a,
-                               vectorN_t                   const & uMotor)
+    hresult_t ForceSensor::set(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & uMotor)
     {
         // Returns the force applied at frame location, in the local frame of the parent joint
 
@@ -509,11 +509,11 @@ namespace jiminy
         return jointType_;
     }
 
-    hresult_t EncoderSensor::set(float64_t                   const & t,
-                                 Eigen::Ref<vectorN_t const> const & q,
-                                 Eigen::Ref<vectorN_t const> const & v,
-                                 Eigen::Ref<vectorN_t const> const & a,
-                                 vectorN_t                   const & uMotor)
+    hresult_t EncoderSensor::set(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {
@@ -621,11 +621,11 @@ namespace jiminy
         return motorIdx_;
     }
 
-    hresult_t EffortSensor::set(float64_t                   const & t,
-                                Eigen::Ref<vectorN_t const> const & q,
-                                Eigen::Ref<vectorN_t const> const & v,
-                                Eigen::Ref<vectorN_t const> const & a,
-                                vectorN_t                   const & uMotor)
+    hresult_t EffortSensor::set(float64_t const & t,
+                                vectorN_t const & q,
+                                vectorN_t const & v,
+                                vectorN_t const & a,
+                                vectorN_t const & uMotor)
     {
         if (!isInitialized_)
         {

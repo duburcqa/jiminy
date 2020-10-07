@@ -229,20 +229,20 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             sensor is added is taking care of it while updating the state of the sensors.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current motor effort vector
+        /// \param[in]  t       Current time.
+        /// \param[in]  q       Current configuration vector of the motor.
+        /// \param[in]  v       Current velocity vector of the motor.
+        /// \param[in]  a       Current acceleration vector of the motor.
+        /// \param[in]  u       Current motor effort vector of the motor.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t setAll(float64_t                   const & t,
-                                 Eigen::Ref<vectorN_t const> const & q,
-                                 Eigen::Ref<vectorN_t const> const & v,
-                                 Eigen::Ref<vectorN_t const> const & a,
-                                 vectorN_t                   const & uMotor) = 0;
+        virtual hresult_t setAll(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -341,20 +341,20 @@ namespace jiminy
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  uMotor  Current motor effort vector
+        /// \param[in]  t       Current time.
+        /// \param[in]  q       Current configuration vector of the robot.
+        /// \param[in]  v       Current velocity vector of the robot.
+        /// \param[in]  a       Current acceleration vector of the robot.
+        /// \param[in]  uMotor  Current motor effort vector of the robot.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) = 0;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -457,11 +457,11 @@ namespace jiminy
         virtual uint32_t getSize(void) const override final;
 
         virtual Eigen::Ref<vectorN_t const> get(void) const override final;
-        virtual hresult_t setAll(float64_t                   const & t,
-                                 Eigen::Ref<vectorN_t const> const & q,
-                                 Eigen::Ref<vectorN_t const> const & v,
-                                 Eigen::Ref<vectorN_t const> const & a,
-                                 vectorN_t                   const & uMotor) override final;
+        virtual hresult_t setAll(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t const & a,
+                                 vectorN_t const & uMotor) override final;
 
     protected:
         virtual Eigen::Ref<vectorN_t> get(void) override final;

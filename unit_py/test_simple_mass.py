@@ -131,7 +131,7 @@ class SimulateSimpleMass(unittest.TestCase):
         engine.set_options(engine_options)
 
         # Run simulation and extract some information from log data
-        x0 = neutral_state(robot)
+        x0 = neutral_state(robot, split=False)
         x0[2] = 1.0
         tf = 1.5
         _, x_jiminy = simulate_and_get_state_evolution(
@@ -222,9 +222,9 @@ class SimulateSimpleMass(unittest.TestCase):
             internal_dynamics=spinning_force)
 
         # Run simulation
-        x0 = neutral_state(robot)
+        q0, v0 = neutral_state(robot, split=True)
         tf = 1.5
-        engine.simulate(tf, x0)
+        engine.simulate(tf, q0, v0)
 
     def _test_friction_model(self, shape):
         """
@@ -257,7 +257,7 @@ class SimulateSimpleMass(unittest.TestCase):
             self.body_name, t0, dt, np.array([F, 0.0, 0.0, 0.0, 0.0, 0.0]))
 
         # Run simulation
-        x0 = neutral_state(robot)
+        x0 = neutral_state(robot, split=False)
         x0[2] = height
         tf = 1.5
         time, _, v_jiminy = simulate_and_get_state_evolution(

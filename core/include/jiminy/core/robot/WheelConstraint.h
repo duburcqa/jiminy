@@ -1,13 +1,14 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// \brief      Class representing a fixed frame constraint.
+/// \brief      Class constraining a wheel to roll without slipping on a flat plane.
 ///
-/// \details    This class  implements the constraint to have a specified frame fixed (in the world frame).
+/// \details    Given a frame to represent the wheel center, this class constrains it to move
+///             like it were rolling without slipping on a flat (not necessarily level) surface.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef JIMINY_FIXED_FRAME_CONSTRAINT_H
-#define JIMINY_FIXED_FRAME_CONSTRAINT_H
+#ifndef JIMINY_WHEEL_CONSTRAINT_H
+#define JIMINY_WHEEL_CONSTRAINT_H
 
 #include <memory>
 
@@ -19,23 +20,29 @@ namespace jiminy
 {
     class Model;
 
-    class FixedFrameConstraint: public AbstractConstraint
+    class WheelConstraint: public AbstractConstraint
     {
 
     public:
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Forbid the copy of the class
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(FixedFrameConstraint const & abstractMotor) = delete;
-        FixedFrameConstraint & operator = (FixedFrameConstraint const & other) = delete;
+        WheelConstraint(WheelConstraint const & abstractMotor) = delete;
+        WheelConstraint & operator = (WheelConstraint const & other) = delete;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///
-        /// \param[in]  frameName   Name of the frame on which the constraint is to be applied.
+        /// \param[in]  frameName   Name of the frame representing the center of the wheel.
+        /// \param[in]  wheelRadius Radius of the wheel (in m).
+        /// \param[in]  groundNormal Unit vector representing the normal to the ground, in the world frame.
+        /// \param[in]  wheelAxis   Axis of the wheel, in the local frame.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        FixedFrameConstraint(std::string const & frameName);
-        virtual ~FixedFrameConstraint(void);
+        WheelConstraint(std::string const & frameName,
+                        float64_t   const & wheelRadius,
+                        vector3_t   const & groundNormal,
+                        vector3_t   const & wheelAxis);
+        virtual ~WheelConstraint(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Compute and return the jacobian of the constraint.
@@ -72,9 +79,14 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) override final;
 
     private:
-        std::string const frameName_;     ///< Name of the frame on which the constraint operates.
-        int32_t frameIdx_;                ///< Corresponding frame index.
+        std::string frameName_;     ///< Name of the frame on which the constraint operates.
+        int32_t frameIdx_;          ///< Corresponding frame index.
+        float64_t radius_;          ///< Wheel radius.
+        vector3_t normal_;          ///< Ground normal, world frame.
+        vector3_t axis_;            ///< Wheel axis, local frame.
+        matrixN_t frameJacobian_;   ///< Stores full frame jacobian in world.
+        matrixN_t jLas_;            ///< Stores full frame jacobian in world.
     };
 }
 
-#endif //end of JIMINY_ABSTRACT_MOTOR_H
+#endif //end of JIMINY_WHEEL_CONSTRAINT_H

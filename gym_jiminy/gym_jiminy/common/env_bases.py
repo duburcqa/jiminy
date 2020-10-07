@@ -188,8 +188,7 @@ class BaseJiminyEnv(gym.core.Env):
         self._action = np.zeros(self.robot.nmotors)
 
         # Start the engine, in order to initialize the sensors data
-        x0 = np.concatenate((qpos, qvel))
-        self.simulator.start(x0, self.simulator.use_theoretical_model)
+        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
         # Backup the sensor data by doing a deep copy manually
         sensor_data = self.robot.sensors_data

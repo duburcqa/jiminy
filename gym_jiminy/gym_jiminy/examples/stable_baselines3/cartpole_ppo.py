@@ -78,6 +78,6 @@ obs = env.reset()
 for _ in range(int(t_end/dt)):
     action, _states = agent.predict(obs)
     obs, rewards, done, info = env.step(action)
-    env.remotes[0].send(('render',((), {'mode': 'rgb_array'})))
+    env.remotes[0].send(('render', 'human'))
     env.remotes[0].recv()
     time.sleep(dt)

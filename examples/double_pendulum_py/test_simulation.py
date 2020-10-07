@@ -75,12 +75,13 @@ controller.set_options(ctrl_options)
 
 # ############################## Run the simulation #####################################
 
-x0 = np.zeros((4,))
-x0[1] = 0.1
+q0 = np.zeros((2,))
+q0[1] = 0.1
+v0 = np.zeros((2,))
 tf = 3.0
 
 start = time.time()
-engine.simulate(tf, x0)
+engine.simulate(tf, q0, v0)
 end = time.time()
 print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 

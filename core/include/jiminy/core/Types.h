@@ -187,6 +187,21 @@ namespace jiminy
     >;
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
+
+    // System force functors
+    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                 vectorN_t const & /*q*/,
+                                                                 vectorN_t const & /*v*/)>;
+    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                  vectorN_t const & /*q_1*/,
+                                                                  vectorN_t const & /*v_1*/,
+                                                                  vectorN_t const & /*q_2*/,
+                                                                  vectorN_t const & /*v_2*/)>;
+
+    // System callback functor
+    using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
+                                                   vectorN_t const & /*q*/,
+                                                   vectorN_t const & /*v*/)>;
 }
 
 #endif  // JIMINY_TYPES_H

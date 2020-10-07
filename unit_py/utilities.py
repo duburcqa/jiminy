@@ -4,33 +4,33 @@
 import os
 import numpy as np
 from scipy.integrate import ode
+from typing import Optional, Union, Dict, List, Tuple, Callable
 
 from jiminy_py import core as jiminy
-from jiminy_py.core import ImuSensor as imu
 
 from pinocchio import neutral
 
 
-def load_urdf_default(urdf_name,
-                      motor_names=(),
-                      has_freeflyer=False):
+def load_urdf_default(urdf_name: str,
+                      motor_names: List[str] = (),
+                      has_freeflyer: bool = False) -> jiminy.Robot:
     """
-    @brief    Create a jiminy.Robot from a URDF with several simplying
-              hypothesis.
+    @brief Create a jiminy.Robot from a URDF with several simplying
+           hypothesis.
 
-    @details  The goal of this function is to ease creation of jiminy.Robot
-              from a URDF by doing the following operations:
-                 - loading the URDF, deactivating joint position and velocity
-                   bounds.
-                 - adding motors as supplied, with no rotor inertia and not
-                   torque bound.
-              These operations allow an unconstrained simulation of a linear
-              system.
+    @details The goal of this function is to ease creation of jiminy.Robot
+             from a URDF by doing the following operations:
+                - loading the URDF, deactivating joint position and velocity
+                  bounds.
+                - adding motors as supplied, with no rotor inertia and not
+                  torque bound.
+             These operations allow an unconstrained simulation of a linear
+             system.
 
-    @param[in]  urdf_name      Name to the URDF file.
-    @param[in]  motor_names    Name of the motors.
-    @param[in]  has_freeflyer  Set the use of a freeflyer joint.
-                               Optional, no free-flyer by default.
+    @param urdf_name  Name to the URDF file.
+    @param motor_names  Name of the motors.
+    @param has_freeflyer  Set the use of a freeflyer joint.
+                          Optional, no free-flyer by default.
     """
     # Get the urdf path and mesh search directory
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -60,10 +60,11 @@ def load_urdf_default(urdf_name,
 
     return robot
 
-def setup_controller_and_engine(engine,
-                                robot,
-                                compute_command=None,
-                                internal_dynamics=None):
+def setup_controller_and_engine(
+        engine: jiminy.EngineMultiRobot,
+        robot: jiminy.Robot,
+        compute_command: Optional[Callable] = None,
+        internal_dynamics: Optional[Callable] = None) -> None:
     """
     @brief Setup an engine to integrate the dynamics of a given robot,
            for a specific user-defined control law and internal dynamics.
@@ -100,7 +101,8 @@ def setup_controller_and_engine(engine,
     else:
         engine.initialize(robot)
 
-def neutral_state(robot):
+def neutral_state(robot: jiminy.Robot,
+                  split: bool = False) -> Union[List[np.ndarray], np.ndarray]:
     """
     @brief   Return the neutral state of the robot, namely zero joint
              positions and unit quaternions regarding the configuration, and
@@ -110,10 +112,14 @@ def neutral_state(robot):
     """
     q0 = neutral(robot.pinocchio_model)
     v0 = np.zeros(robot.nv)
-    x0 = np.concatenate((q0, v0))
-    return x0
+    if split:
+        return q0, v0
+    else:
+        return np.concatenate((q0, v0))
 
-def integrate_dynamics(time, x0, dynamics):
+def integrate_dynamics(time: np.ndarray,
+                       x0: np.ndarray,
+                       dynamics: Callable) -> np.ndarray:
     """
     @brief Integrate the dynamics function f(t, x) over timesteps time.
 
@@ -144,7 +150,12 @@ def integrate_dynamics(time, x0, dynamics):
         x_sol.append(solver.y)
     return np.stack(x_sol, axis=0)
 
-def simulate_and_get_state_evolution(engine, tf, x0, split=False):
+def simulate_and_get_state_evolution(
+        engine: jiminy.EngineMultiRobot,
+        tf: float,
+        x0: Union[Dict[str, np.ndarray], np.ndarray],
+        split: bool = False) -> Union[
+            List[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
     """
     @brief Simulate the dynamics of the system and retrieve the state
            evolution over time.
@@ -152,14 +163,22 @@ def simulate_and_get_state_evolution(engine, tf, x0, split=False):
     @param engine  List of time instant at which to evaluate the solution.
     @param tf  Duration of the simulation.
     @param x0  Initial state of the system.
+    @param split  Whether to return q, v separately or as a state vector x.
 
-    @return  - time: np.ndarray[len(time)]
-             - state evoluion: np.ndarray[len(time), dim(x0)]: each line is the
-               solution x at time time[i]
+    @return - time: np.ndarray[len(time)]
+            - state evolution: np.ndarray[len(time), dim(x0)]: each line is the
+              solution x=(q, v) at time[i]
     """
-
     # Run simulation
-    engine.simulate(tf, x0)
+    if isinstance(engine, jiminy.Engine):
+        q0, v0 = x0[:engine.robot.nq], x0[-engine.robot.nv:]
+    else:
+        q0, v0 = {}, {}
+        for system in engine.systems:
+           name = system.name
+           q0[name] = x0[name][:system.robot.nq]
+           v0[name] = x0[name][-system.robot.nv:]
+    engine.simulate(tf, q0, v0)
 
     # Get log data
     log_data, _ = engine.get_log()
@@ -193,29 +212,3 @@ def simulate_and_get_state_evolution(engine, tf, x0, split=False):
             x_jiminy = [np.concatenate((q, v), axis=-1)
                         for q, v in zip(q_jiminy, v_jiminy)]
             return time, x_jiminy
-
-def simulate_and_get_imu_data_evolution(engine, tf, x0, split=False):
-    # Run simulation
-    engine.simulate(tf, x0)
-
-    # Get log data
-    log_data, _ = engine.get_log()
-
-    # Extract state evolution over time
-    time = log_data['Global.Time']
-    if split:
-        quat_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
-            for f in imu.fieldnames if f.startswith('Quat')
-        ], axis=-1)
-        gyro_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
-            for f in imu.fieldnames if f.startswith('Gyro')
-        ], axis=-1)
-        accel_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
-            for f in imu.fieldnames if f.startswith('Accel')
-        ], axis=-1)
-        return time, quat_jiminy, gyro_jiminy, accel_jiminy
-    else:
-        imu_jiminy = np.stack([log_data['.'.join(('PendulumLink', f))]
-                for f in jiminy.ImuSensor.fieldnames
-        ], axis=-1)
-        return time, imu_jiminy
