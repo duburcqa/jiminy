@@ -484,26 +484,23 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        /* Make sure that no simulation is running.
-           Note that one must return early to avoid configuring multiple times the telemetry
-           and stopping the simulation because of the unsuccessful returnCode. */
+        // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
             std::cout << "Error - EngineMultiRobot::start - A simulation is already running. Stop it before starting again." << std::endl;
-            returnCode = hresult_t::ERROR_GENERIC;
-            return returnCode;
+            return hresult_t::ERROR_GENERIC;
         }
 
         if (systems_.empty())
         {
             std::cout << "Error - EngineMultiRobot::start - No system to simulate. Please add one before starting a simulation." << std::endl;
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (qInit.size() != systems_.size() || vInit.size() != systems_.size())
         {
             std::cout << "Error - EngineMultiRobot::start - The number of initial configurations and velocities must match the number of systems." << std::endl;
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Check the dimension of the initial state associated with every system and order them
@@ -517,39 +514,33 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                    std::cout << "Error - EngineMultiRobot::start - At least one of the systems does not have an "
-                                 "initial configuration or velocity." << std::endl;
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                std::cout << "Error - EngineMultiRobot::start - At least one of the systems does not have an "
+                                "initial configuration or velocity." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
             }
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                if (qInitIt->second.rows() != system.robot->nq() || vInitIt->second.rows() != system.robot->nv())
-                {
-                    std::cout << "Error - EngineMultiRobot::start - The size of the initial configuration or velocity "
-                                 "is inconsistent with model size for at least one of the systems." << std::endl;
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
-            }
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                auto const & q = qInitIt->second.array();
-                auto const & v = vInitIt->second.array();
 
-                // Note that EPS allows to be very slightly out-of-bounds.
-                if ((EPS < q - system.robot->getPositionLimitMax().array()).any() ||
-                    (EPS < system.robot->getPositionLimitMin().array() - q).any() ||
-                    (EPS < v.abs() - system.robot->getVelocityLimit().array()).any())
-                {
-                    std::cout << "Error - EngineMultiRobot::start - The initial configuration or velocity is "
-                                 "out-of-bounds for at least one of the systems." << std::endl;
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
-                }
-            }
-            if (returnCode == hresult_t::SUCCESS)
+            auto const & q = qInitIt->second;
+            auto const & v = vInitIt->second;
+
+            if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
-                qSplit.emplace_back(qInitIt->second);
-                vSplit.emplace_back(vInitIt->second);
+                std::cout << "Error - EngineMultiRobot::start - The size of the initial configuration or velocity "
+                                "is inconsistent with model size for at least one of the systems." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
             }
+
+            // Note that EPS allows to be very slightly out-of-bounds.
+            if ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
+                (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
+                (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
+            {
+                std::cout << "Error - EngineMultiRobot::start - The initial configuration or velocity is "
+                                "out-of-bounds for at least one of the systems." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            qSplit.emplace_back(q);
+            vSplit.emplace_back(v);
         }
 
         for (auto & system : systems_)
@@ -558,35 +549,26 @@ namespace jiminy
             {
                 for (auto const & sensor : sensorGroup.second)
                 {
-                    if (returnCode == hresult_t::SUCCESS)
+                    if (!sensor->getIsInitialized())
                     {
-                        if (!sensor->getIsInitialized())
-                        {
-                            std::cout << "Error - EngineMultiRobot::start - At least a sensor of a robot is not initialized." << std::endl;
-                            returnCode = hresult_t::ERROR_INIT_FAILED;
-                        }
+                        std::cout << "Error - EngineMultiRobot::start - At least a sensor of a robot is not initialized." << std::endl;
+                        return hresult_t::ERROR_INIT_FAILED;
                     }
                 }
             }
 
             for (auto const & motor : system.robot->getMotors())
             {
-                if (returnCode == hresult_t::SUCCESS)
+                if (!motor->getIsInitialized())
                 {
-                    if (!motor->getIsInitialized())
-                    {
-                        std::cout << "Error - EngineMultiRobot::start - At least a motor of a robot is not initialized." << std::endl;
-                        returnCode = hresult_t::ERROR_INIT_FAILED;
-                    }
+                    std::cout << "Error - EngineMultiRobot::start - At least a motor of a robot is not initialized." << std::endl;
+                    return hresult_t::ERROR_INIT_FAILED;
                 }
             }
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Reset the robot, controller, engine, and registered impulse forces if requested
-            reset(resetRandomNumbers, resetDynamicForceRegister);
-        }
+        // Reset the robot, controller, engine, and registered impulse forces if requested
+        reset(resetRandomNumbers, resetDynamicForceRegister);
 
         // At this point, consider that the simulation is running
         isSimulationRunning_ = true;
@@ -730,7 +712,7 @@ namespace jiminy
                 {
                     std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
                                  "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
-                    returnCode = hresult_t::ERROR_BAD_INPUT;
+                    return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 // Activate every force impulse starting at t=0
@@ -797,26 +779,21 @@ namespace jiminy
 
             // Synchronize the global stepper state with the individual system states
             syncStepperStateWithSystems();
-        }
 
-        // Lock the telemetry. At this point it is no longer possible to register new variables.
-        configureTelemetry();
+            // Lock the telemetry. At this point it is no longer possible to register new variables.
+            configureTelemetry();
 
-        // Write the header: this locks the registration of new variables
-        telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
+            // Write the header: this locks the registration of new variables
+            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
-        // Log current buffer content as first point of the log data.
-        updateTelemetry();
+            // Log current buffer content as first point of the log data.
+            updateTelemetry();
 
-        // Initialize the last system states
-        for (auto & systemData : systemsDataHolder_)
-        {
-            systemData.statePrev = systemData.state;
-        }
-
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            stop();
+            // Initialize the last system states
+            for (auto & systemData : systemsDataHolder_)
+            {
+                systemData.statePrev = systemData.state;
+            }
         }
 
         return returnCode;
@@ -852,7 +829,7 @@ namespace jiminy
             std::cout << "Error - EngineMultiRobot::simulate - Time overflow: with the current precision ";
             std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
             std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         // Integration loop based on boost::numeric::odeint::detail::integrate_times
