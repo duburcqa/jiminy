@@ -280,8 +280,8 @@ class BaseJiminyEnv(gym.core.Env):
                 if not self._is_ready:
                     raise RuntimeError("Simulation not initialized. "
                         "Please call 'reset' once before calling 'step'.")
-                hresult = self.simulator.start(
-                    self.simulator.state, self.simulator.use_theoretical_model)
+                hresult = self.simulator.start(*self.simulator.state,
+                    self.simulator.use_theoretical_model)
                 if (hresult != jiminy.hresult_t.SUCCESS):
                     raise RuntimeError("Failed to start the simulation.")
                 self._is_ready = False
@@ -710,7 +710,7 @@ class BaseJiminyEnv(gym.core.Env):
         """
         obs = {}
         obs['t'] = self.simulator.stepper_state.t
-        obs['state'] = self.simulator.state
+        obs['state'] = np.concatenate(self.simulator.state)
         obs['sensors'] = self._sensors_data
         return obs
 

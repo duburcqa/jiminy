@@ -201,7 +201,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
     def _fetch_obs(self) -> SpaceDictRecursive:
         # @copydoc BaseJiminyEnv::_fetch_obs
-        theta1, theta2, theta1_dot, theta2_dot  = self.simulator.state
+        (theta1, theta2), (theta1_dot, theta2_dot) = self.simulator.state
         obs = {}
         obs['observation'] = np.array([np.cos(theta1 + np.pi),
                                        np.sin(theta1 + np.pi),

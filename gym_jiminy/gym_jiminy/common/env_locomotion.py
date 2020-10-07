@@ -327,9 +327,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                        neutral configuration.
                    - maximum simulation duration exceeded
         """
-        return (self.robot.has_freeflyer and
-                    self.simulator.state[2] < self._height_neutral * 0.75) or \
-               (self.simulator.stepper_state.t >= self.simu_duration_max)
+        if self.robot.has_freeflyer:
+            if self.simulator.state[0][2] < self._height_neutral * 0.75:
+                return True
+        if self.simulator.stepper_state.t >= self.simu_duration_max:
+            return True
+        return False
 
     def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
         """
