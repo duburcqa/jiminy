@@ -15,11 +15,9 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
-from pinocchio import neutral
 
 from .env_bases import SpaceDictRecursive, BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
-from .wrappers import flatten_observation
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5
@@ -274,7 +272,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             n_timesteps = 50
             t_profile = np.linspace(0.0, 1.0, n_timesteps + 1)
             F_xy_profile = PeriodicGaussianProcess(
-                loc=np.zeros((2, n_timesteps + 1)),
+                mean=np.zeros((2, n_timesteps + 1)),
                 scale=self.std_ratio['disturbance'] * \
                     F_XY_PROFILE_SCALE * np.ones(2),
                 wavelength=np.tensor([1.0, 1.0]),

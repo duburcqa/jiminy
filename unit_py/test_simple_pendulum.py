@@ -9,7 +9,6 @@ from scipy.interpolate import interp1d
 from typing import Union, Dict, Tuple, List
 
 from jiminy_py import core as jiminy
-from pinocchio import neutral
 from pinocchio import Quaternion, log3, exp3
 from pinocchio.rpy import matrixToRpy, rpyToMatrix
 
