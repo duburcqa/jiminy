@@ -49,7 +49,11 @@ namespace jiminy
             bool_t isFSAL_;  ///< Does scheme support first-same-as-last.
 
         protected:
-            std::vector<stateDerivative_t> ki_; ///< Internal computation steps.
+            std::vector<stateDerivative_t> ki_;  ///< Internal computation steps.
+            stateDerivative_t stateIncrement_;   ///< Internal buffer storing intermediary computation of state increment.
+            state_t stateBuffer_;                ///< Internal buffer storing intermediary state during knots computations.
+            state_t candidateSolution_;          ///< Internal buffer storing the candidate solution (i.e. before knowing if the step is successful).
+
     };
 }
 

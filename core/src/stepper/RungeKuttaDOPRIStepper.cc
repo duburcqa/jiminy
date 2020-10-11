@@ -8,7 +8,8 @@ namespace jiminy
                                                    float64_t const & tolAbs):
     AbstractRungeKuttaStepper(f, robots, DOPRI::A, DOPRI::b, DOPRI::c, true),
     tolRel_(tolRel),
-    tolAbs_(tolAbs)
+    tolAbs_(tolAbs),
+    alternativeSolution_(robots)
     {
         // Empty on purpose
     }
@@ -26,15 +27,15 @@ namespace jiminy
                                                    float64_t const & dt)
     {
         // Compute alternative solution.
-        stateDerivative_t dvIntAlt = dt * DOPRI::e[0] * ki_[0];
+        stateIncrement_ = dt * DOPRI::e[0] * ki_[0];
         for (uint32_t i = 1; i < ki_.size(); ++i)
         {
-            dvIntAlt += dt * DOPRI::e[i] * ki_[i];
+            stateIncrement_ += dt * DOPRI::e[i] * ki_[i];
         }
-        state_t const alternativeSolution = initialState + dvIntAlt;
+        alternativeSolution_ = initialState.sum(stateIncrement_);
 
         // Evaluate error between both states to adjust step
-        float64_t const errorNorm = solution.difference(alternativeSolution).norm();
+        float64_t const errorNorm = solution.difference(alternativeSolution_).norm();
 
         // Compute error scale
         float64_t const scale = tolAbs_ + tolRel_ * initialState.normInf();
@@ -60,7 +61,7 @@ namespace jiminy
         }
         else
         {
-            dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 1)),
+            dt *= std::max(DOPRI::SAFETY * std::pow(error, -1.0 / (DOPRI::STEPPER_ORDER - 2)),
                            DOPRI::MIN_FACTOR);
             return false;
         }

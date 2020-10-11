@@ -43,7 +43,7 @@ namespace jiminy
                                            1.0 / 40.0).finished());
 
         // These parameters are from boost's stepper implementation.
-        float64_t const STEPPER_ORDER = 4.0; ///< Stepper order, used to scale the error.
+        float64_t const STEPPER_ORDER = 5.0; ///< Stepper order, used to scale the error.
         float64_t const SAFETY = 0.9; ///< Safety factor when updating the error, should be less than 1.
         float64_t const MIN_FACTOR = 0.2; ///< Miminum allowed relative step decrease.
         float64_t const MAX_FACTOR = 5.0; ///< Maximum allowed relative step increase.
@@ -86,8 +86,9 @@ namespace jiminy
                                   float64_t       & dt);
 
         private:
-            float64_t tolRel_; ///< Relative tolerance
-            float64_t tolAbs_; ///< Absolute tolerance
+            float64_t tolRel_;              ///< Relative tolerance
+            float64_t tolAbs_;              ///< Absolute tolerance
+            state_t alternativeSolution_;  ///< Internal buffer for alternative solution during error computation
     };
 }
 

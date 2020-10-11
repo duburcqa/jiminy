@@ -65,6 +65,7 @@ namespace jiminy
             tError = 0.0;
             qSplit = qSplitInit;
             vSplit = vSplitInit;
+            aSplit.clear();
             aSplit.reserve(vSplitInit.size());
             std::transform(vSplitInit.begin(), vSplitInit.end(),
                            std::back_inserter(aSplit),

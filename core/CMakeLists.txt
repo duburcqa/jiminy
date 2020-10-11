@@ -22,8 +22,6 @@ if(NOT LEGACY_MODE)
         message("-- Found urdfdom")
     endif()
 
-    find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
-
     find_package(pinocchio 2.4.4 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio >= 2.4.4 is required to support convex mesh collision and display
     if(pinocchio_FOUND)
         message("-- Found pinocchio: version ${pinocchio_VERSION}")
@@ -31,6 +29,8 @@ if(NOT LEGACY_MODE)
         find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
     endif()
 endif()
+
+find_package(Eigen3 3.3.0 REQUIRED NO_MODULE)  # It adds the target Eigen3::Eigen
 
 # Pinocchio-specific stuffs
 set(COMPILE_FLAGS "-DPINOCCHIO_WITH_URDFDOM -DPINOCCHIO_WITH_HPP_FCL")
@@ -65,7 +65,6 @@ set(SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/FixedFrameConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/WheelConstraint.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/robot/Robot.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/LieGroup.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/ExplicitEulerStepper.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stepper/AbstractRungeKuttaStepper.cc"
@@ -123,9 +122,7 @@ if(NOT LEGACY_MODE)
 else()
     target_link_libraries(${PROJECT_NAME} urdfdom_model) # Fallback to raw library name
 endif()
-if(NOT LEGACY_MODE)
-    target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
-endif()
+target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
 
 # Activate C++14 on Linux (not properly supported by MSVC 2015)

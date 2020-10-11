@@ -144,7 +144,10 @@ namespace jiminy
         // Add the frame to the the original rigid model
         int32_t parentFrameId;
         pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
-        returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
+        }
         if (returnCode == hresult_t::SUCCESS)
         {
             int32_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
@@ -170,7 +173,10 @@ namespace jiminy
            Note that it is unecessary to call 'reset' since the proxies
            are still up-to-date, because the frame is added at the end
            of the vector. */
-        generateModelBiased();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            generateModelBiased();
+        }
 
         return returnCode;
     }
@@ -205,7 +211,10 @@ namespace jiminy
         }
 
         // One must reset the model after removing a frame
-        reset();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            reset();
+        }
 
         return returnCode;
     }

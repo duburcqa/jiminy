@@ -1,6 +1,5 @@
 
 #include "jiminy/core/stepper/AbstractRungeKuttaStepper.h"
-#include "jiminy/core/stepper/LieGroup.h"
 
 
 namespace jiminy
@@ -16,7 +15,11 @@ namespace jiminy
     b_(bWeights),
     c_(cNodes),
     isFSAL_(isFSAL),
-    ki_(cNodes.size(), stateDerivative_t(robots))
+    ki_(cNodes.size(), stateDerivative_t(robots)),
+    stateIncrement_(robots),
+    stateBuffer_(robots),
+    candidateSolution_(robots)
+
     {
         assert(A_.rows() == A_.cols());
         assert(c_.size() == A_.rows());
@@ -28,42 +31,46 @@ namespace jiminy
                                                   float64_t         const & t,
                                                   float64_t               & dt)
     {
-        // First ki is simply the provided stateDerivative (fist-same-as-last scheme)
-        if (isFSAL_)
-        {
-            ki_[0] = stateDerivative;
-        }
-        else
-        {
-            ki_[0] = f(t, state);
-        }
+        // First ki is simply the provided stateDerivative
+        ki_[0] = stateDerivative;
 
         for (uint32_t i = 1; i < c_.size(); ++i)
         {
-            stateDerivative_t stateIncrement = dt * A_(i, 0) * ki_[0];
+            stateIncrement_ = dt * A_(i, 0) * ki_[0];
             for (uint32_t j = 1; j < i; ++j)
             {
-                stateIncrement += dt * A_(i, j) * ki_[j];
+                stateIncrement_ += dt * A_(i, j) * ki_[j];
             }
-            ki_[i] = f(t + c_[i] * dt, state + stateIncrement);
+            stateBuffer_ = state.sum(stateIncrement_);
+            ki_[i] = f(t + c_[i] * dt, stateBuffer_);
         }
 
         /* Now we have all the ki's: compute the solution.
            Sum the velocities before summing into position the accuracy is greater
            for summing vectors than for summing velocities into lie groups. */
-        stateDerivative_t dvInc = dt * b_[0] * ki_[0];
+        stateIncrement_ = dt * b_[0] * ki_[0];
         for (uint32_t i = 1; i < ki_.size(); ++i)
         {
-            dvInc += dt * b_[i] * ki_[i];
+            stateIncrement_ += dt * b_[i] * ki_[i];
         }
-        state_t const solution = state + dvInc;
+        candidateSolution_ = state.sum(stateIncrement_);
 
         // Evaluate the solution's error for step adjustment
-        bool_t const hasSucceeded = adjustStep(state, solution, dt);
+        bool_t const hasSucceeded = adjustStep(state, candidateSolution_, dt);
 
-        // Copy solution to output buffers
-        state = solution;
-        stateDerivative = ki_.back();
+        // Compute the  next state and state derivative if success
+        if (hasSucceeded)
+        {
+            state = candidateSolution_;
+            if (isFSAL_)
+            {
+                stateDerivative = ki_.back();
+            }
+            else
+            {
+                stateDerivative = f(t, state);
+            }
+        }
 
         return hasSucceeded;
     }

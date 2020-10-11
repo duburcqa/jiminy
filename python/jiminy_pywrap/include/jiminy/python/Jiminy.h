@@ -73,14 +73,14 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<std::is_arithmetic<T>::value, T>
+    std::enable_if_t<std::is_arithmetic<T>::value, T>
     FctPyWrapperArgToPython(T const & arg)
     {
         return arg;
     }
 
     template<typename T>
-    enable_if_t<is_eigen<T>::value, bp::handle<> >
+    std::enable_if_t<is_eigen<T>::value, bp::handle<> >
     FctPyWrapperArgToPython(T const & arg)
     {
         // Pass the arguments by reference (be careful const qualifiers are lost)
@@ -88,7 +88,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
+    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
     FctPyWrapperArgToPython(T const & arg)
     {
         return boost::ref(arg);
@@ -653,7 +653,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
+            static std::enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -664,7 +664,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
+            static std::enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -829,7 +829,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
+            static std::enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -843,7 +843,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
+            static std::enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
             visitBasicSensors(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -858,8 +858,8 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, ImuSensor>::value
-                            || std::is_same<Q, ContactSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, ImuSensor>::value
+                                 || std::is_same<Q, ContactSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -874,7 +874,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, ForceSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, ForceSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -891,7 +891,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -908,7 +908,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, EffortSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, EffortSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);

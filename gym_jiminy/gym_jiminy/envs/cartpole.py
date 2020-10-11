@@ -188,7 +188,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     def _fetch_obs(self) -> None:
         # @copydoc BaseJiminyEnv::_fetch_obs
-        return self.simulator.state.copy()
+        return np.concatenate(self.simulator.state)
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
