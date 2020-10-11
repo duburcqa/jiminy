@@ -41,7 +41,7 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install twine wheel && "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
-        echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
     - name: Build project dependencies
       run: |
         source $HOME/.bashrc

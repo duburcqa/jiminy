@@ -40,7 +40,7 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install wheel && "${PYTHON_EXECUTABLE}" -m pip install numpy
-        echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh

@@ -39,7 +39,7 @@ jobs:
         else
           PYTHON_EXECUTABLE="/usr/bin/python3.8"
         fi
-        echo "::set-env name=PYTHON_EXECUTABLE::${PYTHON_EXECUTABLE}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
     - name: Installing requirements
       run: sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
 
