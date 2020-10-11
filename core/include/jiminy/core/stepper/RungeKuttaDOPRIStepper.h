@@ -86,8 +86,9 @@ namespace jiminy
                                   float64_t       & dt);
 
         private:
-            float64_t tolRel_; ///< Relative tolerance
-            float64_t tolAbs_; ///< Absolute tolerance
+            float64_t tolRel_;              ///< Relative tolerance
+            float64_t tolAbs_;              ///< Absolute tolerance
+            state_t alternativeSolution_;  ///< Internal buffer for alternative solution during error computation
     };
 }
 
