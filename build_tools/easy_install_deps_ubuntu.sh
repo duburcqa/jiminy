@@ -2,14 +2,6 @@
 
 # Script for installing pre-compiled binaries of the required dependencies through apt-get on Ubuntu
 
-# Eigen > 3.3.0 is not compatible with Boost < 1.71 because of odeint module
-# The latest version of Boost available using apt-get is 1.65 on Ubuntu 18,
-# and currently robotpkg-py36-eigenpy depends of this release.
-# Conversely, the oldest version of Eigen3 available using apt-get is 3.3.4,
-# and compiling 3.2.10 from source does not generate the cmake configuration
-# files required by `find_package`.
-# There is no such issue on Ubuntu 20 since it ships with Boost 1.71.0.
-
 export DEBIAN_FRONTEND=noninteractive
 
 # Determine if the script is being executed on Ubuntu
@@ -37,22 +29,8 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz
 
-# Install old Eigen3 version
-if [ "$DISTRIB_RELEASE" == "18.04" ] ; then
-    if ! [ -d "/usr/include/eigen3.2.10/" ] ; then
-        wget https://github.com/eigenteam/eigen-git-mirror/archive/3.2.10.tar.gz && \
-        tar xzf 3.2.10.tar.gz --one-top-level=eigen-3.2.10 --strip-components 1 && \
-        mkdir /usr/include/eigen3.2.10/ && \
-        cp -r eigen-3.2.10/Eigen /usr/include/eigen3.2.10/ && \
-        cp -r eigen-3.2.10/unsupported /usr/include/eigen3.2.10/ && \
-        rm -r eigen-3.2.10 3.2.10.tar.gz
-    fi
-else
-    apt install -y libeigen3-dev
-fi
-
 # Install some additional dependencies
-apt install -y libboost-all-dev liboctomap-dev
+apt install -y libeigen3-dev libboost-all-dev liboctomap-dev
 
 # Install robotpkg tools suite
 if ! [-d "/opt/openrobots/lib/${PYTHON_BIN}/site-packages/" ] ; then

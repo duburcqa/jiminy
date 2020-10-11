@@ -53,12 +53,6 @@ jobs:
         mkdir "$RootDir/build" "$InstallDir"
         cd "$RootDir/build"
 
-        # Old Eigen3 release 3.2.10 must be used on Ubuntu 18.04 for compatibility with Boost < 1.71
-        CMAKE_CXX_FLAGS=
-        if [ ${{ matrix.os }} == "ubuntu-18.04" ] ; then
-          CMAKE_CXX_FLAGS="-isystem/usr/include/eigen3.2.10"
-        fi
-
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
