@@ -72,13 +72,7 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
-    template<typename T>
-    struct type_identity {
-        using type = T;
-    };
 
-    template<bool B, class T = void>
-    using enable_if_t = typename std::enable_if<B,T>::type;
 
     // ================= enable_shared_from_this ====================
 
@@ -176,11 +170,11 @@ namespace jiminy
     class AbstractIODevice;
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, Json::Value>
+    std::enable_if_t<!is_vector<T>::value, Json::Value>
     convertToJson(T const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, Json::Value>
+    std::enable_if_t<is_vector<T>::value, Json::Value>
     convertToJson(T const & value);
 
     hresult_t jsonDump(configHolder_t                    const & config,
@@ -189,11 +183,11 @@ namespace jiminy
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, T>
+    std::enable_if_t<!is_vector<T>::value, T>
     convertFromJson(Json::Value const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector<T>::value, T>
     convertFromJson(Json::Value const & value);
 
     hresult_t jsonLoad(configHolder_t                    & config,
