@@ -13,12 +13,13 @@ namespace jiminy
     {
         // Empty on purpose
     }
+
     FixedFrameConstraint::~FixedFrameConstraint(void)
     {
         // Empty on purpose
     }
 
-    matrixN_t const & FixedFrameConstraint::getJacobian(Eigen::Ref<vectorN_t const> const & q)
+    matrixN_t const & FixedFrameConstraint::getJacobian(vectorN_t const & q)
     {
         jacobian_.setZero();
         if (isAttached_)
@@ -34,8 +35,8 @@ namespace jiminy
         return jacobian_;
     }
 
-    vectorN_t const & FixedFrameConstraint::getDrift(Eigen::Ref<vectorN_t const> const & q,
-                                                     Eigen::Ref<vectorN_t const> const & v)
+    vectorN_t const & FixedFrameConstraint::getDrift(vectorN_t const & q,
+                                                     vectorN_t const & v)
     {
         if (isAttached_)
         {
@@ -46,32 +47,11 @@ namespace jiminy
         return drift_;
     }
 
-    hresult_t FixedFrameConstraint::attach(Model const * model)
-    {
-        if (isAttached_)
-        {
-            std::cout << "Error - FixedFrameConstraint::attach - Constraint already attached to a robot." << std::endl;
-            return hresult_t::ERROR_GENERIC;
-        }
-        model_ = model;
-        // Refresh proxies: this checks for the existence of frameName_ in model_.
-        hresult_t returnCode = refreshProxies();
-        if (returnCode == hresult_t::SUCCESS)
-        {
-             isAttached_ = true;
-             // Set jacobian / drift to right dimension now that we know the model.
-             jacobian_.resize(6, model_->pncModel_.nv);
-             drift_.resize(6);
-        }
-        return returnCode;
-    }
-
     hresult_t FixedFrameConstraint::refreshProxies()
     {
-        // Resize the jacobian to the model dimension.
+        // Set jacobian / drift to right dimension
         jacobian_.resize(6, model_->pncModel_.nv);
+        drift_.resize(6);
         return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
     }
 }
-
-

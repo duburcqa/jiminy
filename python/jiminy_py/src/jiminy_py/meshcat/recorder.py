@@ -10,8 +10,9 @@ import subprocess
 import multiprocessing
 import multiprocessing.managers
 from pathlib import Path
-from ctypes import c_char_p, c_bool, c_int
+from ctypes import c_char_p
 from contextlib import redirect_stderr
+from typing import Awaitable, Any, Optional
 
 from IPython import get_ipython
 shell = get_ipython().__class__.__module__
@@ -23,7 +24,7 @@ if shell.startswith('google.colab.'):
     pyppeteer.chromium_downloader.chromium_executable = \
         lambda : Path("/usr/lib/chromium-browser/chromium-browser")
     if not pyppeteer.chromium_downloader.check_chromium():
-        logging.warning("Chrome must be installed manually on Google Colab. "\
+        logging.warning("Chrome must be installed manually on Google Colab. "
             "It must be done using '!apt install chromium-chromedriver'.")
 else:
     # Must use a recent release that supports webgl rendering with hardware
@@ -34,7 +35,7 @@ else:
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
-from requests_html import HTMLSession
+from requests_html import HTMLSession, HTMLResponse
 
 # ================ Monkey-patch =======================
 
@@ -88,7 +89,9 @@ Launcher.launch = launch
 
 # ======================================================
 
-async def capture_frame_async(client, width, height):
+async def capture_frame_async(client: HTMLResponse,
+                              width: int,
+                              height: int) -> Awaitable[Any]:
     """
     @brief    Send a javascript command to the hidden browser to
               capture frame, then wait for it (since it is async).
@@ -108,7 +111,10 @@ async def capture_frame_async(client, width, height):
         }
     """)
 
-async def start_video_recording_async(client, fps, width, height):
+async def start_video_recording_async(client: HTMLResponse,
+                                      fps: int,
+                                      width: int,
+                                      height: int) -> Awaitable[None]:
     await client.html.page.setViewport(
             {'width': width, 'height': height})
     await client.html.page.evaluate(f"""
@@ -121,7 +127,7 @@ async def start_video_recording_async(client, fps, width, height):
         }}
     """)
 
-async def add_video_frame_async(client):
+async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
     await client.html.page.evaluate("""
         () => {
             viewer.renderer.render(viewer.scene, viewer.camera);
@@ -129,7 +135,8 @@ async def add_video_frame_async(client):
         }
     """)
 
-async def stop_and_save_video_async(client, path):
+async def stop_and_save_video_async(client: HTMLResponse,
+                                    path: str) -> Awaitable[None]:
     directory = os.path.dirname(path)
     filename = os.path.splitext(os.path.basename(path))[0]
     await client.html.page._client.send('Page.setDownloadBehavior',
@@ -146,7 +153,9 @@ async def stop_and_save_video_async(client, path):
         }}
     """)
 
-def meshcat_recorder(meshcat_url, request_shm, message_shm):
+def meshcat_recorder(meshcat_url: str,
+                     request_shm: multiprocessing.Value,
+                     message_shm: multiprocessing.Value) -> None:
     # Do not catch signal interrupt automatically, to avoid killing meshcat
     # server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -161,7 +170,8 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
     client.html.render(keep_page=True)
     message_shm.value = f"{session._browser.process.pid}"
 
-    # Stop the animation loop by default, since it is not relevant for recording only
+    # Stop the animation loop by default, since it is not relevant for
+    # recording only
     async def stop_animate_async(client):
         await client.html.page.evaluate("""
             () => {
@@ -177,7 +187,7 @@ def meshcat_recorder(meshcat_url, request_shm, message_shm):
                 while request_shm.value != "quit":  # [>Python3.8] while (request := request_shm.value) != "quit":
                     request = request_shm.value
                     if request != "":
-                        args = map(str.strip, message_shm.value.split(","))
+                        args = map(str.strip, message_shm.value.split("|"))
                         if request == "take_snapshot":
                             width, height = map(int, args)
                             coro = capture_frame_async(client, width, height)
@@ -219,7 +229,7 @@ class MeshcatRecorder:
               Process to enable parallel asyncio loop execution, which
               is necessary to support recording in Jupyter notebook.
     """
-    def __init__(self, url):
+    def __init__(self, url: str):
         self.is_open = False
         self.is_recording = False
         self.url = url
@@ -228,7 +238,7 @@ class MeshcatRecorder:
         self.proc = None
         self.__browser_pid = None
 
-    def open(self):
+    def open(self) -> None:
         self.__manager = multiprocessing.managers.SyncManager()
         self.__manager.start(
             lambda : signal.signal(signal.SIGINT, signal.SIG_IGN))
@@ -254,7 +264,7 @@ class MeshcatRecorder:
     def __del__(self):
         self.release()
 
-    def release(self):
+    def release(self) -> None:
         if self.__shm is not None:
             if self.proc.is_alive():
                 try:
@@ -278,7 +288,10 @@ class MeshcatRecorder:
             self.__manager = None
         self.is_open = False
 
-    def _send_request(self, request, message=None, timeout=2.0):
+    def _send_request(self,
+                      request: str,
+                      message: Optional[str] = None,
+                      timeout: float = 2.0) -> None:
         if not self.is_open:
             raise RuntimeError(
                 "Meshcat recorder is not open. Impossible to send requests.")
@@ -295,28 +308,32 @@ class MeshcatRecorder:
             elif not self.proc.is_alive():
                 self.release()
                 raise RuntimeError(
-                    "Backend browser has encountered an unrecoverable "\
+                    "Backend browser has encountered an unrecoverable "
                     "error: ", self.__shm['message'].value)
 
-    def capture_frame(self, width=None, height=None):
+    def capture_frame(self,
+                      width: Optional[int] = None,
+                      height: Optional[int] = None) -> str:
         self._send_request("take_snapshot",
-            message=f"{width if width is not None else -1},"\
-                    f"{height if height is not None else -1}")
+            message=(f"{width if width is not None else -1}|"
+                     f"{height if height is not None else -1}"))
         return self.__shm['message'].value
 
-    def start_video_recording(self, fps, width, height):
+    def start_video_recording(self,
+                              fps: float,
+                              width: int,
+                              height: int) -> None:
         self._send_request("start_record",
-            message=f"{fps},{width},{height}", timeout=10.0)
+            message=f"{fps}|{width}|{height}", timeout=10.0)
         self.is_recording = True
 
-    def add_video_frame(self):
+    def add_video_frame(self) -> None:
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording before adding frames.")
         self._send_request("add_frame")
 
-    def stop_and_save_video(self, path):
+    def stop_and_save_video(self, path: str) -> bool:
         def file_available(path):
             if not os.path.exists(path):
                 return False
@@ -332,9 +349,11 @@ class MeshcatRecorder:
             return True
 
         if not self.is_recording:
-            raise RuntimeError(
-                "No video being recorded at the moment. "\
+            raise RuntimeError("No video being recorded at the moment. "
                 "Please start recording and add frames before saving.")
+        if "|" in path:
+            raise ValueError(
+                "'|' character is not supported in video export path.")
         path = os.path.abspath(pathlib.Path(path).with_suffix('.webm'))
         if os.path.exists(path):
             os.remove(path)

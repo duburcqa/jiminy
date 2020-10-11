@@ -47,8 +47,9 @@ namespace jiminy
         Robot(void);
         virtual ~Robot(void);
 
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string              const & urdfPath,
+                             bool_t                   const & hasFreeflyer = true,
+                             std::vector<std::string> const & meshPackageDirs = {});
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(std::string const & motorName,
@@ -70,18 +71,18 @@ namespace jiminy
                               std::string const & sensorName);
         hresult_t detachSensors(std::string const & sensorType = {});
 
-        void computeMotorsEfforts(float64_t                   const & t,
-                                  Eigen::Ref<vectorN_t const> const & q,
-                                  Eigen::Ref<vectorN_t const> const & v,
-                                  vectorN_t                   const & a, // Do Not use Eigen::Ref for the acceleration to avoid memory allocation by the engine for a temporary
-                                  vectorN_t                   const & u);
+        void computeMotorsEfforts(float64_t const & t,
+                                  vectorN_t const & q,
+                                  vectorN_t const & v,
+                                  vectorN_t const & a, // Do Not use Eigen::Ref for the acceleration to avoid memory allocation by the engine for a temporary
+                                  vectorN_t const & u);
         vectorN_t const & getMotorsEfforts(void) const;
         float64_t const & getMotorEffort(std::string const & motorName) const;
-        void setSensorsData(float64_t                   const & t,
-                            Eigen::Ref<vectorN_t const> const & q,
-                            Eigen::Ref<vectorN_t const> const & v,
-                            Eigen::Ref<vectorN_t const> const & a,
-                            vectorN_t                   const & u);
+        void setSensorsData(float64_t const & t,
+                            vectorN_t const & q,
+                            vectorN_t const & v,
+                            vectorN_t const & a,
+                            vectorN_t const & u);
 
         /// \brief Add a kinematic constraint to the robot.
         ///
@@ -111,8 +112,8 @@ namespace jiminy
         /// \param[in] q    Joint position.
         /// \param[in] v    Joint velocity.
         /// \return ERROR_GENERIC if one constraint has the wrong jacobian / drift size.
-        void computeConstraints(Eigen::Ref<vectorN_t const> const & q,
-                                Eigen::Ref<vectorN_t const> const & v);
+        void computeConstraints(vectorN_t const & q,
+                                vectorN_t const & v);
 
         /// \brief Get jacobian of the constraints.
         matrixN_t const & getConstraintsJacobian(void) const;
@@ -164,7 +165,7 @@ namespace jiminy
 
         std::vector<std::string> const & getMotorsNames(void) const;
         std::vector<int32_t> getMotorsModelIdx(void) const;
-        std::vector<int32_t> getMotorsPositionIdx(void) const;
+        std::vector<std::vector<int32_t> > getMotorsPositionIdx(void) const;
         std::vector<int32_t> getMotorsVelocityIdx(void) const;
         std::unordered_map<std::string, std::vector<std::string> > const & getSensorsNames(void) const;
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;

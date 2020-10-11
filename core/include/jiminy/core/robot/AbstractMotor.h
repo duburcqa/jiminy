@@ -58,6 +58,7 @@ namespace jiminy
         virtual configHolder_t getDefaultMotorOptions(void)
         {
             configHolder_t config;
+            config["mechanicalReduction"] = 1.0;
             config["enableEffortLimit"] = true;
             config["effortLimitFromUrdf"] = true;
             config["effortLimit"] = 0.0;
@@ -69,6 +70,7 @@ namespace jiminy
 
         struct abstractMotorOptions_t
         {
+            float64_t const mechanicalReduction;        ///< Mechanical reduction ratio of the transmission (joint / motor, usually >= 1.0
             bool_t    const enableEffortLimit;
             bool_t    const effortLimitFromUrdf;
             float64_t const effortLimit;
@@ -76,6 +78,7 @@ namespace jiminy
             float64_t const rotorInertia;
 
             abstractMotorOptions_t(configHolder_t const & options) :
+            mechanicalReduction(boost::get<float64_t>(options.at("mechanicalReduction"))),
             enableEffortLimit(boost::get<bool_t>(options.at("enableEffortLimit"))),
             effortLimitFromUrdf(boost::get<bool_t>(options.at("effortLimitFromUrdf"))),
             effortLimit(boost::get<float64_t>(options.at("effortLimit"))),
@@ -227,15 +230,15 @@ namespace jiminy
         /// \details    It assumes that the internal state of the robot is consistent with the
         ///             input arguments.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration of the motor
-        /// \param[in]  v       Current velocity of the motor
-        /// \param[in]  a       Current acceleration of the motor
-        /// \param[in]  u       Current command effort of the motor
+        /// \param[in]  t       Current time.
+        /// \param[in]  q       Current configuration of the motor.
+        /// \param[in]  v       Current velocity of the motor.
+        /// \param[in]  a       Current acceleration of the motor.
+        /// \param[in]  u       Current command effort of the motor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         virtual hresult_t computeEffort(float64_t const & t,
-                                        float64_t const & q,
+                                        Eigen::Ref<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
                                         float64_t const & uCommand) = 0;
@@ -249,19 +252,19 @@ namespace jiminy
         /// \remark     This method is not intended to be called manually. The Robot to which the
         ///             motor is added is taking care of it while updating the state of the motors.
         ///
-        /// \param[in]  t       Current time
-        /// \param[in]  q       Current configuration vector
-        /// \param[in]  v       Current velocity vector
-        /// \param[in]  a       Current acceleration vector
-        /// \param[in]  u       Current command effort vector
+        /// \param[in]  t       Current time.
+        /// \param[in]  q       Current configuration vector of the robot.
+        /// \param[in]  v       Current velocity vector of the robot.
+        /// \param[in]  a       Current acceleration vector of the robot.
+        /// \param[in]  u       Current command effort vector of the robot.
         ///
         /// \return     Return code to determine whether the execution of the method was successful.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t computeEffortAll(float64_t                   const & t,
-                                   Eigen::Ref<vectorN_t const> const & q,
-                                   Eigen::Ref<vectorN_t const> const & v,
-                                   Eigen::Ref<vectorN_t const> const & a,
-                                   vectorN_t                   const & uCommand);
+        hresult_t computeEffortAll(float64_t const & t,
+                                   vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   vectorN_t const & a,
+                                   vectorN_t const & uCommand);
 
     protected:
         ///////////////////////////////////////////////////////////////////////////////////////////////

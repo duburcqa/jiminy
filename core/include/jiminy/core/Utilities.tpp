@@ -30,7 +30,7 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, Json::Value>
+    std::enable_if_t<!is_vector<T>::value, Json::Value>
     convertToJson(T const & value)
     {
         return {value};
@@ -52,7 +52,7 @@ namespace jiminy
     Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, Json::Value>
+    std::enable_if_t<is_vector<T>::value, Json::Value>
     convertToJson(T const & value)
     {
         Json::Value root;
@@ -90,7 +90,7 @@ namespace jiminy
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, T>
+    std::enable_if_t<!is_vector<T>::value, T>
     convertFromJson(Json::Value const & value)
     {
         T::undefined_template_specialization_for_this_type;
@@ -127,7 +127,7 @@ namespace jiminy
     configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector<T>::value, T>
     convertFromJson(Json::Value const & value)
     {
         T vec;
@@ -189,7 +189,7 @@ namespace jiminy
     void eraseVector(std::vector<T>       & vect1,
                      std::vector<T> const & vect2)
     {
-        vect1.erase(std::remove_if (vect1.begin(), vect1.end(),
+        vect1.erase(std::remove_if(vect1.begin(), vect1.end(),
         [&vect2](auto const & elem1)
         {
             auto vect2It = std::find(vect2.begin(), vect2.end(), elem1);

@@ -78,22 +78,22 @@ namespace python
     /// Generic converter to Numpy array by reference
 
     template<typename T>
-    enable_if_t<!is_eigen<T>::value, PyObject *>
+    std::enable_if_t<!is_eigen<T>::value, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromScalar(value);
     }
 
     template<typename T>
-    enable_if_t<is_eigen_vector<T>::value, PyObject *>
+    std::enable_if_t<is_eigen_vector<T>::value, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenVector(value);
     }
 
     template<typename T>
-    enable_if_t<is_eigen<T>::value
-            && !is_eigen_vector<T>::value, PyObject *>
+    std::enable_if_t<is_eigen<T>::value
+                 && !is_eigen_vector<T>::value, PyObject *>
     getNumpyReference(T & value)
     {
         return getNumpyReferenceFromEigenMatrix(value);
@@ -104,8 +104,8 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value
-             && !is_eigen<T>::value, bp::object>
+    std::enable_if_t<!is_vector<T>::value
+                  && !is_eigen<T>::value, bp::object>
     convertToPython(T const & data)
     {
         return bp::object(data);
@@ -122,7 +122,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_eigen<T>::value, bp::object>
+    std::enable_if_t<is_eigen<T>::value, bp::object>
     convertToPython(T const & data)
     {
         PyObject * vecPyPtr = getNumpyReference(const_cast<T &>(data));
@@ -130,7 +130,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, bp::object>
+    std::enable_if_t<is_vector<T>::value, bp::object>
     convertToPython(T const & data)
     {
         bp::list dataPy;
@@ -205,20 +205,20 @@ namespace python
     ///////////////////////////////////////////////////////////////////////////////
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value
-             && !is_map<T>::value
-             && !is_eigen<T>::value
-             && !std::is_same<T, int32_t>::value
-             && !std::is_same<T, uint32_t>::value
-             && !std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<!is_vector<T>::value
+                  && !is_map<T>::value
+                  && !is_eigen<T>::value
+                  && !std::is_same<T, int32_t>::value
+                  && !std::is_same<T, uint32_t>::value
+                  && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         return bp::extract<T>(dataPy);
     }
 
     template<typename T>
-    enable_if_t<std::is_same<T, int32_t>::value
-             || std::is_same<T, uint32_t>::value, T>
+    std::enable_if_t<std::is_same<T, int32_t>::value
+                  || std::is_same<T, uint32_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         std::string const optionTypePyStr =
@@ -240,7 +240,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_eigen<T>::value, T>
+    std::enable_if_t<is_eigen<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         using Scalar = typename T::Scalar;
@@ -312,7 +312,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector<T>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         using V = typename T::value_type;
@@ -329,7 +329,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         sensorsDataMap_t data;
@@ -354,8 +354,8 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<is_map<T>::value
-            && !std::is_same<T, sensorsDataMap_t>::value, T>
+    std::enable_if_t<is_map<T>::value
+                  && !std::is_same<T, sensorsDataMap_t>::value, T>
     convertFromPython(bp::object const & dataPy)
     {
         using K = typename T::key_type;
@@ -386,14 +386,14 @@ namespace python
         ~AppendPythonToBoostVariant(void) = default;
 
         template <typename T>
-        enable_if_t<!std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<!std::is_same<T, configHolder_t>::value, void>
         operator()(T & value)
         {
             value = convertFromPython<T>(*objPy_);
         }
 
         template <typename T>
-        enable_if_t<std::is_same<T, configHolder_t>::value, void>
+        std::enable_if_t<std::is_same<T, configHolder_t>::value, void>
         operator()(T & value)
         {
             convertFromPython(*objPy_, value);

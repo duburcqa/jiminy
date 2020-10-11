@@ -1,0 +1,78 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index dcafb649..15382b07 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -394,9 +394,8 @@ ELSE(HUNTER_ENABLED)
+   CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/assimp-config.cmake.in"         "${CMAKE_CURRENT_BINARY_DIR}/assimp-config.cmake" @ONLY IMMEDIATE)
+   CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/assimpTargets.cmake.in"         "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets.cmake" @ONLY IMMEDIATE)
+   IF (is_multi_config)
+-    CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/assimpTargets-debug.cmake.in"   "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-debug.cmake" @ONLY IMMEDIATE)
+     CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/assimpTargets-release.cmake.in" "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-release.cmake" @ONLY IMMEDIATE)
+-    SET(PACKAGE_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-debug.cmake" "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-release.cmake")
++    SET(PACKAGE_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-release.cmake")
+   ELSEIF (CMAKE_BUILD_TYPE STREQUAL Debug)
+     CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/assimpTargets-debug.cmake.in"   "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-debug.cmake" @ONLY IMMEDIATE)
+     SET(PACKAGE_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/assimpTargets-debug.cmake")
+diff --git a/code/CMakeLists.txt b/code/CMakeLists.txt
+index 55538d96..0b89f9dc 100644
+--- a/code/CMakeLists.txt
++++ b/code/CMakeLists.txt
+@@ -1037,8 +1037,6 @@ if(MSVC10)
+   endif( VC10_STDINT_FIX )
+ endif(MSVC10)
+ 
+-ADD_DEFINITIONS( -DASSIMP_BUILD_DLL_EXPORT )
+-
+ if ( MSVC )
+   ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS )
+   ADD_DEFINITIONS( -D_CRT_SECURE_NO_WARNINGS )
+diff --git a/contrib/irrXML/CMakeLists.txt b/contrib/irrXML/CMakeLists.txt
+index 7f58af3d..8636100c 100644
+--- a/contrib/irrXML/CMakeLists.txt
++++ b/contrib/irrXML/CMakeLists.txt
+@@ -21,9 +21,17 @@ ENDIF()
+ set(IRRXML_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "IrrXML_Include" )
+ set(IRRXML_LIBRARY "IrrXML" CACHE INTERNAL "IrrXML" )
+ 
++include(GNUInstallDirs)
+ install(TARGETS IrrXML
++  EXPORT IrrXMLConfig
+   LIBRARY DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   ARCHIVE DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   RUNTIME DESTINATION ${ASSIMP_BIN_INSTALL_DIR}
+   FRAMEWORK DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   COMPONENT ${LIBASSIMP_COMPONENT})
++export(TARGETS IrrXML NAMESPACE IrrXML::
++       FILE "${CMAKE_CURRENT_BINARY_DIR}/IrrXMLConfig.cmake"
++)
++install(EXPORT IrrXMLConfig NAMESPACE IrrXML::
++        DESTINATION "${CMAKE_INSTALL_DATADIR}/IrrXML/cmake"
++)
+diff --git a/contrib/zlib/CMakeLists.txt b/contrib/zlib/CMakeLists.txt
+index 9d1fcc94..4d93d7b5 100644
+--- a/contrib/zlib/CMakeLists.txt
++++ b/contrib/zlib/CMakeLists.txt
+@@ -195,13 +195,18 @@ if(MINGW)
+     set(ZLIB_DLL_SRCS ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj)
+ endif(MINGW)
+ 
+-add_library(zlib SHARED ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+-add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+-set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
+-set_target_properties(zlib PROPERTIES SOVERSION 1)
++add_library(zlib STATIC ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+ 
+-INSTALL( TARGETS zlibstatic
++include(GNUInstallDirs)
++INSTALL( TARGETS zlib
++         EXPORT zlibConfig
+          LIBRARY DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+          ARCHIVE DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+          RUNTIME DESTINATION ${ASSIMP_BIN_INSTALL_DIR}
+          COMPONENT ${LIBASSIMP_COMPONENT})
++EXPORT(TARGETS zlib NAMESPACE zlib::
++       FILE "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
++)
++INSTALL(EXPORT zlibConfig NAMESPACE zlib::
++        DESTINATION "${CMAKE_INSTALL_DATADIR}/zlib/cmake"
++)

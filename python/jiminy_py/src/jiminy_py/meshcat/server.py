@@ -7,6 +7,7 @@ import tornado.web
 import tornado.ioloop
 import multiprocessing
 from contextlib import redirect_stderr
+from typing import Optional, Tuple, List, Dict
 
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
@@ -32,17 +33,22 @@ WebSocketHandler.check_origin = lambda self, origin: True
 # programmatically in any position, without any constraint, as
 # long as the user is not moving it manually using the mouse.
 class MyFileHandler(tornado.web.StaticFileHandler):
-    def initialize(self, default_path, default_filename, fallback_path):
+    def initialize(self,
+                   default_path: str,
+                   default_filename: str,
+                   fallback_path: str) -> None:
         self.default_path = os.path.abspath(default_path)
         self.default_filename = default_filename
         self.fallback_path = os.path.abspath(fallback_path)
         super().initialize(self.default_path, self.default_filename)
 
-    def set_extra_headers(self, path):
+    def set_extra_headers(self, path: str) -> None:
         self.set_header('Cache-Control',
                         'no-store, no-cache, must-revalidate, max-age=0')
 
-    def validate_absolute_path(self, root, absolute_path):
+    def validate_absolute_path(self,
+                               root: str,
+                               absolute_path: str) -> str:
         if os.path.isdir(absolute_path):
             if not self.request.path.endswith("/"):
                 self.redirect(self.request.path + "/", permanent=True)
@@ -63,7 +69,7 @@ class MyFileHandler(tornado.web.StaticFileHandler):
 #
 # It also fixes flushing issue when 'handle_zmq' is not directly
 # responsible for sending a message through the zmq socket.
-def handle_web(self, message):
+def handle_web(self, message: str) -> None:
     self.bridge.websocket_msg.append(message)
     if len(self.bridge.websocket_msg) == len(self.bridge.websocket_pool) and \
             len(self.bridge.comm_msg) == len(self.bridge.comm_pool):
@@ -72,10 +78,15 @@ def handle_web(self, message):
         self.bridge.zmq_socket.send(gathered_msg.encode("utf-8"))
         self.bridge.zmq_stream.flush()
         self.bridge.websocket_msg, self.bridge.comm_msg = [], []
+        self.is_waiting_ready_msg = False
 WebSocketHandler.on_message = handle_web
 
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
-    def __init__(self, zmq_url=None, comm_url=None, host="127.0.0.1", port=None):
+    def __init__(self,
+                 zmq_url: Optional[str] = None,
+                 comm_url: Optional[str] = None,
+                 host: str = "127.0.0.1",
+                 port: int = None):
         super().__init__(zmq_url, host, port)
 
         # Create a new zmq socket specifically for kernel communications
@@ -93,15 +104,16 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         self.comm_pool = set()
         self.comm_msg = []
         self.websocket_msg = []
+        self.is_waiting_ready_msg = False
 
-    def setup_comm(self, url):
+    def setup_comm(self, url: str) -> Tuple[zmq.Socket, ZMQStream, str]:
         comm_zmq = self.context.socket(zmq.XREQ)
         comm_zmq.bind(url)
         comm_stream = ZMQStream(comm_zmq)
         comm_stream.on_recv(self.handle_comm)
         return comm_zmq, comm_stream, url
 
-    def make_app(self):
+    def make_app(self) -> tornado.web.Application:
         return tornado.web.Application([
             (r"/static/?(.*)", MyFileHandler, {
                 "default_path": VIEWER_ROOT,
@@ -110,19 +122,20 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             (r"/", WebSocketHandler, {"bridge": self})
         ])
 
-    def wait_for_websockets(self):
+    def wait_for_websockets(self) -> None:
         if self.websocket_pool or self.comm_pool:
             self.zmq_socket.send(b"ok")
             self.zmq_stream.flush()
         else:
             self.ioloop.call_later(0.1, self.wait_for_websockets)
 
-    def handle_zmq(self, frames):
+    def handle_zmq(self, frames: List[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
         if cmd == "ready":
             if not self.websocket_pool and not self.comm_pool:
                 self.zmq_socket.send(b"")
             msg = umsgpack.packb({"type": "ready"})
+            self.is_waiting_ready_msg = True
             for websocket in self.websocket_pool:
                 websocket.write_message(msg, binary=True)
             for comm_id in self.comm_pool:
@@ -130,27 +143,31 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         else:
             super().handle_zmq(frames)
 
-    def handle_comm(self, frames):
+    def handle_comm(self, frames: List[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
         if cmd.startswith("open:"):
             comm_id = f"{cmd.split(':', 1)[1]}".encode()
             self.send_scene(comm_id=comm_id)
             self.comm_pool.add(comm_id)
+            if self.is_waiting_ready_msg:
+                msg = umsgpack.packb({"type": "ready"})
+                self.forward_to_comm(comm_id, msg)
         elif cmd.startswith("close:"):
             comm_id = f"{cmd.split(':', 1)[1]}".encode()
-            self.comm_pool.remove(comm_id)
+            self.comm_pool.discard(comm_id)  # Using `discard` over `remove` to avoid raising exception if 'comm_id' is not found. It may happend if an old comm is closed after Jupyter-notebook reset for instance.
         elif cmd.startswith("data:"):
             message = f"{cmd.split(':', 2)[2]}"
             self.comm_msg.append(message)
-            if len(self.websocket_msg) == len(self.websocket_pool) and \
-                    len(self.comm_msg) == len(self.comm_pool):
+            if (len(self.websocket_msg) == len(self.websocket_pool) and
+                    len(self.comm_msg) == len(self.comm_pool)):
                 gathered_msg = ",".join(
                     self.websocket_msg + self.comm_msg)
                 self.zmq_socket.send(gathered_msg.encode("utf-8"))
                 self.zmq_stream.flush()
                 self.websocket_msg, self.comm_msg = [], []
+                self.is_waiting_ready_msg = False
 
-    def forward_to_websockets(self, frames):
+    def forward_to_websockets(self, frames: List[bytes]) -> None:
         # Check if the objects are still available in cache
         cmd, path, data = frames
         cache_hit = (cmd == "set_object" and
@@ -163,10 +180,12 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         for comm_id in self.comm_pool:
             self.forward_to_comm(comm_id, data)
 
-    def forward_to_comm(self, comm_id, message):
+    def forward_to_comm(self, comm_id: str, message: str) -> None:
         self.comm_zmq.send_multipart([comm_id, message])
 
-    def send_scene(self, websocket=None, comm_id=None):
+    def send_scene(self,
+                   websocket: Optional[WebSocketHandler] = None,
+                   comm_id: Optional[str] = None) -> None:
         if websocket is not None:
             super().send_scene(websocket)
         elif comm_id is not None:
@@ -178,10 +197,10 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
 # ======================================================
 
-def meshcat_server(info):
+def meshcat_server(info: Dict[str, str]) -> None:
     """
-    @brief   Meshcat server deamon, using in/out argument to get the
-             zmq url instead of reading stdout as it was.
+    @brief Meshcat server deamon, using in/out argument to get the zmq url
+           instead of reading stdout as it was.
     """
     # Do not catch signal interrupt automatically, to avoid
     # killing meshcat server and stopping Jupyter notebook cell.
@@ -199,9 +218,9 @@ def meshcat_server(info):
             info['comm_url'] = bridge.comm_url
             bridge.run()
 
-def start_meshcat_server():
+def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
     """
-    @brief    Run meshcat server in background using multiprocessing Process.
+    @brief Run meshcat server in background using multiprocessing Process.
     """
     manager = multiprocessing.Manager()
     info = manager.dict()
@@ -218,10 +237,10 @@ def start_meshcat_server():
 
     return server, zmq_url, web_url, comm_url
 
-def start_meshcat_server_standalone():
+def start_meshcat_server_standalone() -> None:
     import argparse
-    argparse.ArgumentParser(
-        description="Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands")
+    argparse.ArgumentParser(description=(
+        "Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands"))
 
     server, zmq_url, web_url, comm_url = start_meshcat_server()
     print(zmq_url)

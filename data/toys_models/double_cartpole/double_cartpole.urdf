@@ -1,0 +1,144 @@
+<?xml version="1.0"?>
+<robot name="physics">
+
+    <link name="slideBar">
+    <visual>
+      <geometry>
+        <box size="30 0.05 0.05"/>
+      </geometry>
+      <origin xyz="0 0 0"/>
+      <material name="green">
+        <color rgba="0 0.8 .8 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <mass value="0"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+  <link name="cart">
+    <visual>
+      <geometry>
+        <box size="0.5 0.5 0.2"/>
+      </geometry>
+      <origin xyz="0 0 0"/>
+      <material name="blue">
+        <color rgba="0.8 0.0 0.0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+          <box size="0.5 0.5 0.2"/>
+      </geometry>
+      <origin xyz="0 0 0"/>
+    </collision>
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+  <joint name="slider_to_cart" type="prismatic">
+    <axis xyz="1 0 0"/>
+    <origin xyz="0.0 0.0 0.0"/>
+    <parent link="slideBar"/>
+    <child link="cart"/>
+    <limit effort="1000.0" lower="-15" upper="15" velocity="5"/>
+  </joint>
+
+  <link name="PendulumArm">
+      <visual>
+          <origin xyz="0 0 0.5" rpy="0 0 0" />
+          <geometry>
+            <box size="0.02 0.02 1.0"/>
+          </geometry>
+          <material name="">
+              <color rgba="0.0 1.0 0.0 1.0"/>
+          </material>
+      </visual>
+      <inertial>
+          <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+          <mass value="0.0"/>
+          <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      </inertial>
+  </link>
+
+  <joint name="PendulumMassJoint" type="fixed">
+    <origin xyz="0.0 0.0 1.0" rpy="0 0 0"/>
+    <parent link="PendulumArm"/>
+    <child link="PendulumMass"/>
+  </joint>
+  <link name="PendulumMass">
+      <visual>
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <geometry>
+            <sphere radius="0.06"/>
+          </geometry>
+          <material name="">
+              <color rgba="0.0 1.0 0.0 1.0"/>
+          </material>
+      </visual>
+      <inertial>
+          <origin xyz="0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+          <mass value="1.0"/>
+          <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      </inertial>
+  </link>
+
+  <joint name="PendulumJoint" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="cart"/>
+    <child link="PendulumArm"/>
+    <limit effort="1000" velocity="100" lower="-100" upper="100"/>
+  </joint>
+
+  <link name="SecondPendulumArm">
+      <visual>
+          <origin xyz="0 0 0.25" rpy="0 0 0" />
+          <geometry>
+            <box size="0.01 0.01 0.5"/>
+          </geometry>
+          <material name="">
+              <color rgba="0.0 0.0 1.0 1.0"/>
+          </material>
+      </visual>
+      <inertial>
+          <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+          <mass value="0.0"/>
+          <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      </inertial>
+  </link>
+
+  <joint name="SecondPendulumJoint" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="PendulumMass"/>
+    <child link="SecondPendulumArm"/>
+    <limit effort="1000" velocity="100" lower="-100" upper="100"/>
+  </joint>
+
+  <link name="SecondPendulumMass">
+      <visual>
+          <origin xyz="0 0 0" rpy="0 0 0" />
+          <geometry>
+            <sphere radius="0.06"/>
+          </geometry>
+          <material name="">
+              <color rgba="0.0 0.0 1.0 1.0"/>
+          </material>
+      </visual>
+      <inertial>
+          <origin xyz="0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+          <mass value="1.0"/>
+          <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      </inertial>
+  </link>
+
+  <joint name="SecondPendulumMassJoint" type="fixed">
+    <origin xyz="0.0 0.0 0.5" rpy="0 0 0"/>
+    <parent link="SecondPendulumArm"/>
+    <child link="SecondPendulumMass"/>
+  </joint>
+</robot>

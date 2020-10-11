@@ -16,8 +16,9 @@ setup(name = 'gym_jiminy',
       package_data = {'gym_jiminy.envs': ['data/**/*']},
       include_package_data = True, # make sure the data folder is included
       install_requires = [
-            'gym',
-            f'jiminy-py~={version_required}'
+        'gym',
+        'numba',
+        f'jiminy-py~={version_required}'
       ],
       python_requires='>3.6'
 )

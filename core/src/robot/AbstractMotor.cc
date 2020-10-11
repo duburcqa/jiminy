@@ -85,7 +85,7 @@ namespace jiminy
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
         // Shift the motor ids
-        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             --sharedHolder_->motors_[i]->motorIdx_;
         }
@@ -182,9 +182,9 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Motors are only supported for linear and rotary joints
-            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY)
+            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
             {
-                std::cout << "Error - AbstractMotorBase::refreshProxies - A motor can only be associated with a linear or rotary joint." << std::endl;
+                std::cout << "Error - AbstractMotorBase::refreshProxies - A motor can only be associated with a 1-dof linear or rotary joint." << std::endl;
                 returnCode =  hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -197,7 +197,7 @@ namespace jiminy
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->effortLimitFromUrdf)
             {
-                effortLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_];
+                effortLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_] * baseMotorOptions_->mechanicalReduction;
             }
             else
             {
@@ -207,7 +207,7 @@ namespace jiminy
             // Get the rotor inertia
             if (baseMotorOptions_->enableRotorInertia)
             {
-                rotorInertia_ = baseMotorOptions_->rotorInertia;
+                rotorInertia_ = baseMotorOptions_->rotorInertia * baseMotorOptions_->mechanicalReduction;
             }
             else
             {
@@ -298,22 +298,30 @@ namespace jiminy
         return rotorInertia_;
     }
 
-    hresult_t AbstractMotorBase::computeEffortAll(float64_t                   const & t,
-                                                  Eigen::Ref<vectorN_t const> const & q,
-                                                  Eigen::Ref<vectorN_t const> const & v,
-                                                  Eigen::Ref<vectorN_t const> const & a,
-                                                  vectorN_t                   const & uCommand)
+    hresult_t AbstractMotorBase::computeEffortAll(float64_t const & t,
+                                                  vectorN_t const & q,
+                                                  vectorN_t const & v,
+                                                  vectorN_t const & a,
+                                                  vectorN_t const & uCommand)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Compute the motors' output
+        // Compute the actual effort of every motor
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
             if (returnCode == hresult_t::SUCCESS)
             {
-                // Compute the actual effort
+                uint8_t nq_motor;
+                if (motor->getJointType() == joint_t::ROTARY_UNBOUNDED)
+                {
+                    nq_motor = 2;
+                }
+                else
+                {
+                    nq_motor = 1;
+                }
                 returnCode = motor->computeEffort(t,
-                                                  q[motor->getJointPositionIdx()],
+                                                  q.segment(motor->getJointPositionIdx(), nq_motor),
                                                   v[motor->getJointVelocityIdx()],
                                                   a[motor->getJointVelocityIdx()],
                                                   uCommand[motor->getIdx()]);

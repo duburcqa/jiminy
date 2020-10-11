@@ -40,11 +40,11 @@ namespace jiminy
         /// \brief      Constructor
         ///
         /// \remark     A valid 'callable' is a function pointer, functor or lambda with signature:
-        ///                 void(float64_t const & t,
-        ///                      vectorN_t const & q,
-        ///                      vectorN_t const & v,
-        ///                      matrixN_t const & sensorsData[I]...,
-        ///                      vectorN_t       & u)
+        ///                 void(float64_t        const & t,
+        ///                      vectorN_t        const & q,
+        ///                      vectorN_t        const & v,
+        ///                      sensorsDataMap_t const & sensorsData,
+        ///                      vectorN_t              & u)
         ///             where I is range(n), with n the number of different type of sensor.
         ///
         /// \param[in]  commandFct              'Callable' computing the command
@@ -74,8 +74,8 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t computeCommand(float64_t const & t,
-                                 Eigen::Ref<vectorN_t const> const & q,
-                                 Eigen::Ref<vectorN_t const> const & v,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
                                  vectorN_t       & u) override;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,10 +91,10 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t internalDynamics(float64_t                   const & t,
-                                   Eigen::Ref<vectorN_t const> const & q,
-                                   Eigen::Ref<vectorN_t const> const & v,
-                                   vectorN_t                         & u) override;
+        hresult_t internalDynamics(float64_t const & t,
+                                   vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   vectorN_t       & u) override;
 
     private:
         // std::conditional_t enables to use both functors and lambdas

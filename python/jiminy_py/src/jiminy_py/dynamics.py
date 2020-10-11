@@ -1,11 +1,17 @@
-#!/usr/bin/env python
-
 ## @file jiminy_py/dynamics.py
-
+import logging
 import numpy as np
+from typing import Optional, Tuple, Callable, Dict, Any
 
+import hppfcl
 import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
+
+from . import core as jiminy
+
+
+logger = logging.getLogger(__name__)
+
 
 ######################################################################
 ########################## Generic math ##############################
@@ -24,22 +30,21 @@ def XYZRPYToSe3(xyzrpy):
 #################### Kinematic and dynamics ##########################
 ######################################################################
 
-def update_quantities(robot,
-                      position,
-                      velocity=None,
-                      acceleration=None,
-                      update_physics=True,
-                      update_com=False,
-                      update_energy=False,
-                      update_jacobian=False,
-                      use_theoretical_model=True):
+def update_quantities(robot: jiminy.Robot,
+                      position: np.ndarray,
+                      velocity: Optional[np.ndarray] = None,
+                      acceleration: Optional[np.ndarray] = None,
+                      update_physics: bool = True,
+                      update_com: bool = False,
+                      update_energy: bool = False,
+                      update_jacobian: bool = False,
+                      use_theoretical_model: bool = True) -> None:
     """
     @brief Compute all quantities using position, velocity and acceleration
            configurations.
 
-    @details Run multiple algorithms to compute all quantities
-             which can be known with the model position, velocity
-             and acceleration configuration.
+    @details Run multiple algorithms to compute all quantities which can be
+             known with the model position, velocity and acceleration.
 
              This includes:
              - body spatial transforms,
@@ -54,16 +59,31 @@ def update_quantities(robot,
              (- center-of-mass jacobian : No Python binding available so far),
              - articular inertia matrix,
              - non-linear effects (Coriolis + gravity)
+             - collisions and distances
 
-             Computation results are stored in internal
-             data and can be retrieved with associated getters.
+             Computation results are stored internally in the robot, and can
+             be retrieved with associated getters.
 
-    @note This function modifies internal data.
+    @remark This function modifies the internal robot data.
 
-    @param robot            The jiminy robot
-    @param position         Joint position vector
-    @param velocity         Joint velocity vector
-    @param acceleration     Joint acceleration vector
+    @param robot  Jiminy robot.
+    @param position  Robot position vector.
+    @param velocity  Robot velocity vector.
+    @param acceleration  Robot acceleration vector.
+    @param update_physics  Whether or not to compute the non-linear effects and
+                           internal/external forces.
+                           Optional: True by default.
+    @param update_com  Whether or not to compute the COM of the robot AND each
+                       link individually. The global COM is the first index.
+                       Optional: False by default.
+    @param update_energy  Whether or not to compute the energy of the robot.
+                          Optional: False by default
+    @param update_jacobian  Whether or not to compute the jacobians.
+                            Optional: False by default.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -93,32 +113,50 @@ def update_quantities(robot,
             elif acceleration is None:
                 pin.centerOfMass(pnc_model, pnc_data, position, velocity)
             else:
-                pin.centerOfMass(pnc_model, pnc_data, position, velocity, acceleration)
+                pin.centerOfMass(
+                    pnc_model, pnc_data, position, velocity, acceleration)
         else:
             if velocity is None:
                 pin.forwardKinematics(pnc_model, pnc_data, position)
             elif acceleration is None:
                 pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
             else:
-                pin.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
+                pin.forwardKinematics(
+                    pnc_model, pnc_data, position, velocity, acceleration)
             pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
         if update_energy:
             if velocity is not None:
-                pin.kineticEnergy(pnc_model, pnc_data, position, velocity, False)
+                pin.kineticEnergy(
+                    pnc_model, pnc_data, position, velocity, False)
             pin.potentialEnergy(pnc_model, pnc_data, position, False)
 
-def get_body_index_and_fixedness(robot, body_name, use_theoretical_model=True):
+    pin.updateGeometryPlacements(pnc_model, pnc_data,
+        robot.collision_model, robot.collision_data)
+    pin.computeCollisions(robot.collision_model, robot.collision_data,
+        stop_at_first_collision=False)
+    pin.computeDistances(robot.collision_model, robot.collision_data)
+    for dist_req in robot.collision_data.distanceResults:
+        if np.linalg.norm(dist_req.normal) < 1e-6:
+            pin.computeDistances(robot.collision_model, robot.collision_data)
+            break
+
+def get_body_index_and_fixedness(
+        robot: jiminy.Robot,
+        body_name: str,
+        use_theoretical_model: bool = True) -> Tuple[int, bool]:
     """
-    @brie Retrieve a body index in model and its fixedness from the body name.
+    @brief Retrieve the body index and fixedness from its name.
 
-    @details The method searchs bodyNames array and fixedBodyNames array
-             for the provided bodyName.
+    @param robot  Jiminy robot.
+    @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
-    @param  robot           The jiminy robot
-    @param	body_name       The name of the body for which index and fixedness are needed
-    @return	body_id         The index of the body whose name is bodyName in model
-    @return is_body_fixed   Whether or not the body is considered as a fixed-body by the model
+    @return [0] Index of the body.
+            [1] Whether or not it is a fixed body.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -136,17 +174,26 @@ def get_body_index_and_fixedness(robot, body_name, use_theoretical_model=True):
 
     return body_id, is_body_fixed
 
-def get_body_world_transform(robot, body_name, use_theoretical_model=True, copy=True):
+def get_body_world_transform(robot: jiminy.Robot,
+                             body_name: str,
+                             use_theoretical_model: bool = True,
+                             copy: bool = True) -> pin.SE3:
     """
     @brief Get the transform from world frame to body frame for a given body.
 
-    @details It is assumed that update_quantities has been called.
+    @remark It is assumed that `update_quantities` has been called beforehand.
 
-    @param  robot           The jiminy robot
-    @param  body_name       The name of the body
-    @return transform       Object representing the transform
+    @param robot  Jiminy robot.
+    @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
+    @param copy  Whether to return the internal buffers (which could be
+                 altered) or copy them.
+                 Optional: True by default. It is less efficient but safer.
 
-    @pre body_name must be the name of a body existing in model.
+    @return Body transform.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -160,19 +207,22 @@ def get_body_world_transform(robot, body_name, use_theoretical_model=True, copy=
         transform = transform.copy()
     return transform
 
-def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
+def get_body_world_velocity(robot: jiminy.Robot,
+                            body_name: str,
+                            use_theoretical_model: bool = True) -> pin.SE3:
     """
-    @brief Get the velocity wrt world in body frame for a given body.
+    @brief Get the spatial velocity wrt world in body frame for a given body.
 
-    @details It is assumed that update_quantities has been called.
+    @remark It is assumed that `update_quantities` has been called.
 
-    @return body transform in world frame.
+    @param robot  Jiminy robot.
+    @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
-    @param  robot               The jiminy robot
-    @param  body_name           The name of the body
-    @return spatial_velocity    se3 object representing the velocity
-
-    @pre body_name must be the name of a body existing in model.
+    @return Spatial velocity.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -187,7 +237,8 @@ def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
         last_moving_parent_id = pnc_model.frames[body_id].parent
         parent_transform_in_world = pnc_data.oMi[last_moving_parent_id]
         parent_velocity_in_parent_frame = pnc_data.v[last_moving_parent_id]
-        spatial_velocity = parent_velocity_in_parent_frame.se3Action(parent_transform_in_world)
+        spatial_velocity = parent_velocity_in_parent_frame.se3Action(
+            parent_transform_in_world)
     else:
         transform = pnc_data.oMi[body_id]
         velocity_in_body_frame = pnc_data.v[body_id]
@@ -195,20 +246,26 @@ def get_body_world_velocity(robot, body_name, use_theoretical_model=True):
 
     return spatial_velocity
 
-def get_body_world_acceleration(robot, body_name, use_theoretical_model=True):
+def get_body_world_acceleration(robot: jiminy.Robot,
+                                body_name: str,
+                                use_theoretical_model: bool = True) -> pin.SE3:
     """
     @brief Get the body spatial acceleration in world frame.
 
-    @details It is assumed that update_quantities has been called.
+    @details The moment of this tensor (i.e linear part) is NOT the linear
+             acceleration of the center of the body frame, expressed in the
+             world frame.
 
-    @note The moment of this tensor (i.e linear part) is \b NOT the linear
-          acceleration of the center of the body frame, expressed in the world
-          frame. Use getBodyWorldLinearAcceleration for that.
+    @remark It is assumed that `update_quantities` has been called.
 
-    @param  body_name       The name of the body
-    @return acceleration    Body spatial acceleration.
+    @param robot  Jiminy robot.
+    @param body_name  Name of the body.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
 
-    @pre body_name must be the name of a body existing in model.
+    @return Spatial acceleration.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -224,7 +281,8 @@ def get_body_world_acceleration(robot, body_name, use_theoretical_model=True):
         last_moving_parent_id = pnc_model.frames[body_id].parent
         parent_transform_in_world = pnc_data.oMi[last_moving_parent_id]
         parent_acceleration_in_parent_frame = pnc_data.a[last_moving_parent_id]
-        spatial_acceleration = parent_acceleration_in_parent_frame.se3Action(parent_transform_in_world)
+        spatial_acceleration = parent_acceleration_in_parent_frame.se3Action(
+            parent_transform_in_world)
     else:
         transform = pnc_data.oMi[body_id]
         acceleration_in_body_frame = pnc_data.a[body_id]
@@ -232,31 +290,31 @@ def get_body_world_acceleration(robot, body_name, use_theoretical_model=True):
 
     return spatial_acceleration
 
-def _compute_closest_contact_frame(robot, ground_profile=None, use_theoretical_model=True):
+def compute_transform_contact(robot: jiminy.Robot,
+                              ground_profile: Optional[Callable] = None) -> pin.SE3:
     """
-    @brief   Compute the closest contact point to the ground, in their respective local
-             frame and wrt the ground position and orientation.
+    @brief Compute the transform the apply to the freeflyer to touch the ground
+           with up to 3 contact points.
 
-    @details This method can be used in conjunction with compute_freeflyer_state_from_fixed_body
-             to determine the right fixed_body_name that ensures no contact points are going
-             through the ground and a single one is touching it.
+    @details This method can be used in conjunction with
+             `compute_freeflyer_state_from_fixed_body` to ensures no contact
+             points are going through the ground and up to 3 are in contact.
 
-             It is assumed that update_quantities has been called.
+             Note that collision bodies are NOT supported for now.
 
-    @param robot     The jiminy robot
-    @param ground_profile   The ground profile callback
-    @param position   Joint position vector
+             If the robot has no contact point, then the identity is returned.
+
+    @remark It is assumed that `update_quantities` has been called.
+
+    @param robot  Jiminy robot.
+    @param ground_profile  Ground profile callback.
+
+    @return The transform the apply in order to touch the ground.
     """
-
-    if use_theoretical_model:
-        pnc_data = robot.pinocchio_data_th
-    else:
-        pnc_data = robot.pinocchio_data
-
     # Compute the transform in the world of the contact points
     contact_frames_transform = []
     for frame_idx in robot.contact_frames_idx:
-        transform = pnc_data.oMf[frame_idx]
+        transform = robot.pinocchio_data.oMf[frame_idx]
         contact_frames_transform.append(transform)
 
     # Compute the transform of the ground at these points
@@ -265,124 +323,203 @@ def _compute_closest_contact_frame(robot, ground_profile=None, use_theoretical_m
         ground_pos = np.zeros(3)
         for frame_transform in contact_frames_transform:
             ground_pos[2], normal = ground_profile(frame_transform.translation)
-            ground_rot = pin.Quaternion.FromTwoVectors(np.array([0.0, 0.0, 1.0]), normal).matrix()
+            ground_rot = pin.Quaternion.FromTwoVectors(
+                np.array([0.0, 0.0, 1.0]), normal).matrix()
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
     else:
-        contact_ground_transform = len(contact_frames_transform) * [pin.SE3.Identity()]
+        contact_ground_transform = [
+            pin.SE3.Identity() for _ in range(len(contact_frames_transform))]
 
-    # Compute the position and normal of the contact points wrt their respective ground transform
+    # Compute the position and normal of the contact points wrt their
+    # respective ground transform.
     contact_frames_pos_rel = []
-    contact_frames_normal_rel = []
     for frame_transform, ground_transform in \
             zip(contact_frames_transform, contact_ground_transform):
         transform_rel = ground_transform.actInv(frame_transform)
         contact_frames_pos_rel.append(transform_rel.translation)
-        contact_frames_normal_rel.append(transform_rel.rotation[:, 2])
 
-    # Compute the closest contact points to the ground in their respective local frame
-    for i in range(len(robot.contact_frames_idx)):
-        height_frame = contact_frames_pos_rel[i] @ contact_frames_normal_rel[i]
-        is_closest = True
-        for j in range(i+1, len(robot.contact_frames_idx)):
-            height = contact_frames_pos_rel[j] @ contact_frames_normal_rel[i]
-            if (height_frame > height + 1e-6): # Add a small 1um tol since "closest" is meaningless at this point
-                is_closest = False
+    # Order the contact points by depth
+    contact_frames_pos_rel = [contact_frames_pos_rel[i] for i in np.argsort(
+        [pos[2] for pos in contact_frames_pos_rel])]
+
+    # Compute the contact plane normal
+    if len(contact_frames_pos_rel) > 2:
+        contact_edge_ref = \
+            contact_frames_pos_rel[0] - contact_frames_pos_rel[1]
+        contact_edge_ref /= np.linalg.norm(contact_edge_ref)
+        for i in range(2, len(contact_frames_pos_rel)):
+            contact_edge_alt = \
+                contact_frames_pos_rel[0] - contact_frames_pos_rel[i]
+            contact_edge_alt /= np.linalg.norm(contact_edge_alt)
+            normal_offset = np.cross(contact_edge_ref, contact_edge_alt)
+            if np.linalg.norm(normal_offset) > 0.2:  # At least 11 degrees of angle
                 break
-        if is_closest:
-            break
+        if normal_offset[2] < 0.0:
+            normal_offset *= -1.0
+    else:
+        normal_offset = np.array([0.0, 0.0, 1.0])
 
-    return robot.contact_frames_names[i]
+    # Make sure that the normal is valid, otherwise use the default one
+    if np.linalg.norm(normal_offset) < 0.2:
+        normal_offset = np.array([0.0, 0.0, 1.0])
 
-def compute_freeflyer_state_from_fixed_body(robot, position, velocity=None, acceleration=None,
-                                            fixed_body_name=None, ground_profile=None,
-                                            use_theoretical_model=True):
+    # Compute the translation and rotation to apply the touch the ground
+    rot_offset = pin.Quaternion.FromTwoVectors(
+        normal_offset, np.array([0.0, 0.0, 1.0])).matrix()
+    if contact_frames_pos_rel:
+        pos_offset = np.array([
+            0.0, 0.0, -(rot_offset.T @ contact_frames_pos_rel[0])[2]])
+    else:
+        pos_offset = np.zeros(3)
+    transform_offset = pin.SE3(rot_offset, pos_offset)
+
+    # Take into account the collision bodies
+    # TODO: Take into account the ground profile
+    min_distance = np.inf
+    deepest_idx = None
+    for i, dist_req in enumerate(robot.collision_data.distanceResults):
+        if np.linalg.norm(dist_req.normal) > 1e-6:
+            body_idx = robot.collision_model.collisionPairs[0].first
+            body_geom = robot.collision_model.geometryObjects[body_idx]
+            if dist_req.normal[2] > 0.0 and \
+                    isinstance(body_geom.geometry, hppfcl.Box):
+                ground_idx = robot.collision_model.collisionPairs[0].second
+                ground_geom = robot.collision_model.geometryObjects[ground_idx]
+                box_size = 2.0 * ground_geom.geometry.halfSide
+                body_size = 2.0 * body_geom.geometry.halfSide
+                distance = - body_size[2] - box_size[2] - dist_req.min_distance
+            else:
+                distance = dist_req.min_distance
+            if distance < min_distance:
+                min_distance = distance
+                deepest_idx = i
+        else:
+            logger.warning("Collision computation failed for some reason. "
+                           "Skipping this collision pair.")
+    if deepest_idx is not None and (not contact_frames_pos_rel or
+            transform_offset.translation[2] < -min_distance):
+        transform_offset.translation[2] = -min_distance
+        if not contact_frames_pos_rel:
+            geom_idx = robot.collision_model.collisionPairs[deepest_idx].first
+            geom = robot.collision_model.geometryObjects[geom_idx]
+            if isinstance(geom.geometry, hppfcl.Box):
+                dist_rslt = robot.collision_data.distanceResults[deepest_idx]
+                collision_position = dist_rslt.getNearestPoint1()
+                transform_offset.rotation = \
+                    robot.collision_data.oMg[geom_idx].rotation.T
+                transform_offset.translation[2] += (collision_position -
+                    transform_offset.rotation @ collision_position)[2]
+
+    return transform_offset
+
+def compute_freeflyer_state_from_fixed_body(
+        robot: jiminy.Robot,
+        position: np.ndarray,
+        velocity: Optional[np.ndarray] = None,
+        acceleration: Optional[np.ndarray] = None,
+        fixed_body_name: Optional[str] = None,
+        ground_profile: Optional[Callable] = None) -> str:
     """
-    @brief   Fill rootjoint data from articular data when a body is fixed parallel to world.
+    @brief Fill rootjoint data from articular data when a body is fixed
+           parallel to world.
 
-    @details If 'fixed_body_name' is omitted, it will default to the contact point that ensures
-             no contact points are going through the ground and a single one is touching it.
+    @details If 'fixed_body_name' is omitted, it will default to the contact
+             point that ensures no contact points are going through the ground
+             and a single one is touching it.
 
-    @remark  The hypothesis is that 'fixed_body_name' is fixed parallel to world frame.
-             So this method computes the position of freeflyer rootjoint in the fixed body frame.
+             The hypothesis is that 'fixed_body_name' is fixed parallel to
+             world frame. So this method computes the position of freeflyer
+             rootjoint in the fixed body frame.
 
-    @note This function modifies internal data.
+             Note that collision bodies are not supported for now. Yet, the
+             vertical position of the freeflyer is updated in order to make
+             sure the minimum collision distance is zero.
 
-    @param robot            The jiminy robot
-    @param[inout] position  Must contain current articular data. The rootjoint data can
-                            contain any value, it will be ignored and replaced.
-                            The method fills in rootjoint data.
-    @param[inout] velocity  See position
-    @param[inout] acceleration  See position
-    @param fixed_body_name  The name of the body frame that is considered fixed parallel to world frame
-    @param ground_profile   The ground profile callback
+             `None` is returned if their is no contact frame or if the robot
+             has no freeflyer.
+
+    @remark This function modifies the internal robot data.
+
+    @param robot Jiminy robot.
+    @param[inout] position  Must contain current articular data. The rootjoint
+                            data can contain any value, it will be ignored and
+                            replaced. The method fills in rootjoint data.
+    @param[inout] velocity  See position.
+    @param[inout] acceleration  See position.
+    @param fixed_body_name  Name of the body frame that is considered fixed
+                            parallel to world frame.
+    @param ground_profile  Ground profile callback.
+
+    @return Name of the contact frame, if any.
     """
     if not robot.has_freeflyer:
-        raise RuntimeError("The robot does not have a freeflyer.")
-
-    if use_theoretical_model:
-        pnc_model = robot.pinocchio_model_th
-        pnc_data = robot.pinocchio_data_th
-    else:
-        pnc_model = robot.pinocchio_model
-        pnc_data = robot.pinocchio_data
+        return None
 
     position[:6].fill(0.0)
     position[6] = 1.0
-    if velocity is not None and acceleration is not None:
+    if velocity is not None:
         velocity[:6].fill(0.0)
+    if acceleration is not None:
         acceleration[:6].fill(0.0)
-        pin.forwardKinematics(pnc_model, pnc_data, position, velocity, acceleration)
-    elif velocity is not None:
-        velocity[:6].fill(0.0)
-        pin.forwardKinematics(pnc_model, pnc_data, position, velocity)
-    else:
-        pin.forwardKinematics(pnc_model, pnc_data, position)
-    pin.framesForwardKinematics(pnc_model, pnc_data, position)
+    update_quantities(robot, position, velocity, acceleration,
+        update_physics=False, use_theoretical_model=False)
 
     if fixed_body_name is None:
-        fixed_body_name = _compute_closest_contact_frame(
-            robot, ground_profile, use_theoretical_model)
-
-    ff_M_fixed_body = get_body_world_transform(
-        robot, fixed_body_name, use_theoretical_model, copy=False)
-
-    if ground_profile is not None:
-        ground_translation = np.zeros(3)
-        ground_translation[2], normal = ground_profile(ff_M_fixed_body.translation)
-        ground_rotation = pin.Quaternion.FromTwoVectors(np.array([0.0, 0.0, 1.0]), normal).matrix()
-        w_M_ground = pin.SE3(ground_rotation, ground_translation)
+        w_M_ff = compute_transform_contact(robot, ground_profile)
     else:
-        w_M_ground = pin.SE3.Identity()
-
-    w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
+        ff_M_fixed_body = get_body_world_transform(
+            robot, fixed_body_name, use_theoretical_model=False, copy=False)
+        if ground_profile is not None:
+            ground_translation = np.zeros(3)
+            ground_translation[2], normal = ground_profile(
+                ff_M_fixed_body.translation)
+            ground_rotation = pin.Quaternion.FromTwoVectors(
+                np.array([0.0, 0.0, 1.0]), normal).matrix()
+            w_M_ground = pin.SE3(ground_rotation, ground_translation)
+        else:
+            w_M_ground = pin.SE3.Identity()
+        w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
     position[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
-    if velocity is not None:
-        ff_v_fixed_body = get_body_world_velocity(
-            robot, fixed_body_name, use_theoretical_model)
-        base_link_velocity = - ff_v_fixed_body
-        velocity[:6] = base_link_velocity.vector
+    if fixed_body_name is None:
+        if velocity is not None:
+            ff_v_fixed_body = get_body_world_velocity(
+                robot, fixed_body_name, use_theoretical_model=False)
+            base_link_velocity = - ff_v_fixed_body
+            velocity[:6] = base_link_velocity.vector
 
-    if acceleration is not None:
-        ff_a_fixedBody = get_body_world_acceleration(
-            robot, fixed_body_name, use_theoretical_model)
-        base_link_acceleration = - ff_a_fixedBody
-        acceleration[:6] = base_link_acceleration.vector
+        if acceleration is not None:
+            ff_a_fixedBody = get_body_world_acceleration(
+                robot, fixed_body_name, use_theoretical_model=False)
+            base_link_acceleration = - ff_a_fixedBody
+            acceleration[:6] = base_link_acceleration.vector
+
+    update_quantities(robot, position, velocity, acceleration,
+        update_physics=False, use_theoretical_model=False)
 
     return fixed_body_name
 
-def compute_efforts_from_fixed_body(robot, position, velocity, acceleration,
-                                    fixed_body_name, use_theoretical_model=True):
+def compute_efforts_from_fixed_body(
+        robot: jiminy.Robot,
+        position: np.ndarray,
+        velocity: np.ndarray,
+        acceleration: np.ndarray,
+        fixed_body_name: str,
+        use_theoretical_model: bool = True) -> Tuple[np.ndarray, pin.Force]:
     """
-    @brief   Compute the efforts using RNEA method.
+    @brief Compute the efforts using RNEA method.
 
-    @note This function modifies internal data.
+    @remark This function modifies the internal robot data.
 
-    @param robot            The jiminy robot
-    @param position         Joint position vector
-    @param velocity         See position
-    @param acceleration     See position
-    @param fixed_body_name  The name of the body frame on which to apply the external forces
+    @param robot  Jiminy robot
+    @param position  Robot configuration vector.
+    @param velocity  Robot velocity vector.
+    @param acceleration  Robot acceleration vector.
+    @param fixed_body_name  Name of the body frame.
+    @param use_theoretical_model  Whether the state corresponds to the
+                                  theoretical model when updating and fetching
+                                  the robot's state.
+                                  Optional: True by default.
     """
     if use_theoretical_model:
         pnc_model = robot.pinocchio_model_th
@@ -400,12 +537,14 @@ def compute_efforts_from_fixed_body(robot, position, velocity, acceleration,
     f_ext.extend(len(pnc_model.names) * (pin.Force.Zero(),))
 
     # Compute the force at the contact frame
-    support_foot_idx = pnc_model.frames[pnc_model.getBodyId(fixed_body_name)].parent
+    support_foot_idx = pnc_model.frames[
+        pnc_model.getBodyId(fixed_body_name)].parent
     f_ext[support_foot_idx] = pnc_data.oMi[support_foot_idx] \
         .actInv(pnc_data.oMi[1]).act(pnc_data.f[1])
 
     # Recompute the efforts with RNEA and the correct external forces
-    tau = pin.rnea(pnc_model, pnc_data, position, velocity, acceleration, f_ext)
+    tau = pin.rnea(
+        pnc_model, pnc_data, position, velocity, acceleration, f_ext)
     f_ext = f_ext[support_foot_idx]
 
     return tau, f_ext
@@ -414,12 +553,20 @@ def compute_efforts_from_fixed_body(robot, position, velocity, acceleration,
 #################### State sequence wrappers #########################
 ######################################################################
 
-def retrieve_freeflyer(trajectory_data, freeflyer_continuity=True):
+def retrieve_freeflyer(trajectory_data: Dict[str, Any],
+                       freeflyer_continuity: bool = True) -> None:
     """
-    @brief   Retrieves the freeflyer positions and velocities.
-             The reference frame is the support foot.
+    @brief Retrieves the freeflyer positions and velocities.
 
-    @param   trajectory_data Sequence of States for which to retrieve the freeflyer.
+    @details The reference frame is the support foot.
+
+    @remark This function modifies the internal robot data.
+
+    @param trajectory_data  Sequence of States for which to retrieve the
+                            freeflyer.
+    @param freeflyer_continuity  Whether or not to enforce the continuity
+                                 in position of the freeflyer.
+                                 Optional: True by default.
     """
     robot = trajectory_data['robot']
     use_theoretical_model = trajectory_data['use_theoretical_model']
@@ -430,8 +577,7 @@ def retrieve_freeflyer(trajectory_data, freeflyer_continuity=True):
     for s in trajectory_data['evolution_robot']:
         # Compute freeflyer using contact frame as reference frame
         s.contact_frame = compute_freeflyer_state_from_fixed_body(
-            robot, s.q, s.v, s.a, s.contact_frame,
-            None, use_theoretical_model)
+            robot, s.q, s.v, s.a, s.contact_frame, None)
 
         # Move freeflyer to ensure continuity over time, if requested
         if freeflyer_continuity:
@@ -449,11 +595,12 @@ def retrieve_freeflyer(trajectory_data, freeflyer_continuity=True):
             w_M_ff = w_M_ff_offset * w_M_ff
             s.q[:7] = pin.se3ToXYZQUAT(w_M_ff)
 
-def compute_efforts(trajectory_data):
+def compute_efforts(trajectory_data: Dict[str, Any]) -> None:
     """
-    @brief   Compute the efforts in the trajectory using RNEA method.
+    @brief Compute the efforts in the trajectory using RNEA method.
 
-    @param   trajectory_data Sequence of States for which to compute the efforts.
+    @param trajectory_data  Sequence of States for which to compute the
+                            efforts.
     """
     robot = trajectory_data['robot']
     use_theoretical_model = trajectory_data['use_theoretical_model']

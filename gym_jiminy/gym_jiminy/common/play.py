@@ -1,17 +1,18 @@
 import os
-import threading
 import queue
 import time
+import threading
+from typing import Optional, Callable
 
 
-class Getch():
+class Getch:
     """
     @brief   Gets a single character from standard input.
 
     @details Does not echo to the screen.
     """
-
-    def __init__(self, stop_event = None):
+    def __init__(self,
+                 stop_event: Optional[threading.Event] = None):
         self.stop_event = stop_event
         if os.name != 'nt':
             import sys, fcntl, termios
@@ -26,16 +27,15 @@ class Getch():
 
     def __del__(self):
         if os.name != 'nt':
-            import fcntl, termios, tty
+            import fcntl, termios
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.oldterm)
             fcntl.fcntl(self.fd, fcntl.F_SETFL, self.oldflags)
 
-    def __call__(self):
+    def __call__(self) -> str:
         if os.name != 'nt':
             c = ''
             try:
-                import sys
-                import termios
+                import sys, termios
                 termios.tcflush(self.fd, termios.TCIFLUSH)
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
@@ -45,16 +45,20 @@ class Getch():
                             break
                     except IOError:
                         pass
-            finally:
-                return c
+            except Exception:
+                pass
+            return c
         else:
             import msvcrt
             while self.stop_event is None or \
                     not self.stop_event.is_set():
                 if msvcrt.kbhit():
                     return msvcrt.getch()
+            return ''
 
-def input_deamon(input_queue, stop_event, exit_key):
+def input_deamon(input_queue: queue.Queue,
+                 stop_event: threading.Event,
+                 exit_key: str):
     CHAR_TO_ARROW_MAPPING = {"\x1b[A" : "Up",
                              "\x1b[B": "Down",
                              "\x1b[C": "Right",
@@ -69,7 +73,8 @@ def input_deamon(input_queue, stop_event, exit_key):
         input_queue.put(c)
     del getch
 
-def loop_interactive(press_key_to_start=True, exit_key='k'):
+def loop_interactive(press_key_to_start: bool = True,
+                     exit_key: str = 'k') -> Callable:
     def wrap(func):
         def wrapped_func(*args, **kwargs):
             NOT_A_KEY = "Not a key"
@@ -78,12 +83,13 @@ def loop_interactive(press_key_to_start=True, exit_key='k'):
 
             input_queue = queue.Queue()
             stop_event = threading.Event()
-            input_thread = threading.Thread(target=input_deamon,
-                                            args=(input_queue, stop_event, exit_key),
-                                            daemon=True)
+            input_thread = threading.Thread(
+                target=input_deamon,
+                args=(input_queue, stop_event, exit_key),
+                daemon=True)
             input_thread.start()
 
-            print("Starting keyboard interactive mode.")
+            print("Entering keyboard interactive mode.")
             if press_key_to_start:
                 print("Press a key to start...")
             key = NOT_A_KEY

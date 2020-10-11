@@ -91,7 +91,7 @@ namespace jiminy
     }
 
     hresult_t SimpleMotor::computeEffort(float64_t const & t,
-                                         float64_t const & q,
+                                         Eigen::Ref<vectorN_t const> const & q,
                                          float64_t const & v,
                                          float64_t const & a,
                                          float64_t const & uCommand)
@@ -102,28 +102,30 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        // Bypass
-        data() = uCommand;
-
-        // Enforce the effort limits
+        /* Compute the motor effort, taking into account the limit, if any.
+           It is the output of the motor on joint side, ie after the transmission. */
         if (motorOptions_->enableEffortLimit)
         {
-            data() = clamp(data(), -getEffortLimit(), getEffortLimit());
+            data() = clamp(uCommand, -getEffortLimit(), getEffortLimit());
         }
-
-        // Add friction to the joints associated with the motor if enable
+        else
+        {
+            data() = uCommand;
+        }
+        /* Add friction to the joints associated with the motor if enable.
+           It is computed on joint side instead of the motor. */
         if (motorOptions_->enableFriction)
         {
-            float64_t const & vMotor = v;
-            if (vMotor > 0)
+            float64_t const & vJoint = v;
+            if (vJoint > 0)
             {
-                data() += motorOptions_->frictionViscousPositive * vMotor
-                        + motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * vMotor);
+                data() += motorOptions_->frictionViscousPositive * vJoint
+                        + motorOptions_->frictionDryPositive * tanh(motorOptions_->frictionDrySlope * vJoint);
             }
             else
             {
-                data() += motorOptions_->frictionViscousNegative * vMotor
-                        + motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * vMotor);
+                data() += motorOptions_->frictionViscousNegative * vJoint
+                        + motorOptions_->frictionDryNegative * tanh(motorOptions_->frictionDrySlope * vJoint);
             }
         }
 

@@ -3,6 +3,7 @@
 
 #include "pinocchio/multibody/model.hpp"
 #include "pinocchio/algorithm/frames.hpp"
+#include "pinocchio/algorithm/geometry.hpp"
 
 #include "jiminy/core/Types.h"
 
@@ -40,11 +41,21 @@ namespace jiminy
             return config;
         };
 
+        virtual configHolder_t getDefaultCollisionOptions()
+        {
+            // Add extra options or update default values
+            configHolder_t config;
+            config["maxContactPointsPerBody"] = 3U;  // Max number of contact points per collision pairs
+
+            return config;
+        };
+
         virtual configHolder_t getDefaultModelOptions()
         {
             configHolder_t config;
             config["dynamics"] = getDefaultDynamicsOptions();
             config["joints"] = getDefaultJointOptions();
+            config["collisions"] = getDefaultCollisionOptions();
 
             return config;
         };
@@ -93,14 +104,27 @@ namespace jiminy
             }
         };
 
+        struct collisionOptions_t
+        {
+            uint32_t const maxContactPointsPerBody;
+
+            collisionOptions_t(configHolder_t const & options) :
+            maxContactPointsPerBody(boost::get<uint32_t>(options.at("maxContactPointsPerBody")))
+            {
+                // Empty.
+            }
+        };
+
         struct modelOptions_t
         {
             dynamicsOptions_t const dynamics;
             jointOptions_t const joints;
+            collisionOptions_t const collisions;
 
             modelOptions_t(configHolder_t const & options) :
             dynamics(boost::get<configHolder_t>(options.at("dynamics"))),
-            joints(boost::get<configHolder_t>(options.at("joints")))
+            joints(boost::get<configHolder_t>(options.at("joints"))),
+            collisions(boost::get<configHolder_t>(options.at("collisions")))
             {
                 // Empty.
             }
@@ -115,13 +139,26 @@ namespace jiminy
         Model(void);
         virtual ~Model(void) = default;
 
-        hresult_t initialize(std::string const & urdfPath,
-                             bool_t      const & hasFreeflyer = true);
+        hresult_t initialize(std::string              const & urdfPath,
+                             bool_t                   const & hasFreeflyer = true,
+                             std::vector<std::string> const & meshPackageDirs = {});
 
+        /// \brief Add a frame in the kinematic tree, attached to the frame of an existing body.
+        ///
+        /// \param[in] frameName        Name of the frame to be added
+        /// \param[in] parentBodyName   Name of the parent body frame
+        /// \param[in] framePlacement   Frame placement wrt the parent body frame
+        hresult_t addFrame(std::string    const & frameName,
+                           std::string    const & parentBodyName,
+                           pinocchio::SE3 const & framePlacement);
+        hresult_t removeFrame(std::string const & frameName);
+        hresult_t addCollisionBodies(std::vector<std::string> const & bodyNames,
+                                     bool_t const & ignoreMeshes = false);
+        hresult_t removeCollisionBodies(std::vector<std::string> frameNames = {});  // Make a copy
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
-        hresult_t setOptions(configHolder_t modelOptions); // Make a copy !
+        hresult_t setOptions(configHolder_t modelOptions); // Make a copy
         configHolder_t getOptions(void) const;
 
         /// This method are not intended to be called manually. The Engine is taking care of it.
@@ -129,13 +166,17 @@ namespace jiminy
 
         bool_t const & getIsInitialized(void) const;
         std::string const & getUrdfPath(void) const;
+        std::vector<std::string> const & getMeshPackageDirs(void) const;
         bool_t const & getHasFreeflyer(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nq(void) const;
         int32_t const & nv(void) const;
         int32_t const & nx(void) const;
 
+        std::vector<std::string> const & getCollisionBodiesNames(void) const;
         std::vector<std::string> const & getContactFramesNames(void) const;
+        std::vector<int32_t> const & getCollisionBodiesIdx(void) const;
+        std::vector<std::vector<int32_t> > const & getCollisionPairsIdx(void) const;
         std::vector<int32_t> const & getContactFramesIdx(void) const;
         std::vector<std::string> const & getRigidJointsNames(void) const;
         std::vector<int32_t> const & getRigidJointsModelIdx(void) const;
@@ -152,22 +193,30 @@ namespace jiminy
         std::vector<std::string> const & getVelocityFieldnames(void) const;
         std::vector<std::string> const & getAccelerationFieldnames(void) const;
 
-        hresult_t getFlexibleStateFromRigid(vectorN_t const & xRigid,
-                                            vectorN_t       & xFlex) const;
-        hresult_t getRigidStateFromFlexible(vectorN_t const & xFlex,
-                                            vectorN_t       & xRigid) const;
+        hresult_t getFlexibleStateFromRigid(vectorN_t const & qRigid,
+                                            vectorN_t const & vRigid,
+                                            vectorN_t       & qFlex,
+                                            vectorN_t       & vFlex) const;
+        hresult_t getRigidStateFromFlexible(vectorN_t const & qFlex,
+                                            vectorN_t const & vFlex,
+                                            vectorN_t       & qRigid,
+                                            vectorN_t       & vRigid) const;
 
     protected:
-        hresult_t loadUrdfModel(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer);
+        hresult_t loadUrdfModel(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string>         meshPackageDirs);
         hresult_t generateModelFlexible(void);
         hresult_t generateModelBiased(void);
+        hresult_t refreshCollisionsProxies(void);
         hresult_t refreshContactsProxies(void);
         virtual hresult_t refreshProxies(void);
 
     public:
         pinocchio::Model pncModel_;
         mutable pinocchio::Data pncData_;
+        pinocchio::GeometryModel pncGeometryModel_;
+        mutable std::unique_ptr<pinocchio::GeometryData> pncGeometryData_;  // Using smart ptr to avoid having to initialize it with an empty GeometryModel, which causes segfault for Pinocchio < 2.4.0.
         pinocchio::Model pncModelRigidOrig_;
         pinocchio::Data pncDataRigidOrig_;
         std::unique_ptr<modelOptions_t const> mdlOptions_;
@@ -176,28 +225,33 @@ namespace jiminy
     protected:
         bool_t isInitialized_;
         std::string urdfPath_;
+        std::vector<std::string> meshPackageDirs_;
         bool_t hasFreeflyer_;
         configHolder_t mdlOptionsHolder_;
 
-        std::vector<std::string> contactFramesNames_;       ///< Name of the frames of the contact points of the robot
-        std::vector<int32_t> contactFramesIdx_;             ///< Indices of the contact frames in the frame list of the robot
-        std::vector<std::string> rigidJointsNames_;         ///< Name of the actual joints of the robot, not taking into account the freeflyer
-        std::vector<int32_t> rigidJointsModelIdx_;          ///< Index of the actual joints in the pinocchio robot
-        std::vector<int32_t> rigidJointsPositionIdx_;       ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
-        std::vector<int32_t> rigidJointsVelocityIdx_;       ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
-        std::vector<std::string> flexibleJointsNames_;      ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
-        std::vector<int32_t> flexibleJointsModelIdx_;       ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
+        std::vector<std::string> collisionBodiesNames_;         ///< Name of the collision bodies of the robot
+        std::vector<std::string> contactFramesNames_;           ///< Name of the contact frames of the robot
+        std::vector<int32_t> collisionBodiesIdx_;               ///< Indices of the collision bodies in the frame list of the robot
+        std::vector<std::vector<int32_t> > collisionPairsIdx_;  ///< Indices of the collision pairs associated with each collision body
+        std::vector<int32_t> contactFramesIdx_;                 ///< Indices of the contact frames in the frame list of the robot
+        std::vector<std::string> rigidJointsNames_;             ///< Name of the actual joints of the robot, not taking into account the freeflyer
+        std::vector<int32_t> rigidJointsModelIdx_;              ///< Index of the actual joints in the pinocchio robot
+        std::vector<int32_t> rigidJointsPositionIdx_;           ///< All the indices of the actual joints in the configuration vector of the robot (ie including all the degrees of freedom)
+        std::vector<int32_t> rigidJointsVelocityIdx_;           ///< All the indices of the actual joints in the velocity vector of the robot (ie including all the degrees of freedom)
+        std::vector<std::string> flexibleJointsNames_;          ///< Name of the flexibility joints of the robot regardless of whether the flexibilities are enable
+        std::vector<int32_t> flexibleJointsModelIdx_;           ///< Index of the flexibility joints in the pinocchio robot regardless of whether the flexibilities are enable
 
-        vectorN_t positionLimitMin_;                        ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t positionLimitMax_;                        ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
-        vectorN_t velocityLimit_;                           ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMin_;                            ///< Upper position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t positionLimitMax_;                            ///< Lower position limit of the whole configuration vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
+        vectorN_t velocityLimit_;                               ///< Maximum absolute velocity of the whole velocity vector (INF for non-physical joints, ie flexibility joints and freeflyer, if any)
 
-        std::vector<std::string> positionFieldnames_;       ///< Fieldnames of the elements in the configuration vector of the rigid robot
-        std::vector<std::string> velocityFieldnames_;       ///< Fieldnames of the elements in the velocity vector of the rigid robot
-        std::vector<std::string> accelerationFieldnames_;   ///< Fieldnames of the elements in the acceleration vector of the rigid robot
+        std::vector<std::string> positionFieldnames_;           ///< Fieldnames of the elements in the configuration vector of the rigid robot
+        std::vector<std::string> velocityFieldnames_;           ///< Fieldnames of the elements in the velocity vector of the rigid robot
+        std::vector<std::string> accelerationFieldnames_;       ///< Fieldnames of the elements in the acceleration vector of the rigid robot
 
     private:
         pinocchio::Model pncModelFlexibleOrig_;
+
         int32_t nq_;
         int32_t nv_;
         int32_t nx_;

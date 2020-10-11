@@ -94,12 +94,13 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
 
     // Run simulation
-    vectorN_t x0 = vectorN_t::Zero(4);
-    x0(0) = 1.0;
+    vectorN_t q0 = vectorN_t::Zero(2);
+    q0(0) = 1.0;
+    vectorN_t v0 = vectorN_t::Zero(2);
     float64_t tf = 10.0;
 
     // Run simulation
-    engine->simulate(tf, x0);
+    engine->simulate(tf, q0, v0);
 
     // Get system energy
     std::vector<std::string> header;
@@ -119,7 +120,7 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
 
     // Run simulation
-    engine->simulate(tf, x0);
+    engine->simulate(tf, q0, v0);
 
     // Get system energy
     engine->getLogData(header, data);

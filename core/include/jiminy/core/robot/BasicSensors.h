@@ -27,17 +27,44 @@ namespace jiminy
         int32_t const & getFrameIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) final override;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) final override;
         virtual void skewMeasurement(void) final override;
 
     private:
         std::string frameName_;
         int32_t frameIdx_;
         quaternion_t sensorRotationBias_; ///< Sensor rotation bias.
+    };
+
+    class ContactSensor : public AbstractSensorTpl<ContactSensor>
+    {
+    public:
+        ContactSensor(std::string const & name);
+        ~ContactSensor(void) = default;
+
+        auto shared_from_this() { return shared_from(this); }
+
+        hresult_t initialize(std::string const & frameName);
+
+        virtual hresult_t refreshProxies(void) final override;
+
+        std::string const & getFrameName(void) const;
+        int32_t const & getFrameIdx(void) const;
+
+    private:
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) final override;
+
+    private:
+        std::string frameName_;
+        int32_t frameIdx_;
     };
 
     class ForceSensor : public AbstractSensorTpl<ForceSensor>
@@ -54,17 +81,19 @@ namespace jiminy
 
         std::string const & getFrameName(void) const;
         int32_t const & getFrameIdx(void) const;
+        int32_t getJointIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) final override;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) final override;
 
     private:
         std::string frameName_;
         int32_t frameIdx_;
+        int32_t parentJointIdx_;
     };
 
     class EncoderSensor : public AbstractSensorTpl<EncoderSensor>
@@ -80,20 +109,20 @@ namespace jiminy
         virtual hresult_t refreshProxies(void) final override;
 
         std::string const & getJointName(void) const;
-        int32_t const & getJointPositionIdx(void) const;
-        int32_t const & getJointVelocityIdx(void) const;
+        int32_t const & getJointIdx(void) const;
+        joint_t const & getJointType(void) const;
 
     private:
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) final override;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) final override;
 
     private:
         std::string jointName_;
-        int32_t jointPositionIdx_;
-        int32_t jointVelocityIdx_;
+        int32_t jointIdx_;
+        joint_t jointType_;
     };
 
     class EffortSensor : public AbstractSensorTpl<EffortSensor>
@@ -112,11 +141,11 @@ namespace jiminy
         int32_t const & getMotorIdx(void) const;
 
     private:
-        virtual hresult_t set(float64_t                   const & t,
-                              Eigen::Ref<vectorN_t const> const & q,
-                              Eigen::Ref<vectorN_t const> const & v,
-                              Eigen::Ref<vectorN_t const> const & a,
-                              vectorN_t                   const & uMotor) final override;
+        virtual hresult_t set(float64_t const & t,
+                              vectorN_t const & q,
+                              vectorN_t const & v,
+                              vectorN_t const & a,
+                              vectorN_t const & uMotor) final override;
 
     private:
         std::string motorName_;

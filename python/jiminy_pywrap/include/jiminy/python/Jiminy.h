@@ -13,6 +13,7 @@
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/robot/BasicSensors.h"
 #include "jiminy/core/robot/FixedFrameConstraint.h"
+#include "jiminy/core/robot/WheelConstraint.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
 #include "jiminy/core/Types.h"
@@ -72,14 +73,14 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<std::is_arithmetic<T>::value, T>
+    std::enable_if_t<std::is_arithmetic<T>::value, T>
     FctPyWrapperArgToPython(T const & arg)
     {
         return arg;
     }
 
     template<typename T>
-    enable_if_t<is_eigen<T>::value, bp::handle<> >
+    std::enable_if_t<is_eigen<T>::value, bp::handle<> >
     FctPyWrapperArgToPython(T const & arg)
     {
         // Pass the arguments by reference (be careful const qualifiers are lost)
@@ -87,7 +88,7 @@ namespace python
     }
 
     template<typename T>
-    enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
+    std::enable_if_t<std::is_same<T, sensorsDataMap_t>::value, boost::reference_wrapper<sensorsDataMap_t const> >
     FctPyWrapperArgToPython(T const & arg)
     {
         return boost::ref(arg);
@@ -176,8 +177,8 @@ namespace python
     template<typename T>
     using TimeStateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                   float64_t /* t */,
-                                                  Eigen::Ref<vectorN_t const> /* q */,
-                                                  Eigen::Ref<vectorN_t const> /* v */>;
+                                                  vectorN_t /* q */,
+                                                  vectorN_t /* v */>;
 
     template<typename T>
     using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
@@ -188,10 +189,10 @@ namespace python
     template<typename T>
     using TimeBistateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                     float64_t /* t */,
-                                                    Eigen::Ref<vectorN_t const> /* q1 */,
-                                                    Eigen::Ref<vectorN_t const> /* v1 */,
-                                                    Eigen::Ref<vectorN_t const> /* q2 */,
-                                                    Eigen::Ref<vectorN_t const> /* v2 */ >;
+                                                    vectorN_t /* q1 */,
+                                                    vectorN_t /* v1 */,
+                                                    vectorN_t /* q2 */,
+                                                    vectorN_t /* v2 */ >;
 
     // **************************** FctInOutPyWrapper *******************************
 
@@ -215,6 +216,12 @@ namespace python
                                                    Eigen::Ref<vectorN_t const> /* q */,
                                                    Eigen::Ref<vectorN_t const> /* v */,
                                                    sensorsDataMap_t /* sensorsData*/>;
+
+    using ControllerFct = std::function<void(float64_t        const & /* t */,
+                                             vectorN_t        const & /* q */,
+                                             vectorN_t        const & /* v */,
+                                             sensorsDataMap_t const & /* sensorsData */,
+                                             vectorN_t              & /* u */)>;
 
     // ************************** HeatMapFunctorPyWrapper ******************************
 
@@ -568,7 +575,7 @@ namespace python
                     std::string const & sensorName = sensorData.name;
                     int32_t const & sensorIdx = sensorData.idx;
                     Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorData.value;
-                    s << "    " << sensorName << " (" << sensorIdx << "): "
+                    s << "    (" << sensorIdx << ") " <<  sensorName << ": "
                       << sensorDataValue.transpose().format(HeavyFmt);
                 }
             }
@@ -646,7 +653,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
+            static std::enable_if_t<!std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -657,7 +664,7 @@ namespace python
             }
 
             template<class Q = TMotor>
-            static enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
+            static std::enable_if_t<std::is_same<Q, AbstractMotorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -749,6 +756,11 @@ namespace python
                        std::shared_ptr<FixedFrameConstraint>,
                        boost::noncopyable>("FixedFrameConstraint", bp::init<std::string>())
                 .def(PyConstraintVisitor());
+
+            bp::class_<WheelConstraint, bp::bases<AbstractConstraint>,
+                       std::shared_ptr<WheelConstraint>,
+                       boost::noncopyable>("WheelConstraint", bp::init<std::string, float64_t, vector3_t, vector3_t>())
+                .def(PyConstraintVisitor());
         }
     };
 
@@ -781,11 +793,43 @@ namespace python
                                           bp::return_value_policy<bp::copy_const_reference>()))
                     .add_property("idx", bp::make_function(&AbstractSensorBase::getIdx,
                                         bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("data", &PySensorVisit::getData)
+                    .def("__repr__", &PySensorVisit::repr)
                     ;
             }
 
+            static bp::object getData(AbstractSensorBase & self)
+            {
+                // Be careful, it removes the const qualifier, so that the data can be modified from Python
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                return bp::object(valuePy);
+            }
+
+            static std::string repr(AbstractSensorBase & self)
+            {
+                std::stringstream s;
+                s << "type: " << self.getType() << "\n";
+                s << "name: " << self.getName() << "\n";
+                s << "idx: " << self.getIdx() << "\n";
+                s << "data:\n    ";
+                std::vector<std::string> const & fieldnames = self.getFieldnames();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                for (uint32_t i=0; i<fieldnames.size(); ++i)
+                {
+                    std::string const & field = fieldnames[i];
+                    float64_t const & value = sensorDataValue[i];
+                    if (i > 0)
+                    {
+                       s << ", ";
+                    }
+                    s << field << ": " << value;
+                }
+                return s.str();
+            }
+
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
+            static std::enable_if_t<std::is_same<Q, AbstractSensorBase>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -799,7 +843,7 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
+            static std::enable_if_t<!std::is_same<Q, AbstractSensorBase>::value, void>
             visitBasicSensors(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -807,14 +851,15 @@ namespace python
                 cl
                     .def("initialize", &TSensor::initialize)
                     .def_readonly("type", &TSensor::type_)
+                    .def_readonly("has_prefix", &TSensor::areFieldnamesGrouped_)
                     .add_static_property("fieldnames", bp::make_getter(&TSensor::fieldNames_,
                                                        bp::return_value_policy<bp::return_by_value>()))
                     ;
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, ImuSensor>::value
-                            || std::is_same<Q, ForceSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, ImuSensor>::value
+                                 || std::is_same<Q, ContactSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -829,7 +874,24 @@ namespace python
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, ForceSensor>::value, void>
+            visit(PyClass& cl)
+            {
+                visitAbstract(cl);
+                visitBasicSensors(cl);
+
+                cl
+                    .add_property("frame_name", bp::make_function(&TSensor::getFrameName,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("frame_idx", bp::make_function(&TSensor::getFrameIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&TSensor::getJointIdx,
+                                               bp::return_value_policy<bp::return_by_value>()))
+                    ;
+            }
+
+            template<class Q = TSensor>
+            static std::enable_if_t<std::is_same<Q, EncoderSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -838,15 +900,15 @@ namespace python
                 cl
                     .add_property("joint_name", bp::make_function(&EncoderSensor::getJointName,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_position_idx", bp::make_function(&EncoderSensor::getJointPositionIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("joint_velocity_idx", bp::make_function(&EncoderSensor::getJointVelocityIdx,
-                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_idx", bp::make_function(&EncoderSensor::getJointIdx,
+                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("joint_type", bp::make_function(&EncoderSensor::getJointType,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                     ;
             }
 
             template<class Q = TSensor>
-            static enable_if_t<std::is_same<Q, EffortSensor>::value, void>
+            static std::enable_if_t<std::is_same<Q, EffortSensor>::value, void>
             visit(PyClass& cl)
             {
                 visitAbstract(cl);
@@ -896,6 +958,11 @@ namespace python
                        boost::noncopyable>("ImuSensor", bp::init<std::string>())
                 .def(PySensorVisitor());
 
+            bp::class_<ContactSensor, bp::bases<AbstractSensorBase>,
+                       std::shared_ptr<ContactSensor>,
+                       boost::noncopyable>("ContactSensor", bp::init<std::string>())
+                .def(PySensorVisitor());
+
             bp::class_<ForceSensor, bp::bases<AbstractSensorBase>,
                        std::shared_ptr<ForceSensor>,
                        boost::noncopyable>("ForceSensor", bp::init<std::string>())
@@ -926,6 +993,16 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
+                .def("add_frame", &Model::addFrame,
+                                  (bp::arg("self"), "frame_name", "parent_body_name", "frame_placement"))
+                .def("remove_frame", &Model::removeFrame,
+                                     (bp::arg("self"), "frame_name"))
+                .def("add_collision_bodies", &PyModelVisitor::addCollisionBodies,
+                                             (bp::arg("self"),
+                                              bp::arg("bodies_names") = std::vector<std::string>(),
+                                              bp::arg("ignore_meshes") = false))
+                .def("remove_collision_bodies", &PyModelVisitor::removeCollisionBodies,
+                                                (bp::arg("self"), "bodies_names"))
                 .def("add_contact_points", &PyModelVisitor::addContactPoints,
                                            (bp::arg("self"),
                                             bp::arg("frame_names") = std::vector<std::string>()))
@@ -945,9 +1022,15 @@ namespace python
                                                     bp::return_internal_reference<>()))
                 .add_property("pinocchio_data_th", bp::make_getter(&Model::pncDataRigidOrig_,
                                                    bp::return_internal_reference<>()))
+                .add_property("collision_model", bp::make_getter(&Model::pncGeometryModel_,
+                                                 bp::return_internal_reference<>()))
+                .add_property("collision_data", bp::make_function(&PyModelVisitor::getGeometryData,
+                                                bp::return_internal_reference<>()))
 
                 .add_property("is_initialized", bp::make_function(&Model::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("mesh_package_dirs", bp::make_function(&Model::getMeshPackageDirs,
+                                                   bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("urdf_path", bp::make_function(&Model::getUrdfPath,
                                            bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("has_freeflyer", bp::make_function(&Model::getHasFreeflyer,
@@ -960,6 +1043,12 @@ namespace python
                 .add_property("nx", bp::make_function(&Model::nx,
                                     bp::return_value_policy<bp::copy_const_reference>()))
 
+                .add_property("collision_bodies_names", bp::make_function(&Model::getCollisionBodiesNames,
+                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("collision_bodies_idx", bp::make_function(&Model::getCollisionBodiesIdx,
+                                                      bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("collision_pairs_idx_by_body", bp::make_function(&Model::getCollisionPairsIdx,
+                                                             bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_names", bp::make_function(&Model::getContactFramesNames,
                                                       bp::return_value_policy<bp::copy_const_reference>()))
                 .add_property("contact_frames_idx", bp::make_function(&Model::getContactFramesIdx,
@@ -993,6 +1082,26 @@ namespace python
                 ;
         }
 
+        static pinocchio::GeometryData & getGeometryData(Model & self)
+        {
+            return *(self.pncGeometryData_);
+        }
+
+        static hresult_t addCollisionBodies(Model          & self,
+                                            bp::list const & linkNamesPy,
+                                            bool_t   const & ignoreMeshes)
+        {
+            auto linkNames = convertFromPython<std::vector<std::string> >(linkNamesPy);
+            return self.addCollisionBodies(linkNames, ignoreMeshes);
+        }
+
+        static hresult_t removeCollisionBodies(Model          & self,
+                                             bp::list const & linkNamesPy)
+        {
+            auto linkNames = convertFromPython<std::vector<std::string> >(linkNamesPy);
+            return self.removeCollisionBodies(linkNames);
+        }
+
         static hresult_t addContactPoints(Model          & self,
                                           bp::list const & frameNamesPy)
         {
@@ -1007,20 +1116,24 @@ namespace python
             return self.removeContactPoints(frameNames);
         }
 
-        static vectorN_t getFlexibleStateFromRigid(Model           & self,
-                                                   vectorN_t const & xRigid)
+        static bp::tuple getFlexibleStateFromRigid(Model           & self,
+                                                   vectorN_t const & qRigid,
+                                                   vectorN_t const & vRigid)
         {
-            vectorN_t xFlexible;
-            self.getFlexibleStateFromRigid(xRigid, xFlexible);
-            return xFlexible;
+            vectorN_t qFlexible;
+            vectorN_t vFlexible;
+            self.getFlexibleStateFromRigid(qRigid, vRigid, qFlexible, vFlexible);
+            return bp::make_tuple(qFlexible, vFlexible);
         }
 
-        static vectorN_t getRigidStateFromFlexible(Model           & self,
-                                                   vectorN_t const & xFlexible)
+        static bp::tuple getRigidStateFromFlexible(Model           & self,
+                                                   vectorN_t const & qFlexible,
+                                                   vectorN_t const & vFlexible)
         {
-            vectorN_t xRigid;
-            self.getRigidStateFromFlexible(xFlexible, xRigid);
-            return xRigid;
+            vectorN_t qRigid;
+            vectorN_t vRigid;
+            self.getRigidStateFromFlexible(qFlexible, vFlexible, qRigid, vRigid);
+            return bp::make_tuple(qRigid, vRigid);
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1057,7 +1170,8 @@ namespace python
             cl
                 .def("initialize", &Robot::initialize,
                                    (bp::arg("self"), "urdf_path",
-                                    bp::arg("has_freeflyer") = false))
+                                    bp::arg("has_freeflyer") = false,
+                                    bp::arg("mesh_package_dirs") = std::vector<std::string>()))
 
                 .def("attach_motor", &Robot::attachMotor,
                                      (bp::arg("self"), "motor"))
@@ -1241,6 +1355,8 @@ namespace python
             cl
                 .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
+                .add_property("is_initialized", bp::make_function(&AbstractController::getIsInitialized,
+                                                bp::return_value_policy<bp::copy_const_reference>()))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
@@ -1344,7 +1460,6 @@ namespace python
             {
                 return self.registerConstant(fieldName, PyLong_AsLong(dataPy));
             }
-            #if PY_VERSION_HEX >= 0x03000000
             else if (PyBytes_Check(dataPy))
             {
                 return self.registerConstant(fieldName, PyBytes_AsString(dataPy));
@@ -1353,12 +1468,6 @@ namespace python
             {
                 return self.registerConstant(fieldName, PyUnicode_AsUTF8(dataPy));
             }
-            #else
-            else if (PyString_Check(dataPy))
-            {
-                return self.registerConstant(fieldName, PyString_AsString(dataPy));
-            }
-            #endif
             else
             {
                 std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
@@ -1392,7 +1501,13 @@ namespace python
         : public bp::def_visitor<PyControllerFunctorVisitor>
     {
     public:
-        using CtrlFunctor = ControllerFunctor<ControllerFctWrapper, ControllerFctWrapper>;
+        /* Take advantage of type erasure of std::function to support both
+           lambda functions and python handle wrapper depending whether or not
+           'compute_command' and 'internal_dynamics' has been specified.
+           It is likely to cause a small overhead because the compiler will
+           probably not be able to inline ControllerFctWrapper, as it would have
+           been the case otherwise, but it is the price to pay for versatility. */
+        using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
 
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1404,15 +1519,40 @@ namespace python
             cl
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
-                                (bp::arg("command_function"), "internal_dynamics_function")));
+                                (bp::arg("compute_command") = bp::object(),  // bp::object() means None in Python
+                                 bp::arg("internal_dynamics") = bp::object())));
                 ;
         }
 
         static std::shared_ptr<CtrlFunctor> factory(bp::object & commandPy,
                                                     bp::object & internalDynamicsPy)
         {
-            ControllerFctWrapper commandFct(commandPy);
-            ControllerFctWrapper internalDynamicsFct(internalDynamicsPy);
+            ControllerFct commandFct;
+            if (!commandPy.is_none())
+            {
+                commandFct = ControllerFctWrapper(commandPy);
+            }
+            else
+            {
+                commandFct = [](float64_t        const & t,
+                                vectorN_t        const & q,
+                                vectorN_t        const & v,
+                                sensorsDataMap_t const & sensorsData,
+                                vectorN_t              & uCommand) {};
+            }
+            ControllerFct internalDynamicsFct;
+            if (!internalDynamicsPy.is_none())
+            {
+                internalDynamicsFct = ControllerFctWrapper(internalDynamicsPy);
+            }
+            else
+            {
+                internalDynamicsFct = [](float64_t        const & t,
+                                         vectorN_t        const & q,
+                                         vectorN_t        const & v,
+                                         sensorsDataMap_t const & sensorsData,
+                                         vectorN_t              & uCommand) {};
+            }
             return std::make_shared<CtrlFunctor>(std::move(commandFct),
                                                  std::move(internalDynamicsFct));
         }
@@ -1446,12 +1586,26 @@ namespace python
                 .def_readonly("iter_failed", &stepperState_t::iterFailed)
                 .def_readonly("t", &stepperState_t::t)
                 .def_readonly("dt", &stepperState_t::dt)
-                .add_property("x", bp::make_getter(&stepperState_t::x,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("dxdt", bp::make_getter(&stepperState_t::dxdt,
-                                      bp::return_value_policy<bp::copy_non_const_reference>()))
+                .add_property("q", &PyStepperStateVisitor::getPosition)
+                .add_property("v", &PyStepperStateVisitor::getVelocity)
+                .add_property("a", &PyStepperStateVisitor::getAcceleration)
                 .def("__repr__", &PyStepperStateVisitor::repr)
                 ;
+        }
+
+        static bp::object getPosition(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.qSplit);
+        }
+
+        static bp::object getVelocity(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.vSplit);
+        }
+
+        static bp::object getAcceleration(stepperState_t & self)
+        {
+            return convertToPython<std::vector<vectorN_t> >(self.aSplit);
         }
 
         static std::string repr(stepperState_t & self)
@@ -1462,8 +1616,21 @@ namespace python
             s << "\niter_failed:\n    " << self.iterFailed;
             s << "\nt:\n    " << self.t;
             s << "\ndt:\n    " << self.dt;
-            s << "\nx:\n    " << self.x.transpose().format(HeavyFmt);
-            s << "dxdt:\n    " << self.dxdt.transpose().format(HeavyFmt);
+            s << "\nq:";
+            for (uint32_t i=0; i < self.qSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.qSplit[i].transpose().format(HeavyFmt);
+            }
+            s << "\nv:";
+            for (uint32_t i=0; i < self.vSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.vSplit[i].transpose().format(HeavyFmt);
+            }
+            s << "\na:";
+            for (uint32_t i=0; i < self.aSplit.size(); i++)
+            {
+                s << "\n    (" << i << "): " << self.aSplit[i].transpose().format(HeavyFmt);
+            }
             return s.str();
         }
 
@@ -1496,8 +1663,6 @@ namespace python
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("v", bp::make_getter(&systemState_t::v,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("qDot", bp::make_getter(&systemState_t::qDot,
-                                      bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("a", bp::make_getter(&systemState_t::a,
                                    bp::return_value_policy<bp::copy_non_const_reference>()))
                 .add_property("u", bp::make_getter(&systemState_t::u,
@@ -1520,7 +1685,6 @@ namespace python
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
             s << "q:\n    " << self.q.transpose().format(HeavyFmt);
             s << "v:\n    " << self.v.transpose().format(HeavyFmt);
-            s << "qDot:\n    " << self.qDot.transpose().format(HeavyFmt);
             s << "a:\n    " << self.a.transpose().format(HeavyFmt);
             s << "u:\n    " << self.u.transpose().format(HeavyFmt);
             s << "u_motor:\n    " << self.uMotor.transpose().format(HeavyFmt);
@@ -1547,10 +1711,10 @@ namespace python
         }
     };
 
-    // ***************************** PySystemDataVisitor ***********************************
+    // ***************************** PySystemVisitor ***********************************
 
-    struct PySystemDataVisitor
-        : public bp::def_visitor<PySystemDataVisitor>
+    struct PySystemVisitor
+        : public bp::def_visitor<PySystemVisitor>
     {
     public:
         ///////////////////////////////////////////////////////////////////////////////
@@ -1560,15 +1724,24 @@ namespace python
         void visit(PyClass& cl) const
         {
             cl
-                .add_property("name", bp::make_getter(&systemDataHolder_t::name,
+                .add_property("name", bp::make_getter(&systemHolder_t::name,
                                       bp::return_value_policy<bp::copy_non_const_reference>()))
-                .add_property("robot", bp::make_getter(&systemDataHolder_t::robot,
-                                       bp::return_internal_reference<>()))
-                .add_property("controller", bp::make_getter(&systemDataHolder_t::controller,
-                                            bp::return_internal_reference<>()))
-                .add_property("callbackFct", bp::make_getter(&systemDataHolder_t::callbackFct,
+                .add_property("robot", &systemHolder_t::robot)
+                .add_property("controller", &systemHolder_t::controller)
+                .add_property("callbackFct", bp::make_getter(&systemHolder_t::callbackFct,
                                              bp::return_internal_reference<>()))
                 ;
+        }
+
+        static uint32_t getLength(std::vector<systemHolder_t> & self)
+        {
+            return self.size();
+        }
+
+        static systemHolder_t & getItem(std::vector<systemHolder_t>       & self,
+                                            int32_t                         const & idx)
+        {
+            return self[idx];
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1576,10 +1749,19 @@ namespace python
         ///////////////////////////////////////////////////////////////////////////////
         static void expose()
         {
-            bp::class_<systemDataHolder_t,
-                       std::shared_ptr<systemDataHolder_t>,
-                       boost::noncopyable>("systemData", bp::no_init)
-                .def(PySystemDataVisitor());
+            bp::class_<systemHolder_t,
+                       boost::noncopyable>("system", bp::no_init)
+                .def(PySystemVisitor());
+
+            bp::class_<std::vector<systemHolder_t>,
+                       boost::noncopyable>("systemVector", bp::no_init)
+                .def("__len__", bp::make_function(&PySystemVisitor::getLength,
+                                bp::return_value_policy<bp::return_by_value>()))
+                .def("__iter__", bp::iterator<std::vector<systemHolder_t>,
+                                 bp::return_internal_reference<> >())
+                .def("__getitem__", bp::make_function(&PySystemVisitor::getItem,
+                                    bp::return_internal_reference<>(),
+                                    (bp::arg("self"), "idx")));
         }
     };
 
@@ -1606,6 +1788,8 @@ namespace python
                                     "robot", "controller", "callback_function"))
                 .def("remove_system", &EngineMultiRobot::removeSystem,
                                       (bp::arg("self"), "system_name"))
+                .def("set_controller", &EngineMultiRobot::setController,
+                                      (bp::arg("self"), "system_name", "controller"))
                 .def("add_coupling_force", &PyEngineMultiRobotVisitor::addCouplingForce,
                                            (bp::arg("self"),
                                             "system_name_1", "system_name_2",
@@ -1628,14 +1812,16 @@ namespace python
                     >(&EngineMultiRobot::reset),
                     (bp::arg("self"), bp::arg("remove_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
-                              (bp::arg("self"), "x_init",
+                              (bp::arg("self"), "q_init_list", "v_init_list",
                                bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
-                                 (bp::arg("self"), "end_time", "x_init"))
+                                 (bp::arg("self"), "t_end", "q_init_list", "q_init_list"))
+                .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
+                                              (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
@@ -1659,9 +1845,14 @@ namespace python
                 .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
                                    bp::return_internal_reference<>(),
                                    (bp::arg("self"), "system_name")))
-                .def("get_system_state", bp::make_function(&EngineMultiRobot::getSystemState,
+                .def("get_system_state", bp::make_function(&PyEngineMultiRobotVisitor::getSystemState,
                                          bp::return_internal_reference<>(),
                                          (bp::arg("self"), "system_name")))
+
+                .add_property("systems", bp::make_getter(&EngineMultiRobot::systems_,
+                                         bp::return_internal_reference<>()))
+                .add_property("systems_names", bp::make_function(&EngineMultiRobot::getSystemsNames,
+                                               bp::return_value_policy<bp::return_by_value>()))
                 .add_property("stepper_state", bp::make_function(&EngineMultiRobot::getStepperState,
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
@@ -1669,32 +1860,14 @@ namespace python
                 ;
         }
 
-        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
-                                                    std::string            const & systemName,
-                                                    std::shared_ptr<Robot> const & robot)
+        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
+                                               std::string                         const & systemName,
+                                               std::shared_ptr<Robot>              const & robot,
+                                               std::shared_ptr<AbstractController> const & controller,
+                                               bp::object                          const & callbackPy)
         {
-            auto commandFct = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & uCommand) {};
-            auto internalDynamicsFct = [](float64_t        const & t,
-                                          vectorN_t        const & q,
-                                          vectorN_t        const & v,
-                                          sensorsDataMap_t const & sensorsData,
-                                          vectorN_t              & uCommand) {};
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            auto controller = std::make_shared<
-                ControllerFunctor<decltype(commandFct),
-                                  decltype(internalDynamicsFct)>
-            >(commandFct, internalDynamicsFct);
-            controller->initialize(robot.get());
-            return self.addSystem(systemName, robot, controller, callbackFct);
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
+            return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
         static hresult_t addSystem(EngineMultiRobot                          & self,
@@ -1708,25 +1881,36 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.addSystem(systemName, robot, controller, callbackFct);
-        }
-
-        static hresult_t addSystemWithCallback(EngineMultiRobot                          & self,
-                                               std::string                         const & systemName,
-                                               std::shared_ptr<Robot>              const & robot,
-                                               std::shared_ptr<AbstractController> const & controller,
-                                               bp::object                          const & callbackPy)
-        {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
             return self.addSystem(systemName, robot, controller, std::move(callbackFct));
         }
 
-        static systemDataHolder_t & getSystem(EngineMultiRobot  & self,
+        static hresult_t addSystemWithoutController(EngineMultiRobot             & self,
+                                                    std::string            const & systemName,
+                                                    std::shared_ptr<Robot> const & robot)
+        {
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            return self.addSystem(systemName, robot, std::move(callbackFct));
+        }
+
+        static systemHolder_t & getSystem(EngineMultiRobot  & self,
                                               std::string const & systemName)
         {
-            systemDataHolder_t * system;
-            self.getSystem(systemName, system);
+            systemHolder_t * system;
+            self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemHolder_t
             return *system;
+        }
+
+        static systemState_t const & getSystemState(EngineMultiRobot  & self,
+                                                    std::string const & systemName)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemName, systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         static hresult_t addCouplingForce(EngineMultiRobot       & self,
@@ -1738,15 +1922,17 @@ namespace python
         {
             TimeBistateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(
-                systemName1, systemName2, frameName1, frameName2, forceFct);
+                systemName1, systemName2, frameName1, frameName2, std::move(forceFct));
         }
 
         static hresult_t start(EngineMultiRobot       & self,
-                               bp::object       const & xInit,
+                               bp::object       const & qInit,
+                               bp::object       const & vInit,
                                bool             const & resetRandomGenerator,
                                bool             const & removeForces)
         {
-            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(xInit),
+            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(qInit),
+                              convertFromPython<std::map<std::string, vectorN_t> >(vInit),
                               resetRandomGenerator,
                               removeForces);
         }
@@ -1760,10 +1946,27 @@ namespace python
 
         static hresult_t simulate(EngineMultiRobot       & self,
                                   float64_t        const & endTime,
-                                  bp::object       const & xInit)
+                                  bp::object       const & qInit,
+                                  bp::object       const & vInit)
         {
             return self.simulate(endTime,
-                                 convertFromPython<std::map<std::string, vectorN_t> >(xInit));
+                                 convertFromPython<std::map<std::string, vectorN_t> >(qInit),
+                                 convertFromPython<std::map<std::string, vectorN_t> >(vInit));
+        }
+
+        static bp::object computeSystemDynamics(EngineMultiRobot       & self,
+                                                float64_t        const & endTime,
+                                                bp::object       const & qSplitPy,
+                                                bp::object       const & vSplitPy)
+        {
+            std::vector<vectorN_t> aSplit;
+            self.computeSystemDynamics(
+                endTime,
+                convertFromPython<std::vector<vectorN_t> >(qSplitPy),
+                convertFromPython<std::vector<vectorN_t> >(vSplitPy),
+                aSplit
+            );
+            return convertToPython<std::vector<vectorN_t> >(aSplit);
         }
 
         static void writeLog(EngineMultiRobot       & self,
@@ -1965,20 +2168,25 @@ namespace python
                                    (bp::arg("self"), "robot", "controller"))
                 .def("initialize", &PyEngineVisitor::initializeWithCallback,
                                    (bp::arg("self"), "robot", "controller", "callback_function"))
+                .def("set_controller", static_cast<
+                        hresult_t (Engine::*)(std::shared_ptr<AbstractController>)
+                    >(&Engine::setController),
+                    (bp::arg("self"), "controller"))
 
                 .def("start",
                     static_cast<
-                        hresult_t (Engine::*)(vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
+                        hresult_t (Engine::*)(vectorN_t const &, vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
                     >(&Engine::start),
-                    (bp::arg("self"), "x_init",
+                    (bp::arg("self"), "q_init", "v_init",
                      bp::arg("is_state_theoretical") = false,
                      bp::arg("reset_random_generator") = false,
                      bp::arg("remove_forces") = false))
                 .def("simulate",
                     static_cast<
-                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, bool_t const &)
+                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, vectorN_t const &, bool_t const &)
                     >(&Engine::simulate),
-                    (bp::arg("self"), "end_time", "x_init", bp::arg("is_state_theoretical") = false))
+                    (bp::arg("self"), "t_end", "q_init", "v_init",
+                     bp::arg("is_state_theoretical") = false))
 
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
@@ -1987,49 +2195,22 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",
-                    static_cast<
-                        std::shared_ptr<Robot> (Engine::*)(void)
-                    >(&Engine::getRobot))
-                .add_property("controller",
-                    static_cast<
-                        std::shared_ptr<AbstractController> (Engine::*)(void)
-                    >(&Engine::getController))
+                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
-                .add_property("system_state", bp::make_function(
-                    static_cast<
-                        systemState_t const & (Engine::*)(void) const
-                    >(&Engine::getSystemState),
-                    bp::return_internal_reference<>()))
+                .add_property("system_state", bp::make_function(&PyEngineVisitor::getSystemState,
+                                                                bp::return_internal_reference<>()))
                 ;
         }
 
-        static hresult_t initializeWithoutController(Engine                       & self,
-                                                     std::shared_ptr<Robot> const & robot)
+        static hresult_t initializeWithCallback(Engine                                    & self,
+                                                std::shared_ptr<Robot>              const & robot,
+                                                std::shared_ptr<AbstractController> const & controller,
+                                                bp::object                          const & callbackPy)
         {
-            auto commandFct = [](float64_t        const & t,
-                                 vectorN_t        const & q,
-                                 vectorN_t        const & v,
-                                 sensorsDataMap_t const & sensorsData,
-                                 vectorN_t              & uCommand) {};
-            auto internalDynamicsFct = [](float64_t        const & t,
-                                          vectorN_t        const & q,
-                                          vectorN_t        const & v,
-                                          sensorsDataMap_t const & sensorsData,
-                                          vectorN_t              & uCommand) {};
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            auto controller = std::make_shared<
-                ControllerFunctor<decltype(commandFct),
-                                  decltype(internalDynamicsFct)>
-            >(commandFct, internalDynamicsFct);
-            controller->initialize(robot.get());
-            return self.initialize(robot, controller, callbackFct);
+            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
         static hresult_t initialize(Engine                                    & self,
@@ -2042,16 +2223,19 @@ namespace python
                                             {
                                                 return true;
                                             };
-            return self.initialize(robot, controller, callbackFct);
+            return self.initialize(robot, controller, std::move(callbackFct));
         }
 
-        static hresult_t initializeWithCallback(Engine                                    & self,
-                                                std::shared_ptr<Robot>              const & robot,
-                                                std::shared_ptr<AbstractController> const & controller,
-                                                bp::object                          const & callbackPy)
+        static hresult_t initializeWithoutController(Engine                       & self,
+                                                     std::shared_ptr<Robot> const & robot)
         {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.initialize(robot, controller, std::move(callbackFct));
+            callbackFunctor_t callbackFct = [](float64_t const & t,
+                                               vectorN_t const & q,
+                                               vectorN_t const & v) -> bool_t
+                                            {
+                                                return true;
+                                            };
+            return self.initialize(robot, std::move(callbackFct));
         }
 
         static void registerForceImpulse(Engine            & self,
@@ -2069,6 +2253,27 @@ namespace python
         {
             TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
+        }
+
+        static std::shared_ptr<Robot> getRobot(Engine & self)
+        {
+            std::shared_ptr<Robot> robot;
+            self.getRobot(robot);
+            return robot;
+        }
+
+        static std::shared_ptr<AbstractController> getController(Engine & self)
+        {
+            std::shared_ptr<AbstractController> controller;
+            self.getController(controller);
+            return controller;
+        }
+
+        static systemState_t const & getSystemState(Engine & self)
+        {
+            systemState_t const * systemState;
+            self.getSystemState(systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
+            return *systemState;
         }
 
         ///////////////////////////////////////////////////////////////////////////////

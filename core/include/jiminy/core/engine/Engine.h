@@ -20,6 +20,10 @@ namespace jiminy
         hresult_t initialize(std::shared_ptr<Robot>              robot,
                              std::shared_ptr<AbstractController> controller,
                              callbackFunctor_t                   callbackFct);
+        hresult_t initialize(std::shared_ptr<Robot> robot,
+                             callbackFunctor_t      callbackFct);
+
+        hresult_t setController(std::shared_ptr<AbstractController> controller);
 
         /// \brief Reset the engine and compute initial state.
         ///
@@ -31,7 +35,8 @@ namespace jiminy
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
-        hresult_t start(vectorN_t const & xInit,
+        hresult_t start(vectorN_t const & qInit,
+                        vectorN_t const & vInit,
                         bool_t    const & isStateTheoretical = false,
                         bool_t    const & resetRandomNumbers = false,
                         bool_t    const & resetDynamicForceRegister = false);
@@ -42,7 +47,8 @@ namespace jiminy
         /// \param[in] xInit Initial state, i.e. state at t=0.
         /// \param[in] isStateTheoretical Specify if the initial state is associated with the current or theoretical model
         hresult_t simulate(float64_t const & tEnd,
-                           vectorN_t const & xInit,
+                           vectorN_t const & qInit,
+                           vectorN_t const & vInit,
                            bool_t    const & isStateTheoretical = false);
 
         hresult_t registerForceImpulse(std::string      const & frameName,
@@ -53,16 +59,15 @@ namespace jiminy
                                        forceProfileFunctor_t         forceFct);
 
         bool_t const & getIsInitialized(void) const;
-        Robot const & getRobot(void) const;
-        std::shared_ptr<Robot> getRobot(void);
-        AbstractController const & getController(void) const;
-        std::shared_ptr<AbstractController> getController(void);
-        systemState_t const & getSystemState(void) const;
+        hresult_t getRobot(std::shared_ptr<Robot> & robot);
+        hresult_t getController(std::shared_ptr<AbstractController> & controller);
+        hresult_t getSystemState(systemState_t const * & systemState) const;
 
     private:
         // Make private some methods to deter their use
         using EngineMultiRobot::addSystem;
         using EngineMultiRobot::removeSystem;
+        using EngineMultiRobot::setController;
         using EngineMultiRobot::addCouplingForce;
         using EngineMultiRobot::removeCouplingForces;
         using EngineMultiRobot::start;

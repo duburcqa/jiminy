@@ -48,8 +48,9 @@ namespace jiminy
         detachSensors();
     }
 
-    hresult_t Robot::initialize(std::string const & urdfPath,
-                                bool_t      const & hasFreeflyer)
+    hresult_t Robot::initialize(std::string              const & urdfPath,
+                                bool_t                   const & hasFreeflyer,
+                                std::vector<std::string> const & meshPackageDirs)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -62,7 +63,7 @@ namespace jiminy
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
-        returnCode = Model::initialize(urdfPath, hasFreeflyer);
+        returnCode = Model::initialize(urdfPath, hasFreeflyer, meshPackageDirs);
 
         return returnCode;
     }
@@ -586,7 +587,7 @@ namespace jiminy
         // Resize zeroAccelerationVector_ to the right size
         zeroAccelerationVector_ = vectorN_t::Zero(pncModel_.nv);
 
-        int constraintSize = 0;
+        uint32_t constraintSize = 0;
         for (auto & constraint : constraintsHolder_)
         {
             if (returnCode == hresult_t::SUCCESS)
@@ -1276,11 +1277,11 @@ namespace jiminy
         return isTelemetryConfigured_;
     }
 
-    void Robot::computeMotorsEfforts(float64_t            const  & t,
-                                     Eigen::Ref<vectorN_t const> const & q,
-                                     Eigen::Ref<vectorN_t const> const & v,
-                                     vectorN_t                   const & a,
-                                     vectorN_t                   const & u)
+    void Robot::computeMotorsEfforts(float64_t const & t,
+                                     vectorN_t const & q,
+                                     vectorN_t const & v,
+                                     vectorN_t const & a,
+                                     vectorN_t const & u)
     {
         if (!motorsHolder_.empty())
         {
@@ -1317,11 +1318,11 @@ namespace jiminy
         return motorEffortEmpty;
     }
 
-    void Robot::setSensorsData(float64_t                   const & t,
-                               Eigen::Ref<vectorN_t const> const & q,
-                               Eigen::Ref<vectorN_t const> const & v,
-                               Eigen::Ref<vectorN_t const> const & a,
-                               vectorN_t                   const & u)
+    void Robot::setSensorsData(float64_t const & t,
+                               vectorN_t const & q,
+                               vectorN_t const & v,
+                               vectorN_t const & a,
+                               vectorN_t const & u)
     {
         // Update kinematic quantities before updating sensors.
         pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
@@ -1336,8 +1337,8 @@ namespace jiminy
         }
     }
 
-    void Robot::computeConstraints(Eigen::Ref<vectorN_t const> const & q,
-                                   Eigen::Ref<vectorN_t const> const & v)
+    void Robot::computeConstraints(vectorN_t const & q,
+                                   vectorN_t const & v)
     {
         // Compute joint jacobian.
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
@@ -1447,22 +1448,30 @@ namespace jiminy
         motorsModelIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsModelIdx),
-                       [](auto const & elem) -> int32_t
+                       [](auto const & motor) -> int32_t
                        {
-                           return elem->getJointModelIdx();
+                           return motor->getJointModelIdx();
                        });
         return motorsModelIdx;
     }
 
-    std::vector<int32_t> Robot::getMotorsPositionIdx(void) const
+    std::vector<std::vector<int32_t> > Robot::getMotorsPositionIdx(void) const
     {
-        std::vector<int32_t> motorsPositionIdx;
+        std::vector<std::vector<int32_t> > motorsPositionIdx;
         motorsPositionIdx.reserve(nmotors_);
         std::transform(motorsHolder_.begin(), motorsHolder_.end(),
                        std::back_inserter(motorsPositionIdx),
-                       [](auto const & elem) -> int32_t
+                       [](auto const & elem) -> std::vector<int32_t>
                        {
-                           return elem->getJointPositionIdx();
+                           int32_t const & jointPositionIdx = elem->getJointPositionIdx();
+                           if (elem->getJointType() == joint_t::ROTARY_UNBOUNDED)
+                           {
+                               return {jointPositionIdx, jointPositionIdx + 1};
+                           }
+                           else
+                           {
+                               return {jointPositionIdx};
+                           }
                        });
         return motorsPositionIdx;
     }

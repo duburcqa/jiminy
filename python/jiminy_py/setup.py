@@ -28,7 +28,9 @@ setup(name = 'jiminy_py',
       download_url = 'https://github.com/Wandercraft/jiminy/archive/@PROJECT_VERSION@.tar.gz',
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      package_data = {'jiminy_py': ['**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js']},
+      package_data = {'jiminy_py': [
+          '**/*.dll', '**/*.so', '**/*.pyd', '**/*.html', '**/*.js'
+      ]},
       entry_points = {'console_scripts': [
           'jiminy_plot=jiminy_py.log:plot_log',
           'jiminy_meshcat_server=jiminy_py.meshcat.server:start_meshcat_server_standalone'
@@ -37,20 +39,20 @@ setup(name = 'jiminy_py',
       distclass = BinaryDistribution,
       cmdclass = {'install': InstallPlatlib},
       install_requires = [
-          'wheel',
-          'xmltodict',
-          'pillow',
-          'tqdm',
-          'numpy',
-          'scipy',
-          'matplotlib',
-          'meshcat>=0.0.18',
-          'psutil',
-          'requests_html'
+          'pillow',           # Used internal by the viewer to read/write snapshots
+          'tqdm',             # Used to display elegant and versatile process bar
+          'numpy',            # Standard library for matrix algebra
+          'scipy',            # Used internally for interpolation and filtering
+          'matplotlib<3.3',   # Standard library for showing figures
+          'trimesh',          # Used internally to compute the minimal volume bounding box associated with a mesh
+          'toml',             # Parser for Jiminy-specific robot sensor description files
+          'meshcat>=0.0.18',  # Web-based mesh visualizer used by default as viewer's backend
+          'psutil',           # Used internally to detect running meshcat servers and to avoid orphan child processes
+          'requests_html'     # Used internally to handle viewer recording
       ],
       extras_require = {
         'gepetto': [
-            'opencv-python-headless<=4.3.0.36'
+            'opencv-python-headless<=4.3.0.36'  # Used by the viewer to record video while using Gepetto-viewer as backend
         ]
       }
 )

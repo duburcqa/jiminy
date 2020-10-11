@@ -62,9 +62,9 @@ namespace pinocchio_overload
         typedef boost::fusion::vector<const Model &, Data &> ArgsType;
 
         template<typename JointModel>
-        static enable_if_t<!std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
-                        && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
-                        && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>
+        static std::enable_if_t<!std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
+                             && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
+                             && !std::is_same<JointModel, pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>
         algo(pinocchio::JointModelBase<JointModel>                const & jmodel,
                          pinocchio::JointDataBase<typename
                                     JointModel::JointDataDerived>       & jdata,
@@ -92,9 +92,9 @@ namespace pinocchio_overload
         }
 
         template<typename JointModel>
-        static enable_if_t<std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
-                        || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
-                        || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>
+        static std::enable_if_t<std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 0> >::value
+                             || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 1> >::value
+                             || std::is_same<JointModel, typename pinocchio::JointModelRevoluteTpl<Scalar, 0, 2> >::value, void>
         algo(pinocchio::JointModelBase<JointModel>                const & jmodel,
                          pinocchio::JointDataBase<typename
                                     JointModel::JointDataDerived>       & jdata,

@@ -1,0 +1,47 @@
+diff --git a/contrib/irrXML/CMakeLists.txt b/contrib/irrXML/CMakeLists.txt
+index 7f58af3d..dabcc135 100644
+--- a/contrib/irrXML/CMakeLists.txt
++++ b/contrib/irrXML/CMakeLists.txt
+@@ -22,8 +22,15 @@ set(IRRXML_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "IrrXML_Include" )
+ set(IRRXML_LIBRARY "IrrXML" CACHE INTERNAL "IrrXML" )
+ 
+ install(TARGETS IrrXML
++  EXPORT IrrXMLConfig
+   LIBRARY DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   ARCHIVE DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   RUNTIME DESTINATION ${ASSIMP_BIN_INSTALL_DIR}
+   FRAMEWORK DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+   COMPONENT ${LIBASSIMP_COMPONENT})
++export(TARGETS IrrXML NAMESPACE IrrXML::
++       FILE "${CMAKE_CURRENT_BINARY_DIR}/IrrXMLConfig.cmake"
++)
++install(EXPORT IrrXMLConfig NAMESPACE IrrXML::
++        DESTINATION "${CMAKE_INSTALL_DATADIR}/IrrXML/cmake"
++)
+diff --git a/contrib/zlib/CMakeLists.txt b/contrib/zlib/CMakeLists.txt
+index 9d1fcc94..e0950a22 100644
+--- a/contrib/zlib/CMakeLists.txt
++++ b/contrib/zlib/CMakeLists.txt
+@@ -195,13 +195,17 @@ if(MINGW)
+     set(ZLIB_DLL_SRCS ${CMAKE_CURRENT_BINARY_DIR}/zlib1rc.obj)
+ endif(MINGW)
+ 
+-add_library(zlib SHARED ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+-add_library(zlibstatic STATIC ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+-set_target_properties(zlib PROPERTIES DEFINE_SYMBOL ZLIB_DLL)
+-set_target_properties(zlib PROPERTIES SOVERSION 1)
+ 
++add_library(zlib STATIC ${ZLIB_SRCS} ${ZLIB_ASMS} ${ZLIB_DLL_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+-INSTALL( TARGETS zlibstatic
++INSTALL( TARGETS zlib
++         EXPORT zlibConfig
+          LIBRARY DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+          ARCHIVE DESTINATION ${ASSIMP_LIB_INSTALL_DIR}
+          RUNTIME DESTINATION ${ASSIMP_BIN_INSTALL_DIR}
+          COMPONENT ${LIBASSIMP_COMPONENT})
++EXPORT(TARGETS zlib NAMESPACE zlib::
++       FILE "${CMAKE_CURRENT_BINARY_DIR}/zlibConfig.cmake"
++)
++INSTALL(EXPORT zlibConfig NAMESPACE zlib::
++        DESTINATION "${CMAKE_INSTALL_DATADIR}/zlib/cmake"
++)

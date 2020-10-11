@@ -227,12 +227,12 @@ namespace jiminy
         baseControllerOptions_ = std::make_unique<controllerOptions_t const>(ctrlOptionsHolder_);
     }
 
-    bool_t AbstractController::getIsInitialized(void) const
+    bool_t const & AbstractController::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    bool_t AbstractController::getIsTelemetryConfigured(void) const
+    bool_t const & AbstractController::getIsTelemetryConfigured(void) const
     {
         return isTelemetryConfigured_;
     }

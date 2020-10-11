@@ -42,7 +42,7 @@ git submodule --quiet update --init --recursive --jobs 8
 git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 
 ### Checkout eigenpy and its submodules
-git clone -b "v2.4.3" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+git clone -b "v2.5.0" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 cd "$RootDir/eigenpy"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
@@ -63,8 +63,21 @@ git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 cd "$RootDir/urdfdom"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/urdfdom.patch"
 
+### Checkout assimp
+git clone -b "v5.0.1" https://github.com/assimp/assimp.git "$RootDir/assimp"
+cd "$RootDir/assimp"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/assimp.patch"
+
+### Checkout hpp-fcl, and update qhull to the latest release v8.0.2
+git clone -b "v1.5.4" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+cd "$RootDir/hpp-fcl"
+git submodule --quiet update --init --recursive --jobs 8
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"
+cd "$RootDir/hpp-fcl/third-parties/qhull"
+git checkout v8.0.2
+
 ### Checkout pinocchio and its submodules
-git clone -b "v2.4.7" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+git clone -b "v2.5.0" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 cd "$RootDir/pinocchio"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinocchio.patch"
@@ -96,11 +109,12 @@ sed -i "/using python/c ${PYTHON_CONFIG_JAM}" ./project-config.jam
 BuildTypeB2="$(echo "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')"
 mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
-     --with-date_time --with-filesystem --with-headers --with-math --with-python \
-     --with-serialization --with-stacktrace --with-system --with-test --with-thread \
-     --with-python --build-type=minimal architecture=x86 address-model=64 \
-     threading=multi --layout=system link=shared runtime-link=shared \
-     toolset=gcc cxxflags="-std=c++11 -fPIC" variant="$BuildTypeB2" install -q -d0 -j2
+     --with-chrono --with-timer --with-date_time --with-headers --with-math \
+     --with-stacktrace --with-system --with-filesystem --with-atomic \
+     --with-thread --with-serialization --with-test --with-python \
+     --build-type=minimal architecture=x86 address-model=64 threading=multi \
+     --layout=system link=shared runtime-link=shared \
+     toolset=gcc cxxflags="-std=c++11 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -118,9 +132,9 @@ cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DBoost_USE_STATIC_LIBS=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################## Build and install tinyxml ###########################################
@@ -128,7 +142,7 @@ make install -j2
 mkdir -p "$RootDir/tinyxml/build"
 cd "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -DTIXML_USE_STL" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ############################## Build and install console_bridge ########################################
@@ -136,10 +150,10 @@ make install -j2
 mkdir -p "$RootDir/console_bridge/build"
 cd "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
-############################## Build and install urdfdom_headers ######################################
+############################### Build and install urdfdom_headers ######################################
 
 mkdir -p "$RootDir/urdfdom_headers/build"
 cd "$RootDir/urdfdom_headers/build"
@@ -147,16 +161,45 @@ cmake "$RootDir/urdfdom_headers" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX=
       -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
-################################# Build and install urdfdom ###########################################
+################################## Build and install urdfdom ###########################################
 
 mkdir -p "$RootDir/urdfdom/build"
 cd "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DBUILD_TESTING=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
-################################ Build and install Pinocchio ##########################################
+###################################### Build and install assimp ########################################
+
+mkdir -p "$RootDir/assimp/build"
+cd "$RootDir/assimp/build"
+cmake "$RootDir/assimp" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
+      -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-strict-overflow -Wno-class-memaccess" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+############################# Build and install qhull and hpp-fcl ######################################
+
+mkdir -p "$RootDir/hpp-fcl/third-parties/qhull/build"
+cd "$RootDir/hpp-fcl/third-parties/qhull/build"
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_C_FLAGS="-fPIC -s" \
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+mkdir -p "$RootDir/hpp-fcl/build"
+cd "$RootDir/hpp-fcl/build"
+cmake "$RootDir/hpp-fcl" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DQhull_PREFIX="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
+      -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DINSTALL_DOCUMENTATION=OFF \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-parameter" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+make install -j2
+
+################################# Build and install Pinocchio ##########################################
 
 ### Build and install pinocchio, finally !
 mkdir -p "$RootDir/pinocchio/build"
@@ -164,8 +207,8 @@ cd "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
-      -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
-      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON -DBoost_USE_STATIC_LIBS=OFF \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF \
+      -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-local-typedefs -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2

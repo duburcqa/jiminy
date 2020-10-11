@@ -72,13 +72,24 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
-    template<typename T>
-    struct type_identity {
-        using type = T;
+    // https://stackoverflow.com/a/34672753/4820605
+    template < template <typename...> class base, typename derived>
+    struct is_base_of_template_impl
+    {
+        template<typename... Ts>
+        static constexpr std::true_type  test(base<Ts...> const *);
+        static constexpr std::false_type test(...);
+        using type = decltype(test(std::declval<derived*>()));
     };
 
-    template<bool B, class T = void>
-    using enable_if_t = typename std::enable_if<B,T>::type;
+    template < template <typename...> class base,typename derived>
+    using is_base_of_template = typename is_base_of_template_impl<base,derived>::type;
+
+    // https://stackoverflow.com/a/37227316/4820605
+    template <class F, class... Args>
+    void do_for(F f, Args... args) {
+        int x[] = {(f(args), 0)...};
+    }
 
     // ================= enable_shared_from_this ====================
 
@@ -100,7 +111,7 @@ namespace jiminy
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
-    
+
     // ======================== is_vector ===========================
 
     template<typename T>
@@ -130,6 +141,15 @@ namespace jiminy
 
     template<typename T>
     struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
+
+    // ====================== is_not_eigen_expr =======================
+
+    // Check it is eigen object has its own storage, otherwise it is an expression
+    // https://stackoverflow.com/questions/53770832/type-trait-to-check-if-an-eigen-type-is-an-expression-without-storage-or-a-mat
+    template<typename T>
+    struct is_not_eigen_expr
+    : std::is_base_of<Eigen::PlainObjectBase<std::decay_t<T> >, std::decay_t<T> >
+    {};
 
     // ====================== is_eigen_vector =======================
 
@@ -176,11 +196,11 @@ namespace jiminy
     class AbstractIODevice;
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, Json::Value>
+    std::enable_if_t<!is_vector<T>::value, Json::Value>
     convertToJson(T const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, Json::Value>
+    std::enable_if_t<is_vector<T>::value, Json::Value>
     convertToJson(T const & value);
 
     hresult_t jsonDump(configHolder_t                    const & config,
@@ -189,11 +209,11 @@ namespace jiminy
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
-    enable_if_t<!is_vector<T>::value, T>
+    std::enable_if_t<!is_vector<T>::value, T>
     convertFromJson(Json::Value const & value);
 
     template<typename T>
-    enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector<T>::value, T>
     convertFromJson(Json::Value const & value);
 
     hresult_t jsonLoad(configHolder_t                    & config,
@@ -253,17 +273,6 @@ namespace jiminy
 
     // ******************** Pinocchio utilities *********************
 
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        Eigen::Ref<vectorN_t>             & qDot,
-                                        float64_t                   const & dt);
-    hresult_t computePositionDerivative(pinocchio::Model            const & model,
-                                        Eigen::Ref<vectorN_t const> const & q,
-                                        Eigen::Ref<vectorN_t const> const & v,
-                                        vectorN_t                         & qDot,
-                                        float64_t                   const & dt);
-
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
                                           int32_t          const & idIn,
                                           std::string            & jointNameOut);
@@ -281,6 +290,13 @@ namespace jiminy
 
     hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut);
+
+    hresult_t getBodyIdx(pinocchio::Model const & model,
+                         std::string      const & bodyName,
+                         int32_t                & bodyIdx);
+    hresult_t getBodiesIdx(pinocchio::Model         const & model,
+                           std::vector<std::string> const & bodiesNames,
+                           std::vector<int32_t>           & bodiesIdx);
 
     hresult_t getFrameIdx(pinocchio::Model const & model,
                           std::string      const & frameName,

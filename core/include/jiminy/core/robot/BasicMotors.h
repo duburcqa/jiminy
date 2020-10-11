@@ -63,7 +63,7 @@ namespace jiminy
 
     private:
         virtual hresult_t computeEffort(float64_t const & t,
-                                        float64_t const & q,
+                                        Eigen::Ref<vectorN_t const> const & q,
                                         float64_t const & v,
                                         float64_t const & a,
                                         float64_t const & uCommand) final override;

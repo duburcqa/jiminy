@@ -5,8 +5,8 @@ The force sensor is mounted with an offset rotation to verify frame computations
 <?xml version="1.0" ?>
 <robot name="point_mass">
     <link name="root"/>
-    <joint name="LeftSoleJoint" type="fixed">
-        <origin xyz="0.0 0.0 0.0" rpy="1.0 0.0 1.0"/>
+    <joint name="base" type="fixed">
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
         <axis xyz="0.0 0.0 0.0"/>
         <parent link="root"/>
         <child link="MassBody"/>

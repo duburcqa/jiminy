@@ -82,9 +82,10 @@ namespace jiminy
         NONE = 0,
         LINEAR = 1,
         ROTARY = 2,
-        PLANAR = 3,
-        SPHERICAL = 4,
-        FREE = 5,
+        ROTARY_UNBOUNDED = 3,  // Must be treated separately because the position is encoded using [cos(theta), sin(theta)] instead of theta
+        PLANAR = 4,
+        SPHERICAL = 5,
+        FREE = 6
     };
 
     /* Ground profile signature.
@@ -186,6 +187,21 @@ namespace jiminy
     >;
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
+
+    // System force functors
+    using forceProfileFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                 vectorN_t const & /*q*/,
+                                                                 vectorN_t const & /*v*/)>;
+    using forceCouplingFunctor_t = std::function<pinocchio::Force(float64_t const & /*t*/,
+                                                                  vectorN_t const & /*q_1*/,
+                                                                  vectorN_t const & /*v_1*/,
+                                                                  vectorN_t const & /*q_2*/,
+                                                                  vectorN_t const & /*v_2*/)>;
+
+    // System callback functor
+    using callbackFunctor_t = std::function<bool_t(float64_t const & /*t*/,
+                                                   vectorN_t const & /*q*/,
+                                                   vectorN_t const & /*v*/)>;
 }
 
 #endif  // JIMINY_TYPES_H

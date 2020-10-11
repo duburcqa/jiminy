@@ -13,6 +13,7 @@
 #include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
 #include "jiminy/core/Types.h"
+#include "jiminy/core/Utilities.h"
 
 #include <boost/python.hpp>
 #include <boost/python/scope.hpp>
@@ -20,18 +21,11 @@
 #include <eigenpy/eigenpy.hpp>
 
 
-#if PY_MAJOR_VERSION == 2
-static void initNumpy()
-{
-    import_array();
-}
-#else
 static void * initNumpy()
 {
     import_array();
     return NULL;
 }
-#endif
 
 
 namespace jiminy
@@ -58,6 +52,14 @@ namespace python
         }
     };
 
+    joint_t getJointTypeFromIdx(pinocchio::Model const & model,
+                                int32_t          const & idIn)
+    {
+        joint_t jointType = joint_t::NONE;
+        ::jiminy::getJointTypeFromIdx(model, idIn, jointType);
+        return jointType;
+    }
+
     BOOST_PYTHON_MODULE(jiminy_pywrap)
     {
         // Initialized C API of Python, required to handle raw Python native object
@@ -75,32 +77,38 @@ namespace python
 
         // Interfaces for hresult_t enum
         bp::enum_<hresult_t>("hresult_t")
-        .value("SUCCESS",           hresult_t::SUCCESS)
-        .value("ERROR_GENERIC",     hresult_t::ERROR_GENERIC)
-        .value("ERROR_BAD_INPUT",   hresult_t::ERROR_BAD_INPUT)
+        .value("SUCCESS", hresult_t::SUCCESS)
+        .value("ERROR_GENERIC", hresult_t::ERROR_GENERIC)
+        .value("ERROR_BAD_INPUT", hresult_t::ERROR_BAD_INPUT)
         .value("ERROR_INIT_FAILED", hresult_t::ERROR_INIT_FAILED);
 
         // Interfaces for joint_t enum
         bp::enum_<joint_t>("joint_t")
-        .value("NONE",      joint_t::NONE)
-        .value("LINEAR",    joint_t::LINEAR)
-        .value("ROTARY",    joint_t::ROTARY)
-        .value("PLANAR",    joint_t::PLANAR)
+        .value("NONE", joint_t::NONE)
+        .value("LINEAR", joint_t::LINEAR)
+        .value("ROTARY", joint_t::ROTARY)
+        .value("ROTARY_UNBOUNDED", joint_t::ROTARY_UNBOUNDED)
+        .value("PLANAR", joint_t::PLANAR)
         .value("SPHERICAL", joint_t::SPHERICAL)
-        .value("FREE",      joint_t::FREE);
+        .value("FREE", joint_t::FREE);
 
         // Interfaces for heatMapType_t enum
         bp::enum_<heatMapType_t>("heatMapType_t")
         .value("CONSTANT", heatMapType_t::CONSTANT)
-        .value("STAIRS",   heatMapType_t::STAIRS)
-        .value("GENERIC",  heatMapType_t::GENERIC);
+        .value("STAIRS", heatMapType_t::STAIRS)
+        .value("GENERIC", heatMapType_t::GENERIC);
 
         // Enable some automatic C++ to Python converters
         bp::to_python_converter<std::vector<std::string>, converterToPython<std::vector<std::string> > >();
-        bp::to_python_converter<std::vector<int32_t>,     converterToPython<std::vector<int32_t> > >();
-        bp::to_python_converter<std::vector<vectorN_t>,   converterToPython<std::vector<vectorN_t> > >();
-        bp::to_python_converter<std::vector<matrixN_t>,   converterToPython<std::vector<matrixN_t> > >();
-        bp::to_python_converter<configHolder_t,           converterToPython<configHolder_t> >();
+        bp::to_python_converter<std::vector<std::vector<int32_t> >, converterToPython<std::vector<std::vector<int32_t> > > >();
+        bp::to_python_converter<std::vector<int32_t>, converterToPython<std::vector<int32_t> > >();
+        bp::to_python_converter<std::vector<vectorN_t>, converterToPython<std::vector<vectorN_t> > >();
+        bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> > >();
+        bp::to_python_converter<configHolder_t, converterToPython<configHolder_t> >();
+
+        // Expose generic utilities
+        bp::def("get_joint_type", &getJointTypeFromIdx,
+                                  (bp::arg("pinocchio_model"), "joint_idx"));
 
         // Expose classes
         TIME_STATE_FCT_EXPOSE(bool_t)
@@ -116,7 +124,7 @@ namespace python
         PyControllerFunctorVisitor::expose();
         PyStepperStateVisitor::expose();
         PySystemStateVisitor::expose();
-        PySystemDataVisitor::expose();
+        PySystemVisitor::expose();
         PyEngineMultiRobotVisitor::expose();
         PyEngineVisitor::expose();
     }

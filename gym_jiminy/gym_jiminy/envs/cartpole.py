@@ -3,27 +3,30 @@
 import os
 import numpy as np
 from pkg_resources import resource_filename
+from typing import Optional, Tuple, Dict, Any
 
-from gym import spaces, logger
+from gym import spaces
 
 from jiminy_py import core as jiminy
-from jiminy_py.engine_asynchronous import EngineAsynchronous
+from jiminy_py.simulator import Simulator
 
-from ..common.robots import RobotJiminyEnv
-
-
-DT = 2.0e-3      ## Stepper update period
-MAX_FORCE = 40.0 ## Max force of the motor
+from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
-class JiminyCartPoleEnv(RobotJiminyEnv):
+DT = 2.0e-3       # Stepper update period
+MAX_FORCE = 40.0  # Max force of the motor
+
+
+class CartPoleJiminyEnv(BaseJiminyEnv):
     """
-    @brief      Implementation of a Gym environment for the Cartpole which is using
-                Jiminy Engine to perform physics computations and Gepetto-viewer for
-                rendering. It is a specialization of RobotJiminyGoalEnv. The Cartpole
-                is a pole attached by an un-actuated joint to a cart. The goal is to
-                prevent the pendulum from falling over by increasing and reducing the
-                cart's velocity.
+    @brief      Implementation of a Gym environment for the Cartpole which is
+                using Jiminy Engine to perform physics computations and Meshcat
+                for rendering.
+
+    @remark     It is a specialization of BaseJiminyEnv. The Cartpole is a pole
+                attached by an un-actuated joint to a cart. The goal is to
+                prevent the pendulum from falling over by increasing and
+                reducing the cart's velocity.
 
     @details    **OBSERVATION:**
                 Type: Box(4)
@@ -39,17 +42,18 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                 0	Push cart to the left
                 1	Push cart to the right
 
-                Note that the amount the velocity that is reduced or increased is not
-                fixed, it depends on the angle the pole is pointing. This is because the
-                center of gravity of the pole increases the amount of energy needed to
-                move the cart underneath it.
+                Note that the amount the velocity that is reduced or increased
+                is not fixed, it depends on the angle the pole is pointing.
+                This is because the center of gravity of the pole increases the
+                amount of energy needed to move the cart underneath it.
 
                 **REWARD:**
-                Reward is 1 for every step taken, including the termination step.
-                move the cart underneath it.
+                Reward is 1 for every step taken, including the termination
+                step.
 
                 **STARTING STATE:**
-                All observations are assigned a uniform random value in [-0.05..0.05]
+                All observations are assigned a uniform random value in range
+                [-0.05, 0.05]
 
                 **EPISODE TERMINATION:**
                 If any of these conditions is satisfied:
@@ -58,37 +62,38 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
                     - Episode length is greater than 200
 
                 **SOLVED REQUIREMENTS:**
-                Considered solved when the average reward is greater than or equal to
-                195.0 over 100 consecutive trials.
+                Considered solved when the average reward is greater than or
+                equal to 195.0 over 100 consecutive trials.
     """
-    def __init__(self, continuous=False):
+    def __init__(self, continuous: bool = False):
         """
         @brief      Constructor
 
-        @return     Instance of the environment.
+        @param[in]  continuous   Whether or not the action space is continuous.
+                                 If not continuous, the action space has only 3
+                                 states, i.e. low, zero, and high.
+                                 Optional: True by default.
         """
-
-        #  @copydoc RobotJiminyEnv::__init__
-        # ## @var state_random_high
-        #  @copydoc RobotJiminyEnv::state_random_high
-        ## @var state_random_low
-        #  @copydoc RobotJiminyEnv::state_random_low
-
-        # ########################## Backup the input arguments ################################
-
-        ## Flag to determine if the action space is continuous
+        # Backup some input arguments
         self.continuous = continuous
 
-        # ############################### Initialize Jiminy ####################################
+        # Initialize Jiminy simulator
 
-        os.environ["JIMINY_MESH_PATH"] = resource_filename('gym_jiminy.envs', 'data')
-        urdf_path = os.path.join(os.environ["JIMINY_MESH_PATH"], "cartpole/cartpole.urdf")
+        ## Get URDF path
+        data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
+        urdf_path = os.path.join(data_dir, "cartpole/cartpole.urdf")
 
+        ## Instantiate robot
         robot = jiminy.Robot()
-        robot.initialize(urdf_path)
+        robot.initialize(urdf_path,
+            has_freeflyer=False, mesh_package_dirs=[data_dir])
 
+        ## Add motors and sensors
         motor_joint_name = "slider_to_cart"
-        encoder_sensors_def = {"slider": "slider_to_cart", "pole": "cart_to_pole"}
+        encoder_sensors_def = {
+            "slider": "slider_to_cart",
+            "pole": "cart_to_pole"
+        }
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
@@ -97,69 +102,99 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        engine_py = EngineAsynchronous(robot)
+        ## Instantiate simulator
+        simulator = Simulator(robot)
 
-        # ##################### Define some problem-specific variables #########################
+        # Define some problem-specific variables
 
+        ## Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            ## Map between discrete actions and actual motor force
             self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
 
-        ## Maximum absolute angle of the pole before considering the episode failed
+        # Maximum absolute angle of the pole before considering the episode failed
         self.theta_threshold_radians = 25 * np.pi / 180
 
-        ## Maximum absolute position of the cart before considering the episode failed
+        # Maximum absolute position of the cart before considering the episode failed
         self.x_threshold = 0.75
 
         # Bounds of the hypercube associated with the initial state of the robot
         self.state_random_high = np.array([0.5, 0.15, 0.1, 0.1])
         self.state_random_low = -self.state_random_high
 
-        # ####################### Configure the learning environment ###########################
+        self.position_random_high = np.array([0.5, 0.15])
+        self.position_random_low  = -self.position_random_high
+        self.velocity_random_high = np.full((2,), 0.1)
+        self.velocity_random_low  = -self.velocity_random_high
 
-        super().__init__("cartpole", engine_py, DT)
+        # Configure the learning environment
+        super().__init__(simulator, DT, debug=False)
 
-    def _setup_environment(self):
+    def _setup_environment(self) -> None:
+        """
+        @brief    TODO
+        """
         super()._setup_environment()
 
-        # Override some options of the robot and engine
+        # Set the effort limit of the motor
         robot_options = self.robot.get_options()
-
-        ### Set the effort limit of the motor
         motor_name = self.robot.motors_names[0]
         robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
         robot_options["motors"][motor_name]["effortLimit"] = MAX_FORCE
-
         self.robot.set_options(robot_options)
 
-    def _refresh_learning_spaces(self):
-        # Replace the observation space, which is the state space instead of the sensor space.
-        # Note that the Angle limit set to 2 * theta_threshold_radians, thus observations of
-        # failure are still within bounds.
-        super()._refresh_learning_spaces()
+    def _refresh_observation_space(self) -> None:
+        """
+        @brief Configure the observation of the environment.
 
-        # Force using a discrete action space
-        if not self.continuous:
-            self.action_space = spaces.Discrete(2)
+        @details Implement the official Gym cartpole-v1 action space. See
+                 documentation https://gym.openai.com/envs/CartPole-v1/.
 
+        @remark The Angle limit set to 2 * theta_threshold_radians, so that
+                observations of failure are still within bounds.
+        """
+        # Compute observation bounds
         high = np.array([1.5 * self.x_threshold,
                          1.5 * self.theta_threshold_radians,
                          *self.robot.velocity_limit])
 
-        self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float64)
-        self.observation = np.zeros(self.observation_space.shape)
+        # Set the observation space
+        self.observation_space = spaces.Box(
+            low=-high, high=high, dtype=np.float64)
 
-    def _sample_state(self):
-        # @copydoc RobotJiminyEnv::_sample_state
-        return self.rg.uniform(low=self.state_random_low,
-                               high=self.state_random_high)
+        # Reset observation
+        self._observation = np.zeros(self.observation_space.shape)
 
-    def _update_obs(self, obs):
-        # @copydoc RobotJiminyEnv::_update_observation
-        obs[:] = self.engine_py.state
+    def _refresh_action_space(self) -> None:
+        """
+        @brief    TODO
+
+        @details Replace the action space by its discrete representation
+                 depending on 'continuous'.
+        """
+        if not self.continuous:
+            self.action_space = spaces.Discrete(2)
+        else:
+            super()._refresh_action_space()
+
+    def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        @brief    TODO
+        """
+        qpos = self.rg.uniform(low=self.position_random_low,
+                               high=self.position_random_high)
+        qvel = self.rg.uniform(low=self.velocity_random_low,
+                               high=self.velocity_random_high)
+        return qpos, qvel
+
+    def _fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::_fetch_obs
+        return np.concatenate(self.simulator.state)
 
     @staticmethod
-    def _key_to_action(key):
+    def _key_to_action(key: str) -> np.ndarray:
+        """
+        @brief    TODO
+        """
         if key == "Left":
             return 1
         elif key == "Right":
@@ -168,41 +203,48 @@ class JiminyCartPoleEnv(RobotJiminyEnv):
             print(f"Key {key} is not bound to any action.")
             return None
 
-    def _is_done(self):
-        # @copydoc RobotJiminyEnv::_is_done
-        x, theta, _, _ = self.observation
+    def _is_done(self) -> bool:
+        """
+        @brief    TODO
+        """
+        x, theta, _, _ = self._observation
         return        x < -self.x_threshold \
                or     x >  self.x_threshold \
                or theta < -self.theta_threshold_radians \
                or theta >  self.theta_threshold_radians
 
-    def _compute_reward(self):
-        # @copydoc RobotJiminyEnv::_compute_reward
+    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
+        """
+        @brief    TODO
 
-        # Add a small positive reward as long as the terminal condition
-        # has never been reached during the same episode.
+        @details Add a small positive reward as long as the termination
+                 condition has never been reached during the same episode.
+        """
         reward = 0.0
         if self._steps_beyond_done is None:
             done = self._is_done()
             if not done:
                 reward += 1.0 #self.dt # For the cumulative reward to be invariant wrt the simulation timestep
-        return reward
+        return reward, {}
 
-    def step(self, action):
-        # @copydoc RobotJiminyEnv::step
+    def step(self, action: Optional[np.ndarray] = None
+            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+        """
+        @brief    TODO
+        """
+        # @copydoc BaseJiminyEnv::step
         if action is not None:
             # Make sure that the action is within bounds
-            assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
+            assert self.action_space.contains(action), \
+                "%r (%s) invalid" % (action, type(action))
 
             # Compute the actual force to apply
             if not self.continuous:
                 action = self.AVAIL_FORCE[action]
 
         # Perform the step
-        obs, reward, done, info = super().step(action)
+        return super().step(action)
 
-        # Update success flag, since in this case success actually
-        # means never reaching terminal condition.
-        info['is_success'] = not done
-
-        return obs, reward, done, info
+    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
+        kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        return super().render(mode, **kwargs)

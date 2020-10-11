@@ -108,7 +108,7 @@ cd "$RootDir/build"
 cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DBoost_NO_SYSTEM_PATHS=OFF \
       -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-      -DCMAKE_CXX_FLAGS="-isystem/usr/include/eigen3" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 ```
 
