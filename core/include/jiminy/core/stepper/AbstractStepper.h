@@ -22,8 +22,6 @@
 
 namespace jiminy
 {
-    class Robot;
-
     using systemDynamics = std::function<void(float64_t const & /*t*/,
                                               std::vector<vectorN_t> const & /*qSplit*/,
                                               std::vector<vectorN_t> const & /*vSplit*/,

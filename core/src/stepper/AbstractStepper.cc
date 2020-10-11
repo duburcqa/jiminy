@@ -1,6 +1,5 @@
 
 #include "jiminy/core/stepper/AbstractStepper.h"
-#include "jiminy/core/stepper/LieGroup.h"
 
 namespace jiminy
 {

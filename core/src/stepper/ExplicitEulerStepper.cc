@@ -1,6 +1,5 @@
 
 #include "jiminy/core/stepper/ExplicitEulerStepper.h"
-#include "jiminy/core/stepper/LieGroup.h"
 
 namespace jiminy
 {
@@ -17,7 +16,7 @@ namespace jiminy
                                              float64_t               & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
-        state += dt * f(t, state);
+        state.sumInPlace(dt * f(t, state));
 
         // Scheme never considers failure.
         return true;

@@ -143,9 +143,9 @@ namespace jiminy
 
         // Add the frame to the the original rigid model
         int32_t parentFrameId;
+        pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
         if (returnCode == hresult_t::SUCCESS)
         {
-            pinocchio::FrameType const frameType = pinocchio::FrameType::OP_FRAME;
             returnCode = getFrameIdx(pncModelRigidOrig_, parentBodyName, parentFrameId);
         }
         if (returnCode == hresult_t::SUCCESS)

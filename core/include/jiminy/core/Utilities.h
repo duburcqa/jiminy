@@ -72,7 +72,24 @@ namespace jiminy
 
     // **************** Generic template utilities ******************
 
+    // https://stackoverflow.com/a/34672753/4820605
+    template < template <typename...> class base, typename derived>
+    struct is_base_of_template_impl
+    {
+        template<typename... Ts>
+        static constexpr std::true_type  test(base<Ts...> const *);
+        static constexpr std::false_type test(...);
+        using type = decltype(test(std::declval<derived*>()));
+    };
 
+    template < template <typename...> class base,typename derived>
+    using is_base_of_template = typename is_base_of_template_impl<base,derived>::type;
+
+    // https://stackoverflow.com/a/37227316/4820605
+    template <class F, class... Args>
+    void do_for(F f, Args... args) {
+        int x[] = {(f(args), 0)...};
+    }
 
     // ================= enable_shared_from_this ====================
 
@@ -124,6 +141,15 @@ namespace jiminy
 
     template<typename T>
     struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
+
+    // ====================== is_not_eigen_expr =======================
+
+    // Check it is eigen object has its own storage, otherwise it is an expression
+    // https://stackoverflow.com/questions/53770832/type-trait-to-check-if-an-eigen-type-is-an-expression-without-storage-or-a-mat
+    template<typename T>
+    struct is_not_eigen_expr
+    : std::is_base_of<Eigen::PlainObjectBase<std::decay_t<T> >, std::decay_t<T> >
+    {};
 
     // ====================== is_eigen_vector =======================
 

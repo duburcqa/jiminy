@@ -31,7 +31,7 @@ namespace jiminy
         {
             dvIntAlt += dt * DOPRI::e[i] * ki_[i];
         }
-        state_t const alternativeSolution = initialState + dvIntAlt;
+        state_t const alternativeSolution = initialState.sum(dvIntAlt);
 
         // Evaluate error between both states to adjust step
         float64_t const errorNorm = solution.difference(alternativeSolution).norm();

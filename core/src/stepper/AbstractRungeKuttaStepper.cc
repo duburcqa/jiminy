@@ -1,6 +1,5 @@
 
 #include "jiminy/core/stepper/AbstractRungeKuttaStepper.h"
-#include "jiminy/core/stepper/LieGroup.h"
 
 
 namespace jiminy
@@ -38,7 +37,7 @@ namespace jiminy
             {
                 stateIncrement += dt * A_(i, j) * ki_[j];
             }
-            ki_[i] = f(t + c_[i] * dt, state + stateIncrement);
+            ki_[i] = f(t + c_[i] * dt, state.sum(stateIncrement));
         }
 
         /* Now we have all the ki's: compute the solution.
@@ -49,7 +48,7 @@ namespace jiminy
         {
             dvInc += dt * b_[i] * ki_[i];
         }
-        state_t const solution = state + dvInc;
+        state_t const solution = state.sum(dvInc);
 
         // Evaluate the solution's error for step adjustment
         bool_t const hasSucceeded = adjustStep(state, solution, dt);
