@@ -1155,7 +1155,7 @@ namespace Eigen
                 container.VAR1[i].setOnes(); \
                 container.VAR2[i].setOnes(); \
             } \
-            return std::move(container); \
+            return container; \
         } \
          \
         static EIGEN_CAT(BASE,Vector) Zero(std::vector<Robot const *> const & robots) \
@@ -1166,7 +1166,7 @@ namespace Eigen
                 container.VAR1[i].setZero(); \
                 container.VAR2[i].setZero(); \
             } \
-            return std::move(container); \
+            return container; \
         } \
          \
         template<typename OtherDerived> \
@@ -1238,7 +1238,7 @@ namespace Eigen
     { \
         StateVector result = *this; \
         result.sumInPlace(other); \
-        return std::move(result); \
+        return result; \
     } \
     \
     template<typename Derived, \
