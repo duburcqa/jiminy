@@ -1,45 +1,84 @@
+<div align="center">
+  <a href="#"><img width="400px" height="auto" src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_logo.svg"></a>
+</div>
+
+____
+
+
 # Jiminy simulator
 
 ## Description
 
-Jiminy is an open-source C++ simulator of poly-articulated systems, under the first restriction that the contact with the ground can be reduced to a dynamic set of points and the second restriction that the collisions between bodies or the environment can be neglected.
+Jiminy is a fast and lightweight cross-platform open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
-It is built upon [Pinocchio](https://github.com/stack-of-tasks/pinocchio), which is an open-source implementing highly efficient Rigid Body Algorithms for poly-articulated systems. It is used to handle low-level physics calculations related to the system, while the effect of the environment on it is handled by Jiminy itself. The integration of time is based on the open-source library [Boost Odeint](https://github.com/boostorg/odeint).
+- **provide a fast yet physically accurate simulator for robotics research.**
 
-The visualisation relies on the open-source client [Gepetto-Viewer](https://github.com/Gepetto/gepetto-viewer), which is based on `CORBA` and `omniORB` at low-level, or alternatively [Meshcat](https://github.com/rdeits/meshcat-python), which is a remotely-controllable web-based visualizer especially well suited to Jupyter notebook running on remote servers as one can display directly in a Jupyter cell. It is possible to do real-time visual rendering and to replay a simulation afterward.
+Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation.
 
-The data of the simulation can be exported in CSV, raw binary format, or read directly from the RAM memory to avoid any disk access. The complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
+- **build an efficient and flexible platform for machine learning in robotics.**
 
-Python bindings have been written using the open-source library [Boost Python](https://github.com/boostorg/python). It supports both Python2 and Python3, yet it is recommended to use Python3 over Python2 since support will be dropped in the future.
+Beside a strong focus on performance to answer machine learning's need for running computationally demanding distributed simulations, Jiminy offers convenience tools for learning via a dedicated learning-oriented Gym-Jiminy ([see below](#jiminy-learning)). It is fully compliant with `gym` standard API and provides an highly customizable wrapper to interface any robotics system with state-of-the-art learning frameworks.
 
-**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`. **
+## Key features
 
-Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/that_style).
+### General
 
-## Demo
+- Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
 
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="430"/>
+- Comprehensive API for computing dynamic quantities and their derivatives, exposing and
+extending Pinocchio API.
 
-___
+- C++ core with full python bindings, providing frontend API parity between both languages.
+
+- Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
+
+- Easy to install: a simple `python -m pip install jiminy_py` is all that is needed to get you started !
+
+- Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
+
+- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported as CSV or binary data.
+
+- Available for both Linux and Windows platform.
+
+### Physics
+
+- Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives, through spring-damper reaction forces and friction model.
+
+- Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
+
+- Support of compliant joints with spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
+
+- Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
+
+A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
+
+**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`.**
 
 # Jiminy learning
 
 ## Description
 
-The Machine Learning library [Open AI Gym](https://github.com/openai/gym) is fully supported. Abstract environments and a few for toy models are provided: a [cartpole](https://gym.openai.com/envs/CartPole-v1/), an [acrobot](https://gym.openai.com/envs/Acrobot-v1/), and a [pendulum](https://gym.openai.com/envs/Pendulum-v0/).
+Gym Jiminy is fully compliant with the now standard reinforcement learning API provided by [Open AI Gym](https://github.com/openai/gym). Additionally, it offers a generic and easily configurable learning environment for learning locomotion tasks, with minimal intervention from the user, who usually only needs to provide the robot's [URDF](https://wiki.ros.org/urdf) file. Furthermore, Gym Jiminy enables easy modification of many aspects of the simulation to provide richer exploration and ensure robust learning. This ranges from external perturbation forces to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself. Note that learning can
+easily be done on any high-level dynamics features, or restricted to mock sensor data for end-to-end learning.
 
-Gym Jiminy is only compatible with Python3. Although Python3 is not required to use openAI Gym strictly speaking, most of the Reinforcement Learning packages implementing standard algorithms does not support Python2. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). `RL Coach` leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` and  `Tianshou` use its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. Note that `Stable Baselines 3`, `Tianshou` and `Rllib` are compatible with Linux, Mac OS and Windows.
+Gym is cross-platform and compatible out-of-the-box with most Reinforcement Learning frameworks implementing standard algorithms. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). `RL Coach` leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` and  `Tianshou` use its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. A few learning examples relying on those packages are also provided.
 
-A few learning examples are provided. Most of them rely on those packages, but one implements the DQN algorithm from scratch using Pytorch.
+Pre-configured environments for some well-known toys models and reference robotics platforms are provided: [cartpole](https://gym.openai.com/envs/CartPole-v1/), [acrobot](https://gym.openai.com/envs/Acrobot-v1/), [pendulum](https://gym.openai.com/envs/Pendulum-v0/), [ANYmal](https://www.anymal-research.org/#getting-started), and [Atlas](https://www.bostondynamics.com/atlas).
 
-## Demo
+# Demo
 
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="860"/>
-
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="430"/>
-
-___
+<a href="./examples/tutorial.ipynb">
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="400"/>
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="800"/>
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="400"/>
+</a>
 
 # Getting started
 
-Jiminy is compatible with Linux and Windows It supports both Python2.7 and Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. The complete installation instructions are available [here](./INSTALL.md).
+Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`:
+
+```bash
+python -m pip install jiminy_py
+```
+
+Detailed installation instructions, including building from source, are available [here](./INSTALL.md).
