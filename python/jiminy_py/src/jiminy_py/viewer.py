@@ -30,7 +30,6 @@ import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import MeshcatVisualizer, GepettoVisualizer
-from pinocchio.shortcuts import createDatas
 
 from . import core as jiminy
 from .state import State

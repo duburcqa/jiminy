@@ -292,18 +292,23 @@ class Simulator:
                          Note that the format extension '.data' is enforced.
                          Optional, disable by default.
         @param show_progress_bar  Whether or not to display a progress bar
-                                  during the simulation.
-                                  Optional: Enable by default.
+                                  during the simulation. None to enable only
+                                  if available.
+                                  Optional: None by default.
         """
         # Run the simulation
-        if show_progress_bar:
+        if show_progress_bar != False:
             try:
                 self.engine.controller.set_progress_bar(tf)
             except AttributeError as e:
-                raise RuntimeError("'show_progress_bar' can only be used with "
-                    "controller inherited from `BaseJiminyController`.") from e
+                if show_progress_bar:
+                    raise RuntimeError("'show_progress_bar' can only be used "
+                        "with controller inherited from "
+                        "`BaseJiminyController`.") from e
+                show_progress_bar = False
         self.engine.simulate(tf, q0, v0, is_state_theoretical)
-        self.engine.controller.close_progress_bar()
+        if show_progress_bar != False:
+            self.engine.controller.close_progress_bar()
 
         # Write log
         if log_path is not None:

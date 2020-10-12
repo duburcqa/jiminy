@@ -569,7 +569,6 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
                                  Optional: True by default.
     """
     robot = trajectory_data['robot']
-    use_theoretical_model = trajectory_data['use_theoretical_model']
 
     contact_frame_prev = None
     w_M_ff_offset = pin.SE3.Identity()
