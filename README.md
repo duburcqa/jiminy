@@ -6,13 +6,13 @@ Jiminy is a fast and lightweight cross-platform open-source simulator for poly-a
 
 - **provide a fast yet physically accurate simulator for robotics research.**
 
-Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation. Ground reaction is modeled as a spring-damper external force applied to the system for arbitrary collision geometries. Additionally, Jiminy provides a comprehensive API for computing dynamic quantities and their derivatives by exposing and extending Pinocchio API.
+Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation.
 
 - **build an efficient and flexible platform for machine learning in robotics.**
 
 Beside a strong focus on performance to answer machine learning's need for running computationally demanding distributed simulations, Jiminy offers convenience tools for learning via a dedicated learning-oriented Gym-Jiminy ([see below](#jiminy-learning)). It is fully compliant with `gym` standard API and provides an highly customizable wrapper to interface any robotics system with state-of-the-art learning frameworks.
 
-## key features
+## Key features
 
 ### General
 
@@ -50,7 +50,8 @@ A more complete list of features, development status, and changelog are availabl
 
 ## Description
 
-Gym Jiminy is fully compliant with the now standard reinforcement learning API provided by [Open AI Gym](https://github.com/openai/gym). Additionally, It is offering a generic and easily configurable learning environment for learning locomotion tasks by providing only [URDF](https://wiki.ros.org/urdf) files. Furthermore, Gym Jiminy enables easy modification many aspects of the simulation  to provide richer exploration and ensure robust learning. This ranges from external perturbation forces, to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself. Note that both sensors measurements and internally dynamics properties are observable.
+Gym Jiminy is fully compliant with the now standard reinforcement learning API provided by [Open AI Gym](https://github.com/openai/gym). Additionally, it offers a generic and easily configurable learning environment for learning locomotion tasks, with minimal intervention from the user, who, when possible, is only required to provide [URDF](https://wiki.ros.org/urdf) files. Furthermore, Gym Jiminy enables easy modification of many aspects of the simulation to provide richer exploration and ensure robust learning. This ranges from external perturbation forces to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself. Note that learning can
+easily be done both on fake sensor data or on the intermediate results of dynamics computation.
 
 Gym is cross-platform and compatible out-of-the-box with most Reinforcement Learning frameworks implementing standard algorithms. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). `RL Coach` leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` and  `Tianshou` use its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. A few learning examples relying on those packages are also provided.
 
