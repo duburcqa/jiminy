@@ -75,7 +75,7 @@ python -m pip install gym-jiminy
 First, one must install the pre-compiled libraries of the dependencies. Most of them are available on `robotpkg` APT repository. Just run the bash script to install them automatically for Ubuntu 18. It should be straightforward to adapt it to any other distribution for which `robotpkg` is available.
 
 ```bash
-sudo ./jiminy/build_tools/easy_install_deps_ubuntu18.sh
+sudo ./build_tools/easy_install_deps_ubuntu18.sh
 ```
 
 You are now ready to build and install Jiminy itself.
@@ -96,6 +96,7 @@ make install -j2
 ```
 
 ## Building from source (including dependencies)
+
 
 ### Prerequisites
 

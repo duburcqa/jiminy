@@ -1,3 +1,10 @@
+<div align="center">
+  <a href="#"><img width="400px" height="auto" src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_logo.svg"></a>
+</div>
+
+____
+
+
 # Jiminy simulator
 
 ## Description
@@ -60,11 +67,11 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 # Demo
 
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="400"/>
-
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="800"/>
-
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="400"/>
+<a href="./examples/tutorial.ipynb">
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_plot_log.png" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_viewer_open.png" alt="" width="400"/>
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="800"/>
+    <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="400"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="400"/>
+</a>
 
 # Getting started
 
