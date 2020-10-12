@@ -4,39 +4,38 @@
 
 Jiminy is a fast and lightweight open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
- - **provide a fast yet physically accurate simulator for robotics research.** Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation. Ground reaction is modeled as a spring-damper external force applied to the system for arbitrary collision geometries. Additionally, Jiminy provides a comprehensive API for computing dynamic quantities and their derivatives by exposing and extending Pinocchio API.
-
+- **provide a fast yet physically accurate simulator for robotics research.** Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation. Ground reaction is modeled as a spring-damper external force applied to the system for arbitrary collision geometries. Additionally, Jiminy provides a comprehensive API for computing dynamic quantities and their derivatives by exposing and extending Pinocchio API.
 - **build an efficient and flexible plateform for machine learning in robotics.** Beside a strong focus on performance to answer machine learning's need for running computationally demanding distributed simulations, Jiminy offers convenience tools for learning via a dedicated learning-oriented module. It is compliant with `gym` standard API and provides an highly customizable wrapper to interface any robotics system with state-of-the-art learning frameworks such as [Rllib](https://github.com/ray-project/ray). Jiminy is also offering a generic and easily configurable learning environment for learning locomotion tasks by providing only [URDF](https://wiki.ros.org/urdf) files. Sensors measurements and internally dynamics properties are both observable. Furthermore, Jiminy enables easy modification many aspects of the simulation  to provide richer exploration and ensure robust learning. This ranges from external perturbation forces, to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself.
 
 Here are some of the key features of Jiminy:
 
 ### General
 
- - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
+- Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
 
 - Comprehensive API for computing dynamic quantities and their derivatives.
 
- - C++ core with full python bindings, providing frontend API parity between both languages.
+- C++ core with full python bindings, providing frontend API parity between both languages.
 
- - Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
+- Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
 
- - Easy to install: a simple `pip install jiminy_py` is all that is needed to get you started !
+- Easy to install: a simple `pip install jiminy_py` is all that is needed to get you started !
 
- - Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
+- Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
 
- - Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported as CSV or binary data.
+- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported as CSV or binary data.
 
- - Available for both Linux and Windows platform.
+- Available for both Linux and Windows platform.
 
 ### Physics
 
- - Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives, through spring-damper reaction forces and friction model.
+- Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives, through spring-damper reaction forces and friction model.
 
- - Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
+- Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
 
- - Support of compliant joints with spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
+- Support of compliant joints with spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
 
- - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
+- Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
 
 A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
