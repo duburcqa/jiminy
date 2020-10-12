@@ -18,13 +18,7 @@ curl http://robotpkg.openrobots.org/packages/debian/robotpkg.key | sudo apt-key 
 apt update
 ```
 
-Once done, it is straightforward to install the required package for Python 2.7 or 3.6.
-
-For Python 2.7
-
-```bash
-sudo apt install -y robotpkg-gepetto-viewer=4.4.0 robotpkg-py27-qt4-gepetto-viewer-corba=5.1.2 robotpkg-py27-omniorbpy
-```
+Once done, it is straightforward to install the required package for Python 3.6.
 
 For Python 3.6
 
@@ -52,7 +46,7 @@ Once done, `Pytorch` can be installed following the official "getting started" i
 
 ##### (optional) stable_baselines3
 
-Installing the Python packages `stable_baselines3` is required to run some of the provided examples, though it is not required to use gym_jiminy.
+Installing the Python packages `stable_baselines3==0.9` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
 python -m pip install stable-baselines3[extra]
@@ -60,7 +54,7 @@ python -m pip install stable-baselines3[extra]
 
 ##### (optional) tianshou
 
-Installing the Python packages `tianshou` is required to run some of the provided examples, though it is not required to use gym_jiminy.
+Installing the Python packages `tianshou==0.3.0` is required to run some of the provided examples, though it is not required to use gym_jiminy.
 
 ```bash
 python -m pip install tianshou
@@ -68,18 +62,7 @@ python -m pip install tianshou
 
 ##### (optional) ray[rllib]
 
-Installing the Python packages `ray==0.9.0.dev0` are required to run some of the provided examples, though it is not required to use gym_jiminy. It can be easily installed using `pip` for any OS and Python 3.6/3.7/3.8. The installation instructions are available [here](https://docs.ray.io/en/master/installation.html).
-
-##### (optional) Install RL Coach for Ubuntu 18
-
-Installing the Python package `rl_coach` is required to run some of the provided examples, though it is not required to use gym_jiminy.
-
-```bash
-apt install -y python-opencv
-apt install -y libsdl-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libportmidi-dev libavformat-dev libswscale-dev libjpeg-dev  libtiff-dev libsdl1.2-dev libnotify-dev freeglut3 freeglut3-dev libsm-dev libgtk2.0-dev libgtk-3-dev libwebkitgtk-dev libgtk-3-dev libwebkitgtk-3.0-dev libgstreamer-plugins-base1.0-dev
-
-python -m pip install rl_coach
-```
+Installing the Python packages `ray==1.0.0` are required to run some of the provided examples, though it is not required to use gym_jiminy. It can be easily installed using `pip` for any OS and Python 3.6/3.7/3.8. The installation instructions are available [here](https://docs.ray.io/en/master/installation.html).
 
 #### Install Gym Jiminy learning Python package
 
@@ -196,12 +179,12 @@ Once done, `Pytorch` can be installed following the official "getting started" i
 
 ##### (optional) stable_baselines3 / Ray[Rllib] / Tianshou
 
-Installing the Python packages `stable_baselines3`, `tianshou`, `ray==0.9.0.dev0` are required to run all the provided examples, though they are not required to use gym_jiminy. THey can easily be installed using `pip`. Pick the one you prefer!
+Installing the Python packages `stable_baselines3`, `tianshou`, `ray` are required to run all the provided examples, though they are not required to use gym_jiminy. They can easily be installed using `pip`. Pick the one you prefer!
 
 ```pwsh
 python -m pip install stable-baselines3[extra]
 python -m pip install tianshou
-python -m pip install https://ray-wheels.s3-us-west-2.amazonaws.com/master/{COMMIT_HASH}/ray-0.9.0.dev0-{PYTHON_VERSION}-win_amd64.whl
+python -m pip install ray[rllib]
 ```
 
 #### Install Gym Jiminy learning Python package
@@ -214,12 +197,11 @@ python -m pip install gym-jiminy
 
 ### Prerequisites
 
-You have to preinstall by yourself the (free) MSVC 2019 toolchain, `chocolatey` and `python`.
+You have to preinstall by yourself the (free) MSVC 2019 toolchain.
 
-Then, install `Numpy` and `Pkg-Config`.
+Then, install `numpy` and `wheel`.
 
 ```pwsh
-choco install pkgconfiglite -y
 python -m pip install numpy wheel
 ```
 
