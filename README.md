@@ -4,8 +4,13 @@
 
 Jiminy is a fast and lightweight open-source simulator for poly-articulated systems. It was built with two ideas in mind:
 
-- **provide a fast yet physically accurate simulator for robotics research.** Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation. Ground reaction is modeled as a spring-damper external force applied to the system for arbitrary collision geometries. Additionally, Jiminy provides a comprehensive API for computing dynamic quantities and their derivatives by exposing and extending Pinocchio API.
-- **build an efficient and flexible plateform for machine learning in robotics.** Beside a strong focus on performance to answer machine learning's need for running computationally demanding distributed simulations, Jiminy offers convenience tools for learning via a dedicated learning-oriented module. It is compliant with `gym` standard API and provides an highly customizable wrapper to interface any robotics system with state-of-the-art learning frameworks such as [Rllib](https://github.com/ray-project/ray). Jiminy is also offering a generic and easily configurable learning environment for learning locomotion tasks by providing only [URDF](https://wiki.ros.org/urdf) files. Sensors measurements and internally dynamics properties are both observable. Furthermore, Jiminy enables easy modification many aspects of the simulation  to provide richer exploration and ensure robust learning. This ranges from external perturbation forces, to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself.
+- **provide a fast yet physically accurate simulator for robotics research.**
+
+Jiminy is built around [Pinocchio](https://github.com/stack-of-tasks/pinocchio), an open-source fast and efficient kinematics and dynamics library. Jiminy thus uses minimal coordinates and Lagrangian dynamics to simulate an articulated system: this makes Jiminy as close as numerically possible to an analytical solution, without the risk of joint violation. Ground reaction is modeled as a spring-damper external force applied to the system for arbitrary collision geometries. Additionally, Jiminy provides a comprehensive API for computing dynamic quantities and their derivatives by exposing and extending Pinocchio API.
+
+- **build an efficient and flexible plateform for machine learning in robotics.**
+
+Beside a strong focus on performance to answer machine learning's need for running computationally demanding distributed simulations, Jiminy offers convenience tools for learning via a dedicated learning-oriented module. It is compliant with `gym` standard API and provides an highly customizable wrapper to interface any robotics system with state-of-the-art learning frameworks such as [Rllib](https://github.com/ray-project/ray). Jiminy is also offering a generic and easily configurable learning environment for learning locomotion tasks by providing only [URDF](https://wiki.ros.org/urdf) files. Sensors measurements and internally dynamics properties are both observable. Furthermore, Jiminy enables easy modification many aspects of the simulation  to provide richer exploration and ensure robust learning. This ranges from external perturbation forces, to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself.
 
 Here are some of the key features of Jiminy:
 
@@ -39,9 +44,7 @@ Here are some of the key features of Jiminy:
 
 A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
-**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`. **
-
-Thanks to Jan-Lukas Wynen for [Doxygen That Style](https://github.com/jl-wynen/that_style).
+**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`.**
 
 ## Demo
 
@@ -61,9 +64,9 @@ A few learning examples relying on those packages are also provided.
 
 ## Demo
 
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="860"/>
+<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_tensorboard_cartpole.png" alt="" width="840"/>
 
-<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="430"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="430"/>
+<img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_acrobot.gif" alt="" width="420"/> <img src="https://raw.github.com/Wandercraft/jiminy/readme/jiminy_learning_cartpole.gif" alt="" width="420"/>
 
 ___
 
