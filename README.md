@@ -18,13 +18,14 @@ Beside a strong focus on performance to answer machine learning's need for runni
 
 - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
 
-- Comprehensive API for computing dynamic quantities and their derivatives.
+- Comprehensive API for computing dynamic quantities and their derivatives, exposing and
+extending Pinocchio API.
 
 - C++ core with full python bindings, providing frontend API parity between both languages.
 
 - Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
 
-- Easy to install: a simple `pip install jiminy_py` is all that is needed to get you started !
+- Easy to install: a simple `python -m pip install jiminy_py` is all that is needed to get you started !
 
 - Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
 
@@ -50,8 +51,8 @@ A more complete list of features, development status, and changelog are availabl
 
 ## Description
 
-Gym Jiminy is fully compliant with the now standard reinforcement learning API provided by [Open AI Gym](https://github.com/openai/gym). Additionally, it offers a generic and easily configurable learning environment for learning locomotion tasks, with minimal intervention from the user, who, when possible, is only required to provide [URDF](https://wiki.ros.org/urdf) files. Furthermore, Gym Jiminy enables easy modification of many aspects of the simulation to provide richer exploration and ensure robust learning. This ranges from external perturbation forces to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself. Note that learning can
-easily be done both on fake sensor data or on the intermediate results of dynamics computation.
+Gym Jiminy is fully compliant with the now standard reinforcement learning API provided by [Open AI Gym](https://github.com/openai/gym). Additionally, it offers a generic and easily configurable learning environment for learning locomotion tasks, with minimal intervention from the user, who usually only needs to provide the robot's [URDF](https://wiki.ros.org/urdf) file. Furthermore, Gym Jiminy enables easy modification of many aspects of the simulation to provide richer exploration and ensure robust learning. This ranges from external perturbation forces to sensor noise and bias, including randomization of masses and inertias, ground friction model or even gravity itself. Note that learning can
+easily be done on any high-level dynamics features, or restricted to mock sensor data for end-to-end learning.
 
 Gym is cross-platform and compatible out-of-the-box with most Reinforcement Learning frameworks implementing standard algorithms. For instance, [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3), [RL Coach](https://github.com/NervanaSystems/coach), [Tianshou](https://github.com/thu-ml/tianshou), or [Rllib](https://github.com/ray-project/ray). `RL Coach` leverages the open-source Machine Learning framework [Tensorflow](https://github.com/tensorflow/tensorflow) as backend, `Stable Baselines 3` and  `Tianshou` use its counterpart [Pytorch](https://pytorch.org/), and `Rllib` supports both. A few learning examples relying on those packages are also provided.
 
@@ -67,4 +68,10 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 # Getting started
 
-Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`. Furthermore, helper scripts to built the dependencies from source on Windows and Linux are available. Detailed installation instructions are available [here](./INSTALL.md).
+Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`:
+
+```bash
+python -m pip install jiminy_py
+```
+
+Detailed installation instructions, including building from source, are available [here](./INSTALL.md).
