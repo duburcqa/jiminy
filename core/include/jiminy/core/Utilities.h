@@ -334,6 +334,10 @@ namespace jiminy
                                    std::vector<int32_t>           & jointsVelocityIdx,
                                    bool_t                   const & firstJointIdxOnly = false);
 
+    hresult_t isPositionValid(pinocchio::Model const & model,
+                              vectorN_t        const & position,
+                              bool_t                 & isValid);
+
     hresult_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
                                        std::string      const & childJointNameIn,
                                        std::string      const & newJointNameIn);
@@ -396,10 +400,6 @@ namespace jiminy
                           uint32_t                               const & firstBlockLength,
                           uint32_t                               const & secondBlockStart,
                           uint32_t                               const & secondBlockLength);
-
-    void catInPlace(std::vector<vectorN_t> const & xList,
-                    vectorN_t                    & xCat);
-    vectorN_t cat(std::vector<vectorN_t> const & xList);
 }
 
 #include "jiminy/core/Utilities.tpp"

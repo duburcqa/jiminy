@@ -519,13 +519,21 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            auto const & q = qInitIt->second;
-            auto const & v = vInitIt->second;
-
+            vectorN_t const & q = qInitIt->second;
+            vectorN_t const & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
                 std::cout << "Error - EngineMultiRobot::start - The size of the initial configuration or velocity "
                                 "is inconsistent with model size for at least one of the systems." << std::endl;
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            bool_t isValid;
+            isPositionValid(system.robot->pncModel_, q, isValid);  // It cannot throw an exception at this point
+            if (!isValid)
+            {
+                std::cout << "Error - EngineMultiRobot::start - The initial configuration is not consistent with "
+                             "the  types of joints of the model for at least one of the systems." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -2377,7 +2385,10 @@ namespace jiminy
         std::vector<std::vector<int32_t> > intData;
         std::vector<std::vector<float32_t> > floatData;
         getLogDataRaw(header, timestamps, intData, floatData);
-        logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
+        if (!intData.empty())
+        {
+            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
+        }
     }
 
     hresult_t EngineMultiRobot::writeLogTxt(std::string const & filename)
@@ -2385,38 +2396,43 @@ namespace jiminy
         std::vector<std::string> header;
         matrixN_t log;
         getLogData(header, log);
+        if (header.empty())
+        {
+            std::cout << "Error - EngineMultiRobot::writeLogTxt - No data available. "
+                         "Please start a simulation before writing log." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
 
         std::ofstream myFile = std::ofstream(filename,
                                              std::ios::out |
                                              std::ofstream::trunc);
 
-        if (myFile.is_open())
-        {
-            auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
-            std::copy(header.begin() + 1,
-                      indexConstantEnd - 1,
-                      std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
-            std::copy(indexConstantEnd - 1,
-                      indexConstantEnd,
-                      std::ostream_iterator<std::string>(myFile, "\n"));
-            std::copy(indexConstantEnd + 1,
-                      header.end() - 2,
-                      std::ostream_iterator<std::string>(myFile, ", "));
-            std::copy(header.end() - 2,
-                      header.end() - 1,
-                      std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
-
-            Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-            myFile << log.format(CSVFormat);
-
-            myFile.close();
-        }
-        else
+        if (!myFile.is_open())
         {
             std::cout << "Error - EngineMultiRobot::writeLogTxt - Impossible to create the log file. "\
                          "Check if root folder exists and if you have writing permissions." << std::endl;
             return hresult_t::ERROR_BAD_INPUT;
         }
+
+        auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
+        std::copy(header.begin() + 1,
+                    indexConstantEnd - 1,
+                    std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
+        std::copy(indexConstantEnd - 1,
+                    indexConstantEnd,
+                    std::ostream_iterator<std::string>(myFile, "\n"));
+        std::copy(indexConstantEnd + 1,
+                    header.end() - 2,
+                    std::ostream_iterator<std::string>(myFile, ", "));
+        std::copy(header.end() - 2,
+                    header.end() - 1,
+                    std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
+
+        Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+        myFile << log.format(CSVFormat);
+
+        myFile.close();
+
         return hresult_t::SUCCESS;
     }
 
