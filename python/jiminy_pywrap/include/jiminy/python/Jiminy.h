@@ -1228,7 +1228,7 @@ namespace python
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
                 .add_property("effort_limit", &Robot::getEffortLimit)
-                .add_property("motor_inertia", &Robot::getMotorInertia)
+                .add_property("motors_inertias", &Robot::getMotorsInertias)
 
                 .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))

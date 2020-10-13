@@ -171,7 +171,7 @@ namespace jiminy
         std::vector<std::string> const & getSensorsNames(std::string const & sensorType) const;
 
         vectorN_t getEffortLimit(void) const;
-        vectorN_t getMotorInertia(void) const;
+        vectorN_t getMotorsInertias(void) const;
 
         std::vector<std::string> const & getMotorEffortFieldnames(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API

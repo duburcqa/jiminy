@@ -1529,15 +1529,15 @@ namespace jiminy
         return effortLimit;
     }
 
-    vectorN_t Robot::getMotorInertia(void) const
+    vectorN_t Robot::getMotorsInertias(void) const
     {
-        vectorN_t motorInertia = vectorN_t::Zero(pncModel_.nv);
+        vectorN_t motorsInertias = vectorN_t::Zero(pncModel_.nv);
         for (auto const & motor : motorsHolder_)
         {
             int32_t const & motorsVelocityIdx = motor->getJointVelocityIdx();
-            motorInertia[motorsVelocityIdx] = motor->getRotorInertia();
+            motorsInertias[motorsVelocityIdx] = motor->getRotorInertia();
         }
-        return motorInertia;
+        return motorsInertias;
     }
 
     std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
