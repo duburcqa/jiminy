@@ -858,7 +858,8 @@ namespace jiminy
                then update the required internal buffers to reflect changes, if any. */
             configHolder_t & jointOptionsHolder =
                 boost::get<configHolder_t>(modelOptions.at("joints"));
-            if (!boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf")))
+            bool_t positionLimitFromUrdf = boost::get<bool_t>(jointOptionsHolder.at("positionLimitFromUrdf"));
+            if (!positionLimitFromUrdf)
             {
                 vectorN_t & jointsPositionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
                 if ((int32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMin.size())
@@ -866,7 +867,7 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMin'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
+                auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
                 internalBuffersMustBeUpdated |= (jointsPositionLimitMinDiff.array().abs() >= EPS).all();
                 vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if ((uint32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMax.size())
@@ -874,10 +875,11 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'positionLimitMax'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
+                auto jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
                 internalBuffersMustBeUpdated |= (jointsPositionLimitMaxDiff.array().abs() >= EPS).all();
             }
-            if (!boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf")))
+            bool_t velocityLimitFromUrdf = boost::get<bool_t>(jointOptionsHolder.at("velocityLimitFromUrdf"));
+            if (!velocityLimitFromUrdf)
             {
                 vectorN_t & jointsVelocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
                 if ((int32_t) rigidJointsVelocityIdx_.size() != jointsVelocityLimit.size())
@@ -885,8 +887,28 @@ namespace jiminy
                     std::cout << "Error - Model::setOptions - Wrong vector size for 'velocityLimit'." << std::endl;
                     return hresult_t::ERROR_BAD_INPUT;
                 }
-                vectorN_t jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
+                auto jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
                 internalBuffersMustBeUpdated |= (jointsVelocityLimitDiff.array().abs() >= EPS).all();
+            }
+
+            // Check if the position or velocity limits have changed, and refresh proxies if so
+            bool_t enablePositionLimit = boost::get<bool_t>(jointOptionsHolder.at("enablePositionLimit"));
+            bool_t enableVelocityLimit = boost::get<bool_t>(jointOptionsHolder.at("enableVelocityLimit"));
+            if (enablePositionLimit != mdlOptions_->joints.enablePositionLimit)
+            {
+                internalBuffersMustBeUpdated = true;
+            }
+            else if (enablePositionLimit && (positionLimitFromUrdf != mdlOptions_->joints.positionLimitFromUrdf))
+            {
+                internalBuffersMustBeUpdated = true;
+            }
+            else if (enableVelocityLimit != mdlOptions_->joints.enableVelocityLimit)
+            {
+                internalBuffersMustBeUpdated = true;
+            }
+            else if (enableVelocityLimit && (velocityLimitFromUrdf != mdlOptions_->joints.velocityLimitFromUrdf))
+            {
+                internalBuffersMustBeUpdated = true;
             }
 
             // Check if the flexible model and its proxies must be regenerated
