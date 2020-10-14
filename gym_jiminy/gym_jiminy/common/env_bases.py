@@ -91,6 +91,7 @@ class BaseJiminyEnv(gym.core.Env):
         self.observation_space = None
 
         # Current observation and action of the robot
+        self._state = None
         self._sensors_data = None
         self._observation = None
         self._action = None
@@ -188,7 +189,10 @@ class BaseJiminyEnv(gym.core.Env):
         self._action = np.zeros(self.robot.nmotors)
 
         # Start the engine, in order to initialize the sensors data
-        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
+        hresult = self.simulator.start(
+            qpos, qvel, self.simulator.use_theoretical_model)
+        if (hresult != jiminy.hresult_t.SUCCESS):
+            raise RuntimeError("Invalid initial state.")
 
         # Backup the sensor data by doing a deep copy manually
         sensor_data = self.robot.sensors_data
@@ -252,8 +256,9 @@ class BaseJiminyEnv(gym.core.Env):
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
-        # Reset the low-level engine
-        self.set_state(*self._sample_state())
+        # Sample the initial state and reset the low-level engine
+        self._state = self._sample_state()
+        self.set_state(*self._state)
 
         return self.get_obs()
 
@@ -280,7 +285,7 @@ class BaseJiminyEnv(gym.core.Env):
                 if not self._is_ready:
                     raise RuntimeError("Simulation not initialized. "
                         "Please call 'reset' once before calling 'step'.")
-                hresult = self.simulator.start(*self.simulator.state,
+                hresult = self.simulator.start(*self._state,
                     self.simulator.use_theoretical_model)
                 if (hresult != jiminy.hresult_t.SUCCESS):
                     raise RuntimeError("Failed to start the simulation.")
@@ -293,6 +298,10 @@ class BaseJiminyEnv(gym.core.Env):
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
+
+        # Fetch the new observation.
+        # Note that the internal buffer of the current state is now obsolete.
+        self._state = None
         self._observation = self._fetch_obs()
 
         # Check if the simulation is over
@@ -428,8 +437,6 @@ class BaseJiminyEnv(gym.core.Env):
         # Configure the stepper
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
-        engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
-        engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
         engine_options["stepper"]["randomSeed"] = self._seed
 
@@ -710,7 +717,10 @@ class BaseJiminyEnv(gym.core.Env):
         """
         obs = {}
         obs['t'] = self.simulator.stepper_state.t
-        obs['state'] = np.concatenate(self.simulator.state)
+        if self._state is None:
+            obs['state'] = np.concatenate(self.simulator.state)
+        else:
+            obs['state'] = np.concatenate(self._state)
         obs['sensors'] = self._sensors_data
         return obs
 
@@ -821,9 +831,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
             observation=self.observation_space)
 
         # Current observation of the robot
-        self.observation = {'observation': self.observation,
-                            'achieved_goal': None,
-                            'desired_goal': None}
+        self._observation = {'observation': self._observation,
+                             'achieved_goal': None,
+                             'desired_goal': None}
 
     def _sample_goal(self) -> np.ndarray:
         """
