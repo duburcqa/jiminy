@@ -258,7 +258,24 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Sample the initial state and reset the low-level engine
         self._state = self._sample_state()
+        if not jiminy.is_position_valid(
+            self.simulator.pinocchio_model, self._state[0]):
+            raise RuntimeError("The initial state provided by `_sample_state` "
+                "is inconsistent with the dimension or types of joints of the "
+                "model.")
+
         self.set_state(*self._state)
+
+        # Make sure the state is valid, otherwise there `_fetch_obs` and
+        # `_refresh_observation_space` are inconsistent.
+        if not self.observation_space.contains(self._observation):
+            raise RuntimeError("The observation returned by `_fetch_obs` is "
+                "inconsistent with the observation space defined by "
+                "`_refresh_observation_space`.")
+
+        if self._is_done():
+            raise RuntimeError("The simulation is already done at `reset`. "
+                "Check the implementation of `_is_done` if overloaded.")
 
         return self.get_obs()
 
