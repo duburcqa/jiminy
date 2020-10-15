@@ -229,6 +229,7 @@ class BaseJiminyEnv(gym.core.Env):
                 prefix="log_", suffix=".data", delete=(not self.debug))
 
         # Update the observation
+        self._state = (qpos, qvel)
         self._observation = self._fetch_obs()
 
     def reset(self) -> SpaceDictRecursive:
@@ -257,14 +258,14 @@ class BaseJiminyEnv(gym.core.Env):
         self.simulator.set_controller(controller)
 
         # Sample the initial state and reset the low-level engine
-        self._state = self._sample_state()
+        qpos, qvel = self._sample_state()
         if not jiminy.is_position_valid(
-            self.simulator.pinocchio_model, self._state[0]):
+            self.simulator.pinocchio_model, qpos):
             raise RuntimeError("The initial state provided by `_sample_state` "
                 "is inconsistent with the dimension or types of joints of the "
                 "model.")
 
-        self.set_state(*self._state)
+        self.set_state(qpos, qvel)
 
         # Make sure the state is valid, otherwise there `_fetch_obs` and
         # `_refresh_observation_space` are inconsistent.
@@ -316,9 +317,8 @@ class BaseJiminyEnv(gym.core.Env):
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
-        # Fetch the new observation.
-        # Note that the internal buffer of the current state is now obsolete.
-        self._state = None
+        # Fetch the new observation
+        self._state = self.simulator.state
         self._observation = self._fetch_obs()
 
         # Check if the simulation is over
@@ -726,18 +726,18 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Fetch the observation based on the current state of the robot.
 
-        @details By default, no filtering is applied on the raw data extracted
-                 from the engine.
+        @details This method is called right after updating the internal buffer
+                 `_state`.
+
+        @remark By default, no filtering is applied on the raw data extracted
+                from the engine.
 
         @remark This method, alongside '_refresh_observation_space', must be
                 overwritten in order to use a custom observation space.
         """
         obs = {}
         obs['t'] = self.simulator.stepper_state.t
-        if self._state is None:
-            obs['state'] = np.concatenate(self.simulator.state)
-        else:
-            obs['state'] = np.concatenate(self._state)
+        obs['state'] = np.concatenate(self._state)
         obs['sensors'] = self._sensors_data
         return obs
 
@@ -761,8 +761,11 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Determine whether the episode is over.
 
-        @details By default, it returns True if the observation reaches or
-                 exceeds the lower or upper limit.
+        @details This method is called right after calling `_fetch_obs`, so
+                 that the internal buffer '_observation' is up-to-date.
+
+        @remark By default, it returns True if the observation reaches or
+                exceeds the lower or upper limit.
         """
         return not self.observation_space.contains(self._observation)
 
@@ -770,7 +773,11 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Compute reward at current episode state.
 
-        @details By default it always return 'nan', without extra info.
+        @details This method is called after updating the internal buffer
+                 '_num_steps_beyond_done', which is None if not done, 0
+                 right after, and so on.
+
+        @remark By default it always return 'nan', without extra info.
 
         @return [0] Total reward
                 [1] Any extra info useful for monitoring as a dictionary.
