@@ -60,6 +60,18 @@ namespace python
         return jointType;
     }
 
+    bool_t isPositionValid(pinocchio::Model const & model,
+                           vectorN_t        const & position)
+    {
+        bool_t isValid;
+        hresult_t returnCode = ::jiminy::isPositionValid(model, position, isValid);
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            return false;
+        }
+        return isValid;
+    }
+
     BOOST_PYTHON_MODULE(jiminy_pywrap)
     {
         // Initialized C API of Python, required to handle raw Python native object
@@ -109,6 +121,8 @@ namespace python
         // Expose generic utilities
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));
+        bp::def("is_position_valid", &isPositionValid,
+                                     (bp::arg("pinocchio_model"), "position"));
 
         // Expose classes
         TIME_STATE_FCT_EXPOSE(bool_t)

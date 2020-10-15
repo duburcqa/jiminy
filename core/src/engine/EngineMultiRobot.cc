@@ -1759,6 +1759,11 @@ namespace jiminy
         return isSimulationRunning_;
     }
 
+    float64_t EngineMultiRobot::getMaxSimulationDuration(void) const
+    {
+        return TelemetryRecorder::getMaximumLogTime(engineOptions_->telemetry.timeUnit);
+    }
+
     // ========================================================
     // =================== Stepper utilities ==================
     // ========================================================
@@ -2416,18 +2421,17 @@ namespace jiminy
 
         auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
         std::copy(header.begin() + 1,
-                    indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
+                  indexConstantEnd - 1,
+                  std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
         std::copy(indexConstantEnd - 1,
-                    indexConstantEnd,
-                    std::ostream_iterator<std::string>(myFile, "\n"));
+                  indexConstantEnd,
+                  std::ostream_iterator<std::string>(myFile, "\n"));
         std::copy(indexConstantEnd + 1,
-                    header.end() - 2,
-                    std::ostream_iterator<std::string>(myFile, ", "));
+                  header.end() - 2,
+                  std::ostream_iterator<std::string>(myFile, ", "));
         std::copy(header.end() - 2,
-                    header.end() - 1,
-                    std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
-
+                  header.end() - 1,
+                  std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
         Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
         myFile << log.format(CSVFormat);
 
