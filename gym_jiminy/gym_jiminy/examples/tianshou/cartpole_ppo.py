@@ -1,292 +1,109 @@
-
 """
-@brief TODO
+@brief Solve the official Open AI Gym Cartpole problem simulated in Jiminy using
+       PPO algorithm of Tianshou reinforcement learning framework.
+
+@details It solves it consistently in less than 100000 timesteps in average,
+         and in about 40000 at best.
 
 @remark This script requires pytorch>=1.4 and and tianshou==0.3.0.
 """
-import os
-import time
-import tqdm
-import numpy as np
-from typing import Dict, List, Union, Callable, Optional
+# ======================== User parameters =========================
 
-import torch
-from torch import nn
-from torch.distributions import Independent, Normal
-from torch.utils.tensorboard import SummaryWriter
-from tensorboard.program import TensorBoard
-
-import gym
-from gym.wrappers import TimeLimit
-
-from tianshou.utils import tqdm_config, MovAvg
-from tianshou.env import SubprocVectorEnv
-from tianshou.data import Collector, ReplayBuffer
-from tianshou.policy import BasePolicy, PPOPolicy
-from tianshou.trainer import test_episode, gather_info
-
-#  User parameters
 GYM_ENV_NAME = "gym_jiminy:jiminy-cartpole-v0"
-GYM_ENV_KWARGS = {'continuous': False}
-TARGET_EPISODE_STEPS = 5000
-MAX_EPISODE_STEPS = 10000
+GYM_ENV_KWARGS = {
+    "continuous": True
+}
 SEED = 0
 N_THREADS = 8
-VF_SHARE_LAYERS = False
+N_GPU = 1
 
-# Define some hyper-parameters:
-env_creator = lambda *args, **kwargs: TimeLimit(gym.make(GYM_ENV_NAME, **GYM_ENV_KWARGS), MAX_EPISODE_STEPS)
+# =================== Configure Python workspace ===================
+
+# GPU device selection must be done at system level to be taken into account
+__import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
+    ",".join(map(str, range(N_GPU)))
+
+import numpy as np
+import gym
+import torch
+
+from tianshou.env import SubprocVectorEnv
+from tianshou.policy import PPOPolicy
+
+from fcnet import build_actor_critic
+from utilities import initialize, train, test
+
+# ================== Initialize Tensorboard daemon =================
+
+writer = initialize()
+
+# ================== Configure learning algorithm ==================
 
 ### On-policy trainer parameters
-trainer_config = dict(
-    collect_per_step = 128 * N_THREADS,  # Number of frames the collector would collect in total before the network update
-    batch_size = 128,                    # Minibatch size of sample data used for policy learning
-    repeat_per_collect = 8,              # Number of repeat time for policy learning for each batch (after splitting the batch)
-    frame_per_epoch = 100000,            # Number of sample frames in one epoch (testing performance computed after each epoch)
-    max_epoch = 10,                      # Maximum of epochs for training
-    episode_per_test = N_THREADS,        # Number of episodes for one policy evaluation
-)
+trainer_config = {}
+trainer_config["collect_per_step"] = 512    # Number of frames the collector would collect in total before the network update
+trainer_config["batch_size"] = 128          # Minibatch size of sample data used for policy learning
+trainer_config["repeat_per_collect"] = 8    # Number of repeat time for policy learning for each batch (after splitting the batch)
+trainer_config["frame_per_epoch"] = 100000  # Number of sample frames in one epoch (testing performance computed after each epoch)
+trainer_config["max_epoch"] = 1             # Maximum of epochs for training
+trainer_config["episode_per_test"] = 100    # Number of episodes for one policy evaluation
 
 ### PPO algorithm parameters
-ppo_config = dict(
-    discount_factor = 0.99,
-    eps_clip = 0.2,
-    vf_coef = 0.5,
-    ent_coef = 0.01,
-    gae_lambda = 0.95,
-    dual_clip = None,
-    value_clip = False,
-    reward_normalization = False,
-    max_grad_norm = 0.5
-)
+ppo_config = {}
+ppo_config["max_batchsize"] = 512
+ppo_config["discount_factor"] = 0.99
+ppo_config["gae_lambda"] = 0.95
+ppo_config["vf_coef"] = 0.5
+ppo_config["ent_coef"] = 0.01
+ppo_config["eps_clip"] = 0.2
+ppo_config["dual_clip"] = None
+ppo_config["value_clip"] = False
+ppo_config["reward_normalization"] = False
+ppo_config["max_grad_norm"] = 0.5
 
-### Optimizer parameters
-lr = 1.0e-3
-buffer_size = trainer_config["collect_per_step"]
+# ====================== Run the optimization ======================
 
-# Instantiate the gym environment
-train_envs = SubprocVectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
-test_envs = SubprocVectorEnv([lambda: env_creator() for _ in range(N_THREADS)])
+# Create a multiprocess environment
+env_creator = lambda *args, **kwargs: gym.make(GYM_ENV_NAME, **GYM_ENV_KWARGS)
 
-# Set the seed
+# Create training and testing environments
+train_envs = SubprocVectorEnv([
+    lambda: env_creator() for _ in range(int(N_THREADS//2))])
+test_envs = SubprocVectorEnv([
+    lambda: env_creator() for _ in range(int(N_THREADS//2))])
+
+# Set the seeds
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 train_envs.seed(SEED)
 test_envs.seed(SEED)
 
-# Create the models
+# Create actor and critic
+actor, critic, dist_fn = build_actor_critic(
+    env_creator, vf_share_layers=False, free_log_std=True)
+actor = actor.to("cuda")
+critic = critic.to("cuda")
 
-### Define the models
-class Net(nn.Module):
-    def __init__(self, obs_space):
-        super().__init__()
-        n_input = np.prod(obs_space.shape)
-        self.model = nn.Sequential(*[
-            nn.Linear(n_input, 64), nn.Tanh(),
-            nn.Linear(64, 64), nn.Tanh()
-        ])
-
-    def forward(self, obs, state=None, info={}):
-        if not isinstance(obs, torch.Tensor):
-            device = next(self.model.parameters()).device
-            obs = torch.tensor(obs, device=device, dtype=torch.float32)
-        logits = self.model(obs)
-        return logits, state
-
-class Actor(nn.Module):
-    def __init__(self, preprocess_net, action_space, free_log_std=True):
-        super().__init__()
-        self.preprocess = preprocess_net
-        self.is_action_space_discrete = isinstance(action_space, gym.spaces.Discrete)
-        self.free_log_std = free_log_std
-        if self.is_action_space_discrete:
-            n_output = np.prod(action_space.n)
-            self.onehot = nn.Linear(64, n_output)
-        else:
-            n_output = np.prod(action_space.shape)
-            self.mu = nn.Linear(64, n_output)
-            if self.free_log_std:
-                self.sigma = nn.Parameter(torch.zeros(n_output, 1))
-            else:
-                self.sigma = nn.Linear(64, n_output)
-
-    def forward(self, obs, state=None, info={}):
-        logits, h = self.preprocess(obs, state)
-        if self.is_action_space_discrete:
-            logits = nn.functional.softmax(self.onehot(logits), dim=-1)
-            return logits, h
-        else:
-            mu = self.mu(logits)
-            if self.free_log_std:
-                sigma = self.sigma.expand(mu.shape).exp()
-            else:
-                sigma = torch.exp(self.sigma(logits))
-            return (mu, sigma), None
-
-class Critic(nn.Module):
-    def __init__(self, preprocess_net):
-        super().__init__()
-        self.preprocess = preprocess_net
-        self.last = nn.Linear(64, 1)
-
-    def forward(self, obs, **kwargs):
-        logits, _ = self.preprocess(obs, state=kwargs.get('state', None))
-        logits = self.last(logits)
-        return logits
-
-### Instantiate the models
+# Set the action range in continuous mode
 env = env_creator()
-if VF_SHARE_LAYERS:
-    net = Net(env.observation_space)
-    actor = Actor(net, env.action_space).to('cuda')
-    critic = Critic(net).to('cuda')
-else:
-    actor = Actor(Net(env.observation_space), env.action_space).to('cuda')
-    critic = Critic(Net(env.observation_space)).to('cuda')
-optim = torch.optim.Adam(list(actor.parameters()) + list(critic.parameters()), lr=lr)
+if isinstance(env.action_space, gym.spaces.Box):
+    ppo_config["action_range"] = [
+        float(env.action_space.low), float(env.action_space.high)]
 
-### orthogonal initialization
-for m in list(actor.modules()) + list(critic.modules()):
-    if isinstance(m, torch.nn.Linear):
-        torch.nn.init.orthogonal_(m.weight)
-        torch.nn.init.zeros_(m.bias)
+# Optimizer parameters
+lr = 1.0e-3
+optimizer = torch.optim.Adam(
+    list(actor.parameters()) + list(critic.parameters()), lr=lr)
 
-### Set the probability distribution
-if isinstance(env.action_space, gym.spaces.Discrete):
-    dist_fn = torch.distributions.Categorical
-else:
-    dist_fn = lambda logits: Independent(Normal(*logits), 1)  # Diagonal normal
-    ppo_config["action_range"] = [float(env.action_space.low),
-                                  float(env.action_space.high)]
+# Create the training agent
+train_agent = PPOPolicy(actor, critic, optimizer, dist_fn, **ppo_config)
 
-# Setup policy and collectors:
-policy = PPOPolicy(actor, critic, optim, dist_fn, **ppo_config)
-train_collector = Collector(policy, train_envs, ReplayBuffer(buffer_size))
-test_collector = Collector(policy, test_envs)
+# Run the learning process
+checkpoint_path = train(
+    train_agent, train_envs, test_envs, writer, trainer_config)
 
-# Setup the trainer and run the learning process
+# ===================== Enjoy the trained agent ======================
 
-### Define a custom on-policy trainer
-def onpolicy_trainer(
-        policy: BasePolicy,
-        train_collector: Collector,
-        test_collector: Collector,
-        max_epoch: int,
-        frame_per_epoch: int,
-        collect_per_step: int,
-        repeat_per_collect: int,
-        episode_per_test: Union[int, List[int]],
-        batch_size: int,
-        train_fn: Optional[Callable[[int, int], None]] = None,
-        test_fn: Optional[Callable[[int, Optional[int]], None]] = None,
-        stop_fn: Optional[Callable[[float], bool]] = None,
-        save_fn: Optional[Callable[[BasePolicy], None]] = None,
-        writer: Optional[SummaryWriter] = None,
-        log_interval: int = 1,
-        verbose: bool = True,
-        test_in_train: bool = True,
-        **kwargs) -> Dict[str, Union[float, str]]:
-    global_step = 0
-    best_epoch, best_reward = -1, -1.0
-    stat: Dict[str, MovAvg] = {}
-    start_time = time.time()
-    train_collector.reset_stat()
-    test_collector.reset_stat()
-    test_in_train = test_in_train and train_collector.policy == policy
-    for epoch in range(1, 1 + max_epoch):
-        # train
-        policy.train()
-        with tqdm.tqdm(
-            total=frame_per_epoch, desc=f"Epoch #{epoch}", **tqdm_config
-        ) as t:
-            while t.n < t.total:
-                if train_fn:
-                    train_fn(epoch, global_step)
-                result = train_collector.collect(n_step=collect_per_step)
-                data = {}
-                if test_in_train and stop_fn and stop_fn(result["rew"]):
-                    test_result = test_episode(
-                        policy, test_collector, test_fn,
-                        epoch, episode_per_test, writer, global_step)
-                    if stop_fn(test_result["rew"]):
-                        if save_fn:
-                            save_fn(policy)
-                        for k in result.keys():
-                            data[k] = f"{result[k]:.2f}"
-                        t.set_postfix(**data)
-                        return gather_info(
-                            start_time, train_collector, test_collector,
-                            test_result["rew"])
-                    else:
-                        policy.train()
-                losses = policy.update(
-                    0, train_collector.buffer,
-                    batch_size=batch_size, repeat=repeat_per_collect)
-                train_collector.reset_buffer()
-                step = 1
-                for v in losses.values():
-                    if isinstance(v, list):
-                        step = max(step, len(v))
-                global_step += step * collect_per_step
-                for k in result.keys():
-                    data[k] = f"{result[k]:.2f}"
-                    if writer and global_step % log_interval == 0:
-                        writer.add_scalar(
-                            "train/" + k, result[k], global_step=global_step)
-                for k in losses.keys():
-                    if stat.get(k) is None:
-                        stat[k] = MovAvg()
-                    stat[k].add(losses[k])
-                    data[k] = f"{stat[k].get():.6f}"
-                    if writer and global_step % log_interval == 0:
-                        writer.add_scalar(
-                            k, stat[k].get(), global_step=global_step)
-                t.update(collect_per_step)
-                t.set_postfix(**data)
-            if t.n <= t.total:
-                t.update()
-        # test
-        result = test_episode(policy, test_collector, test_fn, epoch,
-                              episode_per_test, writer, global_step)
-        if best_epoch == -1 or best_reward < result["rew"]:
-            best_reward = result["rew"]
-            best_epoch = epoch
-            if save_fn:
-                save_fn(policy)
-        if verbose:
-            print(f"Epoch #{epoch}: test_reward: {result['rew']:.6f}, "
-                  f"best_reward: {best_reward:.6f} in #{best_epoch}")
-        if stop_fn and stop_fn(best_reward):
-            break
-    return gather_info(
-        start_time, train_collector, test_collector, best_reward)
-
-### Configure Tensorboard
-data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'log')
-if not 'tb' in locals().keys():
-    tb = TensorBoard()
-    tb.configure(host="0.0.0.0", logdir=data_path)
-    url = tb.launch()
-    print(f"Started Tensorboard {url} at {data_path}...")
-writer = SummaryWriter(data_path)
-
-### Configure export
-def save_fn(policy):
-    torch.save(policy.state_dict(), os.path.join(data_path, 'policy.pth'))
-
-### Configure early stopping of training
-def stop_fn(x):
-    return x >= TARGET_EPISODE_STEPS
-
-### Run the learning process
-result = onpolicy_trainer(
-    policy, train_collector, test_collector,
-    **trainer_config, stop_fn=stop_fn, save_fn=save_fn,
-    writer=writer, verbose=True)
-print(f'Finished training! Use {result["duration"]}')
-
-# Enjoy a trained agent !
-env = env_creator()
-collector = Collector(policy, env)
-result = collector.collect(n_episode=1, render=env.dt)
-print(f'Final reward: {result["rew"]}, length: {result["len"]}')
+test_agent = PPOPolicy(actor, critic, optimizer, dist_fn, **ppo_config)
+test_agent.load_state_dict(torch.load(checkpoint_path))
+test(test_agent, env_creator, num_episodes=1)

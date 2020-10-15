@@ -13,8 +13,13 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
-DT = 2.0e-3       # Stepper update period
-MAX_FORCE = 40.0  # Max force of the motor
+DT = 0.02                   # Stepper update period
+X_THRESHOLD = 2.4           # Maximum absolute position of the cart before considering the episode failed
+THETA_THRESHOLD = 12.0 * np.pi / 180.0  # Maximum absolute angle of the pole before considering the episode failed
+X_RANDOM_RANGE = 0.05       # Sampling range for cart position
+THETA_RANDOM_RANGE = 0.05   # Sampling range for pole angle
+DX_RANDOM_RANGE = 0.05      # Sampling range for cart linear velocity
+DTHETA_RANDOM_RANGE = 0.05  # Sampling range for pole angular velocity
 
 
 class CartPoleJiminyEnv(BaseJiminyEnv):
@@ -30,11 +35,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     @details    **OBSERVATION:**
                 Type: Box(4)
-                Num	Observation                Min         Max
-                0	Cart Position             -1.5         1.5
-                1	Cart Velocity             -Inf         Inf
-                2	Pole Angle                -50 deg      50 deg
-                3	Pole Velocity At Tip      -Inf         Inf
+                Num	Observation              Min         Max
+                0	Cart Position           -4.8         4.8
+                1	Cart Velocity           -Inf         Inf
+                2	Pole Angle              -24 deg      24 deg
+                3	Pole Velocity At Tip    -Inf         Inf
 
                 **ACTIONS:**
                 Type: Discrete(2)
@@ -57,8 +62,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
                 **EPISODE TERMINATION:**
                 If any of these conditions is satisfied:
-                    - Pole Angle is more than 25 degrees Cart
-                    - Position is more than 75 cm
+                    - Pole Angle is more than 12 degrees Cart
+                    - Position is more than 2.4
                     - Episode length is greater than 200
 
                 **SOLVED REQUIREMENTS:**
@@ -77,54 +82,41 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Backup some input arguments
         self.continuous = continuous
 
-        # Initialize Jiminy simulator
-
-        ## Get URDF path
+        # Get URDF path
         data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
         urdf_path = os.path.join(data_dir, "cartpole/cartpole.urdf")
 
-        ## Instantiate robot
+        # Instantiate robot
         robot = jiminy.Robot()
         robot.initialize(urdf_path,
             has_freeflyer=False, mesh_package_dirs=[data_dir])
 
-        ## Add motors and sensors
+        # Add motors and sensors
         motor_joint_name = "slider_to_cart"
-        encoder_sensors_def = {
+        encoder_sensors_descr = {
             "slider": "slider_to_cart",
             "pole": "cart_to_pole"
         }
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
-        for sensor_name, joint_name in encoder_sensors_def.items():
+        for sensor_name, joint_name in encoder_sensors_descr.items():
             encoder = jiminy.EncoderSensor(sensor_name)
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        ## Instantiate simulator
+        # Instantiate simulator
         simulator = Simulator(robot)
 
-        # Define some problem-specific variables
-
-        ## Map between discrete actions and actual motor force if necessary
+        # Map between discrete actions and actual motor force if necessary
         if not self.continuous:
-            self.AVAIL_FORCE = [-MAX_FORCE, MAX_FORCE]
+            self.AVAIL_FORCE = [-motor.effort_limit, motor.effort_limit]
 
-        # Maximum absolute angle of the pole before considering the episode failed
-        self.theta_threshold_radians = 25 * np.pi / 180
-
-        # Maximum absolute position of the cart before considering the episode failed
-        self.x_threshold = 0.75
-
-        # Bounds of the hypercube associated with the initial state of the robot
-        self.state_random_high = np.array([0.5, 0.15, 0.1, 0.1])
-        self.state_random_low = -self.state_random_high
-
-        self.position_random_high = np.array([0.5, 0.15])
-        self.position_random_low  = -self.position_random_high
-        self.velocity_random_high = np.full((2,), 0.1)
-        self.velocity_random_low  = -self.velocity_random_high
+        # Bounds of hypercube associated with initial state of robot
+        self.position_random_range = np.array([
+            THETA_RANDOM_RANGE, X_RANDOM_RANGE])
+        self.velocity_random_range = np.array([
+            DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 
         # Configure the learning environment
         super().__init__(simulator, DT, debug=False)
@@ -135,26 +127,26 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         """
         super()._setup_environment()
 
-        # Set the effort limit of the motor
+        # OpenAI Gym implementation of Cartpole has no velocity limit
         robot_options = self.robot.get_options()
-        motor_name = self.robot.motors_names[0]
-        robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
-        robot_options["motors"][motor_name]["effortLimit"] = MAX_FORCE
+        robot_options["model"]["joints"]["enableVelocityLimit"] = False
         self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
         """
         @brief Configure the observation of the environment.
 
-        @details Implement the official Gym cartpole-v1 action space. See
-                 documentation https://gym.openai.com/envs/CartPole-v1/.
+        @details Implement the official Gym cartpole-v1 action space. Only the
+                 state is observable, while by default, the current time,
+                 state, and sensors data are available.See documentation
+                 https://gym.openai.com/envs/CartPole-v1/.
 
-        @remark The Angle limit set to 2 * theta_threshold_radians, so that
+        @remark The Angle limit set to 2 times the failure thresholds, so that
                 observations of failure are still within bounds.
         """
         # Compute observation bounds
-        high = np.array([1.5 * self.x_threshold,
-                         1.5 * self.theta_threshold_radians,
+        high = np.array([2.0 * X_THRESHOLD,
+                         2.0 * THETA_THRESHOLD,
                          *self.robot.velocity_limit])
 
         # Set the observation space
@@ -164,6 +156,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Reset observation
         self._observation = np.zeros(self.observation_space.shape)
 
+    def _fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::_fetch_obs
+        return np.concatenate(self._state)
+
     def _refresh_action_space(self) -> None:
         """
         @brief    TODO
@@ -172,7 +168,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                  depending on 'continuous'.
         """
         if not self.continuous:
-            self.action_space = spaces.Discrete(2)
+            self.action_space = spaces.Discrete(len(self.AVAIL_FORCE))
         else:
             super()._refresh_action_space()
 
@@ -180,15 +176,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         """
         @brief    TODO
         """
-        qpos = self.rg.uniform(low=self.position_random_low,
-                               high=self.position_random_high)
-        qvel = self.rg.uniform(low=self.velocity_random_low,
-                               high=self.velocity_random_high)
+        qpos = self.rg.uniform(low=-self.position_random_range,
+                               high=self.position_random_range)
+        qvel = self.rg.uniform(low=-self.velocity_random_range,
+                               high=self.velocity_random_range)
         return qpos, qvel
-
-    def _fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::_fetch_obs
-        return np.concatenate(self.simulator.state)
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
@@ -208,10 +200,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         @brief    TODO
         """
         x, theta, _, _ = self._observation
-        return        x < -self.x_threshold \
-               or     x >  self.x_threshold \
-               or theta < -self.theta_threshold_radians \
-               or theta >  self.theta_threshold_radians
+        return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
         """
@@ -221,10 +210,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                  condition has never been reached during the same episode.
         """
         reward = 0.0
-        if self._steps_beyond_done is None:
-            done = self._is_done()
-            if not done:
-                reward += 1.0 #self.dt # For the cumulative reward to be invariant wrt the simulation timestep
+        if not self._num_steps_beyond_done:  # True for None and 0, False otherwise
+            reward += 1.0
         return reward, {}
 
     def step(self, action: Optional[np.ndarray] = None
@@ -233,18 +220,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         @brief    TODO
         """
         # @copydoc BaseJiminyEnv::step
-        if action is not None:
-            # Make sure that the action is within bounds
-            assert self.action_space.contains(action), \
-                "%r (%s) invalid" % (action, type(action))
-
-            # Compute the actual force to apply
-            if not self.continuous:
-                action = self.AVAIL_FORCE[action]
+        # Compute the actual force to apply
+        if not self.continuous and action is not None:
+            action = self.AVAIL_FORCE[action]
 
         # Perform the step
         return super().step(action)
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        if not self.simulator._is_viewer_available:
+            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
         return super().render(mode, **kwargs)

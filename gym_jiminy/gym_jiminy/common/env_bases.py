@@ -101,8 +101,10 @@ class BaseJiminyEnv(gym.core.Env):
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
             is not BaseJiminyEnv._compute_reward_terminal
 
-        # Number of simulation steps performed after episode termination
-        self._steps_beyond_done = None
+        # Number of simulation steps performed
+        self.num_steps = -1
+        self.max_steps = None
+        self._num_steps_beyond_done = None
 
         # Set the seed of the simulation and reset the simulation
         self.seed()
@@ -206,6 +208,8 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Initialize some internal buffers
         self._is_ready = True
+        self.num_steps = 0
+        self.max_steps = int(self.simulator.max_simulation_duration / self.dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -218,7 +222,7 @@ class BaseJiminyEnv(gym.core.Env):
             use_theoretical_model=self.simulator.use_theoretical_model)
 
         # Reset some internal buffers
-        self._steps_beyond_done = None
+        self._num_steps_beyond_done = None
         self._log_data = None
 
         # Create a new log file
@@ -313,6 +317,9 @@ class BaseJiminyEnv(gym.core.Env):
             return_code = self.simulator.step(self.dt)
             if (return_code != jiminy.hresult_t.SUCCESS):
                 raise RuntimeError("Failed to perform the simulation step.")
+
+            # Update some internal buffers
+            self.num_steps += 1
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
@@ -321,22 +328,26 @@ class BaseJiminyEnv(gym.core.Env):
         self._state = self.simulator.state
         self._observation = self._fetch_obs()
 
-        # Check if the simulation is over
-        done = is_step_failed or self._is_done()
+        # Check if the simulation is over.
+        # Note that 'done' is always True if the integration failed or if the
+        # maximum number of steps will be exceeded next step.
+        done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
+            self._is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
-        if self._steps_beyond_done is None:
+        if self._num_steps_beyond_done is None:
             if done:
-                self._steps_beyond_done = 0
+                self._num_steps_beyond_done = 0
         else:
-            if self._enable_reward_terminal and self._steps_beyond_done == 0:
+            if self._enable_reward_terminal and \
+                    self._num_steps_beyond_done == 0:
                 logger.error(
                     "Calling 'step' even though this environment has "
                     "already returned done = True whereas terminal "
                     "reward is enabled. You must call 'reset' "
                     "to avoid further undefined behavior.")
-            self._steps_beyond_done += 1
+            self._num_steps_beyond_done += 1
 
         # Early return in case of low-level engine integration failure
         if is_step_failed:
@@ -348,7 +359,7 @@ class BaseJiminyEnv(gym.core.Env):
             self._info['reward'] = reward_info
 
         # Finalize the episode is the simulation is over
-        if done and self._steps_beyond_done == 0:
+        if done and self._num_steps_beyond_done == 0:
             # Write log file if simulation is over (debug mode only)
             if self.debug:
                 self.simulator.write_log(self.log_path)
@@ -767,7 +778,9 @@ class BaseJiminyEnv(gym.core.Env):
         @remark By default, it returns True if the observation reaches or
                 exceeds the lower or upper limit.
         """
-        return not self.observation_space.contains(self._observation)
+        if not self.observation_space.contains(self._observation):
+            return True
+        return False
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
         """
@@ -861,13 +874,13 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
     def _sample_goal(self) -> np.ndarray:
         """
-        @brief Samples a new goal and returns it.
+        @brief Sample goal.
         """
         raise NotImplementedError
 
     def _get_achieved_goal(self) -> np.ndarray:
         """
-        @brief Compute the achieved goal based on current state of the robot.
+        @brief Compute achieved goal based on current state of the robot.
 
         @return Currently achieved goal.
         """

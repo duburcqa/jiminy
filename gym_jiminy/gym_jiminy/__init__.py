@@ -5,14 +5,16 @@ from gym.envs.registration import register
 register(
     id='jiminy-cartpole-v0',
     entry_point='gym_jiminy.envs:CartPoleJiminyEnv',
-    reward_threshold=10000.0
+    reward_threshold=475.0,
+    max_episode_steps=500
 )
 register(
     id='jiminy-acrobot-v0',
     entry_point='gym_jiminy.envs:AcrobotJiminyEnv',
-    max_episode_steps=12000,
-    reward_threshold=-3000.0
+    reward_threshold=-100.0,
+    max_episode_steps=500
 )
+
 register(
     id='jiminy-anymal-v0',
     entry_point='gym_jiminy.envs:ANYmalJiminyEnv'

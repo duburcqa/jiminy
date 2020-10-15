@@ -4,6 +4,7 @@ function(buildPythonWheel TARGET_PATH)
     install(CODE "cmake_policy(SET CMP0053 NEW)
                   cmake_policy(SET CMP0011 NEW)
                   set(PROJECT_VERSION ${BUILD_VERSION})
+                  set(SOURCE_DIR ${CMAKE_SOURCE_DIR})
                   file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
                        LIST_DIRECTORIES false
                        RELATIVE \"${CMAKE_SOURCE_DIR}/${TARGET_DIR}\"

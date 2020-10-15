@@ -1,83 +1,78 @@
-import os
-import time
+"""
+@brief Solve the official Open AI Gym Acrobot problem simulated in Jiminy using
+       PPO algorithm of Stable_baseline3 reinforcement learning framework.
+
+@details It solves it consistently in less than 100000 timesteps in average,
+         and in about 40000 at best.
+
+@remark This script requires pytorch>=1.4 and and stable-baselines3[extra]==0.9.
+"""
+# ======================== User parameters =========================
+
+GYM_ENV_NAME = "gym_jiminy:jiminy-cartpole-v0"
+GYM_ENV_KWARGS = {
+    'continuous': True
+}
+SEED = 0
+N_THREADS = 8
+N_GPU = 1
+
+# =================== Configure Python workspace ===================
+
+# GPU device selection must be done at system level to be taken into account
+__import__("os").environ["CUDA_VISIBLE_DEVICES"] = \
+    ",".join(map(str, range(N_GPU)))
 
 import gym
-from tensorboard.program import TensorBoard
 
 from stable_baselines3.ppo import MlpPolicy, PPO
-from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
+from utilities import initialize, train, test
 
-### Create a multiprocess environment
-n_thread = 8
-env = SubprocVecEnv(
-    [lambda: gym.make("gym_jiminy:jiminy-cartpole-v0", continuous=False)
-     for _ in range(n_thread)],
-    start_method='fork'
-)
+# ================== Initialize Tensorboard daemon =================
 
-### Configure Tensorboard
-tensorboard_data_path = os.path.dirname(os.path.realpath(__file__))
-if not 'tb' in locals().keys():
-    tb = TensorBoard()
-    tb.configure(host="0.0.0.0", logdir=tensorboard_data_path)
-    url = tb.launch()
-    print(f"Started Tensorboard {url} at {tensorboard_data_path}...")
+log_path = initialize()
 
-### Create the agent or load one
+# ================== Configure learning algorithm ==================
 
 # PPO config
-config = dict(
-    n_steps=128,
-    batch_size=128,
-    learning_rate=0.001,
-    n_epochs=8,
-    gamma=0.99,
-    ent_coef=0.01,
-    vf_coef=0.5,
-    gae_lambda=0.95,
-    clip_range=0.2,
-    clip_range_vf=float('inf'),
-    max_grad_norm=0.5 #float('inf')
-)
+agent_cfg = {}
+agent_cfg['n_steps'] = 128
+agent_cfg['batch_size'] = 128
+agent_cfg['learning_rate'] = 1.0e-3
+agent_cfg['n_epochs'] = 8
+agent_cfg['gamma'] = 0.99
+agent_cfg['gae_lambda'] = 0.95
+agent_cfg['target_kl'] = None
+agent_cfg['ent_coef'] = 0.01
+agent_cfg['vf_coef'] = 0.5
+agent_cfg['clip_range'] = 0.2
+agent_cfg['clip_range_vf'] = float('inf')
+agent_cfg['max_grad_norm'] = float('inf')
+agent_cfg['seed'] = SEED
+
+# ====================== Run the optimization ======================
+
+# Create a multiprocess environment
+env_creator = lambda: gym.make(GYM_ENV_NAME, **GYM_ENV_KWARGS)
+train_env = SubprocVecEnv([env_creator for _ in range(int(N_THREADS//2))],
+                          start_method='fork')
+test_env = DummyVecEnv([env_creator])
 
 # Create the learning agent according to the chosen algorithm
-agent = PPO(
-    MlpPolicy, env, **config,
-    tensorboard_log=tensorboard_data_path,
-    verbose=True
-)
-
-# Load an agent if desired
-# agent = PPO2.load("cartpole_ppo2_baseline.pkl")
+train_agent = PPO(MlpPolicy, train_env, **agent_cfg,
+    tensorboard_log=log_path, verbose=True)
+train_agent.eval_env = test_env
 
 # Run the learning process
-try:
-    agent.learn(
-        total_timesteps=400000,
-        log_interval=5,
-        reset_num_timesteps=False
-    )
-except KeyboardInterrupt:
-    print("Interrupting training...")
+checkpoint_path = train(train_agent, max_timesteps=100000)
 
-# Save the agent if desired
-# agent.save("cartpole_ppo2_baseline.pkl")
+# ===================== Enjoy the trained agent ======================
 
-### Enjoy a trained agent
+# Create testing agent
+test_agent = train_agent.load(checkpoint_path)
+test_agent.eval_env = test_env
 
-# duration of the simulations in seconds
-t_end = 20.0
-
-# Get the time step of Jiminy
-env.remotes[0].send(('get_attr','dt'))
-dt = env.remotes[0].recv()
-
-# Run the simulation in real-time
-obs = env.reset()
-for _ in range(int(t_end/dt)):
-    action, _states = agent.predict(obs)
-    obs, rewards, done, info = env.step(action)
-    env.remotes[0].send(('render', 'human'))
-    env.remotes[0].recv()
-    time.sleep(dt)
+# Run the testing process
+test(test_agent, max_episodes=1)
