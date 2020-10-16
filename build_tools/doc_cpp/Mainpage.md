@@ -6,10 +6,10 @@ This page contains only the Doxygen documentation for C++ code. It is automatica
 
 ## Usage
 
- This documentation groups together all the native C++ code, that is part of the Jiminy project.
+This documentation groups together all the native C++ code, that is part of the Jiminy project.
 
   - Documentation for the package sources is available by three different tabs:
+
     - [Packages](./namespaces.html), where file are sorted by C++ package.
     - [Classes](./annotated.html), where only C++ classes are listed.
-    - [Files](./files.html), where one may browse the file directory tree directly.
-      This is the most complete reference (i.e. some file might be inaccessible from the other two interfaces).
+    - [Files](./files.html), where one may browse the file directory tree directly. This is the most complete reference. Indeed, some file might be inaccessible from the other two interfaces.

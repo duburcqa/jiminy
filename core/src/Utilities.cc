@@ -149,7 +149,7 @@ namespace jiminy
     class AppendBoostVariantToJson : public boost::static_visitor<>
     {
     public:
-        AppendBoostVariantToJson(Json::Value & root) :
+        explicit AppendBoostVariantToJson(Json::Value & root) :
         root_(root),
         field_()
         {

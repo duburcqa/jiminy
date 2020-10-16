@@ -24,32 +24,20 @@ Beside a strong focus on performance to answer machine learning's need for runni
 ### General
 
 - Simulation of multi-body systems using minimal coordinates and Lagrangian dynamics.
-
-- Comprehensive API for computing dynamic quantities and their derivatives, exposing and
-extending Pinocchio API.
-
+- Comprehensive API for computing dynamic quantities and their derivatives, exposing and extending Pinocchio API.
 - C++ core with full python bindings, providing frontend API parity between both languages.
-
 - Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
-
 - Easy to install: a simple `python -m pip install jiminy_py` is all that is needed to get you started !
-
 - Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
-
 - Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported as CSV or binary data.
-
 - Available for both Linux and Windows platform.
 
 ### Physics
 
 - Support contact and collision with the ground, using either a fixed set of contact points or collision meshes and primitives, through spring-damper reaction forces and friction model.
-
 - Able to simulate multiple articulated systems simultaneously, interacting with each other, to support use cases such as multi-agent reinforcement learning or swarm robotics.
-
 - Support of compliant joints with spring-damper dynamics, to model joint elasticity, a common phenomenon particularly in legged robotics.
-
 - Simulate both continuous or discrete-time controller, with possibly different controller and sensor update frequencies.
-
 A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
 **The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`.**

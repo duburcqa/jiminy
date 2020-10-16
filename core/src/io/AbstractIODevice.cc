@@ -47,17 +47,24 @@ namespace jiminy
 
         if (isOpen())
         {
-            returnCode = lastError_ = hresult_t::ERROR_GENERIC;
             std::cout << "Error - AbstractIODevice::open - Already open." << std::endl;
-        }
-
-        if ((modes & supportedModes_) != modes)
-        {
             returnCode = lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - AbstractIODevice::open - At least of the modes " << modes << " is not supported." << std::endl;
         }
 
-        returnCode = doOpen(modes);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if ((modes & supportedModes_) != modes)
+            {
+                std::cout << "Error - AbstractIODevice::open - At least of the modes " << modes << " is not supported." << std::endl;
+                returnCode = lastError_ = hresult_t::ERROR_GENERIC;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = doOpen(modes);
+        }
+
         if (returnCode == hresult_t::SUCCESS)
         {
             modes_ = modes;
