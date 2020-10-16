@@ -12,7 +12,7 @@ setup(name="gym_jiminy",
       license="MIT",
       python_requires=">3.6",
       classifiers=[
-          "Development Status :: 4 - Stable",
+          "Development Status :: 5 - Production/Stable",
           "Intended Audience :: Science/Research",
           "Topic :: Scientific/Engineering :: Artificial Intelligence",
           "Topic :: Software Development :: Libraries :: Python Modules",
