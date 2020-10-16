@@ -1,81 +1,66 @@
 <?xml version="1.0"?>
 <robot name="physics">
-
-    <link name="slideBar">
+  <!-- Official OpenAI gym Acrobot model-->
+  <!-- https://github.com/openai/gym/blob/38a1f630dc9815a567aaf299ae5844c8f8b9a6fa/gym/envs/classic_control/cartpole.py  -->
+  <link name="slideBar">
     <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
         <box size="30 0.05 0.05"/>
       </geometry>
-      <origin xyz="0 0 0"/>
       <material name="green">
-        <color rgba="0 0.8 .8 1"/>
+        <color rgba="0.0 0.8 0.8 1.0"/>
       </material>
     </visual>
     <inertial>
-      <mass value="0"/>
-      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      <mass value="0.0"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
     </inertial>
   </link>
-
-  <link name="cart">
-    <visual>
-      <geometry>
-        <box size="0.5 0.5 0.2"/>
-      </geometry>
-      <origin xyz="0 0 0"/>
-      <material name="blue">
-        <color rgba="0 0 .8 1"/>
-      </material>
-    </visual>
-    <collision>
-      <geometry>
-        <box size="0.5 0.5 0.2"/>
-      </geometry>
-      <origin xyz="0 0 0"/>
-    </collision>
-    <inertial>
-      <mass value="1"/>
-      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
-    </inertial>
-  </link>
-
   <joint name="slider_to_cart" type="prismatic">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
     <axis xyz="1 0 0"/>
-    <origin xyz="0.0 0.0 0.0"/>
     <parent link="slideBar"/>
     <child link="cart"/>
-    <limit effort="1000.0" velocity="100.0" lower="-5.0" upper="5.0"/>
+    <limit effort="10.0" velocity="100.0" lower="-10.0" upper="10.0"/>
   </joint>
-
-  <link name="pole">
+  <link name="cart">
     <visual>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
       <geometry>
-        <box size="0.05 0.05 1.0"/>
+        <box size="0.5 0.5 0.2"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0 0 0.5"/>
-      <material name="white">
-        <color rgba="1 1 1 1"/>
+      <material name="blue">
+        <color rgba="0.0 0.0 0.8 1.0"/>
       </material>
     </visual>
     <inertial>
-    <origin xyz="0 0 0.5"/>
-      <mass value="10"/>
-      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
     </inertial>
-     <collision>
+  </link>
+  <joint name="cart_to_pole" type="revolute">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="cart"/>
+    <child link="pole"/>
+    <limit effort="1000.0" velocity="100.0" lower="-6.2832" upper="6.2832"/>
+  </joint>
+  <link name="pole">
+    <visual>
+      <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0"/>
       <geometry>
         <box size="0.05 0.05 1.0"/>
       </geometry>
-      <origin rpy="0 0 0" xyz="0 0 0.5"/>
-    </collision>
+      <material name="white">
+        <color rgba="1.0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+    <inertial>
+      <!-- Mass m at the end of a massless pole of length l -->
+      <origin xyz="0.0 0.0 1.0"/>
+      <mass value="0.1"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+    </inertial>
   </link>
-
-  <joint name="cart_to_pole" type="revolute">
-    <axis xyz="0 1 0"/>
-    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
-    <parent link="cart"/>
-    <child link="pole"/>
-    <limit effort="1000.0" velocity="100.0" lower="-10.0" upper="10.0"/>
-  </joint>
-
 </robot>

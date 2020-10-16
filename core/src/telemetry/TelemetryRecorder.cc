@@ -92,9 +92,14 @@ namespace jiminy
         return returnCode;
     }
 
+    float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeLoggingPrecision)
+    {
+        return std::numeric_limits<int32_t>::max() / timeLoggingPrecision;
+    }
+
     float64_t TelemetryRecorder::getMaximumLogTime(void) const
     {
-        return std::numeric_limits<int32_t>::max() / timeLoggingPrecision_;
+        return getMaximumLogTime(timeLoggingPrecision_);
     }
 
     bool_t const & TelemetryRecorder::getIsInitialized(void)

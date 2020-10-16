@@ -60,7 +60,7 @@ Installing the Python packages `tianshou==0.3.0` is required to run some of the 
 python -m pip install tianshou
 ```
 
-##### (optional) ray[rllib]
+##### (optional) ray\[rllib\]
 
 Installing the Python packages `ray==1.0.0` are required to run some of the provided examples, though it is not required to use gym_jiminy. It can be easily installed using `pip` for any OS and Python 3.6/3.7/3.8. The installation instructions are available [here](https://docs.ray.io/en/master/installation.html).
 
@@ -178,7 +178,7 @@ See this tutorial: <https://towardsdatascience.com/installing-tensorflow-with-cu
 
 Once done, `Pytorch` can be installed following the official "getting started" instructions: <https://pytorch.org/get-started/locally/>
 
-##### (optional) stable_baselines3 / Ray[Rllib] / Tianshou
+##### (optional) stable_baselines3 / ray\[rllib\] / tianshou
 
 Installing the Python packages `stable_baselines3`, `tianshou`, `ray` are required to run all the provided examples, though they are not required to use gym_jiminy. They can easily be installed using `pip`. Pick the one you prefer!
 

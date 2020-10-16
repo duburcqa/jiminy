@@ -1228,7 +1228,7 @@ namespace python
                 .add_property("sensors_names", &PyRobotVisitor::getSensorsNames)
 
                 .add_property("effort_limit", &Robot::getEffortLimit)
-                .add_property("motor_inertia", &Robot::getMotorInertia)
+                .add_property("motors_inertias", &Robot::getMotorsInertias)
 
                 .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
                                                               bp::return_value_policy<bp::copy_const_reference>()))
@@ -1857,6 +1857,7 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("max_simulation_duration", &EngineMultiRobot::getMaxSimulationDuration)
                 ;
         }
 

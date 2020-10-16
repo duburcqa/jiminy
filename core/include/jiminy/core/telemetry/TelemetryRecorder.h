@@ -42,6 +42,10 @@ namespace jiminy
         /// \return Max time, in second.
         float64_t getMaximumLogTime(void) const;
 
+        /// \brief Get the maximum time that can be logged with the given precision.
+        /// \return Max time, in second.
+        static float64_t getMaximumLogTime(float64_t const & timeLoggingPrecision);
+
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
         ////////////////////////////////////////////////////////////////////////

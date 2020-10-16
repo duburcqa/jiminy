@@ -145,7 +145,7 @@ def plot_log():
     n_plot = len(plotted_elements)
 
     if n_plot == 0:
-        print(f"Nothing to plot. Exiting...")
+        print("Nothing to plot. Exiting...")
         return
 
     fig = plt.figure()

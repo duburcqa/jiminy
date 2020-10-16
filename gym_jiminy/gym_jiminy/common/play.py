@@ -90,6 +90,7 @@ def loop_interactive(press_key_to_start: bool = True,
             input_thread.start()
 
             print("Entering keyboard interactive mode.")
+            args[0].render()
             if press_key_to_start:
                 print("Press a key to start...")
             key = NOT_A_KEY
@@ -100,7 +101,7 @@ def loop_interactive(press_key_to_start: bool = True,
                     if not is_started:
                         print("Go!")
                         key = NOT_A_KEY
-                        is_started = False
+                        is_started = True
                 if key == exit_key:
                     print("Exiting keyboard interactive mode.")
                     stop_event.set()

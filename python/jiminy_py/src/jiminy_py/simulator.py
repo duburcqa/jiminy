@@ -214,12 +214,15 @@ class Simulator:
         @remark Beware that it returns a copy, which is computationally
                 inefficient but intentional.
         """
-        q = self.engine.system_state.q
-        v = self.engine.system_state.v
-        if self.robot.is_flexible and self.use_theoretical_model:
-            return self.robot.get_rigid_state_from_flexible(q, v)
+        if self.engine.is_simulation_running:
+            q = self.engine.system_state.q
+            v = self.engine.system_state.v
+            if self.robot.is_flexible and self.use_theoretical_model:
+                return self.robot.get_rigid_state_from_flexible(q, v)
+            else:
+                return q, v  # It is already a copy
         else:
-            return q, v  # It is already a copy
+            raise RuntimeError("No simulation running. Impossible to get current state.")
 
     @property
     def pinocchio_model(self) -> pin.Model:

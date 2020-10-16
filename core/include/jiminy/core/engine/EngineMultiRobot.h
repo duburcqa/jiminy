@@ -428,6 +428,7 @@ namespace jiminy
                                  systemState_t const * & systemState) const;
         stepperState_t const & getStepperState(void) const;
         bool_t const & getIsSimulationRunning(void) const;
+        float64_t getMaxSimulationDuration(void) const;
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,

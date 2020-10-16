@@ -1,0 +1,91 @@
+<?xml version="1.0" ?>
+<!-- Official OpenAI gym Acrobot model-->
+<!-- https://github.com/openai/gym/blob/38a1f630dc9815a567aaf299ae5844c8f8b9a6fa/gym/envs/classic_control/acrobot.py  -->
+<robot name="acrobot">
+    <link name="world">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0" />
+            <geometry>
+                <sphere radius="0.05"/>
+            </geometry>
+            <material name="">
+                <color rgba="1.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <mass value="0.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+    <joint name="FirstArmJoint" type="continuous">
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 3.14159 0.0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="world"/>
+      <child link="FirstArm"/>
+      <limit effort="1.0" velocity="12.566"/> <!-- velocity=4*np.pi  -->
+    </joint>
+    <link name="FirstArm">
+        <visual>
+            <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0" />
+            <geometry>
+                <box size="0.04 0.04 1.0"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 0.0 1.0 1.0"/>
+            </material>
+        </visual>
+        <visual>
+            <origin xyz="0.0 0.0 1.0" rpy="0.0 0.0 0.0" />
+            <geometry>
+                <sphere radius="0.05"/>
+            </geometry>
+            <material name="">
+                <color rgba="1.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0"/>
+            <mass value="1.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+    <joint name="SecondArmJoint" type="continuous">
+      <origin xyz="0.0 0.0 1.0" rpy="0.0 0.0 0.0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="FirstArm"/>
+      <child link="SecondArm"/>
+      <limit effort="1.0" velocity="28.274"/> <!-- velocity=9*np.pi  -->
+    </joint>
+    <link name="SecondArm">
+        <visual>
+            <origin xyz="0.0 0.0 0.5" rpy="0 0.0 0.0" />
+            <geometry>
+                <box size="0.04 0.04 1.0"/>
+            </geometry>
+            <material name="">
+                <color rgba="0.0 1.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <visual>
+            <origin xyz="0.0 0.0 1.0" rpy="0.0 0.0 0.0" />
+            <geometry>
+                <sphere radius="0.05"/>
+            </geometry>
+            <material name="">
+                <color rgba="1.0 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <inertial>
+            <origin xyz="0.0 0.0 0.5" rpy="0.0 0.0 0.0"/>
+            <mass value="1.0"/>
+            <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="0.0"/>
+        </inertial>
+    </link>
+    <joint name="TipJoint" type="fixed">
+      <origin xyz="0.0 0.0 1.0" rpy="0 0.0 0.0"/>
+      <parent link="SecondArm"/>
+      <child link="Tip"/>
+    </joint>
+    <link name="Tip"/>
+</robot>

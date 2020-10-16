@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+#include "pinocchio/algorithm/joint-configuration.hpp"
+
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
 #include "jiminy/core/control/ControllerFunctor.h"
@@ -123,8 +125,8 @@ int main(int argc, char_t * argv[])
     // =====================================================================
 
     // Prepare options
-    Eigen::VectorXd q0 = Eigen::VectorXd::Zero(2);
-    q0(1) = 0.1;
+    Eigen::VectorXd q0 = pinocchio::neutral(robot->pncModel_);
+    q0[1] = 0.1;
     Eigen::VectorXd v0 = Eigen::VectorXd::Zero(2);
     float64_t const tf = 3.0;
 

@@ -28,7 +28,7 @@ set(WARN_FULL "-Wall -Wextra -Weffc++ -pedantic -pedantic-errors \
                -Wmissing-noreturn -Wpacked -Wpointer-arith \
                -Wredundant-decls -Wshadow -Wstack-protector \
                -Wstrict-aliasing=2 -Wswitch-default -Wswitch-enum \
-               -Wunreachable-code -Wunused -Wunused-parameter"
+               -Wunreachable-code -Wunused"
 )
 
 # Shared libraries need PIC

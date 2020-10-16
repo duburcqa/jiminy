@@ -149,7 +149,7 @@ namespace jiminy
     class AppendBoostVariantToJson : public boost::static_visitor<>
     {
     public:
-        AppendBoostVariantToJson(Json::Value & root) :
+        explicit AppendBoostVariantToJson(Json::Value & root) :
         root_(root),
         field_()
         {
@@ -1137,6 +1137,41 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t isPositionValid(pinocchio::Model const & model,
+                              vectorN_t        const & position,
+                              bool_t                 & isValid)
+    {
+        if (model.nq != position.size())
+        {
+            std::cout << "Error - isPositionValid - Size of configuration vector inconsistent with model." << std::endl;
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // First, check that the position is normalized
+        vectorN_t positionNormalized = position;
+        pinocchio::normalize(model, positionNormalized);
+        if (((positionNormalized.array() - position.array()).abs() > EPS).any())
+        {
+            isValid = false;
+            return hresult_t::SUCCESS;
+        }
+
+        /* Normalize is not enough since it does not handle the case where
+           the norm of a joint position is zero. Self difference is used in
+           such a case, because it should be different from zero (since the
+           norm does not make sense in the first place). */
+        vectorN_t selfDifference(model.nv);
+        pinocchio::difference(model, position, position, selfDifference);
+        if ((selfDifference.array().abs() > EPS).any())
+        {
+            isValid = false;
+            return hresult_t::SUCCESS;
+        }
+
+        isValid = true;
+        return hresult_t::SUCCESS;
+    }
+
     void switchJoints(pinocchio::Model       & modelInOut,
                       uint32_t         const & firstJointIdx,
                       uint32_t         const & secondJointIdx)
@@ -1412,34 +1447,6 @@ namespace jiminy
         else
         {
             return 0.0;
-        }
-    }
-    vectorN_t cat(std::vector<vectorN_t> const & xList)
-    {
-        vectorN_t xCat;
-
-        // Initialize the vector the cumilative size
-        uint32_t xCumSize = 0U;
-        for (vectorN_t const & x : xList)
-        {
-            xCumSize += x.size();
-        }
-        xCat.resize(xCumSize);
-
-        catInPlace(xList, xCat);
-
-        return xCat;
-    }
-
-    void catInPlace(std::vector<vectorN_t> const & xList,
-                    vectorN_t                    & xCat)
-    {
-        uint32_t xIdx = 0U;
-        for (vectorN_t const & x : xList)
-        {
-            uint32_t const xSize = x.size();
-            xCat.segment(xIdx, xSize) = x;
-            xIdx += xSize;
         }
     }
 }

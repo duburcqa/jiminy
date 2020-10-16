@@ -13,10 +13,13 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
-DT = 2.0e-3          # Stepper update period
-MAX_VEL = 4 * np.pi  # Max velocity of the joints
-MAX_TORQUE = 10.0    # Max torque of the motor
-ACTION_NOISE = 0.0   # Standard deviation of the noise added to the action
+DT = 0.2                              # Stepper update period
+THETA_RANDOM_RANGE = 0.1              # Range of uniform sampling distribution of joint angles
+DTHETA_RANDOM_RANGE = 0.1             # Range of uniform sampling distribution of joint velocities
+HEIGHT_REL_DEFAULT_THRESHOLD = 0.5    # The relative height of the tip at which to consider an episode successful for normal env
+HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2  # The mimimum relative height of the tip at which to consider an episode successful for goal env
+HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98  # The maximum relative height of the tip at which to consider an episode successful for goal env
+ACTION_NOISE = 0.0                    # Standard deviation of the noise added to the action
 
 
 class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
@@ -35,7 +38,8 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
     @details    **STATE:**
                 The state consists of the sin() and cos() of the two rotational
                 joint angles and the joint angular velocities :
-                [cos(theta1) sin(theta1) cos(theta2) sin(theta2) thetaDot1 thetaDot2].
+                [cos(theta1) sin(theta1) cos(theta2) sin(theta2)
+                 thetaDot1 thetaDot2].
                 For the first link, an angle of 0 corresponds to the link
                 pointing downwards. The angle of the second link is relative to
                 the angle of the first link. An angle of 0 corresponds to
@@ -54,31 +58,29 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
     """
     def __init__(self, continuous: bool = False):
         """
-        @brief      Constructor
+        @brief Constructor
 
-        @param[in]  continuous   Whether or not the action space is continuous.
-                                 If not continuous, the action space has only 3
-                                 states, i.e. low, zero, and high.
-                                 Optional: True by default.
+        @param continuous  Whether or not the action space is continuous. If
+                           not continuous, the action space has only 3 states,
+                           i.e. low, zero, and high.
+                           Optional: True by default.
         """
         # Backup some input arguments
         self.continuous = continuous
 
-        # Initialize Jiminy simulator
-
-        ## Get URDF path
+        # Get URDF path
         data_dir = resource_filename('gym_jiminy.envs', 'data/toys_models')
         urdf_path = os.path.join(
-            data_dir, "double_pendulum/double_pendulum.urdf")
+            data_dir, "acrobot/acrobot.urdf")
 
-        ## Instantiate robot
+        # Instantiate robot
         robot = jiminy.Robot()
         robot.initialize(urdf_path,
             has_freeflyer=False, mesh_package_dirs=[data_dir])
 
-        ## Add motors and sensors
-        motor_joint_name = "SecondPendulumJoint"
-        encoder_joint_names = ("PendulumJoint", "SecondPendulumJoint")
+        # Add motors and sensors
+        motor_joint_name = "SecondArmJoint"
+        encoder_joint_names = ("FirstArmJoint", "SecondArmJoint")
         motor = jiminy.SimpleMotor(motor_joint_name)
         robot.attach_motor(motor)
         motor.initialize(motor_joint_name)
@@ -87,137 +89,110 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             robot.attach_sensor(encoder)
             encoder.initialize(joint_name)
 
-        ## Instantiate simulator
+        # Instantiate simulator
         simulator = Simulator(robot)
 
-        # Define some problem-specific variables
-
-        ## Map between discrete actions and actual motor torque if necessary
+        # Map between discrete actions and actual motor torque if necessary
         if not self.continuous:
-            self.AVAIL_TORQUE = [-MAX_TORQUE, MAX_TORQUE]
+            self.AVAIL_TORQUE = [-motor.effort_limit, 0.0, motor.effort_limit]
 
-        ## Angle at which to fail the episode
-        self.theta_threshold_radians = 25 * np.pi / 180
-
-        ## Position at which to fail the episode
-        self.x_threshold = 0.75
-
-        ## Internal parameters used for sampling goals and computing
-        #  termination condition.
-        self._tipIdx = robot.pinocchio_model.getFrameId("SecondPendulumMass")
-        self._tipPosZMax = robot.pinocchio_data.oMf[
+        # Internal parameters used for sampling goals and computing termination
+        # condition.
+        self._tipIdx = robot.pinocchio_model.getFrameId("Tip")
+        self._tipPosZMax = - robot.pinocchio_data.oMf[
             self._tipIdx].translation[2]
-
-        ## Bounds of hypercube for initial state uniform sampling
-        self.position_random_high = np.array([ 0.2 - np.pi,  0.2])
-        self.position_random_low  = np.array([-0.2 - np.pi, -0.2])
-        self.velocity_random_high = np.full((2,), 1.0)
-        self.velocity_random_low  = -self.velocity_random_high
 
         # Configure the learning environment
         super().__init__(simulator, DT, debug=False)
-
-    def _setup_environment(self) -> None:
-        """
-        @brief    TODO
-        """
-        super()._setup_environment()
-
-        robot_options = self.robot.get_options()
-
-        # Set the position and velocity bounds of the robot
-        robot_options["model"]["joints"]["velocityLimitFromUrdf"] = False
-        robot_options["model"]["joints"]["velocityLimit"] = np.full(2, MAX_VEL)
-
-        # Set the effort limit of the motor
-        motor_name = self.robot.motors_names[0]
-        robot_options["motors"][motor_name]["effortLimitFromUrdf"] = False
-        robot_options["motors"][motor_name]["effortLimit"] = MAX_TORQUE
-
-        self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
         """
         @brief Configure the observation of the environment.
 
-        @details Implement the official Gym acrobot-v1 action space. See
-                 documentation https://gym.openai.com/envs/Acrobot-v1/.
+        @details Only the state is observable, while by default, the current
+                 time, state, and sensors data are available.
         """
-        # Compute observation and goal bounds
-        obs_high = np.array([1.0, 1.0, 1.0, 1.0, 1.5 * MAX_VEL, 1.5 * MAX_VEL])
-        goal_high = np.array([self._tipPosZMax])
+        super()._refresh_observation_space()
+        self.observation_space.spaces['observation'] = \
+            self.observation_space['observation']['state']
+        self._observation['observation'] = \
+            self._observation['observation']['state']
 
-        # Set the observation space, gathering the actual observation and the
-        # goal subspaces.
-        self.observation_space = spaces.Dict(
-            desired_goal=spaces.Box(
-                low=-goal_high, high=goal_high, dtype=np.float64),
-            achieved_goal=spaces.Box(
-                low=-goal_high, high=goal_high, dtype=np.float64),
-            observation=spaces.Box(
-                low=-obs_high, high=obs_high, dtype=np.float64))
+    def _fetch_obs(self) -> None:
+        """
+        @brief Fetch the observation based on the current state of the robot.
 
-        # Reset observation
-        self._observation = {
-            'observation': None, 'achieved_goal': None, 'desired_goal': None}
+        @details Only the state is observable, while by default, the current
+                 time, state, and sensors data are available.
+
+        @remark For goal env, both the desired and achieved goals are
+                observable in in addition of the current robot state.
+        """
+        obs = super()._fetch_obs()
+        obs['observation'] = obs['observation']['state']
+        return obs
 
     def _refresh_action_space(self) -> None:
         """
-        @brief    TODO
+        @brief Configure the action space of the environment.
 
         @details Replace the action space by its discrete representation
                  depending on 'continuous'.
         """
         if not self.continuous:
-            self.action_space = spaces.Discrete(2)
+            self.action_space = spaces.Discrete(len(self.AVAIL_TORQUE))
         else:
             super()._refresh_action_space()
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """
-        @brief    TODO
+        @brief Returns a valid configuration and velocity for the robot.
+
+        @details The initial state is randomly sampled using a hypercube
+                 uniform distribution, according to the official Gym
+                 acrobot-v1 action space. See documentation
+                 https://gym.openai.com/envs/Acrobot-v1/.
         """
-        qpos = self.rg.uniform(low=self.position_random_low,
-                               high=self.position_random_high)
-        qvel = self.rg.uniform(low=self.velocity_random_low,
-                               high=self.velocity_random_high)
+        theta1, theta2 = self.rg.uniform(low=-THETA_RANDOM_RANGE,
+                                         high=THETA_RANDOM_RANGE,
+                                         size=(2,))
+        qpos = np.array([np.cos(theta1), np.sin(theta1),
+                         np.cos(theta2), np.sin(theta2)])
+        qvel = self.rg.uniform(low=-DTHETA_RANDOM_RANGE,
+                               high=DTHETA_RANDOM_RANGE,
+                               size=(2,))
         return qpos, qvel
 
     def _sample_goal(self) -> np.ndarray:
         """
-        @brief    TODO
+        @brief Sample goal.
+
+        @detail The goal is sampled using a uniform distribution between
+                [HEIGHT_REL_MIN_GOAL_THRESHOLD, HEIGHT_REL_MAX_GOAL_THRESHOLD].
         """
-        return self.rg.uniform(low=-0.20*self._tipPosZMax,
-                               high=0.98*self._tipPosZMax,
-                               size=(1,))
+        return self.rg.uniform(
+            low=HEIGHT_REL_MIN_GOAL_THRESHOLD,
+            high=HEIGHT_REL_MAX_GOAL_THRESHOLD,
+            size=(1,)) *self._tipPosZMax
 
     def _get_achieved_goal(self) -> np.ndarray:
         """
-        @brief    TODO
+        @brief Compute achieved goal based on current state of the robot.
+
+        @details It corresponds to the position of the tip of the acrobot.
         """
         tip_transform = self.robot.pinocchio_data.oMf[self._tipIdx]
         tip_position_z = tip_transform.translation[2]
         return np.array([tip_position_z])
 
-    def _fetch_obs(self) -> SpaceDictRecursive:
-        # @copydoc BaseJiminyEnv::_fetch_obs
-        (theta1, theta2), (theta1_dot, theta2_dot) = self.simulator.state
-        obs = {}
-        obs['observation'] = np.array([np.cos(theta1 + np.pi),
-                                       np.sin(theta1 + np.pi),
-                                       np.cos(theta2 + np.pi),
-                                       np.sin(theta2 + np.pi),
-                                       theta1_dot,
-                                       theta2_dot])
-        obs['achieved_goal'] = self._get_achieved_goal()
-        obs['desired_goal'] = self._desired_goal.copy()
-        return obs
-
     def _is_done(self,
                  achieved_goal: Optional[np.ndarray] = None,
                  desired_goal: Optional[np.ndarray] = None) -> bool:
         """
-        @brief    TODO
+        @brief Determine whether a desired goal has been achieved.
+
+        @details The episode is successful if the achieved goal strictly
+                 exceeds the desired goal.
         """
         if achieved_goal is None:
             achieved_goal = self._get_achieved_goal()
@@ -230,27 +205,25 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
                        desired_goal: Optional[np.ndarray],
                        info: Dict[str, Any]) -> float:
         """
-        @brief    TODO
-        """
-        # Check if the desired goal has been achieved
-        done = self._is_done(achieved_goal, desired_goal)
+        @brief Compute reward at current episode state.
 
-        # Get a negative reward till success
-        reward = 0.0
-        if not done:
-            reward += -1.0 #-self.dt # For the cumulative reward to be invariant wrt the simulation timestep
+        @details Get a small negative reward till success.
+        """
+        if self._is_done(achieved_goal, desired_goal):
+            reward = 0.0
+        else:
+            reward = -1.0
         return reward
 
     def step(self, action: Optional[np.ndarray] = None
             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
-        @brief    TODO
+        @brief Run a simulation step for a given action.
+
+        @details Convert a  discrete action into its actual value if necessary,
+                 then add noise to the action is enable.
         """
         if action is not None:
-            # Make sure that the action is not oyt-of-bounds
-            assert self.action_space.contains(action), \
-                "%r (%s) invalid" % (action, type(action))
-
             # Compute the actual torque to apply
             if not self.continuous:
                 action = self.AVAIL_TORQUE[action]
@@ -261,7 +234,11 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         return super().step(action)
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        """
+        @brief Render the current state of the robot.
+        """
+        if not self.simulator._is_viewer_available:
+            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
         return super().render(mode, **kwargs)
 
 
@@ -277,8 +254,12 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
     """
     def __init__(self, continuous: bool = True, enableGoalEnv: bool = False):
         """
-        @brief    TODO
+        @brief Constructor
 
+        @param continuous  Whether or not the action space is continuous. If
+                           not continuous, the action space has only 3 states,
+                           i.e. low, zero, and high.
+                           Optional: True by default.
         @params enableGoalEnv  Whether or not goal is enable.
         """
         self.enableGoalEnv = enableGoalEnv
@@ -286,7 +267,10 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
 
     def _refresh_observation_space(self) -> None:
         """
-        @brief    TODO
+        @brief Configure the observation of the environment.
+
+        @details Only the state is observable, while by default, the current
+                 time, state, and sensors data are available.
         """
         super()._refresh_observation_space()
         if not self.enableGoalEnv:
@@ -295,15 +279,22 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
 
     def _sample_goal(self) -> np.ndarray:
         """
-        @brief    TODO
+        @brief Sample goal.
+
+        @detail The goal is always the same, and proportional to
+                HEIGHT_REL_DEFAULT_THRESHOLD.
         """
         if self.enableGoalEnv:
             return super()._sample_goal()
         else:
-            return np.array([0.95 * self._tipPosZMax])
+            return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
 
     def _fetch_obs(self) -> SpaceDictRecursive:
-        # @copydoc BaseJiminyEnv::_fetch_obs
+        """
+        @brief Fetch the observation based on the current state of the robot.
+
+        @details Only the state is observed.
+        """
         obs = super()._fetch_obs()
         if self.enableGoalEnv:
             return obs

@@ -434,7 +434,7 @@ namespace Eigen
         StateDerivative<vectorN_t> difference(StateBase<OtherDerived> const & other) const
         {
             assert(robot() == std::forward<StateBase<OtherDerived> const &>(other).robot());
-            StateDerivative<vectorN_t> dx(robot(), other.v());
+            StateDerivative<vectorN_t> dx(robot());
             pinocchio::difference(robot()->pncModel_, q(), other.q(), dx.v());
             dx.a() = v() - other.v();
             return dx;

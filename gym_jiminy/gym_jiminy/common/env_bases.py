@@ -91,6 +91,7 @@ class BaseJiminyEnv(gym.core.Env):
         self.observation_space = None
 
         # Current observation and action of the robot
+        self._state = None
         self._sensors_data = None
         self._observation = None
         self._action = None
@@ -100,8 +101,10 @@ class BaseJiminyEnv(gym.core.Env):
         self._enable_reward_terminal = self._compute_reward_terminal.__func__ \
             is not BaseJiminyEnv._compute_reward_terminal
 
-        # Number of simulation steps performed after episode termination
-        self._steps_beyond_done = None
+        # Number of simulation steps performed
+        self.num_steps = -1
+        self.max_steps = None
+        self._num_steps_beyond_done = None
 
         # Set the seed of the simulation and reset the simulation
         self.seed()
@@ -188,7 +191,10 @@ class BaseJiminyEnv(gym.core.Env):
         self._action = np.zeros(self.robot.nmotors)
 
         # Start the engine, in order to initialize the sensors data
-        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
+        hresult = self.simulator.start(
+            qpos, qvel, self.simulator.use_theoretical_model)
+        if (hresult != jiminy.hresult_t.SUCCESS):
+            raise RuntimeError("Invalid initial state.")
 
         # Backup the sensor data by doing a deep copy manually
         sensor_data = self.robot.sensors_data
@@ -202,6 +208,8 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Initialize some internal buffers
         self._is_ready = True
+        self.num_steps = 0
+        self.max_steps = int(self.simulator.max_simulation_duration / self.dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -214,7 +222,7 @@ class BaseJiminyEnv(gym.core.Env):
             use_theoretical_model=self.simulator.use_theoretical_model)
 
         # Reset some internal buffers
-        self._steps_beyond_done = None
+        self._num_steps_beyond_done = None
         self._log_data = None
 
         # Create a new log file
@@ -225,6 +233,7 @@ class BaseJiminyEnv(gym.core.Env):
                 prefix="log_", suffix=".data", delete=(not self.debug))
 
         # Update the observation
+        self._state = (qpos, qvel)
         self._observation = self._fetch_obs()
 
     def reset(self) -> SpaceDictRecursive:
@@ -252,8 +261,26 @@ class BaseJiminyEnv(gym.core.Env):
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
-        # Reset the low-level engine
-        self.set_state(*self._sample_state())
+        # Sample the initial state and reset the low-level engine
+        qpos, qvel = self._sample_state()
+        if not jiminy.is_position_valid(
+            self.simulator.pinocchio_model, qpos):
+            raise RuntimeError("The initial state provided by `_sample_state` "
+                "is inconsistent with the dimension or types of joints of the "
+                "model.")
+
+        self.set_state(qpos, qvel)
+
+        # Make sure the state is valid, otherwise there `_fetch_obs` and
+        # `_refresh_observation_space` are inconsistent.
+        if not self.observation_space.contains(self._observation):
+            raise RuntimeError("The observation returned by `_fetch_obs` is "
+                "inconsistent with the observation space defined by "
+                "`_refresh_observation_space`.")
+
+        if self._is_done():
+            raise RuntimeError("The simulation is already done at `reset`. "
+                "Check the implementation of `_is_done` if overloaded.")
 
         return self.get_obs()
 
@@ -280,7 +307,7 @@ class BaseJiminyEnv(gym.core.Env):
                 if not self._is_ready:
                     raise RuntimeError("Simulation not initialized. "
                         "Please call 'reset' once before calling 'step'.")
-                hresult = self.simulator.start(*self.simulator.state,
+                hresult = self.simulator.start(*self._state,
                     self.simulator.use_theoretical_model)
                 if (hresult != jiminy.hresult_t.SUCCESS):
                     raise RuntimeError("Failed to start the simulation.")
@@ -290,27 +317,37 @@ class BaseJiminyEnv(gym.core.Env):
             return_code = self.simulator.step(self.dt)
             if (return_code != jiminy.hresult_t.SUCCESS):
                 raise RuntimeError("Failed to perform the simulation step.")
+
+            # Update some internal buffers
+            self.num_steps += 1
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
+
+        # Fetch the new observation
+        self._state = self.simulator.state
         self._observation = self._fetch_obs()
 
-        # Check if the simulation is over
-        done = is_step_failed or self._is_done()
+        # Check if the simulation is over.
+        # Note that 'done' is always True if the integration failed or if the
+        # maximum number of steps will be exceeded next step.
+        done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
+            self._is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
-        if self._steps_beyond_done is None:
+        if self._num_steps_beyond_done is None:
             if done:
-                self._steps_beyond_done = 0
+                self._num_steps_beyond_done = 0
         else:
-            if self._enable_reward_terminal and self._steps_beyond_done == 0:
+            if self._enable_reward_terminal and \
+                    self._num_steps_beyond_done == 0:
                 logger.error(
                     "Calling 'step' even though this environment has "
                     "already returned done = True whereas terminal "
                     "reward is enabled. You must call 'reset' "
                     "to avoid further undefined behavior.")
-            self._steps_beyond_done += 1
+            self._num_steps_beyond_done += 1
 
         # Early return in case of low-level engine integration failure
         if is_step_failed:
@@ -322,7 +359,7 @@ class BaseJiminyEnv(gym.core.Env):
             self._info['reward'] = reward_info
 
         # Finalize the episode is the simulation is over
-        if done and self._steps_beyond_done == 0:
+        if done and self._num_steps_beyond_done == 0:
             # Write log file if simulation is over (debug mode only)
             if self.debug:
                 self.simulator.write_log(self.log_path)
@@ -428,8 +465,6 @@ class BaseJiminyEnv(gym.core.Env):
         # Configure the stepper
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
-        engine_options["stepper"]["sensorsUpdatePeriod"] = self.dt
-        engine_options["stepper"]["controllerUpdatePeriod"] = self.dt
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
         engine_options["stepper"]["randomSeed"] = self._seed
 
@@ -702,15 +737,18 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Fetch the observation based on the current state of the robot.
 
-        @details By default, no filtering is applied on the raw data extracted
-                 from the engine.
+        @details This method is called right after updating the internal buffer
+                 `_state`.
+
+        @remark By default, no filtering is applied on the raw data extracted
+                from the engine.
 
         @remark This method, alongside '_refresh_observation_space', must be
                 overwritten in order to use a custom observation space.
         """
         obs = {}
         obs['t'] = self.simulator.stepper_state.t
-        obs['state'] = np.concatenate(self.simulator.state)
+        obs['state'] = np.concatenate(self._state)
         obs['sensors'] = self._sensors_data
         return obs
 
@@ -734,16 +772,25 @@ class BaseJiminyEnv(gym.core.Env):
         """
         @brief Determine whether the episode is over.
 
-        @details By default, it returns True if the observation reaches or
-                 exceeds the lower or upper limit.
+        @details This method is called right after calling `_fetch_obs`, so
+                 that the internal buffer '_observation' is up-to-date.
+
+        @remark By default, it returns True if the observation reaches or
+                exceeds the lower or upper limit.
         """
-        return not self.observation_space.contains(self._observation)
+        if not self.observation_space.contains(self._observation):
+            return True
+        return False
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
         """
         @brief Compute reward at current episode state.
 
-        @details By default it always return 'nan', without extra info.
+        @details This method is called after updating the internal buffer
+                 '_num_steps_beyond_done', which is None if not done, 0
+                 right after, and so on.
+
+        @remark By default it always return 'nan', without extra info.
 
         @return [0] Total reward
                 [1] Any extra info useful for monitoring as a dictionary.
@@ -821,19 +868,19 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
             observation=self.observation_space)
 
         # Current observation of the robot
-        self.observation = {'observation': self.observation,
-                            'achieved_goal': None,
-                            'desired_goal': None}
+        self._observation = {'observation': self._observation,
+                             'achieved_goal': None,
+                             'desired_goal': None}
 
     def _sample_goal(self) -> np.ndarray:
         """
-        @brief Samples a new goal and returns it.
+        @brief Sample goal.
         """
         raise NotImplementedError
 
     def _get_achieved_goal(self) -> np.ndarray:
         """
-        @brief Compute the achieved goal based on current state of the robot.
+        @brief Compute achieved goal based on current state of the robot.
 
         @return Currently achieved goal.
         """
