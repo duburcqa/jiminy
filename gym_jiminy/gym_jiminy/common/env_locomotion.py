@@ -326,7 +326,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                    - maximum simulation duration exceeded
         """
         if self.robot.has_freeflyer:
-            if self.simulator.state[0][2] < self._height_neutral * 0.75:
+            if self._state[0][2] < self._height_neutral * 0.75:
                 return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
             return True
@@ -532,9 +532,6 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         @details It is based on the error between the measured motors positions
                  and velocities and the desired one.
         """
-        # Backup the sensor state
-        self._sensors_data = sensors_data
-
         # Compute command if the simulation is running, otherwise do nothing
         if self.simulator.is_simulation_running:
             # Estimate position and motor velocity from encoder data

@@ -138,7 +138,6 @@ class BaseJiminyEnv(gym.core.Env):
                 member methods of the class. It is not intended to be called
                 manually.
         """
-        self._sensors_data = sensors_data  # It is already a snapshot copy of robot.sensors_data
         u_command[:] = self._action
 
     def seed(self, seed: Optional[int] = None) -> List[int]:
@@ -196,15 +195,8 @@ class BaseJiminyEnv(gym.core.Env):
         if (hresult != jiminy.hresult_t.SUCCESS):
             raise RuntimeError("Invalid initial state.")
 
-        # Backup the sensor data by doing a deep copy manually
-        sensor_data = self.robot.sensors_data
-        self._sensors_data = jiminy.sensorsData({
-            _type: {
-                name: sensor_data[_type, name].copy()
-                for name in sensor_data.keys(_type)
-            }
-            for _type in sensor_data.keys()
-        })
+        # Backup sensors data
+        self._sensors_data = dict(self.robot.sensors_data)
 
         # Initialize some internal buffers
         self._is_ready = True
@@ -325,6 +317,7 @@ class BaseJiminyEnv(gym.core.Env):
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
         # Fetch the new observation
+        self._sensors_data = dict(self.robot.sensors_data)
         self._state = self.simulator.state
         self._observation = self._fetch_obs()
 
@@ -747,7 +740,7 @@ class BaseJiminyEnv(gym.core.Env):
                 overwritten in order to use a custom observation space.
         """
         obs = {}
-        obs['t'] = self.simulator.stepper_state.t
+        obs['t'] = np.array([self.simulator.stepper_state.t])
         obs['state'] = np.concatenate(self._state)
         obs['sensors'] = self._sensors_data
         return obs
