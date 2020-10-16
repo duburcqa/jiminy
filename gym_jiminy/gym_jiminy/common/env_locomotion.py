@@ -50,8 +50,6 @@ DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
 DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
 
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
-PID_KP = 20000.0
-PID_KD = 0.01
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
@@ -358,7 +356,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             reward_dict['energy'] = - power_consumption_rel
 
         if 'done' in reward_mixture_keys:
-            reward_dict['done'] = 1
+            reward_dict['done'] = 1.0
 
         # Compute the total reward
         reward_total = sum([self.reward_mixture[name] * value
@@ -403,8 +401,8 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
                  hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
-                 pid_kp: Union[float, np.ndarray] = PID_KP,
-                 pid_kd: Union[float, np.ndarray] = PID_KD,
+                 pid_kp: Union[float, np.ndarray] = 0.0,
+                 pid_kd: Union[float, np.ndarray] = 0.0,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
