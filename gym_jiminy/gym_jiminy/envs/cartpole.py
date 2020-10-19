@@ -13,7 +13,7 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
-DT = 0.02                   # Stepper update period
+STEP_DT = 0.02              # Stepper update period
 X_THRESHOLD = 2.4           # Maximum absolute position of the cart before considering the episode failed
 THETA_THRESHOLD = 12.0 * np.pi / 180.0  # Maximum absolute angle of the pole before considering the episode failed
 X_RANDOM_RANGE = 0.05       # Sampling range for cart position
@@ -119,7 +119,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 
         # Configure the learning environment
-        super().__init__(simulator, DT, debug=False)
+        super().__init__(simulator, STEP_DT, debug=False)
 
     def _setup_environment(self) -> None:
         """

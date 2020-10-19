@@ -13,7 +13,7 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
-DT = 0.2                              # Stepper update period
+STEP_DT = 0.2                         # Stepper update period
 THETA_RANDOM_RANGE = 0.1              # Range of uniform sampling distribution of joint angles
 DTHETA_RANDOM_RANGE = 0.1             # Range of uniform sampling distribution of joint velocities
 HEIGHT_REL_DEFAULT_THRESHOLD = 0.5    # The relative height of the tip at which to consider an episode successful for normal env
@@ -103,7 +103,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             self._tipIdx].translation[2]
 
         # Configure the learning environment
-        super().__init__(simulator, DT, debug=False)
+        super().__init__(simulator, STEP_DT, debug=False)
 
     def _refresh_observation_space(self) -> None:
         """

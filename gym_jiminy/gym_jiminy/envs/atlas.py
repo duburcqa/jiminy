@@ -12,7 +12,7 @@ DEFAULT_SAGITTAL_HIP_ANGLE = 0.2
 
 SIMULATION_DURATION = 20.0  # (s) Default simulation duration
 HLC_TO_LLC_RATIO = 1  # (NA)
-ENGINE_DT = 1.0e-3  # (s) Stepper update period
+STEP_DT = 1.0e-3  # (s) Stepper update period
 
 PID_KP = np.array([1000.0, 12000.0, 1000.0,                          # Back: [X, Y, Z]
                    100.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
@@ -32,7 +32,7 @@ REWARD_MIXTURE = {
     'energy': 0.0,
     'done': 1.0
 }
-REWARD_STD_RATIO = {
+STD_RATIO = {
     'model': 0.0,
     'ground': 0.0,
     'sensors': 0.0,
@@ -53,9 +53,9 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
-            dt=ENGINE_DT,
+            dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
-            std_ratio=REWARD_STD_RATIO,
+            std_ratio=STD_RATIO,
             debug=debug,
             **kwargs)
 
@@ -76,15 +76,6 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         qpos[joint_position_idx('r_arm_ely')] = np.pi / 4 + np.pi / 2
 
         return qpos
-
-    def _update_obs(self, obs):
-        super()._update_obs(obs)
-
-    def _is_done(self):
-        return super()._is_done()
-
-    def _compute_reward(self):
-        return super()._compute_reward()
 
 
 class AtlasPDControlJiminyEnv(AtlasJiminyEnv, WalkerPDControlJiminyEnv):

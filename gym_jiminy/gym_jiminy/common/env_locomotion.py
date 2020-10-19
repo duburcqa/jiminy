@@ -360,12 +360,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         if 'done' in reward_mixture_keys:
             reward_dict['done'] = 1
 
-        # Rescale the reward so that the maximum cumulative reward is
-        # independent from both the engine timestep and the maximum
-        # simulation duration.
-        reward_dict = {k: v * (self.dt / self.simu_duration_max)
-                       for k, v in reward_dict.items()}
-
         # Compute the total reward
         reward_total = sum([self.reward_mixture[name] * value
                             for name, value in reward_dict.items()])

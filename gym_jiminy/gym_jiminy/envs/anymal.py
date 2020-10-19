@@ -6,9 +6,9 @@ from pkg_resources import resource_filename
 from ..common.env_locomotion import WalkerJiminyEnv, WalkerPDControlJiminyEnv
 
 
-SIMULATION_DURATION = 20.0  # (s) Default simulation duration
-HLC_TO_LLC_RATIO = 1  # (NA)
-ENGINE_DT = 1.0e-3  # (s) Stepper update period
+SIMULATION_DURATION = 20.0  # ([float] s) Default simulation duration
+HLC_TO_LLC_RATIO = 1        # ([int]  NA) Ratio between the High-level neural network PID target update and Low-level PID torque update
+STEP_DT = 0.02              # ([float] s) Stepper update period
 
 PID_KP = np.array([1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
                    1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0])
@@ -20,7 +20,7 @@ REWARD_MIXTURE = {
     'energy': 0.0,
     'done': 1.0
 }
-REWARD_STD_RATIO = {
+STD_RATIO = {
     'model': 0.0,
     'ground': 0.0,
     'sensors': 0.0,
@@ -47,14 +47,19 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
-            dt=ENGINE_DT,
+            dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
-            std_ratio=REWARD_STD_RATIO,
+            std_ratio=STD_RATIO,
             debug=debug,
             **kwargs)
 
-    def _update_obs(self, obs):
-        super()._update_obs(obs)
+    def _refresh_observation_space(self) -> None:
+        super()._refresh_observation_space()
+        self.observation_space = self.observation_space['state']
+        self._observation = self._observation['state']
+
+    def _fetch_obs(self) -> None:
+        return np.concatenate(self._state)
 
     def _is_done(self):
         return super()._is_done()
