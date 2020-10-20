@@ -1,5 +1,3 @@
-## @file
-
 import numpy as np
 import numba as nb
 from typing import Optional, Union, Tuple, Dict, Any
@@ -186,37 +184,37 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         else:
             self._height_neutral = None
 
-        # Override some options of the robot and engine
+        # Get the options of robot and engine
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
 
-        ### Make sure to log at least required data for reward
-        #   computation and log replay
+        # Make sure to log at least required data for reward
+        # computation and log replay
         engine_options['telemetry']['enableConfiguration'] = True
 
-        ### Enable the flexible model
+        # Enable the flexible model
         robot_options["model"]["dynamics"]["enableFlexibleModel"] = True
 
-        ### Set the stepper update period and max number of iterations
+        # Set maximum number of iterations by seconds in average
         engine_options["stepper"]["iterMax"] = \
-            int(self.simu_duration_max / 1.0e-4)     # Fix maximum number of iterations by second in average
-        engine_options["stepper"]["timeout"] = 1.0   # (s) Max computation time of a single step
-        engine_options["stepper"]["dtMax"] = 1.0e-3  # (s) Max integration timestep
+            int(self.simu_duration_max / 1.0e-4)
+        # Set maximum computation time for single internal integration steps
+        engine_options["stepper"]["timeout"] = 1.0
 
-        ### Add some stochasticity to the environment
+        # ============= Add some stochasticity to the environment =============
 
         # Change ground friction and sprint-dumper contact dynamics
-        engine_options['contacts']['stiffness'] = 10 ** \
-            ((MAX_GROUND_STIFFNESS_LOG - MIN_GROUND_STIFFNESS_LOG) / 2 *
-            self.std_ratio.get('ground', 0.0) * \
+        engine_options['contacts']['stiffness'] = 10 ** (
+            (MAX_GROUND_STIFFNESS_LOG - MIN_GROUND_STIFFNESS_LOG) / 2 *
+            self.std_ratio.get('ground', 0.0) *
             self.rg.uniform(low=-1.0, high=1.0) +
             (MAX_GROUND_STIFFNESS_LOG + MIN_GROUND_STIFFNESS_LOG) / 2)
-        engine_options['contacts']['damping'] = \
-            self.rg.uniform(MAX_GROUND_DAMPING_RATIO) * \
-            2.0 * np.sqrt(engine_options['contacts']['stiffness'])
-        engine_options['contacts']['frictionDry'] = \
-            ((MAX_GROUND_FRICTION - MIN_GROUND_FRICTION) * \
-            self.std_ratio.get('ground', 0.0) * self.rg.uniform() + \
+        engine_options['contacts']['damping'] = (
+            self.rg.uniform(MAX_GROUND_DAMPING_RATIO) *
+            2.0 * np.sqrt(engine_options['contacts']['stiffness']))
+        engine_options['contacts']['frictionDry'] = (
+            (MAX_GROUND_FRICTION - MIN_GROUND_FRICTION) *
+            self.std_ratio.get('ground', 0.0) * self.rg.uniform() +
             MIN_GROUND_FRICTION)
         engine_options['contacts']['frictionViscous'] = \
             engine_options['contacts']['frictionDry']
@@ -271,12 +269,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             t_profile = np.linspace(0.0, 1.0, n_timesteps + 1)
             F_xy_profile = PeriodicGaussianProcess(
                 mean=np.zeros((2, n_timesteps + 1)),
-                scale=self.std_ratio['disturbance'] * \
-                    F_XY_PROFILE_SCALE * np.ones(2),
+                scale=(self.std_ratio['disturbance'] *
+                       F_XY_PROFILE_SCALE * np.ones(2)),
                 wavelength=np.tensor([1.0, 1.0]),
                 period=np.tensor([1.0]),
                 dt=np.tensor([1 / n_timesteps])
             ).sample().T
+
             @nb.jit(nopython=True, nogil=True)
             def F_xy_profile_interp1d(t):
                 t_rel = t % 1.0
@@ -284,6 +283,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 ratio = (t_rel - t_profile[t_ind]) * n_timesteps
                 return (1 - ratio) * F_xy_profile[t_ind] + \
                     ratio * F_xy_profile[t_ind + 1]
+
             F_xy_profile_interp1d(0)  # Pre-compilation
             self.F_xy_profile_spline = F_xy_profile_interp1d
             force_profile = {
@@ -293,7 +293,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             self.simulator.register_force_profile(**force_profile)
             self._forces_profile.append(force_profile)
 
-        ### Set the options, finally
+        # Set the options, finally
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
@@ -453,9 +453,9 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         self._v_target = None
 
         # Initialize the environment
-        super().__init__(urdf_path, hardware_path, mesh_path,
-            simu_duration_max, dt, reward_mixture, std_ratio, config_path,
-            debug)
+        super().__init__(
+            urdf_path, hardware_path, mesh_path, simu_duration_max, dt,
+            reward_mixture, std_ratio, config_path, debug)
 
     def _setup_environment(self) -> None:
         """
@@ -549,8 +549,9 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         self._v_target = qvel[self.robot.motors_velocity_idx]
         super().set_state(qpos, qvel)
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
 

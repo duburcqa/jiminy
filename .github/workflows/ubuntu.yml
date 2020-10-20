@@ -40,8 +40,19 @@ jobs:
           PYTHON_EXECUTABLE="/usr/bin/python3.8"
         fi
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+        echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Installing requirements
-      run: sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
+      run: |
+        sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
+        "${PYTHON_EXECUTABLE}" -m pip install Sphinx sphinx_rtd_theme flake8
+
+    #####################################################################################
+
+    - name: PEP8 Code Style Check
+      run: |
+        RootDir="${GITHUB_WORKSPACE}"
+
+        flake8 --count --show-source --statistics "$RootDir/gym_jiminy" "$RootDir/python/jiminy_py"
 
     #####################################################################################
 

@@ -1,9 +1,3 @@
-## @file
-"""
-@package    gym_jiminy
-
-@brief      Package containing python-native helper methods for Gym Jiminy Open Source.
-"""
 import time
 import tempfile
 import numpy as np
@@ -209,7 +203,8 @@ class BaseJiminyEnv(gym.core.Env):
         self.simulator.reset()
 
         # Restore the initial internal pinocchio data
-        update_quantities(self.robot, qpos, qvel,
+        update_quantities(
+            self.robot, qpos, qvel,
             update_physics=True, update_com=True, update_energy=True,
             use_theoretical_model=self.simulator.use_theoretical_model)
 
@@ -256,9 +251,10 @@ class BaseJiminyEnv(gym.core.Env):
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
         if not jiminy.is_position_valid(
-            self.simulator.pinocchio_model, qpos):
-            raise RuntimeError("The initial state provided by `_sample_state` "
-                "is inconsistent with the dimension or types of joints of the "
+                self.simulator.pinocchio_model, qpos):
+            raise RuntimeError(
+                "The initial state provided by `_sample_state` is "
+                "inconsistent with the dimension or types of joints of the "
                 "model.")
 
         self.set_state(qpos, qvel)
@@ -266,18 +262,21 @@ class BaseJiminyEnv(gym.core.Env):
         # Make sure the state is valid, otherwise there `_fetch_obs` and
         # `_refresh_observation_space` are inconsistent.
         if not self.observation_space.contains(self._observation):
-            raise RuntimeError("The observation returned by `_fetch_obs` is "
-                "inconsistent with the observation space defined by "
+            raise RuntimeError(
+                "The observation returned by `_fetch_obs` is inconsistent "
+                "with the observation space defined by "
                 "`_refresh_observation_space`.")
 
         if self._is_done():
-            raise RuntimeError("The simulation is already done at `reset`. "
+            raise RuntimeError(
+                "The simulation is already done at `reset`. "
                 "Check the implementation of `_is_done` if overloaded.")
 
         return self.get_obs()
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
 
@@ -297,10 +296,11 @@ class BaseJiminyEnv(gym.core.Env):
             # Start the simulation if it is not already the case
             if not self.simulator.is_simulation_running:
                 if not self._is_ready:
-                    raise RuntimeError("Simulation not initialized. "
-                        "Please call 'reset' once before calling 'step'.")
-                hresult = self.simulator.start(*self._state,
-                    self.simulator.use_theoretical_model)
+                    raise RuntimeError(
+                        "Simulation not initialized. Please call 'reset' "
+                        "once before calling 'step'.")
+                hresult = self.simulator.start(
+                    *self._state, self.simulator.use_theoretical_model)
                 if (hresult != jiminy.hresult_t.SUCCESS):
                     raise RuntimeError("Failed to start the simulation.")
                 self._is_ready = False
@@ -517,7 +517,7 @@ class BaseJiminyEnv(gym.core.Env):
                 effort_limit[motor.joint_velocity_idx] = \
                     MOTOR_EFFORT_UNIVERSAL_MAX
 
-        ## Sensor space
+        # Initialize the bounds of the sensor space
         sensor_space_raw = {
             key: {'min': np.full(value.shape, -np.inf),
                   'max': np.full(value.shape, np.inf)}
@@ -569,41 +569,41 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Replace inf bounds of the contact sensor space
         if contact.type in sensors_data.keys():
-            sensor_space_raw[contact.type]['min'][:,:] = \
+            sensor_space_raw[contact.type]['min'][:, :] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[contact.type]['max'][:,:] = \
+            sensor_space_raw[contact.type]['max'][:, :] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
 
         # Replace inf bounds of the force sensor space
         if force.type in sensors_data.keys():
-            sensor_space_raw[force.type]['min'][:3,:] = \
+            sensor_space_raw[force.type]['min'][:3, :] = \
                 -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][:3,:] = \
+            sensor_space_raw[force.type]['max'][:3, :] = \
                 +SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['min'][3:,:] = \
+            sensor_space_raw[force.type]['min'][3:, :] = \
                 -SENSOR_MOMENT_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][3:,:] = \
+            sensor_space_raw[force.type]['max'][3:, :] = \
                 +SENSOR_MOMENT_UNIVERSAL_MAX
 
         # Replace inf bounds of the imu sensor space
         if imu.type in sensors_data.keys():
             quat_imu_idx = [
                 field.startswith('Quat') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][quat_imu_idx,:] = -1.0
-            sensor_space_raw[imu.type]['max'][quat_imu_idx,:] = 1.0
+            sensor_space_raw[imu.type]['min'][quat_imu_idx, :] = -1.0
+            sensor_space_raw[imu.type]['max'][quat_imu_idx, :] = 1.0
 
             gyro_imu_idx = [
                 field.startswith('Gyro') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][gyro_imu_idx,:] = \
+            sensor_space_raw[imu.type]['min'][gyro_imu_idx, :] = \
                 -SENSOR_GYRO_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][gyro_imu_idx,:] = \
+            sensor_space_raw[imu.type]['max'][gyro_imu_idx, :] = \
                 +SENSOR_GYRO_UNIVERSAL_MAX
 
             accel_imu_idx = [
                 field.startswith('Accel') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][accel_imu_idx,:] = \
+            sensor_space_raw[imu.type]['min'][accel_imu_idx, :] = \
                 -SENSOR_ACCEL_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][accel_imu_idx,:] = \
+            sensor_space_raw[imu.type]['max'][accel_imu_idx, :] = \
                 +SENSOR_ACCEL_UNIVERSAL_MAX
 
         sensor_space = gym.spaces.Dict({
@@ -612,31 +612,29 @@ class BaseJiminyEnv(gym.core.Env):
             for key, value in sensor_space_raw.items()
         })
 
-        # Define the state space bounds
+        # Define bounds of the state space
         if self.simulator.use_theoretical_model:
-            state_limit_lower = np.concatenate(
-                (position_limit_lower[joints_position_idx],
-                 -velocity_limit[joints_velocity_idx]))
-            state_limit_upper = np.concatenate(
-                (position_limit_upper[joints_position_idx],
+            state_limit_lower = np.concatenate((
+                position_limit_lower[joints_position_idx],
+                -velocity_limit[joints_velocity_idx]))
+            state_limit_upper = np.concatenate((
+                position_limit_upper[joints_position_idx],
                 velocity_limit[joints_velocity_idx]))
         else:
-            state_limit_lower = np.concatenate(
-                (position_limit_lower, -velocity_limit))
-            state_limit_upper = np.concatenate(
-                (position_limit_upper, velocity_limit))
+            state_limit_lower = np.concatenate((
+                position_limit_lower, -velocity_limit))
+            state_limit_upper = np.concatenate((
+                position_limit_upper, velocity_limit))
 
         # Set the observation space
         self.observation_space = gym.spaces.Dict(
-            t = gym.spaces.Box(
-                low=0.0,
-                high=T_UNIVERSAL_MAX,
+            t=gym.spaces.Box(
+                low=0.0, high=T_UNIVERSAL_MAX,
                 shape=(1,), dtype=np.float64),
-            state = gym.spaces.Box(
-                low=state_limit_lower,
-                high=state_limit_upper,
+            state=gym.spaces.Box(
+                low=state_limit_lower, high=state_limit_upper,
                 dtype=np.float64),
-            sensors = sensor_space)
+            sensors=sensor_space)
 
         # Reset the observation buffer
         self._observation = {'t': None, 'state': None, 'sensors': None}
@@ -687,7 +685,8 @@ class BaseJiminyEnv(gym.core.Env):
         if np.any(self.robot.position_limit_upper < qpos) or \
                 np.any(qpos < self.robot.position_limit_lower):
             mask = np.isfinite(self.robot.position_limit_upper)
-            qpos[mask] = 0.5 * (self.robot.position_limit_upper[mask] +
+            qpos[mask] = 0.5 * (
+                self.robot.position_limit_upper[mask] +
                 self.robot.position_limit_lower[mask])
 
         # Return the desired configuration
@@ -755,7 +754,7 @@ class BaseJiminyEnv(gym.core.Env):
         def _clamp(space, x):
             if isinstance(space, gym.spaces.Dict):
                 return {k: _clamp(subspace, x[k])
-                    for k, subspace in space.spaces.items()}
+                        for k, subspace in space.spaces.items()}
             else:
                 return np.clip(x, space.low, space.high)
 
@@ -845,7 +844,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         super().__init__(simulator, dt, debug)
 
-        ## Sample a new goal
+        # Sample a new goal
         self._desired_goal = self._sample_goal()
 
     def _refresh_observation_space(self) -> None:
@@ -854,10 +853,12 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
         # Append default desired and achieved goal spaces to observation space
         self.observation_space = gym.spaces.Dict(
-            desired_goal=gym.spaces.Box(-np.inf, np.inf,
-                shape=self._desired_goal.shape, dtype=np.float64),
-            achieved_goal=gym.spaces.Box(-np.inf, np.inf,
-                shape=self._desired_goal.shape, dtype=np.float64),
+            desired_goal=gym.spaces.Box(
+                -np.inf, np.inf, shape=self._desired_goal.shape,
+                dtype=np.float64),
+            achieved_goal=gym.spaces.Box(
+                -np.inf, np.inf, shape=self._desired_goal.shape,
+                dtype=np.float64),
             observation=self.observation_space)
 
         # Current observation of the robot

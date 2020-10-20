@@ -1,4 +1,3 @@
-## @file jiminy_py/dynamics.py
 import logging
 import numpy as np
 from typing import Optional, Tuple, Callable, Dict, Any
@@ -13,9 +12,9 @@ from . import core as jiminy
 logger = logging.getLogger(__name__)
 
 
-######################################################################
-########################## Generic math ##############################
-######################################################################
+# #####################################################################
+# ######################### Generic math ##############################
+# #####################################################################
 
 def se3ToXYZRPY(M):
     p = np.zeros((6,))
@@ -23,12 +22,14 @@ def se3ToXYZRPY(M):
     p[3:] = matrixToRpy(M.rotation)
     return p
 
+
 def XYZRPYToSe3(xyzrpy):
     return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
 
-######################################################################
-#################### Kinematic and dynamics ##########################
-######################################################################
+
+# #####################################################################
+# ################### Kinematic and dynamics ##########################
+# #####################################################################
 
 def update_quantities(robot: jiminy.Robot,
                       position: np.ndarray,
@@ -92,9 +93,9 @@ def update_quantities(robot: jiminy.Robot,
         pnc_model = robot.pinocchio_model
         pnc_data = robot.pinocchio_data
 
-    if (update_physics and update_com and \
-        update_energy and update_jacobian and \
-        velocity is not None):
+    if (update_physics and update_com and
+            update_energy and update_jacobian and
+            velocity is not None):
         pin.computeAllTerms(pnc_model, pnc_data, position, velocity)
     else:
         if update_physics:
@@ -131,15 +132,17 @@ def update_quantities(robot: jiminy.Robot,
                     pnc_model, pnc_data, position, velocity, False)
             pin.potentialEnergy(pnc_model, pnc_data, position, False)
 
-    pin.updateGeometryPlacements(pnc_model, pnc_data,
-        robot.collision_model, robot.collision_data)
-    pin.computeCollisions(robot.collision_model, robot.collision_data,
+    pin.updateGeometryPlacements(
+        pnc_model, pnc_data, robot.collision_model, robot.collision_data)
+    pin.computeCollisions(
+        robot.collision_model, robot.collision_data,
         stop_at_first_collision=False)
     pin.computeDistances(robot.collision_model, robot.collision_data)
     for dist_req in robot.collision_data.distanceResults:
         if np.linalg.norm(dist_req.normal) < 1e-6:
             pin.computeDistances(robot.collision_model, robot.collision_data)
             break
+
 
 def get_body_index_and_fixedness(
         robot: jiminy.Robot,
@@ -174,6 +177,7 @@ def get_body_index_and_fixedness(
 
     return body_id, is_body_fixed
 
+
 def get_body_world_transform(robot: jiminy.Robot,
                              body_name: str,
                              use_theoretical_model: bool = True,
@@ -206,6 +210,7 @@ def get_body_world_transform(robot: jiminy.Robot,
     if copy:
         transform = transform.copy()
     return transform
+
 
 def get_body_world_velocity(robot: jiminy.Robot,
                             body_name: str,
@@ -245,6 +250,7 @@ def get_body_world_velocity(robot: jiminy.Robot,
         spatial_velocity = velocity_in_body_frame.se3Action(transform)
 
     return spatial_velocity
+
 
 def get_body_world_acceleration(robot: jiminy.Robot,
                                 body_name: str,
@@ -290,8 +296,10 @@ def get_body_world_acceleration(robot: jiminy.Robot,
 
     return spatial_acceleration
 
-def compute_transform_contact(robot: jiminy.Robot,
-                              ground_profile: Optional[Callable] = None) -> pin.SE3:
+
+def compute_transform_contact(
+        robot: jiminy.Robot,
+        ground_profile: Optional[Callable] = None) -> pin.SE3:
     """
     @brief Compute the transform the apply to the freeflyer to touch the ground
            with up to 3 contact points.
@@ -352,7 +360,7 @@ def compute_transform_contact(robot: jiminy.Robot,
                 contact_frames_pos_rel[0] - contact_frames_pos_rel[i]
             contact_edge_alt /= np.linalg.norm(contact_edge_alt)
             normal_offset = np.cross(contact_edge_ref, contact_edge_alt)
-            if np.linalg.norm(normal_offset) > 0.2:  # At least 11 degrees of angle
+            if np.linalg.norm(normal_offset) > 0.2:  # At least 11 degrees
                 break
         if normal_offset[2] < 0.0:
             normal_offset *= -1.0
@@ -396,7 +404,8 @@ def compute_transform_contact(robot: jiminy.Robot,
         else:
             logger.warning("Collision computation failed for some reason. "
                            "Skipping this collision pair.")
-    if deepest_idx is not None and (not contact_frames_pos_rel or
+    if deepest_idx is not None and (
+            not contact_frames_pos_rel or
             transform_offset.translation[2] < -min_distance):
         transform_offset.translation[2] = -min_distance
         if not contact_frames_pos_rel:
@@ -407,10 +416,12 @@ def compute_transform_contact(robot: jiminy.Robot,
                 collision_position = dist_rslt.getNearestPoint1()
                 transform_offset.rotation = \
                     robot.collision_data.oMg[geom_idx].rotation.T
-                transform_offset.translation[2] += (collision_position -
+                transform_offset.translation[2] += (
+                    collision_position -
                     transform_offset.rotation @ collision_position)[2]
 
     return transform_offset
+
 
 def compute_freeflyer_state_from_fixed_body(
         robot: jiminy.Robot,
@@ -461,8 +472,9 @@ def compute_freeflyer_state_from_fixed_body(
         velocity[:6].fill(0.0)
     if acceleration is not None:
         acceleration[:6].fill(0.0)
-    update_quantities(robot, position, velocity, acceleration,
-        update_physics=False, use_theoretical_model=False)
+    update_quantities(
+        robot, position, velocity, acceleration, update_physics=False,
+        use_theoretical_model=False)
 
     if fixed_body_name is None:
         w_M_ff = compute_transform_contact(robot, ground_profile)
@@ -494,10 +506,12 @@ def compute_freeflyer_state_from_fixed_body(
             base_link_acceleration = - ff_a_fixedBody
             acceleration[:6] = base_link_acceleration.vector
 
-    update_quantities(robot, position, velocity, acceleration,
-        update_physics=False, use_theoretical_model=False)
+    update_quantities(
+        robot, position, velocity, acceleration, update_physics=False,
+        use_theoretical_model=False)
 
     return fixed_body_name
+
 
 def compute_efforts_from_fixed_body(
         robot: jiminy.Robot,
@@ -549,9 +563,10 @@ def compute_efforts_from_fixed_body(
 
     return tau, f_ext
 
-######################################################################
-#################### State sequence wrappers #########################
-######################################################################
+
+# #####################################################################
+# ################### State sequence wrappers #########################
+# #####################################################################
 
 def retrieve_freeflyer(trajectory_data: Dict[str, Any],
                        freeflyer_continuity: bool = True) -> None:
@@ -593,6 +608,7 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
             # Add the appropriate offset to the freeflyer
             w_M_ff = w_M_ff_offset * w_M_ff
             s.q[:7] = pin.se3ToXYZQUAT(w_M_ff)
+
 
 def compute_efforts(trajectory_data: Dict[str, Any]) -> None:
     """

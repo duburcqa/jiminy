@@ -111,19 +111,18 @@ class ObservationActionNormalization(gym.Wrapper):
         """
         self.observation_scale = {}
 
-        ## Define some proxies for convenience
+        # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
-
         num_sensors = {}
         for sensor in (enc, effort, contact, force, imu):
             num_sensors[sensor] = len(self.robot.sensors_names[sensor.type])
 
-        ## Compute the full robot configuration and velocity scale
+        # ======= Compute robot configuration and velocity scale =======
 
         # Extract pre-defined scale from the robot
         position_scale = (self.robot.position_limit_upper -
-            self.robot.position_limit_lower) / 2
+                          self.robot.position_limit_lower) / 2
         velocity_scale = self.robot.velocity_limit
 
         # Replace inf bounds by the appropriate scale
@@ -144,7 +143,7 @@ class ObservationActionNormalization(gym.Wrapper):
             velocity_scale[
                 self.robot.rigid_joints_velocity_idx] = JOINT_VEL_SCALE
 
-        ## Compute the robot motor effort scale
+        # ======= Compute motors efforts scale =======
 
         # Extract pre-defined scale from the robot
         effort_scale = self.robot.effort_limit
@@ -159,16 +158,18 @@ class ObservationActionNormalization(gym.Wrapper):
         # Keep only the actual motor effort
         effort_scale = effort_scale[self.robot.motors_velocity_idx]
 
-        ## Handling of time scale
+        # ======= Update observation space scale =======
+
+        # Handling of time scale
         if 't' in self.observation_space.spaces.keys():
             self.observation_scale['t'] = T_SCALE
 
-        ## Handling of state scale
+        # Handling of state scale
         if 'state' in self.observation_space.spaces.keys():
             self.observation_scale['state'] = np.concatenate(
                 (position_scale, velocity_scale))
 
-        ## Handling of sensors data scale
+        # Handling of sensors data scale
         if 'sensors' in self.observation_space.spaces.keys():
             sensors_space = self.observation_space['sensors']
 
@@ -284,7 +285,8 @@ class ObservationActionNormalization(gym.Wrapper):
 
                 self.observation_scale['sensors'][effort.type] = effort_scale
 
-        ## Handling of action scale
+        # ======= Update action space scale =======
+
         self.action_scale = effort_scale
 
     def _refresh_action_space(self) -> None:
@@ -313,8 +315,9 @@ class ObservationActionNormalization(gym.Wrapper):
         obs_n = self.normalize(obs, self.observation_scale)
         return obs_n
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief    TODO
 

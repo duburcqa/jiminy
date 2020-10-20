@@ -1,5 +1,3 @@
-## @file
-
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -13,13 +11,20 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
-STEP_DT = 0.2                         # Stepper update period
-THETA_RANDOM_RANGE = 0.1              # Range of uniform sampling distribution of joint angles
-DTHETA_RANDOM_RANGE = 0.1             # Range of uniform sampling distribution of joint velocities
-HEIGHT_REL_DEFAULT_THRESHOLD = 0.5    # The relative height of the tip at which to consider an episode successful for normal env
-HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2  # The mimimum relative height of the tip at which to consider an episode successful for goal env
-HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98  # The maximum relative height of the tip at which to consider an episode successful for goal env
-ACTION_NOISE = 0.0                    # Standard deviation of the noise added to the action
+# Stepper update period
+STEP_DT = 0.2
+# Range of uniform sampling distribution of joint angles
+THETA_RANDOM_RANGE = 0.1
+# Range of uniform sampling distribution of joint velocities
+DTHETA_RANDOM_RANGE = 0.1
+# Relative height of tip to consider an episode successful for normal env
+HEIGHT_REL_DEFAULT_THRESHOLD = 0.5
+# Mim relative height of tip to consider an episode successful for goal env
+HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2
+# Max relative height of tip to consider an episode successful for goal env
+HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98
+# Standard deviation of the noise added to the action
+ACTION_NOISE = 0.0
 
 
 class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
@@ -75,8 +80,8 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
         # Instantiate robot
         robot = jiminy.Robot()
-        robot.initialize(urdf_path,
-            has_freeflyer=False, mesh_package_dirs=[data_dir])
+        robot.initialize(
+            urdf_path, has_freeflyer=False, mesh_package_dirs=[data_dir])
 
         # Add motors and sensors
         motor_joint_name = "SecondArmJoint"
@@ -173,7 +178,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         return self.rg.uniform(
             low=HEIGHT_REL_MIN_GOAL_THRESHOLD,
             high=HEIGHT_REL_MAX_GOAL_THRESHOLD,
-            size=(1,)) *self._tipPosZMax
+            size=(1,)) * self._tipPosZMax
 
     def _get_achieved_goal(self) -> np.ndarray:
         """
@@ -215,8 +220,9 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             reward = -1.0
         return reward
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
 

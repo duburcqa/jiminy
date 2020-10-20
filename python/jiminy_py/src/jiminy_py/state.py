@@ -1,4 +1,3 @@
-## @file jiminy_py/state.py
 import numpy as np
 from collections import defaultdict
 from copy import copy as _copy, deepcopy
@@ -33,26 +32,26 @@ class State:
         @param f_ext  External forces in the contact frame.
         @param copy  Force to copy the arguments.
         """
-        ## Time
+        # Time
         self.t = t
-        ## Configuration vector
+        # Configuration vector
         self.q = _copy(q) if copy else q
-        ## Velocity vector
+        # Velocity vector
         self.v = _copy(v) if copy else v
-        ## Acceleration vector
+        # Acceleration vector
         self.a = _copy(a) if copy else a
-        ## Effort vector
+        # Effort vector
         self.tau = _copy(tau) if copy else tau
-        ## Frame name of the contact point, if nay
+        # Frame name of the contact point, if nay
         self.contact_frame = contact_frame
-        ## External forces
+        # External forces
         self.f_ext = None
         if f_ext is not None:
             self.f_ext = deepcopy(f_ext) if copy else f_ext
 
     @staticmethod
-    def todict(state_list: List['State']) -> Dict[str,
-            Union[np.ndarray, List[Union[List[Force], StdVec_Force]]]]:
+    def todict(state_list: List['State']) -> Dict[
+            str, Union[np.ndarray, List[Union[List[Force], StdVec_Force]]]]:
         """
         @brief Get the dictionary whose keys are the kinematics and dynamics
                data at several time steps from a list of State objects.
@@ -74,8 +73,9 @@ class State:
 
     @classmethod
     def fromdict(cls,
-                 state_dict: Dict[str, Union[np.ndarray,
-                    List[Union[List[Force], StdVec_Force]]]]) -> List['State']:
+                 state_dict: Dict[str, Union[
+                     np.ndarray, List[Union[List[Force], StdVec_Force]]]]
+                 ) -> List['State']:
         """
         @brief Get a list of State objects from a dictionary whose keys are the
                kinematics and dynamics data at several time steps.
@@ -92,7 +92,7 @@ class State:
         for i in range(len(state_dict['t'])):
             state_list.append(cls(**{
                 k: v[..., i] if isinstance(v, np.ndarray) else v[i]
-                for k,v in _state_dict.items()}))
+                for k, v in _state_dict.items()}))
         return state_list
 
     def __repr__(self):

@@ -15,7 +15,9 @@ class Getch:
                  stop_event: Optional[threading.Event] = None):
         self.stop_event = stop_event
         if os.name != 'nt':
-            import sys, fcntl, termios
+            import sys
+            import fcntl
+            import termios
             self.fd = sys.stdin.fileno()
             self.oldterm = termios.tcgetattr(self.fd)
             newattr = termios.tcgetattr(self.fd)
@@ -27,7 +29,8 @@ class Getch:
 
     def __del__(self):
         if os.name != 'nt':
-            import fcntl, termios
+            import fcntl
+            import termios
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.oldterm)
             fcntl.fcntl(self.fd, fcntl.F_SETFL, self.oldflags)
 
@@ -35,7 +38,8 @@ class Getch:
         if os.name != 'nt':
             c = ''
             try:
-                import sys, termios
+                import sys
+                import termios
                 termios.tcflush(self.fd, termios.TCIFLUSH)
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
@@ -56,10 +60,11 @@ class Getch:
                     return msvcrt.getch()
             return ''
 
+
 def input_deamon(input_queue: queue.Queue,
                  stop_event: threading.Event,
                  exit_key: str):
-    CHAR_TO_ARROW_MAPPING = {"\x1b[A" : "Up",
+    CHAR_TO_ARROW_MAPPING = {"\x1b[A": "Up",
                              "\x1b[B": "Down",
                              "\x1b[C": "Right",
                              "\x1b[D": "Left"}
@@ -72,6 +77,7 @@ def input_deamon(input_queue: queue.Queue,
             c = exit_key
         input_queue.put(c)
     del getch
+
 
 def loop_interactive(press_key_to_start: bool = True,
                      exit_key: str = 'k') -> Callable:

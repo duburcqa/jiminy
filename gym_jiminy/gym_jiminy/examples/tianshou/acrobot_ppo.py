@@ -6,8 +6,10 @@
 @details It solves it consistently in less than 100000 timesteps in average,
          and in about 30000 at best.
 
-@remark This script requires pytorch>=1.4 and and tianshou==0.3.0.
+@remark This script requires pytorch>=1.4 and tianshou==0.3.0.
 """
+# flake8: noqa
+
 # ======================== User parameters =========================
 
 GYM_ENV_NAME = "gym_jiminy:jiminy-acrobot-v0"

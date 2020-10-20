@@ -1,4 +1,3 @@
-## @file src/jiminy_py/controller.py
 import numpy as np
 from typing import Callable
 
@@ -63,8 +62,9 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         self.__robot = robot
         return_code = super().initialize(self.__robot)
         if return_code == jiminy.hresult_t.SUCCESS:
-            raise ValueError("Impossible to instantiate the controller. "
-                "There is something wrong with the robot.")
+            raise ValueError(
+                "Impossible to instantiate the controller.  There is "
+                "something wrong with the robot.")
 
     def set_controller_handle(self, controller_handle: Callable) -> None:
         """
@@ -89,9 +89,10 @@ class BaseJiminyController(jiminy.ControllerFunctor):
             controller_handle(t, y, dy, sensors_data, u_command)
             self.__controller_handle = controller_handle
         except Exception as e:
-            raise RuntimeError("The controller handle has a wrong signature. "
-                "It is expected:\ncontroller_handle(t, y, dy, sensorsData, "
-                "u_command) -> None") from e
+            raise RuntimeError(
+                "The controller handle has a wrong signature. It is expected:"
+                "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
+                ) from e
 
     def reset(self) -> None:
         """
@@ -105,8 +106,9 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         @brief Reset the progress bar. It must be called manually after calling
                `reset` method to enable automatic progress bar update.
         """
-        self.__pbar = tqdm(total=tf, bar_format=("{percentage:3.0f}%|{bar}| "
-            "{n:.2f}/{total_fmt} [{elapsed}<{remaining}]"))
+        self.__pbar = tqdm(total=tf, bar_format=(
+            "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
+            "[{elapsed}<{remaining}]"))
 
     def close_progress_bar(self) -> None:
         if self.__pbar is not None:

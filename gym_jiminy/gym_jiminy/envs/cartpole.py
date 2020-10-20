@@ -1,5 +1,3 @@
-## @file
-
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -13,13 +11,20 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
-STEP_DT = 0.02              # Stepper update period
-X_THRESHOLD = 2.4           # Maximum absolute position of the cart before considering the episode failed
-THETA_THRESHOLD = 12.0 * np.pi / 180.0  # Maximum absolute angle of the pole before considering the episode failed
-X_RANDOM_RANGE = 0.05       # Sampling range for cart position
-THETA_RANDOM_RANGE = 0.05   # Sampling range for pole angle
-DX_RANDOM_RANGE = 0.05      # Sampling range for cart linear velocity
-DTHETA_RANDOM_RANGE = 0.05  # Sampling range for pole angular velocity
+# Stepper update period
+STEP_DT = 0.02
+# Maximum absolute position of the cart before considering the episode failed
+X_THRESHOLD = 2.4
+# Maximum absolute angle of the pole before considering the episode failed
+THETA_THRESHOLD = 12.0 * np.pi / 180.0
+# Sampling range for cart position
+X_RANDOM_RANGE = 0.05
+# Sampling range for pole angle
+THETA_RANDOM_RANGE = 0.05
+# Sampling range for cart linear velocity
+DX_RANDOM_RANGE = 0.05
+# Sampling range for pole angular velocity
+DTHETA_RANDOM_RANGE = 0.05
 
 
 class CartPoleJiminyEnv(BaseJiminyEnv):
@@ -88,8 +93,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Instantiate robot
         robot = jiminy.Robot()
-        robot.initialize(urdf_path,
-            has_freeflyer=False, mesh_package_dirs=[data_dir])
+        robot.initialize(
+            urdf_path, has_freeflyer=False, mesh_package_dirs=[data_dir])
 
         # Add motors and sensors
         motor_joint_name = "slider_to_cart"
@@ -210,12 +215,13 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                  condition has never been reached during the same episode.
         """
         reward = 0.0
-        if not self._num_steps_beyond_done:  # True for None and 0, False otherwise
+        if not self._num_steps_beyond_done:  # True for both None and 0
             reward += 1.0
         return reward, {}
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief    TODO
         """

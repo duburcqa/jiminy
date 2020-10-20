@@ -1,5 +1,6 @@
 import numpy as np
 
+
 # For references about Gaussian processes:
 #     https://peterroelants.github.io/posts/gaussian-process-tutorial/
 #     https://peterroelants.github.io/posts/gaussian-process-kernels/
@@ -42,11 +43,12 @@ class PeriodicGaussianProcess:
         t_dist_mat = t.reshape((t.shape[0], -1, 1)) - \
             t.reshape((t.shape[0], 1, -1))
 
-        cov = scale ** 2 * np.exp(-2.0 / wavelength ** 2 * \
+        cov = scale ** 2 * np.exp(
+            -2.0 / wavelength ** 2 *
             np.sin(np.pi * np.abs(t_dist_mat) / period) ** 2)
 
         _, s, v = np.linalg.svd(cov)  # u = v.T because cov is symmetric
-        cov_sqrt = np.sqrt(s)[..., None] * v  # = np.diag(np.sqrt(s)) @ v in 2D.  It is not the actual square root of the covariance matrix but it is closely related.
+        cov_sqrt = np.sqrt(s)[..., None] * v  # = np.diag(np.sqrt(s)) @ v in 2D
 
         self.cov = cov
         self._cov_sqrt = cov_sqrt
@@ -55,5 +57,5 @@ class PeriodicGaussianProcess:
         """
         @brief    TODO
         """
-        return self.mean + (np.random.standard_normal(self.mean.shape) @
-            self._cov_sqrt)[..., 0, :]
+        return (np.random.standard_normal(self.mean.shape) @
+                self._cov_sqrt)[..., 0, :] + self.mean

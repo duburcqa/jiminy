@@ -1,7 +1,7 @@
-## @file jiminy_py/processing.py
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from typing import Optional, Dict, Union, List
+
 
 def smoothing_filter(
         time_in: np.ndarray,
@@ -9,7 +9,7 @@ def smoothing_filter(
         time_out: Optional[np.ndarray] = None,
         relabel: Optional[np.ndarray] = None,
         params: Optional[Dict[str, Union[float, List[float]]]] = None
-    ) -> np.ndarray:
+        ) -> np.ndarray:
     """
     @brief Smoothing filter with relabeling and resampling features.
 
@@ -55,18 +55,22 @@ def smoothing_filter(
         params['mixing_ratio_1'] = 0.12
         params['mixing_ratio_2'] = 0.04
         params['smoothness'] = [0.0] * 3
-        params['smoothness'][0]  = 5e-3
-        params['smoothness'][1]  = 5e-3
-        params['smoothness'][2]  = 3e-3
+        params['smoothness'][0] = 5e-3
+        params['smoothness'][1] = 5e-3
+        params['smoothness'][2] = 3e-3
 
     if relabel is None:
-        mix_fit    = [None,None,None]
-        t_rescaled = lambda t, start: (t - start) / (time_in[-1] - time_in[0])
-        mix_fit[0] = lambda t: 0.5 * (np.sin(1 / params['mixing_ratio_1'] * \
+        def t_rescaled(t, start):
+            return (t - start) / (time_in[-1] - time_in[0])
+
+        mix_fit = [None, None, None]
+        mix_fit[0] = lambda t: 0.5 * (np.sin(
+            1 / params['mixing_ratio_1'] *
             t_rescaled(t, time_in[0]) * np.pi - np.pi/2) + 1)
-        mix_fit[1] = lambda t: 0.5 * (np.sin(1 / params['mixing_ratio_2'] * \
+        mix_fit[1] = lambda t: 0.5 * (np.sin(
+            1 / params['mixing_ratio_2'] *
             t_rescaled(t, params['mixing_ratio_2']) * np.pi + np.pi/2) + 1)
-        mix_fit[2] = lambda t: 1
+        mix_fit[2] = lambda t: 1.0
 
         val_fit = []
         for v in val_in:  # Loop over the rows
@@ -96,7 +100,7 @@ def smoothing_filter(
         val_out = np.array(val_out)
     else:
         _time = np.concatenate((time_in[:-1] - time_in[-1],
-                                time_in,time_in[1:] + time_in[-1]))
+                                time_in, time_in[1:] + time_in[-1]))
         _val_in = np.concatenate([relabel.dot(val_in[:, :-1]),
                                   val_in,
                                   relabel.dot(val_in[:, 1:])], axis=1)

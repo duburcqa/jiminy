@@ -1,4 +1,3 @@
-## @file
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -8,30 +7,53 @@ from pinocchio import neutral
 from ..common.env_locomotion import WalkerJiminyEnv, WalkerPDControlJiminyEnv
 
 
+# Sagittal hip angle of neutral configuration (:float [rad])
 DEFAULT_SAGITTAL_HIP_ANGLE = 0.2
 
-SIMULATION_DURATION = 20.0  # (s) Default simulation duration
-HLC_TO_LLC_RATIO = 1  # (NA)
-STEP_DT = 1.0e-3  # (s) Stepper update period
+# Default simulation duration (:float [s])
+SIMULATION_DURATION = 20.0
+# Ratio between the High-level neural network PID target update and Low-level
+# PID torque update (:int [NA])
+HLC_TO_LLC_RATIO = 1
+# Stepper update period (:float [s])
+STEP_DT = 1.0e-3
 
-PID_KP = np.array([1000.0, 12000.0, 1000.0,                          # Back: [X, Y, Z]
-                   100.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-                   1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0,   # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-                   1000.0,                                           # Neck: [Y]
-                   100.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,    # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-                   1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0])  # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-PID_KD = np.array([0.01, 0.01, 0.01,                                 # Back: [X, Y, Z]
-                   0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,         # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-                   0.01, 0.002, 0.002, 0.002, 0.002, 0.01,            # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-                   0.01,                                             # Neck: [Y]
-                   0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,         # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
-                   0.00, 0.002, 0.002, 0.002, 0.002, 0.01])           # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
+# PID proportional gains (one per actuated joint)
+PID_KP = np.array([
+    # Back: [X, Y, Z]
+    1000.0, 12000.0, 1000.0,
+    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    100.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
+    # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
+    1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0,
+    # Neck: [Y]
+    1000.0,
+    # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    100.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
+    # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
+    1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0])
+# PID derivative gains (one per actuated joint)
+PID_KD = np.array([
+    # Back: [X, Y, Z]
+    0.01, 0.01, 0.01,
+    # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+    # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
+    0.01, 0.002, 0.002, 0.002, 0.002, 0.01,
+    # Neck: [Y]
+    0.01,
+    # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
+    0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
+    # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
+    0.00, 0.002, 0.002, 0.002, 0.002, 0.01])
 
+# Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
     'energy': 0.0,
     'done': 1.0
 }
+# Standard deviation ratio of each individual origin of randomness
 STD_RATIO = {
     'model': 0.0,
     'ground': 0.0,
@@ -79,8 +101,7 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
 
 
 class AtlasPDControlJiminyEnv(AtlasJiminyEnv, WalkerPDControlJiminyEnv):
-    def __init__(self,
-                 hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO,
-                 debug: bool = False):
-        super().__init__(debug,
-            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD)
+    def __init__(self, hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO, **kwargs):
+        super().__init__(
+            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD,
+            **kwargs)

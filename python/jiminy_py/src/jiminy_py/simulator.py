@@ -1,4 +1,3 @@
-## @file src/jiminy_py/simulator.py
 import os
 import toml
 import atexit
@@ -136,8 +135,10 @@ class Simulator:
                 hardware_file = tempfile.NamedTemporaryFile(
                     prefix=(urdf_name + "_hardware_"), suffix=".hdf",
                     delete=(not debug))
+
                 def close_file_at_exit(file=hardware_file):
                     file.close()
+
                 atexit.register(close_file_at_exit)
 
                 # Generate default Hardware Description File
@@ -151,10 +152,10 @@ class Simulator:
         # Instantiate and initialize the engine
         simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)
 
-        # Set some engine options, based on extra toml information
+        # Get engine options
         engine_options = simulator.engine.get_options()
 
-        ## Handling of controller and sensors update period
+        # Update controller/sensors update period, based on extra toml info
         control_period = robot.extra_info.pop('controllerUpdatePeriod', None)
         sensors_period = robot.extra_info.pop('sensorsUpdatePeriod', None)
         if control_period is None and sensors_period is None:
@@ -167,7 +168,7 @@ class Simulator:
         engine_options['stepper']['controllerUpdatePeriod'] = control_period
         engine_options['stepper']['sensorsUpdatePeriod'] = sensors_period
 
-        ## Handling of ground model parameters
+        # Handling of ground model parameters, based on extra toml info
         engine_options['contacts']['stiffness'] = \
             robot.extra_info.pop('groundStiffness', DEFAULT_GROUND_STIFFNESS)
         engine_options['contacts']['damping'] = \
@@ -222,7 +223,8 @@ class Simulator:
             else:
                 return q, v  # It is already a copy
         else:
-            raise RuntimeError("No simulation running. Impossible to get current state.")
+            raise RuntimeError(
+                "No simulation running. Impossible to get current state.")
 
     @property
     def pinocchio_model(self) -> pin.Model:
@@ -300,17 +302,17 @@ class Simulator:
                                   Optional: None by default.
         """
         # Run the simulation
-        if show_progress_bar != False:
+        if show_progress_bar is not False:
             try:
                 self.engine.controller.set_progress_bar(tf)
             except AttributeError as e:
                 if show_progress_bar:
-                    raise RuntimeError("'show_progress_bar' can only be used "
-                        "with controller inherited from "
-                        "`BaseJiminyController`.") from e
+                    raise RuntimeError(
+                        "'show_progress_bar' can only be used with controller "
+                        "inherited from `BaseJiminyController`.") from e
                 show_progress_bar = False
         self.engine.simulate(tf, q0, v0, is_state_theoretical)
-        if show_progress_bar != False:
+        if show_progress_bar is not False:
             self.engine.controller.close_progress_bar()
 
         # Write log
@@ -324,8 +326,8 @@ class Simulator:
                height: Optional[int] = None,
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
-                   Union[Tuple[float, float, float],
-                       np.ndarray]]] = None) -> Optional[np.ndarray]:
+                   Union[Tuple[float, float, float], np.ndarray]]] = None
+               ) -> Optional[np.ndarray]:
         """
         @brief Render the current state of the simulation. One can display it
                or return an RGB array instead.
@@ -428,21 +430,22 @@ class Simulator:
 
         # Get robot positions, velocities, and acceleration
         for fields_type in ["Position", "Velocity", "Acceleration"]:
-            fieldnames = getattr(self.robot,
-                "logfile_" + fields_type.lower() + "_headers")
-            values = extract_fields(log_data, 'HighLevelController',
-                fieldnames)
+            fieldnames = getattr(
+                self.robot, "logfile_" + fields_type.lower() + "_headers")
+            values = extract_fields(
+                log_data, 'HighLevelController', fieldnames)
             if values is not None:
                 data[' '.join(("State", fields_type))] = OrderedDict(
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
         # Get motors information
-        u = extract_fields(log_data, 'HighLevelController',
+        u = extract_fields(
+            log_data, 'HighLevelController',
             self.robot.logfile_motor_effort_headers)
         if u is not None:
-            data['Motors Effort'] = OrderedDict((field, val)
-                for field, val in zip(self.robot.motors_names, u))
+            data['Motors Effort'] = OrderedDict(
+                (field, val) for field, val in zip(self.robot.motors_names, u))
 
         # Get sensors information
         for sensors_class, sensors_fields in SENSORS_FIELDS.items():
@@ -456,13 +459,15 @@ class Simulator:
                         for name in sensors_names]) for field in fieldnames]
                     if sensors_data[0] is not None:
                         type_name = ' '.join((sensors_type, fields_prefix))
-                        data[type_name] = OrderedDict((field,
-                            OrderedDict((name, val)
-                            for name, val in zip(sensors_names, values))
-                        ) for field, values in zip(fieldnames, sensors_data))
+                        data[type_name] = OrderedDict(
+                            (field, OrderedDict(
+                                (name, val) for name, val in zip(
+                                    sensors_names, values)))
+                            for field, values in zip(fieldnames, sensors_data))
             else:
                 for field in sensors_fields:
-                    sensors_data = extract_fields(log_data, namespace,
+                    sensors_data = extract_fields(
+                        log_data, namespace,
                         ['.'.join((name, field)) for name in sensors_names])
                     if sensors_data is not None:
                         data[' '.join((sensors_type, field))] = OrderedDict(
@@ -531,8 +536,9 @@ class Simulator:
             b.on_clicked(click)
 
         # Adjust layout and show figure (without blocking)
-        fig.subplots_adjust(bottom=0.1, top=0.92, left=0.05, right=0.95,
-            wspace=0.15, hspace=0.35)
+        fig.subplots_adjust(
+            bottom=0.1, top=0.92, left=0.05, right=0.95, wspace=0.15,
+            hspace=0.35)
         fig_name = list(fig_axes.keys())[0]
         for ax in fig_axes[fig_name]:
             ax.set_visible(True)

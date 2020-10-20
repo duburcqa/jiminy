@@ -142,12 +142,13 @@ def initialize(log_root_path: Optional[str] = None,
     if log_root_path is None:
         log_root_path = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "log")
-    if not 'tb' in locals().keys():
+    if 'tb' not in locals().keys():
         tb = TensorBoard()
         tb.configure(host="0.0.0.0", logdir=log_root_path)
         url = tb.launch()
         if verbose:
-            print(f"Started Tensorboard {url}. Root directory: {log_root_path}")
+            print(f"Started Tensorboard {url}. "
+                  f"Root directory: {log_root_path}")
 
     # Create log directory
     if log_name is None:
@@ -159,6 +160,7 @@ def initialize(log_root_path: Optional[str] = None,
         print(f"Tensorboard logfiles directory: {log_path}")
 
     return SummaryWriter(log_path)
+
 
 def train(train_agent: BasePolicy,
           train_envs: SubprocVectorEnv,
@@ -204,8 +206,9 @@ def train(train_agent: BasePolicy,
     test_collector = Collector(train_agent, test_envs)
 
     # Configure export
-    checkpoint_path = tempfile.mkstemp(dir=writer.log_dir,
-        prefix=spec.id, suffix='.zip')[-1]
+    checkpoint_path = tempfile.mkstemp(
+        dir=writer.log_dir, prefix=spec.id, suffix='.zip')[-1]
+
     def save_fn(train_agent):
         torch.save(train_agent.state_dict(), checkpoint_path)
 
@@ -223,6 +226,7 @@ def train(train_agent: BasePolicy,
             print("Interrupting training...")
 
     return checkpoint_path
+
 
 def test(test_agent: BasePolicy,
          env_creator: Callable[[], gym.core.Env],

@@ -1,4 +1,3 @@
-## @file
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -6,20 +5,28 @@ from pkg_resources import resource_filename
 from ..common.env_locomotion import WalkerJiminyEnv, WalkerPDControlJiminyEnv
 
 
-SIMULATION_DURATION = 20.0  # ([float] s) Default simulation duration
-HLC_TO_LLC_RATIO = 1        # ([int]  NA) Ratio between the High-level neural network PID target update and Low-level PID torque update
-STEP_DT = 0.02              # ([float] s) Stepper update period
+# Default simulation duration (:float [s])
+SIMULATION_DURATION = 20.0
+# Ratio between the High-level neural network PID target update and Low-level
+# PID torque update (:int [NA])
+HLC_TO_LLC_RATIO = 1
+# Stepper update period (:float [s])
+STEP_DT = 1.0e-3
 
+# PID proportional gains (one per actuated joint)
 PID_KP = np.array([1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0,
                    1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0])
+# PID derivative gains (one per actuated joint)
 PID_KD = np.array([0.003, 0.003, 0.003, 0.003, 0.003, 0.003,
                    0.003, 0.003, 0.003, 0.003, 0.003, 0.003])
 
+# Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {
     'direction': 0.0,
     'energy': 0.0,
     'done': 1.0
 }
+# Standard deviation ratio of each individual origin of randomness
 STD_RATIO = {
     'model': 0.0,
     'ground': 0.0,
@@ -72,11 +79,10 @@ class ANYmalPDControlJiminyEnv(ANYmalJiminyEnv, WalkerPDControlJiminyEnv):
     """
     @brief    TODO
     """
-    def __init__(self,
-                 hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO,
-                 debug: bool = False):
+    def __init__(self, hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO, **kwargs):
         """
         @brief    TODO
         """
-        super().__init__(debug,
-            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD)
+        super().__init__(
+            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD,
+            **kwargs)
