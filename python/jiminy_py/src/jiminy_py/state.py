@@ -7,8 +7,7 @@ from pinocchio import Force, StdVec_Force
 
 
 class State:
-    """
-    @brief Store the kinematics and dynamics data of the robot at a given time.
+    """Store the kinematics and dynamics data of the robot at a given time.
     """
     def __init__(self,
                  t: float,
@@ -20,17 +19,16 @@ class State:
                  f_ext: Optional[Union[List[Force], StdVec_Force]] = None,
                  copy: bool = False,
                  **kwargs):
-        """
-        @brief Constructor.
+        """Constructor.
 
-        @param t  Time.
-        @param q  Configuration vector.
-        @param v  Velocity vector.
-        @param a  Acceleration vector.
-        @param tau  Joint efforts.
-        @param contact_frame  Name of the contact frame.
-        @param f_ext  External forces in the contact frame.
-        @param copy  Force to copy the arguments.
+        :param t: Time.
+        :param q: Configuration vector.
+        :param v: Velocity vector.
+        :param a: Acceleration vector.
+        :param tau: Joint efforts.
+        :param contact_frame: Name of the contact frame.
+        :param f_ext: External forces in the contact frame.
+        :param copy: Force to copy the arguments.
         """
         # Time
         self.t = t
@@ -52,14 +50,13 @@ class State:
     @staticmethod
     def todict(state_list: List['State']) -> Dict[
             str, Union[np.ndarray, List[Union[List[Force], StdVec_Force]]]]:
-        """
-        @brief Get the dictionary whose keys are the kinematics and dynamics
-               data at several time steps from a list of State objects.
+        """Get the dictionary whose keys are the kinematics and dynamics
+        data at several time steps from a list of State objects.
 
-        @param state_list  List of State objects
+        :param state_list: List of State objects
 
-        @return Kinematics and dynamics data as a dictionary.
-                Each property is a 2D numpy array (row: state, column: time).
+        :returns: Kinematics and dynamics data as a dictionary.
+                  Each property is a 2D numpy array (row: state, column: time).
         """
         state_dict = {}
         state_dict['t'] = np.array([s.t for s in state_list])
@@ -76,15 +73,14 @@ class State:
                  state_dict: Dict[str, Union[
                      np.ndarray, List[Union[List[Force], StdVec_Force]]]]
                  ) -> List['State']:
-        """
-        @brief Get a list of State objects from a dictionary whose keys are the
-               kinematics and dynamics data at several time steps.
+        """Get a list of State objects from a dictionary whose keys are the
+        kinematics and dynamics data at several time steps.
 
-        @param state_dict  Dictionary whose keys are the kinematics and
+        :param state_dict: Dictionary whose keys are the kinematics and
                            dynamics data. Each property is a 2D numpy
                            array (row: state, column: time).
 
-        @return List of State.
+        :returns: List of State.
         """
         _state_dict = defaultdict(
             lambda: [None for i in range(len(state_dict['t']))], state_dict)
@@ -96,10 +92,9 @@ class State:
         return state_list
 
     def __repr__(self):
-        """
-        @brief Convert the kinematics and dynamics data into string.
+        """Convert the kinematics and dynamics data into string.
 
-        @return The kinematics and dynamics data as a string.
+        :returns: The kinematics and dynamics data as a string.
         """
         msg = ""
         for key, val in self.__dict__.items():

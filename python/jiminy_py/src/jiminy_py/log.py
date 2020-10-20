@@ -13,12 +13,12 @@ from typing import Tuple, Dict
 from .core import Engine
 
 
-def is_log_binary(filename: str) -> bool:
-    """
-    @brief   Return True if the given filename appears to be binary log file.
+def _is_log_binary(filename: str) -> bool:
+    """Return True if the given filename appears to be binary log file.
 
-    @details File is considered to be binary log if it contains a NULL byte.
-             From https://stackoverflow.com/a/11301631/4820605.
+    File is considered to be binary log if it contains a NULL byte.
+
+    See https://stackoverflow.com/a/11301631/4820605 for reference.
     """
     with open(filename, 'rb') as f:
         for block in f:
@@ -28,18 +28,17 @@ def is_log_binary(filename: str) -> bool:
 
 
 def read_log(filename: str) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
+    """Read a logfile from jiminy.
+
+    This function supports both text (csv) and binary log.
+
+    :param filename: Name of the file to load.
+
+    :returns: Pair of dictionaries containing respectively the logged values,
+              and the constants.
     """
-    @brief Read a logfile from jiminy.
 
-    @details This function supports both text (csv) and binary log.
-
-    @param filename  Name of the file to load.
-
-    @return Pair of dictionaries containing respectively the logged values,
-            and the constants.
-    """
-
-    if is_log_binary(filename):
+    if _is_log_binary(filename):
         # Read binary file using C++ parser.
         data_dict, constants_dict = Engine.read_log_binary(filename)
     else:

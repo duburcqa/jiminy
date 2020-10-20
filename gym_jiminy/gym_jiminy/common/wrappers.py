@@ -36,7 +36,8 @@ def flatten_observation(space: spaces.Space,
     """
     @brief    TODO
 
-    @remark It does not preserve dtype.
+    .. warning::
+        It does not preserve dtype.
     """
     def _flatten_bounds(space: spaces.Space,
                         bounds_type: str) -> np.ndarray:
@@ -81,16 +82,14 @@ class FlattenObservation(gym.ObservationWrapper):
     @brief Observation wrapper that flattens the observation.
     """
     def __init__(self, env: gym.core.Env):
-        """
-        @brief    TODO
+        """   TODO
         """
         super().__init__(env)
         self.observation_space = flatten_observation(
             self.env.observation_space)
 
     def observation(self, observation: spaces.Space) -> np.ndarray:
-        """
-        @brief    TODO
+        """   TODO
         """
         return flatten_observation(
             self.env.observation_space, observation)
@@ -98,16 +97,14 @@ class FlattenObservation(gym.ObservationWrapper):
 
 class ObservationActionNormalization(gym.Wrapper):
     def __init__(self, env: gym.core.Env):
-        """
-        @brief    TODO
+        """   TODO
         """
         super().__init__(env)
         self.observation_scale = None
         self.action_scale = None
 
     def _refresh_observation_space(self) -> None:
-        """
-        @brief    TODO
+        """   TODO
         """
         self.observation_scale = {}
 
@@ -290,8 +287,7 @@ class ObservationActionNormalization(gym.Wrapper):
         self.action_scale = effort_scale
 
     def _refresh_action_space(self) -> None:
-        """
-        @brief    TODO
+        """   TODO
         """
         # Extract pre-defined scale from the robot
         effort_scale = self.robot.effort_limit
@@ -307,8 +303,7 @@ class ObservationActionNormalization(gym.Wrapper):
         self.action_scale = effort_scale[self.robot.motors_velocity_idx]
 
     def reset(self, **kwargs) -> SpaceDictRecursive:
-        """
-        @brief    TODO
+        """   TODO
         """
         obs = self.env.reset(**kwargs)
         self._refresh_learning_spaces_scale()
@@ -318,8 +313,7 @@ class ObservationActionNormalization(gym.Wrapper):
     def step(self,
              action: Optional[np.ndarray] = None
              ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """
-        @brief    TODO
+        """   TODO
 
         @param action  Normalized action.
         """
@@ -333,8 +327,7 @@ class ObservationActionNormalization(gym.Wrapper):
     def normalize(cls,
                   value: SpaceDictRecursive,
                   scale: SpaceDictRecursive) -> SpaceDictRecursive:
-        """
-        @brief    TODO
+        """   TODO
         """
         if isinstance(scale, dict):
             value_n = {}
@@ -348,8 +341,7 @@ class ObservationActionNormalization(gym.Wrapper):
     def reverse_normalize(cls,
                           value_n: SpaceDictRecursive,
                           scale:  SpaceDictRecursive) -> SpaceDictRecursive:
-        """
-        @brief    TODO
+        """   TODO
         """
         if isinstance(scale, dict):
             value = {}

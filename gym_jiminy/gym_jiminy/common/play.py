@@ -6,10 +6,8 @@ from typing import Optional, Callable
 
 
 class Getch:
-    """
-    @brief   Gets a single character from standard input.
-
-    @details Does not echo to the screen.
+    """Catch a single character from standard input before it echoes to the
+    screen.
     """
     def __init__(self,
                  stop_event: Optional[threading.Event] = None):

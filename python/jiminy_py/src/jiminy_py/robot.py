@@ -26,7 +26,7 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
-class DuplicateFilter:
+class _DuplicateFilter:
     def __init__(self):
         self.msgs = set()
 
@@ -37,7 +37,7 @@ class DuplicateFilter:
 
 
 logger = logging.getLogger(__name__)
-logger.addFilter(DuplicateFilter())
+logger.addFilter(_DuplicateFilter())
 
 
 def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
@@ -55,48 +55,48 @@ def generate_hardware_description_file(
         urdf_path: str,
         hardware_path: Optional[str] = None,
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
-    """
-    @brief Generate a default hardware description file, based on the
-           information grabbed from the URDF when available, using educated
-           guess otherwise.
+    """Generate a default hardware description file, based on the information
+    grabbed from the URDF when available, using educated guess otherwise.
 
-    @details If no Gazebo IMU sensor is found, a single IMU is added on the
-             root body of the kinematic tree. If no Gazebo plugin is available,
-             collision bodies and force sensors are added on every leaf body
-             of the robot. Otherwise, the definition of the plugins in use to
-             infer them.
+    If no Gazebo IMU sensor is found, a single IMU is added on the root body
+    of the kinematic tree. If no Gazebo plugin is available, collision bodies
+    and force sensors are added on every leaf body of the robot. Otherwise,
+    the definition of the plugins in use to infer them.
 
-             'joint' fields are parsed to extract every joint, actuated or not.
-             'fixed' joints are not considered as actual joints. Transmission
-             fields are parsed to determine which one of those joints are
-             actuated. If no transmission is found, it is assumed that every
-             joint is actuated, with a transmission ratio of 1:1.
+    'joint' fields are parsed to extract every joint, actuated or not. 'fixed'
+    joints are not considered as actual joints. Transmission fields are parsed
+    to determine which one of those joints are actuated. If no transmission is
+    found, it is assumed that every joint is actuated, with a transmission
+    ratio of 1:1.
 
-             It is assumed that:
-             - every joint has an encoder attached,
-             - every actuated joint has an effort sensor attached,
-             - every collision body has a force sensor attached
-             - for every Gazebo contact sensor, the associated body is added
-               to the set of the collision bodies, but it is not the case
-               for Gazebo force plugin.
+    It is assumed that:
 
-             When the default update rate is unspecified, then the default
-             sensor update rate is 1KHz if no Gazebo plugin has been found,
-             otherwise the highest one among found plugins will be used.
+    - every joint has an encoder attached,
+    - every actuated joint has an effort sensor attached,
+    - every collision body has a force sensor attached
+    - for every Gazebo contact sensor, the associated body is added
+      to the set of the collision bodies, but it is not the case
+      for Gazebo force plugin.
 
-    @remark It has been primarily designed for robots with freeflyer. The
-            default configuration should work out-of-the-box for walking robot,
-            but substantial modification may be required for different types of
-            robots such as wheeled robots or robotics manipulator arms.
+    When the default update rate is unspecified, then the default
+    sensor update rate is 1KHz if no Gazebo plugin has been found,
+    otherwise the highest one among found plugins will be used.
 
-            TOML format as be chosen to make reading and manually editing of
-            the file as human-friendly as possible.
+    .. note::
+        It has been primarily designed for robots with freeflyer. The default
+        configuration should work out-of-the-box for walking robot, but
+        substantial modification may be required for different types of robots
+        such as wheeled robots or robotics manipulator arms.
 
-    @param urdf_path  Fullpath of the URDF file.
-    @param hardware_path  Fullpath of the hardware description file.
+    .. note::
+        TOML format as be chosen to make reading and manually editing of the
+        file as human-friendly as possible.
+
+    :param urdf_path: Fullpath of the URDF file.
+    :param hardware_path: Fullpath of the hardware description file.
                           Optional: By default, it is the same location than
                           the URDF file, using '.hdf' extension.
-    @param default_update_rate  Default update rate of the sensors and the
+    :param default_update_rate: Default update rate of the sensors and the
                                 controller in Hz. It will be used for sensors
                                 whose the update rate is unspecified. 0.0 for
                                 continuous update.
@@ -367,15 +367,14 @@ def generate_hardware_description_file(
 def fix_urdf_mesh_path(urdf_path: str,
                        mesh_path: str,
                        output_root_path: Optional[str] = None):
-    """
-    @brief Generate an URDF with updated mesh paths.
+    """Generate an URDF with updated mesh paths.
 
-    @param urdf_path  Full path of the URDF file.
-    @param mesh_path  Root path of the meshes.
-    @param output_root_path  Root directory of the fixed URDF file.
+    :param urdf_path: Full path of the URDF file.
+    :param mesh_path: Root path of the meshes.
+    :param output_root_path: Root directory of the fixed URDF file.
                              Optional: temporary directory by default.
 
-    @return Full path of the fixed URDF file.
+    :returns: Full path of the fixed URDF file.
     """
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
@@ -413,37 +412,33 @@ def fix_urdf_mesh_path(urdf_path: str,
 
 
 class BaseJiminyRobot(jiminy.Robot):
-    """
-    @brief Base class to instantiate a Jiminy robot based on a standard
-           URDF file and Jiminy-specific hardware description file.
+    """Base class to instantiate a Jiminy robot based on a standard URDF file
+    and Jiminy-specific hardware description file.
 
-    @details The utility 'generate_hardware_description_file' is provided to
-             automatically generate a default hardware description file for any
-             given URDF file. URDF file containing Gazebo plugins description
-             should not require any further modification as it usually includes
-             the information required to fully characterize the motors and
-             sensors, along with some of there properties.
+    The utility 'generate_hardware_description_file' is provided to
+    automatically generate a default hardware description file for any given
+    URDF file. URDF file containing Gazebo plugins description should not
+    require any further modification as it usually includes the information
+    required to fully characterize the motors, sensors, contact points and
+    collision bodies, along with some of there properties.
 
-             Note that it is assumed that the contact points of the robot
-             matches one-by-one the frames of the force sensors. So it is not
-             possible to use non-instrumented contact points by default.
+    If no collision geometry is associated with the body requiring collision
+    handling, then the visual geometry is used instead, if any. If none is
+    available despite at, then a single contact point is added at body frame.
 
-             If the body requiring collision handling do not have primitive
-             geometry associated, contact points are generated based on the
-             collision mesh, if any, the visual mesh otherwise. The contact
-             points are the vertices of the minimum volume bounding box
-             associated with the mesh. If no mesh is available at all, then
-             the body frame is used instead.
+    For now, every mesh used for collision are replaced by the vertices of the
+    associated minimum volume bounding box, to avoid numerical instabilities.
 
-             Overload this class if you need finer-grained capability.
+    .. note::
+        Overload this class if you need finer-grained capability.
 
-    @remark Hardware description files within the same directory and having the
-            name than the URDF file will be detected automatically without
-            requiring to manually specify its path.
+    .. warning::
+        Hardware description files within the same directory and having the
+        name than the URDF file will be detected automatically without
+        requiring to manually specify its path.
     """
     def __init__(self):
-        """
-        @brief    TODO
+        """   TODO
         """
         super().__init__()
         self.extra_info = {}
@@ -454,20 +449,19 @@ class BaseJiminyRobot(jiminy.Robot):
                    hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True):
-        """
-        @brief Initialize the robot.
+        """Initialize the robot.
 
-        @param urdf_path  Path of the URDF file of the robot.
-        @param hardware_path  Path of Jiminy hardware description toml file.
+        :param urdf_path: Path of the URDF file of the robot.
+        :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
                               folder and with the same name. If not found, then
                               no hardware is added to the robot, which is valid
                               and can be used for display.
-        @param mesh_path  Path to the folder containing the URDF meshes. It
+        :param mesh_path: Path to the folder containing the URDF meshes. It
                           will overwrite any absolute mesh path.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
                           used if available.
-        @param has_freeflyer  Whether the robot is fixed-based wrt its root
+        :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
         """
         # Backup the original URDF path

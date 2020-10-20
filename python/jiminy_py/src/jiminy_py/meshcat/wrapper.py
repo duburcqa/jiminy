@@ -1,7 +1,6 @@
 import atexit
 import asyncio
 import logging
-import importlib
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout
@@ -11,39 +10,10 @@ import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 
 import meshcat
+
+from .utilities import is_notebook
 from .server import start_meshcat_server
-
 from .recorder import MeshcatRecorder
-
-
-if importlib.util.find_spec("IPython") is not None:
-    def is_notebook() -> None:
-        """
-        @brief Determine whether Python is running inside a Notebook or not.
-        """
-        from IPython import get_ipython
-        shell = get_ipython().__class__.__module__
-        if shell == 'ipykernel.zmqshell':
-            # Jupyter notebook or qtconsole. Impossible to discriminate easily
-            # without costly psutil inspection of the running process. So let's
-            # assume it is Jupyter notebook, since nobody actually uses the
-            # qtconsole anyway.
-            return 1
-        elif shell == 'IPython.terminal.interactiveshell':
-            # Terminal running IPython
-            return 0
-        elif shell.startswith('google.colab.'):
-            # Google Colaboratory
-            return 2
-        elif shell == '__builtin__':
-            # Terminal running Python
-            return 0
-        else:
-            raise RuntimeError("Unknown Python environment.")
-else:
-    def is_notebook() -> None:
-        # Always return 0 if ipython is not available
-        return 0
 
 
 if is_notebook() == 1:

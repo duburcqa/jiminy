@@ -10,43 +10,40 @@ def smoothing_filter(
         relabel: Optional[np.ndarray] = None,
         params: Optional[Dict[str, Union[float, List[float]]]] = None
         ) -> np.ndarray:
-    """
-    @brief Smoothing filter with relabeling and resampling features.
+    """Smoothing filter with relabeling and resampling features.
 
-    @details It supports evenly sampled multidimensional input signal.
-             Relabeling can be used to infer the value of samples at time steps
-             before and after the explicitly provided samples.
+    It supports evenly sampled multidimensional input signal. Relabeling can be
+    used to infer the value of samples at time steps before and after the
+    explicitly provided samples.
 
-    @remark As a reminder, relabeling is a generalization of periodicity.
+    .. note::
+        As a reminder, relabeling is a generalization of periodicity.
 
-    @param time_in  Time steps of the input signal.
-    @param val_in  Sampled values of the input signal.
+    :param time_in: Time steps of the input signal.
+    :param val_in: Sampled values of the input signal.
                    (2D numpy array: row = sample, column = time)
-    @param time_out  Time steps of the output signal.
-    @param relabel  Relabeling matrix (identity for periodic signals).
+    :param time_out: Time steps of the output signal.
+    :param relabel: Relabeling matrix (identity for periodic signals).
                     Optional: Disable if omitted.
-    @param params  Parameters of the filter. Dictionary with keys:
-                     - 'mixing_ratio_1':
-                           Relative time at the begining of the signal during
-                           the output signal corresponds to a linear mixing
-                           over time of the filtered and original signal (only
-                           used if relabel is omitted).
-                     - 'mixing_ratio_2':
-                           Relative time at the end of the signal during the
-                           output signal corresponds to a linear mixing over
-                           time of the filtered and original signal (only used
-                           if relabel is omitted).
-                     - 'smoothness'[0]:
-                           Smoothing factor to filter the begining of the
-                           signal (only used if relabel is omitted).
-                     - 'smoothness'[1]:
-                           Smoothing factor to filter the end of the signal
-                           (only used if relabel is omitted).
-                     - 'smoothness'[2]:
-                           Smoothing factor to filter the middle part of the
-                           signal.
+    :param params:
+        .. raw:: html
 
-    @return     Filtered signal (2D numpy array: row = sample, column = time).
+            Parameters of the filter. Dictionary with keys:
+
+        - **'mixing_ratio_1':** Relative time at the begining of the signal
+          during the output signal corresponds to a linear mixing over time of
+          the filtered and original signal (only used if relabel is omitted).
+        - **'mixing_ratio_2':** Relative time at the end of the signal during
+          the output signal corresponds to a linear mixing over time of the
+          filtered and original signal (only used if relabel is omitted).
+        - **'smoothness'[0]:** Smoothing factor to filter the begining of the
+          signal (only used if relabel is omitted).
+        - **'smoothness'[1]:** Smoothing factor to filter the end of the signal
+          (only used if relabel is omitted).
+        - **'smoothness'[2]:** Smoothing factor to filter the middle part of
+          the signal.
+
+    :returns: Filtered signal (2D numpy array: row = sample, column = time).
     """
     if time_out is None:
         time_out = time_in

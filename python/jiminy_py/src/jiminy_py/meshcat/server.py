@@ -103,7 +103,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             self.comm_zmq, self.comm_stream, self.comm_url = \
                  self.setup_comm(comm_url)
 
-        # Extra buffers for  comm ids and messages
+        # Extra buffers for: comm ids and messages
         self.comm_pool = set()
         self.comm_msg = []
         self.websocket_msg = []

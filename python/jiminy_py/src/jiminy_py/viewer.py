@@ -17,6 +17,7 @@ import numpy as np
 import multiprocessing
 from tqdm import tqdm
 from PIL import Image
+from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
@@ -32,7 +33,8 @@ from pinocchio.visualize import MeshcatVisualizer, GepettoVisualizer
 
 from . import core as jiminy
 from .state import State
-from .meshcat.wrapper import MeshcatWrapper, is_notebook
+from .meshcat.utilities import is_notebook
+from .meshcat.wrapper import MeshcatWrapper
 
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
@@ -51,10 +53,9 @@ if __import__('platform').system() == 'Linux':
         backends_available['gepetto-gui'] = GepettoVisualizer
 
 
-def default_backend():
-    """
-    @brief Determine the default backend viewer, depending on the running
-           environment and the set of available backends.
+def _default_backend():
+    """Determine the default backend viewer, depending on the running
+    environment and the set of available backends.
     """
     if is_notebook() or 'gepetto-gui' not in backends_available:
         return 'meshcat'
@@ -63,7 +64,7 @@ def default_backend():
 
 
 # Create logger
-class DuplicateFilter:
+class _DuplicateFilter:
     def __init__(self):
         self.msgs = set()
 
@@ -74,34 +75,31 @@ class DuplicateFilter:
 
 
 logger = logging.getLogger(__name__)
-logger.addFilter(DuplicateFilter())
+logger.addFilter(_DuplicateFilter())
 
 
 def sleep(dt: float) -> None:
-    """
-    @brief Function to provide cross-plateform time sleep with maximum
-           accuracy.
+    """Function to provide cross-plateform time sleep with maximum accuracy.
 
-    @details Use this method with cautious since it relies on busy looping
-             principle instead of system scheduler. As a result, it wastes
-             a lot more resources than time.sleep. However, it is the only
-             way to ensure accurate delay on a non-real-time systems such
-             as Windows 10.
+    .. warning::
+        Use this method with cautious since it relies on busy looping principle
+        instead of system scheduler. As a result, it wastes a lot more
+        resources than time.sleep. However, it is the only way to ensure
+        accurate delay on a non-real-time systems such as Windows 10.
 
-    @param dt  Sleep duration in seconds.
+    :param dt: Sleep duration in seconds.
     """
     _ = time.perf_counter() + dt
     while time.perf_counter() < _:
         pass
 
 
-class ProcessWrapper:
-    """
-    @brief Wrap `multiprocessing.Process`, `subprocess.Popen`, and
-           `psutil.Process` in the same object to have the same user interface.
+class _ProcessWrapper:
+    """Wrap `multiprocessing.Process`, `subprocess.Popen`, and `psutil.Process`
+    in the same object to have the same user interface.
 
-    @details It also makes sure that the process is properly terminated at
-             Python exits, and without zombies left behind.
+    It also makes sure that the process is properly terminated at Python exits,
+    and without zombies left behind.
     """
     def __init__(self,
                  proc: Union[multiprocessing.Process,
@@ -149,7 +147,7 @@ class ProcessWrapper:
 
 
 class Viewer:
-    backend = default_backend()
+    backend = _default_backend()
     _backend_obj = None
     _backend_exceptions = ()
     _backend_proc = None
@@ -167,36 +165,34 @@ class Viewer:
                  robot_name: Optional[str] = None,
                  window_name: str = 'jiminy',
                  scene_name: str = 'world'):
-        """
-        @brief Constructor.
+        """Constructor.
 
-        @param robot  Jiminy.Robot to display.
-        @param use_theoretical_model  Whether to use the theoretical (rigid)
+        :param robot: Jiminy.Robot to display.
+        :param use_theoretical_model: Whether to use the theoretical (rigid)
                                       model or the actual (flexible) model of
                                       this robot.
-        @param urdf_rgba  RGBA color to use to display this robot, as a list
+        :param urdf_rgba: RGBA color to use to display this robot, as a list
                           of 4 floating-point values between 0.0 and 1.0.
                           Optional: It will override the original color of the
                           meshes if specified.
-        @param lock  Custom threading.Lock. Required for parallel rendering.
+        :param lock: Custom threading.Lock. Required for parallel rendering.
                      It is required since some backends does not support
                      multiple simultaneous connections (e.g. corbasever).
                      Optional: Unique lock of the current thread by default.
-        @param backend  The name of the desired backend to use for rendering.
-                        It can be either 'gepetto-gui' or 'meshcat'
-                        ('panda3d' available soon).
+        :param backend: The name of the desired backend to use for rendering.
+                        It can be either 'gepetto-gui' or 'meshcat'.
                         Optional: 'gepetto-gui' by default if available and not
                         running from a notebook, 'meshcat' otherwise.
-        @param open_gui_if_parent  Open GUI if new viewer's backend server is
+        :param open_gui_if_parent: Open GUI if new viewer's backend server is
                                    started.
-        @param delete_robot_on_close  Enable automatic deletion of the robot
+        :param delete_robot_on_close: Enable automatic deletion of the robot
                                       when closing.
-        @param robot_name  Unique robot name, to identify each robot.
+        :param robot_name: Unique robot name, to identify each robot.
                            Optional: Randomly generated identifier by default.
-        @param window_name  Window name, used only when gepetto-gui is used
+        :param window_name: Window name, used only when gepetto-gui is used
                             as backend. Note that it is not allowed to be equal
                             to the window name.
-        @param scene_name  Scene name, used only with gepetto-gui backend.
+        :param scene_name: Scene name, used only with gepetto-gui backend.
         """
         # Handling of default arguments
         if robot_name is None:
@@ -215,7 +211,7 @@ class Viewer:
         # Define camera update function, that will be called systematically
         # after calling refresh or update. It will be used later for enabling
         # to attach the camera to a given frame and automatically track it
-        # without explicitly calling 'set_camera_transform'.
+        # without explicitly calling `set_camera_transform`.
         self.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
@@ -376,15 +372,15 @@ class Viewer:
         self.refresh()
 
     def __del__(self):
-        """
-        @brief Destructor.
+        """Destructor.
 
-        @remark It automatically close the viewer before being garbage
-                collected.
+        .. note::
+            It automatically close the viewer before being garbage collected.
         """
         self.close()
 
     def __must_be_open(fct):
+        @wraps(fct)
         def fct_safe(*args, **kwargs):
             self = None
             if args and isinstance(args[0], Viewer):
@@ -399,13 +395,13 @@ class Viewer:
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
-        """
-        @brief Open a new viewer graphical interface.
+        """Open a new viewer graphical interface.
 
-        @remark This method is not supported by Gepetto-gui since it does not
-                have a classical server/client mechanism. One and only one
-                graphical interface (client) can be opened, and its lifetime is
-                tied to the one of the server itself.
+        .. note::
+            This method is not supported by Gepetto-gui since it does not have
+            a classical server/client mechanism. One and only one graphical
+            interface (client) can be opened, and its lifetime is tied to the
+            one of the server itself.
         """
         if Viewer.backend.startswith('gepetto'):
             raise RuntimeError(
@@ -476,10 +472,9 @@ class Viewer:
     @staticmethod
     @__must_be_open
     def wait(require_client: bool = False) -> None:
-        """
-        @brief Wait for all the meshes to finish loading in every clients.
+        """Wait for all the meshes to finish loading in every clients.
 
-        @param require_client  Wait for at least one client to be available
+        :param require_client: Wait for at least one client to be available
                                before checking for mesh loading.
         """
         if Viewer.backend != 'gepetto-gui':
@@ -488,27 +483,31 @@ class Viewer:
 
     @staticmethod
     def is_alive() -> bool:
+        """Check if the backend server is running and responding to queries.
+        """
         return Viewer._backend_proc is not None and \
             Viewer._backend_proc.is_alive()
 
     def is_open(self=None) -> bool:
+        """Check if a given viewer instance is open, or if the backend server
+        is running if no instance is specified.
+        """
         is_open_ = Viewer.is_alive()
         if self is not None:
             is_open_ = is_open_ and self.__is_open
         return is_open_
 
     def close(self=None) -> None:
-        """
-        @brief Close a given viewer instance, or all of them if no instance is
-               specified.
+        """Close a given viewer instance, or all of them if no instance is
+        specified.
 
-        @remark Calling this method with an viewer instance always closes the
-                client. It may also remove the robot from the server if the
-                viewer attribute `delete_robot_on_close` is True.
-                Moreover, it is the one having started the backend server, it
-                also terminates it, resulting in closing every viewer somehow.
-                It results in the same outcome than calling this method without
-                specifying any viewer instance.
+        .. note::
+            Calling this method with an viewer instance always closes the
+            client. It may also remove the robot from the server if the viewer
+            attribute `delete_robot_on_close` is True. Moreover, it is the one
+            having started the backend server, it also terminates it, resulting
+            in closing every viewer somehow. It results in the same outcome
+            than calling this method without specifying any viewer instance.
         """
         try:
             if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
@@ -538,7 +537,7 @@ class Viewer:
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None:
                     Viewer._backend_obj.close()
-                    ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
+                    _ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
                 if Viewer.is_open():
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
@@ -559,19 +558,19 @@ class Viewer:
     def _get_colorized_urdf(urdf_path: str,
                             rgb: List[float],
                             output_root_path: Optional[str] = None) -> str:
-        """
-        @brief Generate a unique colorized URDF.
+        """Generate a unique colorized URDF.
 
-        @remark Multiple identical URDF model of different colors can be loaded
-                in Gepetto-viewer this way.
+        .. note::
+            Multiple identical URDF model of different colors can be loaded in
+            Gepetto-viewer this way.
 
-        @param urdf_path  Full path of the URDF file.
-        @param rgb  RGB code defining the color of the model. It is the same
+        :param urdf_path: Full path of the URDF file.
+        :param rgb: RGB code defining the color of the model. It is the same
                     for each link.
-        @param output_root_path  Root directory of the colorized URDF data.
+        :param output_root_path: Root directory of the colorized URDF data.
                                  Optional: temporary directory by default.
 
-        @return Full path of the colorized URDF file.
+        :returns: Full path of the colorized URDF file.
         """
         # Convert RGB array to string and xml tag. Don't close tag with '>',
         # in order to handle <color/> and <color></color>.
@@ -616,22 +615,21 @@ class Viewer:
         close_at_exit: bool = True,
         timeout: int = 2000) -> Tuple[
             Optional[Union['gepetto.corbaserver.client', MeshcatWrapper]],  # noqa
-            Optional[ProcessWrapper]]:
-        """
-        @brief Get a pointer to the running process of Gepetto-Viewer.
+            Optional[_ProcessWrapper]]:
+        """Get a pointer to the running process of Gepetto-Viewer.
 
-        @details This method can be used to open a new process if necessary.
-        .
-        @param start_if_needed  Whether a new process must be created if no
+        This method can be used to open a new process if necessary.
+
+        :param start_if_needed: Whether a new process must be created if no
                                 running process is found.
                                 Optional: False by default
-        @param timeout  Wait some millisecond before considering starting new
+        :param timeout: Wait some millisecond before considering starting new
                         server has failed.
                         Optional: 1s by default
-        @param close_at_exit  Terminate backend server at Python exit.
+        :param close_at_exit: Terminate backend server at Python exit.
                               Optional: True by default
 
-        @return Pointer to the running Gepetto-viewer Client and its PID.
+        :returns: Pointer to the running Gepetto-viewer Client and its PID.
         """
         if Viewer.backend.startswith('gepetto'):
             from gepetto.corbaserver.client import Client as gepetto_client
@@ -651,7 +649,7 @@ class Viewer:
                     return client
                 proc = [p for p in psutil.process_iter()
                         if p.cmdline() and 'gepetto-gui' in p.cmdline()[0]][0]
-                return client, ProcessWrapper(proc, close_at_exit)
+                return client, _ProcessWrapper(proc, close_at_exit)
 
             try:
                 return _gepetto_client_connect(get_proc_info=True)
@@ -664,7 +662,7 @@ class Viewer:
                         proc = subprocess.Popen(
                             ['gepetto-gui'], shell=False, stdout=FNULL,
                             stderr=FNULL)
-                        proc = ProcessWrapper(proc, close_at_exit)
+                        proc = _ProcessWrapper(proc, close_at_exit)
                         # Must try at least twice for robustness
                         for _ in range(max(2, int(timeout / 200))):
                             time.sleep(0.2)
@@ -726,21 +724,21 @@ class Viewer:
                 proc = psutil.Process(conn.pid)
             else:
                 proc = client.server_proc
-            proc = ProcessWrapper(proc, close_at_exit)
+            proc = _ProcessWrapper(proc, close_at_exit)
 
             return client, proc
 
     @staticmethod
     @__must_be_open
     def _delete_nodes_viewer(nodes_path: str) -> None:
-        """
-        @brief Delete a 'node' in Gepetto-viewer.
+        """Delete a 'node' in Gepetto-viewer.
 
-        @remark Be careful, one must specify the full path of a node, including
-                all parent group, but without the window name, ie
-                'scene_name/robot_name' to delete the robot.
+        .. note::
+            Be careful, one must specify the full path of a node, including all
+            parent group, but without the window name, ie
+            'scene_name/robot_name' to delete the robot.
 
-        @param nodes_path  Full path of the node to delete
+        :param nodes_path: Full path of the node to delete
         """
         try:
             if Viewer.backend.startswith('gepetto'):
@@ -760,16 +758,19 @@ class Viewer:
                              rotation: Union[Tuple[float, float, float],
                                              np.ndarray] = None,
                              relative: Optional[str] = None) -> None:
-        """
-        @brief Apply transform to the camera pose.
+        """Apply transform to the camera pose.
 
-        @param translation  Position [X, Y, Z] as a list or 1D array
-        @param rotation  Rotation [Roll, Pitch, Yaw] as a list or 1D np.array
-        @param relative  How to apply the transform:
-                           - None: absolute
-                           - 'camera': relative to the current camera pose
-                           - other string: relative to a robot frame,
-                             not accounting for the rotation (travelling)
+        :param translation: Position [X, Y, Z] as a list or 1D array
+        :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array
+        :param relative:
+            .. raw:: html
+
+                How to apply the transform:
+
+            - **None:** absolute
+            - **'camera':** relative to the current camera pose
+            - **other string:** relative to a robot frame, not accounting for
+              the rotation (travelling)
         """
         # Handling of translation and rotation arguments
         if relative is not None and relative != 'camera':
@@ -835,17 +836,15 @@ class Viewer:
                                                   np.ndarray]] = None,
                       rotation: Optional[Union[Tuple[float, float, float],
                                                np.ndarray]] = None) -> None:
-        """
-        @brief Attach the camera to a given robot frame.
+        """Attach the camera to a given robot frame.
 
-        @details Only the position of the frame is taken into account.
-                 A custom relative pose of the camera wrt to the frame can be
-                 further specified.
+        Only the position of the frame is taken into account. A custom relative
+        pose of the camera wrt to the frame can be further specified.
 
-        @param frame  Frame of the robot to follow with the camera.
-        @param translation  Relative position [X, Y, Z] of the camera wrt the
+        :param frame: Frame of the robot to follow with the camera.
+        :param translation: Relative position [X, Y, Z] of the camera wrt the
                             frame.
-        @param rotation  Relative rotation [Roll, Pitch, Yaw] of the camera wrt
+        :param rotation: Relative rotation [Roll, Pitch, Yaw] of the camera wrt
                          the frame.
         """
         def __update_camera_transform(self):
@@ -855,11 +854,10 @@ class Viewer:
             __update_camera_transform, self)
 
     def detach_camera(self) -> None:
-        """
-        @brief      Detach the camera.
+        """Detach the camera.
 
-        @details    Must be called to undo 'attach_camera', so that it will
-                    stop automatically tracking a frame.
+        Must be called to undo `attach_camera`, so that it will stop
+        automatically tracking a frame.
         """
         self.__update_camera_transform = lambda: None
 
@@ -868,16 +866,15 @@ class Viewer:
                       width: int = DEFAULT_CAPTURE_SIZE,
                       height: int = DEFAULT_CAPTURE_SIZE,
                       raw_data: bool = False) -> Union[np.ndarray, str]:
-        """
-        @brief Take a snapshot and return associated data.
+        """Take a snapshot and return associated data.
 
-        @param width  Width for the image in pixels (not available with
+        :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: DEFAULT_CAPTURE_SIZE by default.
-        @param height  Height for the image in pixels (not available with
+        :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
                        Optional: DEFAULT_CAPTURE_SIZE by default.
-        @param raw_data  Whether to return a 2D numpy array, or the raw output
+        :param raw_data: Whether to return a 2D numpy array, or the raw output
                          from the backend (the actual type may vary).
         """
         if Viewer.backend.startswith('gepetto'):
@@ -913,15 +910,14 @@ class Viewer:
                    image_path: str,
                    width: int = DEFAULT_CAPTURE_SIZE,
                    height: int = DEFAULT_CAPTURE_SIZE) -> None:
-        """
-        @brief Save a snapshot in png format.
+        """Save a snapshot in png format.
 
-        @param image_path  Fullpath of the image (.png extension is mandatory
+        :param image_path: Fullpath of the image (.png extension is mandatory
                            for Gepetto-gui, it is .webp for Meshcat)
-        @param width  Width for the image in pixels (not available with
+        :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: DEFAULT_CAPTURE_SIZE by default.
-        @param height  Height for the image in pixels (not available with
+        :param height: Height for the image in pixels (not available with
                        Gepetto-gui for now). None to keep unchanged.
                        Optional: DEFAULT_CAPTURE_SIZE by default.
         """
@@ -939,19 +935,19 @@ class Viewer:
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
                 wait: bool = False) -> None:
-        """
-        @brief Refresh the configuration of Robot in the viewer.
+        """Refresh the configuration of Robot in the viewer.
 
-        @details This method is also in charge of updating the camera placement
-                 for traveling.
+        This method is also in charge of updating the camera placement for
+        traveling.
 
-        @remark This method is copy-pasted from `Pinocchio.visualize.*.display`
-                method, after removing parts responsible of update pinocchio
-                data and collision data. Visual data must still be updated.
+        .. note::
+            This method is copy-pasted from `Pinocchio.visualize.*.display`
+            method, after removing parts responsible of update pinocchio
+            data and collision data. Visual data must still be updated.
 
-        @param force_update_visual  Force update of visual geometries.
-        @param force_update_collision  Force update of collision geometries.
-        @param wait  Whether or not to wait for rendering to finish.
+        :param force_update_visual: Force update of visual geometries.
+        :param force_update_collision: Force update of collision geometries.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         # Update pinocchio visual data
         pin.updateGeometryPlacements(
@@ -1005,16 +1001,16 @@ class Viewer:
                 q: np.ndarray,
                 xyz_offset: Optional[np.ndarray] = None,
                 wait: bool = False) -> None:
-        """
-        @brief Update the configuration of the robot.
+        """Update the configuration of the robot.
 
-        @details Note that it will alter original robot data if viewer
-                 attribute `use_theoretical_model` is false.
+        .. warning::
+            It will alter original robot data if viewer attribute
+            `use_theoretical_model` is false.
 
-        @param q  Configuration of the robot.
-        @param xyz_offset  Freeflyer position offset. Note that it does not
+        :param q: Configuration of the robot.
+        :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
-        @param wait  Whether or not to wait for rendering to finish.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         assert self._client.model.nq == q.shape[0], (
             "The configuration vector does not have the right size.")
@@ -1040,17 +1036,17 @@ class Viewer:
                replay_speed: float,
                xyz_offset: Optional[np.ndarray] = None,
                wait: bool = False) -> None:
-        """
-        @brief Replay a complete robot trajectory at a given real-time ratio.
+        """Replay a complete robot trajectory at a given real-time ratio.
 
-        @details Note that it will alter original robot data if viewer
-                 attribute `use_theoretical_model` is false.
+        .. warning::
+            It will alter original robot data if viewer attribute
+            `use_theoretical_model` is false.
 
-        @param evolution_robot  List of State object of increasing time
-        @param replay_speed  Real-time ratio
-        @param xyz_offset  Freeflyer position offset. Note that it does not
+        :param evolution_robot: List of State object of increasing time
+        :param replay_speed: Real-time ratio
+        :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
-        @param wait  Whether or not to wait for rendering to finish.
+        :param wait: Whether or not to wait for rendering to finish.
         """
         t = [s.t for s in evolution_robot]
         i = 0
@@ -1066,21 +1062,18 @@ class Viewer:
 
 def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
                                  robot: jiminy.Robot) -> Dict[str, Any]:
-    """
-    @brief Extract the minimal required information from raw log data in order
-           to replay the simulation in a viewer.
+    """Extract the minimal required information from raw log data in order to
+    replay the simulation in a viewer.
 
-    @details It extracts the time and joint positions evolution.
+    It extracts only the required data for replay, namely the evolution over
+    time of the joints positions.
 
-    @remark Note that the quaternion angular velocity vectors are expressed it
-            body frame rather than world frame.
+    :param log_data: Data from the log file, in a dictionnary.
+    :param robot: Jiminy robot.
 
-    @param log_data  Data from the log file, in a dictionnary.
-    @param robot  Jiminy robot.
-
-    @return Trajectory dictionary. The actual trajectory corresponds to the
-            field "evolution_robot" and it is a list of State object. The other
-            fields are additional information.
+    :returns: Trajectory dictionary. The actual trajectory corresponds to the
+              field "evolution_robot" and it is a list of State object. The
+              other fields are additional information.
     """
 
     # Get the current robot model options
@@ -1136,71 +1129,75 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                       close_backend: Optional[bool] = None,
                       delete_robot_on_close: Optional[bool] = None,
                       verbose: bool = True) -> List[Viewer]:
-    """!
-    @brief Replay one or several robot trajectories in a viewer.
+    """Replay one or several robot trajectories in a viewer.
 
-    @details The ratio between the replay and the simulation time is kept
-             constant to the desired ratio. One can choose between several
-             backend (gepetto-gui or meshcat).
+    The ratio between the replay and the simulation time is kept constant to
+    the desired ratio. One can choose between several backend (gepetto-gui or
+    meshcat).
 
-    @remark The speed is independent of the plateform and the CPU power.
+    .. note::
+        Replay speed is independent of the platform (windows, linux...) and
+        available CPU power.
 
-    @param trajectory_data  List of trajectory dictionary with keys:
-                              - 'evolution_robot': list of State objects of
-                                increasing time.
-                              - 'robot': Jiminy robot. None if omitted.
-                              - 'use_theoretical_model': whether to use the
-                                theoretical or actual model.
-    @param replay_speed  Speed ratio of the simulation.
+    :param trajectory_data:
+        .. raw:: html
+
+            List of trajectory dictionary with keys:
+
+        - **'evolution_robot':** list of State objects of increasing time.
+        - **'robot':** Jiminy robot. None if omitted.
+        - **'use_theoretical_model':** whether to use the theoretical or actual
+          model.
+    :param replay_speed: Speed ratio of the simulation.
                          Optional: 1.0 by default.
-    @param record_video_path  Fullpath location where to save generated video
-                              (.mp4 extension is  mandatory). Must be specified
+    :param record_video_path: Fullpath location where to save generated video
+                              (.mp4 extension is: mandatory). Must be specified
                               to enable video recording. None to disable.
                               Optional: None by default.
-    @param viewers  Already instantiated viewers, associated one by one in
+    :param viewers: Already instantiated viewers, associated one by one in
                     order to each trajectory data. None to disable.
                     Optional: None by default.
-    @param start_paused  Start the simulation is pause, waiting for keyboard
+    :param start_paused: Start the simulation is pause, waiting for keyboard
                          input before starting to play the trajectories.
                          Optional: False by default.
-    @param wait_for_client  Wait for the client to finish loading the meshes
+    :param wait_for_client: Wait for the client to finish loading the meshes
                             before starting.
                             Optional: True by default.
-    @param travelling_frame  Name of the frame to automatically follow with the
+    :param travelling_frame: Name of the frame to automatically follow with the
                              camera. None to disable.
                              Optional: None by default.
-    @param camera_xyzrpy  Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
+    :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
                           during replay, if travelling is disable, or the
                           relative pose wrt the tracked frame otherwise. None
                           to disable.
                           Optional:None by default.
-    @param xyz_offset  Constant translation of the root joint in world frame.
+    :param xyz_offset: Constant translation of the root joint in world frame.
                        None to disable.
                        Optional: None by default.
-    @param urdf_rgba  RGBA code defining the color of the model. It is the same
+    :param urdf_rgba: RGBA code defining the color of the model. It is the same
                       for each link. None to disable.
                       Optional: Original colors of each link. No alpha.
-    @param backend  Backend, one of 'meshcat' or 'gepetto-gui'. If None,
+    :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
                     'meshcat' is used in notebook environment and 'gepetto-gui'
                     otherwise.
                     Optional: None by default.
-    @param window_name  Name of the Gepetto-viewer's window in which to display
+    :param window_name: Name of the Gepetto-viewer's window in which to display
                         the robot.
                         Optional: Common default name if omitted.
-    @param scene_name  Name of the Gepetto-viewer's scene in which to display
+    :param scene_name: Name of the Gepetto-viewer's scene in which to display
                        the robot.
                        Optional: Common default name if omitted.
-    @param close_backend  Close backend automatically at exit.
+    :param close_backend: Close backend automatically at exit.
                           Optional: Enable by default if not (presumably)
                           available beforehand.
-    @param delete_robot_on_close  Whether or not to delete the robot from the
+    :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
-    @param verbose  Add information to keep track of the process.
+    :param verbose: Add information to keep track of the process.
                     Optional: True by default.
 
-    @return List of viewers used to play the trajectories.
+    :returns: List of viewers used to play the trajectories.
     """
     if viewers is not None:
         # Make sure that viewers is a list
@@ -1367,14 +1364,14 @@ def play_logfiles(robots: Union[List[jiminy.Robot], jiminy.Robot],
                   logs_data: Union[List[Dict[str, np.ndarray]],
                                    Dict[str, np.ndarray]],
                   **kwargs) -> List[Viewer]:
-    """
-    @brief Play the content of a logfile in a viewer.
-    @details This method simply formats the data then calls play_trajectories.
+    """Play the content of a logfile in a viewer.
 
-    @param robots  Either a single robot, or a list of robot for each log data.
-    @param logs_data  Either a single dictionary, or a list of dictionaries of
+    This method simply formats the data then calls play_trajectories.
+
+    :param robots: Either a single robot, or a list of robot for each log data.
+    :param logs_data: Either a single dictionary, or a list of dictionaries of
                       simulation data log.
-    @param kwargs  Keyword arguments to forward to `play_trajectories` method.
+    :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat everything as lists
     if not isinstance(logs_data, list):

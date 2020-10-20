@@ -16,7 +16,7 @@ from typing import Awaitable, Any, Optional
 
 from requests_html import HTMLSession, HTMLResponse
 
-from .wrapper import is_notebook
+from .utilities import is_notebook
 
 
 if is_notebook() == 2:
