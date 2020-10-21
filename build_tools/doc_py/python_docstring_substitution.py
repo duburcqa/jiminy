@@ -42,6 +42,8 @@ def find_include_files(input_file_fullpath: str,
 
 def extract_doxygen_doc(include_filenames: str,
                         doc_pattern: str) -> str:
+    """Get C++ docstring associated with a given class and method.
+    """
     method_line = -1
     class_name, method_name = doc_pattern.split("::", 1)
     for include_filename in include_filenames:

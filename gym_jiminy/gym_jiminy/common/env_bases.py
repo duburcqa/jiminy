@@ -295,13 +295,17 @@ class BaseJiminyEnv(gym.core.Env):
             if imu.type in sensors_data.keys():
                 gyro_imu_idx = [
                     field.startswith('Gyro') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][gyro_imu_idx, :] = -SENSOR_GYRO_MAX
-                sensor_space_upper[imu.type][gyro_imu_idx, :] = SENSOR_GYRO_MAX
+                sensor_space_lower[imu.type][gyro_imu_idx, :] = \
+                    -SENSOR_GYRO_MAX
+                sensor_space_upper[imu.type][gyro_imu_idx, :] = \
+                    SENSOR_GYRO_MAX
 
                 accel_imu_idx = [
                     field.startswith('Accel') for field in imu.fieldnames]
-                sensor_space_lower[imu.type][accel_imu_idx, :] = -SENSOR_ACCEL_MAX
-                sensor_space_upper[imu.type][accel_imu_idx, :] = SENSOR_ACCEL_MAX
+                sensor_space_lower[imu.type][accel_imu_idx, :] = \
+                    -SENSOR_ACCEL_MAX
+                sensor_space_upper[imu.type][accel_imu_idx, :] = \
+                    SENSOR_ACCEL_MAX
 
         return gym.spaces.Dict(OrderedDict(
             (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
