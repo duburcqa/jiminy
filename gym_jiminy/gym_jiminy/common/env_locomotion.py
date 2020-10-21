@@ -296,6 +296,17 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
+    def _get_time_space(self) -> None:
+        """Get time space.
+
+        It takes advantage of knowing the maximum simulation duration to shrink
+        down the range. Note that observation will be out-of-bounds steps are
+        performed after this point.
+        """
+        return gym.spaces.Box(
+            low=0.0, high=self.simu_duration_max, shape=(1,),
+            dtype=np.float64)
+
     def _force_external_profile(self,
                                 t: float,
                                 q: np.ndarray,
@@ -490,7 +501,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         instead of the torque, as it is the case by default.
         """
         # Extract the position and velocity bounds for the observation space
-        encoder_space = self.observation_space['sensors'][encoder.type]
+        encoder_space = self._get_sensors_space()[encoder.type]
         pos_high, vel_high = encoder_space.high
         pos_low, vel_low = encoder_space.low
 

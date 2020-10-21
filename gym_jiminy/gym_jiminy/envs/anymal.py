@@ -61,9 +61,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             **kwargs)
 
     def _refresh_observation_space(self) -> None:
-        super()._refresh_observation_space()
-        self.observation_space = self.observation_space['state']
-        self._observation = self._observation['state']
+        self.observation_space = self._get_state_space()
 
     def _fetch_obs(self) -> None:
         return np.concatenate(self._state)

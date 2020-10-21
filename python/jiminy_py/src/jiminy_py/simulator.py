@@ -217,7 +217,7 @@ class Simulator:
             if self.robot.is_flexible and self.use_theoretical_model:
                 return self.robot.get_rigid_state_from_flexible(q, v)
             else:
-                return q, v  # It is already a copy
+                return q.copy(), v.copy()
         else:
             raise RuntimeError(
                 "No simulation running. Impossible to get current state.")

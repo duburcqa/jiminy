@@ -158,9 +158,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.observation_space = spaces.Box(
             low=-high, high=high, dtype=np.float64)
 
-        # Reset observation
-        self._observation = np.zeros(self.observation_space.shape)
-
     def _fetch_obs(self) -> None:
         # @copydoc BaseJiminyEnv::_fetch_obs
         return np.concatenate(self._state)
@@ -204,7 +201,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         """
         @brief    TODO
         """
-        x, theta, _, _ = self._observation
+        x, theta, _, _ = self.get_obs()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:

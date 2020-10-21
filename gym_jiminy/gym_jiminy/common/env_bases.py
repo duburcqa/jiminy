@@ -1,6 +1,7 @@
 import time
 import tempfile
 import numpy as np
+from collections import OrderedDict
 from typing import Optional, Tuple, List, Dict, Any
 
 import gym
@@ -25,18 +26,17 @@ from .play import loop_interactive
 
 
 # Define universal bounds for the observation space
-FREEFLYER_POS_TRANS_UNIVERSAL_MAX = 1000.0
-FREEFLYER_VEL_LIN_UNIVERSAL_MAX = 1000.0
-FREEFLYER_VEL_ANG_UNIVERSAL_MAX = 10000.0
-JOINT_POS_UNIVERSAL_MAX = 10000.0
-JOINT_VEL_UNIVERSAL_MAX = 100.0
-FLEX_VEL_ANG_UNIVERSAL_MAX = 10000.0
-MOTOR_EFFORT_UNIVERSAL_MAX = 1000.0
-SENSOR_FORCE_UNIVERSAL_MAX = 100000.0
-SENSOR_MOMENT_UNIVERSAL_MAX = 10000.0
-SENSOR_GYRO_UNIVERSAL_MAX = 100.0
-SENSOR_ACCEL_UNIVERSAL_MAX = 10000.0
-T_UNIVERSAL_MAX = 10000.0
+FREEFLYER_POS_TRANS_MAX = 1000.0
+FREEFLYER_VEL_LIN_MAX = 1000.0
+FREEFLYER_VEL_ANG_MAX = 10000.0
+JOINT_POS_MAX = 10000.0
+JOINT_VEL_MAX = 100.0
+FLEX_VEL_ANG_MAX = 10000.0
+MOTOR_EFFORT_MAX = 1000.0
+SENSOR_FORCE_MAX = 100000.0
+SENSOR_MOMENT_MAX = 10000.0
+SENSOR_GYRO_MAX = 100.0
+SENSOR_ACCEL_MAX = 10000.0
 
 
 class BaseJiminyEnv(gym.core.Env):
@@ -132,6 +132,183 @@ class BaseJiminyEnv(gym.core.Env):
         """
         u_command[:] = self._action
 
+    def _get_time_space(self) -> None:
+        """Get time space.
+        """
+        return gym.spaces.Box(
+            low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
+            dtype=np.float64)
+
+    def _get_state_space(self,
+                         use_theoretical_model: Optional[bool] = None,
+                         enforce_bounded: bool = True) -> None:
+        """Get state space.
+
+        :param use_theoretical_model: Whether to compute the state space
+                                      corresponding to the theoretical model to
+                                      the actual one. `None` to use internal
+                                      value 'simulator.use_theoretical_model'.
+                                      Optional: `None` by default.
+        :param enforce_bounded: Whether or not to enforce finite bounds. If so,
+                                then '*_MAX' are used whenever it is
+                                necessary. Note that whose bounds are very
+                                spread to make sure it is suitable for the vast
+                                majority of systems.
+        """
+        # Handling of default argument
+        if use_theoretical_model is None:
+            use_theoretical_model = self.simulator.use_theoretical_model
+
+        # Define some proxies for convenience
+        model_options = self.robot.get_model_options()
+        joints_position_idx = self.robot.rigid_joints_position_idx
+        joints_velocity_idx = self.robot.rigid_joints_velocity_idx
+        position_limit_upper = self.robot.position_limit_upper
+        position_limit_lower = self.robot.position_limit_lower
+        velocity_limit = self.robot.velocity_limit
+
+        # Replace inf bounds of the state space if requested
+        if enforce_bounded:
+            if self.robot.has_freeflyer:
+                position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
+                position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
+                velocity_limit[:3] = FREEFLYER_VEL_LIN_MAX
+                velocity_limit[3:6] = FREEFLYER_VEL_ANG_MAX
+
+            for jointIdx in self.robot.flexible_joints_idx:
+                jointVelIdx = self.robot.pinocchio_model.joints[jointIdx].idx_v
+                velocity_limit[jointVelIdx + np.arange(3)] = FLEX_VEL_ANG_MAX
+
+            if not model_options['joints']['enablePositionLimit']:
+                position_limit_lower[joints_position_idx] = -JOINT_POS_MAX
+                position_limit_upper[joints_position_idx] = JOINT_POS_MAX
+
+            if not model_options['joints']['enableVelocityLimit']:
+                velocity_limit[joints_velocity_idx] = JOINT_VEL_MAX
+
+        # Define bounds of the state space
+        if use_theoretical_model:
+            state_limit_lower = np.concatenate((
+                position_limit_lower[joints_position_idx],
+                -velocity_limit[joints_velocity_idx]))
+            state_limit_upper = np.concatenate((
+                position_limit_upper[joints_position_idx],
+                velocity_limit[joints_velocity_idx]))
+        else:
+            state_limit_lower = np.concatenate((
+                position_limit_lower, -velocity_limit))
+            state_limit_upper = np.concatenate((
+                position_limit_upper, velocity_limit))
+
+        return gym.spaces.Box(
+            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
+
+    def _get_sensors_space(self, enforce_bounded: bool = True) -> None:
+        """   TODO
+        """
+        # Define some proxies for convenience
+        sensors_data = self.robot.sensors_data
+        effort_limit = self.robot.effort_limit
+
+        state_space = self._get_state_space(
+            use_theoretical_model=False, enforce_bounded=enforce_bounded)
+
+        # Replace inf bounds of the action space
+        for motor_name in self.robot.motors_names:
+            motor = self.robot.get_motor(motor_name)
+            motor_options = motor.get_options()
+            if not motor_options["enableEffortLimit"]:
+                effort_limit[motor.joint_velocity_idx] = MOTOR_EFFORT_MAX
+
+        # Initialize the bounds of the sensor space
+        sensor_space_lower = OrderedDict(
+            (key, np.full(value.shape, -np.inf))
+            for key, value in sensors_data.items())
+        sensor_space_upper = OrderedDict(
+            (key, np.full(value.shape, np.inf))
+            for key, value in sensors_data.items())
+
+        # Replace inf bounds of the encoder sensor space
+        if enc.type in sensors_data.keys():
+            sensor_list = self.robot.sensors_names[enc.type]
+            for sensor_name in sensor_list:
+                # Get the position and velocity bounds of the sensor.
+                # Note that for rotary unbounded encoders, the sensor bounds
+                # cannot be extracted from the configuration vector limits
+                # since the representation is different: cos/sin for the
+                # configuration, and principal value of the angle for the
+                # sensor.
+                sensor = self.robot.get_sensor(enc.type, sensor_name)
+                sensor_idx = sensor.idx
+                joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
+                if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
+                    sensor_position_lower = -np.pi
+                    sensor_position_upper = np.pi
+                else:
+                    sensor_position_lower = state_space.low[joint.idx_q]
+                    sensor_position_upper = state_space.high[joint.idx_q]
+                sensor_velocity_limit = state_space.high[
+                    self.robot.nq + joint.idx_v]
+
+                # Update the bounds accordingly
+                sensor_space_lower[enc.type][0, sensor_idx] = \
+                    sensor_position_lower
+                sensor_space_upper[enc.type][0, sensor_idx] = \
+                    sensor_position_upper
+                sensor_space_lower[enc.type][1, sensor_idx] = \
+                    - sensor_velocity_limit
+                sensor_space_upper[enc.type][1, sensor_idx] = \
+                    sensor_velocity_limit
+
+        # Replace inf bounds of the effort sensor space
+        if effort.type in sensors_data.keys():
+            sensor_list = self.robot.sensors_names[effort.type]
+            for sensor_name in sensor_list:
+                sensor = self.robot.get_sensor(effort.type, sensor_name)
+                sensor_idx = sensor.idx
+                motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
+                sensor_space_lower[effort.type][0, sensor_idx] = \
+                    -effort_limit[motor_idx]
+                sensor_space_upper[effort.type][0, sensor_idx] = \
+                    +effort_limit[motor_idx]
+
+        # Replace inf bounds of the imu sensor space
+        if imu.type in sensors_data.keys():
+            quat_imu_idx = [
+                field.startswith('Quat') for field in imu.fieldnames]
+            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0
+            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0
+
+        if enforce_bounded:
+            # Replace inf bounds of the contact sensor space
+            if contact.type in sensors_data.keys():
+                sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
+                sensor_space_upper[contact.type][:, :] = SENSOR_FORCE_MAX
+
+            # Replace inf bounds of the force sensor space
+            if force.type in sensors_data.keys():
+                sensor_space_lower[force.type][:3, :] = -SENSOR_FORCE_MAX
+                sensor_space_upper[force.type][:3, :] = SENSOR_FORCE_MAX
+                sensor_space_lower[force.type][3:, :] = -SENSOR_MOMENT_MAX
+                sensor_space_upper[force.type][3:, :] = SENSOR_MOMENT_MAX
+
+            # Replace inf bounds of the imu sensor space
+            if imu.type in sensors_data.keys():
+                gyro_imu_idx = [
+                    field.startswith('Gyro') for field in imu.fieldnames]
+                sensor_space_lower[imu.type][gyro_imu_idx, :] = -SENSOR_GYRO_MAX
+                sensor_space_upper[imu.type][gyro_imu_idx, :] = SENSOR_GYRO_MAX
+
+                accel_imu_idx = [
+                    field.startswith('Accel') for field in imu.fieldnames]
+                sensor_space_lower[imu.type][accel_imu_idx, :] = -SENSOR_ACCEL_MAX
+                sensor_space_upper[imu.type][accel_imu_idx, :] = SENSOR_ACCEL_MAX
+
+        return gym.spaces.Dict(OrderedDict(
+            (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
+            for (key, min_val), max_val in zip(
+                sensor_space_lower.items(), sensor_space_upper.values())))
+
     def seed(self, seed: Optional[int] = None) -> List[int]:
         """Specify the seed of the environment.
 
@@ -187,12 +364,12 @@ class BaseJiminyEnv(gym.core.Env):
             raise RuntimeError("Invalid initial state.")
 
         # Backup sensors data
-        self._sensors_data = dict(self.robot.sensors_data)
+        self._sensors_data = OrderedDict(self.robot.sensors_data)  # copy
 
         # Initialize some internal buffers
         self._is_ready = True
         self.num_steps = 0
-        self.max_steps = int(self.simulator.max_simulation_duration / self.dt)
+        self.max_steps = int(self.simulator.simulation_duration_max / self.dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -238,6 +415,9 @@ class BaseJiminyEnv(gym.core.Env):
         self._refresh_observation_space()
         self._refresh_action_space()
 
+        # Initialize the observation buffer with a random observation
+        self._observation = self.observation_space.sample()
+
         # Enforce the low-level controller
         controller = jiminy.ControllerFunctor(
             compute_command=self._send_command)
@@ -252,7 +432,6 @@ class BaseJiminyEnv(gym.core.Env):
                 "The initial state provided by `_sample_state` is "
                 "inconsistent with the dimension or types of joints of the "
                 "model.")
-
         self.set_state(qpos, qvel)
 
         # Make sure the state is valid, otherwise there `_fetch_obs` and
@@ -312,7 +491,7 @@ class BaseJiminyEnv(gym.core.Env):
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
         # Fetch the new observation
-        self._sensors_data = dict(self.robot.sensors_data)
+        self._sensors_data = OrderedDict(self.robot.sensors_data)  # copy
         self._state = self.simulator.state
         self._observation = self._fetch_obs()
 
@@ -472,166 +651,10 @@ class BaseJiminyEnv(gym.core.Env):
             method, alongside '_fetch_obs', must be overwritten in order to use
             a custom observation space.
         """
-        # Define some proxies for convenience
-        sensors_data = self.robot.sensors_data
-        model_options = self.robot.get_model_options()
-        joints_position_idx = self.robot.rigid_joints_position_idx
-        joints_velocity_idx = self.robot.rigid_joints_velocity_idx
-        position_limit_upper = self.robot.position_limit_upper
-        position_limit_lower = self.robot.position_limit_lower
-        velocity_limit = self.robot.velocity_limit
-        effort_limit = self.robot.effort_limit
-
-        # Replace inf bounds of the state space
-        if self.robot.has_freeflyer:
-            position_limit_lower[:3] = -FREEFLYER_POS_TRANS_UNIVERSAL_MAX
-            position_limit_upper[:3] = +FREEFLYER_POS_TRANS_UNIVERSAL_MAX
-            velocity_limit[:3] = FREEFLYER_VEL_LIN_UNIVERSAL_MAX
-            velocity_limit[3:6] = FREEFLYER_VEL_ANG_UNIVERSAL_MAX
-
-        for jointIdx in self.robot.flexible_joints_idx:
-            jointVelIdx = self.robot.pinocchio_model.joints[jointIdx].idx_v
-            velocity_limit[jointVelIdx + np.arange(3)] = \
-                FLEX_VEL_ANG_UNIVERSAL_MAX
-
-        if not model_options['joints']['enablePositionLimit']:
-            position_limit_lower[joints_position_idx] = \
-                -JOINT_POS_UNIVERSAL_MAX
-            position_limit_upper[joints_position_idx] = \
-                +JOINT_POS_UNIVERSAL_MAX
-
-        if not model_options['joints']['enableVelocityLimit']:
-            velocity_limit[joints_velocity_idx] = JOINT_VEL_UNIVERSAL_MAX
-
-        # Replace inf bounds of the action space
-        for motor_name in self.robot.motors_names:
-            motor = self.robot.get_motor(motor_name)
-            motor_options = motor.get_options()
-            if not motor_options["enableEffortLimit"]:
-                effort_limit[motor.joint_velocity_idx] = \
-                    MOTOR_EFFORT_UNIVERSAL_MAX
-
-        # Initialize the bounds of the sensor space
-        sensor_space_raw = {
-            key: {'min': np.full(value.shape, -np.inf),
-                  'max': np.full(value.shape, np.inf)}
-            for key, value in sensors_data.items()
-        }
-
-        # Replace inf bounds of the encoder sensor space
-        if enc.type in sensors_data.keys():
-            sensor_list = self.robot.sensors_names[enc.type]
-            for sensor_name in sensor_list:
-                # Get the position and velocity bounds of the sensor.
-                # Note that for rotary unbounded encoders, the sensor bounds
-                # cannot be extracted from the configuration vector limits
-                # since the representation is different: cos/sin for the
-                # configuration, and principal value of the angle for the
-                # sensor.
-                sensor = self.robot.get_sensor(enc.type, sensor_name)
-                sensor_idx = sensor.idx
-                joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
-                if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
-                    sensor_position_lower = -np.pi
-                    sensor_position_upper = np.pi
-                else:
-                    sensor_position_lower = position_limit_lower[joint.idx_q]
-                    sensor_position_upper = position_limit_upper[joint.idx_q]
-                sensor_velocity_limit = velocity_limit[joint.idx_v]
-
-                # Update the bounds accordingly
-                sensor_space_raw[enc.type]['min'][0, sensor_idx] = \
-                    sensor_position_lower
-                sensor_space_raw[enc.type]['max'][0, sensor_idx] = \
-                    sensor_position_upper
-                sensor_space_raw[enc.type]['min'][1, sensor_idx] = \
-                    - sensor_velocity_limit
-                sensor_space_raw[enc.type]['max'][1, sensor_idx] = \
-                    sensor_velocity_limit
-
-        # Replace inf bounds of the effort sensor space
-        if effort.type in sensors_data.keys():
-            sensor_list = self.robot.sensors_names[effort.type]
-            for sensor_name in sensor_list:
-                sensor = self.robot.get_sensor(effort.type, sensor_name)
-                sensor_idx = sensor.idx
-                motor_idx = self.robot.motors_velocity_idx[sensor.motor_idx]
-                sensor_space_raw[effort.type]['min'][0, sensor_idx] = \
-                    -effort_limit[motor_idx]
-                sensor_space_raw[effort.type]['max'][0, sensor_idx] = \
-                    +effort_limit[motor_idx]
-
-        # Replace inf bounds of the contact sensor space
-        if contact.type in sensors_data.keys():
-            sensor_space_raw[contact.type]['min'][:, :] = \
-                -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[contact.type]['max'][:, :] = \
-                +SENSOR_FORCE_UNIVERSAL_MAX
-
-        # Replace inf bounds of the force sensor space
-        if force.type in sensors_data.keys():
-            sensor_space_raw[force.type]['min'][:3, :] = \
-                -SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][:3, :] = \
-                +SENSOR_FORCE_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['min'][3:, :] = \
-                -SENSOR_MOMENT_UNIVERSAL_MAX
-            sensor_space_raw[force.type]['max'][3:, :] = \
-                +SENSOR_MOMENT_UNIVERSAL_MAX
-
-        # Replace inf bounds of the imu sensor space
-        if imu.type in sensors_data.keys():
-            quat_imu_idx = [
-                field.startswith('Quat') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][quat_imu_idx, :] = -1.0
-            sensor_space_raw[imu.type]['max'][quat_imu_idx, :] = 1.0
-
-            gyro_imu_idx = [
-                field.startswith('Gyro') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][gyro_imu_idx, :] = \
-                -SENSOR_GYRO_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][gyro_imu_idx, :] = \
-                +SENSOR_GYRO_UNIVERSAL_MAX
-
-            accel_imu_idx = [
-                field.startswith('Accel') for field in imu.fieldnames]
-            sensor_space_raw[imu.type]['min'][accel_imu_idx, :] = \
-                -SENSOR_ACCEL_UNIVERSAL_MAX
-            sensor_space_raw[imu.type]['max'][accel_imu_idx, :] = \
-                +SENSOR_ACCEL_UNIVERSAL_MAX
-
-        sensor_space = gym.spaces.Dict({
-            key: gym.spaces.Box(
-                low=value["min"], high=value["max"], dtype=np.float64)
-            for key, value in sensor_space_raw.items()
-        })
-
-        # Define bounds of the state space
-        if self.simulator.use_theoretical_model:
-            state_limit_lower = np.concatenate((
-                position_limit_lower[joints_position_idx],
-                -velocity_limit[joints_velocity_idx]))
-            state_limit_upper = np.concatenate((
-                position_limit_upper[joints_position_idx],
-                velocity_limit[joints_velocity_idx]))
-        else:
-            state_limit_lower = np.concatenate((
-                position_limit_lower, -velocity_limit))
-            state_limit_upper = np.concatenate((
-                position_limit_upper, velocity_limit))
-
-        # Set the observation space
         self.observation_space = gym.spaces.Dict(
-            t=gym.spaces.Box(
-                low=0.0, high=T_UNIVERSAL_MAX,
-                shape=(1,), dtype=np.float64),
-            state=gym.spaces.Box(
-                low=state_limit_lower, high=state_limit_upper,
-                dtype=np.float64),
-            sensors=sensor_space)
-
-        # Reset the observation buffer
-        self._observation = {'t': None, 'state': None, 'sensors': None}
+            t=self._get_time_space(),
+            state=self._get_state_space(),
+            sensors=self._get_sensors_space())
 
     def _refresh_action_space(self) -> None:
         """Configure the action space of the environment.
@@ -649,7 +672,7 @@ class BaseJiminyEnv(gym.core.Env):
             motor_options = motor.get_options()
             if not motor_options["enableEffortLimit"]:
                 effort_limit[motor.joint_velocity_idx] = \
-                    MOTOR_EFFORT_UNIVERSAL_MAX
+                    MOTOR_EFFORT_MAX
 
         # Set the action space
         self.action_space = gym.spaces.Box(
@@ -730,7 +753,7 @@ class BaseJiminyEnv(gym.core.Env):
             `_state`. This method, alongside `_refresh_observation_space`, must
             be overwritten in order to use a custom observation space.
         """
-        obs = {}
+        obs = OrderedDict()
         obs['t'] = np.array([self.simulator.stepper_state.t])
         obs['state'] = np.concatenate(self._state)
         obs['sensors'] = self._sensors_data
@@ -745,8 +768,9 @@ class BaseJiminyEnv(gym.core.Env):
         """
         def _clamp(space, x):
             if isinstance(space, gym.spaces.Dict):
-                return {k: _clamp(subspace, x[k])
-                        for k, subspace in space.spaces.items()}
+                return OrderedDict(
+                    (k, _clamp(subspace, x[k]))
+                    for k, subspace in space.spaces.items())
             else:
                 return np.clip(x, space.low, space.high)
 
@@ -838,28 +862,23 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
 
         # Append default desired and achieved goal spaces to observation space
         self.observation_space = gym.spaces.Dict(
+            observation=self.observation_space,
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float64),
             achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64),
-            observation=self.observation_space)
-
-        # Current observation of the robot
-        self._observation = {'observation': self._observation,
-                             'achieved_goal': None,
-                             'desired_goal': None}
+                dtype=np.float64))
 
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal randomly.
 
         .. note::
             This method is called internally by `reset` to sample the new
-            desired goal that the agent will have to achieve. It comes called
-            right after `super().reset` so every non goal-env-specific internal
-            buffer is supposed to be up-to-date. This method must be overloaded
-            while implementing a goal environment.
+            desired goal that the agent will have to achieve. It is called
+            BEFORE `super().reset` so non goal-env-specific internal buffers
+            are NOT up-to-date. This method must be overloaded while
+            implementing a goal environment.
         """
         raise NotImplementedError
 
@@ -876,7 +895,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         raise NotImplementedError
 
     def _fetch_obs(self) -> SpaceDictRecursive:
-        obs = {}
+        obs = OrderedDict()
         obs['observation'] = super()._fetch_obs()
         obs['achieved_goal'] = self._get_achieved_goal(),
         obs['desired_goal'] = self._desired_goal.copy()
@@ -940,6 +959,5 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         raise NotImplementedError
 
     def reset(self) -> SpaceDictRecursive:
-        obs = super().reset()
         self._desired_goal = self._sample_goal()
-        return obs
+        return super().reset()

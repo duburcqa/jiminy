@@ -120,8 +120,6 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         super()._refresh_observation_space()
         self.observation_space.spaces['observation'] = \
             self.observation_space['observation']['state']
-        self._observation['observation'] = \
-            self._observation['observation']['state']
 
     def _fetch_obs(self) -> None:
         """
@@ -258,7 +256,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
                 `AcrobotJiminyGoalEnv`. See its documentation for more
                 information.
     """
-    def __init__(self, continuous: bool = True, enableGoalEnv: bool = False):
+    def __init__(self, continuous: bool = True, enable_goal_env: bool = False):
         """
         @brief Constructor
 
@@ -266,9 +264,9 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
                            not continuous, the action space has only 3 states,
                            i.e. low, zero, and high.
                            Optional: True by default.
-        @params enableGoalEnv  Whether or not goal is enable.
+        @params enable_goal_env  Whether or not goal is enable.
         """
-        self.enableGoalEnv = enableGoalEnv
+        self.enable_goal_env = enable_goal_env
         super().__init__(continuous)
 
     def _refresh_observation_space(self) -> None:
@@ -278,10 +276,10 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @details Only the state is observable, while by default, the current
                  time, state, and sensors data are available.
         """
-        super()._refresh_observation_space()
-        if not self.enableGoalEnv:
-            self.observation_space = self.observation_space['observation']
-            self._observation = self._observation['observation']
+        if not self.enable_goal_env:
+            super()._refresh_observation_space()
+        else:
+            self.observation_space = self._get_state_space()
 
     def _sample_goal(self) -> np.ndarray:
         """
@@ -290,7 +288,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @detail The goal is always the same, and proportional to
                 HEIGHT_REL_DEFAULT_THRESHOLD.
         """
-        if self.enableGoalEnv:
+        if self.enable_goal_env:
             return super()._sample_goal()
         else:
             return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
@@ -302,7 +300,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @details Only the state is observed.
         """
         obs = super()._fetch_obs()
-        if self.enableGoalEnv:
+        if self.enable_goal_env:
             return obs
         else:
             return obs['observation']
