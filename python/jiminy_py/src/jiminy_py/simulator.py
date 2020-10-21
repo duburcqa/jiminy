@@ -54,8 +54,7 @@ class Simulator:
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
-        """Constructor
-
+        """
         :param robot: Jiminy robot already initialized.
         :param controller: Jiminy controller already initialized.
                            Optional: jiminy_py.core.ControllerFunctor doing

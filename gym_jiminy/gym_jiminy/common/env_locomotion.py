@@ -71,8 +71,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  config_path: Optional[str] = None,
                  debug: bool = False,
                  **kwargs):
-        """Constructor.
-
+        """
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
@@ -415,8 +414,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
                  debug: bool = False):
-        """Constructor
-
+        """
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same

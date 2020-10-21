@@ -6,4 +6,3 @@ common.env_locomotion
    :undoc-members:
    :private-members:
    :show-inheritance:
-   :exclude-members:

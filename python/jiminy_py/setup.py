@@ -96,7 +96,9 @@ setup(
           # Read the Docs Sphinx documentation style
           "sphinx_rtd_theme",
           # Used to render markdown in sphinx documentation
-          "recommonmark"
+          "recommonmark",
+          # Used to render Jupyter Notebooks in sphinx documentation
+          "nbsphinx"
       ],
       "gepetto": [
           # Used internally by Viewer to record video programmatically while

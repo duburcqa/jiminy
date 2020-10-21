@@ -19,8 +19,7 @@ class State:
                  f_ext: Optional[Union[List[Force], StdVec_Force]] = None,
                  copy: bool = False,
                  **kwargs):
-        """Constructor.
-
+        """
         :param t: Time.
         :param q: Configuration vector.
         :param v: Velocity vector.

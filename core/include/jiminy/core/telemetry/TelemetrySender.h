@@ -66,9 +66,9 @@ namespace jiminy
         /// \param[in]  telemetryDataInstance Shared pointer to the telemetry instance
         /// \param[in]  objectNameIn          Name of the object.
         ///
-        /// \remarks  Should only be used when default constructor is called for
-        ///           later configuration.
-        ///           Should be set before registering any entry.
+        /// \remark  Should only be used when default constructor is called for
+        ///          later configuration.
+        ///          Should be set before registering any entry.
         /// \retval   E_EPERM if object is already configured.
         ///////////////////////////////////////////////////////////////////////
         void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,

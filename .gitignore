@@ -14,3 +14,5 @@
 .*project
 .vscode
 docs/_build
+install
+build

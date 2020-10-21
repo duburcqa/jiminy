@@ -27,7 +27,7 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install wheel && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
 
 # Install standard linux utilities
-apt install -y gnupg curl wget build-essential cmake doxygen graphviz
+apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc
 
 # Install some additional dependencies
 apt install -y libeigen3-dev libboost-all-dev liboctomap-dev

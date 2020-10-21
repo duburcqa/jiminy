@@ -44,7 +44,7 @@ jobs:
     - name: Installing requirements
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
-        "${PYTHON_EXECUTABLE}" -m pip install flake8 sphinx sphinx_rtd_theme recommonmark
+        "${PYTHON_EXECUTABLE}" -m pip install flake8 sphinx sphinx_rtd_theme recommonmark nbsphinx
 
     #####################################################################################
 

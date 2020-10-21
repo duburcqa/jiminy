@@ -53,7 +53,8 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
-    'recommonmark'
+    'recommonmark',
+    'nbsphinx'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -75,26 +76,21 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+
+# -- Options for autodoc -------------------------------------------------
+
+autoclass_content = 'both'
+
 autodoc_member_order = 'bysource'
 
-autodoc_default_options = {
-    "special-members": ", ".join(
-        [
-            "__len__",
-            "__new__",
-            "__call__",
-            "__getitem__",
-            "__setitem__",
-            "__getattr__",
-            "__setattr__",
-        ]
-    )
-}
+autodoc_typehints = 'description'
+
+autodoc_default_flags = ['members']
 
 # -- Options for HTML output -------------------------------------------------
 

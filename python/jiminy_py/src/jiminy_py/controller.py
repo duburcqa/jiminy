@@ -25,8 +25,7 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         for now and left to the user.
     """
     def __init__(self):
-        """Constructor
-
+        """
         .. note::
             Since no robot is available at this point, it is not possible to
             specify a callable function directly, since it would be impossible

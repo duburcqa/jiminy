@@ -21,6 +21,12 @@ Welcome to Jiminy's documentation!
 
 .. toctree::
    :maxdepth: 1
+   :caption: TUTORIALS
+
+   tutorial.ipynb
+
+.. toctree::
+   :maxdepth: 1
    :caption: API DOC
 
    api/jiminy_py/index

@@ -364,9 +364,9 @@ def generate_hardware_description_file(
         toml.dump(hardware_info, f)
 
 
-def fix_urdf_mesh_path(urdf_path: str,
-                       mesh_path: str,
-                       output_root_path: Optional[str] = None):
+def _fix_urdf_mesh_path(urdf_path: str,
+                        mesh_path: str,
+                        output_root_path: Optional[str] = None):
     """Generate an URDF with updated mesh paths.
 
     :param urdf_path: Full path of the URDF file.
@@ -438,8 +438,6 @@ class BaseJiminyRobot(jiminy.Robot):
         requiring to manually specify its path.
     """
     def __init__(self):
-        """   TODO
-        """
         super().__init__()
         self.extra_info = {}
         self.urdf_path_orig = None
@@ -469,7 +467,7 @@ class BaseJiminyRobot(jiminy.Robot):
 
         # Fix the URDF mesh paths
         if mesh_path is not None:
-            urdf_path = fix_urdf_mesh_path(urdf_path, mesh_path)
+            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path)
 
         # Initialize the robot without motors nor sensors
         if mesh_path is not None:

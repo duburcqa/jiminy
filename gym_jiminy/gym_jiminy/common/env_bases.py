@@ -55,8 +55,7 @@ class BaseJiminyEnv(gym.core.Env):
                  dt: float,
                  debug: bool = False,
                  **kwargs):
-        """Constructor
-
+        """
         :param simulator: Jiminy Python simulator used for physics
                           computations. Can be `None` if `_setup_environment`
                           has been overwritten such that 'self.simulator' is
@@ -142,7 +141,7 @@ class BaseJiminyEnv(gym.core.Env):
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None,
                          enforce_bounded: bool = True) -> None:
-        """Get state space.
+        r"""Get state space.
 
         :param use_theoretical_model: Whether to compute the state space
                                       corresponding to the theoretical model to
@@ -150,7 +149,7 @@ class BaseJiminyEnv(gym.core.Env):
                                       value 'simulator.use_theoretical_model'.
                                       Optional: `None` by default.
         :param enforce_bounded: Whether or not to enforce finite bounds. If so,
-                                then '*_MAX' are used whenever it is
+                                then '\*_MAX' are used whenever it is
                                 necessary. Note that whose bounds are very
                                 spread to make sure it is suitable for the vast
                                 majority of systems.

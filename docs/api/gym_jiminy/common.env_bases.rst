@@ -6,4 +6,3 @@ common.env_bases
    :undoc-members:
    :private-members:
    :show-inheritance:
-   :exclude-members:

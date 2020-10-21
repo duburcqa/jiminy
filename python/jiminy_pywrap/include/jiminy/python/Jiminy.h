@@ -1520,7 +1520,7 @@ namespace python
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),  // bp::object() means None in Python
-                                 bp::arg("internal_dynamics") = bp::object())));
+                                 bp::arg("internal_dynamics") = bp::object())))
                 ;
         }
 

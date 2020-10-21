@@ -165,8 +165,7 @@ class Viewer:
                  robot_name: Optional[str] = None,
                  window_name: str = 'jiminy',
                  scene_name: str = 'world'):
-        """Constructor.
-
+        """
         :param robot: Jiminy.Robot to display.
         :param use_theoretical_model: Whether to use the theoretical (rigid)
                                       model or the actual (flexible) model of
