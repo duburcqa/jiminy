@@ -29,9 +29,9 @@ namespace jiminy
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
-        /// \param[in] telmetryData Data to log.
-        /// \param[in] timeUnit Unit with which the time will be logged
-        ///                     (note that time is logged as an int).
+        /// \param[in] telemetryData Data to log.
+        /// \param[in] timeLoggingPrecision Unit with which the time will be logged
+        ///                                 (note that time is logged as an int).
         ////////////////////////////////////////////////////////////////////////
         hresult_t initialize(TelemetryData       * telemetryData,
                              float64_t     const & timeLoggingPrecision);

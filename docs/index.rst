@@ -29,6 +29,7 @@ Welcome to Jiminy's documentation!
    :maxdepth: 1
    :caption: API DOC
 
+   api/jiminy/index
    api/jiminy_py/index
    api/gym_jiminy/index
 

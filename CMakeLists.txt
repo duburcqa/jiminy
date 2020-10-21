@@ -13,7 +13,7 @@ set(LIBRARY_NAME ${PROJECT_NAME})
 
 # Set build environment and standard dependencies
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/base.cmake)
-include(${CMAKE_SOURCE_DIR}/build_tools/cmake/doxygen.cmake)
+include(${CMAKE_SOURCE_DIR}/build_tools/cmake/docs.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/boostPythonDocstring.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/exportCmakeConfigFiles.cmake)
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
@@ -44,7 +44,7 @@ if(BUILD_TESTING)
 endif()
 
 # Build documentation from Doxygen.
-build_DOC()
+BUILD_DOCS()
 
 # Install the source cmake files
 file(GLOB_RECURSE SOURCE_CMAKE_FILES "${CMAKE_SOURCE_DIR}/build_tools/cmake/Find*.cmake")

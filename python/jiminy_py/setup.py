@@ -88,17 +88,18 @@ setup(
     ],
     extras_require={
       "dev": [
-          # Used to check PEP8 conformance of Python native code.
+          # Used to check PEP8 conformance of Python native code
           "flake8",
-          # Used to generate Python documentation and render C++ Doxygen
-          # documentation nicely, gathering them both at the same place.
+          # Used to generate Python docs and render '.rst' nicely
           "sphinx",
-          # Read the Docs Sphinx documentation style
+          # 'Read the Docs' Sphinx docs style
           "sphinx_rtd_theme",
-          # Used to render markdown in sphinx documentation
+          # Used to render markdown in sphinx docs
           "recommonmark",
-          # Used to render Jupyter Notebooks in sphinx documentation
-          "nbsphinx"
+          # Used to render Jupyter Notebooks in sphinx docs
+          "nbsphinx",
+          # Bridge between doxygen and sphinx. Used to generate C++ API docs
+          "breathe"
       ],
       "gepetto": [
           # Used internally by Viewer to record video programmatically while

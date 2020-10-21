@@ -1364,67 +1364,6 @@ namespace jiminy
 
     // ********************** Math utilities *************************
 
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// \brief      Continuously differentiable piecewise-defined saturation function. More
-    ///             precisely, it consists in adding fillets at the two discontinuous points:
-    ///             - It is perfectly linear for `uc` between `-bevelStart` and `bevelStart`.
-    ///             - It is  perfectly constant equal to mi (resp. ma) for `uc` lower than
-    ///               `-bevelStop` (resp. higher than `-bevelStop`).
-    ///             - Then, two arcs of a circle connect those two modes continuously between
-    ///             `bevelStart` and `bevelStop` (resp. `-bevelStop` and `-bevelStart`).
-    ///             See the implementation for details about how `uc`, `bevelStart` and `bevelStop`
-    ///             are computed.
-    ///
-    ///////////////////////////////////////////////////////////////////////////////////////////////
-    float64_t saturateSoft(float64_t const & in,
-                           float64_t const & mi,
-                           float64_t const & ma,
-                           float64_t const & r)
-    {
-        float64_t uc, range, middle, bevelL, bevelXc, bevelYc, bevelStart, bevelStop, out;
-        float64_t const alpha = M_PI/8;
-        float64_t const beta = M_PI/4;
-
-        range = ma - mi;
-        middle = (ma + mi)/2;
-        uc = 2*(in - middle)/range;
-
-        bevelL = r * tan(alpha);
-        bevelStart = 1 - cos(beta)*bevelL;
-        bevelStop = 1 + bevelL;
-        bevelXc = bevelStop;
-        bevelYc = 1 - r;
-
-        if (uc >= bevelStop)
-        {
-            out = ma;
-        }
-        else if (uc <= -bevelStop)
-        {
-            out = mi;
-        }
-        else if (uc <= bevelStart && uc >= -bevelStart)
-        {
-            out = in;
-        }
-        else if (uc > bevelStart)
-        {
-            out = sqrt(r * r - (uc - bevelXc) * (uc - bevelXc)) + bevelYc;
-            out = 0.5 * out * range + middle;
-        }
-        else if (uc < -bevelStart)
-        {
-            out = -sqrt(r * r - (uc + bevelXc) * (uc + bevelXc)) - bevelYc;
-            out = 0.5 * out * range + middle;
-        }
-        else
-        {
-            out = in;
-        }
-        return out;
-    }
-
     vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr,
                     float64_t                   const & maxThr)

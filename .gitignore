@@ -13,6 +13,6 @@
 *.sw?
 .*project
 .vscode
-docs/_build
+docs/html
 install
 build

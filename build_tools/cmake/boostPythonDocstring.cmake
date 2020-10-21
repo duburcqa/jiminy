@@ -13,12 +13,12 @@ function(pythonDocstingSubstitution)
 
         add_custom_command(
             OUTPUT  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/${header_path}
-            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build_tools/doc_py/python_docstring_substitution.py
+            COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_SOURCE_DIR}/build_tools/docs/python_docstring_substitution.py
                     ${CMAKE_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/${header_path}
                     ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/${header_path}
             MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${header_path}
-            DEPENDS ${CMAKE_SOURCE_DIR}/build_tools/doc_py/python_docstring_substitution.py
+            DEPENDS ${CMAKE_SOURCE_DIR}/build_tools/docs/python_docstring_substitution.py
         )
         add_custom_target(docstringSubstitute_${header_name}
             DEPENDS ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/${header_path}

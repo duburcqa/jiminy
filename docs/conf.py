@@ -23,7 +23,7 @@ import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
-project = u'Jiminy'
+project = u'jiminy'
 copyright = u'2020, Wandercraft - MIT licence'
 author = u'Alexis Duburcq and contributors'
 
@@ -54,8 +54,19 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'recommonmark',
-    'nbsphinx'
+    'nbsphinx',
+    "breathe"
 ]
+
+# Breathe Configuration
+breathe_default_project = project
+
+breathe_default_members = ('members', 'undoc-members')
+
+breathe_implementation_filename_extensions = ['.tpp', '.cpp']
+
+breathe_show_define_initializer = False
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -76,7 +87,7 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
+exclude_patterns = [u'html', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None

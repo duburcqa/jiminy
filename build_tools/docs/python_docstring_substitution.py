@@ -34,9 +34,11 @@ def find_include_files(input_file_fullpath: str,
                         break
                     except FileNotFoundError:
                         continue  # It may happen when scanning temporary files
-                    include_path_list.append(full_path)
-                    include_path_list += find_include_files(
-                        full_path, include_dir)
+                    if not full_path in include_path_list:
+                        # Check to avoid potential infinite recursion
+                        include_path_list.append(full_path)
+                        include_path_list += find_include_files(
+                            full_path, include_dir)
     return include_path_list
 
 

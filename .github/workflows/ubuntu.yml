@@ -66,7 +66,7 @@ jobs:
 
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
-              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON -DCOMPONENT=doxygen \
+              -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
               -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
@@ -84,12 +84,12 @@ jobs:
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       run: |
         cd build
-        cmake . -DCOMPONENT=doxygen -P ./cmake_install.cmake
+        cmake . -DCOMPONENT=docs -P ./cmake_install.cmake
     - name: Deploy to GitHub Pages
       if: success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: crazy-max/ghaction-github-pages@v1
       with:
         target_branch: gh-pages
-        build_dir: docs
+        build_dir: docs/html
       env:
         GITHUB_TOKEN: ${{ secrets.GH_DEPLOY }}

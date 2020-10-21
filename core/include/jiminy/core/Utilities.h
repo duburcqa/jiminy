@@ -191,7 +191,7 @@ namespace jiminy
     template<typename T>
     struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
 
-    // *************** Convertion to JSON utilities *****************
+    // *************** Conversion to JSON utilities *****************
 
     class AbstractIODevice;
 
@@ -206,7 +206,7 @@ namespace jiminy
     hresult_t jsonDump(configHolder_t                    const & config,
                        std::shared_ptr<AbstractIODevice>       & device);
 
-    // ************* Convertion from JSON utilities *****************
+    // ************* Conversion from JSON utilities *****************
 
     template<typename T>
     std::enable_if_t<!is_vector<T>::value, T>
@@ -344,10 +344,10 @@ namespace jiminy
 
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
     ///
-    /// \param[in] model       Pinocchio model.
-    /// \param[in] data        Pinocchio data.
-    /// \param[in] frameIdx    Id of the frame.
-    /// \param[in] fextInWorld Force in the global frame to be converted.
+    /// \param[in] model        Pinocchio model.
+    /// \param[in] data         Pinocchio data.
+    /// \param[in] frameIdx     Id of the frame.
+    /// \param[in] fextInGlobal Force in the global frame to be converted.
     /// \return Force in the parent joint local frame.
     pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,
                                                     pinocchio::Data  const & data,
@@ -358,11 +358,6 @@ namespace jiminy
 
     template<typename T0, typename T1, typename... Ts>
     typename std::common_type<T0, T1, Ts...>::type min(T0 && val1, T1 && val2, Ts &&... vs);
-
-    float64_t saturateSoft(float64_t const & in,
-                           float64_t const & mi,
-                           float64_t const & ma,
-                           float64_t const & r);
 
     vectorN_t clamp(Eigen::Ref<vectorN_t const> const & data,
                     float64_t                   const & minThr = -INF,
