@@ -552,7 +552,7 @@ class BaseJiminyRobot(jiminy.Robot):
             primitive_links = [name for name in geometry_links if set(
                 link.getchildren()[0].tag for link in root.find(
                     f"./link[@name='{name}']").findall(
-                        f'{geometry_type}/geometry')).difference('mesh')]
+                        f'{geometry_type}/geometry')).difference({'mesh'})]
             geometry_info[geometry_type]['mesh'] = mesh_links
             geometry_info[geometry_type]['primitive'] = primitive_links
 
