@@ -1,9 +1,8 @@
-#!/usr/bin/env python
-
 import os
 import re
 import sys
 import pathlib
+from queue import deque
 from textwrap import indent, dedent
 from typing import List
 
@@ -16,29 +15,34 @@ def redent(txt: str, n: int = 0) -> str:
         line.strip() + '\n' for line in txt.splitlines(True)]), ' ' * n)
 
 
-def find_include_files(input_file_fullpath: str,
+def find_include_files(input_files_fullpath: List[str],
                        include_dir: str) -> List[str]:
-    """Scan recursively the list of header included in a given header file and
-    contain in a specific include directory.
+    """Scan recursively the list of header files included in given header files
+    and contain in a specific include directory.
     """
+    include_dir = pathlib.Path(include_dir)
+    lookup_file_list = deque(input_files_fullpath)
     include_path_list = []
-    with open(input_file_fullpath, "r") as input_file:
-        for line in input_file:
-            if "#include" in line:
-                relative_path = re.search(r'(?<=")[^ ]+(?="$)', line)
-                if relative_path:
-                    try:
-                        full_path = str(next(pathlib.Path(include_dir).rglob(
-                            relative_path.group())))
-                    except StopIteration:
-                        break
-                    except FileNotFoundError:
-                        continue  # It may happen when scanning temporary files
-                    if not full_path in include_path_list:
-                        # Check to avoid potential infinite recursion
-                        include_path_list.append(full_path)
-                        include_path_list += find_include_files(
-                            full_path, include_dir)
+    while len(lookup_file_list):
+        input_file_fullpath = lookup_file_list.pop()
+        try:
+            with open(input_file_fullpath, "r") as input_file:
+                for line in input_file:
+                    if "#include" in line:
+                        relative_path = re.search(r'(?<=")[^ ]+(?="$)', line)
+                        if relative_path:
+                            relative_path = relative_path.group()
+                            try:
+                                full_path = str(next(
+                                    include_dir.rglob(relative_path)))
+                            except StopIteration:
+                                break
+                            # Prevent potential infinite recursion
+                            if not full_path in include_path_list:
+                                include_path_list.append(full_path)
+                                lookup_file_list.append(full_path)
+        except (FileNotFoundError, PermissionError):
+            continue  # It may happen for temporary files and some dependencies
     return include_path_list
 
 
@@ -73,7 +77,7 @@ if __name__ == "__main__":
     _, include_dir, input_file_fullpath, output_file_name =  sys.argv
 
     # Extract the fullpath of included files available in include_dir
-    include_files = find_include_files(input_file_fullpath, include_dir)
+    include_files = find_include_files([input_file_fullpath], include_dir)
     include_files.append(input_file_fullpath)
 
     # Create output file
@@ -106,7 +110,7 @@ if __name__ == "__main__":
         # Get declaration from which to extract docstring, if anu
         if has_copydoc:
             doc_pattern = re.search(
-                r"(?<=@copydoc )[a-zA-Z0-9:_]+", docstring).group()
+                r"@copydoc +([a-zA-Z0-9:_]+)", docstring).group(1)
         else:
             if docstring:
                 continue
@@ -150,13 +154,18 @@ if __name__ == "__main__":
                 f":param {name}:\n{redent(descr, 4)}")
 
         # Replace newline by string '\n' because it is not properly supported
-        doc_str = doc_str.replace("\n", r'\\n')
+        doc_str = doc_str.strip().replace("\n", r'\\n')
 
         # Add docstring
-        def_match_full = f"{head}{class_name}::{method_name}{tail}"
-        def_orig = re.sub(r"(\(|\)|\\)", r"\\\g<1>", def_match_full + ")")
-        input_str = re.sub(
-            def_orig, def_match_full + f', "{doc_str}")', input_str, count=1)
+        def_match = f"{head}{class_name}::{method_name}{tail}"
+        def_orig = f"{def_match})"
+        if has_copydoc:
+            doc_str = doc_str.replace(r'\\n', r'\\\\n')
+            def_new = re.sub(r'(?<=")@copydoc.+(?="\)$)', doc_str, def_orig)
+        else:
+            def_new =  f'{def_match}, "{doc_str}")'
+        def_orig = re.sub(r"(\(|\)|\\)", r"\\\g<1>", def_orig)
+        input_str = re.sub(def_orig, def_new, input_str, count=1)
 
     # Save post-processed file
     with open(output_file_name, "w") as output_file:
