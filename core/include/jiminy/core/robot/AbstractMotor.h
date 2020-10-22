@@ -4,7 +4,7 @@
 ///
 /// \details    Any motor must inherit from this base class and implement its virtual methods.
 ///
-/// \remarks    Each motor added to a Jiminy Robot is downcasted as an instance of
+/// \remark     Each motor added to a Jiminy Robot is downcasted as an instance of
 ///             AbstractMotorBase and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////

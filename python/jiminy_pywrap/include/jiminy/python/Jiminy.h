@@ -727,10 +727,10 @@ namespace python
             static void visit(PyClass& cl)
             {
                 cl
-                    .add_property("get_jacobian", bp::make_function(&AbstractConstraint::getJacobian,
-                                                  bp::return_value_policy<bp::copy_const_reference>()))
-                    .add_property("get_drift", bp::make_function(&AbstractConstraint::getDrift,
-                                               bp::return_value_policy<bp::copy_const_reference>()))
+                    .add_property("jacobian", bp::make_function(&AbstractConstraint::getJacobian,
+                                              bp::return_internal_reference<>()))
+                    .add_property("drift", bp::make_function(&AbstractConstraint::getDrift,
+                                           bp::return_internal_reference<>()))
                     ;
             }
         };
@@ -1360,10 +1360,10 @@ namespace python
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
                                           (bp::arg("self"), "fieldname", "value"),
                                           "@copydoc AbstractController::registerVariable")
-                .def("register_variable", &PyAbstractControllerVisitor::registerVariableVector,
-                                          (bp::arg("self"), "fieldnames", "values"))
-                .def("register_constant", &PyAbstractControllerVisitor::registerConstant,
-                                          (bp::arg("self"), "fieldnames", "values"))
+                .def("register_variables", &PyAbstractControllerVisitor::registerVariableVector,
+                                           (bp::arg("self"), "fieldnames", "values"))
+                .def("register_constants", &PyAbstractControllerVisitor::registerConstant,
+                                           (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions,
@@ -1520,7 +1520,7 @@ namespace python
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),  // bp::object() means None in Python
-                                 bp::arg("internal_dynamics") = bp::object())));
+                                 bp::arg("internal_dynamics") = bp::object())))
                 ;
         }
 
@@ -1660,21 +1660,21 @@ namespace python
         {
             cl
                 .add_property("q", bp::make_getter(&systemState_t::q,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                                   bp::return_internal_reference<>()))
                 .add_property("v", bp::make_getter(&systemState_t::v,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                                   bp::return_internal_reference<>()))
                 .add_property("a", bp::make_getter(&systemState_t::a,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                                   bp::return_internal_reference<>()))
                 .add_property("u", bp::make_getter(&systemState_t::u,
-                                   bp::return_value_policy<bp::copy_non_const_reference>()))
+                                   bp::return_internal_reference<>()))
                 .add_property("u_motor", bp::make_getter(&systemState_t::uMotor,
-                                         bp::return_value_policy<bp::copy_non_const_reference>()))
+                                         bp::return_internal_reference<>()))
                 .add_property("u_command", bp::make_getter(&systemState_t::uCommand,
-                                           bp::return_value_policy<bp::copy_non_const_reference>()))
+                                           bp::return_internal_reference<>()))
                 .add_property("u_internal", bp::make_getter(&systemState_t::uInternal,
-                                            bp::return_value_policy<bp::copy_non_const_reference>()))
+                                            bp::return_internal_reference<>()))
                 .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
-                                            bp::return_value_policy<bp::copy_non_const_reference>()))
+                                            bp::return_internal_reference<>()))
                 .def("__repr__", &PySystemStateVisitor::repr)
                 ;
         }
@@ -1857,7 +1857,7 @@ namespace python
                                                bp::return_internal_reference<>()))
                 .add_property("is_simulation_running", bp::make_function(&EngineMultiRobot::getIsSimulationRunning,
                                                        bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("max_simulation_duration", &EngineMultiRobot::getMaxSimulationDuration)
+                .add_property("simulation_duration_max", &EngineMultiRobot::getMaxSimulationDuration)
                 ;
         }
 

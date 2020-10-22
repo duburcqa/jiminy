@@ -12,5 +12,7 @@
 *egg-info*
 *.sw?
 .*project
-docs
 .vscode
+docs/html
+install
+build

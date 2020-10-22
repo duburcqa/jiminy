@@ -28,6 +28,7 @@ DEFAULT_COMM_PORT = 6500
 # outside anyway.
 WebSocketHandler.check_origin = lambda self, origin: True
 
+
 # Override the default html page to disable auto-update of
 # three js "controls" of the camera, so that it can be moved
 # programmatically in any position, without any constraint, as
@@ -60,6 +61,7 @@ class MyFileHandler(tornado.web.StaticFileHandler):
             return super().validate_absolute_path(root, absolute_path)
         return os.path.join(self.fallback_path, absolute_path[(len(root)+1):])
 
+
 # Implement bidirectional communication because zmq and the
 # websockets by gathering and forward messages received from
 # the websockets to zmq. Note that there is currently no way
@@ -79,7 +81,8 @@ def handle_web(self, message: str) -> None:
         self.bridge.zmq_stream.flush()
         self.bridge.websocket_msg, self.bridge.comm_msg = [], []
         self.is_waiting_ready_msg = False
-WebSocketHandler.on_message = handle_web
+WebSocketHandler.on_message = handle_web  # noqa
+
 
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
     def __init__(self,
@@ -97,10 +100,10 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
             (self.comm_zmq, self.comm_stream, self.comm_url), _ = \
                 find_available_port(f, DEFAULT_COMM_PORT)
         else:
-             self.comm_zmq, self.comm_stream, self.comm_url = \
+            self.comm_zmq, self.comm_stream, self.comm_url = \
                  self.setup_comm(comm_url)
 
-        # Extra buffers for  comm ids and messages
+        # Extra buffers for: comm ids and messages
         self.comm_pool = set()
         self.comm_msg = []
         self.websocket_msg = []
@@ -153,8 +156,11 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 msg = umsgpack.packb({"type": "ready"})
                 self.forward_to_comm(comm_id, msg)
         elif cmd.startswith("close:"):
+            # Using `discard` over `remove` to avoid raising exception if
+            # 'comm_id' is not found. It may happend if an old comm is closed
+            # after Jupyter-notebook reset for instance.
             comm_id = f"{cmd.split(':', 1)[1]}".encode()
-            self.comm_pool.discard(comm_id)  # Using `discard` over `remove` to avoid raising exception if 'comm_id' is not found. It may happend if an old comm is closed after Jupyter-notebook reset for instance.
+            self.comm_pool.discard(comm_id)
         elif cmd.startswith("data:"):
             message = f"{cmd.split(':', 2)[2]}"
             self.comm_msg.append(message)
@@ -195,6 +201,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 if node.transform is not None:
                     self.forward_to_comm(comm_id, node.transform)
 
+
 # ======================================================
 
 def meshcat_server(info: Dict[str, str]) -> None:
@@ -218,6 +225,7 @@ def meshcat_server(info: Dict[str, str]) -> None:
             info['comm_url'] = bridge.comm_url
             bridge.run()
 
+
 def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
     """
     @brief Run meshcat server in background using multiprocessing Process.
@@ -236,6 +244,7 @@ def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
     manager.shutdown()
 
     return server, zmq_url, web_url, comm_url
+
 
 def start_meshcat_server_standalone() -> None:
     import argparse

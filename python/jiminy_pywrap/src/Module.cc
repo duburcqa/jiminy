@@ -118,6 +118,10 @@ namespace python
         bp::to_python_converter<std::vector<matrixN_t>, converterToPython<std::vector<matrixN_t> > >();
         bp::to_python_converter<configHolder_t, converterToPython<configHolder_t> >();
 
+        // Disable CPP docstring
+        bp::docstring_options doc_options;
+        doc_options.disable_cpp_signatures();
+
         // Expose generic utilities
         bp::def("get_joint_type", &getJointTypeFromIdx,
                                   (bp::arg("pinocchio_model"), "joint_idx"));

@@ -335,16 +335,18 @@ namespace python
         sensorsDataMap_t data;
         bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
         bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
+        bp::list sensorsGroupsValuesPy = sensorsGroupsPy.values();
         for (bp::ssize_t i=0; i < bp::len(sensorsGroupsNamesPy); i++)
         {
             sensorDataTypeMap_t sensorGroupData;
             std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
-            bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsPy[sensorGroupName]);
+            bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsValuesPy[i]);
             bp::list sensorsNamesPy = sensorsDataPy.keys();
+            bp::list sensorsValuesPy = sensorsDataPy.values();
             for (bp::ssize_t j=0; j < bp::len(sensorsNamesPy); j++)
             {
                 std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
-                np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsDataPy[sensorName]);
+                np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
                 auto sensorData = convertFromPython<Eigen::Ref<vectorN_t const> >(sensorDataNumpy);
                 sensorGroupData.emplace(sensorName, j, sensorData);
             }
@@ -364,10 +366,11 @@ namespace python
         T map;
         bp::dict const dictPy = bp::extract<bp::dict>(dataPy);
         bp::list keysPy = dictPy.keys();
+        bp::list valuesPy = dictPy.values();
         for (bp::ssize_t i=0; i < bp::len(keysPy); i++)
         {
             K const key = bp::extract<K>(keysPy[i]);
-            map[key] = convertFromPython<V>(dictPy[key]);
+            map[key] = convertFromPython<V>(valuesPy[i]);
         }
         return map;
     }

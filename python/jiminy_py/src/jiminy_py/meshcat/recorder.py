@@ -14,34 +14,42 @@ from ctypes import c_char_p
 from contextlib import redirect_stderr
 from typing import Awaitable, Any, Optional
 
-from IPython import get_ipython
-shell = get_ipython().__class__.__module__
-if shell.startswith('google.colab.'):
+from requests_html import HTMLSession, HTMLResponse
+
+from .utilities import is_notebook
+
+
+if is_notebook() == 2:
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
     # Note that the downside is that chrome must be installed manually.
     import pyppeteer.chromium_downloader
     pyppeteer.chromium_downloader.chromium_executable = \
-        lambda : Path("/usr/lib/chromium-browser/chromium-browser")
+        lambda: Path("/usr/lib/chromium-browser/chromium-browser")
     if not pyppeteer.chromium_downloader.check_chromium():
-        logging.warning("Chrome must be installed manually on Google Colab. "
-            "It must be done using '!apt install chromium-chromedriver'.")
+        logging.warning(
+            "Chrome must be installed manually on Google Colab. It must be "
+            "done using '!apt install chromium-chromedriver'.")
 else:
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
 
+
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
-from requests_html import HTMLSession, HTMLResponse
 
-# ================ Monkey-patch =======================
 
-# Make sure raise SIGINT does not kill chrome
-# pyppeteer browser backend automatically, so that
-# it allows a closing handle to be manually registered.
+# ==================== Monkey-patch pyppeteer ============================
+
+# Make sure raise SIGINT does not kill chrome pyppeteer browser backend
+# automatically, so that it allows a closing handle to be manually registered.
+# Note that only "egl" webgl renderer supports hardware acceleration in
+# headless mode without X server on Linux. Moreover, headless mode with
+# hardware acceleration enables seems to crash Chrome on Windows. If so, it can
+# be disable by adding the extra command '"--disable-gpu"'.
 async def launch(self) -> Browser:
     """Start chrome process and return `Browser` object."""
     self.chromeClosed = False
@@ -51,10 +59,9 @@ async def launch(self) -> Browser:
     options['env'] = self.env
     cmd = self.cmd + [
         "--enable-webgl",
-        "--use-gl=egl",  # "egl" is currently the only webgl rendering working without X server and in headless mode
+        "--use-gl=egl",
         "--disable-frame-rate-limit",
         "--disable-gpu-vsync",
-        # "--disable-gpu",  # GPU acceleration is not available in headless mode on Windows for now apparently...
         "--ignore-gpu-blacklist",
         "--ignore-certificate-errors",
         "--disable-infobars",
@@ -85,9 +92,10 @@ async def launch(self) -> Browser:
         self.killChrome)
     await self.ensureInitialPage(browser)
     return browser
-Launcher.launch = launch
+Launcher.launch = launch  # noqa
 
-# ======================================================
+
+# ============ Asynchronous Javascript routines ============
 
 async def capture_frame_async(client: HTMLResponse,
                               width: int,
@@ -111,6 +119,7 @@ async def capture_frame_async(client: HTMLResponse,
         }
     """)
 
+
 async def start_video_recording_async(client: HTMLResponse,
                                       fps: int,
                                       width: int,
@@ -127,6 +136,7 @@ async def start_video_recording_async(client: HTMLResponse,
         }}
     """)
 
+
 async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
     await client.html.page.evaluate("""
         () => {
@@ -135,11 +145,13 @@ async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
         }
     """)
 
+
 async def stop_and_save_video_async(client: HTMLResponse,
                                     path: str) -> Awaitable[None]:
     directory = os.path.dirname(path)
     filename = os.path.splitext(os.path.basename(path))[0]
-    await client.html.page._client.send('Page.setDownloadBehavior',
+    await client.html.page._client.send(
+        'Page.setDownloadBehavior',
         {'behavior': 'allow', 'downloadPath': directory})
     await client.html.page.evaluate(f"""
         () => {{
@@ -152,6 +164,9 @@ async def stop_and_save_video_async(client: HTMLResponse,
             }});
         }}
     """)
+
+
+# ============ Meshcat recorder multiprocessing worker ============
 
 def meshcat_recorder(meshcat_url: str,
                      request_shm: multiprocessing.Value,
@@ -184,7 +199,7 @@ def meshcat_recorder(meshcat_url: str,
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
             try:
-                while request_shm.value != "quit":  # [>Python3.8] while (request := request_shm.value) != "quit":
+                while request_shm.value != "quit":
                     request = request_shm.value
                     if request != "":
                         args = map(str.strip, message_shm.value.split("|"))
@@ -223,11 +238,13 @@ def meshcat_recorder(meshcat_url: str,
         pass
 
 
+# ============ Meshcat recorder client ============
+
 class MeshcatRecorder:
     """
-    @brief    Run meshcat server in background using multiprocessing
-              Process to enable parallel asyncio loop execution, which
-              is necessary to support recording in Jupyter notebook.
+    @brief Run meshcat server in background using multiprocessing Process to
+           enable parallel asyncio loop execution, which is necessary to
+           support recording in Jupyter notebook.
     """
     def __init__(self, url: str):
         self.is_open = False
@@ -241,7 +258,7 @@ class MeshcatRecorder:
     def open(self) -> None:
         self.__manager = multiprocessing.managers.SyncManager()
         self.__manager.start(
-            lambda : signal.signal(signal.SIGINT, signal.SIG_IGN))
+            lambda: signal.signal(signal.SIGINT, signal.SIG_IGN))
 
         self.__shm = {
             'request': self.__manager.Value(c_char_p, ""),
@@ -269,7 +286,8 @@ class MeshcatRecorder:
             if self.proc.is_alive():
                 try:
                     self._send_request(request="quit", timeout=0.5)
-                except Exception: # Catch everything, since we do not want this method to fail in any circumstances
+                except Exception:
+                    # This method must not fail under any circumstances
                     pass
             self.__shm = None
         if self.proc is not None:
@@ -314,23 +332,25 @@ class MeshcatRecorder:
     def capture_frame(self,
                       width: Optional[int] = None,
                       height: Optional[int] = None) -> str:
-        self._send_request("take_snapshot",
-            message=(f"{width if width is not None else -1}|"
-                     f"{height if height is not None else -1}"))
+        self._send_request(
+            "take_snapshot", message=(
+                f"{width if width is not None else -1}|"
+                f"{height if height is not None else -1}"))
         return self.__shm['message'].value
 
     def start_video_recording(self,
                               fps: float,
                               width: int,
                               height: int) -> None:
-        self._send_request("start_record",
-            message=f"{fps}|{width}|{height}", timeout=10.0)
+        self._send_request(
+            "start_record", message=f"{fps}|{width}|{height}", timeout=10.0)
         self.is_recording = True
 
     def add_video_frame(self) -> None:
         if not self.is_recording:
-            raise RuntimeError("No video being recorded at the moment. "
-                "Please start recording before adding frames.")
+            raise RuntimeError(
+                "No video being recorded at the moment. Please start "
+                "recording before adding frames.")
         self._send_request("add_frame")
 
     def stop_and_save_video(self, path: str) -> bool:
@@ -349,8 +369,9 @@ class MeshcatRecorder:
             return True
 
         if not self.is_recording:
-            raise RuntimeError("No video being recorded at the moment. "
-                "Please start recording and add frames before saving.")
+            raise RuntimeError(
+                "No video being recorded at the moment. Please start "
+                "recording and add frames before saving.")
         if "|" in path:
             raise ValueError(
                 "'|' character is not supported in video export path.")

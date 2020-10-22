@@ -5,14 +5,16 @@ version = __import__("jiminy_py").__version__
 version_required = ".".join(version.split(".")[:2])
 setup(name="gym_jiminy",
       version=version,
-      description="Python-native OpenAI Gym interface between Jiminy open-source simulator and Reinforcement Learning frameworks.",
+      description=(
+          "Python-native OpenAI Gym interface between Jiminy "
+          "open-source simulator and Reinforcement Learning frameworks."),
       author="Alexis Duburcq",
       author_email="alexis.duburcq@wandercraft.eu",
       maintainer="Wandercraft",
       license="MIT",
       python_requires=">3.6",
       classifiers=[
-          "Development Status :: 4 - Stable",
+          "Development Status :: 5 - Production/Stable",
           "Intended Audience :: Science/Research",
           "Topic :: Scientific/Engineering :: Artificial Intelligence",
           "Topic :: Software Development :: Libraries :: Python Modules",
@@ -32,7 +34,9 @@ setup(name="gym_jiminy",
       ],
       extras_require={
           "dev": [
-              "tianshou", "rllib", "stable-baselines3"
+              "tensorboard",
+              "tianshou",
+              "rllib",
+              "stable-baselines3"
           ]
-      }
-)
+      })

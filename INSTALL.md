@@ -100,7 +100,7 @@ make install -j2
 
 ### Prerequisites
 
-```pwsh
+```
 sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz
 python -m pip install numpy
 ```
@@ -109,13 +109,13 @@ python -m pip install numpy
 
 Just run the bash script already available.
 
-```pwsh
+```
 BUILD_TYPE="Release" ./build_tools/build_install_deps_linux.sh
 ```
 
 ### Build Procedure
 
-```pwsh
+```
 RootDir=".... The location of jiminy repository ...."
 PythonVer=".... Your version X.Y of Python, for instance 3.8 ...."
 
@@ -156,7 +156,7 @@ Install `python3` 3.6/3.7/3.8 (available on [Microsoft store](https://www.micros
 
 Installing the master branch of meshcat from github instead of the latest official release on Pypi should do the trick.
 
-```pwsh
+```
 python -m pip install --upgrade git+https://github.com/rdeits/meshcat-python.git@master
 ```
 
@@ -164,7 +164,7 @@ python -m pip install --upgrade git+https://github.com/rdeits/meshcat-python.git
 
 The project is available on PyPi and therefore can be install easily using `pip`.
 
-```pwsh
+```
 python -m pip install jiminy-py
 ```
 
@@ -182,7 +182,7 @@ Once done, `Pytorch` can be installed following the official "getting started" i
 
 Installing the Python packages `stable_baselines3`, `tianshou`, `ray` are required to run all the provided examples, though they are not required to use gym_jiminy. They can easily be installed using `pip`. Pick the one you prefer!
 
-```pwsh
+```
 python -m pip install stable-baselines3[extra]
 python -m pip install tianshou
 python -m pip install ray[rllib]
@@ -190,7 +190,7 @@ python -m pip install ray[rllib]
 
 #### Install Gym Jiminy learning Python package
 
-```pwsh
+```
 python -m pip install gym-jiminy
 ```
 
@@ -202,7 +202,7 @@ You have to preinstall by yourself the (free) MSVC 2019 toolchain.
 
 Then, install `numpy` and `wheel`.
 
-```pwsh
+```
 python -m pip install numpy wheel
 ```
 
@@ -210,7 +210,7 @@ python -m pip install numpy wheel
 
 Now you can simply run the powershell script already available.
 
-```pwsh
+```
 $Env:BUILD_TYPE = "Release"
 & './build_tools/build_install_deps_windows.ps1'
 ```
@@ -219,7 +219,7 @@ $Env:BUILD_TYPE = "Release"
 
 You are finally ready to build Jiminy itself.
 
-```pwsh
+```
 $RootDir = ".... The location of jiminy repository ...."
 
 $Env:BUILD_TYPE = "Release"

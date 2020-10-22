@@ -1,4 +1,4 @@
-import jiminy_py # Preload jiminy
+import jiminy_py  # Preload jiminy # noqa
 from gym.envs.registration import register
 
 

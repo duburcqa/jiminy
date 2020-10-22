@@ -37,12 +37,13 @@ def initialize(log_root_path: Optional[str] = None,
     if log_root_path is None:
         log_root_path = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "log")
-    if not 'tb' in locals().keys():
+    if 'tb' not in locals().keys():
         tb = TensorBoard()
         tb.configure(host="0.0.0.0", logdir=log_root_path)
         url = tb.launch()
         if verbose:
-            print(f"Started Tensorboard {url}. Root directory: {log_root_path}")
+            print(f"Started Tensorboard {url}. "
+                  f"Root directory: {log_root_path}")
 
     # Create log directory
     if log_name is None:
@@ -54,6 +55,7 @@ def initialize(log_root_path: Optional[str] = None,
         print(f"Tensorboard logfiles directory: {log_path}")
 
     return log_path
+
 
 def train(train_agent: BaseAlgorithm,
           max_timesteps: int,
@@ -83,10 +85,9 @@ def train(train_agent: BaseAlgorithm,
     if spec.reward_threshold is not None:
         callback_reward = StopOnReward(
             reward_threshold=spec.reward_threshold)
-        eval_callback = EvalCallback(train_agent.eval_env,
-            callback_on_new_best=callback_reward,
-            eval_freq=5000,
-            n_eval_episodes=100)
+        eval_callback = EvalCallback(
+            train_agent.eval_env, callback_on_new_best=callback_reward,
+            eval_freq=5000, n_eval_episodes=100)
     else:
         eval_callback = None
 
@@ -102,10 +103,11 @@ def train(train_agent: BaseAlgorithm,
         if verbose:
             print("Interrupting training...")
 
-    checkpoint_path = tempfile.mkstemp(dir=train_agent.tensorboard_log,
-        prefix=spec.id, suffix='.zip')[-1]
+    checkpoint_path = tempfile.mkstemp(
+        dir=train_agent.tensorboard_log, prefix=spec.id, suffix='.zip')[-1]
     train_agent.save(checkpoint_path)
     return checkpoint_path
+
 
 def test(test_agent: BaseAlgorithm,
          max_episodes: int = math.inf,

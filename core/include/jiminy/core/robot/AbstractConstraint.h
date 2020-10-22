@@ -6,7 +6,7 @@
 ///             The most common constraint is to say that a given frame is fixed: this
 ///             is implemented in FixedFrameConstraint
 ///
-/// \remarks    Each constraint applied to a system is downcasted as an instance of
+/// \remark     Each constraint applied to a system is downcasted as an instance of
 ///             AbstractMotorBase and polymorphism is used to call the actual implementations.
 ///
 ///////////////////////////////////////////////////////////////////////////////////////////////

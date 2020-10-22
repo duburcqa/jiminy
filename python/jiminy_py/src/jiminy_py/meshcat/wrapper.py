@@ -1,7 +1,6 @@
 import atexit
 import asyncio
 import logging
-import ipykernel.comm
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout
@@ -11,27 +10,10 @@ import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 
 import meshcat
+
+from .utilities import is_notebook
 from .server import start_meshcat_server
-
 from .recorder import MeshcatRecorder
-
-
-def is_notebook() -> None:
-    """
-    @brief Determine whether Python is running inside a Notebook or not.
-    """
-    from IPython import get_ipython
-    shell = get_ipython().__class__.__module__
-    if shell == 'ipykernel.zmqshell':
-        return 1   # Jupyter notebook or qtconsole. Impossible to discriminate easily without costly psutil inspection of the running process...
-    elif shell == 'IPython.terminal.interactiveshell':
-        return 0   # Terminal running IPython
-    elif shell.startswith('google.colab.'):
-        return 2   # Google Colaboratory
-    elif shell == '__builtin__':
-        return 0   # Terminal running Python
-    else:
-        return 0   # Unidentified type
 
 
 if is_notebook() == 1:
@@ -39,9 +21,9 @@ if is_notebook() == 1:
     # Colab, so no need to throw this warning.
     logging.warning(
         "You may experience some lags while replaying a simulation.\n"
-         "Consider increasing the IO message rate limit by adding the "
-         "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "
-         "executing 'jupyter notebook'.")
+        "Consider increasing the IO message rate limit by adding the "
+        "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "
+        "executing 'jupyter notebook'.")
 
 if is_notebook():
     # Google colab is using an older version of ipykernel (4.10), which is
@@ -79,14 +61,16 @@ if is_notebook():
         """
 
         def __init__(self):
+            from IPython import get_ipython
             self.__kernel = get_ipython().kernel
             self.__old_api = version(ipykernel.__version__) < version("5.0")
             if self.__old_api:
-                logging.warning("Pre/post kernel handler hooks must be "
-                    "disable for the old ipykernel API to enable fetching"
-                    "shell messages from child threads.")
-                self.__kernel.post_handler_hook = lambda : None
-                self.__kernel.pre_handler_hook = lambda : None
+                logging.warning(
+                    "Pre/post kernel handler hooks must be disable for the "
+                    "old ipykernel API to enable fetching shell messages "
+                    "from child threads.")
+                self.__kernel.post_handler_hook = lambda: None
+                self.__kernel.pre_handler_hook = lambda: None
             self.qsize_old = 0
 
         def __call__(self, unsafe: bool = False) -> None:
@@ -129,8 +113,8 @@ if is_notebook():
                 priority, t, dispatch, args = \
                     self.__kernel.msg_queue.get_nowait()
                 if priority <= SHELL_PRIORITY:
-                     # New message: reading message without deserializing its
-                     # content at this point for efficiency.
+                    # New message: reading message without deserializing its
+                    # content at this point for efficiency.
                     _, msg = self.__kernel.session.feed_identities(
                         args[1], copy=False)
                     msg = self.__kernel.session.deserialize(
@@ -176,7 +160,7 @@ if is_notebook():
     # Monkey-patch meshcat ViewerWindow 'send' method to process queued comm
     # messages. Otherwise, new opening comm will not be detected soon enough.
     _send_orig = meshcat.visualizer.ViewerWindow.send
-    def _send(self, command: Any) -> None:
+    def _send(self, command: Any) -> None:  # noqa
         _send_orig(self, command)
         # Check on new comm related messages. Unsafe in enabled to avoid
         # potentially significant overhead. At this point several safe should
@@ -184,11 +168,13 @@ if is_notebook():
         # will slip through the net. Besides, missing messages at this point
         # is not blocking, because here we are not waiting for it to continue.
         process_kernel_comm(unsafe=True)
-    meshcat.visualizer.ViewerWindow.send = _send
+    meshcat.visualizer.ViewerWindow.send = _send # noqa
 
 
 class CommManager:
     def __init__(self, comm_url: str):
+        from IPython import get_ipython
+
         self.n_comm = 0
         self.n_message = 0
 
@@ -236,7 +222,7 @@ class CommManager:
             comm.send(buffers=[cmd])
 
     def __comm_register(self,
-                        comm: ipykernel.comm.Comm,
+                        comm: 'ipykernel.comm.Comm',  # noqa
                         msg: Dict[str, Any]) -> None:
         # There is a major limitation of using `comm.on_msg` callback
         # mechanism: if the main thread is already busy for some reason, for

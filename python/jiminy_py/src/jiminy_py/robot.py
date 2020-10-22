@@ -1,4 +1,3 @@
-## @file src/jiminy_py/robot.py
 import os
 import re
 import toml
@@ -27,7 +26,7 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 
 
-class DuplicateFilter:
+class _DuplicateFilter:
     def __init__(self):
         self.msgs = set()
 
@@ -36,8 +35,9 @@ class DuplicateFilter:
         self.msgs.add(record.msg)
         return rv
 
+
 logger = logging.getLogger(__name__)
-logger.addFilter(DuplicateFilter())
+logger.addFilter(_DuplicateFilter())
 
 
 def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
@@ -55,48 +55,48 @@ def generate_hardware_description_file(
         urdf_path: str,
         hardware_path: Optional[str] = None,
         default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
-    """
-    @brief Generate a default hardware description file, based on the
-           information grabbed from the URDF when available, using educated
-           guess otherwise.
+    """Generate a default hardware description file, based on the information
+    grabbed from the URDF when available, using educated guess otherwise.
 
-    @details If no Gazebo IMU sensor is found, a single IMU is added on the
-             root body of the kinematic tree. If no Gazebo plugin is available,
-             collision bodies and force sensors are added on every leaf body
-             of the robot. Otherwise, the definition of the plugins in use to
-             infer them.
+    If no Gazebo IMU sensor is found, a single IMU is added on the root body
+    of the kinematic tree. If no Gazebo plugin is available, collision bodies
+    and force sensors are added on every leaf body of the robot. Otherwise,
+    the definition of the plugins in use to infer them.
 
-             'joint' fields are parsed to extract every joint, actuated or not.
-             'fixed' joints are not considered as actual joints. Transmission
-             fields are parsed to determine which one of those joints are
-             actuated. If no transmission is found, it is assumed that every
-             joint is actuated, with a transmission ratio of 1:1.
+    'joint' fields are parsed to extract every joint, actuated or not. 'fixed'
+    joints are not considered as actual joints. Transmission fields are parsed
+    to determine which one of those joints are actuated. If no transmission is
+    found, it is assumed that every joint is actuated, with a transmission
+    ratio of 1:1.
 
-             It is assumed that:
-             - every joint has an encoder attached,
-             - every actuated joint has an effort sensor attached,
-             - every collision body has a force sensor attached
-             - for every Gazebo contact sensor, the associated body is added
-               to the set of the collision bodies, but it is not the case
-               for Gazebo force plugin.
+    It is assumed that:
 
-             When the default update rate is unspecified, then the default
-             sensor update rate is 1KHz if no Gazebo plugin has been found,
-             otherwise the highest one among found plugins will be used.
+    - every joint has an encoder attached,
+    - every actuated joint has an effort sensor attached,
+    - every collision body has a force sensor attached
+    - for every Gazebo contact sensor, the associated body is added
+      to the set of the collision bodies, but it is not the case
+      for Gazebo force plugin.
 
-    @remark It has been primarily designed for robots with freeflyer. The
-            default configuration should work out-of-the-box for walking robot,
-            but substantial modification may be required for different types of
-            robots such as wheeled robots or robotics manipulator arms.
+    When the default update rate is unspecified, then the default
+    sensor update rate is 1KHz if no Gazebo plugin has been found,
+    otherwise the highest one among found plugins will be used.
 
-            TOML format as be chosen to make reading and manually editing of
-            the file as human-friendly as possible.
+    .. note::
+        It has been primarily designed for robots with freeflyer. The default
+        configuration should work out-of-the-box for walking robot, but
+        substantial modification may be required for different types of robots
+        such as wheeled robots or robotics manipulator arms.
 
-    @param urdf_path  Fullpath of the URDF file.
-    @param hardware_path  Fullpath of the hardware description file.
+    .. note::
+        TOML format as be chosen to make reading and manually editing of the
+        file as human-friendly as possible.
+
+    :param urdf_path: Fullpath of the URDF file.
+    :param hardware_path: Fullpath of the hardware description file.
                           Optional: By default, it is the same location than
                           the URDF file, using '.hdf' extension.
-    @param default_update_rate  Default update rate of the sensors and the
+    :param default_update_rate: Default update rate of the sensors and the
                                 controller in Hz. It will be used for sensors
                                 whose the update rate is unspecified. 0.0 for
                                 continuous update.
@@ -159,7 +159,8 @@ def generate_hardware_description_file(
                 collision_bodies_names.add(body_name)
                 sensor_type = force.type
             else:
-                logger.warning("Unsupported Gazebo sensor plugin of type "
+                logger.warning(
+                    "Unsupported Gazebo sensor plugin of type "
                     f"'{sensor_type}'")
                 continue
 
@@ -169,9 +170,9 @@ def generate_hardware_description_file(
                 gazebo_update_rate = update_rate
             else:
                 if gazebo_update_rate != update_rate:
-                    logger.warning("Jiminy does not support sensors with "
-                        "different update rate. Using greatest common "
-                        "divisor instead.")
+                    logger.warning(
+                        "Jiminy does not support sensors with different "
+                        "update rate. Using greatest common divisor instead.")
                     gazebo_update_rate = gcd(gazebo_update_rate, update_rate)
 
             # Extract the pose of the frame associate with the sensor.
@@ -193,7 +194,7 @@ def generate_hardware_description_file(
         # collision body.
         if gazebo_plugin_descr.find('kp') is not None:
             # Add a force sensor, if not already in the collision set
-            if not body_name in collision_bodies_names:
+            if body_name not in collision_bodies_names:
                 hardware_info['Sensor'].setdefault(force.type, {}).update({
                     f"{body_name}Contact": OrderedDict(
                         body_name=body_name,
@@ -212,8 +213,9 @@ def generate_hardware_description_file(
                 gazebo_ground_damping = ground_damping
             if (gazebo_ground_stiffness != ground_stiffness or
                     gazebo_ground_damping != ground_damping):
-                raise RuntimeError("Jiminy does not support contacts with"
-                    "different ground models.")
+                raise RuntimeError(
+                    "Jiminy does not support contacts with different ground "
+                    "models.")
 
         # Extract plugins not wrapped into a sensor
         for gazebo_plugin_descr in gazebo_plugin_descr.iterfind('plugin'):
@@ -229,7 +231,7 @@ def generate_hardware_description_file(
                 logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if not imu.type in hardware_info['Sensor'].keys():
+    if imu.type not in hardware_info['Sensor'].keys():
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
             root_link: OrderedDict(
                 body_name=root_link,
@@ -293,7 +295,7 @@ def generate_hardware_description_file(
         # Make sure that the joint is revolute
         joint_type = root.find(
             f"./joint[@name='{joint_name}']").get("type").casefold()
-        if not joint_type in ["revolute", "continuous", "prismatic"]:  # "continuous" is a revolute joint without bounds
+        if joint_type not in ["revolute", "continuous", "prismatic"]:
             logger.warning(
                 "Jiminy only support 1-dof joint actuators and effort "
                 f"sensors. Attached joint cannot of type '{joint_type}'.")
@@ -343,12 +345,10 @@ def generate_hardware_description_file(
                 {joint_name: OrderedDict(
                     joint_name=joint_name,
                     mechanicalReduction=1.0,
-                    rotorInertia=0.0)
-            })
+                    rotorInertia=0.0)})
             hardware_info['Sensor'].setdefault(effort.type, {}).update(
                 {joint_name: OrderedDict(
-                    motor_name=joint_name)
-            })
+                    motor_name=joint_name)})
 
     # Specify custom update rate for the controller and the sensors, if any
     if gazebo_update_rate is not None:
@@ -364,18 +364,17 @@ def generate_hardware_description_file(
         toml.dump(hardware_info, f)
 
 
-def fix_urdf_mesh_path(urdf_path: str,
-                       mesh_path: str,
-                       output_root_path: Optional[str]=None):
-    """
-    @brief Generate an URDF with updated mesh paths.
+def _fix_urdf_mesh_path(urdf_path: str,
+                        mesh_path: str,
+                        output_root_path: Optional[str] = None):
+    """Generate an URDF with updated mesh paths.
 
-    @param urdf_path  Full path of the URDF file.
-    @param mesh_path  Root path of the meshes.
-    @param output_root_path  Root directory of the fixed URDF file.
+    :param urdf_path: Full path of the URDF file.
+    :param mesh_path: Root path of the meshes.
+    :param output_root_path: Root directory of the fixed URDF file.
                              Optional: temporary directory by default.
 
-    @return Full path of the fixed URDF file.
+    :returns: Full path of the fixed URDF file.
     """
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
@@ -398,8 +397,8 @@ def fix_urdf_mesh_path(urdf_path: str,
     # Create the output directory
     if output_root_path is None:
         output_root_path = tempfile.mkdtemp()
-    fixed_urdf_dir = os.path.join(output_root_path,
-        "fixed_urdf" + mesh_path.replace('/', '_'))
+    fixed_urdf_dir = os.path.join(
+        output_root_path, "fixed_urdf" + mesh_path.replace('/', '_'))
     os.makedirs(fixed_urdf_dir, exist_ok=True)
     fixed_urdf_path = os.path.join(
         fixed_urdf_dir, os.path.basename(urdf_path))
@@ -413,38 +412,32 @@ def fix_urdf_mesh_path(urdf_path: str,
 
 
 class BaseJiminyRobot(jiminy.Robot):
-    """
-    @brief Base class to instantiate a Jiminy robot based on a standard
-           URDF file and Jiminy-specific hardware description file.
+    """Base class to instantiate a Jiminy robot based on a standard URDF file
+    and Jiminy-specific hardware description file.
 
-    @details The utility 'generate_hardware_description_file' is provided to
-             automatically generate a default hardware description file for any
-             given URDF file. URDF file containing Gazebo plugins description
-             should not require any further modification as it usually includes
-             the information required to fully characterize the motors and
-             sensors, along with some of there properties.
+    The utility 'generate_hardware_description_file' is provided to
+    automatically generate a default hardware description file for any given
+    URDF file. URDF file containing Gazebo plugins description should not
+    require any further modification as it usually includes the information
+    required to fully characterize the motors, sensors, contact points and
+    collision bodies, along with some of there properties.
 
-             Note that it is assumed that the contact points of the robot
-             matches one-by-one the frames of the force sensors. So it is not
-             possible to use non-instrumented contact points by default.
+    If no collision geometry is associated with the body requiring collision
+    handling, then the visual geometry is used instead, if any. If none is
+    available despite at, then a single contact point is added at body frame.
 
-             If the body requiring collision handling do not have primitive
-             geometry associated, contact points are generated based on the
-             collision mesh, if any, the visual mesh otherwise. The contact
-             points are the vertices of the minimum volume bounding box
-             associated with the mesh. If no mesh is available at all, then
-             the body frame is used instead.
+    For now, every mesh used for collision are replaced by the vertices of the
+    associated minimum volume bounding box, to avoid numerical instabilities.
 
-             Overload this class if you need finer-grained capability.
+    .. note::
+        Overload this class if you need finer-grained capability.
 
-    @remark Hardware description files within the same directory and having the
-            name than the URDF file will be detected automatically without
-            requiring to manually specify its path.
+    .. warning::
+        Hardware description files within the same directory and having the
+        name than the URDF file will be detected automatically without
+        requiring to manually specify its path.
     """
     def __init__(self):
-        """
-        @brief    TODO
-        """
         super().__init__()
         self.extra_info = {}
         self.urdf_path_orig = None
@@ -454,20 +447,19 @@ class BaseJiminyRobot(jiminy.Robot):
                    hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True):
-        """
-        @brief Initialize the robot.
+        """Initialize the robot.
 
-        @param urdf_path  Path of the URDF file of the robot.
-        @param hardware_path  Path of Jiminy hardware description toml file.
+        :param urdf_path: Path of the URDF file of the robot.
+        :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
                               folder and with the same name. If not found, then
                               no hardware is added to the robot, which is valid
                               and can be used for display.
-        @param mesh_path  Path to the folder containing the URDF meshes. It
+        :param mesh_path: Path to the folder containing the URDF meshes. It
                           will overwrite any absolute mesh path.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
                           used if available.
-        @param has_freeflyer  Whether the robot is fixed-based wrt its root
+        :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
         """
         # Backup the original URDF path
@@ -475,7 +467,7 @@ class BaseJiminyRobot(jiminy.Robot):
 
         # Fix the URDF mesh paths
         if mesh_path is not None:
-            urdf_path = fix_urdf_mesh_path(urdf_path, mesh_path)
+            urdf_path = _fix_urdf_mesh_path(urdf_path, mesh_path)
 
         # Initialize the robot without motors nor sensors
         if mesh_path is not None:
@@ -489,16 +481,18 @@ class BaseJiminyRobot(jiminy.Robot):
             urdf_path, has_freeflyer, mesh_root_dirs)
 
         if return_code != jiminy.hresult_t.SUCCESS:
-            raise ValueError("Impossible to load the URDF file. "
-                "Either the file is corrupted or does not exit.")
+            raise ValueError(
+                "Impossible to load the URDF file. Either the file is "
+                "corrupted or does not exit.")
 
         # Load the hardware description file if available
         if hardware_path is None:
             hardware_path = pathlib.Path(
                 self.urdf_path_orig).with_suffix('.hdf')
         if not os.path.exists(hardware_path):
-            logger.warning("Hardware configuration file not found. Not adding "
-                "any hardware to the robot.\n Default file can be generated "
+            logger.warning(
+                "Hardware configuration file not found. Not adding any "
+                "hardware to the robot.\n Default file can be generated "
                 "automatically using 'generate_hardware_description_file'.")
             return
         hardware_info = toml.load(hardware_path)
@@ -506,35 +500,34 @@ class BaseJiminyRobot(jiminy.Robot):
         motors_info = hardware_info.pop('Motor')
         sensors_info = hardware_info.pop('Sensor')
 
-        # Checking the collision bodies, to make sure they are associated with
-        # supported collision geometries. If not, fixing the issue after
-        # throwing a warning.
-        collision_bodies_names = self.extra_info.pop('collisionBodiesNames', [])
-        contact_frames_names = self.extra_info.pop('contactFramesNames', [])
-
-        ## Parse the URDF
+        # Parse the URDF
         tree = ET.parse(urdf_path)
         root = tree.getroot()
 
-        ## Extract the list of bodies having visual and collision meshes or
-        #  primitives.
+        # Extract the list of bodies having visual and collision meshes or
+        # primitives.
         geometry_info = {'visual': {'primitive': None, 'mesh': None},
                          'collision': {'primitive': None, 'mesh': None}}
         for geometry_type in geometry_info.keys():
-            geometry_links = set(link.get('name') for link in
-                root.findall(f"./link/{geometry_type}/geometry/../.."))
+            geometry_links = set(link.get('name') for link in root.findall(
+                f"./link/{geometry_type}/geometry/../.."))
             mesh_links = [name for name in geometry_links if 'mesh' in set(
-                link.getchildren()[0].tag for link in
-                    root.find(f"./link[@name='{name}']").findall(
+                link.getchildren()[0].tag for link in root.find(
+                    f"./link[@name='{name}']").findall(
                         f'{geometry_type}/geometry'))]
             primitive_links = [name for name in geometry_links if set(
-                link.getchildren()[0].tag for link in
-                    root.find(f"./link[@name='{name}']").findall(
+                link.getchildren()[0].tag for link in root.find(
+                    f"./link[@name='{name}']").findall(
                         f'{geometry_type}/geometry')).difference('mesh')]
             geometry_info[geometry_type]['mesh'] = mesh_links
             geometry_info[geometry_type]['primitive'] = primitive_links
 
-        ## Fix the collision bodies requiring it
+        # Checking the collision bodies, to make sure they are associated with
+        # supported collision geometries. If not, fixing the issue after
+        # throwing a warning.
+        collision_bodies_names = self.extra_info.pop(
+            'collisionBodiesNames', [])
+        contact_frames_names = self.extra_info.pop('contactFramesNames', [])
         for body_name in collision_bodies_names.copy():
             # Filter out the different cases.
             # After this filter, we know that their is no collision geometry
@@ -542,27 +535,31 @@ class BaseJiminyRobot(jiminy.Robot):
             # only collision meshes.
             if body_name in geometry_info['collision']['mesh'] and \
                     body_name in geometry_info['collision']['primitive']:
-                logger.warning("Collision body having both primitive and mesh "
-                    "geometries is not supported. Enabling only primitive "
-                    "collision for this body.")
+                logger.warning(
+                    "Collision body having both primitive and mesh geometries "
+                    "is not supported. Enabling only primitive collision for "
+                    "this body.")
                 continue
             elif body_name in geometry_info['collision']['primitive']:
                 pass
             elif body_name in geometry_info['collision']['mesh']:
-                logger.warning("Collision body associated with mesh geometry "
-                    "is not supported for now. Replacing it by contact points "
-                    "at the vertices of the minimal volume bounding box.")
-            elif not body_name in geometry_info['visual']['mesh']:
-                logger.warning("No visual mesh nor collision geometry "
-                    "associated with the collision body. Fallback to adding a "
-                    "single contact point at body frame.")
+                logger.warning(
+                    "Collision body associated with mesh geometry is not "
+                    "supported for now. Replacing it by contact points at the "
+                    "vertices of the minimal volume bounding box.")
+            elif body_name not in geometry_info['visual']['mesh']:
+                logger.warning(
+                    "No visual mesh nor collision geometry associated with "
+                    "the collision body. Fallback to adding a single contact "
+                    "point at body frame.")
                 contact_frames_names.append(body_name)
                 continue
             else:
-                logger.warning("No collision geometry associated with the "
-                    "collision body. Fallback to replacing it by contact "
-                    "points at the vertices of the minimal volume bounding "
-                    "box of the available visual meshes.")
+                logger.warning(
+                    "No collision geometry associated with the collision "
+                    "body. Fallback to replacing it by contact points at "
+                    "the vertices of the minimal volume bounding box of the "
+                    "available visual meshes.")
             # Check if collision primitive box are available
             body_link = root.find(f"./link[@name='{body_name}']")
             collision_box_sizes_info, collision_box_origin_info = [], []
@@ -574,9 +571,10 @@ class BaseJiminyRobot(jiminy.Robot):
 
             # Replace the collision boxes by contact points, if any
             if collision_box_sizes_info:
-                logger.warning("Collision body associated with box geometry "
-                    "is not numerically stable for now. Replacing it by "
-                    "contact points at the vertices.")
+                logger.warning(
+                    "Collision body associated with box geometry is not "
+                    "numerically stable for now. Replacing it by contact "
+                    "points at the vertices.")
 
                 for box_size_info, box_origin_info in zip(
                         collision_box_sizes_info, collision_box_origin_info):
@@ -609,7 +607,7 @@ class BaseJiminyRobot(jiminy.Robot):
             else:
                 mesh_links = body_link.findall('visual')
             mesh_paths = [link.find('geometry/mesh').get('filename')
-                for link in mesh_links]
+                          for link in mesh_links]
             mesh_origins = []
             for link in mesh_links:
                 mesh_origin_info = link.find('origin')
@@ -623,7 +621,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 if mesh_path.startswith("package://"):
                     mesh_path_orig = mesh_path
                     for root_dir in mesh_root_dirs:
-                        mesh_path = mesh_path_orig.replace("package:/", root_dir)
+                        mesh_path = mesh_path_orig.replace(
+                            "package:/", root_dir)
                         if os.path.exists(mesh_path):
                             break
 
@@ -643,7 +642,8 @@ class BaseJiminyRobot(jiminy.Robot):
         # Add the collision bodies and contact points.
         # Note that it must be done before adding the sensors because
         # Contact sensors requires contact points to be defined.
-        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)  # Mesh collisions is not numerically stable for now, so disabling it
+        # Mesh collisions is not numerically stable for now, so disabling it.
+        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)
         self.add_contact_points(list(set(contact_frames_names)))
 
         # Add the motors to the robot
@@ -662,8 +662,9 @@ class BaseJiminyRobot(jiminy.Robot):
                 option_fields = options.keys()
                 for name, value in motor_descr.items():
                     if name not in option_fields:
-                        logger.warning(f"'{name}' is not a valid option for "
-                            f"the motor {motor_name} of type {motor_type}.")
+                        logger.warning(
+                            f"'{name}' is not a valid option for the motor "
+                            f"{motor_name} of type {motor_type}.")
                     options[name] = value
                 options['enableRotorInertia'] = True
                 motor.set_options(options)
@@ -689,14 +690,13 @@ class BaseJiminyRobot(jiminy.Robot):
                     # Create the frame and add it to the robot model
                     frame_name = sensor_descr.pop('frame_name', None)
 
+                    # Create a frame is a frame name has been specified.
+                    # In such a case, the body name must be specified.
                     if frame_name is None:
-                        # Create a frame is a frame name has been specified.
-                        # In this case, the body name must be specified.
-
-                        ## Get the body name
+                        # Get the body name
                         body_name = sensor_descr.pop('body_name')
 
-                        ## Generate a frame name that is intelligible and available
+                        # Generate a frame name both intelligible and available
                         i = 0
                         frame_name = "_".join((
                             sensor_name, sensor_type, "Frame"))
@@ -705,14 +705,14 @@ class BaseJiminyRobot(jiminy.Robot):
                                 sensor_name, sensor_type, "Frame", str(i)))
                             i += 1
 
-                        ## Compute SE3 object representing the frame placement
+                        # Compute SE3 object representing the frame placement
                         frame_pose_xyzrpy = np.array(
                             sensor_descr.pop('frame_pose'))
                         frame_trans = frame_pose_xyzrpy[:3]
                         frame_rot = rpyToMatrix(frame_pose_xyzrpy[3:])
                         frame_placement = pin.SE3(frame_rot, frame_trans)
 
-                        ## Add the frame to the robot model
+                        # Add the frame to the robot model
                         self.add_frame(frame_name, body_name, frame_placement)
 
                     # Initialize the sensor
@@ -726,8 +726,9 @@ class BaseJiminyRobot(jiminy.Robot):
                 option_fields = options.keys()
                 for name, value in sensor_descr.items():
                     if name not in option_fields:
-                        logger.warning(f"'{name}' is not a valid option for "
-                            f"the sensor {sensor_name} of type {sensor_type}.")
+                        logger.warning(
+                            f"'{name}' is not a valid option for the sensor "
+                            f"{sensor_name} of type {sensor_type}.")
                     options[name] = value
                 sensor.set_options(options)
 

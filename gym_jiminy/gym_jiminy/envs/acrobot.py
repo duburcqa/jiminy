@@ -1,5 +1,3 @@
-## @file
-
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -13,13 +11,20 @@ from jiminy_py.simulator import Simulator
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
-DT = 0.2                              # Stepper update period
-THETA_RANDOM_RANGE = 0.1              # Range of uniform sampling distribution of joint angles
-DTHETA_RANDOM_RANGE = 0.1             # Range of uniform sampling distribution of joint velocities
-HEIGHT_REL_DEFAULT_THRESHOLD = 0.5    # The relative height of the tip at which to consider an episode successful for normal env
-HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2  # The mimimum relative height of the tip at which to consider an episode successful for goal env
-HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98  # The maximum relative height of the tip at which to consider an episode successful for goal env
-ACTION_NOISE = 0.0                    # Standard deviation of the noise added to the action
+# Stepper update period
+STEP_DT = 0.2
+# Range of uniform sampling distribution of joint angles
+THETA_RANDOM_RANGE = 0.1
+# Range of uniform sampling distribution of joint velocities
+DTHETA_RANDOM_RANGE = 0.1
+# Relative height of tip to consider an episode successful for normal env
+HEIGHT_REL_DEFAULT_THRESHOLD = 0.5
+# Mim relative height of tip to consider an episode successful for goal env
+HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2
+# Max relative height of tip to consider an episode successful for goal env
+HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98
+# Standard deviation of the noise added to the action
+ACTION_NOISE = 0.0
 
 
 class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
@@ -75,8 +80,8 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
         # Instantiate robot
         robot = jiminy.Robot()
-        robot.initialize(urdf_path,
-            has_freeflyer=False, mesh_package_dirs=[data_dir])
+        robot.initialize(
+            urdf_path, has_freeflyer=False, mesh_package_dirs=[data_dir])
 
         # Add motors and sensors
         motor_joint_name = "SecondArmJoint"
@@ -103,7 +108,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             self._tipIdx].translation[2]
 
         # Configure the learning environment
-        super().__init__(simulator, DT, debug=False)
+        super().__init__(simulator, STEP_DT, debug=False)
 
     def _refresh_observation_space(self) -> None:
         """
@@ -115,8 +120,6 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         super()._refresh_observation_space()
         self.observation_space.spaces['observation'] = \
             self.observation_space['observation']['state']
-        self._observation['observation'] = \
-            self._observation['observation']['state']
 
     def _fetch_obs(self) -> None:
         """
@@ -173,7 +176,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         return self.rg.uniform(
             low=HEIGHT_REL_MIN_GOAL_THRESHOLD,
             high=HEIGHT_REL_MAX_GOAL_THRESHOLD,
-            size=(1,)) *self._tipPosZMax
+            size=(1,)) * self._tipPosZMax
 
     def _get_achieved_goal(self) -> np.ndarray:
         """
@@ -215,8 +218,9 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             reward = -1.0
         return reward
 
-    def step(self, action: Optional[np.ndarray] = None
-            ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """
         @brief Run a simulation step for a given action.
 
@@ -252,7 +256,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
                 `AcrobotJiminyGoalEnv`. See its documentation for more
                 information.
     """
-    def __init__(self, continuous: bool = True, enableGoalEnv: bool = False):
+    def __init__(self, continuous: bool = True, enable_goal_env: bool = False):
         """
         @brief Constructor
 
@@ -260,9 +264,9 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
                            not continuous, the action space has only 3 states,
                            i.e. low, zero, and high.
                            Optional: True by default.
-        @params enableGoalEnv  Whether or not goal is enable.
+        @params enable_goal_env  Whether or not goal is enable.
         """
-        self.enableGoalEnv = enableGoalEnv
+        self.enable_goal_env = enable_goal_env
         super().__init__(continuous)
 
     def _refresh_observation_space(self) -> None:
@@ -272,10 +276,10 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @details Only the state is observable, while by default, the current
                  time, state, and sensors data are available.
         """
-        super()._refresh_observation_space()
-        if not self.enableGoalEnv:
-            self.observation_space = self.observation_space['observation']
-            self._observation = self._observation['observation']
+        if self.enable_goal_env:
+            super()._refresh_observation_space()
+        else:
+            self.observation_space = self._get_state_space()
 
     def _sample_goal(self) -> np.ndarray:
         """
@@ -284,7 +288,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @detail The goal is always the same, and proportional to
                 HEIGHT_REL_DEFAULT_THRESHOLD.
         """
-        if self.enableGoalEnv:
+        if self.enable_goal_env:
             return super()._sample_goal()
         else:
             return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
@@ -296,7 +300,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @details Only the state is observed.
         """
         obs = super()._fetch_obs()
-        if self.enableGoalEnv:
+        if self.enable_goal_env:
             return obs
         else:
             return obs['observation']

@@ -1,4 +1,3 @@
-## @file src/jiminy_py/simulator.py
 import os
 import toml
 import atexit
@@ -44,12 +43,10 @@ DEFAULT_GROUND_DAMPING = 2.0e3
 
 
 class Simulator:
-    """
-    @brief This class wraps the different submodules of Jiminy, namely the
-           robot, controller, engine, and viewer, as a single simulation
-           environment. The user only as to create a robot and associated
-           controller if any, and give high-level instructions to the
-           simulator.
+    """This class wraps the different submodules of Jiminy, namely the robot,
+    controller, engine, and viewer, as a single simulation environment. The
+    user only as to create a robot and associated controller if any, and
+    give high-level instructions to the simulator.
     """
     def __init__(self,
                  robot: jiminy.Robot,
@@ -58,18 +55,16 @@ class Simulator:
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
         """
-        @brief Constructor
-
-        @param robot  Jiminy robot already initialized.
-        @param controller  Jiminy controller already initialized.
+        :param robot: Jiminy robot already initialized.
+        :param controller: Jiminy controller already initialized.
                            Optional: jiminy_py.core.ControllerFunctor doing
                            nothing by default.
-        @param engine_class  The class of engine to use.
+        :param engine_class: The class of engine to use.
                              Optional: jiminy_py.core.Engine by default.
-        @param use_theoretical_model  Whether the state corresponds to the
+        :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        @param viewer_backend  Backend of the viewer, eg gepetto-gui or
+        :param viewer_backend: Backend of the viewer, eg gepetto-gui or
                                meshcat.
                                Optional: It is setup-dependent. See Viewer
                                documentation for details about it.
@@ -103,29 +98,29 @@ class Simulator:
               config_path: Optional[str] = None,
               debug: bool = False,
               **kwargs) -> 'Simulator':
-        """
-        @brief Constructor
+        """Create a new simulator instance from scratch, based on configuration
+        files only.
 
-        @param urdf_path  Path of the urdf model to be used for the simulation.
-        @param hardware_path  Path of Jiminy hardware description toml file.
+        :param urdf_path: Path of the urdf model to be used for the simulation.
+        :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
                               folder and with the same name.
-        @param mesh_path  Path to the folder containing the model meshes.
+        :param mesh_path: Path to the folder containing the model meshes.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
                           used if available.
-        @param has_freeflyer  Whether the robot is fixed-based wrt its root
+        :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
                               Optional: True by default.
-        @param config_path  Configuration toml file to import. It will be
+        :param config_path: Configuration toml file to import. It will be
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
                             Optional: Looking for '.config' file in the same
                             folder and with the same name. If not found,
                             using default configuration.
-        @param debug  Whether or not the debug mode must be activated.
+        :param debug: Whether or not the debug mode must be activated.
                       Doing it enables temporary files automatic deletion.
-        @param kwargs  Keyword arguments to forward to class constructor.
+        :param kwargs: Keyword arguments to forward to class constructor.
         """
         # Generate a temporary Hardware Description File if necessary
         if hardware_path is None:
@@ -136,8 +131,10 @@ class Simulator:
                 hardware_file = tempfile.NamedTemporaryFile(
                     prefix=(urdf_name + "_hardware_"), suffix=".hdf",
                     delete=(not debug))
+
                 def close_file_at_exit(file=hardware_file):
                     file.close()
+
                 atexit.register(close_file_at_exit)
 
                 # Generate default Hardware Description File
@@ -151,10 +148,10 @@ class Simulator:
         # Instantiate and initialize the engine
         simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)
 
-        # Set some engine options, based on extra toml information
+        # Get engine options
         engine_options = simulator.engine.get_options()
 
-        ## Handling of controller and sensors update period
+        # Update controller/sensors update period, based on extra toml info
         control_period = robot.extra_info.pop('controllerUpdatePeriod', None)
         sensors_period = robot.extra_info.pop('sensorsUpdatePeriod', None)
         if control_period is None and sensors_period is None:
@@ -167,7 +164,7 @@ class Simulator:
         engine_options['stepper']['controllerUpdatePeriod'] = control_period
         engine_options['stepper']['sensorsUpdatePeriod'] = sensors_period
 
-        ## Handling of ground model parameters
+        # Handling of ground model parameters, based on extra toml info
         engine_options['contacts']['stiffness'] = \
             robot.extra_info.pop('groundStiffness', DEFAULT_GROUND_STIFFNESS)
         engine_options['contacts']['damping'] = \
@@ -184,12 +181,13 @@ class Simulator:
         self.close()
 
     def __getattr__(self, name: str) -> Any:
-        """
-        @brief Fallback attribute getter.
+        """Fallback attribute getter.
 
-        @details Implemented for convenience. It enables to get access to the
-                 attribute and methods of the low-level Jiminy engine directly,
-                 without having to do it through `engine`.
+        It enables to get access to the attribute and methods of the low-level
+        Jiminy engine directly, without having to do it through `engine`.
+
+        .. note::
+            This method is not meant to be called manually.
         """
         if name != 'engine' and hasattr(self, 'engine'):
             return getattr(self.engine, name)
@@ -198,21 +196,19 @@ class Simulator:
                 f"'{self.__class__}' object has no attribute '{name}'.")
 
     def __dir__(self) -> List[str]:
-        """
-        @brief Attribute lookup.
+        """Attribute lookup.
 
-        @details It is used for by autocomplete feature of Ipython. It is
-                 overloaded to get consistent autocompletion wrt `getattr`.
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
         """
         return super().__dir__() + self.engine.__dir__()
 
     @property
     def state(self) -> np.ndarray:
-        """
-        @brief Getter of the current state of the robot.
+        """Getter of the current state of the robot.
 
-        @remark Beware that it returns a copy, which is computationally
-                inefficient but intentional.
+        .. warning::
+            Return a copy, which is computationally inefficient but safe.
         """
         if self.engine.is_simulation_running:
             q = self.engine.system_state.q
@@ -220,15 +216,15 @@ class Simulator:
             if self.robot.is_flexible and self.use_theoretical_model:
                 return self.robot.get_rigid_state_from_flexible(q, v)
             else:
-                return q, v  # It is already a copy
+                return q.copy(), v.copy()
         else:
-            raise RuntimeError("No simulation running. Impossible to get current state.")
+            raise RuntimeError(
+                "No simulation running. Impossible to get current state.")
 
     @property
     def pinocchio_model(self) -> pin.Model:
-        """
-        @brief Getter of the pinocchio model, depending on the value of
-               'use_theoretical_model'.
+        """Getter of the pinocchio model, depending on the value of
+           'use_theoretical_model'.
         """
         if self.robot.is_flexible and self.use_theoretical_model:
             return self.robot.pinocchio_model_th
@@ -237,9 +233,8 @@ class Simulator:
 
     @property
     def pinocchio_data(self) -> pin.Model:
-        """
-        @brief Getter of the pinocchio data, depending on the value of
-               'use_theoretical_model'.
+        """Getter of the pinocchio data, depending on the value of
+           'use_theoretical_model'.
         """
         if self.robot.is_flexible and self.use_theoretical_model:
             return self.robot.pinocchio_data_th
@@ -251,19 +246,18 @@ class Simulator:
                   q: np.ndarray,
                   v: np.ndarray,
                   out: np.ndarray) -> None:
-        """
-        @brief Callback method for the simulation.
+        """Callback method for the simulation.
         """
         out[0] = True
 
     def seed(self, seed: int) -> None:
-        """
-        @brief Set the seed of the simulation and reset the simulation.
+        """Set the seed of the simulation and reset the simulation.
 
-        @details Note that it also resets the low-level jiminy Engine. One must
-                 call the `reset` method manually afterward.
+        .. warning::
+            It also resets the low-level jiminy Engine. Therefore one must call
+            the `reset` method manually afterward.
 
-        @param seed  Desired seed (Unsigned integer 32 bits).
+        :param seed: Desired seed (Unsigned integer 32 bits).
         """
         assert isinstance(seed, np.uint32), "'seed' must have type np.uint32."
 
@@ -280,37 +274,37 @@ class Simulator:
             is_state_theoretical: bool = True,
             log_path: Optional[str] = None,
             show_progress_bar: bool = True) -> None:
-        """
-        @brief Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
+        """Run a simulation, starting from x0=(q0,v0) at t=0 up to tf.
 
-        @remark Optionally, log the result of the simulation.
+        .. note::
+            Optionally, log the result of the simulation.
 
-        @param q0  Initial configuration.
-        @param v0  Initial velocity.
-        @param tf  Simulation end time.
-        @param is_state_theoretical  Whether or not the initial state is
+        :param q0: Initial configuration.
+        :param v0: Initial velocity.
+        :param tf: Simulation end time.
+        :param is_state_theoretical: Whether or not the initial state is
                                      associated with the actual or theoretical
                                      model of the robot.
-        @param log_path  Save log data to this location. Disable if None.
+        :param log_path: Save log data to this location. Disable if None.
                          Note that the format extension '.data' is enforced.
                          Optional, disable by default.
-        @param show_progress_bar  Whether or not to display a progress bar
+        :param show_progress_bar: Whether or not to display a progress bar
                                   during the simulation. None to enable only
                                   if available.
                                   Optional: None by default.
         """
         # Run the simulation
-        if show_progress_bar != False:
+        if show_progress_bar is not False:
             try:
                 self.engine.controller.set_progress_bar(tf)
             except AttributeError as e:
                 if show_progress_bar:
-                    raise RuntimeError("'show_progress_bar' can only be used "
-                        "with controller inherited from "
-                        "`BaseJiminyController`.") from e
+                    raise RuntimeError(
+                        "'show_progress_bar' can only be used with controller "
+                        "inherited from `BaseJiminyController`.") from e
                 show_progress_bar = False
         self.engine.simulate(tf, q0, v0, is_state_theoretical)
-        if show_progress_bar != False:
+        if show_progress_bar is not False:
             self.engine.controller.close_progress_bar()
 
         # Write log
@@ -324,27 +318,26 @@ class Simulator:
                height: Optional[int] = None,
                camera_xyzrpy: Optional[Tuple[
                    Union[Tuple[float, float, float], np.ndarray],
-                   Union[Tuple[float, float, float],
-                       np.ndarray]]] = None) -> Optional[np.ndarray]:
-        """
-        @brief Render the current state of the simulation. One can display it
+                   Union[Tuple[float, float, float], np.ndarray]]] = None
+               ) -> Optional[np.ndarray]:
+        """Render the current state of the simulation. One can display it
                or return an RGB array instead.
 
-        @remark Note that gepetto-gui supports parallel rendering, which means
-                that one can display multiple simulations at the same time in
-                different tabs.
+        .. note::
+            Gepetto-gui supports parallel rendering, which means that one can
+            display multiple simulations at the same time in different tabs.
 
-        @param return_rgb_array  Whether or not to return the current frame as
+        :param return_rgb_array: Whether or not to return the current frame as
                                  an rgb array.
-        @param width  Width of the returned RGB frame, if enabled.
-        @param height  Height of the returned RGB frame, if enabled.
-        @param camera_xyzrpy  Tuple position [X, Y, Z], rotation [Roll, Pitch,
+        :param width: Width of the returned RGB frame, if enabled.
+        :param height: Height of the returned RGB frame, if enabled.
+        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch,
                               Yaw] corresponding to the absolute pose of the
                               camera. None to disable.
                               Optional:None by default.
 
-        @return Rendering as an RGB array (3D numpy array), if enabled, None
-                otherwise.
+        :returns: Rendering as an RGB array (3D numpy array), if enabled, None
+                  otherwise.
         """
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
@@ -392,24 +385,34 @@ class Simulator:
             return self._viewer.capture_frame(width, height)
 
     def close(self) -> None:
-        """
-        @brief Close the connection with the renderer.
+        """Close the connection with the renderer.
         """
         if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
             self._viewer = None
 
     def plot(self) -> None:
-        """
-        @brief TODO.
+        """Display common simulation data over time.
+
+        The figure features several tabs:
+
+          - Subplots with robot configuration
+          - Subplots with robot velocity
+          - Subplots with robot acceleration
+          - Subplots with motors torques
+          - Subplots with raw sensor data (one tab for each type of sensor)
         """
         # Define some internal helper functions
         def extract_fields(log_data: Dict[str, np.ndarray],
                            namespace: Optional[str],
                            fieldnames: List[str],
-                           ) -> Optional[np.ndarray]:
-            """
-            @brief TODO.
+                           ) -> Optional[List[np.ndarray]]:
+            """Extract value associated with a set of fieldnames in a specific
+            namespace.
+
+            :param log_data: Log file, as returned by `get_log` method.
+            :param namespace: Namespace of the fieldnames. None to disable.
+            :param fieldnames: List of fieldnames.
             """
             field_values = [log_data.get(
                     '.'.join((filter(None, (namespace, field)))), None)
@@ -428,21 +431,22 @@ class Simulator:
 
         # Get robot positions, velocities, and acceleration
         for fields_type in ["Position", "Velocity", "Acceleration"]:
-            fieldnames = getattr(self.robot,
-                "logfile_" + fields_type.lower() + "_headers")
-            values = extract_fields(log_data, 'HighLevelController',
-                fieldnames)
+            fieldnames = getattr(
+                self.robot, "logfile_" + fields_type.lower() + "_headers")
+            values = extract_fields(
+                log_data, 'HighLevelController', fieldnames)
             if values is not None:
                 data[' '.join(("State", fields_type))] = OrderedDict(
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
         # Get motors information
-        u = extract_fields(log_data, 'HighLevelController',
+        u = extract_fields(
+            log_data, 'HighLevelController',
             self.robot.logfile_motor_effort_headers)
         if u is not None:
-            data['Motors Effort'] = OrderedDict((field, val)
-                for field, val in zip(self.robot.motors_names, u))
+            data['Motors Effort'] = OrderedDict(
+                (field, val) for field, val in zip(self.robot.motors_names, u))
 
         # Get sensors information
         for sensors_class, sensors_fields in SENSORS_FIELDS.items():
@@ -456,13 +460,15 @@ class Simulator:
                         for name in sensors_names]) for field in fieldnames]
                     if sensors_data[0] is not None:
                         type_name = ' '.join((sensors_type, fields_prefix))
-                        data[type_name] = OrderedDict((field,
-                            OrderedDict((name, val)
-                            for name, val in zip(sensors_names, values))
-                        ) for field, values in zip(fieldnames, sensors_data))
+                        data[type_name] = OrderedDict(
+                            (field, OrderedDict(
+                                (name, val) for name, val in zip(
+                                    sensors_names, values)))
+                            for field, values in zip(fieldnames, sensors_data))
             else:
                 for field in sensors_fields:
-                    sensors_data = extract_fields(log_data, namespace,
+                    sensors_data = extract_fields(
+                        log_data, namespace,
                         ['.'.join((name, field)) for name in sensors_names])
                     if sensors_data is not None:
                         data[' '.join((sensors_type, field))] = OrderedDict(
@@ -531,8 +537,9 @@ class Simulator:
             b.on_clicked(click)
 
         # Adjust layout and show figure (without blocking)
-        fig.subplots_adjust(bottom=0.1, top=0.92, left=0.05, right=0.95,
-            wspace=0.15, hspace=0.35)
+        fig.subplots_adjust(
+            bottom=0.1, top=0.92, left=0.05, right=0.95, wspace=0.15,
+            hspace=0.35)
         fig_name = list(fig_axes.keys())[0]
         for ax in fig_axes[fig_name]:
             ax.set_visible(True)
@@ -543,20 +550,17 @@ class Simulator:
         plt.show(block=False)
 
     def get_controller_options(self) -> dict:
-        """
-        @brief Getter of the options of Jiminy Controller.
+        """Getter of the options of Jiminy Controller.
         """
         return self.engine.controller.get_options()
 
     def set_controller_options(self, options: dict) -> None:
-        """
-        @brief Setter of the options of Jiminy Controller.
+        """Setter of the options of Jiminy Controller.
         """
         self.engine.controller.set_options(options)
 
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
-        """
-        @brief Get the options of robot (including controller), and engine.
+        """Get the options of robot (including controller), and engine.
         """
         options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
         robot_options = options['robot']
@@ -576,8 +580,7 @@ class Simulator:
 
     def set_options(self,
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
-        """
-        @brief Set the options of robot (including controller), and engine.
+        """Set the options of robot (including controller), and engine.
         """
         controller_options = options['robot'].pop('controller')
         self.robot.set_options(options['robot'])
@@ -585,11 +588,12 @@ class Simulator:
         self.engine.set_options(options['engine'])
 
     def export_options(self, config_path: Optional[str] = None) -> None:
-        """
-        @brief Export the full configuration, ie the options of the robot (
-               including controller), and the engine.
+        """Export the full configuration, ie the options of the robot (
+        including controller), and the engine.
 
-        @remark Configuration can be imported using `import_options` method.
+        .. note::
+            the configuration can be imported thereafter using `import_options`
+            method.
         """
         if config_path is None:
             config_path = pathlib.Path(
@@ -598,11 +602,12 @@ class Simulator:
             toml.dump(self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
     def import_options(self, config_path: Optional[str] = None) -> None:
-        """
-        @brief Import the full configuration, ie the options of the robot (
-               including controller), and the engine.
+        """Import the full configuration, ie the options of the robot (
+        including controller), and the engine.
 
-        @remark Configuration can be exported using `export_options` method.
+        .. note::
+            Configuration can be exported beforehand using `export_options`
+            method.
         """
         if config_path is None:
             config_path = pathlib.Path(

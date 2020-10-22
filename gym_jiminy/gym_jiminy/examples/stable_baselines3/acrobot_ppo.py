@@ -1,12 +1,14 @@
 """
-@brief Solve the official Open AI Gym Cartpole problem simulated in Jiminy using
+@brief Solve the official Open AI Gym Acrobot problem simulated in Jiminy using
        PPO algorithm of Stable_baseline3 reinforcement learning framework.
 
 @details It solves it consistently in less than 100000 timesteps in average,
          and in about 40000 at best.
 
-@remark This script requires pytorch>=1.4 and and stable-baselines3[extra]==0.9.
+@remark This script requires pytorch>=1.4 and stable-baselines3[extra]==0.9.
 """
+# flake8: noqa
+
 # ======================== User parameters =========================
 
 GYM_ENV_NAME = "gym_jiminy:jiminy-acrobot-v0"

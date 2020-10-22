@@ -27,6 +27,7 @@ class Net(nn.Module):
         logits = self.model(obs)
         return logits, state
 
+
 class Actor(nn.Module):
     def __init__(self,
                  preprocess_net: Net,
@@ -65,6 +66,7 @@ class Actor(nn.Module):
                 sigma = torch.exp(self.sigma(logits))
             return (mu, sigma), None
 
+
 class Critic(nn.Module):
     def __init__(self, preprocess_net: Net):
         super().__init__()
@@ -80,8 +82,8 @@ class Critic(nn.Module):
 def build_actor_critic(
         env_creator: Callable[[], gym.core.Env],
         vf_share_layers: bool,
-        free_log_std: bool) -> Tuple[Actor, Critic,
-            Callable[[torch.Tensor, torch.Tensor], torch.Tensor]]:
+        free_log_std: bool) -> Tuple[Actor, Critic, Callable[
+            [torch.Tensor, torch.Tensor], torch.Tensor]]:
     # Instantiate actor and critic
     env = env_creator()
     net = Net(env.observation_space)
@@ -101,6 +103,7 @@ def build_actor_critic(
     if isinstance(env.action_space, gym.spaces.Discrete):
         dist_fn = Categorical
     else:
-        dist_fn = lambda *args: Independent(Normal(*args), 1)  # Diagonal normal
+        def dist_fn(*args):
+            return Independent(Normal(*args), 1)  # Diagonal normal
 
     return actor, critic, dist_fn

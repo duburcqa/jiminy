@@ -52,27 +52,37 @@ def initialize(num_cpus: int = 0,
     # Initialize Ray server, if not already running
     if not ray.is_initialized():
         ray.init(
-            address=None,             # The address of the Ray cluster to connect to, if any.
-            num_cpus=num_cpus,        # Number of CPUs assigned to each raylet (None to disable limit)
-            num_gpus=num_gpus,        # Number of GPUs assigned to each raylet (None to disable limit)
-            _lru_evict=False,         # Enable object eviction in LRU order if under memory pressure (not recommended)
-            local_mode=False,         # If true, the code will be executed serially (for debugging purpose)
-            logging_level=20,         # Logging level
-            log_to_driver=False,      # Whether to redirect the output from every worker to the driver
-            include_dashboard=True,   # Whether to start the Ray dashboard, which displays cluster's status
-            dashboard_host="0.0.0.0"  # The host to bind the dashboard server to.
+            # Address of Ray cluster to connect to, if any
+            address=None,
+            # Number of CPUs assigned to each raylet (None to disable limit)
+            num_cpus=num_cpus,
+            # Number of GPUs assigned to each raylet (None to disable limit)
+            num_gpus=num_gpus,
+            # Enable object eviction in LRU order under memory pressure
+            _lru_evict=False,
+            # Whether or not to execute the code serially (for debugging)
+            local_mode=False,
+            # Logging level
+            logging_level=20,
+            # Whether to redirect the output from every worker to the driver
+            log_to_driver=False,
+            # Whether to start Ray dashboard, which displays cluster's status
+            include_dashboard=True,
+            # The host to bind the dashboard server to
+            dashboard_host="0.0.0.0"
         )
 
     # Configure Tensorboard
     if log_root_path is None:
         log_root_path = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "log")
-    if not 'tb' in locals().keys():
+    if 'tb' not in locals().keys():
         tb = TensorBoard()
         tb.configure(host="0.0.0.0", logdir=log_root_path)
         url = tb.launch()
         if verbose:
-            print(f"Started Tensorboard {url}. Root directory: {log_root_path}")
+            print(f"Started Tensorboard {url}. "
+                  f"Root directory: {log_root_path}")
 
     # Create log directory
     if log_name is None:
@@ -88,6 +98,7 @@ def initialize(num_cpus: int = 0,
         return UnifiedLogger(config, log_path, loggers=None)
 
     return logger_creator
+
 
 def train(train_agent: Trainer,
           max_timesteps: int,
@@ -138,6 +149,7 @@ def train(train_agent: Trainer,
             print("Interrupting training...")
 
     return train_agent.save()
+
 
 def test(test_agent: Trainer,
          max_episodes: int = math.inf,
