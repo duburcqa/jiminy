@@ -26,6 +26,7 @@ from pinocchio.rpy import rpyToMatrix
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
 DEFAULT_FRICTION_DRY_SLOPE = 0.0
 
+
 class _DuplicateFilter:
     def __init__(self):
         self.msgs = set()
@@ -374,7 +375,7 @@ def generate_hardware_description_file(
                      ('mechanicalReduction', 1.0),
                      ('rotorInertia', 0.0),
                      *joints_options.pop(joint_name).items()
-                    ])})
+                     ])})
             hardware_info['Sensor'].setdefault(effort.type, {}).update(
                 {joint_name: OrderedDict(
                     motor_name=joint_name)})
