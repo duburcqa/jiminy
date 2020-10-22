@@ -96,6 +96,7 @@ class Simulator:
               mesh_path: Optional[str] = None,
               has_freeflyer: bool = True,
               config_path: Optional[str] = None,
+              avoid_instable_collisions: bool = True,
               debug: bool = False,
               **kwargs) -> 'Simulator':
         """Create a new simulator instance from scratch, based on configuration
@@ -118,6 +119,11 @@ class Simulator:
                             Optional: Looking for '.config' file in the same
                             folder and with the same name. If not found,
                             using default configuration.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
         :param debug: Whether or not the debug mode must be activated.
                       Doing it enables temporary files automatic deletion.
         :param kwargs: Keyword arguments to forward to class constructor.
@@ -143,7 +149,8 @@ class Simulator:
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
-        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer)
+        robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer,
+                         avoid_instable_collisions)
 
         # Instantiate and initialize the engine
         simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)

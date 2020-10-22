@@ -480,7 +480,8 @@ class BaseJiminyRobot(jiminy.Robot):
                    urdf_path: str,
                    hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
-                   has_freeflyer: bool = True):
+                   has_freeflyer: bool = True,
+                   avoid_instable_collisions: bool = True):
         """Initialize the robot.
 
         :param urdf_path: Path of the URDF file of the robot.
@@ -495,6 +496,11 @@ class BaseJiminyRobot(jiminy.Robot):
                           used if available.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
         """
         # Backup the original URDF path
         self.urdf_path_orig = urdf_path
@@ -569,6 +575,8 @@ class BaseJiminyRobot(jiminy.Robot):
             # only collision meshes.
             if body_name in geometry_info['collision']['mesh'] and \
                     body_name in geometry_info['collision']['primitive']:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body having both primitive and mesh geometries "
                     "is not supported. Enabling only primitive collision for "
@@ -577,6 +585,8 @@ class BaseJiminyRobot(jiminy.Robot):
             elif body_name in geometry_info['collision']['primitive']:
                 pass
             elif body_name in geometry_info['collision']['mesh']:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body associated with mesh geometry is not "
                     "supported for now. Replacing it by contact points at the "
@@ -605,6 +615,8 @@ class BaseJiminyRobot(jiminy.Robot):
 
             # Replace the collision boxes by contact points, if any
             if collision_box_sizes_info:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body associated with box geometry is not "
                     "numerically stable for now. Replacing it by contact "
@@ -681,7 +693,8 @@ class BaseJiminyRobot(jiminy.Robot):
         # Note that it must be done before adding the sensors because
         # Contact sensors requires contact points to be defined.
         # Mesh collisions is not numerically stable for now, so disabling it.
-        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)
+        self.add_collision_bodies(
+            collision_bodies_names, ignore_meshes=avoid_instable_collisions)
         self.add_contact_points(list(set(contact_frames_names)))
 
         # Add the motors to the robot
