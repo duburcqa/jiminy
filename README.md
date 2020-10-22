@@ -37,7 +37,7 @@ Beside a strong focus on performance to answer machine learning's need for runni
 
 A more complete list of features, development status, and changelog are available on the [wiki](https://github.com/Wandercraft/jiminy/wiki).
 
-**The Doxygen documentation is available on [Github.io](https://wandercraft.github.io/jiminy/) and locally in `docs/index.html`.**
+**The documentation is available on [Github.io](https://wandercraft.github.io/jiminy/), or locally in `docs/html/index.html` if built from source.**
 
 ## Gym Jiminy
 
