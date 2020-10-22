@@ -40,12 +40,14 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
+def _string_to_array(txt: str) -> np.ndarray:
+    return np.array(list(map(float, txt.split())))
+
+
 def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
     if origin_info is not None:
-        origin_xyz = np.array(
-            list(map(float, origin_info.attrib['xyz'].split())))
-        origin_rpy = np.array(
-            list(map(float, origin_info.attrib['rpy'].split())))
+        origin_xyz = _string_to_array(origin_info.attrib['xyz'])
+        origin_rpy = _string_to_array(origin_info.attrib['rpy'])
         return pin.SE3(rpyToMatrix(origin_rpy), origin_xyz)
     else:
         return pin.SE3.Identity()
@@ -121,13 +123,17 @@ def generate_hardware_description_file(
     )
 
     # Extract the list of parent and child links, excluding the one related
-    # to fixed joints, because they are likely not "real" joint.
+    # to fixed link not having collision geometry, because they are likely not
+    # "real" joint.
     parent_links = set()
     child_links = set()
     for joint_descr in root.findall('./joint'):
-        if joint_descr.get('type').casefold() != 'fixed':
-            parent_links.add(joint_descr.find('./parent').get('link'))
-            child_links.add(joint_descr.find('./child').get('link'))
+        parent_link = joint_descr.find('./parent').get('link')
+        child_link = joint_descr.find('./child').get('link')
+        if joint_descr.get('type').casefold() != 'fixed' or root.find(
+                f"./link[@name='{child_link}']/collision") is not None:
+            parent_links.add(parent_link)
+            child_links.add(child_link)
 
     # Compute the root link and the leaf ones
     root_link = next(iter(parent_links.difference(child_links)))
@@ -235,8 +241,7 @@ def generate_hardware_description_file(
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
             root_link: OrderedDict(
                 body_name=root_link,
-                frame_pose=6*[0.0]
-            )
+                frame_pose=6*[0.0])
         })
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
@@ -246,8 +251,7 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
                     body_name=leaf_link,
-                    frame_pose=6*[0.0]
-                )
+                    frame_pose=6*[0.0])
             })
 
             # Add the related body to the collision set
@@ -279,8 +283,7 @@ def generate_hardware_description_file(
             frictionViscousNegative=-damping,
             frictionDryPositive=-friction,
             frictionDryNegative=-friction,
-            frictionDrySlope=-DEFAULT_FRICTION_DRY_SLOPE
-        )
+            frictionDrySlope=-DEFAULT_FRICTION_DRY_SLOPE)
 
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
