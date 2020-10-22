@@ -642,6 +642,9 @@ class BaseJiminyRobot(jiminy.Robot):
                 mesh_links = body_link.findall('visual')
             mesh_paths = [link.find('geometry/mesh').get('filename')
                           for link in mesh_links]
+            mesh_scales = [_string_to_array(link.find('geometry/mesh').get(
+                               'scale', '1.0 1.0 1.0'))
+                           for link in mesh_links]
             mesh_origins = []
             for link in mesh_links:
                 mesh_origin_info = link.find('origin')
@@ -650,7 +653,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 mesh_origins.append(mesh_origin_transform)
 
             # Replace the collision body by contact points
-            for mesh_path, mesh_origin in zip(mesh_paths, mesh_origins):
+            for mesh_path, mesh_scale, mesh_origin in zip(
+                    mesh_paths, mesh_scales, mesh_origins):
                 # Replace relative mesh path by absolute one
                 if mesh_path.startswith("package://"):
                     mesh_path_orig = mesh_path
@@ -667,8 +671,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 box = mesh.bounding_box_oriented
                 for i in range(8):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))
-                    frame_transform_rel = \
-                        pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
+                    frame_transform_rel = pin.SE3(
+                        np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
                     frame_transform = mesh_origin.act(frame_transform_rel)
                     self.add_frame(frame_name, body_name, frame_transform)
                     contact_frames_names.append(frame_name)
