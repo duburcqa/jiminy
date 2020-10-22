@@ -628,8 +628,9 @@ class BaseJiminyEnv(gym.core.Env):
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        # Enable the effort limits of the motors
+        # Enable the friction model and effort limits of the motors
         for motor_name in robot_options["motors"].keys():
+            robot_options["motors"][motor_name]["enableFriction"] = True
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
         # Configure the stepper

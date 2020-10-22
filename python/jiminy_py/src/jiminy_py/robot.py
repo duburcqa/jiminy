@@ -24,7 +24,7 @@ from pinocchio.rpy import rpyToMatrix
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
-
+DEFAULT_FRICTION_DRY_SLOPE = 0.0
 
 class _DuplicateFilter:
     def __init__(self):
@@ -261,6 +261,27 @@ def generate_hardware_description_file(
     if gazebo_ground_damping is not None:
         hardware_info['Global']['groundDamping'] = gazebo_ground_damping
 
+    # Extract joint dynamics properties, namely 'friction' and 'damping'
+    joints_options = {}
+    for joint_descr in root.findall("./joint"):
+        if joint_descr.get('type').casefold() == 'fixed':
+            continue
+        joint_name = joint_descr.get('name')
+        dyn_descr = joint_descr.find('./dynamics')
+        if dyn_descr is not None:
+            damping = float(dyn_descr.get('damping'))
+            friction = float(dyn_descr.get('friction'))
+        else:
+            damping = 0.0
+            friction = 0.0
+        joints_options[joint_name] = OrderedDict(
+            frictionViscousPositive=-damping,
+            frictionViscousNegative=-damping,
+            frictionDryPositive=-friction,
+            frictionDryNegative=-friction,
+            frictionDrySlope=-DEFAULT_FRICTION_DRY_SLOPE
+        )
+
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
     # URDF standard, so it should be available on any URDF file.
@@ -315,6 +336,9 @@ def generate_hardware_description_file(
         else:
             motor_info['rotorInertia'] = float(armature_inertia.text)
 
+        # Add dynamics property to motor info, if any
+        motor_info.update(joints_options.pop(joint_name))
+
         # Add the motor and sensor to the robot's hardware
         hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
             {motor_name: motor_info})
@@ -343,12 +367,19 @@ def generate_hardware_description_file(
         if not transmission_found:
             hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
                 {joint_name: OrderedDict(
-                    joint_name=joint_name,
-                    mechanicalReduction=1.0,
-                    rotorInertia=0.0)})
+                    [('joint_name', joint_name),
+                     ('mechanicalReduction', 1.0),
+                     ('rotorInertia', 0.0),
+                     *joints_options.pop(joint_name).items()
+                    ])})
             hardware_info['Sensor'].setdefault(effort.type, {}).update(
                 {joint_name: OrderedDict(
                     motor_name=joint_name)})
+
+    # Warn if friction model has been defined for non-actuated joints
+    if joints_options:
+        logger.warning(
+            "Jiminy only support friction model for actuated joint.")
 
     # Specify custom update rate for the controller and the sensors, if any
     if gazebo_update_rate is not None:
