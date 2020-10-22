@@ -19,12 +19,15 @@ fi
 # Get Python 3 executable
 PYTHON_BIN="$(basename $(readlink $(which python3)))"
 
-# Install Python 3 tools
+# Install Python 3 standard utilities
 apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade pip && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install wheel && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
+
+# Install Python 3 toolsuite for testing and documentation generation
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade pygments flake8 sphinx sphinx_rtd_theme recommonmark nbsphinx breathe
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc

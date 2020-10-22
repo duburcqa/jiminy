@@ -40,7 +40,8 @@ jobs:
         git config --global advice.detachedHead false
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
-        "${PYTHON_EXECUTABLE}" -m pip install twine wheel && "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
+        "${PYTHON_EXECUTABLE}" -m pip install twine wheel
+        "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
     - name: Build project dependencies
       run: |
