@@ -439,7 +439,11 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Make sure the state is valid, otherwise there `_fetch_obs` and
         # `_refresh_observation_space` are inconsistent.
-        if not self.observation_space.contains(self._observation):
+        try:
+            is_obs_valid = self.observation_space.contains(self._observation)
+        except Exception:
+            is_obs_valid = False
+        if not is_obs_valid:
             raise RuntimeError(
                 "The observation returned by `_fetch_obs` is inconsistent "
                 "with the observation space defined by "
