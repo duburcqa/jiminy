@@ -275,8 +275,8 @@ class BaseJiminyEnv(gym.core.Env):
         if imu.type in sensors_data.keys():
             quat_imu_idx = [
                 field.startswith('Quat') for field in imu.fieldnames]
-            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0
-            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0
+            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
+            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
 
         if enforce_bounded:
             # Replace inf bounds of the contact sensor space

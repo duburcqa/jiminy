@@ -719,20 +719,20 @@ namespace jiminy
                 if (jointType == joint_t::SPHERICAL)
                 {
                     uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0);
+                    positionLimitMin_.segment<4>(positionIdx).setConstant(-1.0 - EPS);
+                    positionLimitMax_.segment<4>(positionIdx).setConstant(+1.0 + EPS);
                 }
                 if (jointType == joint_t::FREE)
                 {
                     uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0);
-                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0);
+                    positionLimitMin_.segment<4>(positionIdx + 3).setConstant(-1.0 - EPS);
+                    positionLimitMax_.segment<4>(positionIdx + 3).setConstant(+1.0 + EPS);
                 }
                 if (jointType == joint_t::ROTARY_UNBOUNDED)
                 {
                     uint32_t const & positionIdx = pncModel_.joints[i].idx_q();
-                    positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0);
-                    positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0);
+                    positionLimitMin_.segment<2>(positionIdx).setConstant(-1.0 - EPS);
+                    positionLimitMax_.segment<2>(positionIdx).setConstant(+1.0 + EPS);
                 }
             }
 
