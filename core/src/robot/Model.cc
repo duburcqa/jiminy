@@ -152,7 +152,7 @@ namespace jiminy
         {
             int32_t const & parentJointId = pncModelRigidOrig_.frames[parentFrameId].parent;
             pinocchio::SE3 const & parentFramePlacement = pncModelRigidOrig_.frames[parentFrameId].placement;
-            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
             pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelRigidOrig_.addFrame(frame);
         }
@@ -164,7 +164,7 @@ namespace jiminy
             getFrameIdx(pncModelFlexibleOrig_, parentBodyName, parentFrameId);
             int32_t const & parentJointId = pncModelFlexibleOrig_.frames[parentFrameId].parent;
             pinocchio::SE3 const & parentFramePlacement = pncModelFlexibleOrig_.frames[parentFrameId].placement;
-            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.actInv(framePlacement);
+            pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
             pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelFlexibleOrig_.addFrame(frame);
         }
