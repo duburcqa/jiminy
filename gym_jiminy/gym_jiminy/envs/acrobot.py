@@ -276,7 +276,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         @details Only the state is observable, while by default, the current
                  time, state, and sensors data are available.
         """
-        if not self.enable_goal_env:
+        if self.enable_goal_env:
             super()._refresh_observation_space()
         else:
             self.observation_space = self._get_state_space()

@@ -4,7 +4,7 @@
        PPO algorithm of Tianshou reinforcement learning framework.
 
 @details It solves it consistently in less than 100000 timesteps in average,
-         and in about 30000 at best.
+         and in about 25000 at best.
 
 @remark This script requires pytorch>=1.4 and tianshou==0.3.0.
 """
