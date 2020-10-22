@@ -368,6 +368,7 @@ class Simulator:
                                   robot_name=robot_name,
                                   scene_name=scene_name,
                                   window_name=window_name)
+            self.viewer_backend = Viewer.backend
             if self._viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
             self._viewer.wait(False)  # Wait for backend to finish loading
