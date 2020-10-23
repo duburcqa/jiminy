@@ -31,3 +31,7 @@ register(
     id='jiminy-atlas-pid-v0',
     entry_point='gym_jiminy.envs:AtlasPDControlJiminyEnv'
 )
+register(
+    id='jiminy-spotmicro-v0',
+    entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
+)

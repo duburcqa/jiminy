@@ -275,8 +275,8 @@ class BaseJiminyEnv(gym.core.Env):
         if imu.type in sensors_data.keys():
             quat_imu_idx = [
                 field.startswith('Quat') for field in imu.fieldnames]
-            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0
-            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0
+            sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
+            sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
 
         if enforce_bounded:
             # Replace inf bounds of the contact sensor space
@@ -439,7 +439,11 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Make sure the state is valid, otherwise there `_fetch_obs` and
         # `_refresh_observation_space` are inconsistent.
-        if not self.observation_space.contains(self._observation):
+        try:
+            is_obs_valid = self.observation_space.contains(self._observation)
+        except Exception:
+            is_obs_valid = False
+        if not is_obs_valid:
             raise RuntimeError(
                 "The observation returned by `_fetch_obs` is inconsistent "
                 "with the observation space defined by "
@@ -628,8 +632,9 @@ class BaseJiminyEnv(gym.core.Env):
         robot_options["model"]["joints"]["enablePositionLimit"] = True
         robot_options["model"]["joints"]["enableVelocityLimit"] = True
 
-        # Enable the effort limits of the motors
+        # Enable the friction model and effort limits of the motors
         for motor_name in robot_options["motors"].keys():
+            robot_options["motors"][motor_name]["enableFriction"] = True
             robot_options["motors"][motor_name]["enableEffortLimit"] = True
 
         # Configure the stepper

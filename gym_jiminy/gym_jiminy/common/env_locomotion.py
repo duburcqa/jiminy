@@ -69,6 +69,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
+                 avoid_instable_collisions: bool = True,
                  debug: bool = False,
                  **kwargs):
         """
@@ -94,6 +95,11 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                             Optional: Looking for '.config' file in the same
                             folder and with the same name. If not found,
                             using default configuration.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
         :param debug: Whether or not the debug mode must be activated.
                       Doing it enables telemetry recording.
         :param kwargs: Keyword arguments to forward to `BaseJiminyEnv` class.
@@ -123,6 +129,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.hardware_path = hardware_path
         self.config_path = config_path
         self.std_ratio = std_ratio
+        self.avoid_instable_collisions = avoid_instable_collisions
 
         # Robot and engine internal buffers
         self._log_data = None
@@ -156,7 +163,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             self.simulator = Simulator.build(
                 self.urdf_path, self.hardware_path, self.mesh_path,
                 has_freeflyer=True, use_theoretical_model=False,
-                config_path=self.config_path, debug=self.debug)
+                config_path=self.config_path,
+                avoid_instable_collisions=self.avoid_instable_collisions,
+                debug=self.debug)
 
         # Discard log data since no longer relevant
         self._log_data = None
@@ -413,6 +422,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
+                 avoid_instable_collisions: bool = True,
                  debug: bool = False):
         """
         :param urdf_path: Path of the urdf model to be used for the simulation.
@@ -444,6 +454,11 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                             Optional: Looking for '.config' file in the same
                             folder and with the same name. If not found,
                             using default configuration.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
         :param debug: Whether or not the debug mode must be activated.
                       Doing it enables telemetry recording.
         """
@@ -460,7 +475,8 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         # Initialize the environment
         super().__init__(
             urdf_path, hardware_path, mesh_path, simu_duration_max, dt,
-            reward_mixture, std_ratio, config_path, debug)
+            reward_mixture, std_ratio, config_path, avoid_instable_collisions,
+            debug)
 
     def _setup_environment(self) -> None:
         """Configure the environment.

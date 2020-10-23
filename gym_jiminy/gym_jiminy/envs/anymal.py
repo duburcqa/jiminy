@@ -57,6 +57,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
+            avoid_instable_collisions=False,
             debug=debug,
             **kwargs)
 

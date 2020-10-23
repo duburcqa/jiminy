@@ -129,7 +129,6 @@ def update_quantities(robot: jiminy.Robot,
             else:
                 pin.forwardKinematics(
                     pnc_model, pnc_data, position, velocity, acceleration)
-            pin.framesForwardKinematics(pnc_model, pnc_data, position)
 
         if update_energy:
             if velocity is not None:
@@ -137,6 +136,7 @@ def update_quantities(robot: jiminy.Robot,
                     pnc_model, pnc_data, position, velocity, False)
             pin.potentialEnergy(pnc_model, pnc_data, position, False)
 
+    pin.updateFramePlacements(pnc_model, pnc_data)
     pin.updateGeometryPlacements(
         pnc_model, pnc_data, robot.collision_model, robot.collision_data)
     pin.computeCollisions(
@@ -508,10 +508,6 @@ def compute_freeflyer_state_from_fixed_body(
                 robot, fixed_body_name, use_theoretical_model=False)
             base_link_acceleration = - ff_a_fixedBody
             acceleration[:6] = base_link_acceleration.vector
-
-    update_quantities(
-        robot, position, velocity, acceleration, update_physics=False,
-        use_theoretical_model=False)
 
     return fixed_body_name
 

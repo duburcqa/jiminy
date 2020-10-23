@@ -24,6 +24,7 @@ from pinocchio.rpy import rpyToMatrix
 
 
 DEFAULT_UPDATE_RATE = 1000.0  # [Hz]
+DEFAULT_FRICTION_DRY_SLOPE = 0.0
 
 
 class _DuplicateFilter:
@@ -40,12 +41,14 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
+def _string_to_array(txt: str) -> np.ndarray:
+    return np.array(list(map(float, txt.split())))
+
+
 def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
     if origin_info is not None:
-        origin_xyz = np.array(
-            list(map(float, origin_info.attrib['xyz'].split())))
-        origin_rpy = np.array(
-            list(map(float, origin_info.attrib['rpy'].split())))
+        origin_xyz = _string_to_array(origin_info.attrib['xyz'])
+        origin_rpy = _string_to_array(origin_info.attrib['rpy'])
         return pin.SE3(rpyToMatrix(origin_rpy), origin_xyz)
     else:
         return pin.SE3.Identity()
@@ -121,13 +124,17 @@ def generate_hardware_description_file(
     )
 
     # Extract the list of parent and child links, excluding the one related
-    # to fixed joints, because they are likely not "real" joint.
+    # to fixed link not having collision geometry, because they are likely not
+    # "real" joint.
     parent_links = set()
     child_links = set()
     for joint_descr in root.findall('./joint'):
-        if joint_descr.get('type').casefold() != 'fixed':
-            parent_links.add(joint_descr.find('./parent').get('link'))
-            child_links.add(joint_descr.find('./child').get('link'))
+        parent_link = joint_descr.find('./parent').get('link')
+        child_link = joint_descr.find('./child').get('link')
+        if joint_descr.get('type').casefold() != 'fixed' or root.find(
+                f"./link[@name='{child_link}']/collision") is not None:
+            parent_links.add(parent_link)
+            child_links.add(child_link)
 
     # Compute the root link and the leaf ones
     root_link = next(iter(parent_links.difference(child_links)))
@@ -235,8 +242,7 @@ def generate_hardware_description_file(
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
             root_link: OrderedDict(
                 body_name=root_link,
-                frame_pose=6*[0.0]
-            )
+                frame_pose=6*[0.0])
         })
 
     # Add force sensors and collision bodies if no Gazebo plugin is available
@@ -246,8 +252,7 @@ def generate_hardware_description_file(
             hardware_info['Sensor'].setdefault(force.type, {}).update({
                 leaf_link: OrderedDict(
                     body_name=leaf_link,
-                    frame_pose=6*[0.0]
-                )
+                    frame_pose=6*[0.0])
             })
 
             # Add the related body to the collision set
@@ -260,6 +265,26 @@ def generate_hardware_description_file(
         hardware_info['Global']['groundStiffness'] = gazebo_ground_stiffness
     if gazebo_ground_damping is not None:
         hardware_info['Global']['groundDamping'] = gazebo_ground_damping
+
+    # Extract joint dynamics properties, namely 'friction' and 'damping'
+    joints_options = {}
+    for joint_descr in root.findall("./joint"):
+        if joint_descr.get('type').casefold() == 'fixed':
+            continue
+        joint_name = joint_descr.get('name')
+        dyn_descr = joint_descr.find('./dynamics')
+        if dyn_descr is not None:
+            damping = float(dyn_descr.get('damping'))
+            friction = float(dyn_descr.get('friction'))
+        else:
+            damping = 0.0
+            friction = 0.0
+        joints_options[joint_name] = OrderedDict(
+            frictionViscousPositive=-damping,
+            frictionViscousNegative=-damping,
+            frictionDryPositive=-friction,
+            frictionDryNegative=-friction,
+            frictionDrySlope=-DEFAULT_FRICTION_DRY_SLOPE)
 
     # Extract the motors and effort sensors.
     # It is done by reading 'transmission' field, that is part of
@@ -315,6 +340,9 @@ def generate_hardware_description_file(
         else:
             motor_info['rotorInertia'] = float(armature_inertia.text)
 
+        # Add dynamics property to motor info, if any
+        motor_info.update(joints_options.pop(joint_name))
+
         # Add the motor and sensor to the robot's hardware
         hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
             {motor_name: motor_info})
@@ -343,12 +371,19 @@ def generate_hardware_description_file(
         if not transmission_found:
             hardware_info['Motor'].setdefault('SimpleMotor', {}).update(
                 {joint_name: OrderedDict(
-                    joint_name=joint_name,
-                    mechanicalReduction=1.0,
-                    rotorInertia=0.0)})
+                    [('joint_name', joint_name),
+                     ('mechanicalReduction', 1.0),
+                     ('rotorInertia', 0.0),
+                     *joints_options.pop(joint_name).items()
+                     ])})
             hardware_info['Sensor'].setdefault(effort.type, {}).update(
                 {joint_name: OrderedDict(
                     motor_name=joint_name)})
+
+    # Warn if friction model has been defined for non-actuated joints
+    if joints_options:
+        logger.warning(
+            "Jiminy only support friction model for actuated joint.")
 
     # Specify custom update rate for the controller and the sensors, if any
     if gazebo_update_rate is not None:
@@ -446,7 +481,8 @@ class BaseJiminyRobot(jiminy.Robot):
                    urdf_path: str,
                    hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
-                   has_freeflyer: bool = True):
+                   has_freeflyer: bool = True,
+                   avoid_instable_collisions: bool = True):
         """Initialize the robot.
 
         :param urdf_path: Path of the URDF file of the robot.
@@ -461,6 +497,11 @@ class BaseJiminyRobot(jiminy.Robot):
                           used if available.
         :param has_freeflyer: Whether the robot is fixed-based wrt its root
                               link, or can move freely in the world.
+        :param avoid_instable_collisions: Prevent numerical instabilities by
+                                          replacing collision mesh by vertices
+                                          of associated minimal volume bounding
+                                          box, and replacing primitive box by
+                                          its vertices.
         """
         # Backup the original URDF path
         self.urdf_path_orig = urdf_path
@@ -518,7 +559,7 @@ class BaseJiminyRobot(jiminy.Robot):
             primitive_links = [name for name in geometry_links if set(
                 link.getchildren()[0].tag for link in root.find(
                     f"./link[@name='{name}']").findall(
-                        f'{geometry_type}/geometry')).difference('mesh')]
+                        f'{geometry_type}/geometry')).difference({'mesh'})]
             geometry_info[geometry_type]['mesh'] = mesh_links
             geometry_info[geometry_type]['primitive'] = primitive_links
 
@@ -535,6 +576,8 @@ class BaseJiminyRobot(jiminy.Robot):
             # only collision meshes.
             if body_name in geometry_info['collision']['mesh'] and \
                     body_name in geometry_info['collision']['primitive']:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body having both primitive and mesh geometries "
                     "is not supported. Enabling only primitive collision for "
@@ -543,6 +586,8 @@ class BaseJiminyRobot(jiminy.Robot):
             elif body_name in geometry_info['collision']['primitive']:
                 pass
             elif body_name in geometry_info['collision']['mesh']:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body associated with mesh geometry is not "
                     "supported for now. Replacing it by contact points at the "
@@ -571,6 +616,8 @@ class BaseJiminyRobot(jiminy.Robot):
 
             # Replace the collision boxes by contact points, if any
             if collision_box_sizes_info:
+                if not avoid_instable_collisions:
+                    continue
                 logger.warning(
                     "Collision body associated with box geometry is not "
                     "numerically stable for now. Replacing it by contact "
@@ -608,6 +655,9 @@ class BaseJiminyRobot(jiminy.Robot):
                 mesh_links = body_link.findall('visual')
             mesh_paths = [link.find('geometry/mesh').get('filename')
                           for link in mesh_links]
+            mesh_scales = [_string_to_array(link.find('geometry/mesh').get(
+                               'scale', '1.0 1.0 1.0'))
+                           for link in mesh_links]
             mesh_origins = []
             for link in mesh_links:
                 mesh_origin_info = link.find('origin')
@@ -616,7 +666,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 mesh_origins.append(mesh_origin_transform)
 
             # Replace the collision body by contact points
-            for mesh_path, mesh_origin in zip(mesh_paths, mesh_origins):
+            for mesh_path, mesh_scale, mesh_origin in zip(
+                    mesh_paths, mesh_scales, mesh_origins):
                 # Replace relative mesh path by absolute one
                 if mesh_path.startswith("package://"):
                     mesh_path_orig = mesh_path
@@ -633,8 +684,8 @@ class BaseJiminyRobot(jiminy.Robot):
                 box = mesh.bounding_box_oriented
                 for i in range(8):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))
-                    frame_transform_rel = \
-                        pin.SE3(np.eye(3), np.asarray(box.vertices[i]))
+                    frame_transform_rel = pin.SE3(
+                        np.eye(3), mesh_scale * np.asarray(box.vertices[i]))
                     frame_transform = mesh_origin.act(frame_transform_rel)
                     self.add_frame(frame_name, body_name, frame_transform)
                     contact_frames_names.append(frame_name)
@@ -643,7 +694,8 @@ class BaseJiminyRobot(jiminy.Robot):
         # Note that it must be done before adding the sensors because
         # Contact sensors requires contact points to be defined.
         # Mesh collisions is not numerically stable for now, so disabling it.
-        self.add_collision_bodies(collision_bodies_names, ignore_meshes=True)
+        self.add_collision_bodies(
+            collision_bodies_names, ignore_meshes=avoid_instable_collisions)
         self.add_contact_points(list(set(contact_frames_names)))
 
         # Add the motors to the robot

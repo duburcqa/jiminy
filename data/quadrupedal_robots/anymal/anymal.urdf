@@ -3,6 +3,7 @@
 <!-- |    This URDF was edited to fix inertias and mesh paths.                         | -->
 <!-- =================================================================================== -->
 <!-- This file contains the description of the ANYmal B robot. -->
+<!-- Mesh paths have been modified. -->
 <!-- https://github.com/Gepetto/example-robot-data/blob/v3.6.0/robots/anymal_b_simple_description/robots/anymal.urdf -->
 <robot name="anymal"
   xmlns:xacro="http://www.ros.org/wiki/xacro">
