@@ -38,12 +38,13 @@ def loadPrimitive(self, meshName, geometry_object):  # noqa
     if geometry_object.name == "ground":
         return False
     elif isinstance(geom, hppfcl.Convex):
-        pts = [pin.rpy.npToTuple(geom.points(geom.polygons(f)[i]))
+        pts = [pin.utils.npToTuple(geom.points(geom.polygons(f)[i]))
                for f in range(geom.num_polygons) for i in range(3)]
         self.viewer.gui.addCurve(
-            meshName, pts, pin.rpy.npToTuple(geometry_object.meshColor))
+            meshName, pts, pin.utils.npToTuple(geometry_object.meshColor))
         self.viewer.gui.setCurveMode(meshName, "TRIANGLES")
         self.viewer.gui.setLightingMode(meshName, "ON")
+        self.viewer.gui.setBoolProperty(meshName, "BackfaceDrawing", True)
         return True
     else:
         return loadPrimitive_orig(self, meshName, geometry_object)
