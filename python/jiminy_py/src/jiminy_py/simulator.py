@@ -397,6 +397,7 @@ class Simulator:
         """
         if hasattr(self, '_viewer') and self._viewer is not None:
             self._viewer.close()
+            self._is_viewer_available = False
             self._viewer = None
 
     def plot(self) -> None:

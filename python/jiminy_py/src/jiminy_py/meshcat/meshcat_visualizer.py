@@ -1,0 +1,398 @@
+
+import os
+import math
+import warnings
+import numpy as np
+from typing import Optional, Any, Dict, Union
+
+import meshcat
+from meshcat.geometry import Geometry, pack_numpy_array
+
+import hppfcl
+import pinocchio as pin
+from pinocchio.utils import npToTuple
+from pinocchio.visualize import BaseVisualizer
+
+
+MsgType = Dict[str, Union[str, bytes, bool, float, 'MsgType']]
+
+
+class Cone(Geometry):
+    """A cone of the given height and radius. By Three.js convention, the axis
+    of rotational symmetry is aligned with the y-axis.
+    """
+    def __init__(self, height: float, radius: float):
+        super().__init__()
+        self.radius = radius
+        self.height = height
+        self.radialSegments = 32
+
+    def lower(self, object_data: Any) -> MsgType:
+        return {
+            u"uuid": self.uuid,
+            u"type": u"ConeGeometry",
+            u"radius": self.radius,
+            u"height": self.height,
+            u"radialSegments": self.radialSegments
+        }
+
+
+class Capsule(Geometry):
+    """A capsule of a given radius and height.
+
+    Inspired from
+    https://gist.github.com/aceslowman/d2fbad8b0f21656007e337543866539c,
+    itself inspired from http://paulbourke.net/geometry/spherical/.
+    """
+    __slots__ = [
+        "radius", "height", "radialSegments", "vertices", "faces", "normals"]
+
+    def __init__(self, height: float, radius: float):
+        super().__init__()
+        self.radius = radius
+        self.height = height
+        self.radialSegments = 32
+        self.build_triangles()
+
+    def build_triangles(self) -> None:
+        # Define proxy for convenience
+        N = self.radialSegments
+
+        # Initialize internal buffers
+        vertices, normals, faces = [], [], []
+
+        # Top cap vertices
+        for i in range(int(N//4) + 1):
+            for j in range(N + 1):
+                theta = j * 2 * math.pi / N
+                phi = math.pi * (i / (N // 2) - 1 / 2)
+                vertex = np.empty(3)
+                vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
+                vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
+                vertex[2] = self.radius * math.sin(phi) - self.height / 2
+                vertices.append(vertex)
+                normals.append(vertex.copy())
+
+        # Bottom cap vertices
+        for i in range(int(N//4), int(N//2) + 1):
+            for j in range(N + 1):
+                theta = j * 2 * math.pi / N
+                phi = math.pi * (i / (N // 2) - 1 / 2)
+                vertex = np.empty(3)
+                vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
+                vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
+                vertex[2] = self.radius * math.sin(phi) + self.height / 2
+                vertices.append(vertex)
+                normals.append(vertex.copy())
+
+        # Faces
+        for i in range(int(N//2) + 1):
+            for j in range(N):
+                vec = np.array([i * (N + 1) + j,
+                                i * (N + 1) + (j + 1),
+                                (i + 1) * (N + 1) + (j + 1),
+                                (i + 1) * (N + 1) + j])
+                if (i == N//4):
+                    faces.append(vec[[0, 2, 3]])
+                    faces.append(vec[[0, 1, 2]])
+                else:
+                    faces.append(vec[[0, 1, 2]])
+                    faces.append(vec[[0, 2, 3]])
+
+        # Convert to array
+        self.vertices = np.vstack(vertices).astype(np.float32)
+        self.normals = np.vstack(normals).astype(np.float32)
+        self.faces = np.vstack(faces).astype(np.uint32)
+
+    def lower(self, object_data: Any) -> MsgType:
+        return {
+            u"uuid": self.uuid,
+            u"type": u"BufferGeometry",
+            u"data": {
+                u"attributes": {
+                    u"position": pack_numpy_array(self.vertices.T),
+                    u"normal": pack_numpy_array(self.normals.T)
+                },
+                u"index": pack_numpy_array(self.faces.T)
+            }
+        }
+
+
+class TriangularMeshGeometry(Geometry):
+    """Mesh consisting of an arbitrary collection of triangular faces.
+
+    Backport from master branch of meshcat. Remove it after release of v0.0.19.
+    """
+    __slots__ = ["vertices", "faces"]
+
+    def __init__(self, vertices: np.ndarray, faces: np.ndarray):
+        super().__init__()
+        vertices = np.asarray(vertices, dtype=np.float32)
+        faces = np.asarray(faces, dtype=np.uint32)
+        assert vertices.shape[1] == 3, "`vertices` must be an Nx3 array"
+        assert faces.shape[1] == 3, "`faces` must be an Mx3 array"
+        self.vertices = vertices
+        self.faces = faces
+
+    def lower(self, object_data: Any) -> MsgType:
+        return {
+            u"uuid": self.uuid,
+            u"type": u"BufferGeometry",
+            u"data": {
+                u"attributes": {
+                    u"position": pack_numpy_array(self.vertices.T)
+                },
+                u"index": pack_numpy_array(self.faces.T)
+            }
+        }
+
+
+class SetProperty:
+    """Internal method used to set properties of meshcat objects.
+
+    Backport from master branch of meshcat. Remove it after release of v0.0.19.
+    """
+    __slots__ = ["path", "key", "value"]
+
+    def __init__(self, key: str, value: Any, path: str):
+        self.key = key
+        self.value = value
+        self.path = path
+
+    def lower(self) -> MsgType:
+        return {
+            u"type": u"set_property",
+            u"path": self.path.lower(),
+            u"property": self.key.lower(),
+            u"value": self.value
+        }
+
+
+def set_property(self, key: str, value: Any):
+    return self.window.send(SetProperty(key, value, self.path))
+meshcat.Visualizer.set_property = set_property  # noqa
+
+
+class MeshcatVisualizer(BaseVisualizer):
+    """A Pinocchio display using Meshcat
+    """
+    def getViewerNodeName(self,
+                          geometry_object: hppfcl.CollisionGeometry,
+                          geometry_type: pin.GeometryType):
+        """Return the name of the geometry object inside the viewer.
+        """
+        if geometry_type is pin.GeometryType.VISUAL:
+            return self.viewerVisualGroupName + '/' + geometry_object.name
+        elif geometry_type is pin.GeometryType.COLLISION:
+            return self.viewerCollisionGroupName + '/' + geometry_object.name
+
+    def initViewer(self,
+                   viewer: meshcat.Visualizer = None,
+                   must_open: bool = False,
+                   loadModel: bool = False):
+        """Start a new MeshCat server and client.
+        Note: the server can also be started separately using the
+        "meshcat-server" command in a terminal: this enables the server to
+        remain active after the current script ends.
+        """
+        self.viewer = meshcat.Visualizer() if viewer is None else viewer
+
+        if must_open:
+            self.viewer.open()
+
+        if loadModel:
+            self.loadViewerModel()
+
+    def loadPrimitive(self, geometry_object: hppfcl.CollisionGeometry):
+        # Cylinders need to be rotated
+        R = np.array([[1.,  0.,  0.,  0.],
+                      [0.,  0., -1.,  0.],
+                      [0.,  1.,  0.,  0.],
+                      [0.,  0.,  0.,  1.]])
+        RotatedCylinder = type("RotatedCylinder",
+                               (meshcat.geometry.Cylinder,),
+                               {"intrinsic_transform": lambda self: R})
+
+        geom = geometry_object.geometry
+        if isinstance(geom, hppfcl.Capsule):
+            obj = Capsule(2. * geom.halfLength, geom.radius)
+        elif isinstance(geom, hppfcl.Cylinder):
+            obj = RotatedCylinder(2. * geom.halfLength, geom.radius)
+        elif isinstance(geom, hppfcl.Box):
+            obj = meshcat.geometry.Box(npToTuple(2. * geom.halfSide))
+        elif isinstance(geom, hppfcl.Sphere):
+            obj = meshcat.geometry.Sphere(geom.radius)
+        elif isinstance(geom, hppfcl.Cone):
+            obj = Cone(2. * geom.halfLength, geom.radius)
+        elif isinstance(geom, hppfcl.Convex):
+            vertices = np.vstack([
+                geom.points(i) for i in range(geom.num_points)])
+            faces = np.vstack([
+                np.array([geom.polygons(i)[j] for j in range(3)])
+                for i in range(geom.num_polygons)])
+            obj = TriangularMeshGeometry(vertices, faces)
+        else:
+            msg = "Unsupported geometry type for %s (%s)" % (
+                geometry_object.name, type(geom))
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            obj = None
+
+        return obj
+
+    def loadMesh(self, geometry_object: hppfcl.CollisionGeometry):
+        # Mesh path is empty if Pinocchio is built without HPP-FCL bindings
+        if geometry_object.meshPath == "":
+            msg = ("Display of geometric primitives is supported only if "
+                   "pinocchio is build with HPP-FCL bindings.")
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            return None
+
+        # Get file type from filename extension.
+        _, file_extension = os.path.splitext(geometry_object.meshPath)
+        if file_extension.lower() == ".dae":
+            obj = meshcat.geometry.DaeMeshGeometry.from_file(
+                geometry_object.meshPath)
+        elif file_extension.lower() == ".obj":
+            obj = meshcat.geometry.ObjMeshGeometry.from_file(
+                geometry_object.meshPath)
+        elif file_extension.lower() == ".stl":
+            obj = meshcat.geometry.StlMeshGeometry.from_file(
+                geometry_object.meshPath)
+        else:
+            msg = "Unknown mesh file format: {}.".format(
+                geometry_object.meshPath)
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            obj = None
+
+        return obj
+
+    def loadViewerGeometryObject(self,
+                                 geometry_object: hppfcl.CollisionGeometry,
+                                 geometry_type: pin.GeometryType,
+                                 color: Optional[np.ndarray] = None):
+        """Load a single geometry object"""
+        node_name = self.getViewerNodeName(
+            geometry_object, geometry_type)
+
+        try:
+            if isinstance(geometry_object.geometry, hppfcl.ShapeBase):
+                obj = self.loadPrimitive(geometry_object)
+            else:
+                obj = self.loadMesh(geometry_object)
+            if obj is None:
+                return
+        except Exception as e:
+            msg = ("Error while loading geometry object: %s\nError message:\n"
+                   "%s") % (geometry_object.name, e)
+            warnings.warn(msg, category=UserWarning, stacklevel=2)
+            return
+        material = meshcat.geometry.MeshPhongMaterial()
+        # Set material color from URDF, converting for triplet of doubles to a
+        # single int.
+        if color is None:
+            meshColor = geometry_object.meshColor
+        else:
+            meshColor = color
+        material.color = (int(meshColor[0] * 255) * 256 ** 2 +
+                          int(meshColor[1] * 255) * 256 +
+                          int(meshColor[2] * 255))
+        # Add transparency, if needed.
+        if float(meshColor[3]) != 1.0:
+            material.transparent = True
+            material.opacity = float(meshColor[3])
+        # Create meshcat object
+        v = self.viewer[node_name]
+        v.set_object(obj, material)
+
+    def loadViewerModel(self,
+                        rootNodeName: str = "pinocchio",
+                        color: Optional[np.ndarray] = None):
+        """Load the robot in a MeshCat viewer.
+        Parameters:
+            rootNodeName: name to give to the robot in the viewer
+            color: optional, color to give to the robot. This overwrites the
+            color present in the urdf. The format is a list of four RGBA floats
+            (between 0 and 1)
+        """
+        # Set viewer to use to gepetto-gui.
+        self.viewerRootNodeName = rootNodeName
+
+        # Load robot visual meshes in MeshCat
+        self.viewerVisualGroupName = "/".join((
+            self.viewerRootNodeName, "visuals"))
+
+        for visual in self.visual_model.geometryObjects:
+            self.loadViewerGeometryObject(
+                visual, pin.GeometryType.VISUAL, color)
+        self.displayVisuals(True)
+
+        # Load robot collision meshes in MeshCat
+        self.viewerCollisionGroupName = "/".join((
+            self.viewerRootNodeName, "collisions"))
+
+        for collision in self.collision_model.geometryObjects:
+            self.loadViewerGeometryObject(
+                collision, pin.GeometryType.COLLISION, color)
+        self.displayCollisions(False)
+
+    def display(self, q: np.ndarray):
+        """Display the robot at configuration q in the viewer by placing all
+        the bodies."""
+        pin.forwardKinematics(self.model, self.data, q)
+
+        if self.display_visuals:
+            pin.updateGeometryPlacements(
+                self.model, self.data, self.visual_model, self.visual_data)
+            for i, visual in enumerate(self.visual_model.geometryObjects):
+                # Get mesh pose
+                M = self.visual_data.oMg[i]
+                # Manage scaling
+                S = np.diag(np.concatenate(
+                    (visual.meshScale, np.array([1.0]))).flat)
+                T = np.array(M.homogeneous).dot(S)
+                # Update viewer configuration
+                nodeName = self.getViewerNodeName(
+                    visual, pin.GeometryType.VISUAL)
+                self.viewer[nodeName].set_transform(T)
+
+        if self.display_collisions:
+            pin.updateGeometryPlacements(
+                self.model, self.data, self.collision_model,
+                self.collision_data)
+            for i, collision in enumerate(
+                    self.collision_model.geometryObjects):
+                # Get mesh pose
+                M = self.collision_data.oMg[i]
+                # Manage scaling
+                S = np.diag(np.concatenate(
+                    (collision.meshScale, np.array([1.0]))).flat)
+                T = np.array(M.homogeneous).dot(S)
+                # Update viewer configuration
+                nodeName = self.getViewerNodeName(
+                    collision, pin.GeometryType.collision)
+                self.viewer[nodeName].set_transform(T)
+
+    def displayCollisions(self, visibility: bool):
+        """Set whether to display collision objects or not.
+        """
+        self.display_collisions = visibility
+        if self.collision_model is None:
+            self.display_collisions = False
+            return
+
+        for collision in self.collision_model.geometryObjects:
+            nodeName = self.getViewerNodeName(
+                collision, pin.GeometryType.COLLISION)
+            self.viewer[nodeName].set_property("visible", visibility)
+
+    def displayVisuals(self, visibility: bool):
+        """Set whether to display visual objects or not.
+        """
+        self.display_visuals = visibility
+        if self.visual_model is None:
+            self.display_visuals = False
+            return
+
+        for visual in self.visual_model.geometryObjects:
+            nodeName = self.getViewerNodeName(visual, pin.GeometryType.VISUAL)
+            self.viewer[nodeName].set_property("visible", visibility)

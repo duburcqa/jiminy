@@ -1040,7 +1040,11 @@ namespace jiminy
         try
         {
             // Build robot geometry model
-            pinocchio::urdf::buildGeom(pncModel_, urdfPath, pinocchio::COLLISION, pncGeometryModel_, meshPackageDirs);
+            pinocchio::urdf::buildGeom(pncModel_,
+                                       urdfPath,
+                                       pinocchio::COLLISION,
+                                       pncGeometryModel_,
+                                       meshPackageDirs);
         }
         catch (std::exception& e)
         {
@@ -1053,13 +1057,13 @@ namespace jiminy
         #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
         for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
         {
-            hpp::fcl::BVHModelPtr_t bvh = boost::dynamic_pointer_cast<hpp::fcl::BVHModelBase>(pncGeometryModel_.geometryObjects[i].geometry);
-            if (bvh)
+            auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;
+            if (geometry->getObjectType() == hpp::fcl::OT_BVH)
             {
-                // If the dynamic cast succeeded (bvh is not nullptr), it means that the object
-                // actually derive from the BVH model (cloud points or triangles).
+                hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
                 bvh->buildConvexHull(true);
-                pncGeometryModel_.geometryObjects[i].geometry = bvh->convex;
+                geometry = bvh->convex;
+                pncGeometryModel_.geometryObjects[i].meshScale.fill(1.0);
             }
         }
         #endif
@@ -1068,7 +1072,7 @@ namespace jiminy
         // Note that half-space cannot be used for Shape-Shape collision because it has no
         // shape support. So a very large box is used instead. In the future, it could be
         // a more complex topological object, even a mesh would be supported.
-        auto groudBox = boost::shared_ptr<hpp::fcl::CollisionGeometry>(new hpp::fcl::Box(1000.0, 1000.0, 2.0));
+        auto groudBox = hpp::fcl::CollisionGeometryPtr_t(new hpp::fcl::Box(1000.0, 1000.0, 2.0));
 
         // Create a Pinocchio Geometry object associated with the ground plan.
         // Its parent frame and parent joint are the universe. It is aligned with world frame,
