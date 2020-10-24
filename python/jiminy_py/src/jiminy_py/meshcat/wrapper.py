@@ -292,9 +292,12 @@ class MeshcatWrapper:
         self.close()
 
     def close(self) -> None:
-        if self.comm_manager is not None:
-            self.comm_manager.close()
-        self.recorder.release()
+        try:
+            if self.comm_manager is not None:
+                self.comm_manager.close()
+            self.recorder.release()
+        except Exception:  # This method must not fail under any circumstances
+            pass
 
     def wait(self, require_client: bool = False) -> str:
         if require_client:

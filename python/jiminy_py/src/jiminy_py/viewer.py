@@ -29,12 +29,13 @@ import meshcat.transformations as mtf
 import pinocchio as pin
 from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
-from pinocchio.visualize import MeshcatVisualizer, GepettoVisualizer
+from pinocchio.visualize import GepettoVisualizer
 
 from . import core as jiminy
 from .state import State
 from .meshcat.utilities import is_notebook
 from .meshcat.wrapper import MeshcatWrapper
+from .meshcat.meshcat_visualizer import MeshcatVisualizer
 
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
@@ -366,8 +367,8 @@ class Viewer:
         if self.is_backend_parent:
             self.set_camera_transform()
 
-        # Refresh the viewer since the position of the meshes is not
-        # initialized at this point
+        # Refresh the viewer since the positions of the meshes and their
+        # visibility mode are not properly set at this point.
         self.refresh()
 
     def __del__(self):
@@ -930,6 +931,26 @@ class Viewer:
                 f.write(img_data)
 
     @__must_be_open
+    def display_visuals(self, visibility: bool):
+        """Set the visibility of the visual model of the robot.
+
+        :param visibility: Whether to enable or disable display of the visual
+                           model.
+        """
+        self._client.displayVisuals(visibility)
+        self.refresh()
+
+    @__must_be_open
+    def display_collisions(self, visibility: bool):
+        """Set the visibility of the collision model of the robot.
+
+        :param visibility: Whether to enable or disable display of the visual
+                           model.
+        """
+        self._client.displayCollisions(visibility)
+        self.refresh()
+
+    @__must_be_open
     def refresh(self,
                 force_update_visual: bool = False,
                 force_update_collision: bool = False,
@@ -948,24 +969,23 @@ class Viewer:
         :param force_update_collision: Force update of collision geometries.
         :param wait: Whether or not to wait for rendering to finish.
         """
-        # Update pinocchio visual data
-        pin.updateGeometryPlacements(
-            self._client.model, self._client.data, self._client.visual_model,
-            self._client.visual_data)
-
         with self._lock:
-            # Render the visual and collision geometries
-            if Viewer.backend.startswith('gepetto'):
-                model_list, data_list, model_type_list = [], [], []
-                if self._client.display_collisions or force_update_collision:
-                    model_list.append(self._client.collision_model)
-                    data_list.append(self._client.collision_data)
-                    model_type_list.append(pin.GeometryType.COLLISION)
-                if self._client.display_visuals or force_update_visual:
-                    model_list.append(self._client.visual_model)
-                    data_list.append(self._client.visual_data)
-                    model_type_list.append(pin.GeometryType.VISUAL)
+            # Render both visual and collision geometries
+            model_list, data_list, model_type_list = [], [], []
+            if self._client.display_collisions or force_update_collision:
+                model_list.append(self._client.collision_model)
+                data_list.append(self._client.collision_data)
+                model_type_list.append(pin.GeometryType.COLLISION)
+            if self._client.display_visuals or force_update_visual:
+                model_list.append(self._client.visual_model)
+                data_list.append(self._client.visual_data)
+                model_type_list.append(pin.GeometryType.VISUAL)
 
+            for model, data, in zip(model_list, data_list):
+                pin.updateGeometryPlacements(
+                    self._client.model, self._client.data, model, data)
+
+            if Viewer.backend.startswith('gepetto'):
                 for model, data, model_type in zip(
                         model_list, data_list, model_type_list):
                     self._gui.applyConfigurations(
@@ -975,14 +995,16 @@ class Viewer:
                             model.getGeometryId(geometry.name)])
                             for geometry in model.geometryObjects])
             else:
-                for i, visual in enumerate(
-                        self._client.visual_model.geometryObjects):
-                    M = self._client.visual_data.oMg[i]
-                    scale = np.asarray(visual.meshScale).flatten()
-                    S = np.diag(np.concatenate((scale, [1.0])))
-                    T = np.asarray(M.homogeneous).dot(S)
-                    self._client.viewer[self._client.getViewerNodeName(
-                        visual, pin.GeometryType.VISUAL)].set_transform(T)
+                for model, data, model_type in zip(
+                        model_list, data_list, model_type_list):
+                    for i, geom in enumerate(model.geometryObjects):
+                        M = data.oMg[i]
+                        S = np.diag(np.concatenate((
+                            geom.meshScale, np.array([1.0]))).flat)
+                        T = M.homogeneous.dot(S)
+                        nodeName = self._client.getViewerNodeName(
+                            geom, model_type)
+                        self._client.viewer[nodeName].set_transform(T)
 
             # Update the camera placement
             self.__update_camera_transform()

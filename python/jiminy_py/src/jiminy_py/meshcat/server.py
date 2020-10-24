@@ -6,12 +6,13 @@ import umsgpack
 import tornado.web
 import tornado.ioloop
 import multiprocessing
-from contextlib import redirect_stderr
+from collections import defaultdict
 from typing import Optional, Tuple, List, Dict
 
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 
+import meshcat
 from meshcat.servers.tree import walk, find_node
 from meshcat.servers.zmqserver import (
     DEFAULT_ZMQ_METHOD, VIEWER_ROOT,
@@ -84,6 +85,19 @@ def handle_web(self, message: str) -> None:
 WebSocketHandler.on_message = handle_web  # noqa
 
 
+# Backport from master branch of meshcat. Remove it after release of v0.0.19.
+class TreeNode(defaultdict):
+    __slots__ = ["object", "transform", "properties", "animation"]
+
+    def __init__(self, *args, **kwargs):
+        super(TreeNode, self).__init__(*args, **kwargs)
+        self.object = None
+        self.properties = []
+        self.transform = None
+        self.animation = None
+meshcat.servers.tree.TreeNode = TreeNode  # noqa
+
+
 class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
     def __init__(self,
                  zmq_url: Optional[str] = None,
@@ -143,6 +157,23 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 websocket.write_message(msg, binary=True)
             for comm_id in self.comm_pool:
                 self.forward_to_comm(comm_id, msg)
+        elif cmd in ["set_object", "set_property"]:
+            # Remove it after release of v0.0.19.
+            path = list(filter(
+                lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
+            data = frames[2]
+            # Support caching of objects (note: even UUIDs have to match).
+            cache_hit = (cmd == "set_object" and
+                         find_node(self.tree, path).object and
+                         find_node(self.tree, path).object == data)
+            if not cache_hit:
+                self.forward_to_websockets(frames)
+            if cmd == "set_object":
+                find_node(self.tree, path).object = data
+                find_node(self.tree, path).properties = []
+            elif cmd == "set_property":
+                find_node(self.tree, path).properties.append(data)
+            self.zmq_socket.send(b"ok")
         else:
             super().handle_zmq(frames)
 
@@ -194,10 +225,20 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                    comm_id: Optional[str] = None) -> None:
         if websocket is not None:
             super().send_scene(websocket)
+            # Remove it after release of v0.0.19.
+            for node in walk(self.tree):
+                if node.object is not None:
+                    websocket.write_message(node.object, binary=True)
+                for p in node.properties:
+                    websocket.write_message(p, binary=True)
+                if node.transform is not None:
+                    websocket.write_message(node.transform, binary=True)
         elif comm_id is not None:
             for node in walk(self.tree):
                 if node.object is not None:
                     self.forward_to_comm(comm_id, node.object)
+                for p in node.properties:
+                    self.forward_to_comm(comm_id, p)
                 if node.transform is not None:
                     self.forward_to_comm(comm_id, node.transform)
 
@@ -217,13 +258,11 @@ def meshcat_server(info: Dict[str, str]) -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    with open(os.devnull, 'w') as f:
-        with redirect_stderr(f):
-            bridge = ZMQWebSocketIpythonBridge()
-            info['zmq_url'] = bridge.zmq_url
-            info['web_url'] = bridge.web_url
-            info['comm_url'] = bridge.comm_url
-            bridge.run()
+    bridge = ZMQWebSocketIpythonBridge()
+    info['zmq_url'] = bridge.zmq_url
+    info['web_url'] = bridge.web_url
+    info['comm_url'] = bridge.comm_url
+    bridge.run()
 
 
 def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
