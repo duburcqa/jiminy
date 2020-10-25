@@ -345,8 +345,9 @@ class Viewer:
                     viewer=self._gui, open=False, loadModel=False)
 
                 # Load the robot
+                root_name = '/'.join((self.scene_name, self.robot_name))
                 self._client.loadViewerModel(
-                    rootNodeName=self.robot_name, color=urdf_rgba)
+                    rootNodeName=root_name, color=urdf_rgba)
 
             Viewer._backend_robot_names.add(self.robot_name)
 
@@ -527,15 +528,8 @@ class Viewer:
                 if self.delete_robot_on_close:
                     # In case 'close' is called twice.
                     self.delete_robot_on_close = False
-                    if Viewer.backend.startswith('gepetto'):
-                        Viewer._delete_nodes_viewer(
-                            ['/'.join((self.scene_name, self.robot_name))])
-                    else:
-                        node_names = [self._client.getViewerNodeName(
-                                visual_obj, pin.GeometryType.VISUAL)
-                            for visual_obj in
-                            self._client.visual_model.geometryObjects]
-                        Viewer._delete_nodes_viewer(node_names)
+                    Viewer._delete_nodes_viewer(
+                        ['/'.join((self.scene_name, self.robot_name))])
             if self == Viewer:
                 # NEVER closing backend if closing instances, even for the
                 # parent. It will be closed at Python exit automatically.
