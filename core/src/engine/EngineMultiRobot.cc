@@ -1841,18 +1841,28 @@ namespace jiminy
             /* Extract the contact information.
                Note that there is always a single contact point while computing the collision
                between two shape objects, for instance convex geometry and box primitive. */
-            auto const & contact  = collisionResult.getContact(i);
-            vector3_t const & nGround = contact.normal;                     // Normal of the ground in world
-            float64_t const & depth = - contact.penetration_depth;          // Penetration depth (signed, so always negative)
+            auto const & contact = collisionResult.getContact(i);
+            vector3_t nGround = contact.normal.normalized();        // Normal of the ground in world
+            float64_t depth = contact.penetration_depth;          // Penetration depth (signed, so always negative)
             pinocchio::SE3 posContactInWorld = pinocchio::SE3::Identity();
             posContactInWorld.translation() = contact.pos;                  //  Point inside the ground #TODO double check that, it may be between both interfaces
 
             /* Make sure the collision computation didn't failed. If it happends the
                norm of the distance normal close to zero. It so, just assume there is
                no collision at all. */
-            if (nGround.norm() < EPS)
+            if (nGround.norm() < 1.0 - EPS)
             {
                 continue;
+            }
+
+            // Make sure the normal is always pointing upward, and the penetration depth is negative
+            if (nGround[2] < 0.0)
+            {
+                nGround *= -1.0;
+            }
+            if (depth > 0.0)
+            {
+                depth *= -1.0;
             }
 
             // Compute the linear velocity of the contact point in world frame
