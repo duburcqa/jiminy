@@ -342,7 +342,7 @@ class Viewer:
             else:
                 # Initialize the viewer
                 self._client.initViewer(
-                    viewer=self._gui, open=False, loadModel=False)
+                    viewer=self._gui, must_open=False, loadModel=False)
 
                 # Load the robot
                 root_name = '/'.join((self.scene_name, self.robot_name))
