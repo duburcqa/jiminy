@@ -3,7 +3,7 @@ import os
 import math
 import warnings
 import numpy as np
-from typing import Optional, Any, Dict, Union
+from typing import Optional, Any, Dict, Union, Type
 
 import meshcat
 from meshcat.geometry import Geometry, pack_numpy_array
@@ -273,7 +273,9 @@ class MeshcatVisualizer(BaseVisualizer):
     def loadViewerGeometryObject(self,
                                  geometry_object: hppfcl.CollisionGeometry,
                                  geometry_type: pin.GeometryType,
-                                 color: Optional[np.ndarray] = None):
+                                 color: Optional[np.ndarray] = None,
+                                 Material: Type[meshcat.geometry.Material] =
+                                 meshcat.geometry.MeshPhongMaterial):
         """Load a single geometry object"""
         node_name = self.getViewerNodeName(
             geometry_object, geometry_type)
@@ -290,7 +292,7 @@ class MeshcatVisualizer(BaseVisualizer):
                    "%s") % (geometry_object.name, e)
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
-        material = meshcat.geometry.MeshPhongMaterial()
+        material = Material()
         # Set material color from URDF, converting for triplet of doubles to a
         # single int.
         if color is None:
