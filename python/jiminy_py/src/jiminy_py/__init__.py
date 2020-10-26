@@ -32,4 +32,8 @@ from . import _pinocchio_init as _patch  # noqa
 from . import core
 from .core import __version__, __raw_version__
 
-__all__ = ['core', '__version__', '__raw_version__', ]
+__all__ = [
+    'core',
+    '__version__',
+    '__raw_version__'
+]

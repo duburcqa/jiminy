@@ -35,10 +35,11 @@ deployPythonPackage(${LIBRARY_NAME}_py)
 
 ################ gym_jiminy ################
 
-if (PYTHON_VERSION_MAJOR GREATER "2")
-    # Build Python wheels and archives
-    buildPythonWheel(gym_${LIBRARY_NAME})
+buildPythonWheel(python/gym_${LIBRARY_NAME}/common)
+deployPythonPackageDevelop(python/gym_${LIBRARY_NAME}/common)
 
-    # Install Python package in develop mode
-    deployPythonPackageDevelop(gym_${LIBRARY_NAME})
-endif()
+buildPythonWheel(python/gym_${LIBRARY_NAME}/envs)
+deployPythonPackageDevelop(python/gym_${LIBRARY_NAME}/envs)
+
+buildPythonWheel(python/gym_${LIBRARY_NAME}/toolbox)
+deployPythonPackageDevelop(python/gym_${LIBRARY_NAME}/toolbox)

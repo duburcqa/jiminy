@@ -120,7 +120,11 @@ if(BUILD_PYTHON_INTERFACE)
     list(GET _VERSION 1 PYTHON_VERSION_MINOR)
     list(GET _VERSION 2 PYTHON_VERSION_PATCH)
     set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
-    message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
+    if(${PYTHON_VERSION_MAJOR} EQUAL 3)
+        message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
+    else()
+        message(FATAL_ERROR "Python3 is required if BUILD_PYTHON_INTERFACE=ON.")
+    endif()
 
     # Get Python system and user site-packages
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
@@ -156,12 +160,10 @@ if(BUILD_PYTHON_INTERFACE)
 
     # Get PYTHON_EXT_SUFFIX
     set(PYTHON_EXT_SUFFIX "")
-    if(PYTHON_VERSION_MAJOR EQUAL 3)
-        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
-                                "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))"
-                        OUTPUT_STRIP_TRAILING_WHITESPACE
-                        OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
-    endif()
+    execute_process(COMMAND "${PYTHON_EXECUTABLE}" -c
+                            "from distutils.sysconfig import get_config_var; print(get_config_var('EXT_SUFFIX'))"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE PYTHON_EXT_SUFFIX)
     if("${PYTHON_EXT_SUFFIX}" STREQUAL "")
         if(NOT WIN32)
             set(PYTHON_EXT_SUFFIX ".so")
@@ -197,11 +199,7 @@ if(BUILD_PYTHON_INTERFACE)
         unset(Boost_LIBRARIES)
         unset(Boost_LIBRARIES CACHE)
     else()
-        if(${PYTHON_VERSION_MAJOR} EQUAL 3)
-            set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
-        else()
-            set(BOOST_PYTHON_LIB "boost_numpy;boost_python")
-        endif()
+        set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
     endif()
     message("-- Boost Python Libs: ${BOOST_PYTHON_LIB}")
 

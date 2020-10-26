@@ -51,7 +51,7 @@ jobs:
       run: |
         RootDir="${GITHUB_WORKSPACE}"
 
-        flake8 --count --show-source --statistics "$RootDir/gym_jiminy" "$RootDir/python/jiminy_py"
+        flake8 --count --show-source --statistics "$RootDir/python"
 
     #####################################################################################
 
