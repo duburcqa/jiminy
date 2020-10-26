@@ -54,7 +54,7 @@ if __import__('platform').system() == 'Linux':
         backends_available['gepetto-gui'] = GepettoVisualizer
 
 
-def _default_backend():
+def _default_backend() -> str:
     """Determine the default backend viewer, depending on the running
     environment and the set of available backends.
     """
@@ -62,6 +62,20 @@ def _default_backend():
         return 'meshcat'
     else:
         return 'gepetto-gui'
+
+
+def _get_backend_exceptions(backend: Optional[str] = None) -> List[Exception]:
+    if backend is None:
+        backend = _default_backend()
+    if backend.startswith('gepetto'):
+        import gepetto
+        import omniORB
+        return (
+            omniORB.CORBA.COMM_FAILURE,
+            omniORB.CORBA.TRANSIENT,
+            gepetto.corbaserver.gepetto.Error)
+    else:
+        return (zmq.error.Again, zmq.error.ZMQError)
 
 
 # Create logger
@@ -150,7 +164,7 @@ class _ProcessWrapper:
 class Viewer:
     backend = _default_backend()
     _backend_obj = None
-    _backend_exceptions = ()
+    _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
     _lock = Lock()  # Unique lock for every viewer in same thread by default
@@ -239,15 +253,7 @@ class Viewer:
         Viewer.backend = backend
 
         # Configure exception handling
-        if Viewer.backend.startswith('gepetto'):
-            import gepetto
-            import omniORB
-            Viewer._backend_exceptions = (
-                omniORB.CORBA.COMM_FAILURE,
-                omniORB.CORBA.TRANSIENT,
-                gepetto.corbaserver.gepetto.Error)
-        else:
-            Viewer._backend_exceptions = (zmq.error.Again, zmq.error.ZMQError)
+        Viewer._backend_exceptions = _get_backend_exceptions(backend)
 
         # Check if the backend is still available, if any
         if Viewer._backend_obj is not None:
