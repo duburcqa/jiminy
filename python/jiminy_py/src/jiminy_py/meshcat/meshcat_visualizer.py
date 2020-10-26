@@ -234,13 +234,14 @@ class MeshcatVisualizer(BaseVisualizer):
             faces = np.vstack([np.array(list(geom.polygons(i)))
                                for i in range(geom.num_polygons)])
             obj = TriangularMeshGeometry(vertices, faces)
+            geometry_object.meshScale = np.ones(3)  # It is already at scale !
         elif isinstance(geom, hppfcl.BVHModelOBBRSS):
             vertices = np.vstack([geom.vertices(i)
                                   for i in range(geom.num_vertices)])
             faces = np.vstack([np.array(list(geom.tri_indices(i)))
                                for i in range(geom.num_tris)])
             obj = TriangularMeshGeometry(vertices, faces)
-            geometry_object.meshScale = np.ones(3)  # It is already at scale !
+            geometry_object.meshScale = np.ones(3)  # Same
         else:
             msg = "Unsupported geometry type for %s (%s)" % (
                 geometry_object.name, type(geom))
