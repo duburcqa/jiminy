@@ -175,6 +175,10 @@ meshcat.Visualizer.set_property = set_property  # noqa
 
 class MeshcatVisualizer(BaseVisualizer):
     """A Pinocchio display using Meshcat
+
+    Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/meshcat_visualizer.py
+    Copyright (c) 2014-2020, CNRS
+    Copyright (c) 2018-2020, INRIA
     """
     def getViewerNodeName(self,
                           geometry_object: hppfcl.CollisionGeometry,

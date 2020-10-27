@@ -1,5 +1,10 @@
-/// Remimplementation of several dynamics algorithms from pinocchio,
-/// adding support for rotor inertia for 1DoF (prismatic, revolue) joints.
+/// Re-implementation of several dynamics algorithms from pinocchio,
+/// adding support for rotor inertia for 1DoF (prismatic, revolute) joints.
+///
+/// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/aba.hxx
+/// Copyright (c) 2014-2020, CNRS
+/// Copyright (c) 2018-2020, INRIA
+
 #ifndef PINOCCHIO_OVERLOAD_ALGORITHMS_H
 #define PINOCCHIO_OVERLOAD_ALGORITHMS_H
 
