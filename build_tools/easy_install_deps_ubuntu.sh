@@ -27,7 +27,8 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install wheel && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
 
 # Install Python 3 toolsuite for testing and documentation generation
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade pygments flake8 sphinx sphinx_rtd_theme recommonmark nbsphinx breathe
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \
+    pygments flake8 sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 
 # Install standard linux utilities
 apt install -y gnupg curl wget build-essential cmake doxygen graphviz pandoc

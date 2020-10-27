@@ -4,16 +4,16 @@ from setuptools.command.install import install
 
 # Force setuptools to recognize that this is actually a binary distribution
 class BinaryDistribution(dist.Distribution):
-    def is_pure(self):
+    def is_pure(self) -> bool:
         return False
 
-    def has_ext_modules(self):
+    def has_ext_modules(self) -> bool:
         return True
 
 
 # Force setuptools to not consider shared libraries as purelib
 class InstallPlatlib(install):
-    def finalize_options(self):
+    def finalize_options(self) -> None:
         install.finalize_options(self)
         if self.distribution.has_ext_modules():
             self.install_lib = self.install_platlib
@@ -33,7 +33,7 @@ setup(
     author_email="alexis.duburcq@wandercraft.eu",
     maintainer="Wandercraft",
     license="MIT",
-    python_requires=">3.6",
+    python_requires=">=3.6",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
@@ -98,6 +98,8 @@ setup(
           "recommonmark",
           # Used to render Jupyter Notebooks in sphinx docs
           "nbsphinx",
+          # Used to render ASCII art diagram (https://aafigure.readthedocs.io)
+          "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe"
       ],
@@ -106,5 +108,6 @@ setup(
           # using Gepetto-viewer as backend.
           "opencv-python-headless<=4.3.0.36"
       ]
-    }
+    },
+    zip_safe=False
 )

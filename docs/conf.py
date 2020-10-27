@@ -53,6 +53,7 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'aafigure.sphinxext',
     'recommonmark',
     'nbsphinx',
     "breathe"

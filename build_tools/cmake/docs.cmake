@@ -47,7 +47,7 @@ MACRO (BUILD_DOCS)
     # - Doxygen has rerun
     # - Doc files have been updated
     # - Sphinx config has been updated
-    add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
+    add_custom_command(OUTPUT ${SPHINX_INDEX_FILE} ALWAYS_REBUILD  # Dummy "file" to force systematc generation
                        COMMAND
                          ${SPHINX_EXECUTABLE} -b html
                          -Dbreathe_projects.${PROJECT_NAME}=${DOXYGEN_OUTPUT_DIR}/xml
