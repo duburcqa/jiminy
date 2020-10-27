@@ -1,10 +1,7 @@
 import numpy as np
-from functools import reduce
-from operator import __mul__
 from typing import Optional, Union, Tuple, Dict, Any
 
 import gym
-from gym import spaces
 
 import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as enc,
@@ -30,73 +27,8 @@ SENSOR_ACCEL_SCALE = 10.0
 T_SCALE = 1.0
 
 
-def flatten_observation(space: spaces.Space,
-                        x: Optional[np.ndarray] = None
-                        ) -> Union[spaces.Box, np.ndarray]:
-    """
-    @brief    TODO
-
-    .. warning::
-        It does not preserve dtype.
-    """
-    def _flatten_bounds(space: spaces.Space,
-                        bounds_type: str) -> np.ndarray:
-        if isinstance(space, spaces.Box):
-            if bounds_type == 'high':
-                return np.asarray(space.high).flatten()
-            else:
-                return np.asarray(space.low).flatten()
-        elif isinstance(space, spaces.Discrete):
-            if bounds_type == 'high':
-                return np.one(space.n)
-            else:
-                return np.zeros(space.n)
-        elif isinstance(space, spaces.Tuple):
-            return np.concatenate([_flatten_bounds(s, bounds_type)
-                                   for s in space.spaces])
-        elif isinstance(space, spaces.Dict):
-            return np.concatenate([_flatten_bounds(s, bounds_type)
-                                   for s in space.spaces.values()])
-        elif isinstance(space, spaces.MultiBinary):
-            if bounds_type == 'high':
-                return np.one(space.n)
-            else:
-                return np.zeros(space.n)
-        elif isinstance(space, spaces.MultiDiscrete):
-            if bounds_type == 'high':
-                return np.one(reduce(__mul__, space.nvec))
-            else:
-                return np.zeros(reduce(__mul__, space.nvec))
-        else:
-            raise NotImplementedError
-    if x is None:
-        return spaces.Box(low=_flatten_bounds(space, 'low'),
-                          high=_flatten_bounds(space, 'high'),
-                          dtype=np.float64)
-    else:
-        return spaces.flatten(space, x)
-
-
-class FlattenObservation(gym.ObservationWrapper):
-    """
-    @brief Observation wrapper that flattens the observation.
-    """
-    def __init__(self, env: gym.core.Env):
-        """   TODO
-        """
-        super().__init__(env)
-        self.observation_space = flatten_observation(
-            self.env.observation_space)
-
-    def observation(self, observation: spaces.Space) -> np.ndarray:
-        """   TODO
-        """
-        return flatten_observation(
-            self.env.observation_space, observation)
-
-
 class ObservationActionNormalization(gym.Wrapper):
-    def __init__(self, env: gym.core.Env):
+    def __init__(self, env: gym.Env):
         """   TODO
         """
         super().__init__(env)

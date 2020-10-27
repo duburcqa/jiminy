@@ -320,7 +320,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         return gym.spaces.Box(
             low=0.0, high=self.simu_duration_max, shape=(1,),
-            dtype=np.float64)
+            dtype=np.float32)
 
     def _force_external_profile(self,
                                 t: float,
@@ -547,7 +547,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         self.action_space = gym.spaces.Box(
             low=np.concatenate((pos_low, vel_low)),
             high=np.concatenate((pos_high, vel_high)),
-            dtype=np.float64)
+            dtype=np.float32)
 
     def _send_command(self,
                       t: float,

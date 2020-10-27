@@ -80,7 +80,7 @@ class Critic(nn.Module):
 
 
 def build_actor_critic(
-        env_creator: Callable[[], gym.core.Env],
+        env_creator: Callable[[], gym.Env],
         vf_share_layers: bool,
         free_log_std: bool) -> Tuple[Actor, Critic, Callable[
             [torch.Tensor, torch.Tensor], torch.Tensor]]:

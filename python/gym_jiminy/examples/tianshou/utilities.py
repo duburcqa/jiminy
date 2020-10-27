@@ -229,7 +229,7 @@ def train(train_agent: BasePolicy,
 
 
 def test(test_agent: BasePolicy,
-         env_creator: Callable[[], gym.core.Env],
+         env_creator: Callable[[], gym.Env],
          num_episodes: int,
          verbose: bool = True) -> None:
     """

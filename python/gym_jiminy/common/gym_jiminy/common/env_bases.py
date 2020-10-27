@@ -1,6 +1,7 @@
 import time
 import tempfile
 import numpy as np
+import numba as nb
 from collections import OrderedDict
 from typing import Optional, Tuple, List, Dict, Any
 
@@ -9,7 +10,7 @@ from gym import logger
 from gym.utils import seeding
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import (EncoderSensor as enc,
+from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
@@ -39,7 +40,18 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-class BaseJiminyEnv(gym.core.Env):
+def _clamp(space, x):
+    """Clamp an element from Gym.Space to make sure it is within bounds.
+    """
+    if isinstance(space, gym.spaces.Dict):
+        return OrderedDict(
+            (k, _clamp(subspace, x[k]))
+            for k, subspace in space.spaces.items())
+    else:
+        return np.clip(x, space.low, space.high)
+
+
+class BaseJiminyEnv(gym.Env):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -64,9 +76,9 @@ class BaseJiminyEnv(gym.core.Env):
                  enforce_bounded: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs):
-        r"""
+        """
         :param simulator: Jiminy Python simulator used for physics
-                          computations. Can be `None` if `_setup_environment`
+                          computations. Can be `None` if `_setup`
                           has been overwritten such that 'self.simulator' is
                           a valid and completely initialized engine.
         :param dt: Desired update period of the simulation
@@ -85,15 +97,16 @@ class BaseJiminyEnv(gym.core.Env):
         self.enforce_bounded = enforce_bounded
         self.debug = debug
 
-        # Jiminy engine used for physics computations
+        # Internal buffers for physics computations
         self.rg = np.random.RandomState()
         self._is_ready = False
         self._seed = None
+        self._controller_dt = None
         self._log_data = None
         self._log_file = None
 
         # Use instance-specific action and observation spaces instead of the
-        # class-wide ones provided by `gym.core.Env`.
+        # class-wide ones provided by `gym.Env`.
         self.action_space = None
         self.observation_space = None
 
@@ -102,6 +115,7 @@ class BaseJiminyEnv(gym.core.Env):
         self._sensors_data = None
         self._observation = None
         self._action = None
+        self._command = None
 
         # Information about the learning process
         self._info = {}
@@ -118,11 +132,18 @@ class BaseJiminyEnv(gym.core.Env):
         self.reset()
 
     @property
-    def robot(self) -> jiminy.Robot:
+    def robot(self) -> Optional[jiminy.Robot]:
         if self.simulator is not None:
             return self.simulator.robot
         else:
             return None
+
+    @property
+    def controller_dt(self):
+        """Controller update period.
+        """
+        if self._controller_dt is not None:
+            return self._controller_dt
 
     @property
     def log_path(self) -> Optional[str]:
@@ -141,18 +162,20 @@ class BaseJiminyEnv(gym.core.Env):
         shared between C++ and Python to the internal value stored by this
         class.
 
-        .. note::
+        .. warning::
             This is a hidden function that is not listed as part of the member
             methods of the class. It is not intended to be called manually.
+
+        :meta private:
         """
-        u_command[:] = self._action
+        u_command[:] = self._command
 
     def _get_time_space(self) -> None:
         """Get time space.
         """
         return gym.spaces.Box(
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
-            dtype=np.float64)
+            dtype=np.float32)
 
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None) -> None:
@@ -214,8 +237,9 @@ class BaseJiminyEnv(gym.core.Env):
             state_limit_upper = np.concatenate((
                 position_limit_upper, velocity_limit))
 
-        return gym.spaces.Box(
-            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
+        return gym.spaces.Box(low=state_limit_lower.astype(np.float32),
+                              high=state_limit_upper.astype(np.float32),
+                              dtype=np.float32)
 
     def _get_sensors_space(self) -> None:
         """Get sensor space.
@@ -268,8 +292,8 @@ class BaseJiminyEnv(gym.core.Env):
             for key, value in sensors_data.items())
 
         # Replace inf bounds of the encoder sensor space
-        if enc.type in sensors_data.keys():
-            sensor_list = self.robot.sensors_names[enc.type]
+        if encoder.type in sensors_data.keys():
+            sensor_list = self.robot.sensors_names[encoder.type]
             for sensor_name in sensor_list:
                 # Get the position and velocity bounds of the sensor.
                 # Note that for rotary unbounded encoders, the sensor bounds
@@ -277,7 +301,7 @@ class BaseJiminyEnv(gym.core.Env):
                 # since the representation is different: cos/sin for the
                 # configuration, and principal value of the angle for the
                 # sensor.
-                sensor = self.robot.get_sensor(enc.type, sensor_name)
+                sensor = self.robot.get_sensor(encoder.type, sensor_name)
                 sensor_idx = sensor.idx
                 joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
                 if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
@@ -290,13 +314,13 @@ class BaseJiminyEnv(gym.core.Env):
                     self.robot.nq + joint.idx_v]
 
                 # Update the bounds accordingly
-                sensor_space_lower[enc.type][0, sensor_idx] = \
+                sensor_space_lower[encoder.type][0, sensor_idx] = \
                     sensor_position_lower
-                sensor_space_upper[enc.type][0, sensor_idx] = \
+                sensor_space_upper[encoder.type][0, sensor_idx] = \
                     sensor_position_upper
-                sensor_space_lower[enc.type][1, sensor_idx] = \
+                sensor_space_lower[encoder.type][1, sensor_idx] = \
                     - sensor_velocity_limit
-                sensor_space_upper[enc.type][1, sensor_idx] = \
+                sensor_space_upper[encoder.type][1, sensor_idx] = \
                     sensor_velocity_limit
 
         # Replace inf bounds of the effort sensor space
@@ -348,37 +372,41 @@ class BaseJiminyEnv(gym.core.Env):
                     SENSOR_ACCEL_MAX
 
         return gym.spaces.Dict(OrderedDict(
-            (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
+            (key, gym.spaces.Box(low=min_val.astype(np.float32),
+                                 high=max_val.astype(np.float32),
+                                 dtype=np.float32))
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
-    def seed(self, seed: Optional[int] = None) -> List[int]:
-        """Specify the seed of the environment.
+    def _refresh_action_space(self) -> None:
+        """Configure the action space of the environment.
+
+        The action is a vector gathering the torques of the actuator of the
+        robot.
 
         .. warning::
-            It also resets the low-level jiminy Engine. Therefore one must call
-            the `reset` method manually afterward.
-
-        :param seed: Random seed, as a positive integer.
-                     Optional: A strongly random seed will be generated by gym
-                     if omitted.
-
-        :returns: Updated seed of the environment
+            This method is called internally by `reset` method. It is not
+            meant to be overloaded since the actual action space of the
+            robot is uniquely defined.
         """
-        # Generate a 8 bytes (uint64) seed using gym utils
-        self.rg, self._seed = seeding.np_random(seed)
+        # Get effort limit
+        effort_limit = self.robot.effort_limit
 
-        # Convert it into a 4 bytes uint32 seed.
-        # Note that hashing is used to get rid off possible correlation in the
-        # presence of concurrency.
-        self._seed = np.uint32(
-            seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
+        # Replace inf bounds of the effort limit if requested
+        if self.enforce_bounded:
+            for motor_name in self.robot.motors_names:
+                motor = self.robot.get_motor(motor_name)
+                motor_options = motor.get_options()
+                if not motor_options["enableEffortLimit"]:
+                    effort_limit[motor.joint_velocity_idx] = \
+                        MOTOR_EFFORT_MAX
 
-        # Reset the seed of Jiminy Engine, if available
-        if self.simulator is not None:
-            self.simulator.seed(self._seed)
-
-        return [self._seed]
+        # Set the action space
+        motors_velocity_idx = self.robot.motors_velocity_idx
+        self.action_space = gym.spaces.Box(
+            low=-effort_limit[motors_velocity_idx].astype(np.float32),
+            high=effort_limit[motors_velocity_idx].astype(np.float32),
+            dtype=np.float32)
 
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """Reset the simulation and specify the initial state of the robot.
@@ -412,7 +440,7 @@ class BaseJiminyEnv(gym.core.Env):
         # Initialize some internal buffers
         self._is_ready = True
         self.num_steps = 0
-        self.max_steps = int(self.simulator.simulation_duration_max / self.dt)
+        self.max_steps = int(self.simulator.simulation_duration_max // self.dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -452,7 +480,18 @@ class BaseJiminyEnv(gym.core.Env):
             self.simulator.stop()
 
         # Make sure the environment is properly setup
-        self._setup_environment()
+        self._setup()
+
+        # Enforce the low-level controller
+        controller = jiminy.ControllerFunctor(
+            compute_command=self._send_command)
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
+
+        # Backup the controller update period
+        engine_options = self.simulator.engine.get_options()
+        self._controller_dt = \
+            float(engine_options['stepper']['controllerUpdatePeriod'])
 
         # Refresh the observation and action spaces
         self._refresh_observation_space()
@@ -460,12 +499,6 @@ class BaseJiminyEnv(gym.core.Env):
 
         # Initialize the observation buffer with a random observation
         self._observation = self.observation_space.sample()
-
-        # Enforce the low-level controller
-        controller = jiminy.ControllerFunctor(
-            compute_command=self._send_command)
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -496,24 +529,58 @@ class BaseJiminyEnv(gym.core.Env):
 
         return self.get_obs()
 
+    def seed(self, seed: Optional[int] = None) -> List[int]:
+        """Specify the seed of the environment.
+
+        .. warning::
+            It also resets the low-level jiminy Engine. Therefore one must call
+            the `reset` method manually afterward.
+
+        :param seed: Random seed, as a positive integer.
+                     Optional: A strongly random seed will be generated by gym
+                     if omitted.
+
+        :returns: Updated seed of the environment
+        """
+        # Generate a 8 bytes (uint64) seed using gym utils
+        self.rg, self._seed = seeding.np_random(seed)
+
+        # Convert it into a 4 bytes uint32 seed.
+        # Note that hashing is used to get rid off possible correlation in the
+        # presence of concurrency.
+        self._seed = np.uint32(
+            seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
+
+        # Reset the seed of Jiminy Engine, if available
+        if self.simulator is not None:
+            self.simulator.seed(self._seed)
+
+        return [self._seed]
+
+    def close(self) -> None:
+        """Terminate the Python Jiminy engine. Mostly defined for
+               compatibility with Gym OpenAI.
+        """
+        self.simulator.close()
+
     def step(self,
              action: Optional[np.ndarray] = None
              ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
-        :param action: Action to perform in the action space. `None` to NOT
-                       update the action.
+        :param action: Action to perform. `None` to not update the action.
 
         :returns: Next observation, the reward, the status of the episode
                   (done or not), and a dictionary of extra information
         """
+        # Update the action to perform and compute the command, if necessary
+        if action is not None:
+            self._action = action
+            self._command = self.compute_command(self._action)
+
         # Try to perform a single simulation step
         is_step_failed = True
         try:
-            # Set the desired action
-            if action is not None:
-                self._action = action
-
             # Start the simulation if it is not already the case
             if not self.simulator.is_simulation_running:
                 if not self._is_ready:
@@ -630,16 +697,24 @@ class BaseJiminyEnv(gym.core.Env):
             close_backend=False, verbose=True, **kwargs
         )[0]
 
-    def close(self) -> None:
-        """Terminate the Python Jiminy engine. Mostly defined for
-               compatibility with Gym OpenAI.
+    @loop_interactive()
+    def play_interactive(self, key: str = None) -> bool:
+        """   TODO
         """
-        self.simulator.close()
+        t_init = time.time()
+        if key is not None:
+            action = self._key_to_action(key)
+        else:
+            action = None
+        _, _, done, _ = self.step(action)
+        self.render()
+        sleep(self.dt - (time.time() - t_init))
+        return done
 
     # methods to override:
     # ----------------------------
 
-    def _setup_environment(self) -> None:
+    def _setup(self) -> None:
         """Configure the environment. It must guarantee that its internal state
         is valid after calling this method.
 
@@ -703,33 +778,6 @@ class BaseJiminyEnv(gym.core.Env):
             t=self._get_time_space(),
             state=self._get_state_space(),
             sensors=self._get_sensors_space())
-
-    def _refresh_action_space(self) -> None:
-        """Configure the action space of the environment.
-
-        By default, the action is a vector gathering the torques of the
-        actuator of the robot.
-
-        .. note::
-            This method is called internally by `reset` method.
-        """
-        # Get effort limit
-        effort_limit = self.robot.effort_limit
-
-        # Replace inf bounds of the effort limit if requested
-        if self.enforce_bounded:
-            for motor_name in self.robot.motors_names:
-                motor = self.robot.get_motor(motor_name)
-                motor_options = motor.get_options()
-                if not motor_options["enableEffortLimit"]:
-                    effort_limit[motor.joint_velocity_idx] = \
-                        MOTOR_EFFORT_MAX
-
-        # Set the action space
-        self.action_space = gym.spaces.Box(
-            low=-effort_limit[self.robot.motors_velocity_idx],
-            high=effort_limit[self.robot.motors_velocity_idx],
-            dtype=np.float64)
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the robot.
@@ -813,19 +861,28 @@ class BaseJiminyEnv(gym.core.Env):
     def get_obs(self) -> SpaceDictRecursive:
         """Post-processed observation.
 
-        The default implementation clamps the observation to make sure it does
-        not violate the lower and upper bounds. This method is not supposed to
-        be overloaded.
-        """
-        def _clamp(space, x):
-            if isinstance(space, gym.spaces.Dict):
-                return OrderedDict(
-                    (k, _clamp(subspace, x[k]))
-                    for k, subspace in space.spaces.items())
-            else:
-                return np.clip(x, space.low, space.high)
+        It clamps the observation to make sure it does not violate the lower
+        and upper bounds.
 
+        .. warning::
+            This method is not meant to be overloaded.
+        """
         return _clamp(self.observation_space, self._observation)
+
+    def compute_command(self,
+                        action: Optional[SpaceDictRecursive] = None
+                        ) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        By default, it just clamps the action to make sure it does not violate
+        the lower and upper bounds. There is no further processing whatsoever
+        since the action is the command by default.
+
+        :param action: Action to perform. `None` to not update the action.
+        """
+        if action is None:
+            action = self._action
+        return _clamp(self.action_space, action)
 
     def _is_done(self) -> bool:
         """Determine whether the episode is over.
@@ -876,20 +933,6 @@ class BaseJiminyEnv(gym.core.Env):
         """
         raise NotImplementedError
 
-    @loop_interactive()
-    def play_interactive(self, key: str = None) -> bool:
-        """   TODO
-        """
-        t_init = time.time()
-        if key is not None:
-            action = self._key_to_action(key)
-        else:
-            action = None
-        _, _, done, _ = self.step(action)
-        self.render()
-        sleep(self.dt - (time.time() - t_init))
-        return done
-
 
 class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
     """Base class to train a robot in Gym OpenAI using a user-specified Jiminy
@@ -916,10 +959,38 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
             observation=self.observation_space,
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64),
+                dtype=np.float32),
             achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64))
+                dtype=np.float32))
+
+    def _fetch_obs(self) -> SpaceDictRecursive:
+        obs = OrderedDict()
+        obs['observation'] = super()._fetch_obs()
+        obs['achieved_goal'] = self._get_achieved_goal(),
+        obs['desired_goal'] = self._desired_goal.copy()
+        return obs
+
+    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
+        """Compute the reward for any given episode state.
+
+        .. note:
+            This method is not supposed to be overloaded in the case of goal
+            environment. It is just a proxy method calling `compute_reward`
+            without specifying any achieved and desired goals, for
+            compatibility with the API of normal environments.
+
+        :returns: [0] Total reward.
+                  [1] Any extra info useful for monitoring as a dictionary.
+        """
+        return self.compute_reward(None, None, self._info), {}
+
+    def reset(self) -> SpaceDictRecursive:
+        self._desired_goal = self._sample_goal()
+        return super().reset()
+
+    # methods to override:
+    # ----------------------------
 
     def _sample_goal(self) -> np.ndarray:
         """Sample a goal randomly.
@@ -945,13 +1016,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         raise NotImplementedError
 
-    def _fetch_obs(self) -> SpaceDictRecursive:
-        obs = OrderedDict()
-        obs['observation'] = super()._fetch_obs()
-        obs['achieved_goal'] = self._get_achieved_goal(),
-        obs['desired_goal'] = self._desired_goal.copy()
-        return obs
-
     def _is_done(self,
                  achieved_goal: Optional[np.ndarray] = None,
                  desired_goal: Optional[np.ndarray] = None) -> bool:
@@ -974,20 +1038,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         return super()._is_done()
 
-    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
-        """Compute the reward for any given episode state.
-
-        .. note:
-            This method is not supposed to be overloaded in the case of goal
-            environment. It is just a proxy method calling `compute_reward`
-            without specifying any achieved and desired goals, for
-            compatibility with the API of normal environments.
-
-        :returns: [0] Total reward.
-                  [1] Any extra info useful for monitoring as a dictionary.
-        """
-        return self.compute_reward(None, None, self._info), {}
-
     def compute_reward(self,
                        achieved_goal: Optional[np.ndarray],
                        desired_goal: Optional[np.ndarray],
@@ -995,8 +1045,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """Compute the reward for any given episode state.
 
         .. note::
-            This method is part of the standard OpenAI Gym GoalEnv API. It must
-            be overloaded to implement the reward function.
+            This method is part of the API of OpenAI Gym GoalEnv. It must be
+            overloaded to implement the reward function.
 
         :param achieved_goal: Achieved goal. Must be set to None to evalute the
                               reward for currently achieved goal.
@@ -1008,7 +1058,3 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         :returns: Total reward
         """
         raise NotImplementedError
-
-    def reset(self) -> SpaceDictRecursive:
-        self._desired_goal = self._sample_goal()
-        return super().reset()
