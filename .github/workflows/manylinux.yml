@@ -85,8 +85,9 @@ jobs:
 
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
-        auditwheel repair pypi/jiminy_py/dist/*.whl
-        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps wheelhouse/*.whl
+
+        auditwheel repair -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/jiminy_py/dist/*.whl
+        "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir"/build/wheelhouse/*.whl
     - name: Upload the wheel for Linux of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy'
       uses: actions/upload-artifact@v1
@@ -122,4 +123,4 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: build/pypi/gym_jiminy/dist/
+        packages_dir: build/pypi/gym_jiminy/

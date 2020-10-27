@@ -204,14 +204,20 @@ if(BUILD_PYTHON_INTERFACE)
     message("-- Boost Python Libs: ${BOOST_PYTHON_LIB}")
 
     # Define Python install helpers
-    function(deployPythonPackage TARGET_NAME)
-        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
-                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
+    function(deployPythonPackage)
+        # The input arguments are [TARGET_NAME...]
+        foreach(TARGET_NAME IN LISTS ARGN)
+            install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
+                                          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
+        endforeach()
     endfunction()
 
-    function(deployPythonPackageDevelop TARGET_NAME)
-        install (CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
-                                       WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
+    function(deployPythonPackageDevelop)
+        # The input arguments are [TARGET_NAME...]
+        foreach(TARGET_NAME IN LISTS ARGN)
+            install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
+                                          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
+        endforeach()
     endfunction()
 endif()
 
