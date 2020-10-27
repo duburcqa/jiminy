@@ -69,13 +69,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
+                 enforce_bounded: Optional[bool] = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
                  avoid_instable_collisions: bool = True,
                  debug: bool = False,
                  **kwargs):
-        """
+        r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
@@ -87,6 +88,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                   returning done.
         :param dt: Engine timestep. It corresponds to the controller and
                    sensors update period.
+        :param enforce_bounded: Whether or not to enforce finite bounds for the
+                                observation and action spaces. If so, then
+                                '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -141,7 +145,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._power_consumption_max = None
 
         # Configure and initialize the learning environment
-        super().__init__(None, dt, debug, **kwargs)
+        super().__init__(None, dt, enforce_bounded, debug, **kwargs)
 
     def _setup_environment(self) -> None:
         """Configure the environment.
@@ -426,6 +430,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
+                 enforce_bounded: Optional[bool] = False,
                  hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
                  pid_kp: Union[float, np.ndarray] = 0.0,
                  pid_kd: Union[float, np.ndarray] = 0.0,
@@ -434,7 +439,7 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                  config_path: Optional[str] = None,
                  avoid_instable_collisions: bool = True,
                  debug: bool = False):
-        """
+        r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
@@ -446,6 +451,9 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
                                   returning done.
         :param dt: Engine timestep. It corresponds to the controller and
                    sensors update period.
+        :param enforce_bounded: Whether or not to enforce finite bounds for the
+                                observation and action spaces. If so, then
+                                '\*_MAX' are used whenever it is necessary.
         :param hlc_to_llc_ratio: High-level to Low-level control frequency
                                  ratio. More precisely, at each step, the
                                  command torque is: updated 'hlc_to_llc_ratio'
@@ -485,8 +493,8 @@ class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
         # Initialize the environment
         super().__init__(
             urdf_path, hardware_path, mesh_path, simu_duration_max, dt,
-            reward_mixture, std_ratio, config_path, avoid_instable_collisions,
-            debug)
+            enforce_bounded, reward_mixture, std_ratio, config_path,
+            avoid_instable_collisions, debug)
 
     def _setup_environment(self) -> None:
         """Configure the environment.

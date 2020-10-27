@@ -61,20 +61,28 @@ class BaseJiminyEnv(gym.core.Env):
     def __init__(self,
                  simulator: Optional[Simulator],
                  dt: float,
+                 enforce_bounded: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs):
-        """
+        r"""
         :param simulator: Jiminy Python simulator used for physics
                           computations. Can be `None` if `_setup_environment`
                           has been overwritten such that 'self.simulator' is
                           a valid and completely initialized engine.
         :param dt: Desired update period of the simulation
+        :param enforce_bounded: Whether or not to enforce finite bounds for the
+                                observation and action spaces. If so, then
+                                '\*_MAX' are used whenever it is necessary.
+                                Note that whose bounds are very spread to make
+                                sure it is suitable for the vast majority of
+                                systems.
         :param debug: Whether or not the debug mode must be enabled. Doing it
                       enables telemetry recording.
         """
         # Backup some user arguments
         self.simulator = simulator
         self.dt = dt
+        self.enforce_bounded = enforce_bounded
         self.debug = debug
 
         # Jiminy engine used for physics computations
@@ -147,20 +155,19 @@ class BaseJiminyEnv(gym.core.Env):
             dtype=np.float64)
 
     def _get_state_space(self,
-                         use_theoretical_model: Optional[bool] = None,
-                         enforce_bounded: bool = True) -> None:
-        r"""Get state space.
+                         use_theoretical_model: Optional[bool] = None) -> None:
+        """Get state space.
+
+        This method is not meant to be overloaded in general since the
+        definition of the state space is mostly consensual. One must rather
+        overload `_refresh_observation_space` to customize the observation
+        space as a whole.
 
         :param use_theoretical_model: Whether to compute the state space
                                       corresponding to the theoretical model to
                                       the actual one. `None` to use internal
                                       value 'simulator.use_theoretical_model'.
                                       Optional: `None` by default.
-        :param enforce_bounded: Whether or not to enforce finite bounds. If so,
-                                then '\*_MAX' are used whenever it is
-                                necessary. Note that whose bounds are very
-                                spread to make sure it is suitable for the vast
-                                majority of systems.
         """
         # Handling of default argument
         if use_theoretical_model is None:
@@ -175,7 +182,7 @@ class BaseJiminyEnv(gym.core.Env):
         velocity_limit = self.robot.velocity_limit
 
         # Replace inf bounds of the state space if requested
-        if enforce_bounded:
+        if self.enforce_bounded:
             if self.robot.has_freeflyer:
                 position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
                 position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
@@ -210,15 +217,40 @@ class BaseJiminyEnv(gym.core.Env):
         return gym.spaces.Box(
             low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
 
-    def _get_sensors_space(self, enforce_bounded: bool = True) -> None:
-        """   TODO
+    def _get_sensors_space(self) -> None:
+        """Get sensor space.
+
+        It gathers the sensors data in a dictionary. It maps each available
+        type of sensor to the associated data matrix. Rows correspond to the
+        sensor type's fields, and columns correspond to each individual sensor.
+
+        .. note:
+            The mapping between row `i` of data matrix and associated sensor
+            type's field is given by:
+
+            .. code-block:: python
+
+                field = getattr(jiminy_py.core, key).fieldnames[i]
+
+            The mapping between column `j` of data matrix and associated sensor
+            name and object are given by:
+
+            .. code-block:: python
+
+                sensor_name = env.robot.sensors_names[key][j]
+                sensor = env.robot.get_sensor(key, sensor_name)
+
+        .. warning:
+            This method is not meant to be overloaded in general since the
+            definition of the sensor space is mostly consensual. One must
+            rather overload `_refresh_observation_space` to customize the
+            observation space as a whole.
         """
         # Define some proxies for convenience
         sensors_data = self.robot.sensors_data
         effort_limit = self.robot.effort_limit
 
-        state_space = self._get_state_space(
-            use_theoretical_model=False, enforce_bounded=enforce_bounded)
+        state_space = self._get_state_space(use_theoretical_model=False)
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -286,7 +318,7 @@ class BaseJiminyEnv(gym.core.Env):
             sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
             sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
 
-        if enforce_bounded:
+        if self.enforce_bounded:
             # Replace inf bounds of the contact sensor space
             if contact.type in sensors_data.keys():
                 sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
@@ -681,14 +713,17 @@ class BaseJiminyEnv(gym.core.Env):
         .. note::
             This method is called internally by `reset` method.
         """
-        # Replace inf bounds of the effort limit
+        # Get effort limit
         effort_limit = self.robot.effort_limit
-        for motor_name in self.robot.motors_names:
-            motor = self.robot.get_motor(motor_name)
-            motor_options = motor.get_options()
-            if not motor_options["enableEffortLimit"]:
-                effort_limit[motor.joint_velocity_idx] = \
-                    MOTOR_EFFORT_MAX
+
+        # Replace inf bounds of the effort limit if requested
+        if self.enforce_bounded:
+            for motor_name in self.robot.motors_names:
+                motor = self.robot.get_motor(motor_name)
+                motor_options = motor.get_options()
+                if not motor_options["enableEffortLimit"]:
+                    effort_limit[motor.joint_velocity_idx] = \
+                        MOTOR_EFFORT_MAX
 
         # Set the action space
         self.action_space = gym.spaces.Box(
