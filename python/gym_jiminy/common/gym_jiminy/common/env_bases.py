@@ -45,6 +45,14 @@ class BaseJiminyEnv(gym.core.Env):
 
     It creates an Gym environment wrapping Jiminy Engine and behaves like any
     other Gym environment.
+
+    The observation space is a dictionary gathering the current simulation
+    time, the real robot state, and the sensors data. The action is a vector
+    gathering the torques of the actuator of the robot.
+
+    There is no reward by default. It is up to the user to overload this class
+    to implement one. It has been designed to be highly flexible and easy to
+    customize by overloading it to fit the vast majority of users' needs.
     """
     metadata = {
         'render.modes': ['human', 'rgb_array'],

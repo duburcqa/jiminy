@@ -51,11 +51,14 @@ DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
-    """Implementation of a Gym environment for learning locomotion task for
-    legged robots. It uses Jiminy Engine to perform physics evaluation and
-    Meshcat for rendering.
-    """
+    """Gym environment for learning locomotion task for legged robots using
+    torque control directly.
 
+    Jiminy Engine is used to perform physics evaluation, and Meshcat is used
+    for rendering.
+
+    The observation and action spaces are unchanged wrt `BaseJiminyEnv`.
+    """
     metadata = {
         'render.modes': ['human'],
     }
@@ -410,6 +413,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
 
 class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
+    """Gym environment for learning locomotion task for legged robots using
+    Proportional-derivative low-level high-frequency controller and high-level
+    low-frequency target position and velocity update.
+
+    The command torque is added to the observation space, and the action space
+    now corresponds to the joint state space.
+    """
     def __init__(self,
                  urdf_path: str,
                  hardware_path: Optional[str] = None,
