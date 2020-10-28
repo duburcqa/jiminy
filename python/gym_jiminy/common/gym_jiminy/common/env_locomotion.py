@@ -147,7 +147,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Configure and initialize the learning environment
         super().__init__(None, dt, enforce_bounded, debug, **kwargs)
 
-    def _setup_environment(self) -> None:
+    def _setup(self) -> None:
         """Configure the environment.
 
         It is doing the following steps, successively:

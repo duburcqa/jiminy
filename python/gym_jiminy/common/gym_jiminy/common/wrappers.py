@@ -4,7 +4,7 @@ from typing import Optional, Union, Tuple, Dict, Any
 import gym
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import (EncoderSensor as enc,
+from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
@@ -44,7 +44,7 @@ class ObservationActionNormalization(gym.Wrapper):
         sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
         num_sensors = {}
-        for sensor in (enc, effort, contact, force, imu):
+        for sensor in (encoder, effort, contact, force, imu):
             num_sensors[sensor] = len(self.robot.sensors_names[sensor.type])
 
         # ======= Compute robot configuration and velocity scale =======
@@ -104,18 +104,18 @@ class ObservationActionNormalization(gym.Wrapper):
 
             # Handling of encoders data scale
             self.observation_scale['sensors'] = {}
-            if enc.type in sensors_space.spaces.keys():
+            if encoder.type in sensors_space.spaces.keys():
                 enc_sensors_scale = np.full(
-                    (len(enc.fieldnames), num_sensors[enc]),
+                    (len(encoder.fieldnames), num_sensors[encoder]),
                     np.inf, dtype=np.float64)
 
                 # Replace inf bounds by the appropriate scale
-                for sensor_name in self.robot.sensors_names[enc.type]:
+                for sensor_name in self.robot.sensors_names[encoder.type]:
                     # Get the sensor scaling.
                     # Note that for rotary unbounded encoders, the bounds
                     # cannot be extracted from the configuration vector scale,
                     # but rather are known in advance.
-                    sensor = self.robot.get_sensor(enc.type, sensor_name)
+                    sensor = self.robot.get_sensor(encoder.type, sensor_name)
                     sensor_idx = sensor.idx
                     joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
                     if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
@@ -129,7 +129,7 @@ class ObservationActionNormalization(gym.Wrapper):
                     enc_sensors_scale[1, sensor_idx] = sensor_velocity_scale
 
                 # Set the scale
-                self.observation_scale['sensors'][enc.type] = enc_sensors_scale
+                self.observation_scale['sensors'][encoder.type] = enc_sensors_scale
 
             # Handling of IMUs data scale
             if imu.type in sensors_space.spaces.keys():
