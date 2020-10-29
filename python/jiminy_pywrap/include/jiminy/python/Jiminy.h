@@ -213,8 +213,8 @@ namespace python
 
     using ControllerFctWrapper = FctInOutPyWrapper<vectorN_t /* OutputType */,
                                                    float64_t /* t */,
-                                                   Eigen::Ref<vectorN_t const> /* q */,
-                                                   Eigen::Ref<vectorN_t const> /* v */,
+                                                   vectorN_t /* q */,
+                                                   vectorN_t /* v */,
                                                    sensorsDataMap_t /* sensorsData*/>;
 
     using ControllerFct = std::function<void(float64_t        const & /* t */,
