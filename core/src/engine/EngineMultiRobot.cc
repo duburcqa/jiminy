@@ -1080,8 +1080,8 @@ namespace jiminy
                 {
                     float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
                     float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                    if (dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                    || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+                    if (dtNextSensorsUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                    || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
                     {
                         auto systemIt = systems_.begin();
                         auto systemDataIt = systemsDataHolder_.begin();
@@ -1101,8 +1101,8 @@ namespace jiminy
                 {
                     float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
                     float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                    if (dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP
-                    || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
+                    if (dtNextControllerUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                    || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
                     {
                         auto systemIt = systems_.begin();
                         auto systemDataIt = systemsDataHolder_.begin();
