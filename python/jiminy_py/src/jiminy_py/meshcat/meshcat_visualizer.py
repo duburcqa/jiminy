@@ -179,7 +179,7 @@ class MeshcatVisualizer(BaseVisualizer):
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/meshcat_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
-    """
+    """  # noqa: E501
     def getViewerNodeName(self,
                           geometry_object: hppfcl.CollisionGeometry,
                           geometry_type: pin.GeometryType):

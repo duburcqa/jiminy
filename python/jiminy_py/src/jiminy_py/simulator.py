@@ -13,7 +13,7 @@ from typing import Optional, Union, Type, Dict, Tuple, List, Any
 import pinocchio as pin
 
 from . import core as jiminy
-from .core import (EncoderSensor as enc,
+from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
                    ContactSensor as contact,
                    ForceSensor as force,
@@ -24,7 +24,7 @@ from .viewer import Viewer
 
 
 SENSORS_FIELDS = {
-    enc: enc.fieldnames,
+    encoder: encoder.fieldnames,
     effort: effort.fieldnames,
     contact: contact.fieldnames,
     force: {
@@ -596,7 +596,9 @@ class Simulator:
         self.set_controller_options(controller_options)
         self.engine.set_options(options['engine'])
 
-    def export_options(self, config_path: Optional[str] = None) -> None:
+    def export_options(self,
+                       config_path: Optional[Union[str, os.PathLike]] = None
+                       ) -> None:
         """Export the full configuration, ie the options of the robot (
         including controller), and the engine.
 
@@ -610,7 +612,9 @@ class Simulator:
         with open(config_path, 'w') as f:
             toml.dump(self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
-    def import_options(self, config_path: Optional[str] = None) -> None:
+    def import_options(self,
+                       config_path: Optional[Union[str, os.PathLike]] = None
+                       ) -> None:
         """Import the full configuration, ie the options of the robot (
         including controller), and the engine.
 

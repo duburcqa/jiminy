@@ -6,7 +6,6 @@ import pathlib
 import tempfile
 import numpy as np
 import xml.etree.ElementTree as ET
-from fractions import gcd
 from collections import OrderedDict
 from typing import Optional
 
@@ -41,11 +40,29 @@ logger = logging.getLogger(__name__)
 logger.addFilter(_DuplicateFilter())
 
 
+def _gcd(a: float,
+         b: float,
+         rtol: float = 1e-05,
+         atol: float = 1e-08) -> float:
+    """Compute the greatest common divisor of two float numbers.
+    """
+    t = min(abs(a), abs(b))
+    while abs(b) > rtol * t + atol:
+        a, b = b, a % b
+    return a
+
+
 def _string_to_array(txt: str) -> np.ndarray:
+    """Convert a string array of float delimited by spaces into a numpy array.
+    """
     return np.array(list(map(float, txt.split())))
 
 
 def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
+    """Convert an XML element with str attribute 'xyz' [X, Y, Z] encoding the
+    translation and 'rpy' encoding [Roll, Pitch, Yaw] into a Pinocchio.SE3
+    object.
+    """
     if origin_info is not None:
         origin_xyz = _string_to_array(origin_info.attrib['xyz'])
         origin_rpy = _string_to_array(origin_info.attrib['rpy'])
@@ -180,7 +197,7 @@ def generate_hardware_description_file(
                     logger.warning(
                         "Jiminy does not support sensors with different "
                         "update rate. Using greatest common divisor instead.")
-                    gazebo_update_rate = gcd(gazebo_update_rate, update_rate)
+                    gazebo_update_rate = _gcd(gazebo_update_rate, update_rate)
 
             # Extract the pose of the frame associate with the sensor.
             # Note that it is optional but usually defined since sensors
