@@ -1,7 +1,6 @@
 import time
 import tempfile
 import numpy as np
-import numba as nb
 from collections import OrderedDict
 from typing import Optional, Tuple, List, Dict, Any
 
@@ -18,6 +17,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
+from jiminy_py.controller import BaseJiminyController
 from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
@@ -42,6 +42,8 @@ SENSOR_ACCEL_MAX = 10000.0
 
 def _clamp(space, x):
     """Clamp an element from Gym.Space to make sure it is within bounds.
+
+    :meta private:
     """
     if isinstance(space, gym.spaces.Dict):
         return OrderedDict(
@@ -76,7 +78,7 @@ class BaseJiminyEnv(gym.Env):
                  enforce_bounded: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs):
-        """
+        r"""
         :param simulator: Jiminy Python simulator used for physics
                           computations. Can be `None` if `_setup`
                           has been overwritten such that 'self.simulator' is
@@ -90,6 +92,9 @@ class BaseJiminyEnv(gym.Env):
                                 systems.
         :param debug: Whether or not the debug mode must be enabled. Doing it
                       enables telemetry recording.
+        :param kwargs: Extra keyword arguments that may be useful for dervied
+                       environment with multiple inheritance, and to allow
+                       automatic pipeline wrapper generation.
         """
         # Backup some user arguments
         self.simulator = simulator
@@ -482,11 +487,18 @@ class BaseJiminyEnv(gym.Env):
         # Make sure the environment is properly setup
         self._setup()
 
-        # Enforce the low-level controller
-        controller = jiminy.ControllerFunctor(
-            compute_command=self._send_command)
+        # Enforce the low-level controller.
+        # Note that `BaseJiminyController` is used by default instead of
+        # `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
+        # the controller handle without instantiating a new controller, which
+        # is necessary in many cases. Indeed, otherwise already registered
+        # variables would be removed whe update the controller handle, which is
+        # often undesirable.
+        controller = BaseJiminyController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
+        controller.set_controller_handle(self._send_command)
 
         # Backup the controller update period
         engine_options = self.simulator.engine.get_options()
@@ -559,7 +571,7 @@ class BaseJiminyEnv(gym.Env):
 
     def close(self) -> None:
         """Terminate the Python Jiminy engine. Mostly defined for
-               compatibility with Gym OpenAI.
+           compatibility with Gym OpenAI.
         """
         self.simulator.close()
 
@@ -570,13 +582,15 @@ class BaseJiminyEnv(gym.Env):
 
         :param action: Action to perform. `None` to not update the action.
 
-        :returns: Next observation, the reward, the status of the episode
-                  (done or not), and a dictionary of extra information
+        :returns: Next observation, reward, status of the episode (done or
+                  not), and a dictionary of extra information
         """
-        # Update the action to perform and compute the command, if necessary
+        # Update the action to perform if necessary
         if action is not None:
             self._action = action
-            self._command = self.compute_command(self._action)
+
+        # Compute the command systematically
+        self._command = self.compute_command(self._action)
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -699,7 +713,18 @@ class BaseJiminyEnv(gym.Env):
 
     @loop_interactive()
     def play_interactive(self, key: str = None) -> bool:
-        """   TODO
+        """Activate interact mode enabling to control the robot using keyboard.
+
+        It stops automatically as soon as 'done' flag is True. One has to press
+        a key to start the interaction. If no key is pressed, the action is
+        not updated and the previous one keeps being sent to the robot.
+
+        .. warning::
+            This method requires `_key_to_action` method to be implemented by
+            the user by overloading it. Otherwise, calling it will raise an
+            exception.
+
+        :param key: Key to press to start the interaction.
         """
         t_init = time.time()
         if key is not None:
@@ -869,9 +894,7 @@ class BaseJiminyEnv(gym.Env):
         """
         return _clamp(self.observation_space, self._observation)
 
-    def compute_command(self,
-                        action: Optional[SpaceDictRecursive] = None
-                        ) -> np.ndarray:
+    def compute_command(self, action: SpaceDictRecursive) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
         By default, it just clamps the action to make sure it does not violate
@@ -880,8 +903,6 @@ class BaseJiminyEnv(gym.Env):
 
         :param action: Action to perform. `None` to not update the action.
         """
-        if action is None:
-            action = self._action
         return _clamp(self.action_space, action)
 
     def _is_done(self) -> bool:
@@ -929,7 +950,14 @@ class BaseJiminyEnv(gym.Env):
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
-        """   TODO
+        """Mapping between keyword keys and actions to send to the robot.
+
+        .. warning::
+            Overloading this method is required for using `play_interactive`.
+
+        :param key: Key pressed by the user as a string.
+
+        :returns: Action to send to the robot.
         """
         raise NotImplementedError
 

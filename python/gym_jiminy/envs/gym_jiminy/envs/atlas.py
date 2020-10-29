@@ -4,7 +4,8 @@ from pkg_resources import resource_filename
 
 from pinocchio import neutral
 
-from ..common.env_locomotion import WalkerJiminyEnv, WalkerPDControlJiminyEnv
+from ..common.env_locomotion import WalkerJiminyEnv
+from ..common.env_control import PDController, build_controlled_env
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -101,8 +102,6 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         return qpos
 
 
-class AtlasPDControlJiminyEnv(AtlasJiminyEnv, WalkerPDControlJiminyEnv):
-    def __init__(self, hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO, **kwargs):
-        super().__init__(
-            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD,
-            **kwargs)
+AtlasPDControlJiminyEnv = build_controlled_env(
+    AtlasJiminyEnv, PDController, observe_target=False,
+    update_ratio=HLC_TO_LLC_RATIO, pid_kp=PID_KP, pid_kd=PID_KD)

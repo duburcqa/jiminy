@@ -129,7 +129,8 @@ class ObservationActionNormalization(gym.Wrapper):
                     enc_sensors_scale[1, sensor_idx] = sensor_velocity_scale
 
                 # Set the scale
-                self.observation_scale['sensors'][encoder.type] = enc_sensors_scale
+                self.observation_scale['sensors'][encoder.type] = \
+                    enc_sensors_scale
 
             # Handling of IMUs data scale
             if imu.type in sensors_space.spaces.keys():
