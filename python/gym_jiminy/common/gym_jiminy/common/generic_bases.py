@@ -1,10 +1,17 @@
+from typing import Optional
+
+import gym
+
 from .utils import SpaceDictRecursive
 
 
 class ControlInterface:
     """Controller interface for both controllers and environments.
     """
-    def __init__(self):
+    action_space: Optional[gym.Space]
+    controller_dt: Optional[float]
+
+    def __init__(self) -> None:
         """Initialize the control interface.
 
         It only allocates some attributes.
@@ -19,7 +26,7 @@ class ControlInterface:
     def _refresh_action_space(self) -> None:
         """Configure the action space.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_command(self,
                         action: SpaceDictRecursive
@@ -28,13 +35,16 @@ class ControlInterface:
 
         :param action: Action to perform.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
 
 class ObserveInterface:
     """Observer interface for both observers and environments.
     """
-    def __init__(self):
+    observation_space: Optional[gym.Space]
+    dt: Optional[float]
+
+    def __init__(self) -> None:
         """Initialize the observation interface.
 
         It only allocates some attributes.
@@ -49,14 +59,14 @@ class ObserveInterface:
     def _refresh_observation_space(self) -> None:
         """Configure the observation space.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def _fetch_obs(self) -> SpaceDictRecursive:
         """Fetch the observation based on the current state of the robot.
         """
-        return NotImplementedError
+        raise NotImplementedError
 
     def get_obs(self) -> SpaceDictRecursive:
         """Get the post-processed observation.
         """
-        return NotImplementedError
+        raise NotImplementedError

@@ -6,7 +6,7 @@ import numpy as np
 from scipy.integrate import ode
 from typing import Optional, Union, Dict, List, Tuple, Callable
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 
 from pinocchio import neutral
 

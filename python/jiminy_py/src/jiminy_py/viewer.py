@@ -933,7 +933,7 @@ class Viewer:
                 f.write(img_data)
 
     @__must_be_open
-    def display_visuals(self, visibility: bool):
+    def display_visuals(self, visibility: bool) -> None:
         """Set the visibility of the visual model of the robot.
 
         :param visibility: Whether to enable or disable display of the visual
@@ -943,7 +943,7 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
-    def display_collisions(self, visibility: bool):
+    def display_collisions(self, visibility: bool) -> None:
         """Set the visibility of the collision model of the robot.
 
         :param visibility: Whether to enable or disable display of the visual

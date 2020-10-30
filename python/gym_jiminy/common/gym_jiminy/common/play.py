@@ -2,7 +2,7 @@ import os
 import queue
 import time
 import threading
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 
 
 class Getch:
@@ -10,7 +10,7 @@ class Getch:
     screen.
     """
     def __init__(self,
-                 stop_event: Optional[threading.Event] = None):
+                 stop_event: Optional[threading.Event] = None) -> None:
         self.stop_event = stop_event
         if os.name != 'nt':
             import sys
@@ -19,13 +19,14 @@ class Getch:
             self.fd = sys.stdin.fileno()
             self.oldterm = termios.tcgetattr(self.fd)
             newattr = termios.tcgetattr(self.fd)
-            newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+            newattr[3] = \
+                newattr[3] & ~termios.ICANON & ~termios.ECHO  # type: ignore
             termios.tcsetattr(self.fd, termios.TCSANOW, newattr)
             self.oldflags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
             newflags = self.oldflags | os.O_NONBLOCK
             fcntl.fcntl(self.fd, fcntl.F_SETFL, newflags)
 
-    def __del__(self):
+    def __del__(self) -> None:
         if os.name != 'nt':
             import fcntl
             import termios
@@ -54,14 +55,14 @@ class Getch:
             import msvcrt
             while self.stop_event is None or \
                     not self.stop_event.is_set():
-                if msvcrt.kbhit():
-                    return msvcrt.getch()
+                if msvcrt.kbhit():  # type: ignore
+                    return msvcrt.getch()  # type: ignore
             return ''
 
 
 def input_deamon(input_queue: queue.Queue,
                  stop_event: threading.Event,
-                 exit_key: str):
+                 exit_key: str) -> None:
     CHAR_TO_ARROW_MAPPING = {"\x1b[A": "Up",
                              "\x1b[B": "Down",
                              "\x1b[C": "Right",
@@ -79,13 +80,13 @@ def input_deamon(input_queue: queue.Queue,
 
 def loop_interactive(press_key_to_start: bool = True,
                      exit_key: str = 'k') -> Callable:
-    def wrap(func):
-        def wrapped_func(*args, **kwargs):
+    def wrap(func: Callable[..., None]) -> Callable:
+        def wrapped_func(*args: Any, **kwargs: Any) -> None:
             NOT_A_KEY = "Not a key"
 
             nonlocal press_key_to_start, exit_key
 
-            input_queue = queue.Queue()
+            input_queue: queue.Queue = queue.Queue()
             stop_event = threading.Event()
             input_thread = threading.Thread(
                 target=input_deamon,
@@ -97,7 +98,7 @@ def loop_interactive(press_key_to_start: bool = True,
             args[0].render()
             if press_key_to_start:
                 print("Press a key to start...")
-            key = NOT_A_KEY
+            key: Optional[str] = NOT_A_KEY
             is_started = not press_key_to_start
             while True:
                 if (not input_queue.empty()):

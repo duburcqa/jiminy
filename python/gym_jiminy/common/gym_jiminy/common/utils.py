@@ -8,11 +8,14 @@ import gym
 import jiminy_py.core as jiminy
 
 
-SpaceDictRecursive = Union[Dict[str, 'SpaceDictRecursive'], np.ndarray]
-FieldDictRecursive = Union[Dict[str, 'FieldDictRecursive'], List[str]]
+SpaceDictRecursive = Union[  # type: ignore
+    Dict[str, 'SpaceDictRecursive'], np.ndarray]  # type: ignore
+ListStrRecursive = List[Union[str, 'ListStrRecursive']]  # type: ignore
+FieldDictRecursive = Union[  # type: ignore
+    Dict[str, 'FieldDictRecursive'], ListStrRecursive]  # type: ignore
 
 
-def _clamp(space: gym.Space, x: SpaceDictRecursive):
+def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
     """Clamp an element from Gym.Space to make sure it is within bounds.
 
     :meta private:
@@ -47,7 +50,21 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
     return False
 
 
-def set_zeros(data: SpaceDictRecursive) -> SpaceDictRecursive:
+def set_value(data: SpaceDictRecursive,
+              fill_value: SpaceDictRecursive) -> None:
+    """Set to zero data from `Gym.Space`.
+    """
+    if isinstance(data, dict):
+        for d, v in zip(data.values(), fill_value.values()):
+            set_value(d, v)
+    elif isinstance(data, np.ndarray):
+        data[:] = fill_value
+    else:
+        raise NotImplementedError(
+            f"Data of type {type(data)} is not supported by this method.")
+
+
+def set_zeros(data: SpaceDictRecursive) -> None:
     """Set to zero data from `Gym.Space`.
     """
     if isinstance(data, dict):

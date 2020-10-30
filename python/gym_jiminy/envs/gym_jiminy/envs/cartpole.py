@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Dict, Any
 
 from gym import spaces
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv

@@ -7,16 +7,15 @@ import numpy as np
 #     https://stats.stackexchange.com/questions/238655/sampling-from-matrix-variate-normal-distribution-with-singular-covariances
 
 class PeriodicGaussianProcess:
-    """
-    @brief    TODO
+    """ TODO
     """
     def __init__(self,
                  mean: np.ndarray,
                  scale: np.ndarray,
                  wavelength: np.ndarray,
                  period: np.ndarray,
-                 dt: np.ndarray):
-        """   TODO
+                 dt: np.ndarray) -> None:
+        """ TODO
         """
         assert isinstance(mean, np.ndarray) and \
             np.issubdtype(mean.dtype, np.floating), (
@@ -52,8 +51,8 @@ class PeriodicGaussianProcess:
         self.cov = cov
         self._cov_sqrt = cov_sqrt
 
-    def sample(self):
-        """   TODO
+    def sample(self) -> np.ndarray:
+        """ TODO
         """
         return (np.random.standard_normal(self.mean.shape) @
                 self._cov_sqrt)[..., 0, :] + self.mean

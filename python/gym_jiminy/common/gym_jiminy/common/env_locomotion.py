@@ -1,6 +1,6 @@
 import numpy as np
 import numba as nb
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, Union, Callable, List, Any
 
 import gym
 
@@ -49,6 +49,11 @@ DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
 
+ForceImpulseType = Dict[str, Union[str, float, np.ndarray]]
+ForceProfileFunc = Callable[[float, np.ndarray, np.ndarray, np.ndarray], None]
+ForceProfileType = Dict[str, Union[str, ForceProfileFunc]]
+
+
 class WalkerJiminyEnv(BaseJiminyEnv):
     """Gym environment for learning locomotion task for legged robots using
     torque control directly.
@@ -62,6 +67,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         'render.modes': ['human'],
     }
 
+    simulator: Optional[Simulator]
+
     def __init__(self,
                  urdf_path: str,
                  hardware_path: Optional[str] = None,
@@ -74,7 +81,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  config_path: Optional[str] = None,
                  avoid_instable_collisions: bool = True,
                  debug: bool = False,
-                 **kwargs):
+                 **kwargs: Any) -> None:
         r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
@@ -138,10 +145,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.avoid_instable_collisions = avoid_instable_collisions
 
         # Robot and engine internal buffers
-        self._log_data = None
-        self._forces_impulse = None
-        self._forces_profile = None
-        self._power_consumption_max = None
+        self._forces_impulse: List[ForceImpulseType] = []
+        self._forces_profile: List[ForceProfileType] = []
+        self._power_consumption_max: Optional[float] = None
 
         # Configure and initialize the learning environment
         super().__init__(None, dt, enforce_bounded, debug, **kwargs)
@@ -172,14 +178,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 config_path=self.config_path,
                 avoid_instable_collisions=self.avoid_instable_collisions,
                 debug=self.debug)
-
-        # Discard log data since no longer relevant
-        self._log_data = None
+        else:
+            self.simulator.remove_forces()
 
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
-        self.simulator.remove_forces()
 
         # Update some internal buffers used for computing the reward
         motor_effort_limit = self.robot.effort_limit[
@@ -290,7 +294,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             ).sample().T
 
             @nb.jit(nopython=True, nogil=True)
-            def F_xy_profile_interp1d(t):
+            def F_xy_profile_interp1d(t: float) -> float:
                 t_rel = t % 1.0
                 t_ind = np.searchsorted(t_profile, t_rel, 'right') - 1
                 ratio = (t_rel - t_profile[t_ind]) * n_timesteps
@@ -304,13 +308,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                 'force_function': self._force_external_profile
             }
             self.simulator.register_force_profile(**force_profile)
-            self._forces_profile.append(force_profile)
+            self._forces_profile.append(force_profile)  # type: ignore
 
         # Set the options, finally
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
-    def _get_time_space(self) -> None:
+    def _get_time_space(self) -> gym.Space:
         """Get time space.
 
         It takes advantage of knowing the maximum simulation duration to shrink
@@ -346,6 +350,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
               neutral configuration.
             - maximum simulation duration exceeded
         """
+        # Assertion(s) for type checker
+        assert self.simulator is not None and self._state is not None
+
         if self.robot.has_freeflyer:
             if self._state[0][2] < self._height_neutral * 0.75:
                 return True
@@ -366,6 +373,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :returns: [0] Total reward.
                   [1] Value of each contribution as a dictionary.
         """
+        # Assertion(s) for type checker
+        assert self._power_consumption_max is not None
+
         reward_dict = {}
 
         # Define some proxies
@@ -387,12 +397,15 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return reward_total, reward_dict
 
-    def _compute_reward_terminal(self):
+    def _compute_reward_terminal(self) -> Tuple[float, Dict[str, Any]]:
         """Compute the reward at the end of the episode.
 
         It computes the terminal reward associated with each individual
         contribution according to 'reward_mixture'.
         """
+        # Assertion(s) for type checker
+        assert self._log_data is not None
+
         reward_dict = {}
 
         reward_mixture_keys = self.reward_mixture.keys()

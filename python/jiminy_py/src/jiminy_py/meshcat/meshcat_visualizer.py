@@ -229,8 +229,7 @@ class MeshcatVisualizer(BaseVisualizer):
                                  Material: Type[meshcat.geometry.Material] =
                                  meshcat.geometry.MeshPhongMaterial):
         """Load a single geometry object"""
-        node_name = self.getViewerNodeName(
-            geometry_object, geometry_type)
+        node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
         try:
             if isinstance(geometry_object.geometry, hppfcl.ShapeBase) or \
@@ -279,7 +278,6 @@ class MeshcatVisualizer(BaseVisualizer):
         # Load robot visual meshes in MeshCat
         self.viewerVisualGroupName = "/".join((
             self.viewerRootNodeName, "visuals"))
-
         for visual in self.visual_model.geometryObjects:
             self.loadViewerGeometryObject(
                 visual, pin.GeometryType.VISUAL, color)
@@ -288,7 +286,6 @@ class MeshcatVisualizer(BaseVisualizer):
         # Load robot collision meshes in MeshCat
         self.viewerCollisionGroupName = "/".join((
             self.viewerRootNodeName, "collisions"))
-
         for collision in self.collision_model.geometryObjects:
             self.loadViewerGeometryObject(
                 collision, pin.GeometryType.COLLISION, color)
