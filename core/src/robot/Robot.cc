@@ -45,8 +45,8 @@ namespace jiminy
     Robot::~Robot(void)
     {
         // Detach all the motors and sensors
-        detachMotors();
-        detachSensors();
+        detachSensors({});
+        detachMotors({});
     }
 
     hresult_t Robot::initialize(std::string              const & urdfPath,

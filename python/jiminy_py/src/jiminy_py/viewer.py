@@ -134,8 +134,11 @@ class _ProcessWrapper:
         elif isinstance(self._proc, multiprocessing.Process):
             return self._proc.is_alive()
         elif isinstance(self._proc, psutil.Process):
-            return self._proc.status() in [
-                psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+            try:
+                return self._proc.status() in [
+                    psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+            except psutil.NoSuchProcess:
+                return False
 
     def wait(self, timeout: Optional[float] = None) -> bool:
         if isinstance(self._proc, multiprocessing.Process):
