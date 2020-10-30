@@ -75,7 +75,7 @@ setup(
         # Parser for Jiminy's hardware description file.
         "toml",
         # Web-based mesh visualizer used as Viewer's backend.
-        "meshcat>=0.0.18",
+        "meshcat>=0.0.19",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",
