@@ -28,7 +28,7 @@ setup(
     license="MIT",
     python_requires=">=3.6",
     classifiers=[
-        "DDevelopment Status :: 4 - Beta",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
         "Topic :: Software Development :: Libraries :: Python Modules",
