@@ -70,10 +70,9 @@ def _get_backend_exceptions(backend: Optional[str] = None) -> List[Exception]:
     if backend.startswith('gepetto'):
         import gepetto
         import omniORB
-        return (
-            omniORB.CORBA.COMM_FAILURE,
-            omniORB.CORBA.TRANSIENT,
-            gepetto.corbaserver.gepetto.Error)
+        return (omniORB.CORBA.COMM_FAILURE,
+                omniORB.CORBA.TRANSIENT,
+                gepetto.corbaserver.gepetto.Error)
     else:
         return (zmq.error.Again, zmq.error.ZMQError)
 

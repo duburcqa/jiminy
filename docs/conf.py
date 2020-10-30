@@ -20,6 +20,8 @@
 import jiminy_py
 import sphinx_rtd_theme
 
+# Temporary workaround to remove multiple build warnings.
+from recommonmark.parser import CommonMarkParser
 
 # -- Project information -----------------------------------------------------
 
@@ -54,7 +56,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'aafigure.sphinxext',
-    'recommonmark',
     'nbsphinx',
     "breathe"
 ]
@@ -73,7 +74,10 @@ breathe_show_define_initializer = False
 templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
-source_suffix = ['.rst', '.md']
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 
 # The master toctree document.
 master_doc = 'index'
@@ -224,3 +228,14 @@ intersphinx_mapping = {'https://docs.python.org/': None}
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
+
+
+# -- Setup configuration ----------------------------------------------
+
+class CustomCommonMarkParser(CommonMarkParser):
+    def visit_document(self, node):
+        pass
+
+
+def setup(app) -> None:
+    app.add_source_parser(CustomCommonMarkParser)
