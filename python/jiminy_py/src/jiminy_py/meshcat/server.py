@@ -276,7 +276,7 @@ def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
     server.start()
 
     # Wait for the process to finish initialization
-    while not info:
+    while 'comm_url' not in info.keys():
         pass
     zmq_url, web_url, comm_url = \
         info['zmq_url'], info['web_url'], info['comm_url']

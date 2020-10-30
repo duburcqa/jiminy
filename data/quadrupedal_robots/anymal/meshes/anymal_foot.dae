@@ -441,11 +441,6 @@
       </extra>
     </light>
   </library_lights>
-  <library_images>
-    <image id="carbon_uv_texture_jpg" name="carbon_uv_texture_jpg">
-      <init_from>carbon_uv_texture.jpg</init_from>
-    </image>
-  </library_images>
   <library_effects>
     <effect id="Material_001-effect">
       <profile_COMMON>
@@ -501,16 +496,6 @@
     </effect>
     <effect id="carbon_fibre_001-effect">
       <profile_COMMON>
-        <newparam sid="carbon_uv_texture_jpg-surface">
-          <surface type="2D">
-            <init_from>carbon_uv_texture_jpg</init_from>
-          </surface>
-        </newparam>
-        <newparam sid="carbon_uv_texture_jpg-sampler">
-          <sampler2D>
-            <source>carbon_uv_texture_jpg_001-surface</source>
-          </sampler2D>
-        </newparam>
         <technique sid="common">
           <phong>
             <emission>
@@ -519,10 +504,6 @@
             <ambient>
               <color sid="ambient">0 0 0 1</color>
             </ambient>
-            <diffuse>
-              <texture texture="carbon_uv_texture_jpg" texcoord="UVSET0"/>
-<!--              <texture texture="carbon_uv_texture_jpg-sampler"/>-->
-            </diffuse>
             <specular>
               <color sid="specular">0.0625 0.0625 0.0625 1</color>
             </specular>
