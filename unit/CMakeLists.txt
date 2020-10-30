@@ -7,22 +7,18 @@ project(unit VERSION ${BUILD_VERSION})
 # Find pthread if available
 find_package(Threads)
 
-# Create empty file to declare executable without any source files
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/null.cc "")
-
-# Create the unit test executable
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_BINARY_DIR}/null.cc)
-
 # Define the list of unit test files
 set(UNIT_TEST_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/EngineSanityCheck.cc"
 )
 
-# Add the unit test files and data folder to the executable
-target_sources(${PROJECT_NAME} PRIVATE ${UNIT_TEST_FILES})
+# Create the unit test executable
+add_executable(${PROJECT_NAME} ${UNIT_TEST_FILES})
+
+# Add definition of unit test data folder
 add_definitions("-DUNIT_TEST_DATA_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/data/\"")
 
-# Include core library for unit tests
+# Link with Jiminy core library
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 
 # Configure gtest dependency

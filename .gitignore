@@ -1,17 +1,5 @@
-*.asv
-*.m~
-*.exe
-*.mlappinstall
-*.mltbx
-*ert_rtw/
-*slprj/
-*codegen/
-*.autosave
-*.slxc
 *.pyc
 *egg-info*
-*.sw?
-.*project
 .vscode
 docs/html
 install

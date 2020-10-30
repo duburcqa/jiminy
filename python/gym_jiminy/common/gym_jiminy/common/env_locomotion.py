@@ -1,10 +1,9 @@
 import numpy as np
 import numba as nb
-from typing import Optional, Union, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict
 
 import gym
 
-import jiminy_py.core as jiminy
 from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
@@ -14,7 +13,7 @@ from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 
-from .env_bases import SpaceDictRecursive, BaseJiminyEnv
+from .env_bases import BaseJiminyEnv
 from .distributions import PeriodicGaussianProcess
 
 
@@ -51,11 +50,14 @@ DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
 
 class WalkerJiminyEnv(BaseJiminyEnv):
-    """Implementation of a Gym environment for learning locomotion task for
-    legged robots. It uses Jiminy Engine to perform physics evaluation and
-    Meshcat for rendering.
-    """
+    """Gym environment for learning locomotion task for legged robots using
+    torque control directly.
 
+    Jiminy Engine is used to perform physics evaluation, and Meshcat is used
+    for rendering.
+
+    The observation and action spaces are unchanged wrt `BaseJiminyEnv`.
+    """
     metadata = {
         'render.modes': ['human'],
     }
@@ -66,13 +68,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
                  dt: float = DEFAULT_ENGINE_DT,
+                 enforce_bounded: Optional[bool] = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
                  config_path: Optional[str] = None,
                  avoid_instable_collisions: bool = True,
                  debug: bool = False,
                  **kwargs):
-        """
+        r"""
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
                               Optional: Looking for '.hdf' file in the same
@@ -84,6 +87,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                   returning done.
         :param dt: Engine timestep. It corresponds to the controller and
                    sensors update period.
+        :param enforce_bounded: Whether or not to enforce finite bounds for the
+                                observation and action spaces. If so, then
+                                '\*_MAX' are used whenever it is necessary.
         :param reward_mixture: Weighting factors of selected contributions to
                                total reward.
         :param std_ratio: Relative standard deviation of selected contributions
@@ -138,9 +144,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._power_consumption_max = None
 
         # Configure and initialize the learning environment
-        super().__init__(None, dt, debug, **kwargs)
+        super().__init__(None, dt, enforce_bounded, debug, **kwargs)
 
-    def _setup_environment(self) -> None:
+    def _setup(self) -> None:
         """Configure the environment.
 
         It is doing the following steps, successively:
@@ -313,7 +319,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         return gym.spaces.Box(
             low=0.0, high=self.simu_duration_max, shape=(1,),
-            dtype=np.float64)
+            dtype=np.float32)
 
     def _force_external_profile(self,
                                 t: float,
@@ -407,191 +413,3 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                             for name, value in reward_dict.items()])
 
         return reward_total, reward_dict
-
-
-class WalkerPDControlJiminyEnv(WalkerJiminyEnv):
-    def __init__(self,
-                 urdf_path: str,
-                 hardware_path: Optional[str] = None,
-                 mesh_path: Optional[str] = None,
-                 simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
-                 dt: float = DEFAULT_ENGINE_DT,
-                 hlc_to_llc_ratio: int = DEFAULT_HLC_TO_LLC_RATIO,
-                 pid_kp: Union[float, np.ndarray] = 0.0,
-                 pid_kd: Union[float, np.ndarray] = 0.0,
-                 reward_mixture: Optional[dict] = None,
-                 std_ratio: Optional[dict] = None,
-                 config_path: Optional[str] = None,
-                 avoid_instable_collisions: bool = True,
-                 debug: bool = False):
-        """
-        :param urdf_path: Path of the urdf model to be used for the simulation.
-        :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '.hdf' file in the same
-                              folder and with the same name.
-        :param mesh_path: Path to the folder containing the model meshes.
-                          Optional: Env variable 'JIMINY_DATA_PATH' will be
-                          used if available.
-        :param simu_duration_max: Maximum duration of a simulation before
-                                  returning done.
-        :param dt: Engine timestep. It corresponds to the controller and
-                   sensors update period.
-        :param hlc_to_llc_ratio: High-level to Low-level control frequency
-                                 ratio. More precisely, at each step, the
-                                 command torque is: updated 'hlc_to_llc_ratio'
-                                 times while the target motor state is only
-                                 updated once.
-        :param pid_kp: PD controller position-proportional gain in motor order.
-        :param pid_kd: PD controller velocity-proportional gain in motor order.
-        :param reward_mixture: Weighting factors of selected contributions to
-                               total reward.
-        :param std_ratio: Relative standard deviation of selected contributions
-                          to environment stochasticity.
-        :param config_path: Configuration toml file to import. It will be
-                            imported AFTER loading the hardware description
-                            file. It can be automatically generated from an
-                            instance by calling `export_config_file` method.
-                            Optional: Looking for '.config' file in the same
-                            folder and with the same name. If not found,
-                            using default configuration.
-        :param avoid_instable_collisions: Prevent numerical instabilities by
-                                          replacing collision mesh by vertices
-                                          of associated minimal volume bounding
-                                          box, and replacing primitive box by
-                                          its vertices.
-        :param debug: Whether or not the debug mode must be activated.
-                      Doing it enables telemetry recording.
-        """
-        # Backup some user arguments
-        self.hlc_to_llc_ratio = hlc_to_llc_ratio
-        self.pid_kp = pid_kp
-        self.pid_kd = pid_kd
-
-        # Low-level controller buffers
-        self.motor_to_encoder = None
-        self._q_target = None
-        self._v_target = None
-
-        # Initialize the environment
-        super().__init__(
-            urdf_path, hardware_path, mesh_path, simu_duration_max, dt,
-            reward_mixture, std_ratio, config_path, avoid_instable_collisions,
-            debug)
-
-    def _setup_environment(self) -> None:
-        """Configure the environment.
-
-        In addition of doing the same than the base implementation, it also
-        updates the mapping from motors to encoders indices.
-        """
-        # Setup the environment as usual
-        super()._setup_environment()
-
-        # Refresh the mapping between the motors and encoders
-        encoder_joints = []
-        for name in self.robot.sensors_names[encoder.type]:
-            sensor = self.robot.get_sensor(encoder.type, name)
-            encoder_joints.append(sensor.joint_name)
-
-        self.motor_to_encoder = []
-        for name in self.robot.motors_names:
-            motor = self.robot.get_motor(name)
-            motor_joint = motor.joint_name
-            encoder_found = False
-            for i, encoder_joint in enumerate(encoder_joints):
-                if motor_joint == encoder_joint:
-                    self.motor_to_encoder.append(i)
-                    encoder_found = True
-                    break
-            if not encoder_found:
-                raise RuntimeError(
-                    "No encoder sensor associated with motor '{name}'. Every "
-                    "actuated joint must have an encoder sensor attached.")
-
-    def _refresh_action_space(self) -> None:
-        """Configure the action space of the environment.
-
-        The action spaces corresponds to the position and velocity of motors
-        instead of the torque, as it is the case by default.
-        """
-        # Extract the position and velocity bounds for the observation space
-        encoder_space = self._get_sensors_space()[encoder.type]
-        pos_high, vel_high = encoder_space.high
-        pos_low, vel_low = encoder_space.low
-
-        # Reorder the position and velocity bounds to match motors order
-        pos_high = pos_high[self.motor_to_encoder]
-        pos_low = pos_low[self.motor_to_encoder]
-        vel_high = vel_high[self.motor_to_encoder]
-        vel_low = vel_low[self.motor_to_encoder]
-
-        # Set the action space. Note that it is flattened.
-        self.action_space = gym.spaces.Box(
-            low=np.concatenate((pos_low, vel_low)),
-            high=np.concatenate((pos_high, vel_high)),
-            dtype=np.float64)
-
-    def _send_command(self,
-                      t: float,
-                      q: np.ndarray,
-                      v: np.ndarray,
-                      sensors_data: jiminy.sensorsData,
-                      u_command: np.ndarray) -> None:
-        """Compute the motor torques using a PD controller.
-
-        It is based on the error between the measured motors positions and
-        velocities and the desired one.
-        """
-        # Compute command if the simulation is running, otherwise do nothing
-        if self.simulator.is_simulation_running:
-            # Estimate position and motor velocity from encoder data
-            q_enc, v_enc = sensors_data[encoder.type][:, self.motor_to_encoder]
-
-            # Compute the joint tracking error
-            q_err = q_enc - self._q_target
-            v_err = v_enc - self._v_target
-
-            # Compute PD command
-            u_command[:] = - self.pid_kp * (q_err + self.pid_kd * v_err)
-        else:
-            u_command[:] = 0.0
-
-    def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
-        """Reset the simulation and specify the initial state of the robot.
-
-        It is the same that the base implementation, except that it also reset
-        the internal state of the PD controller.
-        """
-        self._q_target = qpos[sum(self.robot.motors_position_idx, [])]
-        self._v_target = qvel[self.robot.motors_velocity_idx]
-        super().set_state(qpos, qvel)
-
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """Run a simulation step for a given action.
-
-        :param action: Flattened array gathering the target motors positions
-                       and velocities in this order.
-
-        :returns: The next observation, the reward, the status of the episode
-                  (done or not), and a dictionary of extra information
-        """
-        # Update target motor state
-        self._q_target, self._v_target = np.split(action, 2, axis=-1)
-
-        # Run the whole simulation in one go
-        reward = 0.0
-        reward_info = {k: [] for k in self.reward_mixture.keys()}
-        for _ in range(self.hlc_to_llc_ratio):
-            obs, reward_step, done, info_step = super().step(action)
-            for k, v in info_step.get('reward', {}).items():
-                reward_info[k].append(v)
-            reward += reward_step
-            if done:
-                break
-
-        # Extract additional information
-        info = {'reward': reward_info, 't_end': self.simulator.stepper_state.t}
-
-        return obs, reward, done, info

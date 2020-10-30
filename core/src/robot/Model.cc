@@ -1054,7 +1054,6 @@ namespace jiminy
         }
 
         // Replace the mesh geometry object by its convex representation for efficiency
-        #if PINOCCHIO_MINOR_VERSION >= 4 || PINOCCHIO_PATCH_VERSION >= 4
         for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
         {
             auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;
@@ -1063,10 +1062,8 @@ namespace jiminy
                 hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
                 bvh->buildConvexHull(true);
                 geometry = bvh->convex;
-                pncGeometryModel_.geometryObjects[i].meshScale.fill(1.0);
             }
         }
-        #endif
 
         // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
         // Note that half-space cannot be used for Shape-Shape collision because it has no

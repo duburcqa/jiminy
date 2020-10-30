@@ -1,13 +1,10 @@
 import numpy as np
-from functools import reduce
-from operator import __mul__
 from typing import Optional, Union, Tuple, Dict, Any
 
 import gym
-from gym import spaces
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import (EncoderSensor as enc,
+from jiminy_py.core import (EncoderSensor as encoder,
                             EffortSensor as effort,
                             ContactSensor as contact,
                             ForceSensor as force,
@@ -30,73 +27,8 @@ SENSOR_ACCEL_SCALE = 10.0
 T_SCALE = 1.0
 
 
-def flatten_observation(space: spaces.Space,
-                        x: Optional[np.ndarray] = None
-                        ) -> Union[spaces.Box, np.ndarray]:
-    """
-    @brief    TODO
-
-    .. warning::
-        It does not preserve dtype.
-    """
-    def _flatten_bounds(space: spaces.Space,
-                        bounds_type: str) -> np.ndarray:
-        if isinstance(space, spaces.Box):
-            if bounds_type == 'high':
-                return np.asarray(space.high).flatten()
-            else:
-                return np.asarray(space.low).flatten()
-        elif isinstance(space, spaces.Discrete):
-            if bounds_type == 'high':
-                return np.one(space.n)
-            else:
-                return np.zeros(space.n)
-        elif isinstance(space, spaces.Tuple):
-            return np.concatenate([_flatten_bounds(s, bounds_type)
-                                   for s in space.spaces])
-        elif isinstance(space, spaces.Dict):
-            return np.concatenate([_flatten_bounds(s, bounds_type)
-                                   for s in space.spaces.values()])
-        elif isinstance(space, spaces.MultiBinary):
-            if bounds_type == 'high':
-                return np.one(space.n)
-            else:
-                return np.zeros(space.n)
-        elif isinstance(space, spaces.MultiDiscrete):
-            if bounds_type == 'high':
-                return np.one(reduce(__mul__, space.nvec))
-            else:
-                return np.zeros(reduce(__mul__, space.nvec))
-        else:
-            raise NotImplementedError
-    if x is None:
-        return spaces.Box(low=_flatten_bounds(space, 'low'),
-                          high=_flatten_bounds(space, 'high'),
-                          dtype=np.float64)
-    else:
-        return spaces.flatten(space, x)
-
-
-class FlattenObservation(gym.ObservationWrapper):
-    """
-    @brief Observation wrapper that flattens the observation.
-    """
-    def __init__(self, env: gym.core.Env):
-        """   TODO
-        """
-        super().__init__(env)
-        self.observation_space = flatten_observation(
-            self.env.observation_space)
-
-    def observation(self, observation: spaces.Space) -> np.ndarray:
-        """   TODO
-        """
-        return flatten_observation(
-            self.env.observation_space, observation)
-
-
 class ObservationActionNormalization(gym.Wrapper):
-    def __init__(self, env: gym.core.Env):
+    def __init__(self, env: gym.Env):
         """   TODO
         """
         super().__init__(env)
@@ -112,7 +44,7 @@ class ObservationActionNormalization(gym.Wrapper):
         sensors_data = self.robot.sensors_data
         model_options = self.robot.get_model_options()
         num_sensors = {}
-        for sensor in (enc, effort, contact, force, imu):
+        for sensor in (encoder, effort, contact, force, imu):
             num_sensors[sensor] = len(self.robot.sensors_names[sensor.type])
 
         # ======= Compute robot configuration and velocity scale =======
@@ -172,18 +104,18 @@ class ObservationActionNormalization(gym.Wrapper):
 
             # Handling of encoders data scale
             self.observation_scale['sensors'] = {}
-            if enc.type in sensors_space.spaces.keys():
+            if encoder.type in sensors_space.spaces.keys():
                 enc_sensors_scale = np.full(
-                    (len(enc.fieldnames), num_sensors[enc]),
+                    (len(encoder.fieldnames), num_sensors[encoder]),
                     np.inf, dtype=np.float64)
 
                 # Replace inf bounds by the appropriate scale
-                for sensor_name in self.robot.sensors_names[enc.type]:
+                for sensor_name in self.robot.sensors_names[encoder.type]:
                     # Get the sensor scaling.
                     # Note that for rotary unbounded encoders, the bounds
                     # cannot be extracted from the configuration vector scale,
                     # but rather are known in advance.
-                    sensor = self.robot.get_sensor(enc.type, sensor_name)
+                    sensor = self.robot.get_sensor(encoder.type, sensor_name)
                     sensor_idx = sensor.idx
                     joint = self.robot.pinocchio_model.joints[sensor.joint_idx]
                     if sensor.joint_type == jiminy.joint_t.ROTARY_UNBOUNDED:
@@ -197,7 +129,8 @@ class ObservationActionNormalization(gym.Wrapper):
                     enc_sensors_scale[1, sensor_idx] = sensor_velocity_scale
 
                 # Set the scale
-                self.observation_scale['sensors'][enc.type] = enc_sensors_scale
+                self.observation_scale['sensors'][encoder.type] = \
+                    enc_sensors_scale
 
             # Handling of IMUs data scale
             if imu.type in sensors_space.spaces.keys():

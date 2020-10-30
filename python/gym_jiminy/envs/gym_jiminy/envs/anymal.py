@@ -2,8 +2,8 @@ import os
 import numpy as np
 from pkg_resources import resource_filename
 
-from ..common.env_locomotion import WalkerJiminyEnv, WalkerPDControlJiminyEnv
-
+from ..common.env_locomotion import WalkerJiminyEnv
+from ..common.env_control import PDController, build_controlled_env
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -36,12 +36,10 @@ STD_RATIO = {
 
 
 class ANYmalJiminyEnv(WalkerJiminyEnv):
-    """
-    @brief    TODO
+    """TODO
     """
     def __init__(self, debug: bool = False, **kwargs):
-        """
-        @brief    TODO
+        """TODO
         """
         # Get the urdf and mesh paths
         data_root_dir = os.path.join(
@@ -74,14 +72,6 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
         return super()._compute_reward()
 
 
-class ANYmalPDControlJiminyEnv(ANYmalJiminyEnv, WalkerPDControlJiminyEnv):
-    """
-    @brief    TODO
-    """
-    def __init__(self, hlc_to_llc_ratio: int = HLC_TO_LLC_RATIO, **kwargs):
-        """
-        @brief    TODO
-        """
-        super().__init__(
-            hlc_to_llc_ratio=hlc_to_llc_ratio, pid_kp=PID_KP, pid_kd=PID_KD,
-            **kwargs)
+ANYmalPDControlJiminyEnv = build_controlled_env(
+    ANYmalJiminyEnv, PDController, observe_target=False,
+    update_ratio=HLC_TO_LLC_RATIO, pid_kp=PID_KP, pid_kd=PID_KD)

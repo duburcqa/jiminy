@@ -57,7 +57,7 @@ def smoothing_filter(
         params['smoothness'][2] = 3e-3
 
     if relabel is None:
-        def t_rescaled(t, start):
+        def t_rescaled(t: float, start: float) -> float:
             return (t - start) / (time_in[-1] - time_in[0])
 
         mix_fit = [None, None, None]

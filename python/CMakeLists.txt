@@ -28,17 +28,18 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
 ################ jiminy_py ################
 
 # Build Python wheels and archives
-buildPythonWheel(python/${LIBRARY_NAME}_py)
+buildPythonWheel("python/${LIBRARY_NAME}_py"
+                 "${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/dist")
 
 # Install Python package jiminy_py
-deployPythonPackage(${LIBRARY_NAME}_py)
+deployPythonPackage("${LIBRARY_NAME}_py")
 
 ################ gym_jiminy ################
 
-if (PYTHON_VERSION_MAJOR GREATER "2")
-    # Build Python wheels and archives
-    buildPythonWheel(gym_${LIBRARY_NAME})
-
-    # Install Python package in develop mode
-    deployPythonPackageDevelop(gym_${LIBRARY_NAME})
-endif()
+buildPythonWheel("python/gym_${LIBRARY_NAME}/common"
+                 "python/gym_${LIBRARY_NAME}/envs"
+                 "python/gym_${LIBRARY_NAME}/toolbox"
+                 "${CMAKE_BINARY_DIR}/pypi/gym_${LIBRARY_NAME}")
+deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
+                           "python/gym_${LIBRARY_NAME}/envs"
+                           "python/gym_${LIBRARY_NAME}/toolbox")

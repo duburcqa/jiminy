@@ -1,5 +1,5 @@
-<!-- A simple, downward-facing pendulum-->
 <?xml version="1.0" ?>
+<!-- A simple, downward-facing pendulum-->
 <robot name="pendulum">
     <link name="world">
         <!-- It is necessary to add a mass to the world to work with and without freeflyer. -->

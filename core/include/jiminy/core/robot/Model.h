@@ -45,7 +45,7 @@ namespace jiminy
         {
             // Add extra options or update default values
             configHolder_t config;
-            config["maxContactPointsPerBody"] = 3U;  // Max number of contact points per collision pairs
+            config["maxContactPointsPerBody"] = 5U;  // Max number of contact points per collision pairs
 
             return config;
         };

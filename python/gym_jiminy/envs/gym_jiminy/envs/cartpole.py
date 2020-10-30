@@ -126,11 +126,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Configure the learning environment
         super().__init__(simulator, STEP_DT, debug=False)
 
-    def _setup_environment(self) -> None:
+    def _setup(self) -> None:
         """
         @brief    TODO
         """
-        super()._setup_environment()
+        super()._setup()
 
         # OpenAI Gym implementation of Cartpole has no velocity limit
         robot_options = self.robot.get_options()

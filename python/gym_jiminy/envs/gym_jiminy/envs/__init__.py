@@ -1,6 +1,22 @@
-import jiminy_py  # Preload jiminy # noqa
 from gym.envs.registration import register
 
+from .cartpole import CartPoleJiminyEnv
+from .acrobot import AcrobotJiminyEnv, AcrobotJiminyGoalEnv
+from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
+from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
+from .spotmicro import SpotmicroJiminyEnv
+
+
+__all__ = [
+    'CartPoleJiminyEnv',
+    'AcrobotJiminyEnv',
+    'AcrobotJiminyGoalEnv',
+    'ANYmalJiminyEnv',
+    'ANYmalPDControlJiminyEnv',
+    'AtlasJiminyEnv',
+    'AtlasPDControlJiminyEnv',
+    'SpotmicroJiminyEnv'
+]
 
 register(
     id='jiminy-cartpole-v0',
@@ -14,7 +30,6 @@ register(
     reward_threshold=-100.0,
     max_episode_steps=500
 )
-
 register(
     id='jiminy-anymal-v0',
     entry_point='gym_jiminy.envs:ANYmalJiminyEnv'

@@ -37,18 +37,6 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         super().__init__(
             self.__compute_command, self.internal_dynamics)
 
-    def __compute_command(self,
-                          t: float,
-                          q: np.ndarray,
-                          v: np.ndarray,
-                          sensors_data: jiminy.sensorsData,
-                          u: np.ndarray) -> None:
-        """Internal controller callback, should not be called directly.
-        """
-        if self.__pbar is not None:
-            self.__pbar.update(t - self.__pbar.n)
-        self.__controller_handle(t, q, v, sensors_data, u)
-
     def initialize(self, robot: BaseJiminyRobot) -> None:
         """Initialize the controller.
 
@@ -62,6 +50,12 @@ class BaseJiminyController(jiminy.ControllerFunctor):
             raise ValueError(
                 "Impossible to instantiate the controller.  There is "
                 "something wrong with the robot.")
+
+    def reset(self) -> None:
+        """Reset the controller. Not intended to be called manually.
+        """
+        super().reset()
+        self.close_progress_bar()
 
     def set_controller_handle(
             self,
@@ -84,7 +78,6 @@ class BaseJiminyController(jiminy.ControllerFunctor):
             |                    **sensors_data**: jiminy_py.core.sensorsData,
             |                    **u_command**: np.ndarray\) -> None
         """
-
         try:
             t = 0.0
             y, dy = np.zeros(self.__robot.nq), np.zeros(self.__robot.nv)
@@ -98,11 +91,17 @@ class BaseJiminyController(jiminy.ControllerFunctor):
                 "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
                 ) from e
 
-    def reset(self) -> None:
-        """Reset the controller. Not intended to be called manually.
+    def __compute_command(self,
+                          t: float,
+                          q: np.ndarray,
+                          v: np.ndarray,
+                          sensors_data: jiminy.sensorsData,
+                          u: np.ndarray) -> None:
+        """Internal controller callback, should not be called directly.
         """
-        super().reset()
-        self.close_progress_bar()
+        if self.__pbar is not None:
+            self.__pbar.update(t - self.__pbar.n)
+        self.__controller_handle(t, q, v, sensors_data, u)
 
     def set_progress_bar(self, tf: float) -> None:
         """Reset the progress bar. It must be called manually after calling

@@ -3,7 +3,7 @@ import os
 import math
 import warnings
 import numpy as np
-from typing import Optional, Any, Dict, Union
+from typing import Optional, Any, Dict, Union, Type
 
 import meshcat
 from meshcat.geometry import Geometry, pack_numpy_array
@@ -175,7 +175,11 @@ meshcat.Visualizer.set_property = set_property  # noqa
 
 class MeshcatVisualizer(BaseVisualizer):
     """A Pinocchio display using Meshcat
-    """
+
+    Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/meshcat_visualizer.py
+    Copyright (c) 2014-2020, CNRS
+    Copyright (c) 2018-2020, INRIA
+    """  # noqa: E501
     def getViewerNodeName(self,
                           geometry_object: hppfcl.CollisionGeometry,
                           geometry_type: pin.GeometryType):
@@ -225,12 +229,19 @@ class MeshcatVisualizer(BaseVisualizer):
         elif isinstance(geom, hppfcl.Cone):
             obj = Cone(2. * geom.halfLength, geom.radius)
         elif isinstance(geom, hppfcl.Convex):
-            vertices = np.vstack([
-                geom.points(i) for i in range(geom.num_points)])
-            faces = np.vstack([
-                np.array([geom.polygons(i)[j] for j in range(3)])
-                for i in range(geom.num_polygons)])
+            vertices = np.vstack([geom.points(i)
+                                  for i in range(geom.num_points)])
+            faces = np.vstack([np.array(list(geom.polygons(i)))
+                               for i in range(geom.num_polygons)])
             obj = TriangularMeshGeometry(vertices, faces)
+            geometry_object.meshScale = np.ones(3)  # It is already at scale !
+        elif isinstance(geom, hppfcl.BVHModelOBBRSS):
+            vertices = np.vstack([geom.vertices(i)
+                                  for i in range(geom.num_vertices)])
+            faces = np.vstack([np.array(list(geom.tri_indices(i)))
+                               for i in range(geom.num_tris)])
+            obj = TriangularMeshGeometry(vertices, faces)
+            geometry_object.meshScale = np.ones(3)  # Same
         else:
             msg = "Unsupported geometry type for %s (%s)" % (
                 geometry_object.name, type(geom))
@@ -269,13 +280,16 @@ class MeshcatVisualizer(BaseVisualizer):
     def loadViewerGeometryObject(self,
                                  geometry_object: hppfcl.CollisionGeometry,
                                  geometry_type: pin.GeometryType,
-                                 color: Optional[np.ndarray] = None):
+                                 color: Optional[np.ndarray] = None,
+                                 Material: Type[meshcat.geometry.Material] =
+                                 meshcat.geometry.MeshPhongMaterial):
         """Load a single geometry object"""
         node_name = self.getViewerNodeName(
             geometry_object, geometry_type)
 
         try:
-            if isinstance(geometry_object.geometry, hppfcl.ShapeBase):
+            if isinstance(geometry_object.geometry, hppfcl.ShapeBase) or \
+                    not os.path.exists(geometry_object.meshPath):
                 obj = self.loadPrimitive(geometry_object)
             else:
                 obj = self.loadMesh(geometry_object)
@@ -286,7 +300,7 @@ class MeshcatVisualizer(BaseVisualizer):
                    "%s") % (geometry_object.name, e)
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
-        material = meshcat.geometry.MeshPhongMaterial()
+        material = Material()
         # Set material color from URDF, converting for triplet of doubles to a
         # single int.
         if color is None:
@@ -297,7 +311,7 @@ class MeshcatVisualizer(BaseVisualizer):
                           int(meshColor[1] * 255) * 256 +
                           int(meshColor[2] * 255))
         # Add transparency, if needed.
-        if float(meshColor[3]) != 1.0:
+        if float(meshColor[3]) < 1.0:
             material.transparent = True
             material.opacity = float(meshColor[3])
         # Create meshcat object
@@ -380,10 +394,8 @@ class MeshcatVisualizer(BaseVisualizer):
             self.display_collisions = False
             return
 
-        for collision in self.collision_model.geometryObjects:
-            nodeName = self.getViewerNodeName(
-                collision, pin.GeometryType.COLLISION)
-            self.viewer[nodeName].set_property("visible", visibility)
+        self.viewer[self.viewerCollisionGroupName].set_property(
+            "visible", visibility)
 
     def displayVisuals(self, visibility: bool):
         """Set whether to display visual objects or not.
@@ -393,6 +405,5 @@ class MeshcatVisualizer(BaseVisualizer):
             self.display_visuals = False
             return
 
-        for visual in self.visual_model.geometryObjects:
-            nodeName = self.getViewerNodeName(visual, pin.GeometryType.VISUAL)
-            self.viewer[nodeName].set_property("visible", visibility)
+        self.viewer[self.viewerVisualGroupName].set_property(
+            "visible", visibility)
