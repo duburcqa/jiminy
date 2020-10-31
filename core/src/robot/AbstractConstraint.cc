@@ -33,7 +33,7 @@ namespace jiminy
 
         if (isAttached_)
         {
-            std::cout << "Error - FixedFrameConstraint::attach - Constraint already attached to a robot." << std::endl;
+            PRINT_ERROR("Constraint already attached to a robot.")
             return hresult_t::ERROR_GENERIC;
         }
 

@@ -191,6 +191,23 @@ namespace jiminy
     template<typename T>
     struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
 
+    // ************* Error message generation ****************
+
+    template<typename... Args>
+    std::string to_string(Args &&... args)
+    {
+        std::ostringstream sstr;
+        using List = int[];
+        (void)List{0, ( (void)(sstr << args), 0 ) ... };
+        return sstr.str();
+    }
+
+    #define STRINGIFY_DETAIL(x) #x
+    #define STRINGIFY(x) STRINGIFY_DETAIL(x)
+    #define FILE_LINE __FILE__ ":" STRINGIFY(__LINE__)
+    #define PRINT_ERROR(...) \
+    std::cout << "In " FILE_LINE ":\nIn " << BOOST_CURRENT_FUNCTION << ":\nerror: " << to_string(__VA_ARGS__) << std::endl;
+
     // *************** Conversion to JSON utilities *****************
 
     class AbstractIODevice;

@@ -66,13 +66,13 @@ namespace jiminy
     {
         if (!robot->getIsInitialized())
         {
-            std::cout << "Error - EngineMultiRobot::initialize - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!controller->getIsInitialized())
         {
-            std::cout << "Error - EngineMultiRobot::initialize - Controller not initialized." << std::endl;
+            PRINT_ERROR("Controller not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -92,7 +92,7 @@ namespace jiminy
     {
         if (!robot->getIsInitialized())
         {
-            std::cout << "Error - EngineMultiRobot::initialize - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -154,7 +154,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::setController - A simulation is already running. Stop it before setting a new controller for a system." << std::endl;
+            PRINT_ERROR("A simulation is already running. Stop it before setting a new controller for a system.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -163,7 +163,7 @@ namespace jiminy
         {
             if (!controller->getIsInitialized())
             {
-                std::cout << "Error - EngineMultiRobot::setController - Controller not initialized." << std::endl;
+                PRINT_ERROR("Controller not initialized.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -290,7 +290,7 @@ namespace jiminy
 
         if (systems_.empty())
         {
-            std::cout << "Error - EngineMultiRobot::configureTelemetry - No system added to the engine." << std::endl;
+            PRINT_ERROR("No system added to the engine.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -487,19 +487,19 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::start - A simulation is already running. Stop it before starting again." << std::endl;
+            PRINT_ERROR("A simulation is already running. Stop it before starting again.")
             return hresult_t::ERROR_GENERIC;
         }
 
         if (systems_.empty())
         {
-            std::cout << "Error - EngineMultiRobot::start - No system to simulate. Please add one before starting a simulation." << std::endl;
+            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (qInit.size() != systems_.size() || vInit.size() != systems_.size())
         {
-            std::cout << "Error - EngineMultiRobot::start - The number of initial configurations and velocities must match the number of systems." << std::endl;
+            PRINT_ERROR("The number of initial configurations and velocities must match the number of systems.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -514,8 +514,7 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                std::cout << "Error - EngineMultiRobot::start - At least one of the systems does not have an "
-                                "initial configuration or velocity." << std::endl;
+                PRINT_ERROR("At least one of the systems does not have an initial configuration or velocity.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -523,8 +522,8 @@ namespace jiminy
             vectorN_t const & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
-                std::cout << "Error - EngineMultiRobot::start - The size of the initial configuration or velocity "
-                                "is inconsistent with model size for at least one of the systems." << std::endl;
+                PRINT_ERROR("The size of the initial configuration or velocity is inconsistent "
+                            "with model size for at least one of the systems.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -532,8 +531,8 @@ namespace jiminy
             isPositionValid(system.robot->pncModel_, q, isValid);  // It cannot throw an exception at this point
             if (!isValid)
             {
-                std::cout << "Error - EngineMultiRobot::start - The initial configuration is not consistent with "
-                             "the  types of joints of the model for at least one of the systems." << std::endl;
+                PRINT_ERROR("The initial configuration is not consistent with the types of "
+                            "joints of the model for at least one of the systems.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -542,8 +541,8 @@ namespace jiminy
                 (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
             {
-                std::cout << "Error - EngineMultiRobot::start - The initial configuration or velocity is "
-                                "out-of-bounds for at least one of the systems." << std::endl;
+                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for at "
+                            "least one of the systems.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -559,7 +558,7 @@ namespace jiminy
                 {
                     if (!sensor->getIsInitialized())
                     {
-                        std::cout << "Error - EngineMultiRobot::start - At least a sensor of a robot is not initialized." << std::endl;
+                        PRINT_ERROR("At least a sensor of a robot is not initialized.")
                         return hresult_t::ERROR_INIT_FAILED;
                     }
                 }
@@ -569,7 +568,7 @@ namespace jiminy
             {
                 if (!motor->getIsInitialized())
                 {
-                    std::cout << "Error - EngineMultiRobot::start - At least a motor of a robot is not initialized." << std::endl;
+                    PRINT_ERROR("At least a motor of a robot is not initialized.")
                     return hresult_t::ERROR_INIT_FAILED;
                 }
             }
@@ -718,8 +717,9 @@ namespace jiminy
 
                 if (forceMax > 1e5)
                 {
-                    std::cout << "Error - EngineMultiRobot::start - The initial force exceeds 1e5 for at least one contact point, "\
-                                 "which is forbidden for the sake of numerical stability. Please update the initial state." << std::endl;
+                    PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
+                                "which is forbidden for the sake of numerical stability. Please "
+                                "update the initial state.")
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
@@ -815,13 +815,13 @@ namespace jiminy
 
         if (systems_.empty())
         {
-            std::cout << "Error - EngineMultiRobot::simulate - No system to simulate. Please add one before starting a simulation." << std::endl;
+            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (tEnd < 5e-3)
         {
-            std::cout << "Error - EngineMultiRobot::simulate - The duration of the simulation cannot be shorter than 5ms." << std::endl;
+            PRINT_ERROR("The duration of the simulation cannot be shorter than 5ms.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -834,9 +834,9 @@ namespace jiminy
         // Now that telemetry has been initialized, check simulation duration.
         if (tEnd > telemetryRecorder_->getMaximumLogTime())
         {
-            std::cout << "Error - EngineMultiRobot::simulate - Time overflow: with the current precision ";
-            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
-            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            PRINT_ERROR("Time overflow: with the current precision the maximum value that "
+                        "can be logged is ", telemetryRecorder_->getMaximumLogTime(),
+                        "s. Decrease logger precision to simulate for longer than that.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -913,7 +913,7 @@ namespace jiminy
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::step - No simulation running. Please start it before using step method." << std::endl;
+            PRINT_ERROR("No simulation running. Please start it before using step method.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -922,8 +922,7 @@ namespace jiminy
         {
             if ((a.array() != a.array()).any()) // isnan if NOT equal to itself
             {
-                std::cout << "Error - EngineMultiRobot::step - The low-level ode solver failed. "
-                            "Consider increasing the stepper accuracy." << std::endl;
+                PRINT_ERROR("The low-level ode solver failed. Consider increasing the stepper accuracy.")
                 return hresult_t::ERROR_GENERIC;
             }
         }
@@ -931,7 +930,7 @@ namespace jiminy
         // Check if the desired step size is suitable
         if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::step - The requested step size is out of bounds." << std::endl;
+            PRINT_ERROR("The requested step size is out of bounds.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -964,9 +963,9 @@ namespace jiminy
            logging precision, otherwise abort integration. */
         if (stepperState_.t + stepSize > telemetryRecorder_->getMaximumLogTime())
         {
-            std::cout << "Error - EngineMultiRobot::step - Time overflow: with the current precision ";
-            std::cout << "the maximum value that can be logged is " << telemetryRecorder_->getMaximumLogTime();
-            std::cout << "s. Decrease logger precision to simulate for longer than that." << std::endl;
+            PRINT_ERROR("Time overflow: with the current precision the maximum value that "
+                        "can be logged is ", telemetryRecorder_->getMaximumLogTime(),
+                        "s. Decrease logger precision to simulate for longer than that.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1348,15 +1347,15 @@ namespace jiminy
 
             if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
-                std::cout << "Error - EngineMultiRobot::step - Too many successive iteration failures. "\
-                             "Probably something is going wrong with the physics. Aborting integration." << std::endl;
+                PRINT_ERROR("Too many successive iteration failures. Probably something is "
+                            "going wrong with the physics. Aborting integration.")
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
             {
-                std::cout << "Error - EngineMultiRobot::step - The internal time step is getting too small. "\
-                             "Impossible to integrate physics further in time." << std::endl;
+                PRINT_ERROR("The internal time step is getting too small. Impossible to "
+                            "integrate physics further in time.")
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
@@ -1364,7 +1363,7 @@ namespace jiminy
             if (EPS < engineOptions_->stepper.timeout
                 && engineOptions_->stepper.timeout < timer_.dt)
             {
-                std::cout << "Error - EngineMultiRobot::step - Step computation timeout." << std::endl;
+                PRINT_ERROR("Step computation timeout.")
                 returnCode = hresult_t::ERROR_GENERIC;
             }
         }
@@ -1433,15 +1432,13 @@ namespace jiminy
 
         if (isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::registerForceImpulse - A simulation is running. "\
-                         "Please stop it before registering new forces." << std::endl;
+            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
         if (dt < STEPPER_MIN_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::registerForceImpulse - The force duration cannot be smaller than "
-                      << STEPPER_MIN_TIMESTEP << "." << std::endl;
+            PRINT_ERROR("The force duration cannot be smaller than ", STEPPER_MIN_TIMESTEP, ".")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1478,8 +1475,7 @@ namespace jiminy
 
         if (isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::registerForceProfile - A simulation is running. "\
-                         "Please stop it before registering new forces." << std::endl;
+            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1514,8 +1510,7 @@ namespace jiminy
     {
         if (isSimulationRunning_)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - A simulation is running. "\
-                         "Please stop it before updating the options." << std::endl;
+            PRINT_ERROR("A simulation is running. Please stop it before updating the options.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1524,7 +1519,7 @@ namespace jiminy
         float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
         if (1.0 / STEPPER_MIN_TIMESTEP < timeUnit || timeUnit < 1.0 / SIMULATION_MAX_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - 'timeUnit' is out of range." << std::endl;
+            PRINT_ERROR("'timeUnit' is out of range.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1533,7 +1528,7 @@ namespace jiminy
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - 'dtMax' option is out of range." << std::endl;
+            PRINT_ERROR("'dtMax' option is out of range.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1541,7 +1536,7 @@ namespace jiminy
         uint32_t const & successiveIterFailedMax = boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
         if (successiveIterFailedMax < 1)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - 'successiveIterFailedMax' must be strictly positive." << std::endl;
+            PRINT_ERROR("'successiveIterFailedMax' must be strictly positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1549,7 +1544,7 @@ namespace jiminy
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The requested 'odeSolver' is not available." << std::endl;
+            PRINT_ERROR("The requested 'odeSolver' is not available.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1563,9 +1558,9 @@ namespace jiminy
         || (EPS < controllerUpdatePeriod && controllerUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         || controllerUpdatePeriod > SIMULATION_MAX_TIMESTEP)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - Cannot simulate a discrete system with update period smaller than "
-                      << SIMULATION_MIN_TIMESTEP << "s or larger than " << SIMULATION_MAX_TIMESTEP << "s. "
-                      << "Increase period or switch to continuous mode by setting period to zero." << std::endl;
+            PRINT_ERROR("Cannot simulate a discrete system with update period smaller than ",
+                        SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
+                        "s. Increase period or switch to continuous mode by setting period to zero.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
@@ -1577,8 +1572,8 @@ namespace jiminy
             && std::min(std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod),
                         controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - In discrete mode, the controller and sensor update periods "\
-                         "must be multiple of each other." << std::endl;
+            PRINT_ERROR("In discrete mode, the controller and sensor update periods must be "
+                        "multiple of each other.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1588,21 +1583,21 @@ namespace jiminy
             boost::get<float64_t>(contactsOptions.at("frictionStictionVel"));
         if (frictionStictionVel < 0.0)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'frictionStictionVel' must be positive." << std::endl;
+            PRINT_ERROR("The contacts option 'frictionStictionVel' must be positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & frictionStictionRatio =
             boost::get<float64_t>(contactsOptions.at("frictionStictionRatio"));
         if (frictionStictionRatio < 0.0)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'frictionStictionRatio' must be positive." << std::endl;
+            PRINT_ERROR("The contacts option 'frictionStictionRatio' must be positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & contactsTransitionEps =
             boost::get<float64_t>(contactsOptions.at("transitionEps"));
         if (contactsTransitionEps < 0.0)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The contacts option 'transitionEps' must be positive." << std::endl;
+            PRINT_ERROR("The contacts option 'transitionEps' must be positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1612,14 +1607,14 @@ namespace jiminy
             boost::get<float64_t>(jointsOptions.at("transitionPositionEps"));
         if (jointsTransitionPositionEps < EPS)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionPositionEps' must be strictly positive." << std::endl;
+            PRINT_ERROR("The joints option 'transitionPositionEps' must be strictly positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & jointsTransitionVelocityEps =
             boost::get<float64_t>(jointsOptions.at("transitionVelocityEps"));
         if (jointsTransitionVelocityEps < EPS)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The joints option 'transitionVelocityEps' must be strictly positive." << std::endl;
+            PRINT_ERROR("The joints option 'transitionVelocityEps' must be strictly positive.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1642,7 +1637,7 @@ namespace jiminy
         vectorN_t gravity = boost::get<vectorN_t>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
-            std::cout << "Error - EngineMultiRobot::setOptions - The size of the gravity force vector must be 6." << std::endl;
+            PRINT_ERROR("The size of the gravity force vector must be 6.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1678,7 +1673,7 @@ namespace jiminy
                                      });
         if (systemIt == systems_.end())
         {
-            std::cout << "Error - EngineMultiRobot::getSystem - No system with this name has been added to the engine." << std::endl;
+            PRINT_ERROR("No system with this name has been added to the engine.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1701,7 +1696,7 @@ namespace jiminy
                                      });
         if (systemIt == systems_.end())
         {
-            std::cout << "Error - EngineMultiRobot::getSystem - No system with this name has been added to the engine." << std::endl;
+            PRINT_ERROR("No system with this name has been added to the engine.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -2271,7 +2266,7 @@ namespace jiminy
         // Make sure that a simulation is running
         if (systems_.empty())
         {
-            std::cout << "Error - EngineMultiRobot::computeSystemDynamics - No system to simulate. Please add one before computing system dynamics." << std::endl;
+            PRINT_ERROR("No system to simulate. Please add one before computing system dynamics.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -2409,8 +2404,7 @@ namespace jiminy
         getLogData(header, log);
         if (header.empty())
         {
-            std::cout << "Error - EngineMultiRobot::writeLogTxt - No data available. "
-                         "Please start a simulation before writing log." << std::endl;
+            PRINT_ERROR("No data available. Please start a simulation before writing log.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -2420,8 +2414,8 @@ namespace jiminy
 
         if (!myFile.is_open())
         {
-            std::cout << "Error - EngineMultiRobot::writeLogTxt - Impossible to create the log file. "\
-                         "Check if root folder exists and if you have writing permissions." << std::endl;
+            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
+                        "if you have writing permissions.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -2491,7 +2485,7 @@ namespace jiminy
             // Make sure the log file is not corrupted
             if (!myFile.good())
             {
-                std::cout << "Error - EngineMultiRobot::parseLogBinary - Corrupted log file." << std::endl;
+                PRINT_ERROR("Corrupted log file.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -2513,8 +2507,8 @@ namespace jiminy
         }
         else
         {
-            std::cout << "Error - EngineMultiRobot::parseLogBinary - Impossible to open the log file. "\
-                         "Check that the file exists and that you have reading permissions." << std::endl;
+            PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
+                        "that you have reading permissions.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 

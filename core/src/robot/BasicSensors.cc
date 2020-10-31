@@ -37,7 +37,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - ImuSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -65,9 +65,9 @@ namespace jiminy
         vectorN_t const & noiseStd = boost::get<vectorN_t>(sensorOptions.at("noiseStd"));
         if ((bias.size() && bias.size() != 9) || (noiseStd.size() && noiseStd.size() != 9))
         {
-            std::cout << "Error - ImuSensor::refreshProxies - Wrong bias or std vector size. Bias vector should contain 9 coordinates:\n"\
-                            "  - the first three are the angle-axis representation of a rotation bias applied to all sensor signal.\n"\
-                            "  - the next six are respectively gyroscope and accelerometer additive bias." << std::endl;
+            PRINT_ERROR("Wrong bias or std vector size. Bias vector should contain 9 coordinates:\n"
+                        "  - the first three are the angle-axis representation of a rotation bias applied to all sensor signal.\n"
+                        "  - the next six are respectively gyroscope and accelerometer additive bias.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -85,7 +85,7 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - ImuSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -93,7 +93,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - ImuSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -137,7 +137,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - ImuSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -221,7 +221,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - ContactSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -246,7 +246,7 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - ContactSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -254,7 +254,7 @@ namespace jiminy
         auto contactFrameNameIt = std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
         if (contactFrameNameIt == contactFramesNames.end())
         {
-            std::cout << "Error - ContactSensor::refreshProxies - Sensor frame not associated with any contact point of the robot. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Sensor frame not associated with any contact point of the robot. Impossible to refresh model-dependent proxies.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -262,7 +262,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - ContactSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -293,7 +293,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - ContactSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -328,7 +328,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - ForceSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -353,7 +353,7 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - ForceSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -361,7 +361,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - ForceSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -404,7 +404,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - ForceSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -439,7 +439,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - EncoderSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -464,19 +464,19 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - EncoderSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - EncoderSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!robot_->pncModel_.existJointName(jointName_))
         {
-            std::cout << "Error - EncoderSensor::refreshProxies - Sensor attached to a joint that does not exist." << std::endl;
+            PRINT_ERROR("Sensor attached to a joint that does not exist.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -487,7 +487,7 @@ namespace jiminy
         // Motors are only supported for linear and rotary joints
         if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
         {
-            std::cout << "Error - EncoderSensor::refreshProxies - An encoder sensor can only be associated with a 1-dof linear or rotary joint." << std::endl;
+            PRINT_ERROR("An encoder sensor can only be associated with a 1-dof linear or rotary joint.")
             returnCode =  hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -517,7 +517,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - EncoderSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -562,7 +562,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - EffortSensor::initialize - Sensor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -587,13 +587,13 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - EffortSensor::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!isInitialized_)
         {
-            std::cout << "Error - EffortSensor::refreshProxies - Sensor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -629,7 +629,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - EffortSensor::set - Sensor not initialized. Impossible to set sensor data." << std::endl;
+            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 

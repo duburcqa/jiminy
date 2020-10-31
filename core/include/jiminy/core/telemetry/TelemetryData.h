@@ -93,7 +93,7 @@ namespace jiminy
 
             if (memAddress_ == nullptr)
             {
-                std::cout << "Error - MemoryBuffer::create - Memory allocation for the memory '" << name_ << "' failed." << std::endl;
+                PRINT_ERROR("Memory allocation for the memory '", name_, "' failed.")
                 return hresult_t::ERROR_GENERIC;
             }
 

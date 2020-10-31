@@ -29,7 +29,7 @@ namespace jiminy
     {
         if (!robot->getIsInitialized())
         {
-            std::cout << "Error - AbstractController::initialize - The robot is not initialized." << std::endl;
+            PRINT_ERROR("The robot is not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -50,14 +50,14 @@ namespace jiminy
             {
                 if (uCommand.size() != (int32_t) robot_->getMotorsNames().size())
                 {
-                    std::cout << "Error - AbstractController::initialize - 'computeCommand' returns command with wrong size." << std::endl;
+                    PRINT_ERROR("'computeCommand' returns command with wrong size.")
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 internalDynamics(t, q, v, uInternal);
                 if (uInternal.size() != robot_->nv())
                 {
-                    std::cout << "Error - AbstractController::initialize - 'internalDynamics' returns command with wrong size." << std::endl;
+                    PRINT_ERROR("'internalDynamics' returns command with wrong size.")
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -66,7 +66,7 @@ namespace jiminy
         catch (std::exception& e)
         {
             isInitialized_ = false;
-            std::cout << "Error - AbstractController::initialize - Something is wrong, probably because of 'commandFct'." << std::endl;
+            PRINT_ERROR("Something is wrong, probably because of 'commandFct'.")
             return hresult_t::ERROR_GENERIC;
         }
     }
@@ -94,7 +94,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - AbstractController::configureTelemetry - The controller is not initialized." << std::endl;
+            PRINT_ERROR("The controller is not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -131,7 +131,7 @@ namespace jiminy
             }
             else
             {
-                std::cout << "Error - AbstractController::configureTelemetry - Telemetry not initialized. Impossible to log controller data." << std::endl;
+                PRINT_ERROR("Telemetry not initialized. Impossible to log controller data.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -146,7 +146,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -162,7 +162,7 @@ namespace jiminy
                                            });
             if (variableIt != registeredVariables_.end())
             {
-                std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+                PRINT_ERROR("Variable already registered.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
             registeredVariables_.emplace_back(*fieldIt, values.data() + i);
@@ -178,7 +178,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            std::cout << "Error - AbstractController::registerVariable - Telemetry already initialized. Impossible to register new variables." << std::endl;
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -191,7 +191,7 @@ namespace jiminy
                                         });
         if (variableIt != registeredVariables_.end())
         {
-            std::cout << "Error - AbstractController::registerVariable - Variable already registered." << std::endl;
+            PRINT_ERROR("Variable already registered.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         registeredVariables_.emplace_back(fieldName, &value);

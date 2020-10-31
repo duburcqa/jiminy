@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "jiminy/core/Utilities.h"
 #include "jiminy/core/io/FileDevice.h"
 
 #ifndef _WIN32
@@ -115,7 +116,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::doOpen - Impossible to open the file using the desired mode." << std::endl;
+            PRINT_ERROR("Impossible to open the file using the desired mode.")
             return lastError_;
         }
 
@@ -130,7 +131,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::doClose - Impossible to close the file." << std::endl;
+            PRINT_ERROR("Impossible to close the file.")
             return lastError_;
         }
         else
@@ -146,7 +147,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::seek - The file is not open, or the requested position '" << pos << "' is out of scope." << std::endl;
+            PRINT_ERROR("The file is not open, or the requested position '" << pos << "' is out of scope.")
             return lastError_;
         }
         return hresult_t::SUCCESS;
@@ -158,7 +159,7 @@ namespace jiminy
         if (pos_cur < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::pos - The file is not open, or the position would be negative or beyond the end." << std::endl;
+            PRINT_ERROR("The file is not open, or the position would be negative or beyond the end.")
         }
         return pos_cur;
     }
@@ -170,7 +171,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::size - Impossible to access the file." << std::endl;
+            PRINT_ERROR("Impossible to access the file.")
         }
         return st.st_size;
     }
@@ -190,7 +191,7 @@ namespace jiminy
         if (readBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::readData - The file is not open, or data buffer is outside accessible address space." << std::endl;
+            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.")
         }
         return readBytes;
     }
@@ -201,7 +202,7 @@ namespace jiminy
         if (writtenBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::writeData - The file is not open, or data buffer is outside accessible address space." << std::endl;
+            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.")
         }
         return writtenBytes;
     }
@@ -217,7 +218,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::resize - The file is not open." << std::endl;
+            PRINT_ERROR("The file is not open.")
             return lastError_;
         }
         return hresult_t::SUCCESS;

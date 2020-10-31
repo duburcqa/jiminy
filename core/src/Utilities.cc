@@ -332,8 +332,7 @@ namespace jiminy
                     }
                     else
                     {
-                        std::cout << "Error - Utilities::convertFromJson - Unknown data type: "\
-                                     "std::vector<" << type << ">"  << std::endl;
+                        PRINT_ERROR("Unknown data type: std::vector<", type, ">")
                         field = std::string{"ValueError"};
                     }
                 }
@@ -377,8 +376,7 @@ namespace jiminy
                     }
                     else
                     {
-                        std::cout << "Error - Utilities::convertFromJson - Unknown data type: "\
-                                     "std::vector<" << it->type() << ">" << std::endl;
+                        PRINT_ERROR("Unknown data type: std::vector<", it->type(), ">");
                         field = std::string{"ValueError"};
                     }
                 }
@@ -389,7 +387,7 @@ namespace jiminy
             }
             else
             {
-                std::cout << "Error - Utilities::convertFromJson - Unknown data type: " << root->type() << std::endl;
+                PRINT_ERROR("Unknown data type: ", root->type())
                 field = std::string{"ValueError"};
             }
 
@@ -663,7 +661,7 @@ namespace jiminy
         auto iterator = std::find(header.begin(), header.end(), fieldName);
         if (iterator == header.end())
         {
-            std::cout << "Error - Utilities::getLogFieldValue - Field does not exist." << std::endl;
+            PRINT_ERROR("Field does not exist.")
             return fieldDataEmpty;
         }
 
@@ -692,7 +690,7 @@ namespace jiminy
             }
         }
 
-        std::cout << "Error - Utilities::getJointNameFromVelocityIdx - Position index out of range." << std::endl;
+        PRINT_ERROR("Position index out of range.")
         return hresult_t::ERROR_BAD_INPUT;
     }
 
@@ -715,7 +713,7 @@ namespace jiminy
             }
         }
 
-        std::cout << "Error - Utilities::getJointNameFromVelocityIdx - Velocity index out of range." << std::endl;
+        PRINT_ERROR("Velocity index out of range.")
         return hresult_t::ERROR_BAD_INPUT;
     }
 
@@ -725,7 +723,7 @@ namespace jiminy
     {
         if (model.njoints < idIn - 1)
         {
-            std::cout << "Error - Utilities::getJointTypeFromIdx - Joint index out of range." << std::endl;
+            PRINT_ERROR("Joint index out of range.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -768,8 +766,7 @@ namespace jiminy
         {
             // Unknown joint, throw an error to avoid any wrong manipulation.
             jointTypeOut = joint_t::NONE;
-            std::cout << "Error - Utilities::getJointTypeFromIdx - Unknown joint type '"
-                      <<  jointTypeStr << "'." << std::endl;
+            PRINT_ERROR("Unknown joint type '", jointTypeStr, "'.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -812,7 +809,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            std::cout << "Error - Utilities::getJointFieldnamesFromType - Joints of type 'NONE' do not have fieldnames." << std::endl;
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -851,7 +848,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            std::cout << "Error - Utilities::getJointFieldnamesFromType - Joints of type 'NONE' do not have fieldnames." << std::endl;
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -864,8 +861,7 @@ namespace jiminy
     {
         if (!model.existFrame(frameName))
         {
-            std::cout << "Error - Utilities::getFrameIdx - Frame '"
-                      << frameName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Frame '", frameName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -900,8 +896,7 @@ namespace jiminy
     {
         if (!model.existBodyName(bodyName))
         {
-            std::cout << "Error - Utilities::getBodyIdx - Body '"
-                      << bodyName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Body '", bodyName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -938,8 +933,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointPositionIdx - Joint '"
-                      << jointName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -960,8 +954,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointPositionIdx - Joint '"
-                      << jointName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1021,8 +1014,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - Utilities::getJointModelIdx - Joint '"
-                      << jointName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1062,8 +1054,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - getJointVelocityIdx - Joint '"
-                      << jointName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1084,8 +1075,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            std::cout << "Error - getJointVelocityIdx - Joint '"
-                      << jointName << "' not found in robot model." << std::endl;
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1143,7 +1133,7 @@ namespace jiminy
     {
         if (model.nq != position.size())
         {
-            std::cout << "Error - isPositionValid - Size of configuration vector inconsistent with model." << std::endl;
+            PRINT_ERROR("Size of configuration vector inconsistent with model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1291,7 +1281,7 @@ namespace jiminy
 
         if (!modelInOut.existJointName(childJointNameIn))
         {
-            std::cout << "Error - insertFlexibilityInModel - Child joint does not exist." << std::endl;
+            PRINT_ERROR("Child joint does not exist.")
             return hresult_t::ERROR_GENERIC;
         }
 

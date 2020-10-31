@@ -73,7 +73,7 @@ namespace jiminy
         }
         else
         {
-            std::cout << "Error - Utilities::convertFromJson - Unknown data type: " << root.type() << std::endl;
+            PRINT_ERROR("Unknown data type: ", root.type())
             root["type"] = "unknown";
         }
 

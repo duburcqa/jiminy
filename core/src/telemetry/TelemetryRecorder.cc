@@ -48,7 +48,7 @@ namespace jiminy
 
         if (isInitialized_)
         {
-            std::cout << "Error - TelemetryRecorder::initialize - TelemetryRecorder already initialized." << std::endl;
+            PRINT_ERROR("TelemetryRecorder already initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
         // Log the time unit as constant.
@@ -202,7 +202,7 @@ namespace jiminy
         }
         else
         {
-            std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
+            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if you have writing permissions.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         return hresult_t::SUCCESS;
