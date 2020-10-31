@@ -21,6 +21,7 @@
 namespace jiminy
 {
     Robot::Robot(void) :
+    Model(),
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
     motorsHolder_(),
@@ -34,7 +35,7 @@ namespace jiminy
     constraintsJacobian_(),
     constraintsDrift_(),
     mutexLocal_(),
-    motorsSharedHolder_(nullptr),
+    motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_(),
     zeroAccelerationVector_(vectorN_t::Zero(0))
     {
@@ -55,11 +56,8 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Remove all the motors and sensors
-        motorsHolder_.clear();
-        motorsSharedHolder_ = std::make_shared<MotorSharedDataHolder_t>();
-        sensorsGroupHolder_.clear();
-        sensorsSharedHolder_.clear();
-        sensorTelemetryOptions_.clear();
+        detachSensors({});
+        detachMotors({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -140,21 +138,30 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before adding motors.")
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("The robot is not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::string const & motorName = motor->getName();
-        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
-                                    [&motorName](auto const & elem)
-                                    {
-                                        return (elem->getName() == motorName);
-                                    });
         if (returnCode == hresult_t::SUCCESS)
         {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before adding motors.")
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            std::string const & motorName = motor->getName();
+            auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                        [&motorName](auto const & elem)
+                                        {
+                                            return (elem->getName() == motorName);
+                                        });
             if (motorIt != motorsHolder_.end())
             {
                 PRINT_ERROR("A motor with the same name already exists.")
@@ -171,7 +178,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Add the motor to the holder
-            motorsHolder_.emplace_back(std::move(motor));
+            motorsHolder_.push_back(motor);
 
             // Refresh the motors proxies
             refreshMotorsProxies();
@@ -341,7 +348,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Create the sensor and add it to its group
-            sensorsGroupHolder_[sensorType].emplace_back(std::move(sensor));
+            sensorsGroupHolder_[sensorType].push_back(sensor);
 
             // Refresh the sensors proxies
             refreshSensorsProxies();

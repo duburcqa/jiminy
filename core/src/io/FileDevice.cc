@@ -147,7 +147,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open, or the requested position '" << pos << "' is out of scope.")
+            PRINT_ERROR("The file is not open, or the requested position '", pos, "' is out of scope.")
             return lastError_;
         }
         return hresult_t::SUCCESS;

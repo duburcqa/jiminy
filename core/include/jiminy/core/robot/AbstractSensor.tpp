@@ -88,7 +88,7 @@ namespace jiminy
         sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
         // Shift the sensor indices
-        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             AbstractSensorTpl<T> * sensor =
                 static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
@@ -384,7 +384,7 @@ namespace jiminy
                 if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED
                 && timeMin > sharedHolder_->time_[2U + DELAY_MAX_BUFFER_EXCEED])
                 {
-                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; i ++)
+                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; ++i)
                     {
                         sharedHolder_->time_.pop_front();
                         sharedHolder_->data_.pop_front();

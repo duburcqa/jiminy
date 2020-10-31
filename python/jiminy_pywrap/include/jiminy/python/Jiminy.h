@@ -483,9 +483,9 @@ namespace python
                 float64_t * dataPyDataPtr = reinterpret_cast<float64_t *>(
                     PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPyPtr)));
 
-                for (; sensorDataIt != sensorsDataType.end(); sensorDataIt++)
+                for (; sensorDataIt != sensorsDataType.end(); ++sensorDataIt)
                 {
-                    for (uint32_t i=0 ; i < dims[0] ; i++)
+                    for (uint32_t i=0 ; i < dims[0] ; ++i)
                     {
                         auto dataIdxOffset = i * dims[1] + sensorDataIt->idx;
                         *(dataPyDataPtr + dataIdxOffset) = sensorDataIt->value[i];
@@ -1393,15 +1393,13 @@ namespace python
                 }
                 else
                 {
-                    std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - "
-                                 "'value' input array must have dtype 'np.float64' and a single element." << std::endl;
+                    PRINT_ERROR("'value' input array must have dtype 'np.float64' and a single element.")
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerVariable - "
-                             "'value' input must have type 'numpy.ndarray'." << std::endl;
+                PRINT_ERROR("'value' input must have type 'numpy.ndarray'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1423,14 +1421,13 @@ namespace python
                 }
                 else
                 {
-                    std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - "
-                                 "'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'." << std::endl;
+                    PRINT_ERROR("'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'.")
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - 'values' input must have type 'numpy.ndarray'." << std::endl;
+                PRINT_ERROR("'values' input must have type 'numpy.ndarray'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1446,7 +1443,7 @@ namespace python
                 int dataPyArrayDtype = PyArray_TYPE(dataPyArray);
                 if (dataPyArrayDtype != NPY_FLOAT64)
                 {
-                    std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The only dtype supported for 'numpy.ndarray' is float." << std::endl;
+                    PRINT_ERROR("The only dtype supported for 'numpy.ndarray' is float.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 float64_t * dataPyArrayData = (float64_t *) PyArray_DATA(dataPyArray);
@@ -1468,7 +1465,7 @@ namespace python
                 }
                 else
                 {
-                    std::cout << "Error - PyAbstractControllerVisitor::registerConstant - The max number of dims supported for 'numpy.ndarray' is 2." << std::endl;
+                    PRINT_ERROR("The max number of dims supported for 'numpy.ndarray' is 2.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -1490,7 +1487,7 @@ namespace python
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerConstant - 'value' type is unsupported." << std::endl;
+                PRINT_ERROR("'value' type is unsupported.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1637,17 +1634,17 @@ namespace python
             s << "\nt:\n    " << self.t;
             s << "\ndt:\n    " << self.dt;
             s << "\nq:";
-            for (uint32_t i=0; i < self.qSplit.size(); i++)
+            for (uint32_t i=0; i < self.qSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.qSplit[i].transpose().format(HeavyFmt);
             }
             s << "\nv:";
-            for (uint32_t i=0; i < self.vSplit.size(); i++)
+            for (uint32_t i=0; i < self.vSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.vSplit[i].transpose().format(HeavyFmt);
             }
             s << "\na:";
-            for (uint32_t i=0; i < self.aSplit.size(); i++)
+            for (uint32_t i=0; i < self.aSplit.size(); ++i)
             {
                 s << "\n    (" << i << "): " << self.aSplit[i].transpose().format(HeavyFmt);
             }
@@ -1711,7 +1708,7 @@ namespace python
             s << "u_command:\n    " << self.uCommand.transpose().format(HeavyFmt);
             s << "u_internal:\n    " << self.uInternal.transpose().format(HeavyFmt);
             s << "f_external:\n";
-            for (std::size_t i = 0; i < self.fExternal.size(); i++)
+            for (std::size_t i = 0; i < self.fExternal.size(); ++i)
             {
                 s << "    (" << i << "): "
                   << self.fExternal[i].toVector().transpose().format(HeavyFmt);
@@ -2044,7 +2041,7 @@ namespace python
             // Get constants
             int32_t const lastConstantIdx = std::distance(
                 header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
-            for (int32_t i = 1; i < lastConstantIdx; i++)
+            for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
                 int32_t const delimiter = header[i].find("=");
                 constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
@@ -2066,7 +2063,7 @@ namespace python
             if (!intData.empty())
             {
                 intMatrix.resize(timestamps.size(), intData[0].size());
-                for (uint32_t i=0; i<intData.size(); i++)
+                for (uint32_t i=0; i<intData.size(); ++i)
                 {
                     intMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
                         intData[i].data(), intData[0].size());
@@ -2076,7 +2073,7 @@ namespace python
                     intData.clear();
                 }
 
-                for (uint32_t i=0; i<intMatrix.cols(); i++)
+                for (uint32_t i=0; i<intMatrix.cols(); ++i)
                 {
                     Eigen::Ref<Eigen::Matrix<int32_t, -1, 1> > intCol(intMatrix.col(i));
                     PyObject * valuePyInt(getNumpyReference(intCol));
@@ -2097,7 +2094,7 @@ namespace python
             if (!floatData.empty())
             {
                 floatMatrix.resize(timestamps.size(), floatData[0].size());
-                for (uint32_t i=0; i<floatData.size(); i++)
+                for (uint32_t i=0; i<floatData.size(); ++i)
                 {
                     floatMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
                         floatData[i].data(), floatData[0].size());
@@ -2107,7 +2104,7 @@ namespace python
                     floatData.clear();
                 }
 
-                for (uint32_t i=0; i<floatMatrix.cols(); i++)
+                for (uint32_t i=0; i<floatMatrix.cols(); ++i)
                 {
                     Eigen::Ref<Eigen::Matrix<float32_t, -1, 1> > floatCol(floatMatrix.col(i));
                     PyObject * valuePyFloat(getNumpyReference(floatCol));

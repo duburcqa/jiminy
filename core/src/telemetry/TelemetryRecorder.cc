@@ -251,7 +251,7 @@ namespace jiminy
                     std::string fieldHeader(pHeader);
                     while (true)
                     {
-                        header.emplace_back(std::move(fieldHeader));
+                        header.push_back(std::move(fieldHeader));
                         posHeader += header.back().size() + 1;
                         fieldHeader = std::string(pHeader + posHeader);
                         if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
@@ -261,7 +261,7 @@ namespace jiminy
                         if (posHeader + fieldHeader.size() > headerCharBuffer.size())
                         {
                             fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
-                            header.emplace_back(std::move(fieldHeader));
+                            header.push_back(std::move(fieldHeader));
                             break;
                         }
                     }

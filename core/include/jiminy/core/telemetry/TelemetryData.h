@@ -89,7 +89,7 @@ namespace jiminy
                 return hresult_t::SUCCESS;
             }
 
-            // Create the memory, set its mode to R/W and get the R/W access rights.
+            // Create the memory
             memAddress_ = malloc(size_);
 
             if (memAddress_ == nullptr)
@@ -106,7 +106,7 @@ namespace jiminy
         ///
         /// \return The address of the shm in this process.
         ///////////////////////////////////////////////////////////////////////
-        void* address(void)
+        void * address(void)
         {
             return memAddress_;
         };
