@@ -184,19 +184,19 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before removing motors.")
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("Robot not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
+            if (getIsLocked())
             {
-                PRINT_ERROR("Robot not initialized.")
-                returnCode = hresult_t::ERROR_INIT_FAILED;
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before removing motors.")
+                returnCode = hresult_t::ERROR_GENERIC;
             }
         }
 
@@ -286,16 +286,24 @@ namespace jiminy
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            PRINT_ERROR("Robot is locked, probably because a simulation is running."\
-                         " Please stop it before adding sensors.")
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("The robot is not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running."\
+                            " Please stop it before adding sensors.")
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
         }
 
         std::string const & sensorName = sensor->getName();
         std::string const & sensorType = sensor->getType();
-
         sensorsGroupHolder_t::const_iterator sensorGroupIt;
         if (returnCode == hresult_t::SUCCESS)
         {

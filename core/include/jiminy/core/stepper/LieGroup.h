@@ -15,7 +15,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/Types.h"
 
 

@@ -18,7 +18,6 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 
-#include <boost/current_function.hpp>
 #include <boost/variant.hpp>
 #include <boost/functional/hash.hpp>
 #include <boost/multi_index_container.hpp>

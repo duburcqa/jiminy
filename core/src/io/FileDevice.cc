@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/io/FileDevice.h"
 
 #ifndef _WIN32

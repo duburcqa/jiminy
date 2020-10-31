@@ -1,5 +1,4 @@
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
 namespace jiminy

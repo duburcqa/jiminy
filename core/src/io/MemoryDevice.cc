@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/io/MemoryDevice.h"
 
 
