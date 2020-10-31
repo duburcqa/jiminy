@@ -22,7 +22,8 @@ from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
-from .wrappers import SpaceDictRecursive
+from .utils import _clamp, SpaceDictRecursive
+from .generic_bases import ControlInterface, ObserveInterface
 from .play import loop_interactive
 
 
@@ -40,20 +41,7 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-def _clamp(space, x):
-    """Clamp an element from Gym.Space to make sure it is within bounds.
-
-    :meta private:
-    """
-    if isinstance(space, gym.spaces.Dict):
-        return OrderedDict(
-            (k, _clamp(subspace, x[k]))
-            for k, subspace in space.spaces.items())
-    else:
-        return np.clip(x, space.low, space.high)
-
-
-class BaseJiminyEnv(gym.Env):
+class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -83,7 +71,8 @@ class BaseJiminyEnv(gym.Env):
                           computations. Can be `None` if `_setup`
                           has been overwritten such that 'self.simulator' is
                           a valid and completely initialized engine.
-        :param dt: Desired update period of the simulation
+        :param dt: Simulation timestep. It also corresponds to the observation
+                   update period.
         :param enforce_bounded: Whether or not to enforce finite bounds for the
                                 observation and action spaces. If so, then
                                 '\*_MAX' are used whenever it is necessary.
@@ -96,6 +85,9 @@ class BaseJiminyEnv(gym.Env):
                        environment with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # Initialize the interfaces through multiple inheritance
+        super().__init__()
+
         # Backup some user arguments
         self.simulator = simulator
         self.dt = dt
@@ -106,14 +98,8 @@ class BaseJiminyEnv(gym.Env):
         self.rg = np.random.RandomState()
         self._is_ready = False
         self._seed = None
-        self._controller_dt = None
         self._log_data = None
         self._log_file = None
-
-        # Use instance-specific action and observation spaces instead of the
-        # class-wide ones provided by `gym.Env`.
-        self.action_space = None
-        self.observation_space = None
 
         # Current observation and action of the robot
         self._state = None
@@ -142,13 +128,6 @@ class BaseJiminyEnv(gym.Env):
             return self.simulator.robot
         else:
             return None
-
-    @property
-    def controller_dt(self):
-        """Controller update period.
-        """
-        if self._controller_dt is not None:
-            return self._controller_dt
 
     @property
     def log_path(self) -> Optional[str]:
@@ -445,7 +424,8 @@ class BaseJiminyEnv(gym.Env):
         # Initialize some internal buffers
         self._is_ready = True
         self.num_steps = 0
-        self.max_steps = int(self.simulator.simulation_duration_max // self.dt)
+        self.max_steps = int(
+            self.simulator.simulation_duration_max // self.dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -502,7 +482,7 @@ class BaseJiminyEnv(gym.Env):
 
         # Backup the controller update period
         engine_options = self.simulator.engine.get_options()
-        self._controller_dt = \
+        self.controller_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
 
         # Refresh the observation and action spaces

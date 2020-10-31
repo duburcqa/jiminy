@@ -1,7 +1,6 @@
 import numpy as np
-import numba as nb
 from collections import OrderedDict
-from typing import Optional, Union, List, Tuple, Dict, Any, Type
+from typing import Optional, Union, Tuple, Dict, Any, Type
 
 import gym
 from gym.spaces.utils import flatten, flatten_space
@@ -10,70 +9,106 @@ import jiminy_py.core as jiminy
 from jiminy_py.core import EncoderSensor as encoder
 from jiminy_py.simulator import Simulator
 
-from .env_bases import BaseJiminyEnv, _clamp
-from .wrappers import SpaceDictRecursive
+from .utils import (_is_breakpoint, _clamp, set_zeros, register_variables,
+                    SpaceDictRecursive, FieldDictRecursive)
+from .generic_bases import ControlInterface
+from .env_bases import BaseJiminyEnv
 
 
-FieldDictRecursive = Union[Dict[str, 'FieldDictRecursive'], List[str]]
+class BlockInterface:
+    r"""Base class for blocks used for pipeline control design.
 
-
-@nb.jit(nopython=True, nogil=True)
-def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
-    """Check if 't' is multiple of 'dt' at a given precision 'eps'.
-
-    :param t: Current time.
-    :param dt: Timestep.
-    :param eps: Precision.
-
-    :meta private:
+    Block can be either observers and controllers. A block can be connected to
+    any number of subsequent blocks, or directly to a `BaseJiminyEnv`
+    environment.
     """
-    if dt < eps:
-        return True
-    dt_next = dt - t % dt
-    if (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2):
-        return True
-    return False
+    def __init__(self):
+        """Initialize the block interface.
+
+        It only allocates some attributes.
+        """
+        # Define some attributes
+        self.env = None
+        self.observation_space = None
+        self.action_space = None
+
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__()
+
+    @property
+    def robot(self) -> Optional[jiminy.Robot]:
+        if self.env is not None:
+            return self.env.robot
+        else:
+            return None
+
+    @property
+    def system_state(self) -> Optional[jiminy.SystemState]:
+        if self.env is not None:
+            return self.env.simulator.engine.system_state
+        else:
+            return None
+
+    def reset(self, env: BaseJiminyEnv) -> None:
+        """Reset the block for a given environment.
+
+        .. note::
+            The environment itself is not necessarily directly connected to
+            this block since it may actually be connected to another block
+            instead.
+
+        .. warning::
+            This method that must not be overloaded. `_setup` is the
+            unique entry-point to customize the block's initialization.
+
+        :param env: Environment.
+        """
+        # Backup the environment
+        self.env = env
+
+        # Configure the block
+        self._setup()
+
+        # Refresh the observation and action spaces
+        self._refresh_observation_space()
+        self._refresh_action_space()
+
+    # methods to override:
+    # ----------------------------
+
+    def _setup(self) -> None:
+        """Configure the block.
+
+        .. note::
+            Note that the environment `env` has already been fully initialized
+            at this point, so that each of its internal buffers is up-to-date,
+            but the simulation is not running yet. As a result, it is still
+            possible to update the configuration of the simulator, and for
+            example, to register some extra variables to monitor the internal
+            state of the block.
+        """
+        pass
+
+    def _refresh_observation_space(self) -> None:
+        """Configure the observation of the block.
+
+        .. note::
+            This method is called right after `_setup`, so that both the
+            environment and this block should be already initialized.
+        """
+        return NotImplementedError
+
+    def _refresh_action_space(self) -> None:
+        """Configure the action of the block.
+
+        .. note::
+            This method is called right after `_setup`, so that both the
+            environment and this block should be already initialized.
+        """
+        return NotImplementedError
 
 
-def set_zeros(data: SpaceDictRecursive) -> SpaceDictRecursive:
-    """Set to zero data from `Gym.Space`.
-    """
-    if isinstance(data, dict):
-        for value in data.values():
-            set_zeros(value)
-    elif isinstance(data, np.ndarray):
-        data.fill(0.0)
-    else:
-        raise NotImplementedError
-
-
-def register_variables(controller: jiminy.AbstractController,
-                       field: FieldDictRecursive,
-                       data: SpaceDictRecursive,
-                       namespace: Optional[str] = None) -> None:
-    """Register data from `Gym.Space` to the telemetry of a controller.
-
-    .. warning::
-        Variables are registered by reference. Consequently, the user is
-        responsible to manage the lifetime of the data to avoid it being
-        garbage collected, and to make sure the variables are updated
-        when necessary, and only when it is.
-    """
-    assert data is not None and len(field) == len(data), (
-        "field and data are inconsistent.")
-    if isinstance(field, dict):
-        for (group, subfield), value in zip(field.items(), data.values()):
-            register_variables(controller, subfield, value, namespace)
-    elif isinstance(field, list) and isinstance(field[0], list):
-        for subfield, value in zip(field, data):
-            register_variables(controller, subfield, value, namespace)
-    else:
-        if namespace is not None:
-            field = [".".join((namespace, name)) for name in field]
-        controller.register_variables(field, data)
-
-
-class BaseControlBlock:
+class BaseControllerBlock(BlockInterface, ControlInterface):
     r"""Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
@@ -117,78 +152,27 @@ class BaseControlBlock:
                        controller with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # Initialize the block and control interface
+        super().__init__()
+
+        # Backup some user arguments
         self.update_ratio = update_ratio
-        self.env = None
-        self.action_space = None
 
-    @property
-    def robot(self) -> Optional[jiminy.Robot]:
-        if self.env is not None:
-            return self.env.robot
-        else:
-            return None
+    def _refresh_observation_space(self) -> None:
+        """Configure the observation space of the controller.
 
-    @property
-    def system_state(self) -> Optional[jiminy.SystemState]:
-        if self.env is not None:
-            return self.env.simulator.engine.system_state
-        else:
-            return None
-
-    def reset(self, env: BaseJiminyEnv) -> SpaceDictRecursive:
-        """Reset the controller for a given environment to control.
-
-        .. note::
-            The environment itself is not necessarily directly controlled since
-            this controller may actually be connected to another, lower-level,
-            controller instead.
+        It does nothing but to return the observation space of the environment
+        since it is only affecting the action space.
 
         .. warning::
-            This method that must not be overloaded. `_setup` is the
-            unique entry-point to customize the controller's initialization.
-
-        :param env: Environment to ultimately control.
-
-        :returns: Initial command to send to the subsequent block.
+            This method that must not be overloaded. If one need to overload
+            it, when using `BaseObserverBlock` or `BlockInterface` directly
+            is probably the way to go.
         """
-        # Backup the environment to ultimately control
-        self.env = env
-
-        # Configure the controller and initialize its internal state
-        self._setup()
-        self._refresh_action_space()
+        self.observation_space = self.env.observation_space
 
     # methods to override:
     # ----------------------------
-
-    def _setup(self) -> None:
-        """Configure the controller.
-
-        It includes:
-
-            - refreshing the action space of the controller
-            - allocating memory of the controller's internal state and
-              initializing it
-
-        .. note::
-            Note that the environment to ultimately control `env` has already
-            been fully initialized at this point, so that each of its internal
-            buffers is up-to-date, but the simulation is not running yet. As a
-            result, it is still possible to update the configuration of the
-            simulator, and for example, to register some extra variables to
-            monitor the internal state of the controller.
-        """
-        pass
-
-    def _refresh_action_space(self) -> None:
-        """Configure the action space of the controller.
-
-        .. note::
-            This method is called right after `_setup`, so that both the
-            environment to control and the controller itself should be already
-            initialized.
-        """
-        return NotImplementedError
 
     def get_fieldnames(self) -> FieldDictRecursive:
         """Get mapping between each scalar element of the action space of the
@@ -202,27 +186,51 @@ class BaseControlBlock:
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
-        return NotImplementedError
-
-    def compute_command(self,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
-        """Compute the action to perform by the subsequent block, namely a
-        lower-level controller, if any, or the environment to ultimately
-        control, based on a given high-level action.
-
-        .. note::
-            The controller is supposed to be already fully configured whenever
-            this method might be called. Thus it can only be called manually
-            after `reset`.  This method has to deal with the initialization of
-            the internal state, but `_setup` method does so.
-
-        :param action: Action to perform.
-        """
-        return NotImplementedError
 
 
-class PDController(BaseControlBlock):
+BaseControllerBlock._setup.__doc__ = \
+    """Configure the controller.
+
+    It includes:
+
+        - refreshing the action space of the controller
+        - allocating memory of the controller's internal state and
+          initializing it
+
+    .. note::
+        Note that the environment to ultimately control `env` has already
+        been fully initialized at this point, so that each of its internal
+        buffers is up-to-date, but the simulation is not running yet. As a
+        result, it is still possible to update the configuration of the
+        simulator, and for example, to register some extra variables to
+        monitor the internal state of the controller.
+    """
+
+BaseControllerBlock._refresh_action_space.__doc__ = \
+    """Configure the action space of the controller.
+
+    .. note::
+        This method is called right after `_setup`, so that both the
+        environment to control and the controller itself should be already
+        initialized.
+    """
+
+BaseControllerBlock.compute_command.__doc__ = \
+    """Compute the action to perform by the subsequent block, namely a
+    lower-level controller, if any, or the environment to ultimately
+    control, based on a given high-level action.
+
+    .. note::
+        The controller is supposed to be already fully configured whenever
+        this method might be called. Thus it can only be called manually
+        after `reset`.  This method has to deal with the initialization of
+        the internal state, but `_setup` method does so.
+
+    :param action: Action to perform.
+    """
+
+
+class PDController(BaseControllerBlock):
     """Low-level Proportional-Derivative controller.
 
     .. warning::
@@ -395,12 +403,12 @@ class ControlledJiminyEnv(gym.Wrapper):
     """  # noqa: E501
     def __init__(self,
                  env: Union[gym.Wrapper, BaseJiminyEnv],
-                 controller: BaseControlBlock,
+                 controller: BaseControllerBlock,
                  observe_target: bool = False):
         """
         .. note::
-            As a reminder, `env.dt` refers to the learning step period, namely
-            the timestep between two successive samples:
+            As a reminder, `env.dt` refers to the learning step period,
+            namely the timestep between two successive samples:
 
                 [obs, reward, done, info]
 
@@ -429,7 +437,7 @@ class ControlledJiminyEnv(gym.Wrapper):
         # Backup user arguments
         self.controller = controller
         self.observe_target = observe_target
-        self.controller_dt = env.dt * controller.update_ratio
+        self.controller_dt = env.controller_dt * controller.update_ratio
         self.debug = None
         self._observation = None
         self._action = None
@@ -537,8 +545,6 @@ class ControlledJiminyEnv(gym.Wrapper):
             This method is not meant to be overloaded.
         """
         if self.observe_target:
-            print(self.observation_space)
-            print(self._observation)
             return _clamp(self.observation_space, self._observation)
         return self._observation
 
@@ -649,7 +655,7 @@ class ControlledJiminyEnv(gym.Wrapper):
 
 
 def build_controlled_env(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
-                         controller_class: Type[BaseControlBlock],
+                         controller_class: Type[BaseControllerBlock],
                          observe_target: bool = False,
                          **kwargs_default
                          ) -> Type[ControlledJiminyEnv]:

@@ -3,7 +3,7 @@ import numpy as np
 from pkg_resources import resource_filename
 
 from ..common.env_locomotion import WalkerJiminyEnv
-from ..common.env_control import PDController, build_controlled_env
+from ..common.control_bases import PDController, build_controlled_env
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
