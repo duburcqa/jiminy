@@ -1385,12 +1385,23 @@ namespace python
 
             if (PyArray_Check(dataPy))
             {
-                float64_t const * data = (float64_t *) PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPy));
-                return self.registerVariable(fieldName, *data);
+                PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
+                if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == 1U)
+                {
+                    float64_t const * data = (float64_t *) PyArray_DATA(dataPyArray);
+                    return self.registerVariable(fieldName, *data);
+                }
+                else
+                {
+                    std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - "
+                                 "'value' input array must have dtype 'np.float64' and a single element." << std::endl;
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
             }
             else
             {
-                std::cout << "Error - PyAbstractControllerVisitor::registerVariable - 'value' input must have type 'numpy.ndarray'." << std::endl;
+                std::cout << "Error - PyAbstractControllerVisitor::registerVariable - "
+                             "'value' input must have type 'numpy.ndarray'." << std::endl;
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1405,8 +1416,17 @@ namespace python
             {
                 auto fieldnames = convertFromPython<std::vector<std::string> >(fieldNamesPy);
                 PyArrayObject * dataPyArray = reinterpret_cast<PyArrayObject *>(dataPy);
-                Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
-                return self.registerVariable(fieldnames, data);
+                if (PyArray_TYPE(dataPyArray) == NPY_FLOAT64 && PyArray_SIZE(dataPyArray) == uint32_t(fieldnames.size()))
+                {
+                    Eigen::Map<vectorN_t> data((float64_t *) PyArray_DATA(dataPyArray), PyArray_SIZE(dataPyArray));
+                    return self.registerVariable(fieldnames, data);
+                }
+                else
+                {
+                    std::cout << "Error - PyAbstractControllerVisitor::registerVariableVector - "
+                                 "'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'." << std::endl;
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
             }
             else
             {
