@@ -108,7 +108,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._is_ready = False
         self._seed: Optional[np.uint32] = None
         self._log_data: Optional[Dict[str, np.ndarray]] = None
-        self._log_file: Optional[  # type: ignore
+        self._log_file: Optional[  # type: ignore[name-defined]
             tempfile._TemporaryFileWrapper] = None
 
         # Current observation and action of the robot
@@ -121,8 +121,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Information about the learning process
         self._info: Dict[str, Any] = {}
         self._enable_reward_terminal = (
-            self._compute_reward_terminal.__func__  # type: ignore
-            is not BaseJiminyEnv._compute_reward_terminal)
+            self._compute_reward_terminal.  # type: ignore[attr-defined]
+            __func__ is not BaseJiminyEnv._compute_reward_terminal)
 
         # Number of simulation steps performed
         self.num_steps = -1

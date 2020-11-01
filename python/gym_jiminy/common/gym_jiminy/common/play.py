@@ -25,8 +25,9 @@ class Getch:
             self.fd = sys.stdin.fileno()
             self.oldterm = termios.tcgetattr(self.fd)
             newattr = termios.tcgetattr(self.fd)
-            newattr[3] = \
-                newattr[3] & ~termios.ICANON & ~termios.ECHO  # type: ignore
+            newattr[3] = (
+                newattr[3] &  # type: ignore[operator]
+                ~termios.ICANON & ~termios.ECHO)
             termios.tcsetattr(self.fd, termios.TCSANOW, newattr)
             self.oldflags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
             newflags = self.oldflags | os.O_NONBLOCK
@@ -65,8 +66,8 @@ class Getch:
             import msvcrt
             while self.stop_event is None or \
                     not self.stop_event.is_set():
-                if msvcrt.kbhit():  # type: ignore
-                    return msvcrt.getch()  # type: ignore
+                if msvcrt.kbhit():  # type: ignore[attr-defined]
+                    return msvcrt.getch()  # type: ignore[attr-defined]
             return ''
 
 

@@ -88,17 +88,21 @@ setup(
     ],
     extras_require={
       "dev": [
-          # Used to check PEP8 conformance of Python native code
+          # Check PEP8 conformance of Python native code
           "flake8",
-          # Used to generate Python docs and render '.rst' nicely
+          # Python linter
+          "pylint",
+          # Python static type checker
+          "mypy",
+          # Generate Python docs and render '.rst' nicely
           "sphinx",
           # 'Read the Docs' Sphinx docs style
           "sphinx_rtd_theme",
-          # Used to render markdown in sphinx docs
+          # Render markdown in sphinx docs
           "recommonmark",
-          # Used to render Jupyter Notebooks in sphinx docs
+          # Render Jupyter Notebooks in sphinx docs
           "nbsphinx",
-          # Used to render ASCII art diagram (https://aafigure.readthedocs.io)
+          # Render ASCII art diagram (https://aafigure.readthedocs.io)
           "aafigure",
           # Bridge between doxygen and sphinx. Used to generate C++ API docs
           "breathe"

@@ -755,9 +755,9 @@ def build_controlled_env(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
         kwargs = {**kwargs_default, **kwargs}
         env = env_class(**kwargs)
         controller = controller_class(**kwargs)
-        super(controlled_env_class, self).__init__(  # type: ignore
+        super(controlled_env_class, self).__init__(  # type: ignore[arg-type]
             env, controller, observe_target)
 
-    controlled_env_class.__init__ = __init__  # type: ignore
+    controlled_env_class.__init__ = __init__  # type: ignore[misc]
 
     return controlled_env_class
