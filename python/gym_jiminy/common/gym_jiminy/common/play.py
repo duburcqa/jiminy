@@ -1,3 +1,7 @@
+""" TODO: Write documentation.
+"""
+# pylint: disable=import-outside-toplevel,import-error
+
 import os
 import queue
 import time
@@ -11,6 +15,8 @@ class Getch:
     """
     def __init__(self,
                  stop_event: Optional[threading.Event] = None) -> None:
+        """ TODO: Write documentation.
+        """
         self.stop_event = stop_event
         if os.name != 'nt':
             import sys
@@ -27,6 +33,8 @@ class Getch:
             fcntl.fcntl(self.fd, fcntl.F_SETFL, newflags)
 
     def __del__(self) -> None:
+        """ TODO: Write documentation.
+        """
         if os.name != 'nt':
             import fcntl
             import termios
@@ -34,8 +42,10 @@ class Getch:
             fcntl.fcntl(self.fd, fcntl.F_SETFL, self.oldflags)
 
     def __call__(self) -> str:
-        if os.name != 'nt':
-            c = ''
+        """ TODO: Write documentation.
+        """
+        if os.name != 'nt':  # pylint: disable=no-else-return
+            char = ''
             try:
                 import sys
                 import termios
@@ -43,14 +53,14 @@ class Getch:
                 while self.stop_event is None or \
                         not self.stop_event.is_set():
                     try:
-                        c += sys.stdin.read(1)
-                        if c and (c[:1] != '\x1b' or len(c) > 2):
+                        char += sys.stdin.read(1)
+                        if char and (char[:1] != '\x1b' or len(char) > 2):
                             break
                     except IOError:
                         pass
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 pass
-            return c
+            return char
         else:
             import msvcrt
             while self.stop_event is None or \
@@ -63,26 +73,30 @@ class Getch:
 def input_deamon(input_queue: queue.Queue,
                  stop_event: threading.Event,
                  exit_key: str) -> None:
-    CHAR_TO_ARROW_MAPPING = {"\x1b[A": "Up",
+    """ TODO: Write documentation.
+    """
+    char_to_arrow_mapping = {"\x1b[A": "Up",
                              "\x1b[B": "Down",
                              "\x1b[C": "Right",
                              "\x1b[D": "Left"}
     getch = Getch(stop_event)
     while not stop_event.is_set():
-        c = getch()
-        if c in CHAR_TO_ARROW_MAPPING.keys():
-            c = CHAR_TO_ARROW_MAPPING[c]
-        if list(bytes(c.encode('utf-8'))) == [3]:
-            c = exit_key
-        input_queue.put(c)
+        char = getch()
+        if char in char_to_arrow_mapping.keys():
+            char = char_to_arrow_mapping[char]
+        if list(bytes(char.encode('utf-8'))) == [3]:
+            char = exit_key
+        input_queue.put(char)
     del getch
 
 
 def loop_interactive(press_key_to_start: bool = True,
                      exit_key: str = 'k') -> Callable:
+    """ TODO: Write documentation.
+    """
     def wrap(func: Callable[..., None]) -> Callable:
         def wrapped_func(*args: Any, **kwargs: Any) -> None:
-            NOT_A_KEY = "Not a key"
+            not_a_key = "Not a key"
 
             nonlocal press_key_to_start, exit_key
 
@@ -98,14 +112,14 @@ def loop_interactive(press_key_to_start: bool = True,
             args[0].render()
             if press_key_to_start:
                 print("Press a key to start...")
-            key: Optional[str] = NOT_A_KEY
+            key: Optional[str] = not_a_key
             is_started = not press_key_to_start
             while True:
-                if (not input_queue.empty()):
+                if not input_queue.empty():
                     key = input_queue.get()
                     if not is_started:
                         print("Go!")
-                        key = NOT_A_KEY
+                        key = not_a_key
                         is_started = True
                 if key == exit_key:
                     print("Exiting keyboard interactive mode.")
@@ -114,16 +128,16 @@ def loop_interactive(press_key_to_start: bool = True,
                     break
                 if is_started:
                     try:
-                        if key == NOT_A_KEY:
+                        if key == not_a_key:
                             key = None
                         stop = func(*args, **kwargs, key=key)
-                        key = NOT_A_KEY
+                        key = not_a_key
                         if stop:
                             raise KeyboardInterrupt()
                     except KeyboardInterrupt:
                         key = exit_key
-                    except Exception as err:
-                        print(err)
+                    except Exception as e:  # pylint: disable=broad-except
+                        print(e)
                         key = exit_key
                 else:
                     time.sleep(0.1)

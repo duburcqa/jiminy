@@ -1,9 +1,11 @@
+""" TODO: Write documentation.
+"""
 import time
 import tempfile
-import numpy as np
 from collections import OrderedDict
 from typing import Optional, Tuple, List, Dict, Any, Union
 
+import numpy as np
 import gym
 from gym import logger
 from gym.utils import seeding
@@ -90,6 +92,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                        environment with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # pylint: disable=unused-argument
+
         # Initialize the interfaces through multiple inheritance
         super().__init__()
 
@@ -131,13 +135,16 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
     @property
     def robot(self) -> jiminy.Robot:
-        if self.simulator is not None:
-            return self.simulator.robot
-        else:
+        """ TODO: Write documentation.
+        """
+        if self.simulator is None:
             raise RuntimeError("Backend simulator undefined.")
+        return self.simulator.robot
 
     @property
     def log_path(self) -> Optional[str]:
+        """ TODO: Write documentation.
+        """
         if self.debug and self._log_file is not None:
             return self._log_file.name
         return None
@@ -159,6 +166,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         :meta private:
         """
+        # pylint: disable=unused-argument
+
         u_command[:] = self._command
 
     def _get_time_space(self) -> gym.Space:
@@ -210,9 +219,10 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                 velocity_limit[:3] = FREEFLYER_VEL_LIN_MAX
                 velocity_limit[3:6] = FREEFLYER_VEL_ANG_MAX
 
-            for jointIdx in self.robot.flexible_joints_idx:
-                jointVelIdx = self.robot.pinocchio_model.joints[jointIdx].idx_v
-                velocity_limit[jointVelIdx + np.arange(3)] = FLEX_VEL_ANG_MAX
+            for joint_idx in self.robot.flexible_joints_idx:
+                joint_vel_idx = \
+                    self.robot.pinocchio_model.joints[joint_idx].idx_v
+                velocity_limit[joint_vel_idx + np.arange(3)] = FLEX_VEL_ANG_MAX
 
             if not model_options['joints']['enablePositionLimit']:
                 position_limit_lower[joints_position_idx] = -JOINT_POS_MAX
@@ -432,7 +442,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Start the engine, in order to initialize the sensors data
         hresult = self.simulator.start(
             qpos, qvel, self.simulator.use_theoretical_model)
-        if (hresult != jiminy.hresult_t.SUCCESS):
+        if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Invalid initial state.")
 
         # Backup sensors data
@@ -477,9 +487,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         :returns: Initial state of the episode.
         """
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-
         # Stop simulator if still running
         if self.simulator is not None:
             self.simulator.stop()
@@ -509,6 +516,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._refresh_observation_space()
         self._refresh_action_space()
 
+        # Assertion(s) for type checker
+        assert self.observation_space is not None
+
         # Initialize the observation buffer with a random observation
         self._observation = self.observation_space.sample()
 
@@ -526,7 +536,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # `_refresh_observation_space` are inconsistent.
         try:
             is_obs_valid = self.observation_space.contains(self._observation)
-        except Exception:
+        except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
@@ -609,13 +619,13 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                         "once before calling 'step'.")
                 hresult = self.simulator.start(
                     *self._state, self.simulator.use_theoretical_model)
-                if (hresult != jiminy.hresult_t.SUCCESS):
+                if hresult != jiminy.hresult_t.SUCCESS:
                     raise RuntimeError("Failed to start the simulation.")
                 self._is_ready = False
 
             # Perform a single inetgration step
             return_code = self.simulator.step(self.dt)
-            if (return_code != jiminy.hresult_t.SUCCESS):
+            if return_code != jiminy.hresult_t.SUCCESS:
                 raise RuntimeError("Failed to perform the simulation step.")
 
             # Update some internal buffers
@@ -857,8 +867,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Return the desired configuration
         if self.simulator.use_theoretical_model:
             return qpos[self.robot.rigid_joints_position_idx]
-        else:
-            return qpos
+        return qpos
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Returns a valid configuration and velocity for the robot.
@@ -966,6 +975,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         :returns: [0] Total reward.
                   [1] Any extra info useful for monitoring as a dictionary.
         """
+        # pylint: disable=no-self-use
+
         return float('nan'), {}
 
     def _compute_reward_terminal(self) -> Tuple[float, Dict[str, Any]]:
@@ -1027,7 +1038,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
     def _fetch_obs(self) -> SpaceDictRecursive:
         obs = OrderedDict()
         obs['observation'] = super()._fetch_obs()
-        obs['achieved_goal'] = self._get_achieved_goal(),
+        obs['achieved_goal'] = self._get_achieved_goal()
         obs['desired_goal'] = self._desired_goal.copy()
         return obs
 
@@ -1044,6 +1055,17 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                   [1] Any extra info useful for monitoring as a dictionary.
         """
         return self.compute_reward(None, None, self._info), {}
+
+    def _is_done(self) -> bool:
+        """Determine whether a desired goal has been achieved.
+
+        .. note:
+            This method is not supposed to be overloaded in the case of goal
+            environment. It is just a proxy method calling `is_done` without
+            specifying any achieved and desired goals, for compatibility with
+            the API of normal environments.
+        """
+        return self.is_done(None, None)
 
     def reset(self) -> SpaceDictRecursive:
         self._desired_goal = self._sample_goal()
@@ -1076,9 +1098,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         raise NotImplementedError
 
-    def _is_done(self,
-                 achieved_goal: Optional[np.ndarray] = None,
-                 desired_goal: Optional[np.ndarray] = None) -> bool:
+    def is_done(self,
+                achieved_goal: Optional[np.ndarray] = None,
+                desired_goal: Optional[np.ndarray] = None) -> bool:
         """Determine whether a desired goal has been achieved.
 
         By default, it uses the termination condition inherited from normal
@@ -1096,6 +1118,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                              use the internal buffer '_desired_goal' instead.
                              Optional: None by default.
         """
+        # pylint: disable=unused-argument
+
         return super()._is_done()
 
     def compute_reward(self,

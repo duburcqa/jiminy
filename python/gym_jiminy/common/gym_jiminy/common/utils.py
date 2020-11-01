@@ -1,8 +1,10 @@
-import numpy as np
-import numba as nb
+""" TODO: Write documentation.
+"""
 from collections import OrderedDict
 from typing import Optional, Union, Dict, List
 
+import numpy as np
+import numba as nb
 import gym
 
 import jiminy_py.core as jiminy
@@ -24,12 +26,11 @@ def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
         return OrderedDict(
             (k, _clamp(subspace, x[k]))
             for k, subspace in space.spaces.items())
-    elif isinstance(space, gym.spaces.Box):
+    if isinstance(space, gym.spaces.Box):
         return np.clip(x, space.low, space.high)
-    else:
-        raise NotImplementedError(
-            f"Gym.Space of type {type(space)} is not supported by this "
-            "method.")
+    raise NotImplementedError(
+        f"Gym.Space of type {type(space)} is not supported by this "
+        "method.")
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -55,8 +56,8 @@ def set_value(data: SpaceDictRecursive,
     """Set to zero data from `Gym.Space`.
     """
     if isinstance(data, dict):
-        for d, v in zip(data.values(), fill_value.values()):
-            set_value(d, v)
+        for sub_data, sub_val in zip(data.values(), fill_value.values()):
+            set_value(sub_data, sub_val)
     elif isinstance(data, np.ndarray):
         data[:] = fill_value
     else:
@@ -92,7 +93,7 @@ def register_variables(controller: jiminy.AbstractController,
     assert data is not None and len(field) == len(data), (
         "field and data are inconsistent.")
     if isinstance(field, dict):
-        for (group, subfield), value in zip(field.items(), data.values()):
+        for subfield, value in zip(field.values(), data.values()):
             register_variables(controller, subfield, value, namespace)
     elif isinstance(field, list) and isinstance(field[0], list):
         for subfield, value in zip(field, data):

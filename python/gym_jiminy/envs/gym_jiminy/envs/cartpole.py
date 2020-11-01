@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -127,8 +129,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         super().__init__(simulator, STEP_DT, debug=False)
 
     def _setup(self) -> None:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
         """
         super()._setup()
 
@@ -163,11 +164,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         return np.concatenate(self._state)
 
     def _refresh_action_space(self) -> None:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
 
-        @details Replace the action space by its discrete representation
-                 depending on 'continuous'.
+        Replace the action space by its discrete representation depending on
+        'continuous'.
         """
         if not self.continuous:
             self.action_space = spaces.Discrete(len(self.AVAIL_FORCE))
@@ -175,8 +175,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             super()._refresh_action_space()
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
         """
         qpos = self.rg.uniform(low=-self.position_random_range,
                                high=self.position_random_range)
@@ -186,8 +185,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
         """
         if key == "Left":
             return 1
@@ -198,18 +196,16 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             return None
 
     def _is_done(self) -> bool:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
         """
         x, theta, _, _ = self.get_obs()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
 
-        @details Add a small positive reward as long as the termination
-                 condition has never been reached during the same episode.
+        Add a small positive reward as long as the termination condition has
+        never been reached during the same episode.
         """
         reward = 0.0
         if not self._num_steps_beyond_done:  # True for both None and 0
@@ -219,8 +215,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     def step(self,
              action: Optional[np.ndarray] = None
              ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """
-        @brief    TODO
+        """ TODO: Write documentation.
         """
         # @copydoc BaseJiminyEnv::step
         # Compute the actual force to apply

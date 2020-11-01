@@ -1,7 +1,9 @@
-import numpy as np
-import numba as nb
+""" TODO: Write documentation.
+"""
 from typing import Optional, Tuple, Dict, Union, Callable, List, Any
 
+import numpy as np
+import numba as nb
 import gym
 
 from jiminy_py.core import (EncoderSensor as encoder,
@@ -25,6 +27,7 @@ MAX_GROUND_FRICTION = 8.0
 
 F_XY_IMPULSE_SCALE = 1000.0
 F_XY_PROFILE_SCALE = 50.0
+F_XY_PROFILE_PERIOD = 1.0
 FLEX_STIFFNESS_SCALE = 1000
 FLEX_DAMPING_SCALE = 10
 
@@ -147,7 +150,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Robot and engine internal buffers
         self._forces_impulse: List[ForceImpulseType] = []
         self._forces_profile: List[ForceProfileType] = []
+        self._f_xy_profile_spline: Optional[
+            nb.core.dispatcher.Dispatcher] = None
         self._power_consumption_max: Optional[float] = None
+        self._height_neutral: Optional[float] = None
 
         # Configure and initialize the learning environment
         super().__init__(None, dt, enforce_bounded, debug, **kwargs)
@@ -181,6 +187,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         else:
             self.simulator.remove_forces()
 
+        if not self.robot.has_freeflyer:
+            raise RuntimeError(
+                "`WalkerJiminyEnv` only supports robots with freeflyer.")
+
         # Remove already register forces
         self._forces_impulse = []
         self._forces_profile = []
@@ -195,11 +205,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Compute the height of the freeflyer in neutral configuration
         # TODO: Take into account the ground profile.
-        if self.robot.has_freeflyer:
-            q0, _ = self._sample_state()
-            self._height_neutral = q0[2]
-        else:
-            self._height_neutral = None
+        q_init, _ = self._sample_state()
+        self._height_neutral = q_init[2]
 
         # Get the options of robot and engine
         robot_options = self.robot.get_options()
@@ -257,23 +264,34 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         # Apply the disturbance to the first actual body
         if 'disturbance' in self.std_ratio.keys():
+            # Make sure the pinocchio model has at least one frame
+            assert self.robot.pinocchio_model.nframes
+
             # Determine the actual root body of the kinematic tree
+            is_root_found = False
+            frame = self.robot.pinocchio_model.frames[0]
             for frame in self.robot.pinocchio_model.frames:
                 if frame.type == pin.FrameType.BODY and frame.parent == 1:
+                    is_root_found = True
                     break
-            frame_name = frame.name
+            if is_root_found:
+                frame_name = frame.name
+            else:
+                raise RuntimeError(
+                    "There is an issue with the robot model. Impossible to "
+                    "determine the root joint.")
 
             # Schedule some external impulse forces applied on PelvisLink
             for t_ref in np.arange(0.0, self.simu_duration_max, 2.0)[1:]:
-                F_xy_impulse = self.rg.randn(2)
-                F_xy_impulse /= np.linalg.norm(F_xy_impulse, ord=2)
-                F_xy_impulse *= self.std_ratio['disturbance'] * \
+                f_xy_impulse = self.rg.randn(2)
+                f_xy_impulse /= np.linalg.norm(f_xy_impulse, ord=2)
+                f_xy_impulse *= self.std_ratio['disturbance'] * \
                     F_XY_IMPULSE_SCALE * self.rg.uniform()
-                F = np.concatenate((F_xy_impulse, np.zeros(4)))
+                wrench = np.concatenate((f_xy_impulse, np.zeros(4)))
                 t = t_ref + self.rg.uniform(low=-1.0, high=1.0) * 250e-3
                 force_impulse = {
                     'frame_name': frame_name,
-                    't': t, 'dt': 10e-3, 'F': F
+                    't': t, 'dt': 10e-3, 'F': wrench
                 }
                 self.simulator.register_force_impulse(**force_impulse)
                 self._forces_impulse.append(force_impulse)
@@ -284,7 +302,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             # is not a big deal, and the derivative is not needed.
             n_timesteps = 50
             t_profile = np.linspace(0.0, 1.0, n_timesteps + 1)
-            F_xy_profile = PeriodicGaussianProcess(
+            f_xy_profile = PeriodicGaussianProcess(
                 mean=np.zeros((2, n_timesteps + 1)),
                 scale=(self.std_ratio['disturbance'] *
                        F_XY_PROFILE_SCALE * np.ones(2)),
@@ -294,21 +312,21 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             ).sample().T
 
             @nb.jit(nopython=True, nogil=True)
-            def F_xy_profile_interp1d(t: float) -> float:
+            def f_xy_profile_interp1d(t: float) -> float:
                 t_rel = t % 1.0
                 t_ind = np.searchsorted(t_profile, t_rel, 'right') - 1
                 ratio = (t_rel - t_profile[t_ind]) * n_timesteps
-                return (1 - ratio) * F_xy_profile[t_ind] + \
-                    ratio * F_xy_profile[t_ind + 1]
+                return (1 - ratio) * f_xy_profile[t_ind] + \
+                    ratio * f_xy_profile[t_ind + 1]
 
-            F_xy_profile_interp1d(0)  # Pre-compilation
-            self.F_xy_profile_spline = F_xy_profile_interp1d
+            f_xy_profile_interp1d(0)  # Pre-compilation
+            self._f_xy_profile_spline = f_xy_profile_interp1d
             force_profile = {
-                'frame_name': 'PelvisLink',
+                'frame_name': frame_name,
                 'force_function': self._force_external_profile
             }
             self.simulator.register_force_profile(**force_profile)
-            self._forces_profile.append(force_profile)  # type: ignore
+            self._forces_profile.append(force_profile)
 
         # Set the options, finally
         self.robot.set_options(robot_options)
@@ -329,16 +347,28 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                                 t: float,
                                 q: np.ndarray,
                                 v: np.ndarray,
-                                F: np.ndarray) -> None:
-        """User-specified pre- or post- processing of the external force
-        profile.
+                                wrench: np.ndarray) -> None:
+        """User-specified processing of external force profiles.
 
         Typical usecases are time rescaling (1.0 second by default), or
         changing the orientation of the force (x/y in world frame by default).
         It could also be used for clamping the force.
+
+        .. warning::
+            Beware it updates 'wrench' by reference for the sake of efficiency.
+
+        :param t: Current time.
+        :param q: Current configuration vector of the robot.
+        :param v: Current velocity vector of the robot.
+        :param wrench: Force to apply on the robot as a vector (linear and
+                       angular) [Fx, Fy, Fz, Mx, My, Mz].
         """
-        t_scaled = t / (2 * self.gait_features["step_length"])
-        F[:2] = self.F_xy_profile_spline(t_scaled)
+        # pylint: disable=unused-argument
+
+        # Assertion(s) for type checker
+        assert self._f_xy_profile_spline is not None
+
+        wrench[:2] = self._f_xy_profile_spline(t / F_XY_PROFILE_PERIOD)
 
     def _is_done(self) -> bool:
         """Determine whether the episode is over.
@@ -351,11 +381,12 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             - maximum simulation duration exceeded
         """
         # Assertion(s) for type checker
-        assert self.simulator is not None and self._state is not None
+        assert (self.simulator is not None and
+                self._state is not None and
+                self._height_neutral is not None)
 
-        if self.robot.has_freeflyer:
-            if self._state[0][2] < self._height_neutral * 0.75:
-                return True
+        if self._state[0][2] < self._height_neutral * 0.75:
+            return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
             return True
         return False
@@ -383,7 +414,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensors_data[encoder.type][1]
-            power_consumption = sum(np.maximum(self.action_prev * v_mot, 0.0))
+            power_consumption = sum(np.maximum(self._command * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
             reward_dict['energy'] = - power_consumption_rel
@@ -414,11 +445,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Y-axis. It is equal to 0.0 if the frontal displacement is perfectly
         # symmetric wrt Y-axis over the whole trajectory.
         if 'direction' in reward_mixture_keys:
-            if self.robot.has_freeflyer:
-                frontal_displacement = abs(np.mean(self._log_data[
-                    'HighLevelController.currentFreeflyerPositionTransY']))
-            else:
-                frontal_displacement = 0.0
+            frontal_displacement = abs(np.mean(self._log_data[
+                'HighLevelController.currentFreeflyerPositionTransY']))
             reward_dict['direction'] = - frontal_displacement
 
         # Compute the total reward

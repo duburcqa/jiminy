@@ -1,13 +1,15 @@
+""" TODO: Write documentation.
+"""
 import numpy as np
 
 
 # For references about Gaussian processes:
 #     https://peterroelants.github.io/posts/gaussian-process-tutorial/
 #     https://peterroelants.github.io/posts/gaussian-process-kernels/
-#     https://stats.stackexchange.com/questions/238655/sampling-from-matrix-variate-normal-distribution-with-singular-covariances
+#     https://stats.stackexchange.com/questions/238655/sampling-from-matrix-variate-normal-distribution-with-singular-covariances  # noqa: E501  # pylint: disable=line-too-long
 
 class PeriodicGaussianProcess:
-    """ TODO
+    """ TODO: Write documentation.
     """
     def __init__(self,
                  mean: np.ndarray,
@@ -15,7 +17,7 @@ class PeriodicGaussianProcess:
                  wavelength: np.ndarray,
                  period: np.ndarray,
                  dt: np.ndarray) -> None:
-        """ TODO
+        """ TODO: Write documentation.
         """
         assert isinstance(mean, np.ndarray) and \
             np.issubdtype(mean.dtype, np.floating), (
@@ -52,7 +54,7 @@ class PeriodicGaussianProcess:
         self._cov_sqrt = cov_sqrt
 
     def sample(self) -> np.ndarray:
-        """ TODO
+        """ TODO: Write documentation.
         """
         return (np.random.standard_normal(self.mean.shape) @
                 self._cov_sqrt)[..., 0, :] + self.mean

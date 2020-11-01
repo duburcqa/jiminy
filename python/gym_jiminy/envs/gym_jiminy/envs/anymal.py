@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 import os
 import numpy as np
 from pkg_resources import resource_filename
@@ -36,10 +38,10 @@ STD_RATIO = {
 
 
 class ANYmalJiminyEnv(WalkerJiminyEnv):
-    """TODO
+    """ TODO: Write documentation.
     """
     def __init__(self, debug: bool = False, **kwargs):
-        """TODO
+        """ TODO: Write documentation.
         """
         # Get the urdf and mesh paths
         data_root_dir = os.path.join(

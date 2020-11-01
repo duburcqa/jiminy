@@ -1,7 +1,18 @@
-import numpy as np
+"""This method gathers base implementations for pipeline control design.
+
+It implements:
+
+    - the concept of block that can be connected to a `BaseJiminyEnv`
+      environment through any level of indirection
+    - a base controller block, along with a concret PD controller
+    - a wrapper to combine a controller block and a `BaseJiminyEnv`
+      environment, eventually already wrapped, so that it appears as a single,
+      unified environment.
+"""
 from collections import OrderedDict
 from typing import Optional, Union, Tuple, Dict, Any, Type, List
 
+import numpy as np
 import gym
 from gym.spaces.utils import flatten, flatten_space
 
@@ -23,7 +34,6 @@ class BlockInterface:
     any number of subsequent blocks, or directly to a `BaseJiminyEnv`
     environment.
     """
-
     env: Optional[BaseJiminyEnv]
     observation_space: Optional[gym.Space]
     action_space: Optional[gym.Space]
@@ -43,20 +53,21 @@ class BlockInterface:
 
     @property
     def robot(self) -> jiminy.Robot:
-        if self.env is not None:
-            return self.env.robot
-        else:
+        """Get low-level Jiminy robot of the associated environment.
+        """
+        if self.env is None:
             raise RuntimeError("Associated environment undefined.")
+        return self.env.robot
 
     @property
     def system_state(self) -> jiminy.SystemState:
-        if self.env is not None:
-            if self.env.simulator is not None:
-                return self.env.simulator.engine.system_state
-            else:
-                raise RuntimeError("Associated environment not initialized.")
-        else:
+        """Get low-level engine system state of the associated environment.
+        """
+        if self.env is None:
             raise RuntimeError("Associated environment undefined.")
+        if self.env.simulator is None:
+            raise RuntimeError("Associated environment not initialized.")
+        return self.env.simulator.engine.system_state
 
     def reset(self, env: BaseJiminyEnv) -> None:
         """Reset the block for a given environment.
@@ -96,7 +107,6 @@ class BlockInterface:
             example, to register some extra variables to monitor the internal
             state of the block.
         """
-        pass
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the block.
@@ -161,6 +171,8 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
                        controller with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
+        # pylint: disable=unused-argument
+
         # Initialize the block and control interface
         super().__init__()
 
@@ -417,7 +429,7 @@ class ControlledJiminyEnv(gym.Wrapper):
         kinematics, admittance control, or Model Predictive Control (MPC). It
         is recommended to add the controllers into the policy itself if it has
         to be trainable.
-    """  # noqa: E501
+    """  # noqa: E501  # pylint: disable=line-too-long
     env: Union[gym.Wrapper, BaseJiminyEnv]
     observation_space: Optional[gym.Space]
 
@@ -474,10 +486,11 @@ class ControlledJiminyEnv(gym.Wrapper):
 
     @property
     def simulator(self) -> Optional[Simulator]:
+        """Get low-level simulator of the associated environment.
+        """
         if self.env is not None:
             return self.env.unwrapped.simulator
-        else:
-            return None
+        return None
 
     def _send_command(self,
                       t: float,
@@ -496,6 +509,8 @@ class ControlledJiminyEnv(gym.Wrapper):
 
         :meta private:
         """
+        # pylint: disable=unused-argument
+
         u_command[:] = self.compute_command(self._action)
 
     def compute_command(self,
@@ -574,13 +589,15 @@ class ControlledJiminyEnv(gym.Wrapper):
             return _clamp(self.observation_space, self._observation)
         return self._observation
 
-    def reset(self) -> SpaceDictRecursive:
+    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
 
         In practice, it resets first the wrapped environment, next comes the
         controller, the observation space, and finally the low-level simulator
         controller.
         """
+        # pylint: disable=unused-argument
+
         # Assertion(s) for type checker
         assert self.simulator is not None
 
@@ -722,6 +739,8 @@ def build_controlled_env(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
                            different values by explicitly defining them when
                            calling the constructor of the generated wrapper.
     """
+    # pylint: disable-all
+
     controlled_env_class = type(
         f"{controller_class.__name__}{env_class.__name__}",
         (ControlledJiminyEnv,),

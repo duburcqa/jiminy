@@ -188,9 +188,9 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         tip_position_z = tip_transform.translation[2]
         return np.array([tip_position_z])
 
-    def _is_done(self,
-                 achieved_goal: Optional[np.ndarray] = None,
-                 desired_goal: Optional[np.ndarray] = None) -> bool:
+    def is_done(self,
+                achieved_goal: Optional[np.ndarray] = None,
+                desired_goal: Optional[np.ndarray] = None) -> bool:
         """
         @brief Determine whether a desired goal has been achieved.
 
@@ -212,7 +212,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
         @details Get a small negative reward till success.
         """
-        if self._is_done(achieved_goal, desired_goal):
+        if self.is_done(achieved_goal, desired_goal):
             reward = 0.0
         else:
             reward = -1.0
