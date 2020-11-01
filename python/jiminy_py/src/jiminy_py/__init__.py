@@ -1,5 +1,7 @@
+import os as _os
 import sys as _sys
 import importlib as _importlib
+from contextlib import redirect_stderr as _redirect_stderr
 
 # Import Pinocchio and co (use the embedded version only if necessary)
 if _importlib.util.find_spec("eigenpy") is not None:
@@ -29,8 +31,10 @@ else:
 from . import _pinocchio_init as _patch  # noqa
 
 # Import core submodule once every dependency has been preloaded
-from . import core
-from .core import __version__, __raw_version__
+with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
+    from . import core
+    from .core import __version__, __raw_version__
+
 
 __all__ = [
     'core',

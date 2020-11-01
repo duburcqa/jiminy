@@ -72,7 +72,7 @@ namespace python
         return isValid;
     }
 
-    BOOST_PYTHON_MODULE(jiminy_pywrap)
+    BOOST_PYTHON_MODULE(PYTHON_LIBRARY_NAME)
     {
         // Initialized C API of Python, required to handle raw Python native object
         Py_Initialize();
