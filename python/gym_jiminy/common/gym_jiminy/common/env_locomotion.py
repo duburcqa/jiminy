@@ -370,7 +370,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         wrench[:2] = self._f_xy_profile_spline(t / F_XY_PROFILE_PERIOD)
 
-    def _is_done(self) -> bool:
+    def is_done(self) -> bool:
         """Determine whether the episode is over.
 
         The termination conditions are the following:
@@ -391,7 +391,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             return True
         return False
 
-    def _compute_reward(self) -> Tuple[float, Dict[str, float]]:
+    def compute_reward(self, info: Dict[str, Any]) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution
@@ -401,13 +401,14 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             This method can be overwritten to implement new contributions to
             the reward, or to monitor more information.
 
-        :returns: [0] Total reward.
-                  [1] Value of each contribution as a dictionary.
+        :returns: Total reward.
         """
+        # pylint: disable=arguments-differ
+
         # Assertion(s) for type checker
         assert self._power_consumption_max is not None
 
-        reward_dict = {}
+        reward_dict = info.setdefault('reward', {})
 
         # Define some proxies
         reward_mixture_keys = self.reward_mixture.keys()
@@ -426,9 +427,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         reward_total = sum([self.reward_mixture[name] * value
                             for name, value in reward_dict.items()])
 
-        return reward_total, reward_dict
+        return reward_total
 
-    def _compute_reward_terminal(self) -> Tuple[float, Dict[str, Any]]:
+    def compute_reward_terminal(self, info: Dict[str, Any]) -> float:
         """Compute the reward at the end of the episode.
 
         It computes the terminal reward associated with each individual
@@ -437,7 +438,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Assertion(s) for type checker
         assert self._log_data is not None
 
-        reward_dict = {}
+        reward_dict = info.setdefault('reward', {})
 
         reward_mixture_keys = self.reward_mixture.keys()
 
@@ -453,4 +454,4 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         reward_total = sum([self.reward_mixture[name] * value
                             for name, value in reward_dict.items()])
 
-        return reward_total, reward_dict
+        return reward_total

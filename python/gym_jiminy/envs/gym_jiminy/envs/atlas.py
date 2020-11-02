@@ -5,7 +5,8 @@ from pkg_resources import resource_filename
 from pinocchio import neutral
 
 from ..common.env_locomotion import WalkerJiminyEnv
-from ..common.control_bases import PDController, build_controlled_env
+from ..common.control_impl import PDController
+from ..common.control_bases import build_controlled_env
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])

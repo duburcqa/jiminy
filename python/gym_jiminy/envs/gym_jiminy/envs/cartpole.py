@@ -159,8 +159,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.observation_space = spaces.Box(
             low=-high, high=high, dtype=np.float64)
 
-    def _fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::_fetch_obs
+    def fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::fetch_obs
         return np.concatenate(self._state)
 
     def _refresh_action_space(self) -> None:
@@ -195,22 +195,24 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             print(f"Key {key} is not bound to any action.")
             return None
 
-    def _is_done(self) -> bool:
+    def is_done(self) -> bool:
         """ TODO: Write documentation.
         """
         x, theta, _, _ = self.get_obs()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
-    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
+    def compute_reward(self, info: Dict[str, Any]) -> float:
         """ TODO: Write documentation.
 
         Add a small positive reward as long as the termination condition has
         never been reached during the same episode.
         """
+        # pylint: disable=arguments-differ
+
         reward = 0.0
         if not self._num_steps_beyond_done:  # True for both None and 0
             reward += 1.0
-        return reward, {}
+        return reward
 
     def step(self,
              action: Optional[np.ndarray] = None
