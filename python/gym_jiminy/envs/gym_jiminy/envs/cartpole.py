@@ -159,10 +159,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.observation_space = spaces.Box(
             low=-high, high=high, dtype=np.float64)
 
-    def fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::fetch_obs
-        return np.concatenate(self._state)
-
     def _refresh_action_space(self) -> None:
         """ TODO: Write documentation.
 
@@ -183,17 +179,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_range)
         return qpos, qvel
 
-    @staticmethod
-    def _key_to_action(key: str) -> np.ndarray:
-        """ TODO: Write documentation.
-        """
-        if key == "Left":
-            return 1
-        elif key == "Right":
-            return 0
-        else:
-            print(f"Key {key} is not bound to any action.")
-            return None
+    def fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::fetch_obs
+        return np.concatenate(self._state)
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
@@ -214,20 +202,28 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             reward += 1.0
         return reward
 
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+    def compute_command(self,
+                        action: SpaceDictRecursive
+                        ) -> SpaceDictRecursive:
         """ TODO: Write documentation.
         """
-        # @copydoc BaseJiminyEnv::step
-        # Compute the actual force to apply
         if not self.continuous and action is not None:
-            action = self.AVAIL_FORCE[action]
-
-        # Perform the step
-        return super().step(action)
+            return self.AVAIL_FORCE[action]
+        return action
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
         if not self.simulator._is_viewer_available:
             kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
         return super().render(mode, **kwargs)
+
+    @staticmethod
+    def _key_to_action(key: str) -> np.ndarray:
+        """ TODO: Write documentation.
+        """
+        if key == "Left":
+            return 1
+        elif key == "Right":
+            return 0
+        else:
+            print(f"Key {key} is not bound to any action.")
+            return None

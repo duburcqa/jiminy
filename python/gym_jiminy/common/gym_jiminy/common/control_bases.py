@@ -20,7 +20,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from .utils import (
-    _is_breakpoint, _clamp, set_zeros, set_value, register_variables,
+    _is_breakpoint, _clamp, zeros, set_value, register_variables,
     SpaceDictRecursive, FieldDictRecursive)
 from .generic_bases import ControlInterface, ObserveInterface
 from .env_bases import BaseJiminyEnv
@@ -518,8 +518,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         assert self.action_space is not None
 
         # Initialize the controller's input action and output target
-        self._action = self.action_space.sample()
-        set_zeros(self._action)
+        self._action = zeros(self.action_space)
         self._target = self.controller.compute_command(self._action)
 
         # Check that the initial action of the controller is consistent with

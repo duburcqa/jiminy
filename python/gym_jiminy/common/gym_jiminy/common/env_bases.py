@@ -24,7 +24,7 @@ from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
-from .utils import _clamp, SpaceDictRecursive
+from .utils import _clamp, zeros, SpaceDictRecursive
 from .generic_bases import ControlInterface, ObserveInterface
 from .play import loop_interactive
 
@@ -412,8 +412,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Reset the simulator
         self.simulator.reset()
 
-        # Set default action. It will be used for doing the initial step.
-        self._action = np.zeros(self.robot.nmotors)
+        # Set default action. It will be used for the initial step.
+        self._action = zeros(self.action_space)
 
         # Start the engine, in order to initialize the sensors data
         hresult = self.simulator.start(

@@ -28,9 +28,42 @@ def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
             for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Box):
         return np.clip(x, space.low, space.high)
+    if isinstance(space, gym.spaces.Discrete):
+        return np.clip(x, 0, space.n)
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")
+
+
+def set_value(data: SpaceDictRecursive,
+              fill_value: SpaceDictRecursive) -> None:
+    """Set to zero data from `Gym.Space`.
+    """
+    if isinstance(data, dict):
+        for sub_data, sub_val in zip(data.values(), fill_value.values()):
+            set_value(sub_data, sub_val)
+    elif isinstance(data, np.ndarray):
+        data[:] = fill_value
+    else:
+        raise NotImplementedError(
+            f"Data of type {type(data)} is not supported by this method.")
+
+
+def zeros(space: gym.Space) -> None:
+    """Set to zero data from `Gym.Space`.
+    """
+    if isinstance(space, gym.spaces.Dict):
+        value = OrderedDict()
+        for field, subspace in space.spaces.items():
+            value[field] = zeros(subspace)
+        return value
+    elif isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=space.dtype)
+    elif isinstance(space, gym.spaces.Discrete):
+        return 0
+    else:
+        raise NotImplementedError(
+            f"Space of type {type(space)} is not supported by this method.")
 
 
 @nb.jit(nopython=True, nogil=True)
@@ -49,33 +82,6 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
     if (dt_next <= eps / 2) or ((dt - dt_next) < eps / 2):
         return True
     return False
-
-
-def set_value(data: SpaceDictRecursive,
-              fill_value: SpaceDictRecursive) -> None:
-    """Set to zero data from `Gym.Space`.
-    """
-    if isinstance(data, dict):
-        for sub_data, sub_val in zip(data.values(), fill_value.values()):
-            set_value(sub_data, sub_val)
-    elif isinstance(data, np.ndarray):
-        data[:] = fill_value
-    else:
-        raise NotImplementedError(
-            f"Data of type {type(data)} is not supported by this method.")
-
-
-def set_zeros(data: SpaceDictRecursive) -> None:
-    """Set to zero data from `Gym.Space`.
-    """
-    if isinstance(data, dict):
-        for value in data.values():
-            set_zeros(value)
-    elif isinstance(data, np.ndarray):
-        data.fill(0.0)
-    else:
-        raise NotImplementedError(
-            f"Data of type {type(data)} is not supported by this method.")
 
 
 def register_variables(controller: jiminy.AbstractController,
