@@ -49,7 +49,7 @@ def set_value(data: SpaceDictRecursive,
             f"Data of type {type(data)} is not supported by this method.")
 
 
-def zeros(space: gym.Space) -> None:
+def zeros(space: gym.Space) -> SpaceDictRecursive:
     """Set to zero data from `Gym.Space`.
     """
     if isinstance(space, gym.spaces.Dict):
@@ -57,13 +57,12 @@ def zeros(space: gym.Space) -> None:
         for field, subspace in space.spaces.items():
             value[field] = zeros(subspace)
         return value
-    elif isinstance(space, gym.spaces.Box):
+    if isinstance(space, gym.spaces.Box):
         return np.zeros(space.shape, dtype=space.dtype)
-    elif isinstance(space, gym.spaces.Discrete):
+    if isinstance(space, gym.spaces.Discrete):
         return 0
-    else:
-        raise NotImplementedError(
-            f"Space of type {type(space)} is not supported by this method.")
+    raise NotImplementedError(
+        f"Space of type {type(space)} is not supported by this method.")
 
 
 @nb.jit(nopython=True, nogil=True)

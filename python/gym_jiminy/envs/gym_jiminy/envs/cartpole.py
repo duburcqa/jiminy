@@ -189,7 +189,8 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         x, theta, _, _ = self.get_obs()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
-    def compute_reward(self, info: Dict[str, Any]) -> float:
+    def compute_reward(self,  # type: ignore[override]
+                       info: Dict[str, Any]) -> float:
         """ TODO: Write documentation.
 
         Add a small positive reward as long as the termination condition has

@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Optional, Tuple, Dict, Union, Callable, List, Any
+from typing import Optional, Dict, Union, Callable, List, Any
 
 import numpy as np
 import numba as nb
@@ -370,7 +370,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         wrench[:2] = self._f_xy_profile_spline(t / F_XY_PROFILE_PERIOD)
 
-    def is_done(self) -> bool:
+    def is_done(self) -> bool:  # type: ignore[override]
         """Determine whether the episode is over.
 
         The termination conditions are the following:
@@ -380,6 +380,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
               neutral configuration.
             - maximum simulation duration exceeded
         """
+        # pylint: disable=arguments-differ
+
         # Assertion(s) for type checker
         assert (self.simulator is not None and
                 self._state is not None and
@@ -391,7 +393,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             return True
         return False
 
-    def compute_reward(self, info: Dict[str, Any]) -> float:
+    def compute_reward(self,  # type: ignore[override]
+                       info: Dict[str, Any]) -> float:
         """Compute reward at current episode state.
 
         It computes the reward associated with each individual contribution
@@ -406,7 +409,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # pylint: disable=arguments-differ
 
         # Assertion(s) for type checker
-        assert self._power_consumption_max is not None
+        assert (self.simulator is not None and
+                self._power_consumption_max is not None)
 
         reward_dict = info.setdefault('reward', {})
 
@@ -415,7 +419,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensors_data[encoder.type][1]
-            power_consumption = sum(np.maximum(self._command * v_mot, 0.0))
+            u_command = self.simulator.engine.system_state.u_command
+            power_consumption = sum(np.maximum(u_command * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max
             reward_dict['energy'] = - power_consumption_rel

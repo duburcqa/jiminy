@@ -914,6 +914,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         :param kwargs: Extra keyword arguments that may be useful for derived
                        environments.
         """
+        # pylint: disable=unused-argument
+
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
@@ -967,11 +969,13 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  dt: float,
                  debug: bool = False) -> None:
         super().__init__(simulator, dt, debug)
-
-        # Sample a new goal
-        self._desired_goal = self._sample_goal()
+        print("test")
 
     def _refresh_observation_space(self) -> None:
+        # Assertion(s) for type checker
+        assert isinstance(self._desired_goal, np.ndarray), (
+            "`BaseJiminyGoalEnv` only supports np.ndarray goal space for now.")
+
         # Initialize the original observation space first
         super()._refresh_observation_space()
 
@@ -993,6 +997,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         return obs
 
     def reset(self) -> SpaceDictRecursive:
+        print("reset")
         self._desired_goal = self._sample_goal()
         return super().reset()
 
@@ -1023,7 +1028,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """
         raise NotImplementedError
 
-    def is_done(self,
+    def is_done(self,  # type: ignore[override]
                 achieved_goal: Optional[SpaceDictRecursive] = None,
                 desired_goal: Optional[SpaceDictRecursive] = None) -> bool:
         """Determine whether a desired goal has been achieved.
@@ -1047,7 +1052,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
         raise NotImplementedError
 
-    def compute_reward(self,
+    def compute_reward(self,  # type: ignore[override]
                        achieved_goal: Optional[SpaceDictRecursive] = None,
                        desired_goal: Optional[SpaceDictRecursive] = None,
                        *, info: Dict[str, Any]) -> float:

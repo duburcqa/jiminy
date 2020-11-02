@@ -188,7 +188,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         tip_position_z = tip_transform.translation[2]
         return np.array([tip_position_z])
 
-    def is_done(self,
+    def is_done(self,  # type: ignore[override]
                 achieved_goal: Optional[np.ndarray] = None,
                 desired_goal: Optional[np.ndarray] = None) -> bool:
         """
@@ -205,7 +205,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             desired_goal = self._desired_goal
         return bool(achieved_goal > desired_goal)
 
-    def compute_reward(self,
+    def compute_reward(self,  # type: ignore[override]
                        achieved_goal: Optional[np.ndarray] = None,
                        desired_goal: Optional[np.ndarray] = None,
                        *, info: Dict[str, Any]) -> float:

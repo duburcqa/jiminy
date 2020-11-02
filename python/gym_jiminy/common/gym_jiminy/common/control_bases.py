@@ -10,7 +10,7 @@ It implements:
       unified environment.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, Type, List
+from typing import Optional, Union, Tuple, Dict, Any, Type
 
 import numpy as np
 import gym
@@ -20,7 +20,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from .utils import (
-    _is_breakpoint, _clamp, zeros, set_value, register_variables,
+    _is_breakpoint, zeros, set_value, register_variables,
     SpaceDictRecursive, FieldDictRecursive)
 from .generic_bases import ControlInterface, ObserveInterface
 from .env_bases import BaseJiminyEnv
@@ -37,10 +37,15 @@ class BlockInterface:
     observation_space: Optional[gym.Space]
     action_space: Optional[gym.Space]
 
-    def __init__(self) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the block interface.
 
         It only allocates some attributes.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments that may be useful for mixing
+                       multiple inheritance through multiple inheritance.
         """
         # Define some attributes
         self.env = None
@@ -48,7 +53,7 @@ class BlockInterface:
         self.action_space = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__()
+        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -291,7 +296,7 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
     The update period of the observer is the same than the simulation timestep
     of the environment for now.
     """
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         :param kwargs: Extra keyword arguments that may be useful for dervied
                        observer with multiple inheritance, and to allow
@@ -300,7 +305,7 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
         # pylint: disable=unused-argument
 
         # Initialize the block and observe interface
-        super().__init__()
+        super().__init__(*args, **kwargs)
 
     def _refresh_action_space(self) -> None:
         """Configure the action space of the observer.
@@ -371,7 +376,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
     def __init__(self,
                  env: Union[gym.Wrapper, BaseJiminyEnv],
-                 controller: BaseControllerBlock = None,
+                 controller: BaseControllerBlock,
                  observe_target: bool = False):
         """
         .. note::
@@ -411,6 +416,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         self.debug: Optional[bool] = None
         self._target: Optional[SpaceDictRecursive] = None
         self._command: Optional[np.ndarray] = None
+        self._observation_env: Optional[SpaceDictRecursive] = None
         self._dt_eps: Optional[float] = None
         self._ctrl_name: Optional[str] = None
 
@@ -449,7 +455,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
         return self._command
 
-    def fetch_obs(self, env_obs: SpaceDictRecursive) -> SpaceDictRecursive:
+    def fetch_obs(self) -> SpaceDictRecursive:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -458,23 +464,30 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         directly without any further processing.
 
         .. warning::
-            Beware it updates and returns the input environment observation
-            whenever it is possible for the sake of efficiency.
-
-        :param env_obs: Original observation from the environment.
+            Beware it updates and returns the internal buffer of environment
+            observation '_observation_env' whenever it is possible for the sake
+            of efficiency. Even so, it is always safe to call this method
+            multiple times successively.
 
         :returns: Updated environment's observation with the controller's
                   target appended.
         """
+        obs = self._observation_env
         if self.observe_target:
             if isinstance(self.env.observation_space, gym.spaces.Dict):
-                env_obs.setdefault('targets', OrderedDict())[
+                # Assertion(s) for type checker
+                assert isinstance(obs, dict)
+
+                obs.setdefault('targets', OrderedDict())[
                     self._ctrl_name] = self._action
             else:
+                # Assertion(s) for type checker
+                assert isinstance(obs, np.ndarray)
+
                 action_flat = flatten(
                     self.controller.action_space, self._action)
-                env_obs = np.concatenate((env_obs, action_flat))
-        return env_obs
+                obs = np.concatenate((obs, action_flat))
+        return obs
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
@@ -489,7 +502,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         assert self.simulator is not None
 
         # Reset the environment
-        env_obs = self.env.reset()
+        self._observation_env = self.env.reset()
         self.debug = self.env.debug
 
         # Assertion(s) for type checker
@@ -570,7 +583,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
                     dtype=np.float32)
 
         # Compute the unified observation
-        self._observation = self.fetch_obs(env_obs)
+        self._observation = self.fetch_obs()
         return self.get_obs()
 
     def step(self,
@@ -588,10 +601,10 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
             self._action = action
 
         # Compute the next learning step
-        env_obs, reward, done, info = self.env.step()
+        self._observation_env, reward, done, info = self.env.step()
 
         # Compute the unified observation
-        self._observation = self.fetch_obs(env_obs)
+        self._observation = self.fetch_obs()
 
         return self.get_obs(), reward, done, info
 

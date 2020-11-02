@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Dict, Any
 
 import numpy as np
 import gym
@@ -17,11 +17,13 @@ class ControlInterface:
     action_space: Optional[gym.Space]
     _action: Optional[SpaceDictRecursive]
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
 
         It only allocates some attributes.
 
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
         :param kwargs: Extra keyword arguments that may be useful for mixing
                        multiple inheritance through multiple inheritance.
         """
@@ -31,7 +33,7 @@ class ControlInterface:
         self._action = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
     def _send_command(self,
                       t: float,
@@ -116,11 +118,13 @@ class ObserveInterface:
     observation_space: Optional[gym.Space]
     _observation: Optional[SpaceDictRecursive]
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
 
         It only allocates some attributes.
 
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
         :param kwargs: Extra keyword arguments that may be useful for mixing
                        multiple inheritance through multiple inheritance.
         """
@@ -130,7 +134,7 @@ class ObserveInterface:
         self._observation = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation space.
