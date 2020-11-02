@@ -107,9 +107,3 @@ Math
 
 .. doxygenfunction:: jiminy::clamp(Eigen::Ref<vectorN_t const> const &data, float64_t const &minThr = -INF, float64_t const &maxThr = +INF)
    :project: jiminy
-
-Miscellaneous
--------------
-
-.. doxygenfunction:: jiminy::notF
-   :project: jiminy

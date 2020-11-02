@@ -6,7 +6,7 @@ import numpy as np
 from typing import Optional, Any, Dict, Union, Type
 
 import meshcat
-from meshcat.geometry import Geometry, pack_numpy_array
+from meshcat.geometry import Geometry, TriangularMeshGeometry, pack_numpy_array
 
 import hppfcl
 import pinocchio as pin
@@ -116,61 +116,6 @@ class Capsule(Geometry):
                 u"index": pack_numpy_array(self.faces.T)
             }
         }
-
-
-class TriangularMeshGeometry(Geometry):
-    """Mesh consisting of an arbitrary collection of triangular faces.
-
-    Backport from master branch of meshcat. Remove it after release of v0.0.19.
-    """
-    __slots__ = ["vertices", "faces"]
-
-    def __init__(self, vertices: np.ndarray, faces: np.ndarray):
-        super().__init__()
-        vertices = np.asarray(vertices, dtype=np.float32)
-        faces = np.asarray(faces, dtype=np.uint32)
-        assert vertices.shape[1] == 3, "`vertices` must be an Nx3 array"
-        assert faces.shape[1] == 3, "`faces` must be an Mx3 array"
-        self.vertices = vertices
-        self.faces = faces
-
-    def lower(self, object_data: Any) -> MsgType:
-        return {
-            u"uuid": self.uuid,
-            u"type": u"BufferGeometry",
-            u"data": {
-                u"attributes": {
-                    u"position": pack_numpy_array(self.vertices.T)
-                },
-                u"index": pack_numpy_array(self.faces.T)
-            }
-        }
-
-
-class SetProperty:
-    """Internal method used to set properties of meshcat objects.
-
-    Backport from master branch of meshcat. Remove it after release of v0.0.19.
-    """
-    __slots__ = ["path", "key", "value"]
-
-    def __init__(self, key: str, value: Any, path: str):
-        self.key = key
-        self.value = value
-        self.path = path
-
-    def lower(self) -> MsgType:
-        return {
-            u"type": u"set_property",
-            u"path": self.path.lower(),
-            u"property": self.key.lower(),
-            u"value": self.value
-        }
-
-
-def set_property(self, key: str, value: Any):
-    return self.window.send(SetProperty(key, value, self.path))
-meshcat.Visualizer.set_property = set_property  # noqa
 
 
 class MeshcatVisualizer(BaseVisualizer):
@@ -284,8 +229,7 @@ class MeshcatVisualizer(BaseVisualizer):
                                  Material: Type[meshcat.geometry.Material] =
                                  meshcat.geometry.MeshPhongMaterial):
         """Load a single geometry object"""
-        node_name = self.getViewerNodeName(
-            geometry_object, geometry_type)
+        node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
         try:
             if isinstance(geometry_object.geometry, hppfcl.ShapeBase) or \
@@ -334,7 +278,6 @@ class MeshcatVisualizer(BaseVisualizer):
         # Load robot visual meshes in MeshCat
         self.viewerVisualGroupName = "/".join((
             self.viewerRootNodeName, "visuals"))
-
         for visual in self.visual_model.geometryObjects:
             self.loadViewerGeometryObject(
                 visual, pin.GeometryType.VISUAL, color)
@@ -343,7 +286,6 @@ class MeshcatVisualizer(BaseVisualizer):
         # Load robot collision meshes in MeshCat
         self.viewerCollisionGroupName = "/".join((
             self.viewerRootNodeName, "collisions"))
-
         for collision in self.collision_model.geometryObjects:
             self.loadViewerGeometryObject(
                 collision, pin.GeometryType.COLLISION, color)

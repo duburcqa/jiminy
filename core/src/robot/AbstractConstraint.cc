@@ -1,5 +1,5 @@
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Macro.h"
 
 #include "jiminy/core/robot/AbstractConstraint.h"
 
@@ -33,7 +33,7 @@ namespace jiminy
 
         if (isAttached_)
         {
-            std::cout << "Error - FixedFrameConstraint::attach - Constraint already attached to a robot." << std::endl;
+            PRINT_ERROR("Constraint already attached to a robot.")
             return hresult_t::ERROR_GENERIC;
         }
 

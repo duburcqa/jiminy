@@ -1,5 +1,5 @@
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Utilities.h"
+#include "jiminy/core/Macro.h"
 
 #include "jiminy/core/robot/AbstractMotor.h"
 
@@ -41,7 +41,7 @@ namespace jiminy
     {
         if (isAttached_)
         {
-            std::cout << "Error - AbstractMotorBase::attach - Motor already attached to a robot. Please 'detach' method before attaching it." << std::endl;
+            PRINT_ERROR("Motor already attached to a robot. Please 'detach' method before attaching it.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -71,7 +71,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - AbstractMotorBase::detach - Motor not attached to any robot." << std::endl;
+            PRINT_ERROR("Motor not attached to any robot.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -156,7 +156,7 @@ namespace jiminy
 
         if (!robot_->getIsInitialized())
         {
-            std::cout << "Error - AbstractMotorBase::refreshProxies - Robot not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.")
             returnCode =  hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -164,7 +164,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - AbstractMotorBase::refreshProxies - Motor not initialized. Impossible to refresh model-dependent proxies." << std::endl;
+                PRINT_ERROR("Motor not initialized. Impossible to refresh model-dependent proxies.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -184,7 +184,7 @@ namespace jiminy
             // Motors are only supported for linear and rotary joints
             if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
             {
-                std::cout << "Error - AbstractMotorBase::refreshProxies - A motor can only be associated with a 1-dof linear or rotary joint." << std::endl;
+                PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.")
                 returnCode =  hresult_t::ERROR_BAD_INPUT;
             }
         }

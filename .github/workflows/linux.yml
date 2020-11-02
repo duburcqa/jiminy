@@ -35,18 +35,22 @@ jobs:
         architecture: 'x64'
     - name: Setup minimal build environment
       run: |
-        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
-        git config --global advice.detachedHead false
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
+        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+
+        sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
+
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install wheel && "${PYTHON_EXECUTABLE}" -m pip install numpy
-        echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
+        git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
 
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
         echo "${InstallDir}/lib/python${PYTHON_VERSION}/site-packages" \
@@ -56,9 +60,6 @@ jobs:
 
     - name: Build and install Jiminy
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         unset Boost_ROOT
 
         mkdir "$RootDir/build"
@@ -76,10 +77,9 @@ jobs:
 
     - name: Run unit tests
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         export LD_LIBRARY_PATH="/opt/openrobots/lib:$InstallDir/lib/:/usr/local/lib"
+
         ./build/unit/unit
+
         cd unit_py
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

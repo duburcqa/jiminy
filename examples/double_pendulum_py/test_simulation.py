@@ -4,7 +4,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
 
 

@@ -48,7 +48,7 @@ namespace jiminy
 
         if (isInitialized_)
         {
-            std::cout << "Error - TelemetryRecorder::initialize - TelemetryRecorder already initialized." << std::endl;
+            PRINT_ERROR("TelemetryRecorder already initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
         // Log the time unit as constant.
@@ -202,7 +202,7 @@ namespace jiminy
         }
         else
         {
-            std::cout << "Error - Engine::writeLogTxt - Impossible to create the log file. Check if root folder exists and if you have writing permissions." << std::endl;
+            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if you have writing permissions.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         return hresult_t::SUCCESS;
@@ -251,7 +251,7 @@ namespace jiminy
                     std::string fieldHeader(pHeader);
                     while (true)
                     {
-                        header.emplace_back(std::move(fieldHeader));
+                        header.push_back(std::move(fieldHeader));
                         posHeader += header.back().size() + 1;
                         fieldHeader = std::string(pHeader + posHeader);
                         if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
@@ -261,7 +261,7 @@ namespace jiminy
                         if (posHeader + fieldHeader.size() > headerCharBuffer.size())
                         {
                             fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
-                            header.emplace_back(std::move(fieldHeader));
+                            header.push_back(std::move(fieldHeader));
                             break;
                         }
                     }

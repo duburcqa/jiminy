@@ -28,7 +28,7 @@ sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
 
 # Install Python 3 toolsuite for testing and documentation generation
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \
-    setuptools pygments flake8 \
+    setuptools pygments flake8 pylint mypy \
     colorama numba \
     sphinx sphinx_rtd_theme recommonmark nbsphinx breathe aafigure
 

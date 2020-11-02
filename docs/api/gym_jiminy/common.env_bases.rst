@@ -5,4 +5,5 @@ common.env_bases
    :members:
    :undoc-members:
    :private-members:
+   :inherited-members:
    :show-inheritance:

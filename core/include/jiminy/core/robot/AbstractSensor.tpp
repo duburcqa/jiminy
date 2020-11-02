@@ -1,5 +1,4 @@
 #include "jiminy/core/robot/Robot.h"
-#include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
 namespace jiminy
@@ -29,7 +28,7 @@ namespace jiminy
     {
         if (isAttached_)
         {
-            std::cout << "Error - AbstractSensorTpl<T>::attach - Sensor already attached to a robot. Please 'detach' method before attaching it." << std::endl;
+            PRINT_ERROR("Sensor already attached to a robot. Please 'detach' method before attaching it.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -66,7 +65,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - AbstractSensorTpl<T>::detach - Sensor not attached to any robot." << std::endl;
+            PRINT_ERROR("Sensor not attached to any robot.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -89,7 +88,7 @@ namespace jiminy
         sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
         // Shift the sensor indices
-        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; i++)
+        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
         {
             AbstractSensorTpl<T> * sensor =
                 static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
@@ -290,7 +289,7 @@ namespace jiminy
         {
             if (idxLeft < 0)
             {
-                std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - No data old enough is available." << std::endl;
+                PRINT_ERROR("No data old enough is available.")
                 return hresult_t::ERROR_GENERIC;
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
@@ -305,7 +304,7 @@ namespace jiminy
             }
             else
             {
-                std::cout << "Error - AbstractSensorTpl<T>::updateDataBuffer - The delayInterpolationOrder must be either 0 or 1 so far." << std::endl;
+                PRINT_ERROR("The delayInterpolationOrder must be either 0 or 1 so far.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -385,7 +384,7 @@ namespace jiminy
                 if (sharedHolder_->time_.size() > 2U + DELAY_MAX_BUFFER_EXCEED
                 && timeMin > sharedHolder_->time_[2U + DELAY_MAX_BUFFER_EXCEED])
                 {
-                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; i ++)
+                    for (uint8_t i=0; i < 1 + DELAY_MAX_BUFFER_EXCEED; ++i)
                     {
                         sharedHolder_->time_.pop_front();
                         sharedHolder_->data_.pop_front();

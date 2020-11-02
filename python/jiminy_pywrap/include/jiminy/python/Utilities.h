@@ -172,7 +172,7 @@ namespace python
     vectorN_t listPyToEigenVector(bp::list const & listPy)
     {
         vectorN_t x(len(listPy));
-        for (int32_t i = 0; i < len(listPy); i++)
+        for (int32_t i = 0; i < len(listPy); ++i)
         {
             x(i) = bp::extract<float64_t>(listPy[i]);
         }
@@ -190,7 +190,7 @@ namespace python
         assert(nCols > 0 && "empty row");
 
         matrixN_t M(nRows, nCols);
-        for (int32_t i = 0; i < nRows; i++)
+        for (int32_t i = 0; i < nRows; ++i)
         {
             bp::list const row = bp::extract<bp::list>(listPy[i]);
             assert(len(row) == nCols && "wrong number of columns");
@@ -320,7 +320,7 @@ namespace python
         T vec;
         bp::list const listPy = bp::extract<bp::list>(dataPy);
         vec.reserve(bp::len(listPy));
-        for (bp::ssize_t i=0; i < bp::len(listPy); i++)
+        for (bp::ssize_t i=0; i < bp::len(listPy); ++i)
         {
             bp::object const itemPy = listPy[i];
             vec.push_back(std::move(convertFromPython<V>(itemPy)));
@@ -336,14 +336,14 @@ namespace python
         bp::dict sensorsGroupsPy = bp::extract<bp::dict>(dataPy);
         bp::list sensorsGroupsNamesPy = sensorsGroupsPy.keys();
         bp::list sensorsGroupsValuesPy = sensorsGroupsPy.values();
-        for (bp::ssize_t i=0; i < bp::len(sensorsGroupsNamesPy); i++)
+        for (bp::ssize_t i=0; i < bp::len(sensorsGroupsNamesPy); ++i)
         {
             sensorDataTypeMap_t sensorGroupData;
             std::string sensorGroupName = bp::extract<std::string>(sensorsGroupsNamesPy[i]);
             bp::dict sensorsDataPy = bp::extract<bp::dict>(sensorsGroupsValuesPy[i]);
             bp::list sensorsNamesPy = sensorsDataPy.keys();
             bp::list sensorsValuesPy = sensorsDataPy.values();
-            for (bp::ssize_t j=0; j < bp::len(sensorsNamesPy); j++)
+            for (bp::ssize_t j=0; j < bp::len(sensorsNamesPy); ++j)
             {
                 std::string sensorName = bp::extract<std::string>(sensorsNamesPy[j]);
                 np::ndarray sensorDataNumpy = bp::extract<np::ndarray>(sensorsValuesPy[j]);
@@ -367,7 +367,7 @@ namespace python
         bp::dict const dictPy = bp::extract<bp::dict>(dataPy);
         bp::list keysPy = dictPy.keys();
         bp::list valuesPy = dictPy.values();
-        for (bp::ssize_t i=0; i < bp::len(keysPy); i++)
+        for (bp::ssize_t i=0; i < bp::len(keysPy); ++i)
         {
             K const key = bp::extract<K>(keysPy[i]);
             map[key] = convertFromPython<V>(valuesPy[i]);

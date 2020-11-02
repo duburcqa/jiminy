@@ -23,7 +23,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     PREFIX ""
     VERSION ${BUILD_VERSION}
     SUFFIX ${PYTHON_EXT_SUFFIX}
-    OUTPUT_NAME "${PROJECT_NAME}"
+    OUTPUT_NAME ${PYTHON_LIBRARY_NAME}
+)
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+    "-DPYTHON_LIBRARY_NAME=${PYTHON_LIBRARY_NAME}"
 )
 
 # Substitute Docstring @copydoc flags with C++ Doxygen documentations

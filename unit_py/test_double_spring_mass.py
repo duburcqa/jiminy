@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import scipy
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 
 from utilities import (
     load_urdf_default,

@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/Types.h"
 
 
@@ -88,12 +89,12 @@ namespace jiminy
                 return hresult_t::SUCCESS;
             }
 
-            // Create the memory, set its mode to R/W and get the R/W access rights.
+            // Create the memory
             memAddress_ = malloc(size_);
 
             if (memAddress_ == nullptr)
             {
-                std::cout << "Error - MemoryBuffer::create - Memory allocation for the memory '" << name_ << "' failed." << std::endl;
+                PRINT_ERROR("Memory allocation for the memory '", name_, "' failed.")
                 return hresult_t::ERROR_GENERIC;
             }
 
@@ -105,7 +106,7 @@ namespace jiminy
         ///
         /// \return The address of the shm in this process.
         ///////////////////////////////////////////////////////////////////////
-        void* address(void)
+        void * address(void)
         {
             return memAddress_;
         };

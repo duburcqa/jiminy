@@ -6,6 +6,7 @@
 
 #include <iostream>
 
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/io/AbstractIODevice.h"
 
 
@@ -47,7 +48,7 @@ namespace jiminy
 
         if (isOpen())
         {
-            std::cout << "Error - AbstractIODevice::open - Already open." << std::endl;
+            PRINT_ERROR("Already open.")
             returnCode = lastError_ = hresult_t::ERROR_GENERIC;
         }
 
@@ -55,7 +56,7 @@ namespace jiminy
         {
             if ((modes & supportedModes_) != modes)
             {
-                std::cout << "Error - AbstractIODevice::open - At least of the modes " << modes << " is not supported." << std::endl;
+                PRINT_ERROR("At least of the modes ", modes, " is not supported.")
                 returnCode = lastError_ = hresult_t::ERROR_GENERIC;
             }
         }
@@ -133,14 +134,14 @@ namespace jiminy
     hresult_t AbstractIODevice::resize(int64_t size)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        std::cout << "Error - AbstractIODevice::resize - This method is not available." << std::endl;
+        PRINT_ERROR("This method is not available.")
         return lastError_;
     }
 
     hresult_t AbstractIODevice::seek(int64_t pos)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        std::cout << "Error - AbstractIODevice::seek - This method is not available." << std::endl;
+        PRINT_ERROR("This method is not available.")
         return lastError_;
     }
 
@@ -171,7 +172,7 @@ namespace jiminy
             if (writtenBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                std::cout << "Error - AbstractIODevice::write - Something went wrong. No data was written." << std::endl;
+                PRINT_ERROR("Something went wrong. No data was written.")
                 return lastError_;
             }
             toWrite -= writtenBytes;
@@ -192,7 +193,7 @@ namespace jiminy
             if (readBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                std::cout << "Error - AbstractIODevice::write - Something went wrong. No data was read." << std::endl;
+                PRINT_ERROR("Something went wrong. No data was read.")
                 return lastError_;
             }
             toRead -= readBytes;
@@ -204,7 +205,7 @@ namespace jiminy
     hresult_t AbstractIODevice::setBlockingMode(bool_t shouldBlock)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        std::cout << "Error - AbstractIODevice::setBlockingMode - This methid is not available." << std::endl;
+        PRINT_ERROR("This methid is not available.")
         return lastError_;
     }
 

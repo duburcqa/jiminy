@@ -1,9 +1,11 @@
+""" TODO: Write documentation.
+"""
 import os
 import numpy as np
 from pkg_resources import resource_filename
 
 from ..common.env_locomotion import WalkerJiminyEnv
-from ..common.env_control import PDController, build_controlled_env
+from ..common.control_bases import PDController, build_controlled_env
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -36,10 +38,10 @@ STD_RATIO = {
 
 
 class ANYmalJiminyEnv(WalkerJiminyEnv):
-    """TODO
+    """ TODO: Write documentation.
     """
     def __init__(self, debug: bool = False, **kwargs):
-        """TODO
+        """ TODO: Write documentation.
         """
         # Get the urdf and mesh paths
         data_root_dir = os.path.join(
