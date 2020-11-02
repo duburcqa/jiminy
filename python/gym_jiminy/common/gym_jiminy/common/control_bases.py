@@ -10,20 +10,19 @@ It implements:
       unified environment.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, Type, List
+from typing import Optional, Union, Tuple, Dict, Any, Type
 
 import numpy as np
 import gym
 from gym.spaces.utils import flatten, flatten_space
 
 import jiminy_py.core as jiminy
-from jiminy_py.core import EncoderSensor as encoder
 from jiminy_py.simulator import Simulator
 
 from .utils import (
-    _is_breakpoint, _clamp, set_zeros, set_value, register_variables,
+    _is_breakpoint, zeros, set_value, register_variables,
     SpaceDictRecursive, FieldDictRecursive)
-from .generic_bases import ControlInterface
+from .generic_bases import ControlInterface, ObserveInterface
 from .env_bases import BaseJiminyEnv
 
 
@@ -38,10 +37,15 @@ class BlockInterface:
     observation_space: Optional[gym.Space]
     action_space: Optional[gym.Space]
 
-    def __init__(self) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the block interface.
 
         It only allocates some attributes.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments that may be useful for mixing
+                       multiple inheritance through multiple inheritance.
         """
         # Define some attributes
         self.env = None
@@ -49,7 +53,7 @@ class BlockInterface:
         self.action_space = None
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__()
+        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -60,14 +64,20 @@ class BlockInterface:
         return self.env.robot
 
     @property
-    def system_state(self) -> jiminy.SystemState:
-        """Get low-level engine system state of the associated environment.
+    def simulator(self) -> Simulator:
+        """Get low-level simulator of the associated environment.
         """
         if self.env is None:
             raise RuntimeError("Associated environment undefined.")
         if self.env.simulator is None:
             raise RuntimeError("Associated environment not initialized.")
-        return self.env.simulator.engine.system_state
+        return self.env.simulator
+
+    @property
+    def system_state(self) -> jiminy.SystemState:
+        """Get low-level engine system state of the associated environment.
+        """
+        return self.simulator.engine.system_state
 
     def reset(self, env: BaseJiminyEnv) -> None:
         """Reset the block for a given environment.
@@ -112,6 +122,11 @@ class BlockInterface:
         """Configure the observation of the block.
 
         .. note::
+            The observation space refers to the output of system once connected
+            with another block. For example, for a controller, it is the
+            action from the next block.
+
+        .. note::
             This method is called right after `_setup`, so that both the
             environment and this block should be already initialized.
         """
@@ -119,6 +134,11 @@ class BlockInterface:
 
     def _refresh_action_space(self) -> None:
         """Configure the action of the block.
+
+        .. note::
+            The action space refers to the input of the block. It does not have
+            to be an actual action. For example, for an observer, it is the
+            observation from the previous block.
 
         .. note::
             This method is called right after `_setup`, so that both the
@@ -143,7 +163,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
                    +----------+
 
     Formally, a controller is defined as a block mapping any action space
-    'act_ctrl' to the action space of the lower-level controller 'cmd_ctrl',
+    'act_ctrl' to the action space of the subsequent controller 'cmd_ctrl',
     if any, and ultimately to the one of the associated environment 'act_env',
     ie the motors efforts to apply on the robot.
 
@@ -191,7 +211,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
             is probably the way to go.
         """
         assert self.env is not None
-        self.observation_space = self.env.observation_space
+        self.observation_space = self.env.action_space
 
     # methods to override:
     # ----------------------------
@@ -208,6 +228,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
             This method is not supposed to be called before `reset`, so that
             the controller should be already initialized at this point.
         """
+        raise NotImplementedError
 
 
 BaseControllerBlock._setup.__doc__ = \
@@ -252,136 +273,56 @@ BaseControllerBlock.compute_command.__doc__ = \
     """
 
 
-class PDController(BaseControllerBlock):
-    """Low-level Proportional-Derivative controller.
+class BaseObserverBlock(BlockInterface, ObserveInterface):
+    r"""Base class to implement observe that can be used compute observation
+    features of a `BaseJiminyEnv` environment, through any number of
+    lower-level observer.
 
-    .. warning::
-        It must be connected directly to the environment to control without
-        intermediary controllers.
+    .. aafig::
+        :proportional:
+        :textual:
+
+                  +------------+
+        "obs_env" |            |
+         -------->+ "observer" +--------->
+                  |            | "features"
+                  +------------+
+
+    Formally, an observer is a defined as a block mapping the observation space
+    of the preceding observer, if any, and directly the one of the environment
+    'obs_env', to any observation space 'features'. It is more generic than
+    estimating the state of the robot.
+
+    The update period of the observer is the same than the simulation timestep
+    of the environment for now.
     """
-    def __init__(self,
-                 update_ratio: int = 1,
-                 pid_kp: Union[float, np.ndarray] = 0.0,
-                 pid_kd: Union[float, np.ndarray] = 0.0,
-                 **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
-        :param update_ratio: Ratio between the update period of the controller
-                             and the one of the subsequent controller.
-        :param pid_kp: PD controller position-proportional gain in motor order.
-        :param pid_kd: PD controller velocity-proportional gain in motor order.
-        :param kwargs: Used arguments to allow automatic pipeline wrapper
-                       generation.
+        :param kwargs: Extra keyword arguments that may be useful for dervied
+                       observer with multiple inheritance, and to allow
+                       automatic pipeline wrapper generation.
         """
-        # Initialize the controller
-        super().__init__(update_ratio)
+        # pylint: disable=unused-argument
 
-        # Backup some user arguments
-        self.pid_kp = pid_kp
-        self.pid_kd = pid_kd
-
-        # Low-level controller buffers
-        self.motor_to_encoder: Optional[List[int]] = None
-        self._q_target = None
-        self._v_target = None
+        # Initialize the block and observe interface
+        super().__init__(*args, **kwargs)
 
     def _refresh_action_space(self) -> None:
-        """Configure the action space of the controller.
+        """Configure the action space of the observer.
 
-        The action spaces corresponds to the position and velocity of motors
-        instead of the torque.
+        It does nothing but to return the action space of the environment
+        since it is only affecting the observation space.
+
+        .. warning::
+            This method that must not be overloaded. If one need to overload
+            it, when using `BaseControllerBlock` or `BlockInterface` directly
+            is probably the way to go.
         """
-        # Assertion(s) for type checker
         assert self.env is not None
-
-        # Extract the position and velocity bounds for the observation space
-        sensors_space = self.env._get_sensors_space()
-        encoders_space = sensors_space[encoder.type]
-        pos_high, vel_high = encoders_space.high
-        pos_low, vel_low = encoders_space.low
-
-        # Reorder the position and velocity bounds to match motors order
-        pos_high = pos_high[self.motor_to_encoder]
-        pos_low = pos_low[self.motor_to_encoder]
-        vel_high = vel_high[self.motor_to_encoder]
-        vel_low = vel_low[self.motor_to_encoder]
-
-        # Set the action space. Note that it is flattened.
-        self.action_space = gym.spaces.Dict([
-            (encoder.fieldnames[0], gym.spaces.Box(
-                low=pos_low, high=pos_high, dtype=np.float32)),
-            (encoder.fieldnames[1], gym.spaces.Box(
-                low=vel_low, high=vel_high, dtype=np.float32))])
-
-    def _setup(self) -> None:
-        """Configure the controller.
-
-        It updates the mapping from motors to encoders indices.
-        """
-        # Assertion(s) for type checker
-        assert self.robot is not None and self.system_state is not None
-
-        # Refresh the mapping between the motors and encoders
-        encoder_joints = []
-        for name in self.robot.sensors_names[encoder.type]:
-            sensor = self.robot.get_sensor(encoder.type, name)
-            encoder_joints.append(sensor.joint_name)
-
-        self.motor_to_encoder = []
-        for name in self.robot.motors_names:
-            motor = self.robot.get_motor(name)
-            motor_joint = motor.joint_name
-            encoder_found = False
-            for i, encoder_joint in enumerate(encoder_joints):
-                if motor_joint == encoder_joint:
-                    self.motor_to_encoder.append(i)
-                    encoder_found = True
-                    break
-            if not encoder_found:
-                raise RuntimeError(
-                    "No encoder sensor associated with motor '{name}'. Every "
-                    "actuated joint must have an encoder sensor attached.")
-
-        # Initialize the internal state
-        self._q_target = self.system_state.q[sum(
-            self.robot.motors_position_idx, [])]
-        self._v_target = self.system_state.v[self.robot.motors_velocity_idx]
-
-    def get_fieldnames(self) -> FieldDictRecursive:
-        pos_fieldnames = ["targetPosition" + name
-                          for name in self.robot.motors_names]
-        vel_fieldnames = ["targetVelocity" + name
-                          for name in self.robot.motors_names]
-        return OrderedDict([(encoder.fieldnames[0], pos_fieldnames),
-                            (encoder.fieldnames[1], vel_fieldnames)])
-
-    def compute_command(self,
-                        action: SpaceDictRecursive
-                        ) -> np.ndarray:
-        """Compute the motor torques using a PD controller.
-
-        It is proportional to the error between the measured motors positions/
-        velocities and the target ones.
-
-        :param action: Target motors positions and velocities as a vector.
-                       `None` to return zero motor torques vector.
-        """
-        # Update the internal state of the controller
-        self._q_target = action[encoder.fieldnames[0]]
-        self._v_target = action[encoder.fieldnames[1]]
-
-        # Estimate position and motor velocity from encoder data
-        encoders_data = self.robot.sensors_data[encoder.type]
-        q_measured, v_measured = encoders_data[:, self.motor_to_encoder]
-
-        # Compute the joint tracking error
-        q_error = q_measured - self._q_target
-        v_error = v_measured - self._v_target
-
-        # Compute PD command
-        return - self.pid_kp * (q_error + self.pid_kd * v_error)
+        self.action_space = self.env.observation_space
 
 
-class ControlledJiminyEnv(gym.Wrapper):
+class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
     """Wrap a `BaseJiminyEnv` Gym environment and a single controller, so that
     it appears as a single, unified, environment. Eventually, the environment
     can already be wrapped inside one or several `gym.Wrapper` containers.
@@ -466,52 +407,21 @@ class ControlledJiminyEnv(gym.Wrapper):
         assert isinstance(env.unwrapped, BaseJiminyEnv), (
             "env.unwrapped must derived from `BaseJiminyEnv`.")
 
+        # Initialize base wrapper and interfaces through multiple inheritance
+        super().__init__(env)
+
         # Backup user arguments
         self.controller = controller
         self.observe_target = observe_target
-        self.controller_dt: Optional[float] = None
         self.debug: Optional[bool] = None
-        self._observation: Optional[SpaceDictRecursive] = None
-        self._action: Optional[SpaceDictRecursive] = None
         self._target: Optional[SpaceDictRecursive] = None
         self._command: Optional[np.ndarray] = None
+        self._observation_env: Optional[SpaceDictRecursive] = None
         self._dt_eps: Optional[float] = None
         self._ctrl_name: Optional[str] = None
 
-        # Initialize base wrapper
-        super().__init__(env)
-
         # Reset the unified environment
         self.reset()
-
-    @property
-    def simulator(self) -> Optional[Simulator]:
-        """Get low-level simulator of the associated environment.
-        """
-        if self.env is not None:
-            return self.env.unwrapped.simulator
-        return None
-
-    def _send_command(self,
-                      t: float,
-                      q: np.ndarray,
-                      v: np.ndarray,
-                      sensors_data: jiminy.sensorsData,
-                      u_command: np.ndarray) -> None:
-        """This method implement the callback function required by Jiminy
-        Controller to get the command. In practice, it only updates a variable
-        shared between C++ and Python to the internal value stored by this
-        class.
-
-        .. warning::
-            This is a hidden function that is not listed as part of the member
-            methods of the class. It is not intended to be called manually.
-
-        :meta private:
-        """
-        # pylint: disable=unused-argument
-
-        u_command[:] = self.compute_command(self._action)
 
     def compute_command(self,
                         action: SpaceDictRecursive
@@ -537,7 +447,7 @@ class ControlledJiminyEnv(gym.Wrapper):
 
         # Update the target to send to the subsequent block if necessary
         if _is_breakpoint(t, self.controller_dt, self._dt_eps):
-            set_value(self.controller.compute_command(action), self._target)
+            set_value(self._target, self.controller.compute_command(action))
 
         # Update the command to send to the actuators of the robot if necessary
         if _is_breakpoint(t, self.env.controller_dt, self._dt_eps):
@@ -545,8 +455,7 @@ class ControlledJiminyEnv(gym.Wrapper):
 
         return self._command
 
-    def _compute_obs(self,
-                     env_obs: SpaceDictRecursive) -> SpaceDictRecursive:
+    def fetch_obs(self) -> SpaceDictRecursive:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -555,39 +464,30 @@ class ControlledJiminyEnv(gym.Wrapper):
         directly without any further processing.
 
         .. warning::
-            Beware it updates and returns the input environment observation
-            whenever it is possible for the sake of efficiency.
-
-        :param env_obs: Original observation from the environment.
+            Beware it updates and returns the internal buffer of environment
+            observation '_observation_env' whenever it is possible for the sake
+            of efficiency. Even so, it is always safe to call this method
+            multiple times successively.
 
         :returns: Updated environment's observation with the controller's
                   target appended.
         """
+        obs = self._observation_env
         if self.observe_target:
             if isinstance(self.env.observation_space, gym.spaces.Dict):
-                env_obs.setdefault('targets', OrderedDict())[
+                # Assertion(s) for type checker
+                assert isinstance(obs, dict)
+
+                obs.setdefault('targets', OrderedDict())[
                     self._ctrl_name] = self._action
             else:
+                # Assertion(s) for type checker
+                assert isinstance(obs, np.ndarray)
+
                 action_flat = flatten(
                     self.controller.action_space, self._action)
-                env_obs = np.concatenate((env_obs, action_flat))
-        return env_obs
-
-    def get_obs(self) -> SpaceDictRecursive:
-        """Post-processed observation.
-
-        It clamps the observation to make sure it does not violate the lower
-        and upper bounds.
-
-        .. warning::
-            This method is not meant to be overloaded.
-        """
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-
-        if self.observe_target:
-            return _clamp(self.observation_space, self._observation)
-        return self._observation
+                obs = np.concatenate((obs, action_flat))
+        return obs
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
@@ -602,7 +502,7 @@ class ControlledJiminyEnv(gym.Wrapper):
         assert self.simulator is not None
 
         # Reset the environment
-        env_obs = self.env.reset()
+        self._observation_env = self.env.reset()
         self.debug = self.env.debug
 
         # Assertion(s) for type checker
@@ -631,8 +531,7 @@ class ControlledJiminyEnv(gym.Wrapper):
         assert self.action_space is not None
 
         # Initialize the controller's input action and output target
-        self._action = self.action_space.sample()
-        set_zeros(self._action)
+        self._action = zeros(self.action_space)
         self._target = self.controller.compute_command(self._action)
 
         # Check that the initial action of the controller is consistent with
@@ -684,7 +583,7 @@ class ControlledJiminyEnv(gym.Wrapper):
                     dtype=np.float32)
 
         # Compute the unified observation
-        self._observation = self._compute_obs(env_obs)
+        self._observation = self.fetch_obs()
         return self.get_obs()
 
     def step(self,
@@ -702,10 +601,10 @@ class ControlledJiminyEnv(gym.Wrapper):
             self._action = action
 
         # Compute the next learning step
-        env_obs, reward, done, info = self.env.step()
+        self._observation_env, reward, done, info = self.env.step()
 
         # Compute the unified observation
-        self._observation = self._compute_obs(env_obs)
+        self._observation = self.fetch_obs()
 
         return self.get_obs(), reward, done, info
 
@@ -742,10 +641,13 @@ def build_controlled_env(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
     # pylint: disable-all
 
     controlled_env_class = type(
-        f"{controller_class.__name__}{env_class.__name__}",
-        (ControlledJiminyEnv,),
-        {})
+        f"{controller_class.__name__}{env_class.__name__}",  # Class name
+        (ControlledJiminyEnv,),  # Bases
+        {})  # methods (__init__ cannot be implemented this way, cf below)
 
+    # Implementation of __init__ method must be done after declaration of the
+    # class, because the required closure for calling `super()` is not
+    # available when creating a class dynamically.
     def __init__(self: ControlledJiminyEnv, **kwargs: Any) -> None:
         """
         :param kwargs: Keyword arguments to forward to both the wrapped
