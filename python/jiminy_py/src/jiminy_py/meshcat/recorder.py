@@ -100,9 +100,8 @@ Launcher.launch = launch  # noqa
 async def capture_frame_async(client: HTMLResponse,
                               width: int,
                               height: int) -> Awaitable[Any]:
-    """
-    @brief    Send a javascript command to the hidden browser to
-              capture frame, then wait for it (since it is async).
+    """Send a javascript command to the hidden browser to capture frame, then
+    wait for it (since it is async).
     """
     _width = client.html.page.viewport['width']
     _height = client.html.page.viewport['height']
@@ -241,10 +240,9 @@ def meshcat_recorder(meshcat_url: str,
 # ============ Meshcat recorder client ============
 
 class MeshcatRecorder:
-    """
-    @brief Run meshcat server in background using multiprocessing Process to
-           enable parallel asyncio loop execution, which is necessary to
-           support recording in Jupyter notebook.
+    """Run meshcat server in background using multiprocessing Process to enable
+    parallel asyncio loop execution, which is necessary to support recording in
+    Jupyter notebook.
     """
     def __init__(self, url: str):
         self.is_open = False

@@ -39,10 +39,9 @@ def onpolicy_trainer(
         verbose: bool = True,
         test_in_train: bool = True,
         **kwargs) -> Dict[str, Union[float, str]]:
-    """
-    @brief Slightly modified Tianshou `onpolicy_trainer` original method to
-           enable to define the maximum number of training steps instead of
-           number of episodes, for consistency with other learning frameworks.
+    """Slightly modified Tianshou `onpolicy_trainer` original method to enable
+    to define the maximum number of training steps instead of number of
+    episodes, for consistency with other learning frameworks.
     """
     global_step = 0
     best_epoch, best_reward = -1, -1.0
@@ -123,19 +122,19 @@ def onpolicy_trainer(
 def initialize(log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                verbose: bool = True) -> SummaryWriter:
-    """
-    @brief Initialize Tensorboard daemon.
+    """Initialize Tensorboard daemon.
 
-    @details It will be used later for monitoring the learning progress.
+    .. note::
+        It will be used later for monitoring the learning progress.
 
-    @param log_root_path  Fullpath of root log directory.
+    :param log_root_path: Fullpath of root log directory.
                           Optional: location of this file / log by default.
-    @param log_name  Name of the subdirectory where to save data.
+    :param log_name: Name of the subdirectory where to save data.
                      Optional: full date _ hostname by default.
-    @param verbose  Whether or not to print information about what is going on.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    @return SummaryWriter to pass to the training agent to monitor the training
+    :returns: SummaryWriter to pass to the training agent to monitor the training
             progress.
     """
     # Configure Tensorboard
@@ -168,24 +167,24 @@ def train(train_agent: BasePolicy,
           writer: SummaryWriter,
           config: Dict[str, Any],
           verbose: bool = True) -> str:
-    """
-    @brief Train a model on a specific environment using a given agent.
+    """Train a model on a specific environment using a given agent.
 
-    @details Note that the agent is associated with a given reinforcement
-             learning algorithm.
+    Note that the agent is associated with a given reinforcement learning
+    algorithm.
 
-    @remark This function can be terminated early using CTRL+C.
+    .. note::
+        This function can be terminated early using CTRL+C.
 
-    @param train_agent  Training agent.
-    @param train_envs  Training environment vector.
-    @param test_envs  Testing environment vector.
-    @param writer  SummaryWriter used to monitor training progress.
-    @param config Configuration dictionary to pass on-policy trainer.
-    @param verbose  Whether or not to print information about what is going on.
+    :param train_agent: Training agent.
+    :param train_envs: Training environment vector.
+    :param test_envs: Testing environment vector.
+    :param writer: SummaryWriter used to monitor training progress.
+    :param config: Configuration dictionary to pass on-policy trainer.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    @return Fullpath of agent's final state dump. Note that it also contains
-            the trained neural network model.
+    :returns: Fullpath of agent's final state dump. Note that it also contains
+              the trained neural network model.
     """
     # Create the replay buffer
     buffer_size = config["collect_per_step"]
@@ -232,16 +231,16 @@ def test(test_agent: BasePolicy,
          env_creator: Callable[[], gym.Env],
          num_episodes: int,
          verbose: bool = True) -> None:
-    """
-    @brief Test a model on a specific environment using a given agent.
-           It will render the result in the default viewer.
+    """Test a model on a specific environment using a given agent. It will
+    render the result in the default viewer.
 
-    @remark This function can be terminated early using CTRL+C.
+    .. note::
+        This function can be terminated early using CTRL+C.
 
-    @param env_creator  Lambda function without argument used to create a
+    :param env_creator: Lambda function without argument used to create a
                         learning environment.
-    @param num_episodes  Max number of episodes to run.
-    @param verbose  Whether or not to print information about what is going on.
+    :param num_episodes: Max number of episodes to run.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
     """
     env = env_creator()

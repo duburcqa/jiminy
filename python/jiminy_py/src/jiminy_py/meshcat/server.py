@@ -208,9 +208,8 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 # ======================================================
 
 def meshcat_server(info: Dict[str, str]) -> None:
-    """
-    @brief Meshcat server deamon, using in/out argument to get the zmq url
-           instead of reading stdout as it was.
+    """Meshcat server deamon, using in/out argument to get the zmq url instead
+    of reading stdout as it was.
     """
     # Do not catch signal interrupt automatically, to avoid
     # killing meshcat server and stopping Jupyter notebook cell.
@@ -228,8 +227,7 @@ def meshcat_server(info: Dict[str, str]) -> None:
 
 
 def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
-    """
-    @brief Run meshcat server in background using multiprocessing Process.
+    """Run meshcat server in background using multiprocessing Process.
     """
     manager = multiprocessing.Manager()
     info = manager.dict()

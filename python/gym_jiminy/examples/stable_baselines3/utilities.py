@@ -19,19 +19,18 @@ from jiminy_py.viewer import sleep
 def initialize(log_root_path: Optional[str] = None,
                log_name: Optional[str] = None,
                verbose: bool = True) -> str:
-    """
-    @brief Initialize Tensorboard daemon.
+    """Initialize Tensorboard daemon.
 
-    @details It will be used later for monitoring the learning progress.
+    It will be used later for monitoring the learning progress.
 
-    @param log_root_path  Fullpath of root log directory.
+    :param log_root_path: Fullpath of root log directory.
                           Optional: location of this file / log by default.
-    @param log_name  Name of the subdirectory where to save data.
+    :param log_name: Name of the subdirectory where to save data.
                      Optional: full date _ hostname by default.
-    @param verbose  Whether or not to print information about what is going on.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    @return Tensorboard data path.
+    :returns: Tensorboard data path.
     """
     # Configure Tensorboard
     if log_root_path is None:
@@ -60,23 +59,23 @@ def initialize(log_root_path: Optional[str] = None,
 def train(train_agent: BaseAlgorithm,
           max_timesteps: int,
           verbose: bool = True) -> str:
-    """
-    @brief Train a model on a specific environment using a given agent.
+    """Train a model on a specific environment using a given agent.
 
-    @details Note that the agent is associated with a given reinforcement
-             learning algorithm, and instanciated for a specific environment
-             and neural network model. Thus, it already wraps all the required
-             information to actually perform training.
+    Note that the agent is associated with a given reinforcement learning
+    algorithm, and instanciated for a specific environment and neural network
+    model. Thus, it already wraps all the required information to actually
+    perform training.
 
-    @remark This function can be terminated early using CTRL+C.
+    .. note::
+        This function can be terminated early using CTRL+C.
 
-    @param train_agent  Training agent.
-    @param max_timesteps  Number of maximum training timesteps.
-    @param verbose  Whether or not to print information about what is going on.
+    :param train_agent: Training agent.
+    :param max_timesteps: Number of maximum training timesteps.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    @return Fullpath of agent's final state dump. Note that it also contains
-            the trained neural network model.
+    :returns: Fullpath of agent's final state dump. Note that it also contains
+              the trained neural network model.
     """
     # Get testing environment spec
     spec = train_agent.eval_env.envs[0].spec
@@ -113,18 +112,18 @@ def test(test_agent: BaseAlgorithm,
          max_episodes: int = math.inf,
          max_duration: int = math.inf,
          verbose: bool = True) -> None:
-    """
-    @brief Test a model on a specific environment using a given agent.
-           It will render the result in the default viewer.
+    """Test a model on a specific environment using a given agent. It will
+    render the result in the default viewer.
 
-    @remark This function can be terminated early using CTRL+C.
+    .. note::
+        This function can be terminated early using CTRL+C.
 
-    @param train_agent  Testing agent.
-    @param max_episodes  Max number of episodes to run. Can be infinite.
+    :param train_agent: Testing agent.
+    :param max_episodes: Max number of episodes to run. Can be infinite.
                          Optional: infinite by default.
-    @param max_duration  Max total duration of the episodes. Can be infinite.
+    :param max_duration: Max total duration of the episodes. Can be infinite.
                          Optional: infinite by default.
-    @param verbose  Whether or not to print information about what is going on.
+    :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
     """
     # Check user arguments

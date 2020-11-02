@@ -1,6 +1,5 @@
-"""
-@brief  This file aims at verifying the sanity of the physics and the
-        integration method of jiminy on simple mass.
+"""This file aims at verifying the sanity of the physics and the integration
+method of jiminy on simple mass.
 """
 import unittest
 import numpy as np
