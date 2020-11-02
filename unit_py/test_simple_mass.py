@@ -7,7 +7,7 @@ import numpy as np
 from enum import Enum
 from scipy.signal import savgol_filter
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 
 from pinocchio import Force
 

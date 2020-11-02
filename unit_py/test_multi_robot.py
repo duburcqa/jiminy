@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from scipy.linalg import expm
 
-from jiminy_py import core as jiminy
+import jiminy_py.core as jiminy
 
 from utilities import load_urdf_default, simulate_and_get_state_evolution
 

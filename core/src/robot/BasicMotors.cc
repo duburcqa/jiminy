@@ -26,7 +26,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            std::cout << "Error - SimpleMotor::initialize - Motor not attached to any robot. Impossible to initialize it." << std::endl;
+            PRINT_ERROR("Motor not attached to any robot. Impossible to initialize it.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -57,27 +57,27 @@ namespace jiminy
             // Make sure the user-defined position limit has the right dimension
             if (boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
             {
-                std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousPositive' must be negative." << std::endl;
+                PRINT_ERROR("'frictionViscousPositive' must be negative.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
             {
-                std::cout << "Error - SimpleMotor::setOptions - 'frictionViscousNegative' must be negative." << std::endl;
+                PRINT_ERROR("'frictionViscousNegative' must be negative.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
             {
-                std::cout << "Error - SimpleMotor::setOptions - 'frictionDryPositive' must be negative." << std::endl;
+                PRINT_ERROR("'frictionDryPositive' must be negative.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
             {
-                std::cout << "Error - SimpleMotor::setOptions - 'frictionDryNegative' must be negative." << std::endl;
+                PRINT_ERROR("'frictionDryNegative' must be negative.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
             {
-                std::cout << "Error - SimpleMotor::setOptions - 'frictionDrySlope' must be positive." << std::endl;
+                PRINT_ERROR("'frictionDrySlope' must be positive.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -98,7 +98,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - SimpleMotor::computeEffort - Motor not initialized. Impossible to compute actual motor effort." << std::endl;
+            PRINT_ERROR("Motor not initialized. Impossible to compute actual motor effort.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 

@@ -10,6 +10,7 @@ add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
 # Project and library name
 project(jiminy VERSION ${BUILD_VERSION})
 set(LIBRARY_NAME ${PROJECT_NAME})
+set(PYTHON_LIBRARY_NAME "core")
 
 # Set build environment and standard dependencies
 include(${CMAKE_SOURCE_DIR}/build_tools/cmake/base.cmake)

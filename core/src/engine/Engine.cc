@@ -79,7 +79,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Engine::start - The engine is not initialized." << std::endl;
+            PRINT_ERROR("The engine is not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -120,7 +120,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Engine::simulate - The engine is not initialized." << std::endl;
+            PRINT_ERROR("The engine is not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -174,7 +174,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            PRINT_ERROR("The engine is not initialized.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -187,7 +187,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            PRINT_ERROR("The engine is not initialized.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -204,7 +204,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Engine::getRobot - The engine is not initialized." << std::endl;
+            PRINT_ERROR("The engine is not initialized.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 

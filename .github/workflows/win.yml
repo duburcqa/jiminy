@@ -71,13 +71,13 @@ jobs:
               -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
         cmake --build . --config "${Env:BUILD_TYPE}" --parallel 2
 
-        if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core")) {
-          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+        if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
+          New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         }
         Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py/core"
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
 

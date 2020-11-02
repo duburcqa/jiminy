@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "jiminy/core/Macro.h"
 #include "jiminy/core/io/MemoryDevice.h"
 
 
@@ -67,7 +68,7 @@ namespace jiminy
         if ((pos < 0) || (pos > (int64_t) buffer_.size()))
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            std::cout << "Error - MemoryDevice::seek - The requested position '" << pos << "' is out of scope." << std::endl;
+            PRINT_ERROR("The requested position '", pos, "' is out of scope.")
             return lastError_;
         }
 

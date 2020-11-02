@@ -21,6 +21,7 @@
 namespace jiminy
 {
     Robot::Robot(void) :
+    Model(),
     isTelemetryConfigured_(false),
     telemetryData_(nullptr),
     motorsHolder_(),
@@ -34,7 +35,7 @@ namespace jiminy
     constraintsJacobian_(),
     constraintsDrift_(),
     mutexLocal_(),
-    motorsSharedHolder_(nullptr),
+    motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_(),
     zeroAccelerationVector_(vectorN_t::Zero(0))
     {
@@ -44,8 +45,8 @@ namespace jiminy
     Robot::~Robot(void)
     {
         // Detach all the motors and sensors
-        detachMotors();
-        detachSensors();
+        detachSensors({});
+        detachMotors({});
     }
 
     hresult_t Robot::initialize(std::string              const & urdfPath,
@@ -55,11 +56,8 @@ namespace jiminy
         hresult_t returnCode = hresult_t::SUCCESS;
 
         // Remove all the motors and sensors
-        motorsHolder_.clear();
-        motorsSharedHolder_ = std::make_shared<MotorSharedDataHolder_t>();
-        sensorsGroupHolder_.clear();
-        sensorsSharedHolder_.clear();
-        sensorTelemetryOptions_.clear();
+        detachSensors({});
+        detachMotors({});
 
         /* Delete the current model and generate a new one.
            Note that is also refresh all proxies automatically. */
@@ -99,7 +97,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::configureTelemetry - The robot is not initialized." << std::endl;
+            PRINT_ERROR("The robot is not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -140,24 +138,33 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            std::cout << "Error - Robot::addMotors - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before adding motors." << std::endl;
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("The robot is not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        std::string const & motorName = motor->getName();
-        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
-                                    [&motorName](auto const & elem)
-                                    {
-                                        return (elem->getName() == motorName);
-                                    });
         if (returnCode == hresult_t::SUCCESS)
         {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before adding motors.")
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            std::string const & motorName = motor->getName();
+            auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                        [&motorName](auto const & elem)
+                                        {
+                                            return (elem->getName() == motorName);
+                                        });
             if (motorIt != motorsHolder_.end())
             {
-                std::cout << "Error - Robot::attachMotor - A motor with the same name already exists." << std::endl;
+                PRINT_ERROR("A motor with the same name already exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -171,7 +178,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Add the motor to the holder
-            motorsHolder_.emplace_back(std::move(motor));
+            motorsHolder_.push_back(motor);
 
             // Refresh the motors proxies
             refreshMotorsProxies();
@@ -184,19 +191,19 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            std::cout << "Error - Robot::detachMotor - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before removing motors." << std::endl;
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("Robot not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
+            if (getIsLocked())
             {
-                std::cout << "Error - Robot::detachMotor - Robot not initialized." << std::endl;
-                returnCode = hresult_t::ERROR_INIT_FAILED;
+                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                            "Please stop it before removing motors.")
+                returnCode = hresult_t::ERROR_GENERIC;
             }
         }
 
@@ -209,7 +216,7 @@ namespace jiminy
         {
             if (motorIt == motorsHolder_.end())
             {
-                std::cout << "Error - Robot::detachMotor - No motor with this name exists." << std::endl;
+                PRINT_ERROR("No motor with this name exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -244,7 +251,7 @@ namespace jiminy
             // Make sure that no motor names are duplicates
             if (checkDuplicates(motorsNames))
             {
-                std::cout << "Error - Robot::detachMotors - Duplicated motor names." << std::endl;
+                PRINT_ERROR("Duplicated motor names.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -253,7 +260,7 @@ namespace jiminy
                 // Make sure that every motor name exist
                 if (!checkInclusion(motorsNames_, motorsNames))
                 {
-                    std::cout << "Error - Robot::detachMotors - At least one of the motor names does not exist." << std::endl;
+                    PRINT_ERROR("At least one of the motor names does not exist.")
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -286,16 +293,24 @@ namespace jiminy
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (getIsLocked())
+        if (!isInitialized_)
         {
-            std::cout << "Error - Robot::attachSensor - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before adding sensors." << std::endl;
-            returnCode = hresult_t::ERROR_GENERIC;
+            PRINT_ERROR("The robot is not initialized.")
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (getIsLocked())
+            {
+                PRINT_ERROR("Robot is locked, probably because a simulation is running."\
+                            " Please stop it before adding sensors.")
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
         }
 
         std::string const & sensorName = sensor->getName();
         std::string const & sensorType = sensor->getType();
-
         sensorsGroupHolder_t::const_iterator sensorGroupIt;
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -310,7 +325,7 @@ namespace jiminy
                                              });
                 if (sensorIt != sensorGroupIt->second.end())
                 {
-                    std::cout << "Error - Robot::attachSensor - A sensor with the same type and name already exists." << std::endl;
+                    PRINT_ERROR("A sensor with the same type and name already exists.")
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -333,7 +348,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Create the sensor and add it to its group
-            sensorsGroupHolder_[sensorType].emplace_back(std::move(sensor));
+            sensorsGroupHolder_[sensorType].push_back(sensor);
 
             // Refresh the sensors proxies
             refreshSensorsProxies();
@@ -349,8 +364,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::detachSensor - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before removing sensors." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before removing sensors.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -358,7 +373,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                std::cout << "Error - Robot::detachSensor - Robot not initialized." << std::endl;
+                PRINT_ERROR("Robot not initialized.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -368,7 +383,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Robot::detachSensor - This type of sensor does not exist." << std::endl;
+                PRINT_ERROR("This type of sensor does not exist.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -384,7 +399,7 @@ namespace jiminy
                                     });
             if (sensorIt == sensorGroupIt->second.end())
             {
-                std::cout << "Error - Robot::detachSensors - No sensor with this type and name exists." << std::endl;
+                PRINT_ERROR("No sensor with this type and name exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -427,7 +442,7 @@ namespace jiminy
             auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Robot::detachSensors - No sensor with this type exists." << std::endl;
+                PRINT_ERROR("No sensor with this type exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -476,7 +491,7 @@ namespace jiminy
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
-            std::cout << "Error - Robot::addConstraint - A constraint with name " << constraintName <<  " already exists." << std::endl;
+            PRINT_ERROR("A constraint with name ", constraintName, " already exists.")
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
         else
@@ -508,7 +523,7 @@ namespace jiminy
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
-            std::cout << "Error - Robot::removeConstraint - No constraint with this name exists." << std::endl;
+            PRINT_ERROR("No constraint with this name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -533,7 +548,7 @@ namespace jiminy
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
-            std::cout << "Error - Robot::getConstraint - No constraint with this name exists." << std::endl;
+            PRINT_ERROR("No constraint with this name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         else
@@ -550,7 +565,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::refreshProxies - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -603,14 +618,8 @@ namespace jiminy
                 // Verify dimensions.
                 if (J.cols() != pncModel_.nv)
                 {
-                    std::cout << "Error - Robot::refreshConstraintsProxies: constraint "\
-                                 "has an invalid jacobian (wrong number of columns)." << std::endl;
-                    returnCode = hresult_t::ERROR_GENERIC;
-                }
-                if (drift.size() != J.rows())
-                {
-                    std::cout << "Error - Robot::refreshConstraintsProxies: constraint "\
-                                 "has inconsistent jacobian and drift (size mismatch)." << std::endl;
+                    PRINT_ERROR("Robot::refreshConstraintsProxies: constraint has "
+                                "inconsistent jacobian and drift (size mismatch).")
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -637,7 +646,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::refreshMotorsProxies - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -683,7 +692,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::refreshSensorsProxies - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -714,7 +723,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::getMotor - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -725,7 +734,7 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Robot::getMotor - No motor with this name exists." << std::endl;
+            PRINT_ERROR("No motor with this name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -761,14 +770,14 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            std::cout << "Error - Robot::getSensor - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Robot::getSensor - This type of sensor does not exist." << std::endl;
+            PRINT_ERROR("This type of sensor does not exist.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -780,7 +789,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Robot::getSensor - No sensor with this type and name exists." << std::endl;
+            PRINT_ERROR("No sensor with this type and name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -819,7 +828,7 @@ namespace jiminy
         modelOptionsIt = robotOptions.find("model");
         if (modelOptionsIt == robotOptions.end())
         {
-            std::cout << "Error - Robot::setOptions - 'model' options are missing." << std::endl;
+            PRINT_ERROR("'model' options are missing.")
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -836,7 +845,7 @@ namespace jiminy
             motorsOptionsIt = robotOptions.find("motors");
             if (motorsOptionsIt == robotOptions.end())
             {
-                std::cout << "Error - Robot::setOptions - 'motors' options are missing." << std::endl;
+                PRINT_ERROR("'motors' options are missing.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -854,7 +863,7 @@ namespace jiminy
             sensorsOptionsIt = robotOptions.find("sensors");
             if (sensorsOptionsIt == robotOptions.end())
             {
-                std::cout << "Error - Robot::setOptions - 'sensors' options are missing." << std::endl;
+                PRINT_ERROR("'sensors' options are missing.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -872,7 +881,7 @@ namespace jiminy
             telemetryOptionsIt = robotOptions.find("telemetry");
             if (telemetryOptionsIt == robotOptions.end())
             {
-                std::cout << "Error - Robot::setOptions - 'telemetry' options are missing." << std::endl;
+                PRINT_ERROR("'telemetry' options are missing.")
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -907,8 +916,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setMotorOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the motor options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the motor options.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -922,7 +931,7 @@ namespace jiminy
                                    });
             if (motorIt == motorsHolder_.end())
             {
-                std::cout << "Error - Robot::setMotorOptions - No motor with this name exists." << std::endl;
+                PRINT_ERROR("No motor with this name exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -941,8 +950,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setMotorsOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the motor options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the motor options.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -977,7 +986,7 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            std::cout << "Error - Robot::getMotorOptions - No motor with this name exists." << std::endl;
+            PRINT_ERROR("No motor with this name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1004,8 +1013,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the sensor options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the sensor options.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1014,7 +1023,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Robot::setSensorOptions - This type of sensor does not exist." << std::endl;
+                PRINT_ERROR("This type of sensor does not exist.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1029,7 +1038,7 @@ namespace jiminy
         {
             if (sensorIt == sensorGroupIt->second.end())
             {
-                std::cout << "Error - Robot::setSensorOptions - No sensor with this type and name exists." << std::endl;
+                PRINT_ERROR("No sensor with this type and name exists.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1049,8 +1058,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the sensor options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the sensor options.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1060,7 +1069,7 @@ namespace jiminy
             sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                std::cout << "Error - Robot::setSensorsOptions - This type of sensor does not exist." << std::endl;
+                PRINT_ERROR("This type of sensor does not exist.")
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1092,8 +1101,8 @@ namespace jiminy
 
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setSensorsOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the sensor options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the sensor options.")
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1125,7 +1134,7 @@ namespace jiminy
                             }
                             else
                             {
-                                std::cout << "Error - Robot::setSensorsOptions - No sensor with this name exists." << std::endl;
+                                PRINT_ERROR("No sensor with this name exists.")
                                 returnCode = hresult_t::ERROR_BAD_INPUT;
                             }
                         }
@@ -1133,7 +1142,7 @@ namespace jiminy
                 }
                 else
                 {
-                    std::cout << "Error - Robot::setSensorsOptions - This type of sensor does not exist." << std::endl;
+                    PRINT_ERROR("This type of sensor does not exist.")
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -1149,7 +1158,7 @@ namespace jiminy
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Robot::getSensorOptions - This type of sensor does not exist." << std::endl;
+            PRINT_ERROR("This type of sensor does not exist.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1161,7 +1170,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            std::cout << "Error - Robot::getSensorOptions - No sensor with this type and name exists." << std::endl;
+            PRINT_ERROR("No sensor with this type and name exists.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1176,7 +1185,7 @@ namespace jiminy
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            std::cout << "Error - Robot::getSensorsOptions - This type of sensor does not exist." << std::endl;
+            PRINT_ERROR("This type of sensor does not exist.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         sensorsOptions.clear();
@@ -1217,8 +1226,8 @@ namespace jiminy
     {
         if (getIsLocked())
         {
-            std::cout << "Error - Robot::setTelemetryOptions - Robot is locked, probably because a simulation is running."\
-                         " Please stop it before updating the telemetry options." << std::endl;
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before updating the telemetry options.")
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1228,7 +1237,7 @@ namespace jiminy
             auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
-                std::cout << "Error - Robot::setTelemetryOptions - Missing field." << std::endl;
+                PRINT_ERROR("Missing field.")
                 return hresult_t::ERROR_GENERIC;
             }
             sensorGroupTelemetryOption.second = boost::get<bool_t>(sensorTelemetryOptionIt->second);
@@ -1423,7 +1432,7 @@ namespace jiminy
     {
         if (mutexLocal_.isLocked())
         {
-            std::cout << "Error - Robot::getLock - Robot already locked. Please release the current lock first." << std::endl;
+            PRINT_ERROR("Robot already locked. Please release the current lock first.")
             return hresult_t::ERROR_GENERIC;
         }
 

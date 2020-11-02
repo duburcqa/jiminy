@@ -33,33 +33,32 @@ jobs:
 
     - name: Setup minimal build environment
       run: |
-        # Set Python 3 executable
         if [ ${{ matrix.os }} == "ubuntu-18.04" ] ; then
           PYTHON_EXECUTABLE="/usr/bin/python3.6"
         else
           PYTHON_EXECUTABLE="/usr/bin/python3.8"
         fi
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
+
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
         echo "/home/runner/.local/bin" >> $GITHUB_PATH
     - name: Installing requirements
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
+        "${PYTHON_EXECUTABLE}" -m pip install torch
 
     #####################################################################################
 
     - name: PEP8 Code Style Check
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-
         flake8 --count --show-source --statistics "$RootDir/python"
 
     #####################################################################################
 
     - name: Build and install Jiminy
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         mkdir "$RootDir/build" "$InstallDir"
         cd "$RootDir/build"
 
@@ -73,9 +72,36 @@ jobs:
 
     - name: Run unit tests
       run: |
-        "${GITHUB_WORKSPACE}/build/unit/unit"
-        cd "${GITHUB_WORKSPACE}/unit_py"
+        "$RootDir/build/unit/unit"
+
+        cd "$RootDir/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+    #####################################################################################
+
+    - name: Python linter and static type checker
+      run: |
+        gym_modules=(
+          "common"
+          "toolbox"
+        )
+        for name in "${gym_modules[@]}"; do
+          cd "$RootDir/python/gym_jiminy/$name"
+
+          pylint --unsafe-load-any-extension=y --ignore-imports=y \
+                 --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_ \
+                 --disable=fixme,abstract-method,protected-access,useless-super-delegation \
+                 --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \
+                 --disable=too-many-locals,too-many-branches,too-many-statements \
+                 --generated-members=numpy.*,torch.* \
+                 "gym_jiminy/"
+
+          mypy --allow-redefinition --check-untyped-defs --disallow-incomplete-defs --disallow-untyped-defs \
+               --ignore-missing-imports --no-implicit-optional --strict-equality --strict-optional \
+               --warn-no-return --warn-redundant-casts --warn-unreachable --warn-unused-configs --warn-unused-ignores \
+               --pretty --show-error-codes --show-error-context --show-traceback \
+               --namespace-packages -p gym_jiminy
+        done
 
     #####################################################################################
 

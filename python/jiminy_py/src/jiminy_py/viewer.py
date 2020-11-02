@@ -134,8 +134,11 @@ class _ProcessWrapper:
         elif isinstance(self._proc, multiprocessing.Process):
             return self._proc.is_alive()
         elif isinstance(self._proc, psutil.Process):
-            return self._proc.status() in [
-                psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+            try:
+                return self._proc.status() in [
+                    psutil.STATUS_RUNNING, psutil.STATUS_SLEEPING]
+            except psutil.NoSuchProcess:
+                return False
 
     def wait(self, timeout: Optional[float] = None) -> bool:
         if isinstance(self._proc, multiprocessing.Process):
@@ -930,7 +933,7 @@ class Viewer:
                 f.write(img_data)
 
     @__must_be_open
-    def display_visuals(self, visibility: bool):
+    def display_visuals(self, visibility: bool) -> None:
         """Set the visibility of the visual model of the robot.
 
         :param visibility: Whether to enable or disable display of the visual
@@ -940,7 +943,7 @@ class Viewer:
         self.refresh()
 
     @__must_be_open
-    def display_collisions(self, visibility: bool):
+    def display_collisions(self, visibility: bool) -> None:
         """Set the visibility of the collision model of the robot.
 
         :param visibility: Whether to enable or disable display of the visual

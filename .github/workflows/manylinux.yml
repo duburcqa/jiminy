@@ -45,6 +45,9 @@ jobs:
         "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
+        echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
+        echo "InstallDir=${GITHUB_WORKSPACE}/install" >> $GITHUB_ENV
+
         git config --global advice.detachedHead false
     - name: Build project dependencies
       run: |
@@ -54,9 +57,6 @@ jobs:
 
     - name: Build and install Jiminy
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         unset Boost_ROOT
 
         mkdir "$RootDir/build"
@@ -78,9 +78,6 @@ jobs:
 
     - name: Generate and install Python Pip wheels
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         export LD_LIBRARY_PATH="$InstallDir/lib:/usr/local/lib"
 
         cd "$RootDir/build"
@@ -99,9 +96,6 @@ jobs:
 
     - name: Run unit tests
       run: |
-        RootDir="${GITHUB_WORKSPACE}"
-        InstallDir="$RootDir/install"
-
         export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$InstallDir/lib:/usr/local/lib"
 
         ./build/unit/unit

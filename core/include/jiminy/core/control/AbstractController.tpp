@@ -46,7 +46,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            std::cout << "Error - AbstractController::registerConstant - Telemetry already initialized. Impossible to register new variables." << std::endl;
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -59,7 +59,7 @@ namespace jiminy
                                         });
         if (constantIt != registeredConstants_.end())
         {
-            std::cout << "Error - AbstractController::registerConstant - Constant already registered." << std::endl;
+            PRINT_ERROR("Constant already registered.")
             return hresult_t::ERROR_BAD_INPUT;
         }
         registeredConstants_.emplace_back(fieldName, to_string(value));

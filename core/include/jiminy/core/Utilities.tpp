@@ -73,7 +73,7 @@ namespace jiminy
         }
         else
         {
-            std::cout << "Error - Utilities::convertFromJson - Unknown data type: " << root.type() << std::endl;
+            PRINT_ERROR("Unknown data type: ", root.type())
             root["type"] = "unknown";
         }
 
@@ -134,7 +134,7 @@ namespace jiminy
         if (value.size() > 0)
         {
             vec.resize(value.size());
-            for (auto itr = value.begin() ; itr != value.end() ; itr++)
+            for (auto itr = value.begin() ; itr != value.end() ; ++itr)
             {
                 vec[itr.index()] = convertFromJson<typename T::value_type>((*itr));
             }
@@ -198,16 +198,6 @@ namespace jiminy
     }
 
     // *********************** Miscellaneous **************************
-
-    template<class F, class dF>
-    auto notF(F&& f)
-    {
-        return [f=std::forward<F>(f)](auto&&...args) mutable
-               ->decltype(!std::declval<std::result_of_t<dF&(decltype(args)...)>>()) // optional, adds sfinae
-               {
-                   return !f(decltype(args)(args)...);
-               };
-    }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     ///

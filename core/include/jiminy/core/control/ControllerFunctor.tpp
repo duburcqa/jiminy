@@ -33,7 +33,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            std::cout << "Error - ControllerFunctor::computeCommand - The controller is not initialized." << std::endl;
+            PRINT_ERROR("The controller is not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -50,7 +50,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            std::cout << "Error - ControllerFunctor::internalDynamics - The controller is not initialized." << std::endl;
+            PRINT_ERROR("The controller is not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 

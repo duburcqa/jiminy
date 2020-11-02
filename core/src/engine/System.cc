@@ -116,7 +116,7 @@ namespace jiminy
     {
         if (!robot.getIsInitialized())
         {
-            std::cout << "Error - systemState_t::initialize - Robot not initialized." << std::endl;
+            PRINT_ERROR("Robot not initialized.")
             return hresult_t::ERROR_INIT_FAILED;
         }
 
