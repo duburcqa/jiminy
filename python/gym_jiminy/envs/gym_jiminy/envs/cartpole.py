@@ -159,10 +159,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.observation_space = spaces.Box(
             low=-high, high=high, dtype=np.float64)
 
-    def _fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::_fetch_obs
-        return np.concatenate(self._state)
-
     def _refresh_action_space(self) -> None:
         """ TODO: Write documentation.
 
@@ -183,6 +179,44 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_range)
         return qpos, qvel
 
+    def fetch_obs(self) -> None:
+        # @copydoc BaseJiminyEnv::fetch_obs
+        return np.concatenate(self._state)
+
+    def is_done(self) -> bool:
+        """ TODO: Write documentation.
+        """
+        x, theta, _, _ = self.get_obs()
+        return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
+
+    def compute_reward(self,  # type: ignore[override]
+                       info: Dict[str, Any]) -> float:
+        """ TODO: Write documentation.
+
+        Add a small positive reward as long as the termination condition has
+        never been reached during the same episode.
+        """
+        # pylint: disable=arguments-differ
+
+        reward = 0.0
+        if not self._num_steps_beyond_done:  # True for both None and 0
+            reward += 1.0
+        return reward
+
+    def compute_command(self,
+                        action: SpaceDictRecursive
+                        ) -> SpaceDictRecursive:
+        """ TODO: Write documentation.
+        """
+        if not self.continuous and action is not None:
+            return self.AVAIL_FORCE[action]
+        return action
+
+    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
+        if not self.simulator._is_viewer_available:
+            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
+        return super().render(mode, **kwargs)
+
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
         """ TODO: Write documentation.
@@ -194,38 +228,3 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         else:
             print(f"Key {key} is not bound to any action.")
             return None
-
-    def _is_done(self) -> bool:
-        """ TODO: Write documentation.
-        """
-        x, theta, _, _ = self.get_obs()
-        return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
-
-    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
-        """ TODO: Write documentation.
-
-        Add a small positive reward as long as the termination condition has
-        never been reached during the same episode.
-        """
-        reward = 0.0
-        if not self._num_steps_beyond_done:  # True for both None and 0
-            reward += 1.0
-        return reward, {}
-
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """ TODO: Write documentation.
-        """
-        # @copydoc BaseJiminyEnv::step
-        # Compute the actual force to apply
-        if not self.continuous and action is not None:
-            action = self.AVAIL_FORCE[action]
-
-        # Perform the step
-        return super().step(action)
-
-    def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
-        if not self.simulator._is_viewer_available:
-            kwargs["camera_xyzrpy"] = [(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)]
-        return super().render(mode, **kwargs)

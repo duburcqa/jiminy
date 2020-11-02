@@ -5,7 +5,8 @@ import numpy as np
 from pkg_resources import resource_filename
 
 from ..common.env_locomotion import WalkerJiminyEnv
-from ..common.control_bases import PDController, build_controlled_env
+from ..common.control_impl import PDController
+from ..common.control_bases import build_controlled_env
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -64,14 +65,8 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
     def _refresh_observation_space(self) -> None:
         self.observation_space = self._get_state_space()
 
-    def _fetch_obs(self) -> None:
+    def fetch_obs(self) -> None:
         return np.concatenate(self._state)
-
-    def _is_done(self):
-        return super()._is_done()
-
-    def _compute_reward(self):
-        return super()._compute_reward()
 
 
 ANYmalPDControlJiminyEnv = build_controlled_env(

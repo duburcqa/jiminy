@@ -24,7 +24,7 @@ from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
-from .utils import _clamp, SpaceDictRecursive
+from .utils import _clamp, zeros, SpaceDictRecursive
 from .generic_bases import ControlInterface, ObserveInterface
 from .play import loop_interactive
 
@@ -88,8 +88,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                                 systems.
         :param debug: Whether or not the debug mode must be enabled. Doing it
                       enables telemetry recording.
-        :param kwargs: Extra keyword arguments that may be useful for dervied
-                       environment with multiple inheritance, and to allow
+        :param kwargs: Extra keyword arguments that may be useful for derived
+                       environments with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
         """
         # pylint: disable=unused-argument
@@ -114,15 +114,12 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Current observation and action of the robot
         self._state: Optional[Tuple[np.ndarray, np.ndarray]] = None
         self._sensors_data: Optional[SensorDataType] = None
-        self._observation: Optional[SpaceDictRecursive] = None
-        self._action: Optional[SpaceDictRecursive] = None
-        self._command: Optional[np.ndarray] = None
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
         self._enable_reward_terminal = (
-            self._compute_reward_terminal.  # type: ignore[attr-defined]
-            __func__ is not BaseJiminyEnv._compute_reward_terminal)
+            self.compute_reward_terminal.  # type: ignore[attr-defined]
+            __func__ is not ControlInterface.compute_reward_terminal)
 
         # Number of simulation steps performed
         self.num_steps = -1
@@ -148,27 +145,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if self.debug and self._log_file is not None:
             return self._log_file.name
         return None
-
-    def _send_command(self,
-                      t: float,
-                      q: np.ndarray,
-                      v: np.ndarray,
-                      sensors_data: jiminy.sensorsData,
-                      u_command: np.ndarray) -> None:
-        """This method implement the callback function required by Jiminy
-        Controller to get the command. In practice, it only updates a variable
-        shared between C++ and Python to the internal value stored by this
-        class.
-
-        .. warning::
-            This is a hidden function that is not listed as part of the member
-            methods of the class. It is not intended to be called manually.
-
-        :meta private:
-        """
-        # pylint: disable=unused-argument
-
-        u_command[:] = self._command
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -436,8 +412,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Reset the simulator
         self.simulator.reset()
 
-        # Set default action. It will be used for doing the initial step.
-        self._action = np.zeros(self.robot.nmotors)
+        # Set default action. It will be used for the initial step.
+        self._action = zeros(self.action_space)
 
         # Start the engine, in order to initialize the sensors data
         hresult = self.simulator.start(
@@ -478,7 +454,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Update the observation
         self._state = (qpos, qvel)
-        self._observation = self._fetch_obs()
+        self._observation = self.fetch_obs()
 
     def reset(self) -> SpaceDictRecursive:
         """Reset the environment.
@@ -493,19 +469,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Make sure the environment is properly setup
         self._setup()
-
-        # Enforce the low-level controller.
-        # Note that `BaseJiminyController` is used by default instead of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller, which
-        # is necessary in many cases. Indeed, otherwise already registered
-        # variables would be removed whe update the controller handle, which is
-        # often undesirable.
-        controller = BaseJiminyController()
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
-        controller.set_controller_handle(self._send_command)
 
         # Backup the controller update period
         engine_options = self.simulator.engine.get_options()
@@ -532,7 +495,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                 "model.")
         self.set_state(qpos, qvel)
 
-        # Make sure the state is valid, otherwise there `_fetch_obs` and
+        # Make sure the state is valid, otherwise there `fetch_obs` and
         # `_refresh_observation_space` are inconsistent.
         try:
             is_obs_valid = self.observation_space.contains(self._observation)
@@ -540,14 +503,27 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `_fetch_obs` is inconsistent "
+                "The observation returned by `fetch_obs` is inconsistent "
                 "with the observation space defined by "
                 "`_refresh_observation_space`.")
 
-        if self._is_done():
+        if self.is_done():
             raise RuntimeError(
                 "The simulation is already done at `reset`. "
-                "Check the implementation of `_is_done` if overloaded.")
+                "Check the implementation of `is_done` if overloaded.")
+
+        # Enforce the low-level controller.
+        # Note that `BaseJiminyController` is used by default instead of
+        # `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
+        # the controller handle without instantiating a new controller, which
+        # is necessary in many cases. Indeed, otherwise already registered
+        # variables would be removed whe update the controller handle, which is
+        # often undesirable.
+        controller = BaseJiminyController()
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
+        controller.set_controller_handle(self._send_command)
 
         return self.get_obs()
 
@@ -605,9 +581,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if action is not None:
             self._action = action
 
-        # Compute the command systematically
-        self._command = self.compute_command(self._action)
-
         # Try to perform a single simulation step
         is_step_failed = True
         try:
@@ -637,13 +610,13 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Fetch the new observation
         self._sensors_data = OrderedDict(self.robot.sensors_data)  # copy
         self._state = self.simulator.state
-        self._observation = self._fetch_obs()
+        self._observation = self.fetch_obs()
 
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
         done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            self._is_done()
+            self.is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
@@ -665,9 +638,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             return self.get_obs(), 0.0, done, self._info
 
         # Compute reward and extra information
-        reward, reward_info = self._compute_reward()
-        if reward_info is not None:
-            self._info['reward'] = reward_info
+        reward = self.compute_reward(info=self._info)
 
         # Finalize the episode is the simulation is over
         if done and self._num_steps_beyond_done == 0:
@@ -681,12 +652,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
             # Compute the terminal reward, if any
             if self._enable_reward_terminal:
-                reward_final, reward_final_info = \
-                    self._compute_reward_terminal()
-                reward += reward_final
-                if reward_final_info is not None:
-                    self._info.setdefault('reward', {}).update(
-                        reward_final_info)
+                reward += self.compute_reward_terminal(info=self._info)
 
         return self.get_obs(), reward, done, self._info
 
@@ -826,7 +792,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         .. note::
             This method is called internally by `reset` method at the very end,
             just before computing and returning the initial observation. This
-            method, alongside '_fetch_obs', must be overwritten in order to use
+            method, alongside 'fetch_obs', must be overwritten in order to use
             a custom observation space.
         """
         self.observation_space = gym.spaces.Dict(
@@ -901,7 +867,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         return qpos, qvel
 
-    def _fetch_obs(self) -> SpaceDictRecursive:
+    def fetch_obs(self) -> SpaceDictRecursive:
         """Fetch the observation based on the current state of the robot.
 
         By default, no filtering is applied on the raw data extracted from the
@@ -921,17 +887,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         obs['sensors'] = self._sensors_data
         return obs
 
-    def get_obs(self) -> SpaceDictRecursive:
-        """Post-processed observation.
-
-        It clamps the observation to make sure it does not violate the lower
-        and upper bounds.
-
-        .. warning::
-            This method is not meant to be overloaded.
-        """
-        return _clamp(self.observation_space, self._observation)
-
     def compute_command(self, action: SpaceDictRecursive) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
@@ -943,53 +898,30 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         """
         return _clamp(self.action_space, action)
 
-    def _is_done(self) -> bool:
+    def is_done(self, *args: Any, **kwargs: Any) -> bool:
         """Determine whether the episode is over.
 
         By default, it returns True if the observation reaches or exceeds the
         lower or upper limit.
 
         .. note::
-            This method is called right after calling `_fetch_obs`, so that the
+            This method is called right after calling `fetch_obs`, so that the
             internal buffer '_observation' is up-to-date. It can be overloaded
             to implement a custom termination condition for the simulation.
+
+        :param args: Extra arguments that may be useful for derived
+                     environments, for example `Gym.GoalEnv`.
+        :param kwargs: Extra keyword arguments that may be useful for derived
+                       environments.
         """
+        # pylint: disable=unused-argument
+
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
         if not self.observation_space.contains(self._observation):
             return True
         return False
-
-    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
-        """Compute reward at current episode state.
-
-        By default it always return 'nan', without extra info.
-
-        .. note::
-            This method is called after updating the internal buffer
-            '_num_steps_beyond_done', which is None if the simulation is not
-            done, 0 right after, and so on. It must be overloaded to implement
-            a proper reward function.
-
-        :returns: [0] Total reward.
-                  [1] Any extra info useful for monitoring as a dictionary.
-        """
-        # pylint: disable=no-self-use
-
-        return float('nan'), {}
-
-    def _compute_reward_terminal(self) -> Tuple[float, Dict[str, Any]]:
-        """Compute terminal reward at current episode final state.
-
-        .. note::
-            Implementation is optional. Not computing terminal reward if not
-            overloaded by the user.
-
-        :returns: Terminal reward, and any extra info useful for monitoring as
-                  a dictionary.
-        """
-        raise NotImplementedError
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
@@ -1005,7 +937,27 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         raise NotImplementedError
 
 
-class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
+BaseJiminyEnv.compute_reward.__doc__ = \
+    """Compute reward at current episode state.
+
+    See `ControlInterface.compute_reward` for details.
+
+    .. note::
+        This method is called after updating the internal buffer
+        '_num_steps_beyond_done', which is None if the simulation is not done,
+        0 right after, and so on.
+
+    :param args: Extra arguments that may be useful for derived environments,
+                 for example `Gym.GoalEnv`.
+    :param info: Dictionary of extra information for monitoring.
+    :param kwargs: Extra keyword arguments that may be useful for derived
+                   environments.
+
+    :returns: Total reward.
+    """
+
+
+class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     """Base class to train a robot in Gym OpenAI using a user-specified Jiminy
     Engine for physics computations.
 
@@ -1017,11 +969,13 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                  dt: float,
                  debug: bool = False) -> None:
         super().__init__(simulator, dt, debug)
-
-        # Sample a new goal
-        self._desired_goal = self._sample_goal()
+        print("test")
 
     def _refresh_observation_space(self) -> None:
+        # Assertion(s) for type checker
+        assert isinstance(self._desired_goal, np.ndarray), (
+            "`BaseJiminyGoalEnv` only supports np.ndarray goal space for now.")
+
         # Initialize the original observation space first
         super()._refresh_observation_space()
 
@@ -1035,46 +989,22 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float32))
 
-    def _fetch_obs(self) -> SpaceDictRecursive:
+    def fetch_obs(self) -> SpaceDictRecursive:
         obs = OrderedDict()
-        obs['observation'] = super()._fetch_obs()
+        obs['observation'] = super().fetch_obs()
         obs['achieved_goal'] = self._get_achieved_goal()
         obs['desired_goal'] = self._desired_goal.copy()
         return obs
 
-    def _compute_reward(self) -> Tuple[float, Dict[str, Any]]:
-        """Compute the reward for any given episode state.
-
-        .. note:
-            This method is not supposed to be overloaded in the case of goal
-            environment. It is just a proxy method calling `compute_reward`
-            without specifying any achieved and desired goals, for
-            compatibility with the API of normal environments.
-
-        :returns: [0] Total reward.
-                  [1] Any extra info useful for monitoring as a dictionary.
-        """
-        return self.compute_reward(None, None, self._info), {}
-
-    def _is_done(self) -> bool:
-        """Determine whether a desired goal has been achieved.
-
-        .. note:
-            This method is not supposed to be overloaded in the case of goal
-            environment. It is just a proxy method calling `is_done` without
-            specifying any achieved and desired goals, for compatibility with
-            the API of normal environments.
-        """
-        return self.is_done(None, None)
-
     def reset(self) -> SpaceDictRecursive:
+        print("reset")
         self._desired_goal = self._sample_goal()
         return super().reset()
 
     # methods to override:
     # ----------------------------
 
-    def _sample_goal(self) -> np.ndarray:
+    def _sample_goal(self) -> SpaceDictRecursive:
         """Sample a goal randomly.
 
         .. note::
@@ -1086,28 +1016,28 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
         """
         raise NotImplementedError
 
-    def _get_achieved_goal(self) -> np.ndarray:
+    def _get_achieved_goal(self) -> SpaceDictRecursive:
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
-            This method is called internally by `_fetch_obs` to get the
-            currently achieved goal. This method must be overloaded while
-            implementing a goal environment.
+            This method can be called by `fetch_obs` to get the currently
+            achieved goal. This method must be overloaded while implementing
+            a goal environment.
 
         :returns: Currently achieved goal.
         """
         raise NotImplementedError
 
-    def is_done(self,
-                achieved_goal: Optional[np.ndarray] = None,
-                desired_goal: Optional[np.ndarray] = None) -> bool:
+    def is_done(self,  # type: ignore[override]
+                achieved_goal: Optional[SpaceDictRecursive] = None,
+                desired_goal: Optional[SpaceDictRecursive] = None) -> bool:
         """Determine whether a desired goal has been achieved.
 
         By default, it uses the termination condition inherited from normal
         environment.
 
         .. note::
-            This method is called right after calling `_fetch_obs`, so that the
+            This method is called right after calling `fetch_obs`, so that the
             internal buffer '_observation' is up-to-date. This method can be
             overloaded while implementing a goal environment.
 
@@ -1118,27 +1048,24 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):
                              use the internal buffer '_desired_goal' instead.
                              Optional: None by default.
         """
-        # pylint: disable=unused-argument
+        # pylint: disable=arguments-differ
 
-        return super()._is_done()
+        raise NotImplementedError
 
-    def compute_reward(self,
-                       achieved_goal: Optional[np.ndarray],
-                       desired_goal: Optional[np.ndarray],
-                       info: Dict[str, Any]) -> float:
+    def compute_reward(self,  # type: ignore[override]
+                       achieved_goal: Optional[SpaceDictRecursive] = None,
+                       desired_goal: Optional[SpaceDictRecursive] = None,
+                       *, info: Dict[str, Any]) -> float:
         """Compute the reward for any given episode state.
 
-        .. note::
-            This method is part of the API of OpenAI Gym GoalEnv. It must be
-            overloaded to implement the reward function.
+        :param achieved_goal: Achieved goal. `None` to evalute the reward for
+                              currently achieved goal.
+        :param desired_goal: Desired goal. `None` to evalute the reward for
+                             currently desired goal.
+        :param info: Dictionary of extra information for monitoring.
 
-        :param achieved_goal: Achieved goal. Must be set to None to evalute the
-                              reward for currently achieved goal.
-        :param desired_goal: Desired goal. Must be set to None to evalute the
-                             reward for currently desired goal.
-        :param info: Dictionary of extra information.
-                     Optional: None by default
-
-        :returns: Total reward
+        :returns: Total reward.
         """
+        # pylint: disable=arguments-differ
+
         raise NotImplementedError

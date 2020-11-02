@@ -121,7 +121,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         self.observation_space.spaces['observation'] = \
             self.observation_space['observation']['state']
 
-    def _fetch_obs(self) -> None:
+    def fetch_obs(self) -> None:
         """
         @brief Fetch the observation based on the current state of the robot.
 
@@ -131,7 +131,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         @remark For goal env, both the desired and achieved goals are
                 observable in in addition of the current robot state.
         """
-        obs = super()._fetch_obs()
+        obs = super().fetch_obs()
         obs['observation'] = obs['observation']['state']
         return obs
 
@@ -188,7 +188,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         tip_position_z = tip_transform.translation[2]
         return np.array([tip_position_z])
 
-    def is_done(self,
+    def is_done(self,  # type: ignore[override]
                 achieved_goal: Optional[np.ndarray] = None,
                 desired_goal: Optional[np.ndarray] = None) -> bool:
         """
@@ -197,21 +197,25 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         @details The episode is successful if the achieved goal strictly
                  exceeds the desired goal.
         """
+        # pylint: disable=arguments-differ
+
         if achieved_goal is None:
             achieved_goal = self._get_achieved_goal()
         if desired_goal is None:
             desired_goal = self._desired_goal
         return bool(achieved_goal > desired_goal)
 
-    def compute_reward(self,
-                       achieved_goal: Optional[np.ndarray],
-                       desired_goal: Optional[np.ndarray],
-                       info: Dict[str, Any]) -> float:
+    def compute_reward(self,  # type: ignore[override]
+                       achieved_goal: Optional[np.ndarray] = None,
+                       desired_goal: Optional[np.ndarray] = None,
+                       *, info: Dict[str, Any]) -> float:
         """
         @brief Compute reward at current episode state.
 
         @details Get a small negative reward till success.
         """
+        # pylint: disable=arguments-differ
+
         if self.is_done(achieved_goal, desired_goal):
             reward = 0.0
         else:
@@ -293,13 +297,13 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         else:
             return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
 
-    def _fetch_obs(self) -> SpaceDictRecursive:
+    def fetch_obs(self) -> SpaceDictRecursive:
         """
         @brief Fetch the observation based on the current state of the robot.
 
         @details Only the state is observed.
         """
-        obs = super()._fetch_obs()
+        obs = super().fetch_obs()
         if self.enable_goal_env:
             return obs
         else:
