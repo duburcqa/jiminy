@@ -19,35 +19,6 @@ index cf984477..db497fb7 100644
        SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS TRUE)
        MESSAGE(STATUS "Found hpp-fcl Python bindings.")
      ELSE()
-diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data.hpp
-index fecbf190..64e5c430 100644
---- a/bindings/python/multibody/data.hpp
-+++ b/bindings/python/multibody/data.hpp
-@@ -190,7 +190,6 @@ namespace pinocchio
-         .def(details::overload_base_get_item_for_std_vector<StdVec_Vector3>());
-         StdAlignedVectorPythonVisitor<Matrix6x,false>::expose("StdVec_Matrix6x")
-         .def(details::overload_base_get_item_for_std_vector<StdVec_Matrix6x>());
--        StdVectorPythonVisitor<int>::expose("StdVec_int");
-       }
-
-     };
-diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/model.hpp
-index 57683816..1f17da7e 100644
---- a/bindings/python/multibody/model.hpp
-+++ b/bindings/python/multibody/model.hpp
-@@ -311,11 +311,6 @@ namespace pinocchio
-       {
-         typedef typename Model::ConfigVectorMap ConfigVectorMap;
-         typedef bp::map_indexing_suite<ConfigVectorMap,false> map_indexing_suite;
--        StdVectorPythonVisitor<Index>::expose("StdVec_Index");
--        StdVectorPythonVisitor<IndexVector>::expose("StdVec_IndexVector");
--        StdVectorPythonVisitor<std::string>::expose("StdVec_StdString");
--        StdVectorPythonVisitor<bool>::expose("StdVec_Bool");
--        StdVectorPythonVisitor<Scalar>::expose("StdVec_double");
-         bp::class_<typename Model::ConfigVectorMap>("StdMap_String_EigenVectorXd")
-           .def(map_indexing_suite())
-           .def_pickle(PickleMap<typename Model::ConfigVectorMap>())
-Submodule cmake contains modified content
 diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index b2cf262..fbd00f3 100644
 --- a/cmake/boost.cmake

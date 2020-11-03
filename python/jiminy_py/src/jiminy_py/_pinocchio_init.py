@@ -6,10 +6,6 @@ import pinocchio as pin
 # Use numpy array by default for Eigenpy and Pinocchio incidentally
 __import__('eigenpy').switchToNumpyArray()
 
-# Disable all deprecation warnings of Pinocchio because, for now, Jiminy
-# supports many releases, for which some methods have different signatures.
-warnings.filterwarnings("ignore", category=pin.DeprecatedWarning)
-
 
 # Do not load the geometry of the ground is is not an actually geometry but
 # rather a calculus artifact.
