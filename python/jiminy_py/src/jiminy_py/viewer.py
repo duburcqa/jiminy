@@ -27,7 +27,7 @@ import zmq
 import meshcat.transformations as mtf
 
 import pinocchio as pin
-from pinocchio import SE3, se3ToXYZQUAT, XYZQUATToSe3
+from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSe3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -298,8 +298,8 @@ class Viewer:
 
         # Create robot visual model
         visual_model = pin.buildGeomFromUrdf(
-            pinocchio_model, self.urdf_path, robot.mesh_package_dirs,
-            pin.GeometryType.VISUAL)
+            pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
+            robot.mesh_package_dirs)
 
         # Access the current backend or create one if none is available
         self.__is_open = False
@@ -810,12 +810,12 @@ class Viewer:
             H_abs = SE3(rotation_mat, translation)
             if relative is None:
                 self._gui.setCameraTransform(
-                    self._client.windowID, se3ToXYZQUAT(H_abs).tolist())
+                    self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
             else:
                 # Not using recursive call for efficiency
                 H_abs = H_orig * H_abs
                 self._gui.setCameraTransform(
-                    self._client.windowID, se3ToXYZQUAT(H_abs).tolist())
+                    self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
         elif Viewer.backend.startswith('meshcat'):
             if relative is None:
                 # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
