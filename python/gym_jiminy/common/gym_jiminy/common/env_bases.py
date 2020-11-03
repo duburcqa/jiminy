@@ -690,7 +690,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if mode == 'human':
             return_rgb_array = False
         elif mode == 'rgb_array':
+            # Only Meshcat backend can return rgb array without poping window
             return_rgb_array = True
+            self.simulator.viewer_backend = 'meshcat'
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
         return self.simulator.render(return_rgb_array, **kwargs)
