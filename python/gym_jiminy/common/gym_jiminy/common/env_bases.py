@@ -572,11 +572,13 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                   not), and a dictionary of extra information
         """
         # Assertion(s) for type checker
-        assert self.simulator is not None and self.max_steps is not None
+        assert (self.simulator is not None and
+                self.max_steps is not None and
+                isinstance(self._action, np.ndarray))
 
         # Update the action to perform if necessary
         if action is not None:
-            self._action = action
+            self._action[:] = action
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -659,7 +661,11 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Assertion(s) for type checker
         assert self.simulator is not None
 
-        return self.simulator.get_log()
+        if self.simulator.is_simulation_running:
+            return self.simulator.get_log()
+        raise RuntimeError(
+            "No data available. Please perform at least one simulation step "
+            "before calling this method.")
 
     def render(self,
                mode: str = 'human',

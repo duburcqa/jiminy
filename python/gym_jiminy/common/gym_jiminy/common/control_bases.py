@@ -598,7 +598,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         """
         # Backup the action to perform, if any
         if action is not None:
-            self._action = action
+            set_value(self._action, action)
 
         # Compute the next learning step
         self._observation_env, reward, done, info = self.env.step()

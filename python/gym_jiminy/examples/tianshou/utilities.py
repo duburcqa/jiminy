@@ -134,8 +134,8 @@ def initialize(log_root_path: Optional[str] = None,
     :param verbose: Whether or not to print information about what is going on.
                     Optional: True by default.
 
-    :returns: SummaryWriter to pass to the training agent to monitor the training
-            progress.
+    :returns: SummaryWriter to pass to the training agent to monitor the
+              training progress.
     """
     # Configure Tensorboard
     if log_root_path is None:

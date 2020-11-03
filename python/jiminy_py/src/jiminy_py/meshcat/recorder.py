@@ -71,8 +71,8 @@ async def launch(self) -> Browser:
         "--proxy-server='direct://'",
         "--proxy-bypass-list=*"]
     if not self.dumpio:
-        options['stdout'] = subprocess.PIPE
-        options['stderr'] = subprocess.STDOUT
+        options['stdout'] = subprocess.DEVNULL
+        options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
         startupflags = subprocess.DETACHED_PROCESS | \
             subprocess.CREATE_NEW_PROCESS_GROUP
