@@ -228,9 +228,8 @@ def meshcat_recorder(meshcat_url: str,
                     request_shm.value = ""
     except (ConnectionError, NetworkError):
         pass
-    with open(os.devnull, 'w') as f:
-        with redirect_stderr(f):
-            session.close()
+    with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
+        session.close()
     try:
         message_shm.value = ""
         request_shm.value = ""

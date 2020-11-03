@@ -134,17 +134,20 @@ class Simulator:
             if not os.path.exists(hardware_path):
                 # Create a file that will be closed (thus deleted) at exit
                 urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
-                hardware_file = tempfile.NamedTemporaryFile(
-                    prefix=(urdf_name + "_hardware_"), suffix=".hdf",
-                    delete=(not debug))
+                fd, hardware_path = tempfile.mkstemp(
+                    prefix=(urdf_name + "_hardware_"), suffix=".hdf")
+                os.close(fd)
 
-                def close_file_at_exit(file=hardware_file):
-                    file.close()
+                if not debug:
+                    def remove_file_at_exit(file_path=hardware_path):
+                        try:
+                            os.remove(file_path)
+                        except (PermissionError, FileNotFoundError):
+                            pass
 
-                atexit.register(close_file_at_exit)
+                    atexit.register(remove_file_at_exit)
 
                 # Generate default Hardware Description File
-                hardware_path = hardware_file.name
                 generate_hardware_description_file(
                     urdf_path, hardware_path, verbose=debug)
 

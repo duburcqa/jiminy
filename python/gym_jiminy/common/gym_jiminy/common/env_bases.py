@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+import os
 import time
 import tempfile
 from collections import OrderedDict
@@ -108,8 +109,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._is_ready = False
         self._seed: Optional[np.uint32] = None
         self._log_data: Optional[Dict[str, np.ndarray]] = None
-        self._log_file: Optional[  # type: ignore[name-defined]
-            tempfile._TemporaryFileWrapper] = None
+        self.log_path: Optional[str] = None
 
         # Current observation and action of the robot
         self._state: Optional[Tuple[np.ndarray, np.ndarray]] = None
@@ -137,14 +137,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if self.simulator is None:
             raise RuntimeError("Backend simulator undefined.")
         return self.simulator.robot
-
-    @property
-    def log_path(self) -> Optional[str]:
-        """ TODO: Write documentation.
-        """
-        if self.debug and self._log_file is not None:
-            return self._log_file.name
-        return None
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -443,11 +435,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._log_data = None
 
         # Create a new log file
-        if self.debug is not None:
-            if self._log_file is not None:
-                self._log_file.close()
-            self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".data", delete=(not self.debug))
+        if self.debug:
+            fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
+            os.close(fd)
 
         # Update the observation
         self._state = (qpos, qvel)
@@ -558,8 +548,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         """
         if self.simulator is not None:
             self.simulator.close()
-        if self._log_file is not None:
-            self._log_file.close()
 
     def step(self,
              action: Optional[np.ndarray] = None

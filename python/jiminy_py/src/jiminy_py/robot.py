@@ -819,4 +819,7 @@ class BaseJiminyRobot(jiminy.Robot):
 
     def __del__(self):
         if self.urdf_path != self.urdf_path_orig:
-            os.remove(self.urdf_path)
+            try:
+                os.remove(self.urdf_path)
+            except (PermissionError, FileNotFoundError):
+                pass

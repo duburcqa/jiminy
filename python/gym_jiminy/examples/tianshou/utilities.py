@@ -205,8 +205,9 @@ def train(train_agent: BasePolicy,
     test_collector = Collector(train_agent, test_envs)
 
     # Configure export
-    checkpoint_path = tempfile.mkstemp(
-        dir=writer.log_dir, prefix=spec.id, suffix='.zip')[-1]
+    fd, checkpoint_path = tempfile.mkstemp(
+        dir=writer.log_dir, prefix=spec.id, suffix='.zip')
+    os.close(fd)
 
     def save_fn(train_agent):
         torch.save(train_agent.state_dict(), checkpoint_path)

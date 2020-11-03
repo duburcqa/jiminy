@@ -102,9 +102,11 @@ def train(train_agent: BaseAlgorithm,
         if verbose:
             print("Interrupting training...")
 
-    checkpoint_path = tempfile.mkstemp(
-        dir=train_agent.tensorboard_log, prefix=spec.id, suffix='.zip')[-1]
+    fd, checkpoint_path = tempfile.mkstemp(
+        dir=train_agent.tensorboard_log, prefix=spec.id, suffix='.zip')
+    os.close(fd)
     train_agent.save(checkpoint_path)
+
     return checkpoint_path
 
 
