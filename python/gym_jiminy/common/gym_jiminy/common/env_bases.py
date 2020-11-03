@@ -645,13 +645,21 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
             # Extract log data from the simulation, which could be used
             # for computing terminal reward.
-            self._log_data, _ = self.simulator.get_log()
+            self._log_data, _ = self.get_log()
 
             # Compute the terminal reward, if any
             if self._enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
         return self.get_obs(), reward, done, self._info
+
+    def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
+        """Get log of recorded variable since the beginning of the episode.
+        """
+        # Assertion(s) for type checker
+        assert self.simulator is not None
+
+        return self.simulator.get_log()
 
     def render(self,
                mode: str = 'human',
@@ -692,7 +700,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if self._log_data is not None:
             log_data = self._log_data
         else:
-            log_data, _ = self.simulator.get_log()
+            log_data, _ = self.get_log()
         self.simulator._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self.simulator._viewer],
             close_backend=False, verbose=True, **kwargs
