@@ -135,7 +135,7 @@ namespace jiminy
            only once, at init of the simulation. The optimized buffer
            size is used for the log data. */
         uint32_t isHeaderThere = flows_.empty();
-        uint32_t maxBufferSize = std::max(TELEMETRY_MAX_BUFFER_SIZE, isHeaderThere * headerSize_);
+        uint32_t maxBufferSize = std::max(TELEMETRY_MIN_BUFFER_SIZE, isHeaderThere * headerSize_);
         uint32_t maxRecordedDataLines = ((maxBufferSize - isHeaderThere * headerSize_) / recordedBytesDataLine_);
         recordedBytesLimits_ = isHeaderThere * headerSize_ + maxRecordedDataLines * recordedBytesDataLine_;
         flows_.emplace_back(recordedBytesLimits_);
