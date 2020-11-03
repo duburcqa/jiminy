@@ -11,7 +11,7 @@ about 40000 at best.
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy:jiminy-cartpole-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:jiminy-cartpole-v0"
 GYM_ENV_KWARGS = {
     "continuous": True
 }

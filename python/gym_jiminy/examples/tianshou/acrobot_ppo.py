@@ -1,4 +1,3 @@
-
 """Solve the official Open AI Gym Acrobot problem simulated in Jiminy using PPO
 algorithm of Tianshou reinforcement learning framework.
 
@@ -12,7 +11,7 @@ about 25000 at best.
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy:jiminy-acrobot-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:jiminy-acrobot-v0"
 GYM_ENV_KWARGS = {
     "continuous": True
 }

@@ -969,7 +969,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  dt: float,
                  debug: bool = False) -> None:
         super().__init__(simulator, dt, debug)
-        print("test")
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker
@@ -997,7 +996,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         return obs
 
     def reset(self) -> SpaceDictRecursive:
-        print("reset")
         self._desired_goal = self._sample_goal()
         return super().reset()
 

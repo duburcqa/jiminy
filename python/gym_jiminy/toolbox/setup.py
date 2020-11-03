@@ -1,8 +1,8 @@
+from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = __import__("jiminy_py").__version__
-version_required = ".".join(version.split(".")[:2])
+version = get_distribution('gym_jiminy_common').version
 
 setup(
     name="gym_jiminy_toolbox",
@@ -27,7 +27,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy_common~={version_required}",
+        f"gym_jiminy_common~={version}",
         "tensorboard"
     ],
     zip_safe=False
