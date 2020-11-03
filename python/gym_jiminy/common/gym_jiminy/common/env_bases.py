@@ -154,7 +154,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         return gym.spaces.Box(
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
-            dtype=np.float32)
+            dtype=np.float64)
 
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None
@@ -221,9 +221,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             state_limit_upper = np.concatenate((
                 position_limit_upper, velocity_limit))
 
-        return gym.spaces.Box(low=state_limit_lower.astype(np.float32),
-                              high=state_limit_upper.astype(np.float32),
-                              dtype=np.float32)
+        return gym.spaces.Box(
+            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -356,9 +355,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                     SENSOR_ACCEL_MAX
 
         return gym.spaces.Dict(OrderedDict(
-            (key, gym.spaces.Box(low=min_val.astype(np.float32),
-                                 high=max_val.astype(np.float32),
-                                 dtype=np.float32))
+            (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
@@ -388,9 +385,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Set the action space
         motors_velocity_idx = self.robot.motors_velocity_idx
         self.action_space = gym.spaces.Box(
-            low=-effort_limit[motors_velocity_idx].astype(np.float32),
-            high=effort_limit[motors_velocity_idx].astype(np.float32),
-            dtype=np.float32)
+            low=-effort_limit[motors_velocity_idx],
+            high=effort_limit[motors_velocity_idx],
+            dtype=np.float64)
 
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """Reset the simulation and specify the initial state of the robot.
@@ -983,10 +980,10 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
             observation=self.observation_space,
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float32),
+                dtype=np.float64),
             achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float32))
+                dtype=np.float64))
 
     def fetch_obs(self) -> SpaceDictRecursive:
         obs = OrderedDict()

@@ -580,7 +580,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
                         self.observation_space.low, action_space_flat.low)),
                     high=np.concatenate((
                         self.observation_space.high, action_space_flat.high)),
-                    dtype=np.float32)
+                    dtype=np.float64)
 
         # Compute the unified observation
         self._observation = self.fetch_obs()
