@@ -1030,10 +1030,10 @@ namespace jiminy
                 pinocchio::urdf::buildModel(urdfPath, pncModel_);
             }
         }
-        catch (std::exception & e)
+        catch (std::exception const & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
-                        "Raised by exception: ", e.what())
+                        "Raised from exception: ", e.what())
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1046,23 +1046,30 @@ namespace jiminy
                                        pncGeometryModel_,
                                        meshPackageDirs);
         }
-        catch (std::exception & e)
+        catch (std::exception const & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
-                        "Raised by exception: ", e.what())
+                        "Raised from exception: ", e.what())
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Replace the mesh geometry object by its convex representation for efficiency
-        for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
+        try
         {
-            auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;
-            if (geometry->getObjectType() == hpp::fcl::OT_BVH)
+            // Replace the mesh geometry object by its convex representation for efficiency
+            for (uint32_t i=0; i<pncGeometryModel_.geometryObjects.size(); ++i)
             {
-                hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
-                bvh->buildConvexHull(true);
-                geometry = bvh->convex;
+                auto & geometry = pncGeometryModel_.geometryObjects[i].geometry;
+                if (geometry->getObjectType() == hpp::fcl::OT_BVH)
+                {
+                    hpp::fcl::BVHModelPtr_t bvh = boost::static_pointer_cast<hpp::fcl::BVHModelBase>(geometry);
+                    bvh->buildConvexHull(true);
+                    geometry = bvh->convex;
+                }
             }
+        }
+        catch (std::logic_error const & e)
+        {
+            std::cout << "hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls." << std::endl;
         }
 
         // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
