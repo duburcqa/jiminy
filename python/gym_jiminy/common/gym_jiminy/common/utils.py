@@ -86,7 +86,7 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
 def register_variables(controller: jiminy.AbstractController,
                        field: FieldDictRecursive,
                        data: SpaceDictRecursive,
-                       namespace: Optional[str] = None) -> None:
+                       namespace: Optional[str] = None) -> bool:
     """Register data from `Gym.Space` to the telemetry of a controller.
 
     .. warning::
@@ -94,16 +94,26 @@ def register_variables(controller: jiminy.AbstractController,
         responsible to manage the lifetime of the data to avoid it being
         garbage collected, and to make sure the variables are updated
         when necessary, and only when it is.
+
+    :returns: Whether or not the registration has been successful.
     """
     assert data is not None and len(field) == len(data), (
         "field and data are inconsistent.")
     if isinstance(field, dict):
+        is_success = True
         for subfield, value in zip(field.values(), data.values()):
-            register_variables(controller, subfield, value, namespace)
+            hresult = register_variables(
+                controller, subfield, value, namespace)
+            is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
     elif isinstance(field, list) and isinstance(field[0], list):
+        is_success = True
         for subfield, value in zip(field, data):
-            register_variables(controller, subfield, value, namespace)
+            hresult = register_variables(
+                controller, subfield, value, namespace)
+            is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
     else:
         if namespace is not None:
             field = [".".join((namespace, name)) for name in field]
-        controller.register_variables(field, data)
+        hresult = controller.register_variables(field, data)
+        is_success = (hresult == jiminy.hresult_t.SUCCESS)
+    return is_success
