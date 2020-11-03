@@ -37,6 +37,7 @@ else:
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
 
 
+from pyppeteer.errors import NetworkError
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
@@ -195,41 +196,41 @@ def meshcat_recorder(meshcat_url: str,
     loop.run_until_complete(stop_animate_async(client))
 
     # Infinite loop, waiting for requests
+    try:
+        while request_shm.value != "quit":
+            request = request_shm.value
+            if request != "":
+                args = map(str.strip, message_shm.value.split("|"))
+                if request == "take_snapshot":
+                    width, height = map(int, args)
+                    coro = capture_frame_async(client, width, height)
+                elif request == "start_record":
+                    fps, width, height = map(int, args)
+                    coro = start_video_recording_async(
+                        client, fps, width, height)
+                elif request == "add_frame":
+                    coro = add_video_frame_async(client)
+                elif request == "stop_and_save_record":
+                    (path,) = args
+                    coro = stop_and_save_video_async(client, path)
+                else:
+                    continue
+                try:
+                    output = loop.run_until_complete(coro)
+                    if output is not None:
+                        message_shm.value = output
+                    else:
+                        message_shm.value = ""
+                except Exception as e:
+                    message_shm.value = str(e)
+                    request_shm.value = "quit"
+                else:
+                    request_shm.value = ""
+    except (ConnectionError, NetworkError):
+        pass
     with open(os.devnull, 'w') as f:
         with redirect_stderr(f):
-            try:
-                while request_shm.value != "quit":
-                    request = request_shm.value
-                    if request != "":
-                        args = map(str.strip, message_shm.value.split("|"))
-                        if request == "take_snapshot":
-                            width, height = map(int, args)
-                            coro = capture_frame_async(client, width, height)
-                        elif request == "start_record":
-                            fps, width, height = map(int, args)
-                            coro = start_video_recording_async(
-                                client, fps, width, height)
-                        elif request == "add_frame":
-                            coro = add_video_frame_async(client)
-                        elif request == "stop_and_save_record":
-                            (path,) = args
-                            coro = stop_and_save_video_async(client, path)
-                        else:
-                            continue
-                        try:
-                            output = loop.run_until_complete(coro)
-                            if output is not None:
-                                message_shm.value = output
-                            else:
-                                message_shm.value = ""
-                        except Exception as e:
-                            message_shm.value = str(e)
-                            request_shm.value = "quit"
-                        else:
-                            request_shm.value = ""
-            except ConnectionError:
-                pass
-    session.close()
+            session.close()
     try:
         message_shm.value = ""
         request_shm.value = ""
