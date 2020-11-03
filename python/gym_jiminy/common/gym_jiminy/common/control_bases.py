@@ -554,11 +554,11 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         # simply calling `reset` method.
         self.simulator.controller.set_controller_handle(self._send_command)
 
-        # Register the controller target to the telemetry
-        if self.debug:
-            register_variables(
-                self.simulator.controller, self.controller.get_fieldnames(),
-                self._action, self._ctrl_name)
+        # Register the controller target to the telemetry.
+        # It may be useful later for computing the terminal reward or debug.
+        register_variables(
+            self.simulator.controller, self.controller.get_fieldnames(),
+            self._action, self._ctrl_name)
 
         # Check that 'observe_target' can be enabled
         assert not self.observe_target or isinstance(
