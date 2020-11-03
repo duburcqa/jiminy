@@ -145,12 +145,13 @@ class Simulator:
 
                 # Generate default Hardware Description File
                 hardware_path = hardware_file.name
-                generate_hardware_description_file(urdf_path, hardware_path)
+                generate_hardware_description_file(
+                    urdf_path, hardware_path, verbose=debug)
 
         # Instantiate and initialize the robot
         robot = BaseJiminyRobot()
         robot.initialize(urdf_path, hardware_path, mesh_path, has_freeflyer,
-                         avoid_instable_collisions)
+                         avoid_instable_collisions, verbose=debug)
 
         # Instantiate and initialize the engine
         simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)

@@ -74,7 +74,8 @@ def _origin_info_to_se3(origin_info: Optional[ET.Element]) -> pin.SE3:
 def generate_hardware_description_file(
         urdf_path: str,
         hardware_path: Optional[str] = None,
-        default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE):
+        default_update_rate: Optional[float] = DEFAULT_UPDATE_RATE,
+        verbose: bool = True):
     """Generate a default hardware description file, based on the information
     grabbed from the URDF when available, using educated guess otherwise.
 
@@ -123,7 +124,14 @@ def generate_hardware_description_file(
                                 Optional: DEFAULT_UPDATE_RATE if no Gazebo
                                 plugin has been found, the lowest among the
                                 Gazebo plugins otherwise.
+    :param verbose: Whether or not to print warnings.
     """
+    # Handle verbosity level
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.ERROR)
+
     # Read the XML
     tree = ET.parse(urdf_path)
     root = tree.getroot()
@@ -499,7 +507,8 @@ class BaseJiminyRobot(jiminy.Robot):
                    hardware_path: Optional[str] = None,
                    mesh_path: Optional[str] = None,
                    has_freeflyer: bool = True,
-                   avoid_instable_collisions: bool = True):
+                   avoid_instable_collisions: bool = True,
+                   verbose: bool = True):
         """Initialize the robot.
 
         :param urdf_path: Path of the URDF file of the robot.
@@ -519,7 +528,14 @@ class BaseJiminyRobot(jiminy.Robot):
                                           of associated minimal volume bounding
                                           box, and replacing primitive box by
                                           its vertices.
+        :param verbose: Whether or not to print warnings.
         """
+        # Handle verbosity level
+        if verbose:
+            logger.setLevel(logging.DEBUG)
+        else:
+            logger.setLevel(logging.ERROR)
+
         # Backup the original URDF path
         self.urdf_path_orig = urdf_path
 
