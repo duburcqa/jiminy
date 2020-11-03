@@ -41,13 +41,13 @@ class SimulateSimpleMass(unittest.TestCase):
         self.visc_friction = 2.0
         self.dtMax = 1.0e-5
 
-    def _setup(self, shape_type):
+    def _setup(self, shape):
         # Load the right URDF, and create robot.
-        if shape_type == ShapeType.POINT:
+        if shape == ShapeType.POINT:
             urdf_name = "point_mass.urdf"
-        elif shape_type == ShapeType.BOX:
+        elif shape == ShapeType.BOX:
             urdf_name = "box_collision_mesh.urdf"
-        elif shape_type == ShapeType.SPHERE:
+        elif shape == ShapeType.SPHERE:
             urdf_name = "sphere_primitive.urdf"
 
         # Create the jiminy robot and controller
@@ -55,7 +55,7 @@ class SimulateSimpleMass(unittest.TestCase):
 
         # Add contact point or collision body, along with related sensor,
         # depending on shape type.
-        if shape_type != ShapeType.POINT:
+        if shape != ShapeType.POINT:
             # Add collision body
             robot.add_collision_bodies([self.body_name])
 
@@ -76,12 +76,12 @@ class SimulateSimpleMass(unittest.TestCase):
         m = robot.pinocchio_model.inertias[-1].mass
         g = robot.pinocchio_model.gravity.linear[2]
         weight = m * np.linalg.norm(g)
-        if shape_type == ShapeType.POINT:
+        if shape == ShapeType.POINT:
             height = 0.0
-        elif shape_type == ShapeType.BOX:
+        elif shape == ShapeType.BOX:
             geom = robot.collision_model.geometryObjects[0]
             height = geom.geometry.points(0)[2]  # It is a mesh, not an actual box primitive
-        elif shape_type == ShapeType.SPHERE:
+        elif shape == ShapeType.SPHERE:
             geom = robot.collision_model.geometryObjects[0]
             height = geom.geometry.radius
         frame_idx = robot.pinocchio_model.getFrameId(self.body_name)
@@ -146,14 +146,13 @@ class SimulateSimpleMass(unittest.TestCase):
         E_tot = E_robot + E_contact
         E_diff_robot = np.concatenate((
             np.diff(E_robot) / self.dtMax,
-            np.array([0.0], dtype=E_robot.dtype)))
+            np.zeros((1,), dtype=E_robot.dtype)))
         E_diff_tot = savgol_filter(E_tot, 201, 2, deriv=1, delta=self.dtMax)
 
         # Check that the total energy never increases.
         # One must use a specific, less restrictive, tolerance, because of
-        # numerical differentiation error of float32.
-        TOLERANCE_diff = 1.0e-3
-        self.assertTrue(np.all(E_diff_tot < TOLERANCE_diff))
+        # numerical differentiation and filtering error.
+        self.assertTrue(np.all(E_diff_tot < 1.0e-3))
 
         # Check that the energy of robot only increases when the robot is
         # moving upward while still in the ground. This is done by check
@@ -161,14 +160,12 @@ class SimulateSimpleMass(unittest.TestCase):
         # Note that the energy must be non-zero to this test to make
         # sense, otherwise the integration error and log accuracy makes
         # the test fail.
+        tolerance_depth = 1e-9
         self.assertTrue(np.all(np.diff(np.where(
-            (abs(E_diff_robot) > 0.0) & ((E_diff_robot > 0.0) != \
+            (abs(E_diff_robot) > tolerance_depth) & ((E_diff_robot > 0.0) != \
                 ((v_z_jiminy > 0.0) & (penetration_depth < 0.0))))[0]) > 1))
 
-        # Compare the numerical and analytical equilibrium state
-        # Note that the logging accuracy of the penetration depth is
-        # really bad because it is extremely small and close to float32
-        # maximum accuracy. So it is impossible to check that the
+        # Compare the numerical and analytical equilibrium state.
         f_ext_z = engine.system_state.f_external[joint_idx].linear[2]
         self.assertTrue(np.allclose(f_ext_z, weight, atol=TOLERANCE))
         self.assertTrue(np.allclose(
@@ -291,20 +288,22 @@ class SimulateSimpleMass(unittest.TestCase):
             snap_disc, snap_disc_analytical, atol=TOLERANCE))
 
         # Check that the energy increases only when the force is applied
+        tolerance_E = 1e-9
+
         E_robot = log_data['HighLevelController.energy']
         E_diff_robot = np.concatenate((
             np.diff(E_robot) / np.diff(time),
-            np.array([0.0], dtype=E_robot.dtype)))
-        E_inc_range = time[np.where(E_diff_robot > 1e-5)[0][[0, -1]]]
+            np.zeros((1,), dtype=E_robot.dtype)))
+        E_inc_range = time[np.where(E_diff_robot > tolerance_E)[0][[0, -1]]]
         E_inc_range_analytical = np.array([t0, t0 + dt - self.dtMax])
 
         self.assertTrue(np.allclose(
-            E_inc_range, E_inc_range_analytical, atol=5e-3))
+            E_inc_range, E_inc_range_analytical, atol=tolerance_E))
 
         # Check that the steady state matches the theory.
         # Note that a specific tolerance is used for the acceleration since the
         # steady state is not perfectly reached.
-        TOLERANCE_acc = 1e-5
+        tolerance_acc = 1e-6
 
         v_steady = v_x_jiminy[time == t0 + dt]
         v_steady_analytical = - F / (self.visc_friction * weight)
@@ -312,7 +311,7 @@ class SimulateSimpleMass(unittest.TestCase):
             (time > t0 + dt - self.dtMax) & (time < t0 + dt + self.dtMax)]
 
         self.assertTrue(len(a_steady) == 1)
-        self.assertTrue(a_steady < TOLERANCE_acc)
+        self.assertTrue(a_steady < tolerance_acc)
         self.assertTrue(np.allclose(
             v_steady, v_steady_analytical, atol=TOLERANCE))
 
