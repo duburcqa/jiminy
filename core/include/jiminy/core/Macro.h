@@ -26,7 +26,7 @@ namespace jiminy
         template<typename... Ts>
         static constexpr std::true_type  test(base<Ts...> const *);
         static constexpr std::false_type test(...);
-        using type = decltype(test(std::declval<derived*>()));
+        using type = decltype(test(std::declval<derived *>()));
     };
 
     template < template <typename...> class base,typename derived>
@@ -41,8 +41,8 @@ namespace jiminy
     template<class F, class dF=std::decay_t<F> >
     auto not_F(F && f)
     {
-        return [f=std::forward<F>(f)](auto&&...args) mutable
-               ->decltype(!std::declval<std::result_of_t<dF&(decltype(args)...)> >()) // optional, adds sfinae
+        return [f=std::forward<F>(f)](auto && ... args) mutable
+               ->decltype(!std::declval<std::result_of_t<dF &(decltype(args)...)> >()) // optional, adds sfinae
                {
                    return !f(decltype(args)(args)...);
                };
@@ -52,19 +52,19 @@ namespace jiminy
 
     template <typename Base>
     inline std::shared_ptr<Base>
-    shared_from_base(std::enable_shared_from_this<Base>* base)
+    shared_from_base(std::enable_shared_from_this<Base> * base)
     {
         return base->shared_from_this();
     }
     template <typename Base>
     inline std::shared_ptr<const Base>
-    shared_from_base(std::enable_shared_from_this<Base> const* base)
+    shared_from_base(std::enable_shared_from_this<Base> const * base)
     {
         return base->shared_from_this();
     }
     template <typename That>
     inline std::shared_ptr<That>
-    shared_from(That* that)
+    shared_from(That * that)
     {
         return std::static_pointer_cast<That>(shared_from_base(that));
     }
@@ -91,7 +91,7 @@ namespace jiminy
 
     template <typename T>
     struct isEigenObject :
-        public decltype(isEigenObjectDetail::test(std::declval<T*>())) {};
+        public decltype(isEigenObjectDetail::test(std::declval<T *>())) {};
 
     template<typename T, typename Enable = void>
     struct is_eigen : public std::false_type {};
@@ -121,7 +121,7 @@ namespace jiminy
     }
 
     template <typename T>
-    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<T*>())) {};
+    struct isEigenVector : public decltype(isEigenVectorDetail::test(std::declval<T *>())) {};
 
     template<typename T, typename Enable = void>
     struct is_eigen_vector : std::false_type {};
@@ -140,7 +140,7 @@ namespace jiminy
     }
 
     template <typename T>
-    struct isMap : public decltype(isMapDetail::test(std::declval<T*>())) {};
+    struct isMap : public decltype(isMapDetail::test(std::declval<T *>())) {};
 
     template<typename T, typename Enable = void>
     struct is_map : std::false_type {};

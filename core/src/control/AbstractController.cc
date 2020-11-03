@@ -63,7 +63,7 @@ namespace jiminy
             }
             return returnCode;
         }
-        catch (std::exception& e)
+        catch (std::exception & e)
         {
             isInitialized_ = false;
             PRINT_ERROR("Something is wrong, probably because of 'commandFct'.")

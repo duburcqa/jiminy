@@ -1030,7 +1030,7 @@ namespace jiminy
                 pinocchio::urdf::buildModel(urdfPath, pncModel_);
             }
         }
-        catch (std::exception& e)
+        catch (std::exception & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
                         "Raised by exception: ", e.what())
@@ -1046,7 +1046,7 @@ namespace jiminy
                                        pncGeometryModel_,
                                        meshPackageDirs);
         }
-        catch (std::exception& e)
+        catch (std::exception & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
                         "Raised by exception: ", e.what())

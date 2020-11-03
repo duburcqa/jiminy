@@ -42,7 +42,7 @@
 
 namespace jiminy
 {
-    FileDevice::FileDevice(std::string const& filename) :
+    FileDevice::FileDevice(std::string const & filename) :
     filename_(filename),
     fileDescriptor_(-1)
     {
@@ -185,7 +185,7 @@ namespace jiminy
         return size() - pos();
     }
 
-    int64_t FileDevice::readData(void* data, int64_t dataSize)
+    int64_t FileDevice::readData(void * data, int64_t dataSize)
     {
         ssize_t const readBytes = ::read(fileDescriptor_, data, static_cast<size_t>(dataSize));
         if (readBytes < 0)
@@ -196,7 +196,7 @@ namespace jiminy
         return readBytes;
     }
 
-    int64_t FileDevice::writeData(void const* data, int64_t dataSize)
+    int64_t FileDevice::writeData(void const * data, int64_t dataSize)
     {
         ssize_t const writtenBytes = ::write(fileDescriptor_, data, static_cast<size_t>(dataSize));
         if (writtenBytes < 0)
@@ -207,7 +207,7 @@ namespace jiminy
         return writtenBytes;
     }
 
-    std::string const& FileDevice::name(void) const
+    std::string const & FileDevice::name(void) const
     {
         return filename_;
     }

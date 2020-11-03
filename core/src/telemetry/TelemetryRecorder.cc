@@ -167,10 +167,10 @@ namespace jiminy
             flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeLoggingPrecision_)));
 
             // Write data, integers first
-            flows_.back().write(reinterpret_cast<uint8_t const*>(integersAddress_), integerSectionSize_);
+            flows_.back().write(reinterpret_cast<uint8_t const *>(integersAddress_), integerSectionSize_);
 
             // Write data, floats last
-            flows_.back().write(reinterpret_cast<uint8_t const*>(floatsAddress_), floatSectionSize_);
+            flows_.back().write(reinterpret_cast<uint8_t const *>(floatsAddress_), floatSectionSize_);
 
             // Update internal counter
             recordedBytes_ += recordedBytesDataLine_;

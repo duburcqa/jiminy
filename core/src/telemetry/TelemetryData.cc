@@ -150,8 +150,8 @@ namespace jiminy
         // Record constants.
         header.insert(header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
         header.push_back('\0');
-        char_t const* startConstants = reinterpret_cast<char_t*>(constantsHeader_) + constantsHeader_->startNameSection;
-        char_t const* stopConstants = reinterpret_cast<char_t*>(constantsHeader_) + constantsHeader_->nextFreeNameOffset;
+        char_t const * startConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->startNameSection;
+        char_t const * stopConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startConstants, stopConstants);
 
         // Record entries numbers.
@@ -173,12 +173,12 @@ namespace jiminy
         header.insert(header.end(), GLOBAL_TIME.data(), GLOBAL_TIME.data() + GLOBAL_TIME.size());
         header.push_back('\0');
 
-        char_t const* startIntegersHeader = reinterpret_cast<char_t*>(integersHeader_) + integersHeader_->startNameSection;
-        char_t const* stopIntegersHeader  = reinterpret_cast<char_t*>(integersHeader_) + integersHeader_->nextFreeNameOffset;
+        char_t const * startIntegersHeader = reinterpret_cast<char_t *>(integersHeader_) + integersHeader_->startNameSection;
+        char_t const * stopIntegersHeader  = reinterpret_cast<char_t *>(integersHeader_) + integersHeader_->nextFreeNameOffset;
         header.insert(header.end(), startIntegersHeader, stopIntegersHeader);
 
-        char_t const* startFloatsHeader = reinterpret_cast<char_t*>(floatsHeader_) + floatsHeader_->startNameSection;
-        char_t const* stopFloatsHeader  = reinterpret_cast<char_t*>(floatsHeader_) + floatsHeader_->nextFreeNameOffset;
+        char_t const * startFloatsHeader = reinterpret_cast<char_t *>(floatsHeader_) + floatsHeader_->startNameSection;
+        char_t const * stopFloatsHeader  = reinterpret_cast<char_t *>(floatsHeader_) + floatsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startFloatsHeader, stopFloatsHeader);
 
         // Start data section.

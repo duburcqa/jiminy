@@ -35,7 +35,7 @@ namespace jiminy
         ///
         /// \retval The parsed JSON document.
         ///////////////////////////////////////////////////////////////////////
-        Json::Value& getRoot();
+        Json::Value & getRoot();
 
     protected:
         Json::Value rootJson_;  ///< To hold the parsed document.

@@ -70,7 +70,7 @@ namespace Eigen
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
         Derived const & derived(void) const { return *static_cast<Derived const *>(this); }
-        Derived & derived(void) { return *static_cast<Derived*>(this); }
+        Derived & derived(void) { return *static_cast<Derived *>(this); }
 
         Robot const * const & robot(void) const { return derived().robot(); }
 
@@ -405,7 +405,7 @@ namespace Eigen
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
         Derived const & derived(void) const { return *static_cast<Derived const *>(this); }
-        Derived & derived(void) { return *static_cast<Derived*>(this); }
+        Derived & derived(void) { return *static_cast<Derived *>(this); }
 
         Robot const * const & robot(void) const { return derived().robot(); }
 
@@ -683,7 +683,7 @@ namespace Eigen
         typedef typename NumTraits<Scalar>::Real RealScalar;
 
         Derived const & derived(void) const { return *static_cast<Derived const *>(this); }
-        Derived & derived(void) { return *static_cast<Derived*>(this); }
+        Derived & derived(void) { return *static_cast<Derived *>(this); }
 
         std::vector<ValueType> const & vector(void) const { return derived().vector(); }
         std::vector<ValueType> & vector(void) { return derived().vector(); };
