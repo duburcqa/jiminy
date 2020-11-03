@@ -67,7 +67,7 @@ namespace jiminy
                                    floatsAddress_,
                                    floatSectionSize_);
             recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
-                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint32_t));
+                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint64_t)); // unit64_t for Global.Time
 
             // Get the header
             telemetryData->formatHeader(header);
@@ -94,7 +94,7 @@ namespace jiminy
 
     float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeLoggingPrecision)
     {
-        return std::numeric_limits<int32_t>::max() / timeLoggingPrecision;
+        return std::numeric_limits<int64_t>::max() / timeLoggingPrecision;
     }
 
     float64_t TelemetryRecorder::getMaximumLogTime(void) const
@@ -164,7 +164,7 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int32_t>(std::round(timestamp * timeLoggingPrecision_)));
+            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeLoggingPrecision_)));
 
             // Write data, integers first
             flows_.back().write(reinterpret_cast<uint8_t const*>(integersAddress_), integerSectionSize_);
@@ -210,8 +210,8 @@ namespace jiminy
 
     void TelemetryRecorder::getData(std::vector<std::string>                   & header,
                                     std::vector<float64_t>                     & timestamps,
-                                    std::vector<std::vector<int32_t> >         & intData,
-                                    std::vector<std::vector<float32_t> >       & floatData,
+                                    std::vector<std::vector<int64_t> >         & intData,
+                                    std::vector<std::vector<float64_t> >       & floatData,
                                     std::vector<AbstractIODevice *>            & flows,
                                     int64_t                              const & integerSectionSize,
                                     int64_t                              const & floatSectionSize,
@@ -225,11 +225,11 @@ namespace jiminy
 
         if (!flows.empty())
         {
-            int32_t timestamp;
-            std::vector<int32_t> intDataLine;
-            intDataLine.resize(integerSectionSize / sizeof(int32_t));
-            std::vector<float32_t> floatDataLine;
-            floatDataLine.resize(floatSectionSize / sizeof(float32_t));
+            int64_t timestamp;
+            std::vector<int64_t> intDataLine;
+            intDataLine.resize(integerSectionSize / sizeof(int64_t));
+            std::vector<float64_t> floatDataLine;
+            floatDataLine.resize(floatSectionSize / sizeof(float64_t));
 
             bool_t isReadingHeaderDone = false;
             for (auto & flow : flows)
@@ -241,7 +241,7 @@ namespace jiminy
                 // Dealing with version flag, constants, header, and descriptor
                 if (!isReadingHeaderDone)
                 {
-                    int64_t header_version_length = sizeof(int32_t);
+                    int32_t header_version_length = sizeof(int32_t);
                     flow->seek(header_version_length); // Skip the version flag
                     std::vector<char_t> headerCharBuffer;
                     headerCharBuffer.resize(headerSize - header_version_length);
@@ -293,7 +293,7 @@ namespace jiminy
                 while (flow->bytesAvailable() > 0)
                 {
                     flow->seek(flow->pos() + START_LINE_TOKEN.size()); // Skip new line flag
-                    flow->readData(&timestamp, sizeof(int32_t));
+                    flow->readData(&timestamp, sizeof(int64_t));
                     flow->readData(intDataLine.data(), integerSectionSize);
                     flow->readData(floatDataLine.data(), floatSectionSize);
 
@@ -316,8 +316,8 @@ namespace jiminy
 
     void TelemetryRecorder::getData(std::vector<std::string>             & header,
                                     std::vector<float64_t>               & timestamps,
-                                    std::vector<std::vector<int32_t> >   & intData,
-                                    std::vector<std::vector<float32_t> > & floatData)
+                                    std::vector<std::vector<int64_t> >   & intData,
+                                    std::vector<std::vector<float64_t> > & floatData)
     {
         std::vector<AbstractIODevice *> abstractFlows_;
         for (MemoryDevice & device: flows_)

@@ -105,10 +105,10 @@ namespace jiminy
 
     private:
         std::shared_ptr<TelemetryData> telemetryData_;
-        /// \brief Associate int32_t variable position to their ID.
-        std::unordered_map<std::string, int32_t *> intBufferPosition_;
-        /// \brief Associate float32_t variable position to their ID.
-        std::unordered_map<std::string, float32_t *> floatBufferPosition_;
+        /// \brief Associate int64_t variable position to their ID.
+        std::unordered_map<std::string, int64_t *> intBufferPosition_;
+        /// \brief Associate float64_t variable position to their ID.
+        std::unordered_map<std::string, float64_t *> floatBufferPosition_;
     };
 } // End of jiminy namespace
 

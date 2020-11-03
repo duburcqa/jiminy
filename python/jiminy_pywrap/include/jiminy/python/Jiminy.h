@@ -2031,8 +2031,8 @@ namespace python
 
         static bp::tuple formatLog(std::vector<std::string>             const & header,
                                    std::vector<float64_t>                     & timestamps,
-                                   std::vector<std::vector<int32_t> >         & intData,
-                                   std::vector<std::vector<float32_t> >       & floatData,
+                                   std::vector<std::vector<int64_t> >         & intData,
+                                   std::vector<std::vector<float64_t> >       & floatData,
                                    bool_t                               const & clear_memory = true)
         {
             bp::dict constants;
@@ -2059,13 +2059,13 @@ namespace python
             }
 
             // Get intergers
-            Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic> intMatrix;
+            Eigen::Matrix<int64_t, Eigen::Dynamic, Eigen::Dynamic> intMatrix;
             if (!intData.empty())
             {
                 intMatrix.resize(timestamps.size(), intData[0].size());
                 for (uint32_t i=0; i<intData.size(); ++i)
                 {
-                    intMatrix.row(i) = Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
+                    intMatrix.row(i) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                         intData[i].data(), intData[0].size());
                 }
                 if (clear_memory)
@@ -2075,7 +2075,7 @@ namespace python
 
                 for (uint32_t i=0; i<intMatrix.cols(); ++i)
                 {
-                    Eigen::Ref<Eigen::Matrix<int32_t, -1, 1> > intCol(intMatrix.col(i));
+                    Eigen::Ref<Eigen::Matrix<int64_t, -1, 1> > intCol(intMatrix.col(i));
                     PyObject * valuePyInt(getNumpyReference(intCol));
                     std::string const & header_i = header[i + (lastConstantIdx + 1) + 1];
                     /* One must make copies with PyArray_FROM_OF instead of using
@@ -2090,13 +2090,13 @@ namespace python
             }
 
             // Get floats
-            Eigen::Matrix<float32_t, Eigen::Dynamic, Eigen::Dynamic> floatMatrix;
+            Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic> floatMatrix;
             if (!floatData.empty())
             {
                 floatMatrix.resize(timestamps.size(), floatData[0].size());
                 for (uint32_t i=0; i<floatData.size(); ++i)
                 {
-                    floatMatrix.row(i) = Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
+                    floatMatrix.row(i) = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
                         floatData[i].data(), floatData[0].size());
                 }
                 if (clear_memory)
@@ -2106,7 +2106,7 @@ namespace python
 
                 for (uint32_t i=0; i<floatMatrix.cols(); ++i)
                 {
-                    Eigen::Ref<Eigen::Matrix<float32_t, -1, 1> > floatCol(floatMatrix.col(i));
+                    Eigen::Ref<Eigen::Matrix<float64_t, -1, 1> > floatCol(floatMatrix.col(i));
                     PyObject * valuePyFloat(getNumpyReference(floatCol));
                     std::string const & header_i =
                         header[i + (lastConstantIdx + 1) + 1 + intData[0].size()];
@@ -2123,8 +2123,8 @@ namespace python
         {
             std::vector<std::string> header;
             std::vector<float64_t> timestamps;
-            std::vector<std::vector<int32_t> > intData;
-            std::vector<std::vector<float32_t> > floatData;
+            std::vector<std::vector<int64_t> > intData;
+            std::vector<std::vector<float64_t> > floatData;
             self.getLogDataRaw(header, timestamps, intData, floatData);
             return formatLog(header, timestamps, intData, floatData);
         }
@@ -2133,8 +2133,8 @@ namespace python
         {
             std::vector<std::string> header;
             std::vector<float64_t> timestamps;
-            std::vector<std::vector<int32_t> > intData;
-            std::vector<std::vector<float32_t> > floatData;
+            std::vector<std::vector<int64_t> > intData;
+            std::vector<std::vector<float64_t> > floatData;
             hresult_t returnCode = EngineMultiRobot::parseLogBinaryRaw(
                 filename, header, timestamps, intData, floatData);
             if (returnCode == hresult_t::SUCCESS)

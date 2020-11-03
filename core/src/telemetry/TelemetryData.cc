@@ -59,15 +59,15 @@ namespace jiminy
     }
 
     template<>
-    hresult_t TelemetryData::registerVariable<int32_t>(std::string const   & variableName,
-                                                       int32_t           * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<int64_t>(std::string const   & variableName,
+                                                       int64_t           * & positionInBufferOut)
     {
         return internalRegisterVariable(integersHeader_, variableName, positionInBufferOut);
     }
 
     template<>
-    hresult_t TelemetryData::registerVariable<float32_t>(std::string const   & variableName,
-                                                         float32_t         * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<float64_t>(std::string const   & variableName,
+                                                         float64_t         * & positionInBufferOut)
     {
         return internalRegisterVariable(floatsHeader_, variableName, positionInBufferOut);
     }
@@ -158,11 +158,11 @@ namespace jiminy
         std::string entriesNumbers;
         entriesNumbers += NUM_INTS;
         entriesNumbers += std::to_string((integersHeader_->nextFreeDataOffset - integersHeader_->startDataSection) /
-                                         static_cast<int64_t>(sizeof(int32_t)) + 1); // +1 because we add Global.Time
+                                         static_cast<int64_t>(sizeof(int64_t)) + 1); // +1 because we add Global.Time
         entriesNumbers += '\0';
         entriesNumbers += NUM_FLOATS;
         entriesNumbers += std::to_string((floatsHeader_->nextFreeDataOffset - floatsHeader_->startDataSection) /
-                                         static_cast<int64_t>(sizeof(float32_t)));
+                                         static_cast<int64_t>(sizeof(float64_t)));
         entriesNumbers += '\0';
         header.insert(header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
 
