@@ -37,7 +37,6 @@ fi
 cd "$RootDir/boost"
 git checkout --force "boost-1.71.0"
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/boost.patch"
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
@@ -59,6 +58,7 @@ if [ ! -d "$RootDir/tinyxml" ]; then
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 fi
 git checkout --force "master"
+git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/tinyxml.patch"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/console_bridge" ]; then
