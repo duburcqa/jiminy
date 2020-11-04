@@ -158,7 +158,7 @@ namespace jiminy
             config["enableAcceleration"] = true;
             config["enableEffort"] = true;
             config["enableEnergy"] = true;
-            config["timeUnit"] = 1.0e6;
+            config["timeUnit"] = 1.0e9;
             return config;
         };
 
@@ -432,8 +432,8 @@ namespace jiminy
 
         void getLogDataRaw(std::vector<std::string>             & header,
                            std::vector<float64_t>               & timestamps,
-                           std::vector<std::vector<int32_t> >   & intData,
-                           std::vector<std::vector<float32_t> > & floatData);
+                           std::vector<std::vector<int64_t> >   & intData,
+                           std::vector<std::vector<float64_t> > & floatData);
 
         /// \brief Get the full logged content.
         ///
@@ -448,8 +448,8 @@ namespace jiminy
         static hresult_t parseLogBinaryRaw(std::string                    const & filename,
                                            std::vector<std::string>             & header,
                                            std::vector<float64_t>               & timestamps,
-                                           std::vector<std::vector<int32_t> >   & intData,
-                                           std::vector<std::vector<float32_t> > & floatData);
+                                           std::vector<std::vector<int64_t> >   & intData,
+                                           std::vector<std::vector<float64_t> > & floatData);
         static hresult_t parseLogBinary(std::string              const & filename,
                                         std::vector<std::string>       & header,
                                         matrixN_t                      & logData);

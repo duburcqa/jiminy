@@ -446,7 +446,7 @@ class SimulateSimplePendulum(unittest.TestCase):
                 min(abs(f["t"] - time)),
                 min(abs(f["t"] + f["dt"] - time))])
             for f in F_register])
-        self.assertTrue(np.allclose(t_break_err, 0.0, atol=1e-12))
+        self.assertTrue(np.allclose(t_break_err, 0.0, atol=TOLERANCE))
 
         # This test has a specific tolerance because the analytical solution is
         # an approximation since in practice, the external force is not
@@ -454,8 +454,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # the orientation of the pole. For simplicity, the effect of the
         # impulse forces is assumed to be constant. As a result, the tolerance
         # cannot be tighter.
-        TOLERANCE = 1e-6
-        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
         # Configure the engine: No gravity + Discrete time simulation
         engine_options = engine.get_options()
@@ -482,11 +481,10 @@ class SimulateSimplePendulum(unittest.TestCase):
                 min(abs(f["t"] - time)),
                 min(abs(f["t"] + f["dt"] - time))])
             for f in F_register])
-        self.assertTrue(np.allclose(t_break_err, 0.0, atol=1e-12))
+        self.assertTrue(np.allclose(t_break_err, 0.0, atol=TOLERANCE))
 
          # Compare the numerical and analytical solution
-        TOLERANCE = 1e-6
-        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=TOLERANCE))
+        self.assertTrue(np.allclose(x_jiminy, x_analytical, atol=1e-6))
 
     def test_flexibility_rotor_inertia(self):
         """
@@ -570,9 +568,8 @@ class SimulateSimplePendulum(unittest.TestCase):
         # This test has a specific tolerance because we know the dynamics don't exactly
         # match: they are however very close, since the inertia of the flexible element
         # is negligible before I.
-        TOLERANCE = 1e-4
         self.assertTrue(np.allclose(
-            x_jiminy_extract, x_analytical, atol=TOLERANCE))
+            x_jiminy_extract, x_analytical, atol=1e-4))
 
     def test_fixed_body_constraint_rotor_inertia(self):
         """

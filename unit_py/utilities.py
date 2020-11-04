@@ -102,7 +102,8 @@ def setup_controller_and_engine(
         engine.initialize(robot)
 
 def neutral_state(robot: jiminy.Robot,
-                  split: bool = False) -> Union[List[np.ndarray], np.ndarray]:
+                  split: bool = False
+                  ) -> Union[Tuple[np.ndarray, np.ndarray], np.ndarray]:
     """
     @brief   Return the neutral state of the robot, namely zero joint
              positions and unit quaternions regarding the configuration, and
@@ -155,7 +156,8 @@ def simulate_and_get_state_evolution(
         tf: float,
         x0: Union[Dict[str, np.ndarray], np.ndarray],
         split: bool = False) -> Union[
-            List[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
+            Tuple[np.ndarray, np.ndarray, np.ndarray],
+            Tuple[np.ndarray, np.ndarray]]:
     """
     @brief Simulate the dynamics of the system and retrieve the state
            evolution over time.

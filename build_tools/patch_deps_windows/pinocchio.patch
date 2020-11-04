@@ -176,34 +176,6 @@ index 9d72c12a..41aa429f 100644
        bp::def("randomConfiguration",
                &randomConfiguration_proxy,
                bp::arg("model"),
-diff --git a/bindings/python/multibody/data.hpp b/bindings/python/multibody/data.hpp
-index fecbf190..64e5c430 100644
---- a/bindings/python/multibody/data.hpp
-+++ b/bindings/python/multibody/data.hpp
-@@ -190,7 +190,6 @@ namespace pinocchio
-         .def(details::overload_base_get_item_for_std_vector<StdVec_Vector3>());
-         StdAlignedVectorPythonVisitor<Matrix6x,false>::expose("StdVec_Matrix6x")
-         .def(details::overload_base_get_item_for_std_vector<StdVec_Matrix6x>());
--        StdVectorPythonVisitor<int>::expose("StdVec_int");
-       }
- 
-     };
-diff --git a/bindings/python/multibody/model.hpp b/bindings/python/multibody/model.hpp
-index 57683816..1f17da7e 100644
---- a/bindings/python/multibody/model.hpp
-+++ b/bindings/python/multibody/model.hpp
-@@ -311,11 +311,6 @@ namespace pinocchio
-       {
-         typedef typename Model::ConfigVectorMap ConfigVectorMap;
-         typedef bp::map_indexing_suite<ConfigVectorMap,false> map_indexing_suite;
--        StdVectorPythonVisitor<Index>::expose("StdVec_Index");
--        StdVectorPythonVisitor<IndexVector>::expose("StdVec_IndexVector");
--        StdVectorPythonVisitor<std::string>::expose("StdVec_StdString");
--        StdVectorPythonVisitor<bool>::expose("StdVec_Bool");
--        StdVectorPythonVisitor<Scalar>::expose("StdVec_double");
-         bp::class_<typename Model::ConfigVectorMap>("StdMap_String_EigenVectorXd")
-           .def(map_indexing_suite())
-           .def_pickle(PickleMap<typename Model::ConfigVectorMap>())
 diff --git a/bindings/python/spatial/inertia.hpp b/bindings/python/spatial/inertia.hpp
 index d3cdf575..b18e0de9 100644
 --- a/bindings/python/spatial/inertia.hpp

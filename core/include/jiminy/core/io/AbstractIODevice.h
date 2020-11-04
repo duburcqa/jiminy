@@ -32,10 +32,10 @@ namespace jiminy
     };
 
     /// Facility operators to avoid cast.
-    enum OpenMode operator | (enum OpenMode const& modeA, enum OpenMode const& modeB);
-    enum OpenMode operator & (enum OpenMode const& modeA, enum OpenMode const& modeB);
-    enum OpenMode operator |= (enum OpenMode& modeA, enum OpenMode const& modeB);
-    enum OpenMode operator &= (enum OpenMode& modeA, enum OpenMode const& modeB);
+    enum OpenMode operator | (enum OpenMode const & modeA, enum OpenMode const & modeB);
+    enum OpenMode operator & (enum OpenMode const & modeA, enum OpenMode const & modeB);
+    enum OpenMode operator |= (enum OpenMode & modeA, enum OpenMode const & modeB);
+    enum OpenMode operator &= (enum OpenMode & modeA, enum OpenMode const & modeB);
     enum OpenMode operator ~(enum OpenMode mode);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +141,7 @@ namespace jiminy
         /// \return hresult_t::SUCCESS if successful, another hresult_t value otherwise.
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         template<typename T>
-        hresult_t write(T const& valueIn);
+        hresult_t write(T const & valueIn);
 
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief Write data in the device.

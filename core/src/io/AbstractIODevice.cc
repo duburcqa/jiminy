@@ -164,7 +164,7 @@ namespace jiminy
                                       int64_t         dataSize)
     {
         int64_t toWrite = dataSize;
-        uint8_t const* bufferPos = static_cast<uint8_t const*>(data);
+        uint8_t const * bufferPos = static_cast<uint8_t const *>(data);
 
         while (toWrite > 0)
         {
@@ -185,7 +185,7 @@ namespace jiminy
                                      int64_t   dataSize)
     {
         int64_t toRead = dataSize;
-        uint8_t* bufferPos = static_cast<uint8_t*>(data);
+        uint8_t * bufferPos = static_cast<uint8_t *>(data);
 
         while (toRead > 0)
         {
@@ -228,55 +228,55 @@ namespace jiminy
 
     // Specific implementation - std::vector<uint8_t>
     template<>
-    hresult_t AbstractIODevice::read<std::vector<uint8_t> >(std::vector<uint8_t>& v)
+    hresult_t AbstractIODevice::read<std::vector<uint8_t> >(std::vector<uint8_t> & v)
     {
         int64_t toRead = static_cast<int64_t>(v.size() * sizeof(uint8_t));
-        uint8_t* bufferPos = reinterpret_cast<uint8_t*>(v.data());
+        uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
         return read(bufferPos, toRead);
     }
 
     // Specific implementation - std::vector<char_t>
     template<>
-    hresult_t AbstractIODevice::read<std::vector<char_t> >(std::vector<char_t>& v)
+    hresult_t AbstractIODevice::read<std::vector<char_t> >(std::vector<char_t> & v)
     {
         int64_t toRead = static_cast<int64_t>(v.size() * sizeof(char_t));
-        uint8_t* bufferPos = reinterpret_cast<uint8_t*>(v.data());
+        uint8_t * bufferPos = reinterpret_cast<uint8_t *>(v.data());
         return read(bufferPos, toRead);
     }
 
     // Specific implementation - std::string
     template<>
-    hresult_t AbstractIODevice::write<std::string>(std::string const& str)
+    hresult_t AbstractIODevice::write<std::string>(std::string const & str)
     {
         int64_t toWrite = static_cast<int64_t>(str.size());
-        uint8_t const* bufferPos = reinterpret_cast<uint8_t const*>(str.c_str());
+        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(str.c_str());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<uint8_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<uint8_t> >(std::vector<uint8_t> const& v)
+    hresult_t AbstractIODevice::write<std::vector<uint8_t> >(std::vector<uint8_t> const & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint8_t));
-        uint8_t const* bufferPos = reinterpret_cast<uint8_t const*>(v.data());
+        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(v.data());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<char_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<char_t> >(std::vector<char_t> const& v)
+    hresult_t AbstractIODevice::write<std::vector<char_t> >(std::vector<char_t> const & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(char_t));
-        uint8_t const* bufferPos = reinterpret_cast<uint8_t const*>(v.data());
+        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(v.data());
         return write(bufferPos, toWrite);
     }
 
     // Specific implementation - std::vector<uint64_t>
     template<>
-    hresult_t AbstractIODevice::write<std::vector<uint64_t> >(std::vector<uint64_t> const& v)
+    hresult_t AbstractIODevice::write<std::vector<uint64_t> >(std::vector<uint64_t> const & v)
     {
         int64_t toWrite = static_cast<int64_t>(v.size() * sizeof(uint64_t));
-        uint8_t const* bufferPos = reinterpret_cast<uint8_t const*>(&v[0]);
+        uint8_t const * bufferPos = reinterpret_cast<uint8_t const *>(&v[0]);
         return write(bufferPos, toWrite);
     }
 }

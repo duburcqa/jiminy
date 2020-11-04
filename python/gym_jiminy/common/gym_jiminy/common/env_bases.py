@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+import os
 import time
 import tempfile
 from collections import OrderedDict
@@ -108,8 +109,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._is_ready = False
         self._seed: Optional[np.uint32] = None
         self._log_data: Optional[Dict[str, np.ndarray]] = None
-        self._log_file: Optional[  # type: ignore[name-defined]
-            tempfile._TemporaryFileWrapper] = None
+        self.log_path: Optional[str] = None
 
         # Current observation and action of the robot
         self._state: Optional[Tuple[np.ndarray, np.ndarray]] = None
@@ -138,14 +138,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             raise RuntimeError("Backend simulator undefined.")
         return self.simulator.robot
 
-    @property
-    def log_path(self) -> Optional[str]:
-        """ TODO: Write documentation.
-        """
-        if self.debug and self._log_file is not None:
-            return self._log_file.name
-        return None
-
     def _get_time_space(self) -> gym.Space:
         """Get time space.
         """
@@ -154,7 +146,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         return gym.spaces.Box(
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
-            dtype=np.float32)
+            dtype=np.float64)
 
     def _get_state_space(self,
                          use_theoretical_model: Optional[bool] = None
@@ -221,9 +213,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             state_limit_upper = np.concatenate((
                 position_limit_upper, velocity_limit))
 
-        return gym.spaces.Box(low=state_limit_lower.astype(np.float32),
-                              high=state_limit_upper.astype(np.float32),
-                              dtype=np.float32)
+        return gym.spaces.Box(
+            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -356,9 +347,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                     SENSOR_ACCEL_MAX
 
         return gym.spaces.Dict(OrderedDict(
-            (key, gym.spaces.Box(low=min_val.astype(np.float32),
-                                 high=max_val.astype(np.float32),
-                                 dtype=np.float32))
+            (key, gym.spaces.Box(low=min_val, high=max_val, dtype=np.float64))
             for (key, min_val), max_val in zip(
                 sensor_space_lower.items(), sensor_space_upper.values())))
 
@@ -388,9 +377,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Set the action space
         motors_velocity_idx = self.robot.motors_velocity_idx
         self.action_space = gym.spaces.Box(
-            low=-effort_limit[motors_velocity_idx].astype(np.float32),
-            high=effort_limit[motors_velocity_idx].astype(np.float32),
-            dtype=np.float32)
+            low=-effort_limit[motors_velocity_idx],
+            high=effort_limit[motors_velocity_idx],
+            dtype=np.float64)
 
     def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
         """Reset the simulation and specify the initial state of the robot.
@@ -446,11 +435,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._log_data = None
 
         # Create a new log file
-        if self.debug is not None:
-            if self._log_file is not None:
-                self._log_file.close()
-            self._log_file = tempfile.NamedTemporaryFile(
-                prefix="log_", suffix=".data", delete=(not self.debug))
+        if self.debug:
+            fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
+            os.close(fd)
 
         # Update the observation
         self._state = (qpos, qvel)
@@ -561,8 +548,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         """
         if self.simulator is not None:
             self.simulator.close()
-        if self._log_file is not None:
-            self._log_file.close()
 
     def step(self,
              action: Optional[np.ndarray] = None
@@ -575,11 +560,13 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                   not), and a dictionary of extra information
         """
         # Assertion(s) for type checker
-        assert self.simulator is not None and self.max_steps is not None
+        assert (self.simulator is not None and
+                self.max_steps is not None and
+                isinstance(self._action, np.ndarray))
 
         # Update the action to perform if necessary
         if action is not None:
-            self._action = action
+            self._action[:] = action
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -648,13 +635,25 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
             # Extract log data from the simulation, which could be used
             # for computing terminal reward.
-            self._log_data, _ = self.simulator.get_log()
+            self._log_data, _ = self.get_log()
 
             # Compute the terminal reward, if any
             if self._enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
         return self.get_obs(), reward, done, self._info
+
+    def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
+        """Get log of recorded variable since the beginning of the episode.
+        """
+        # Assertion(s) for type checker
+        assert self.simulator is not None
+
+        if self.simulator.is_simulation_running:
+            return self.simulator.get_log()
+        raise RuntimeError(
+            "No data available. Please perform at least one simulation step "
+            "before calling this method.")
 
     def render(self,
                mode: str = 'human',
@@ -679,7 +678,9 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if mode == 'human':
             return_rgb_array = False
         elif mode == 'rgb_array':
+            # Only Meshcat backend can return rgb array without poping window
             return_rgb_array = True
+            self.simulator.viewer_backend = 'meshcat'
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
         return self.simulator.render(return_rgb_array, **kwargs)
@@ -695,7 +696,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if self._log_data is not None:
             log_data = self._log_data
         else:
-            log_data, _ = self.simulator.get_log()
+            log_data, _ = self.get_log()
         self.simulator._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self.simulator._viewer],
             close_backend=False, verbose=True, **kwargs
@@ -969,7 +970,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  dt: float,
                  debug: bool = False) -> None:
         super().__init__(simulator, dt, debug)
-        print("test")
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker
@@ -984,10 +984,10 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
             observation=self.observation_space,
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float32),
+                dtype=np.float64),
             achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float32))
+                dtype=np.float64))
 
     def fetch_obs(self) -> SpaceDictRecursive:
         obs = OrderedDict()
@@ -997,7 +997,6 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         return obs
 
     def reset(self) -> SpaceDictRecursive:
-        print("reset")
         self._desired_goal = self._sample_goal()
         return super().reset()
 

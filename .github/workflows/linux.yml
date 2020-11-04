@@ -50,6 +50,8 @@ jobs:
     - name: Build project dependencies
       run: |
         ./build_tools/build_install_deps_linux.sh
+        "${PYTHON_EXECUTABLE}" -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        "${PYTHON_EXECUTABLE}" -m pip install numba stable_baselines3
 
         PYTHON_USER_SITELIB="$("${PYTHON_EXECUTABLE}" -m site --user-site)"
         mkdir -p "${PYTHON_USER_SITELIB}"
@@ -81,5 +83,8 @@ jobs:
 
         ./build/unit/unit
 
-        cd unit_py
+        cd "$RootDir/unit_py"
+        "${PYTHON_EXECUTABLE}" -m unittest discover -v
+
+        cd "$RootDir/python/gym_jiminy/unit_py"
         "${PYTHON_EXECUTABLE}" -m unittest discover -v

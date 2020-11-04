@@ -24,13 +24,13 @@ namespace jiminy
     }
 
     template <>
-    void TelemetrySender::updateValue<int32_t>(std::string const & fieldNameIn,
-                                               int32_t     const & value)
+    void TelemetrySender::updateValue<int64_t>(std::string const & fieldNameIn,
+                                               int64_t     const & value)
     {
         auto it = intBufferPosition_.find(fieldNameIn);
         if (intBufferPosition_.end() == it)
         {
-            PRINT_ERROR("Cannot log the variable: it was never registered as an int32_t before! |", fieldNameIn.c_str(), "|")
+            PRINT_ERROR("Cannot log the variable: it was never registered as an int64_t before! |", fieldNameIn.c_str(), "|")
             return;
         }
 
@@ -50,7 +50,7 @@ namespace jiminy
         }
 
         // Write the value directly in the buffer holder using the pointer stored in the map.
-        *(it->second) = static_cast<float32_t>(value);
+        *(it->second) = value;
     }
 
     void TelemetrySender::updateValue(std::vector<std::string>    const & fieldnames,
@@ -63,10 +63,10 @@ namespace jiminy
     }
 
     template<>
-    hresult_t TelemetrySender::registerVariable<int32_t>(std::string const & fieldNameIn,
-                                                         int32_t     const & initialValue)
+    hresult_t TelemetrySender::registerVariable<int64_t>(std::string const & fieldNameIn,
+                                                         int64_t     const & initialValue)
     {
-        int32_t * positionInBuffer = nullptr;
+        int64_t * positionInBuffer = nullptr;
         std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
@@ -83,7 +83,7 @@ namespace jiminy
     hresult_t TelemetrySender::registerVariable<float64_t>(std::string const & fieldNameIn,
                                                            float64_t   const & initialValue)
     {
-        float32_t * positionInBuffer = nullptr;
+        float64_t * positionInBuffer = nullptr;
         std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);

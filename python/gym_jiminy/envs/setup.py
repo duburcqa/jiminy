@@ -1,8 +1,8 @@
+from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = __import__("jiminy_py").__version__
-version_required = ".".join(version.split(".")[:2])
+version = get_distribution('gym_jiminy_common').version
 
 setup(
     name="gym_jiminy_zoo",
@@ -29,9 +29,7 @@ setup(
     package_data={"gym_jiminy.envs": ["data/**/*"]},
     include_package_data=True,
     install_requires=[
-        "gym>=0.16.0",
-        "numba",
-        f"jiminy-py~={version_required}"
+        f"gym_jiminy_common~={version}"
     ],
     zip_safe=False
 )

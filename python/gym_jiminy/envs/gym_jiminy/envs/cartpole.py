@@ -30,61 +30,55 @@ DTHETA_RANDOM_RANGE = 0.05
 
 
 class CartPoleJiminyEnv(BaseJiminyEnv):
-    """
-    @brief      Implementation of a Gym environment for the Cartpole which is
-                using Jiminy Engine to perform physics computations and Meshcat
-                for rendering.
+    """Implementation of a Gym environment for the Cartpole which is using
+    Jiminy Engine to perform physics computations and Meshcat for rendering.
 
-    @remark     It is a specialization of BaseJiminyEnv. The Cartpole is a pole
-                attached by an un-actuated joint to a cart. The goal is to
-                prevent the pendulum from falling over by increasing and
-                reducing the cart's velocity.
+    It is a specialization of BaseJiminyEnv. The Cartpole is a pole attached
+    by an un-actuated joint to a cart. The goal is to prevent the pendulum from
+    falling over by increasing and reducing the cart's velocity.
 
-    @details    **OBSERVATION:**
-                Type: Box(4)
-                Num	Observation              Min         Max
-                0	Cart Position           -4.8         4.8
-                1	Cart Velocity           -Inf         Inf
-                2	Pole Angle              -24 deg      24 deg
-                3	Pole Velocity At Tip    -Inf         Inf
+    **OBSERVATION:**
+    Type: Box(4)
+    Num	Observation              Min         Max
+    0	Cart Position           -4.8         4.8
+    1	Cart Velocity           -Inf         Inf
+    2	Pole Angle              -24 deg      24 deg
+    3	Pole Velocity At Tip    -Inf         Inf
 
-                **ACTIONS:**
-                Type: Discrete(2)
-                Num	Action
-                0	Push cart to the left
-                1	Push cart to the right
+    **ACTIONS:**
+    Type: Discrete(2)
+    Num	Action
+    0	Push cart to the left
+    1	Push cart to the right
 
-                Note that the amount the velocity that is reduced or increased
-                is not fixed, it depends on the angle the pole is pointing.
-                This is because the center of gravity of the pole increases the
-                amount of energy needed to move the cart underneath it.
+    Note that the amount the velocity that is reduced or increased is not
+    fixed, it depends on the angle the pole is pointing. This is because the
+    center of gravity of the pole increases the amount of energy needed to move
+    the cart underneath it.
 
-                **REWARD:**
-                Reward is 1 for every step taken, including the termination
-                step.
+    **REWARD:**
+    Reward is 1 for every step taken, including the termination step.
 
-                **STARTING STATE:**
-                All observations are assigned a uniform random value in range
-                [-0.05, 0.05]
+    **STARTING STATE:**
+    All observations are assigned a uniform random value in range [-0.05, 0.05]
 
-                **EPISODE TERMINATION:**
-                If any of these conditions is satisfied:
-                    - Pole Angle is more than 12 degrees Cart
-                    - Position is more than 2.4
-                    - Episode length is greater than 200
+    **EPISODE TERMINATION:**
+    If any of these conditions is satisfied:
 
-                **SOLVED REQUIREMENTS:**
-                Considered solved when the average reward is greater than or
-                equal to 195.0 over 100 consecutive trials.
+        - Pole Angle is more than 12 degrees Cart
+        - Position is more than 2.4
+        - Episode length is greater than 200
+
+    **SOLVED REQUIREMENTS:**
+    Considered solved when the average reward is greater than or equal to 195.0
+    over 100 consecutive trials.
     """
     def __init__(self, continuous: bool = False):
         """
-        @brief      Constructor
-
-        @param[in]  continuous   Whether or not the action space is continuous.
-                                 If not continuous, the action space has only 3
-                                 states, i.e. low, zero, and high.
-                                 Optional: True by default.
+        :param continuous: Whether or not the action space is continuous. If
+                           not continuous, the action space has only 3 states,
+                           i.e. low, zero, and high.
+                           Optional: True by default.
         """
         # Backup some input arguments
         self.continuous = continuous
@@ -139,16 +133,16 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         self.robot.set_options(robot_options)
 
     def _refresh_observation_space(self) -> None:
-        """
-        @brief Configure the observation of the environment.
+        """Configure the observation of the environment.
 
-        @details Implement the official Gym cartpole-v1 action space. Only the
-                 state is observable, while by default, the current time,
-                 state, and sensors data are available.See documentation
-                 https://gym.openai.com/envs/CartPole-v1/.
+        Implement the official Gym cartpole-v1 action space. Only the state is
+        observable, while by default, the current time, state, and sensors data
+        are available.
 
-        @remark The Angle limit set to 2 times the failure thresholds, so that
-                observations of failure are still within bounds.
+        The Angle limit set to 2 times the failure thresholds, so that
+        observations of failure are still within bounds.
+
+        See documentation: https://gym.openai.com/envs/CartPole-v1/.
         """
         # Compute observation bounds
         high = np.array([2.0 * X_THRESHOLD,

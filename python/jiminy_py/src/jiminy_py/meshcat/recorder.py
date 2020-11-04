@@ -30,13 +30,20 @@ if is_notebook() == 2:
         logging.warning(
             "Chrome must be installed manually on Google Colab. It must be "
             "done using '!apt install chromium-chromedriver'.")
-else:
+elif not sys.platform.startswith('win'):
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+else:
+    if "WindowsApps" in sys.executable:
+        logging.warning(
+            "Python installed from Microsoft Store is not compatible with "
+            "pyppeteer auto-install backend chromium procedure. Please "
+            "re-install Python manually to be able to use Meshcat recorder.")
 
 
+from pyppeteer.errors import NetworkError
 from pyppeteer.connection import Connection
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
@@ -70,8 +77,8 @@ async def launch(self) -> Browser:
         "--proxy-server='direct://'",
         "--proxy-bypass-list=*"]
     if not self.dumpio:
-        options['stdout'] = subprocess.PIPE
-        options['stderr'] = subprocess.STDOUT
+        options['stdout'] = subprocess.DEVNULL
+        options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
         startupflags = subprocess.DETACHED_PROCESS | \
             subprocess.CREATE_NEW_PROCESS_GROUP
@@ -100,9 +107,8 @@ Launcher.launch = launch  # noqa
 async def capture_frame_async(client: HTMLResponse,
                               width: int,
                               height: int) -> Awaitable[Any]:
-    """
-    @brief    Send a javascript command to the hidden browser to
-              capture frame, then wait for it (since it is async).
+    """Send a javascript command to the hidden browser to capture frame, then
+    wait for it (since it is async).
     """
     _width = client.html.page.viewport['width']
     _height = client.html.page.viewport['height']
@@ -196,41 +202,40 @@ def meshcat_recorder(meshcat_url: str,
     loop.run_until_complete(stop_animate_async(client))
 
     # Infinite loop, waiting for requests
-    with open(os.devnull, 'w') as f:
-        with redirect_stderr(f):
-            try:
-                while request_shm.value != "quit":
-                    request = request_shm.value
-                    if request != "":
-                        args = map(str.strip, message_shm.value.split("|"))
-                        if request == "take_snapshot":
-                            width, height = map(int, args)
-                            coro = capture_frame_async(client, width, height)
-                        elif request == "start_record":
-                            fps, width, height = map(int, args)
-                            coro = start_video_recording_async(
-                                client, fps, width, height)
-                        elif request == "add_frame":
-                            coro = add_video_frame_async(client)
-                        elif request == "stop_and_save_record":
-                            (path,) = args
-                            coro = stop_and_save_video_async(client, path)
-                        else:
-                            continue
-                        try:
-                            output = loop.run_until_complete(coro)
-                            if output is not None:
-                                message_shm.value = output
-                            else:
-                                message_shm.value = ""
-                        except Exception as e:
-                            message_shm.value = str(e)
-                            request_shm.value = "quit"
-                        else:
-                            request_shm.value = ""
-            except ConnectionError:
-                pass
-    session.close()
+    try:
+        while request_shm.value != "quit":
+            request = request_shm.value
+            if request != "":
+                args = map(str.strip, message_shm.value.split("|"))
+                if request == "take_snapshot":
+                    width, height = map(int, args)
+                    coro = capture_frame_async(client, width, height)
+                elif request == "start_record":
+                    fps, width, height = map(int, args)
+                    coro = start_video_recording_async(
+                        client, fps, width, height)
+                elif request == "add_frame":
+                    coro = add_video_frame_async(client)
+                elif request == "stop_and_save_record":
+                    (path,) = args
+                    coro = stop_and_save_video_async(client, path)
+                else:
+                    continue
+                try:
+                    output = loop.run_until_complete(coro)
+                    if output is not None:
+                        message_shm.value = output
+                    else:
+                        message_shm.value = ""
+                except Exception as e:
+                    message_shm.value = str(e)
+                    request_shm.value = "quit"
+                else:
+                    request_shm.value = ""
+    except (ConnectionError, NetworkError):
+        pass
+    with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
+        session.close()
     try:
         message_shm.value = ""
         request_shm.value = ""
@@ -240,11 +245,14 @@ def meshcat_recorder(meshcat_url: str,
 
 # ============ Meshcat recorder client ============
 
+def manager_process_startup():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 class MeshcatRecorder:
-    """
-    @brief Run meshcat server in background using multiprocessing Process to
-           enable parallel asyncio loop execution, which is necessary to
-           support recording in Jupyter notebook.
+    """Run meshcat server in background using multiprocessing Process to enable
+    parallel asyncio loop execution, which is necessary to support recording in
+    Jupyter notebook.
     """
     def __init__(self, url: str):
         self.is_open = False
@@ -257,8 +265,7 @@ class MeshcatRecorder:
 
     def open(self) -> None:
         self.__manager = multiprocessing.managers.SyncManager()
-        self.__manager.start(
-            lambda: signal.signal(signal.SIGINT, signal.SIG_IGN))
+        self.__manager.start(manager_process_startup)
 
         self.__shm = {
             'request': self.__manager.Value(c_char_p, ""),

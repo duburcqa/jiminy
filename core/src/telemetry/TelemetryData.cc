@@ -59,15 +59,15 @@ namespace jiminy
     }
 
     template<>
-    hresult_t TelemetryData::registerVariable<int32_t>(std::string const   & variableName,
-                                                       int32_t           * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<int64_t>(std::string const   & variableName,
+                                                       int64_t           * & positionInBufferOut)
     {
         return internalRegisterVariable(integersHeader_, variableName, positionInBufferOut);
     }
 
     template<>
-    hresult_t TelemetryData::registerVariable<float32_t>(std::string const   & variableName,
-                                                         float32_t         * & positionInBufferOut)
+    hresult_t TelemetryData::registerVariable<float64_t>(std::string const   & variableName,
+                                                         float64_t         * & positionInBufferOut)
     {
         return internalRegisterVariable(floatsHeader_, variableName, positionInBufferOut);
     }
@@ -150,19 +150,19 @@ namespace jiminy
         // Record constants.
         header.insert(header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
         header.push_back('\0');
-        char_t const* startConstants = reinterpret_cast<char_t*>(constantsHeader_) + constantsHeader_->startNameSection;
-        char_t const* stopConstants = reinterpret_cast<char_t*>(constantsHeader_) + constantsHeader_->nextFreeNameOffset;
+        char_t const * startConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->startNameSection;
+        char_t const * stopConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startConstants, stopConstants);
 
         // Record entries numbers.
         std::string entriesNumbers;
         entriesNumbers += NUM_INTS;
         entriesNumbers += std::to_string((integersHeader_->nextFreeDataOffset - integersHeader_->startDataSection) /
-                                         static_cast<int64_t>(sizeof(int32_t)) + 1); // +1 because we add Global.Time
+                                         static_cast<int64_t>(sizeof(int64_t)) + 1); // +1 because we add Global.Time
         entriesNumbers += '\0';
         entriesNumbers += NUM_FLOATS;
         entriesNumbers += std::to_string((floatsHeader_->nextFreeDataOffset - floatsHeader_->startDataSection) /
-                                         static_cast<int64_t>(sizeof(float32_t)));
+                                         static_cast<int64_t>(sizeof(float64_t)));
         entriesNumbers += '\0';
         header.insert(header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
 
@@ -173,12 +173,12 @@ namespace jiminy
         header.insert(header.end(), GLOBAL_TIME.data(), GLOBAL_TIME.data() + GLOBAL_TIME.size());
         header.push_back('\0');
 
-        char_t const* startIntegersHeader = reinterpret_cast<char_t*>(integersHeader_) + integersHeader_->startNameSection;
-        char_t const* stopIntegersHeader  = reinterpret_cast<char_t*>(integersHeader_) + integersHeader_->nextFreeNameOffset;
+        char_t const * startIntegersHeader = reinterpret_cast<char_t *>(integersHeader_) + integersHeader_->startNameSection;
+        char_t const * stopIntegersHeader  = reinterpret_cast<char_t *>(integersHeader_) + integersHeader_->nextFreeNameOffset;
         header.insert(header.end(), startIntegersHeader, stopIntegersHeader);
 
-        char_t const* startFloatsHeader = reinterpret_cast<char_t*>(floatsHeader_) + floatsHeader_->startNameSection;
-        char_t const* stopFloatsHeader  = reinterpret_cast<char_t*>(floatsHeader_) + floatsHeader_->nextFreeNameOffset;
+        char_t const * startFloatsHeader = reinterpret_cast<char_t *>(floatsHeader_) + floatsHeader_->startNameSection;
+        char_t const * stopFloatsHeader  = reinterpret_cast<char_t *>(floatsHeader_) + floatsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startFloatsHeader, stopFloatsHeader);
 
         // Start data section.
