@@ -35,6 +35,12 @@ elif not sys.platform.startswith('win'):
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
     os.environ['PYPPETEER_CHROMIUM_REVISION'] = '801225'
+else:
+    if "WindowsApps" in sys.executable:
+        logging.warning(
+            "Python installed from Microsoft Store is not compatible with "
+            "pyppeteer auto-install backend chromium procedure. Please "
+            "re-install Python manually to be able to use Meshcat recorder.")
 
 
 from pyppeteer.errors import NetworkError
