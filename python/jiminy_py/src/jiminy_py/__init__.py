@@ -23,14 +23,14 @@ with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
         from . import pinocchio as _pinocchio
         _sys.modules["pinocchio"] = _pinocchio
 
+        # Mock 'StdVec_StdString' converter for Windows
+        if _os.name == 'nt':
+            _pinocchio.StdVec_StdString = list
+            _pinocchio.pinocchio_pywrap.StdVec_StdString = list
+
     # Preload rpy module to avoid boost python warnings at import
     from pinocchio.pinocchio_pywrap import rpy as _rpy
     _sys.modules["pinocchio.pinocchio_pywrap.rpy"] = _rpy
-
-    # Mock 'StdVec_StdString' converter, if deleted (aka Windows)
-    if not hasattr(_pinocchio, "StdVec_StdString"):
-        _pinocchio.StdVec_StdString = list
-        _pinocchio.pinocchio_pywrap.StdVec_StdString = list
 
     # Import core submodule once every dependency has been preloaded
     from . import core
