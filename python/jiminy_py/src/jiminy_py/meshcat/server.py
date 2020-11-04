@@ -216,7 +216,7 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     if not verbose:
         sys.stdout = open(os.devnull, 'w')
         sys.stderr = open(os.devnull, 'w')
-    
+
     # See https://bugs.python.org/issue37373 :(
     if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and
             sys.platform.startswith('win')):
