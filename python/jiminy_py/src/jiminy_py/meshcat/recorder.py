@@ -30,7 +30,7 @@ if is_notebook() == 2:
         logging.warning(
             "Chrome must be installed manually on Google Colab. It must be "
             "done using '!apt install chromium-chromedriver'.")
-else:
+elif not sys.platform.startswith('win'):
     # Must use a recent release that supports webgl rendering with hardware
     # acceleration. It speeds up rendering at least by a factor 5 using on
     # a midrange dedicated GPU.
