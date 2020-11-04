@@ -80,8 +80,8 @@ jobs:
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        Copy-Item -Path "$InstallDir/lib/site-packages/*" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
+        Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 
