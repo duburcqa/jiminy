@@ -22,7 +22,7 @@ else:
     from . import pinocchio as _pinocchio
     _sys.modules["pinocchio"] = _pinocchio
 
-# Register pinocchio_pywrap to avoid importing bindings twise, which messes 
+# Register pinocchio_pywrap to avoid importing bindings twise, which messes
 # up with boost python converters.
 _sys.modules["pinocchio.pinocchio_pywrap"] = _pinocchio.pinocchio_pywrap
 
