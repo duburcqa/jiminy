@@ -681,9 +681,14 @@ class Viewer:
             meshcat_candidate_conn = []
             for conn in psutil.net_connections("tcp4"):
                 if conn.status == 'LISTEN' and conn.laddr.ip == '127.0.0.1':
-                    cmdline = psutil.Process(conn.pid).cmdline()
-                    if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
-                        meshcat_candidate_conn.append(conn)
+                    try:
+                        cmdline = psutil.Process(conn.pid).cmdline()
+                        if not cmdline:
+                            continue
+                        if 'python' in cmdline[0] or 'meshcat' in cmdline[-1]:
+                            meshcat_candidate_conn.append(conn)
+                    except psutil.AccessDenied:
+                        pass
 
             # Exclude ipython kernel ports from the look up because sending a
             # message on ipython ports will throw a low-level exception, that

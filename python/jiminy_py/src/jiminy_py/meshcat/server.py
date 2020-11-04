@@ -1,4 +1,5 @@
 import os
+import sys
 import psutil
 import signal
 import asyncio
@@ -211,6 +212,12 @@ def meshcat_server(info: Dict[str, str]) -> None:
     """Meshcat server deamon, using in/out argument to get the zmq url instead
     of reading stdout as it was.
     """
+    # See https://bugs.python.org/issue37373 :(
+    if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and 
+        sys.platform.startswith('win')):
+        asyncio.set_event_loop_policy(
+            asyncio.WindowsSelectorEventLoopPolicy())
+            
     # Do not catch signal interrupt automatically, to avoid
     # killing meshcat server and stopping Jupyter notebook cell.
     signal.signal(signal.SIGINT, signal.SIG_IGN)

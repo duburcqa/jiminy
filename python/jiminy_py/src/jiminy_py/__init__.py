@@ -25,6 +25,8 @@ else:
 # Register pinocchio_pywrap to avoid importing bindings twise, which messes
 # up with boost python converters.
 _sys.modules["pinocchio.pinocchio_pywrap"] = _pinocchio.pinocchio_pywrap
+_sys.modules["pinocchio.pinocchio_pywrap.rpy"] = _pinocchio.pinocchio_pywrap.rpy
+_sys.modules["pinocchio.pinocchio_pywrap.cholesky"] = _pinocchio.pinocchio_pywrap.cholesky
 
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
     # Import core submodule once every dependency has been preloaded
