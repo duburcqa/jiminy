@@ -253,10 +253,11 @@ class MeshcatWrapper:
         must_launch_server = zmq_url is None
         self.server_proc = None
         if must_launch_server:
-            self.server_proc, zmq_url, _, comm_url = start_meshcat_server()
+            self.server_proc, zmq_url, _, comm_url = start_meshcat_server(
+                verbose=False)
 
         # Connect to the meshcat server
-        with redirect_stdout(None):
+        with open(os.devnull, 'w') as stdout, redirect_stdout(stdout):
             self.gui = meshcat.Visualizer(zmq_url)
         self.__zmq_socket = self.gui.window.zmq_socket
 

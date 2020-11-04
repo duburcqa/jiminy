@@ -21,7 +21,6 @@ from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
-from contextlib import redirect_stderr, redirect_stdout
 from typing import Optional, Union, List, Tuple, Dict, Any
 
 import zmq
@@ -727,9 +726,7 @@ class Viewer:
                     break
 
             # Create a meshcat server if needed and connect to it
-            with redirect_stdout(None):
-                with redirect_stderr(None):
-                    client = MeshcatWrapper(zmq_url)
+            client = MeshcatWrapper(zmq_url)
             if client.server_proc is None:
                 proc = psutil.Process(conn.pid)
             else:

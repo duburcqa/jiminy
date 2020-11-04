@@ -7,6 +7,7 @@ import umsgpack
 import tornado.web
 import tornado.ioloop
 import multiprocessing
+from contextlib import redirect_stderr, redirect_stdout
 from typing import Optional, Tuple, List, Dict
 
 import zmq
@@ -208,10 +209,15 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
 
 # ======================================================
 
-def meshcat_server(info: Dict[str, str]) -> None:
+def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
     """Meshcat server deamon, using in/out argument to get the zmq url instead
     of reading stdout as it was.
     """
+    # Redirect both stdout and stderr to devnull if not verbose
+    if not verbose:
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+    
     # See https://bugs.python.org/issue37373 :(
     if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and
             sys.platform.startswith('win')):
@@ -233,13 +239,14 @@ def meshcat_server(info: Dict[str, str]) -> None:
     bridge.run()
 
 
-def start_meshcat_server() -> Tuple[multiprocessing.Process, str, str, str]:
+def start_meshcat_server(verbose: bool = False
+                        ) -> Tuple[multiprocessing.Process, str, str, str]:
     """Run meshcat server in background using multiprocessing Process.
     """
     manager = multiprocessing.Manager()
     info = manager.dict()
     server = multiprocessing.Process(
-        target=meshcat_server, args=(info,), daemon=True)
+        target=_meshcat_server, args=(info, verbose), daemon=True)
     server.start()
 
     # Wait for the process to finish initialization
@@ -257,7 +264,7 @@ def start_meshcat_server_standalone() -> None:
     argparse.ArgumentParser(description=(
         "Serve the Jiminy MeshCat HTML files and listen for ZeroMQ commands"))
 
-    server, zmq_url, web_url, comm_url = start_meshcat_server()
+    server, zmq_url, web_url, comm_url = start_meshcat_server(True)
     print(zmq_url)
     print(web_url)
     print(comm_url)
