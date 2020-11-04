@@ -31,54 +31,82 @@ if (Test-Path Env:/Boost_ROOT) {
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-#   Boost numeric odeint < 1.71 does not support eigen3 > 3.2,
-#   and eigen < 3.3 build fails on windows because of a cmake error
 #   Note that Boost 1.72 is not yet officially supported by Cmake 3.16, which is the "default" version used on Windows 10.
-git clone -b "boost-1.71.0" https://github.com/boostorg/boost.git "$RootDir/boost"
+if (-not (Test-Path -PathType Container "$RootDir/boost")) {
+  git clone https://github.com/boostorg/boost.git "$RootDir/boost"
+}
 Set-Location -Path "$RootDir/boost"
+git checkout --force "boost-1.71.0"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
 ### Checkout eigen3
-git clone -b "3.3.7" https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
+if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
+  git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
+}
+git checkout --force "3.3.7"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-git clone -b "v2.5.0" https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
+  git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
+}
 Set-Location -Path "$RootDir/eigenpy"
+git checkout --force "v2.5.0"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
-git clone -b "master" https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
+if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
+  git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
+}
+git checkout --force "master"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
-git clone -b "0.4.4" https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
+  git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
+}
+git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
-git clone -b "1.0.5" https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
+  git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
+}
+git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
-git clone -b "1.0.4" https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
+  git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
+}
 Set-Location -Path "$RootDir/urdfdom"
+git checkout --force "1.0.4"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
 ### Checkout assimp
-git clone -b "v5.0.1" https://github.com/assimp/assimp.git "$RootDir/assimp"
+if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
+  git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
+}
 Set-Location -Path "$RootDir/assimp"
+git checkout --force "v5.0.1"
 dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"  # Fix encoding, just in case
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 
 ### Checkout hpp-fcl
-git clone -b "v1.5.4" https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
+  git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
+}
 Set-Location -Path "$RootDir/hpp-fcl"
+git checkout --force "v1.5.4"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
-git checkout v8.0.2
+git checkout --force "v8.0.2"
 
 ### Checkout pinocchio and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-git clone -b "v2.5.0" https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
+  git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
+}
 Set-Location -Path "$RootDir/pinocchio"
+git checkout --force "v2.5.0"
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 
