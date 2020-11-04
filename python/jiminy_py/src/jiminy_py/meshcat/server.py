@@ -7,7 +7,6 @@ import umsgpack
 import tornado.web
 import tornado.ioloop
 import multiprocessing
-from contextlib import redirect_stderr, redirect_stdout
 from typing import Optional, Tuple, List, Dict
 
 import zmq
@@ -240,7 +239,7 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
 
 
 def start_meshcat_server(verbose: bool = False
-                        ) -> Tuple[multiprocessing.Process, str, str, str]:
+                         ) -> Tuple[multiprocessing.Process, str, str, str]:
     """Run meshcat server in background using multiprocessing Process.
     """
     manager = multiprocessing.Manager()
