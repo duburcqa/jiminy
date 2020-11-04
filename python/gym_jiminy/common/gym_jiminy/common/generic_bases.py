@@ -53,6 +53,9 @@ class ControlInterface:
 
         u_command[:] = self.compute_command(self._action)
 
+    # methods to override:
+    # ----------------------------
+
     def _refresh_action_space(self) -> None:
         """Configure the action space.
         """

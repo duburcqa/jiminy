@@ -24,7 +24,7 @@ namespace jiminy
     extern std::string const FLEXIBLE_JOINT_SUFFIX;
 
     extern std::string const TELEMETRY_DELIMITER;
-    extern int64_t const TELEMETRY_MAX_BUFFER_SIZE;
+    extern int64_t const TELEMETRY_MIN_BUFFER_SIZE;
     extern float64_t const TELEMETRY_DEFAULT_TIME_UNIT;
 
     extern uint8_t const DELAY_MIN_BUFFER_RESERVE; ///< Minimum memory allocation is memory is full and the older data stored is dated less than the desired delay

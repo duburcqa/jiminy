@@ -68,9 +68,9 @@ class PDController(BaseControllerBlock):
         # Set the action space. Note that it is flattened.
         self.action_space = gym.spaces.Dict([
             (encoder.fieldnames[0], gym.spaces.Box(
-                low=pos_low, high=pos_high, dtype=np.float32)),
+                low=pos_low, high=pos_high, dtype=np.float64)),
             (encoder.fieldnames[1], gym.spaces.Box(
-                low=vel_low, high=vel_high, dtype=np.float32))])
+                low=vel_low, high=vel_high, dtype=np.float64))])
 
     def _setup(self) -> None:
         """Configure the controller.

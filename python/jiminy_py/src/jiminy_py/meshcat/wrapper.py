@@ -1,3 +1,4 @@
+import os
 import atexit
 import asyncio
 import logging
@@ -49,15 +50,14 @@ if is_notebook():
             "if possible to avoid such limitation.")
 
     class CommProcessor:
-        """
-        @brief Re-implementation of ipykernel.kernelbase.do_one_iteration to
-               only handle comm messages on the spot, and put back in the
-               stack the other ones.
+        """Re-implementation of ipykernel.kernelbase.do_one_iteration to only
+        handle comm messages on the spot, and put back in the stack the other
+        ones.
 
-        @details Calling 'do_one_iteration' messes up with kernel `msg_queue`.
-                 Some messages will be processed too soon, which is likely to
-                 corrupt the kernel state. This method only processes comm
-                 messages to avoid such side effects.
+        Calling 'do_one_iteration' messes up with kernel `msg_queue`. Some
+        messages will be processed too soon, which is likely to corrupt the
+        kernel state. This method only processes comm messages to avoid such
+        side effects.
         """
 
         def __init__(self):
@@ -74,11 +74,10 @@ if is_notebook():
             self.qsize_old = 0
 
         def __call__(self, unsafe: bool = False) -> None:
-            """
-            @brief Check once if there is pending comm related event in the
-                   shell stream message priority queue.
+            """Check once if there is pending comm related event in the shell
+            stream message priority queue.
 
-            @param unsafe  Whether or not to assume check if the number of
+            :param unsafe: Whether or not to assume check if the number of
                            pending message has changed is enough. It makes the
                            evaluation much faster but flawed.
             """
@@ -255,10 +254,11 @@ class MeshcatWrapper:
         must_launch_server = zmq_url is None
         self.server_proc = None
         if must_launch_server:
-            self.server_proc, zmq_url, _, comm_url = start_meshcat_server()
+            self.server_proc, zmq_url, _, comm_url = start_meshcat_server(
+                verbose=False)
 
         # Connect to the meshcat server
-        with redirect_stdout(None):
+        with open(os.devnull, 'w') as stdout, redirect_stdout(stdout):
             self.gui = meshcat.Visualizer(zmq_url)
         self.__zmq_socket = self.gui.window.zmq_socket
 

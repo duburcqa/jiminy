@@ -20,7 +20,7 @@ namespace jiminy
     class FileDevice : public AbstractIODevice
     {
     public:
-        FileDevice(std::string const& filename);
+        FileDevice(std::string const & filename);
         virtual ~FileDevice(void);
 
         int64_t size(void) override;
@@ -34,7 +34,7 @@ namespace jiminy
         int64_t writeData(void    const * data,
                           int64_t         dataSize) override;
 
-        std::string const& name(void) const;
+        std::string const & name(void) const;
 
     protected:
         hresult_t doOpen(enum OpenMode mode) override;

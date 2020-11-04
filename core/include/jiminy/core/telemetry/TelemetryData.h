@@ -17,7 +17,7 @@
 
 namespace jiminy
 {
-    int32_t     const TELEMETRY_VERSION = 1;             ///< Version of the telemetry format.
+    int32_t     const TELEMETRY_VERSION = 2;             ///< Version of the telemetry format.
     std::string const NUM_INTS("NumIntEntries=");        ///< Number of integers in the data section.
     std::string const NUM_FLOATS("NumFloatEntries=");    ///< Number of floats in the data section.
     std::string const GLOBAL_TIME("Global.Time");        ///< Special column
@@ -138,7 +138,7 @@ namespace jiminy
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Register a new variable in for telemetry.
-        /// \warning The only supported types are int32_t and float32_t.
+        /// \warning The only supported types are int64_t and float64_t.
         ///
         /// \param[in]  variableNameIn       Name of the variable to register.
         /// \param[out] positionInBufferOut  Pointer on the allocated buffer that will hold the variable.

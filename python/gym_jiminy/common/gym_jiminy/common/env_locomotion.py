@@ -341,7 +341,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         return gym.spaces.Box(
             low=0.0, high=self.simu_duration_max, shape=(1,),
-            dtype=np.float32)
+            dtype=np.float64)
 
     def _force_external_profile(self,
                                 t: float,

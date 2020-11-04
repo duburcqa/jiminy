@@ -62,8 +62,8 @@ namespace jiminy
         hresult_t writeDataBinary(std::string const & filename);
         static void getData(std::vector<std::string>                   & header,
                             std::vector<float64_t>                     & timestamps,
-                            std::vector<std::vector<int32_t> >         & intData,
-                            std::vector<std::vector<float32_t> >       & floatData,
+                            std::vector<std::vector<int64_t> >         & intData,
+                            std::vector<std::vector<float64_t> >       & floatData,
                             std::vector<AbstractIODevice *>            & flows,
                             int64_t                              const & integerSectionSize,
                             int64_t                              const & floatSectionSize,
@@ -71,8 +71,8 @@ namespace jiminy
                             int64_t                                      recordedBytesDataLine = -1);
         void getData(std::vector<std::string>             & header,
                      std::vector<float64_t>               & timestamps,
-                     std::vector<std::vector<int32_t> >   & intData,
-                     std::vector<std::vector<float32_t> > & floatData);
+                     std::vector<std::vector<int64_t> >   & intData,
+                     std::vector<std::vector<float64_t> > & floatData);
     private:
         ////////////////////////////////////////////////////////////////////////
         /// \brief   Create a new file to continue the recording.

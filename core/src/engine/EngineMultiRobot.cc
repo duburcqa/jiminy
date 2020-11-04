@@ -2354,8 +2354,8 @@ namespace jiminy
     // ===================================================================
 
     void logDataRawToEigenMatrix(std::vector<float64_t>               const & timestamps,
-                                 std::vector<std::vector<int32_t> >   const & intData,
-                                 std::vector<std::vector<float32_t> > const & floatData,
+                                 std::vector<std::vector<int64_t> >   const & intData,
+                                 std::vector<std::vector<float64_t> > const & floatData,
                                  matrixN_t                                  & logData)
     {
         // Never empty since it contains at least the initial state
@@ -2365,21 +2365,21 @@ namespace jiminy
         for (uint32_t i=0; i<intData.size(); ++i)
         {
             logData.block(i, 1, 1, intData[i].size()) =
-                Eigen::Matrix<int32_t, 1, Eigen::Dynamic>::Map(
+                Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     intData[i].data(), intData[i].size()).cast<float64_t>();
         }
         for (uint32_t i=0; i<floatData.size(); ++i)
         {
             logData.block(i, 1 + intData[0].size(), 1, floatData[i].size()) =
-                Eigen::Matrix<float32_t, 1, Eigen::Dynamic>::Map(
-                    floatData[i].data(), floatData[i].size()).cast<float64_t>();
+                Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
+                    floatData[i].data(), floatData[i].size());
         }
     }
 
     void EngineMultiRobot::getLogDataRaw(std::vector<std::string>             & header,
                                          std::vector<float64_t>               & timestamps,
-                                         std::vector<std::vector<int32_t> >   & intData,
-                                         std::vector<std::vector<float32_t> > & floatData)
+                                         std::vector<std::vector<int64_t> >   & intData,
+                                         std::vector<std::vector<float64_t> > & floatData)
     {
         telemetryRecorder_->getData(header, timestamps, intData, floatData);
     }
@@ -2388,8 +2388,8 @@ namespace jiminy
                                       matrixN_t                & logData)
     {
         std::vector<float64_t> timestamps;
-        std::vector<std::vector<int32_t> > intData;
-        std::vector<std::vector<float32_t> > floatData;
+        std::vector<std::vector<int64_t> > intData;
+        std::vector<std::vector<float64_t> > floatData;
         getLogDataRaw(header, timestamps, intData, floatData);
         if (!intData.empty())
         {
@@ -2448,8 +2448,8 @@ namespace jiminy
     hresult_t EngineMultiRobot::parseLogBinaryRaw(std::string                          const & filename,
                                                   std::vector<std::string>                   & header,
                                                   std::vector<float64_t>                     & timestamps,
-                                                  std::vector<std::vector<int32_t> >         & intData,
-                                                  std::vector<std::vector<float32_t> >       & floatData)
+                                                  std::vector<std::vector<int64_t> >         & intData,
+                                                  std::vector<std::vector<float64_t> >       & floatData)
     {
         int64_t integerSectionSize;
         int64_t floatSectionSize;
@@ -2462,7 +2462,7 @@ namespace jiminy
         if (myFile.is_open())
         {
             // Skip the version flag
-            int64_t header_version_length = sizeof(int32_t);
+            int32_t header_version_length = sizeof(int32_t);
             myFile.seekg(header_version_length);
 
             std::vector<std::string> headerBuffer;
@@ -2498,8 +2498,8 @@ namespace jiminy
             int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
 
             // Deduce the parameters required to parse the whole binary log file
-            integerSectionSize = (NumIntEntries - 1) * sizeof(int32_t); // Remove Global.Time
-            floatSectionSize = NumFloatEntries * sizeof(float32_t);
+            integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t); // Remove Global.Time
+            floatSectionSize = NumFloatEntries * sizeof(float64_t);
             headerSize = ((int32_t) myFile.tellg()) - START_LINE_TOKEN.size() - 1;
 
             // Close the file
@@ -2534,8 +2534,8 @@ namespace jiminy
                                                matrixN_t                      & logData)
     {
         std::vector<float64_t> timestamps;
-        std::vector<std::vector<int32_t> > intData;
-        std::vector<std::vector<float32_t> > floatData;
+        std::vector<std::vector<int64_t> > intData;
+        std::vector<std::vector<float64_t> > floatData;
         hresult_t returnCode = parseLogBinaryRaw(
             filename, header, timestamps, intData, floatData);
         if (returnCode == hresult_t::SUCCESS)

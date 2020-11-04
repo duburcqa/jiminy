@@ -13,6 +13,8 @@
 
 using namespace jiminy;
 
+float64_t const TOLERANCE = 1e-9;
+
 
 // Controller sending zero torque to the motors.
 void controllerZeroTorque(float64_t                   const & t,
@@ -89,8 +91,8 @@ TEST(EngineSanity, EnergyConservation)
 
     // Configure engine: High accuracy + Continuous-time integration
     configHolder_t simuOptions = engine->getDefaultEngineOptions();
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-10;
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-10;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-11;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-11;
     engine->setOptions(simuOptions);
 
     // Run simulation
@@ -111,7 +113,7 @@ TEST(EngineSanity, EnergyConservation)
 
     // Check that energy is constant
     float64_t const deltaEnergyCont = energyCont.maxCoeff() - energyCont.minCoeff();
-    ASSERT_NEAR(0.0, deltaEnergyCont, std::numeric_limits<float64_t>::epsilon());
+    ASSERT_NEAR(0.0, deltaEnergyCont, TOLERANCE);
 
     // Configure engine: Default accuracy + Discrete-time simulation
     simuOptions = engine->getDefaultEngineOptions();
@@ -129,7 +131,7 @@ TEST(EngineSanity, EnergyConservation)
 
     // Check that energy is constant
     float64_t const deltaEnergyDisc = energyDisc.maxCoeff() - energyDisc.minCoeff();
-    ASSERT_NEAR(0.0, deltaEnergyDisc, std::numeric_limits<float64_t>::epsilon());
+    ASSERT_NEAR(0.0, deltaEnergyDisc, TOLERANCE);
 
     // Don't try simulation with Euler integrator, this scheme is not precise enough to keep energy constant.
 }

@@ -63,10 +63,11 @@ namespace jiminy
             }
             return returnCode;
         }
-        catch (std::exception& e)
+        catch (std::exception const & e)
         {
             isInitialized_ = false;
-            PRINT_ERROR("Something is wrong, probably because of 'commandFct'.")
+            PRINT_ERROR("Something is wrong, probably because of 'commandFct'.\n"
+                        "Raised from exception: ", e.what())
             return hresult_t::ERROR_GENERIC;
         }
     }

@@ -132,13 +132,13 @@ def update_quantities(robot: jiminy.Robot,
 
         if update_energy:
             if velocity is not None:
-                pin.kineticEnergy(
-                    pnc_model, pnc_data, position, velocity, False)
-            pin.potentialEnergy(pnc_model, pnc_data, position, False)
+                pin.computeKineticEnergy(pnc_model, pnc_data)
+            pin.computePotentialEnergy(pnc_model, pnc_data)
 
     pin.updateFramePlacements(pnc_model, pnc_data)
     pin.updateGeometryPlacements(
         pnc_model, pnc_data, robot.collision_model, robot.collision_data)
+
     pin.computeCollisions(
         robot.collision_model, robot.collision_data,
         stop_at_first_collision=False)
@@ -494,7 +494,7 @@ def compute_freeflyer_state_from_fixed_body(
         else:
             w_M_ground = pin.SE3.Identity()
         w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
-    position[:7] = pin.se3ToXYZQUAT(w_M_ff)
+    position[:7] = pin.SE3ToXYZQUAT(w_M_ff)
 
     if fixed_body_name is None:
         if velocity is not None:
@@ -604,7 +604,7 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
 
             # Add the appropriate offset to the freeflyer
             w_M_ff = w_M_ff_offset * w_M_ff
-            s.q[:7] = pin.se3ToXYZQUAT(w_M_ff)
+            s.q[:7] = pin.SE3ToXYZQUAT(w_M_ff)
 
 
 def compute_efforts(trajectory_data: Dict[str, Any]) -> None:

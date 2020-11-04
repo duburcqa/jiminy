@@ -43,6 +43,8 @@ jobs:
     - name: Build project dependencies
       run: |
         & "./build_tools/build_install_deps_windows.ps1"
+        pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install numba stable_baselines3
 
     #####################################################################################
 
@@ -78,18 +80,10 @@ jobs:
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        Copy-Item -Path "$InstallDir/lib/site-packages/*" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py" -Recurse
+        Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
+                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
 
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
-
-    #####################################################################################
-
-    - name: Running unit tests
-      run: |
-        & "./build/unit\${Env:BUILD_TYPE}/unit.exe"
-        Set-Location -Path "./unit_py"
-        python -m unittest discover -v
 
     #####################################################################################
 
@@ -105,6 +99,20 @@ jobs:
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
         path: ./build/pypi/jiminy_py/dist
+
+    #####################################################################################
+
+    - name: Running unit tests
+      run: |
+        $RootDir = "${Env:GITHUB_WORKSPACE}" -replace '\\', '/'
+
+        & "$RootDir/build/unit\${Env:BUILD_TYPE}/unit.exe"
+
+        Set-Location -Path "$RootDir/unit_py"
+        python -m unittest discover -v
+
+        Set-Location -Path "$RootDir/python/gym_jiminy/unit_py"
+        python -m unittest discover -v
 
 #########################################################################################
 

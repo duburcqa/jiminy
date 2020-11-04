@@ -44,7 +44,7 @@ namespace jiminy
         return returnCode;
     }
 
-    Json::Value& JsonLoader::getRoot()
+    Json::Value & JsonLoader::getRoot()
     {
         return rootJson_;
     }

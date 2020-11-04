@@ -21,19 +21,22 @@ if _importlib.util.find_spec("pinocchio") is not None:
 else:
     from . import pinocchio as _pinocchio
     _sys.modules["pinocchio"] = _pinocchio
-    from pkg_resources import parse_version as _version
-    if _version(_pinocchio.printVersion()) >= _version("2.3.0"):
-        from .pinocchio.pinocchio_pywrap import rpy as _rpy
-        _sys.modules["pinocchio.pinocchio_pywrap.rpy"] = _rpy
-    _pinocchio.pinocchio_pywrap.StdVec_StdString = list
+
+# Register pinocchio_pywrap to avoid importing bindings twise, which messes
+# up with boost python converters.
+_sys.modules["pinocchio.pinocchio_pywrap"] = _pinocchio.pinocchio_pywrap
+_sys.modules["pinocchio.pinocchio_pywrap.rpy"] = \
+    _pinocchio.pinocchio_pywrap.rpy
+_sys.modules["pinocchio.pinocchio_pywrap.cholesky"] = \
+    _pinocchio.pinocchio_pywrap.cholesky
+
+with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
+    # Import core submodule once every dependency has been preloaded
+    from . import core
+    from .core import __version__, __raw_version__
 
 # Patch Pinocchio to fix support of numpy.ndarray as Eigen conversion.
 from . import _pinocchio_init as _patch  # noqa
-
-# Import core submodule once every dependency has been preloaded
-with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
-    from . import core
-    from .core import __version__, __raw_version__
 
 
 __all__ = [

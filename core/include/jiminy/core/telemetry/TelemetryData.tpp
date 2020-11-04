@@ -18,13 +18,13 @@ namespace jiminy
                                                       std::string      const   & variableName,
                                                       T                      * & positionInBufferOut)
     {
-        char_t * const memAddress = reinterpret_cast<char_t*>(header);
+        char_t * const memAddress = reinterpret_cast<char_t *>(header);
 
         // Check in local cache
         auto entry = entriesMap_.find(variableName);
         if (entry != entriesMap_.end())
         {
-            positionInBufferOut = static_cast<T*>(entry->second);
+            positionInBufferOut = static_cast<T *>(entry->second);
             return hresult_t::SUCCESS;
         }
 
@@ -33,8 +33,8 @@ namespace jiminy
         if (positionInBuffer != -1)
         {
             char_t * address = memAddress + header->startDataSection + sizeof(T) * static_cast<uint32_t>(positionInBuffer);
-            entriesMap_[variableName] = static_cast<void*>(address);
-            positionInBufferOut = static_cast<T*>(entriesMap_[variableName]);
+            entriesMap_[variableName] = static_cast<void *>(address);
+            positionInBufferOut = static_cast<T *>(entriesMap_[variableName]);
             return hresult_t::SUCCESS;
         }
 
@@ -56,8 +56,8 @@ namespace jiminy
         header->nextFreeNameOffset += 1U; // Null-terminated.
 
         char_t * const dataPos = memAddress + header->nextFreeDataOffset;
-        entriesMap_[variableName] = static_cast<void*>(dataPos);
-        positionInBufferOut = static_cast<T*>(entriesMap_[variableName]);
+        entriesMap_[variableName] = static_cast<void *>(dataPos);
+        positionInBufferOut = static_cast<T *>(entriesMap_[variableName]);
         header->nextFreeDataOffset += sizeof(T);
 
         return hresult_t::SUCCESS;

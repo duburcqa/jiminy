@@ -1,18 +1,17 @@
+"""Solve the official Open AI Gym Acrobot problem simulated in Jiminy using PPO
+algorithm of Tianshou reinforcement learning framework.
 
-"""
-@brief Solve the official Open AI Gym Acrobot problem simulated in Jiminy using
-       PPO algorithm of Tianshou reinforcement learning framework.
+It solves it consistently in less than 100000 timesteps in average, and in
+about 25000 at best.
 
-@details It solves it consistently in less than 100000 timesteps in average,
-         and in about 25000 at best.
-
-@remark This script requires pytorch>=1.4 and tianshou==0.3.0.
+.. warning::
+    This script requires pytorch>=1.4 and tianshou==0.3.0.
 """
 # flake8: noqa
 
 # ======================== User parameters =========================
 
-GYM_ENV_NAME = "gym_jiminy:jiminy-acrobot-v0"
+GYM_ENV_NAME = "gym_jiminy.envs:jiminy-acrobot-v0"
 GYM_ENV_KWARGS = {
     "continuous": True
 }
