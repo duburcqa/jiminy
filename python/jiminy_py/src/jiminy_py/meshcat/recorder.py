@@ -239,6 +239,10 @@ def meshcat_recorder(meshcat_url: str,
 
 # ============ Meshcat recorder client ============
 
+def manager_process_startup():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
 class MeshcatRecorder:
     """Run meshcat server in background using multiprocessing Process to enable
     parallel asyncio loop execution, which is necessary to support recording in
@@ -255,8 +259,7 @@ class MeshcatRecorder:
 
     def open(self) -> None:
         self.__manager = multiprocessing.managers.SyncManager()
-        self.__manager.start(
-            lambda: signal.signal(signal.SIGINT, signal.SIG_IGN))
+        self.__manager.start(manager_process_startup)
 
         self.__shm = {
             'request': self.__manager.Value(c_char_p, ""),
