@@ -31,7 +31,7 @@ unset Boost_ROOT
 ################################## Checkout the dependencies ###########################################
 
 ### Checkout boost and its submodules
-if [ -d "$RootDir/boost" ]; then
+if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
@@ -40,13 +40,13 @@ git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/boost.patch"
 
 ### Checkout eigen3
-if [ -d "$RootDir/eigen3" ]; then
+if [ ! -d "$RootDir/eigen3" ]; then
   git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 fi
 git checkout --force "3.3.7"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
-if [ -d "$RootDir/eigenpy" ]; then
+if [ ! -d "$RootDir/eigenpy" ]; then
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 fi
 cd "$RootDir/eigenpy"
@@ -55,25 +55,25 @@ git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
-if [ -d "$RootDir/tinyxml" ]; then
+if [ ! -d "$RootDir/tinyxml" ]; then
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 fi
 git checkout --force "master"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
-if [ -d "$RootDir/console_bridge" ]; then
+if [ ! -d "$RootDir/console_bridge" ]; then
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 fi
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
-if [ -d "$RootDir/urdfdom_headers" ]; then
+if [ ! -d "$RootDir/urdfdom_headers" ]; then
   git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 fi
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
-if [ -d "$RootDir/urdfdom" ]; then
+if [ ! -d "$RootDir/urdfdom" ]; then
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 fi
 cd "$RootDir/urdfdom"
@@ -81,7 +81,7 @@ git checkout --force "1.0.4"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/urdfdom.patch"
 
 ### Checkout assimp
-if [ -d "$RootDir/assimp" ]; then
+if [ ! -d "$RootDir/assimp" ]; then
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
 fi
 cd "$RootDir/assimp"
@@ -89,7 +89,7 @@ git checkout --force "v5.0.1"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/assimp.patch"
 
 ### Checkout hpp-fcl
-if [ -d "$RootDir/hpp-fcl" ]; then
+if [ ! -d "$RootDir/hpp-fcl" ]; then
   git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
 fi
 cd "$RootDir/hpp-fcl"
@@ -100,7 +100,7 @@ cd "$RootDir/hpp-fcl/third-parties/qhull"
 git checkout --force "v8.0.2"
 
 ### Checkout pinocchio and its submodules
-if [ -d "$RootDir/pinocchio" ]; then
+if [ ! -d "$RootDir/pinocchio" ]; then
   git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 fi
 cd "$RootDir/pinocchio"
