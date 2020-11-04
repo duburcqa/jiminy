@@ -42,6 +42,7 @@ git submodule --quiet update --init --recursive --jobs 8
 if [ ! -d "$RootDir/eigen3" ]; then
   git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 fi
+cd "$RootDir/eigen3"
 git checkout --force "3.3.7"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
@@ -57,6 +58,7 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigen
 if [ ! -d "$RootDir/tinyxml" ]; then
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 fi
+cd "$RootDir/tinyxml"
 git checkout --force "master"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/tinyxml.patch"
 
@@ -64,12 +66,14 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/tinyx
 if [ ! -d "$RootDir/console_bridge" ]; then
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 fi
+cd "$RootDir/console_bridge"
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
 if [ ! -d "$RootDir/urdfdom_headers" ]; then
   git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 fi
+cd "$RootDir/urdfdom_headers"
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)

@@ -44,6 +44,7 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boo
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
   git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 }
+Set-Location -Path "$RootDir/eigen3"
 git checkout --force "3.3.7"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
@@ -59,18 +60,21 @@ git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eig
 if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 }
+Set-Location -Path "$RootDir/tinyxml"
 git checkout --force "master"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
 if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 }
+Set-Location -Path "$RootDir/console_bridge"
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
 if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
   git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 }
+Set-Location -Path "$RootDir/urdfdom_headers"
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
