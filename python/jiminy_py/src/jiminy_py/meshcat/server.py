@@ -213,7 +213,7 @@ def meshcat_server(info: Dict[str, str]) -> None:
     of reading stdout as it was.
     """
     # See https://bugs.python.org/issue37373 :(
-    if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and 
+    if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and
             sys.platform.startswith('win')):
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy())
