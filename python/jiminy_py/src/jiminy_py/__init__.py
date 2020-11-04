@@ -23,7 +23,7 @@ else:
     _sys.modules["pinocchio"] = _pinocchio
 
 # Register pinocchio_pywrap to avoid importing bindings twise, which messes 
-#up with boost python converters.
+# up with boost python converters.
 _sys.modules["pinocchio.pinocchio_pywrap"] = _pinocchio.pinocchio_pywrap
 
 with open(_os.devnull, 'w') as stderr, _redirect_stderr(stderr):
