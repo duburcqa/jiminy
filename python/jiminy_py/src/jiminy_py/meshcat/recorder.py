@@ -80,13 +80,19 @@ async def launch(self) -> Browser:
         options['stdout'] = subprocess.DEVNULL
         options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
-        startupflags = subprocess.DETACHED_PROCESS | \
-            subprocess.CREATE_NEW_PROCESS_GROUP
+        startupflags = subprocess.CREATE_NEW_PROCESS_GROUP
+        if (sys.version_info[0] == 3 and sys.version_info[1] > 6):
+            startupflags |= (subprocess.DETACHED_PROCESS |
+                             subprocess.HIGH_PRIORITY_CLASS)
         self.proc = subprocess.Popen(
             cmd, **options, creationflags=startupflags, shell=False)
     else:
+        def proc_setup():
+            os.setpgrp()
+            os.nice(20)
+
         self.proc = subprocess.Popen(
-            cmd, **options, preexec_fn=os.setpgrp, shell=False)
+            cmd, **options, preexec_fn=proc_setup, shell=False)
 
     self.browserWSEndpoint = get_ws_endpoint(self.url)
     self.connection = Connection(self.browserWSEndpoint, self._loop)
