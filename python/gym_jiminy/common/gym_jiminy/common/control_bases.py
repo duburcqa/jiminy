@@ -79,8 +79,8 @@ class BlockInterface:
         """
         return self.simulator.engine.system_state
 
-    def reset(self, env: BaseJiminyEnv) -> None:
-        """Reset the block for a given environment.
+    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
+        """Reset the block for a given environment, eventually already wrapped.
 
         .. note::
             The environment itself is not necessarily directly connected to
@@ -93,8 +93,12 @@ class BlockInterface:
 
         :param env: Environment.
         """
-        # Backup the environment
-        self.env = env
+        # Make sure the environment actually derive for BaseJiminyEnv
+        assert isinstance(env.unwrapped, BaseJiminyEnv), (
+            "env.unwrapped must derived from `BaseJiminyEnv`.")
+
+        # Backup the unwrapped environment
+        self.env = env.unwrapped
 
         # Configure the block
         self._setup()
@@ -183,10 +187,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
 
         :param update_ratio: Ratio between the update period of the high-level
                              controller and the one of the subsequent
-                             lower-level controller. More precisely, at each
-                             simulation step, controller's action is updated
-                             only once, while the lower-level command is
-                             updated 'update_ratio' times.
+                             lower-level controller.
         :param kwargs: Extra keyword arguments that may be useful for dervied
                        controller with multiple inheritance, and to allow
                        automatic pipeline wrapper generation.
@@ -212,6 +213,17 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
         """
         assert self.env is not None
         self.observation_space = self.env.action_space
+
+    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
+        """Reset the controller for a given environment.
+
+        In addition to the base implementation, it also set 'control_dt'
+        dynamically, based on the environment 'control_dt'.
+
+        :param env: Environment to control, eventually already wrapped.
+        """
+        super().reset(env)
+        self.control_dt = self.env.control_dt * self.update_ratio
 
     # methods to override:
     # ----------------------------
@@ -403,15 +415,6 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
                                `gym.spaces.Dict` or `gym.spaces.Box`.
                                Optional: disable by default.
         """
-        # Make sure the environment actually derive for BaseJiminyEnv
-        assert isinstance(env.unwrapped, BaseJiminyEnv), (
-            "env.unwrapped must derived from `BaseJiminyEnv`.")
-
-        # Make sure the controller period is higher than environment timestep
-        assert env.dt < controller.control_dt, (
-            "The controller update period must be larger than the environment "
-            "simulation timestep.")
-
         # Initialize base wrapper and interfaces through multiple inheritance
         super().__init__(env)
 
@@ -517,7 +520,15 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
         # Reset the controller
         self.controller.reset(self.env)
-        self.control_dt = self.env.control_dt * self.controller.update_ratio
+        self.control_dt = self.controller.control_dt
+
+        # Assertion(s) for type checker
+        assert self.control_dt is not None
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.control_dt <= self.env.unwrapped.dt, (
+            "The control update period must be lower than or equal to the "
+            "environment simulation timestep.")
 
         # Set the controller name.
         # It corresponds to the number of subsequent control blocks.
