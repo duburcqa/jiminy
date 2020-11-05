@@ -14,7 +14,6 @@ from typing import Optional, Union, Tuple, Dict, Any, Type
 
 import numpy as np
 import gym
-from gym.spaces.utils import flatten, flatten_space
 
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
@@ -482,19 +481,11 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         """
         obs = self._observation_env
         if self.observe_target:
-            if isinstance(self.env.observation_space, gym.spaces.Dict):
-                # Assertion(s) for type checker
-                assert isinstance(obs, dict)
+            # Assertion(s) for type checker
+            assert isinstance(obs, dict)
 
-                obs.setdefault('targets', OrderedDict())[
-                    self._ctrl_name] = self._action
-            else:
-                # Assertion(s) for type checker
-                assert isinstance(obs, np.ndarray)
-
-                action_flat = flatten(
-                    self.controller.action_space, self._action)
-                obs = np.concatenate((obs, action_flat))
+            obs.setdefault('targets', OrderedDict())[
+                self._ctrl_name] = self._action
         return obs
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
@@ -577,25 +568,15 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
         # Check that 'observe_target' can be enabled
         assert not self.observe_target or isinstance(
-            self.env.observation_space, (gym.spaces.Dict, gym.spaces.Box)), (
-            "'observe_target' is only available for environments whose the."
-            "observation space inherits from `gym.spaces.Dict` or "
-            "`gym.spaces.Box`.")
+            self.env.observation_space, gym.spaces.Dict), (
+            "'observe_target' is only available for environments whose "
+            "observation space inherits from `gym.spaces.Dict`.")
 
         # Append the controller's target to the observation if requested
         self.observation_space = self.env.observation_space
         if self.observe_target:
-            if isinstance(self.env.observation_space, gym.spaces.Dict):
-                self.observation_space.spaces['targets'] = \
-                    self.controller.action_space
-            else:
-                action_space_flat = flatten_space(self.controller.action_space)
-                self.observation_space = gym.spaces.Box(
-                    low=np.concatenate((
-                        self.observation_space.low, action_space_flat.low)),
-                    high=np.concatenate((
-                        self.observation_space.high, action_space_flat.high)),
-                    dtype=np.float64)
+            self.observation_space.spaces['targets'] = \
+                self.controller.action_space
 
         # Compute the unified observation
         self._observation = self.fetch_obs()
