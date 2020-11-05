@@ -998,7 +998,7 @@ class Viewer:
                     self._gui.applyConfigurations(
                         [self._client.getViewerNodeName(geometry, model_type)
                             for geometry in model.geometryObjects],
-                        [pin.se3ToXYZQUATtuple(data.oMg[
+                        [pin.SE3ToXYZQUATtuple(data.oMg[
                             model.getGeometryId(geometry.name)])
                             for geometry in model.geometryObjects])
             else:
