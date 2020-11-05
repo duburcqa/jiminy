@@ -117,9 +117,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
-        self._enable_reward_terminal = (
-            self.compute_reward_terminal.  # type: ignore[attr-defined]
-            __func__ is not ControlInterface.compute_reward_terminal)
 
         # Number of simulation steps performed
         self.num_steps = -1
@@ -459,7 +456,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Backup the controller update period
         engine_options = self.simulator.engine.get_options()
-        self.controller_dt = \
+        self.control_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
 
         # Refresh the observation and action spaces
@@ -611,7 +608,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             if done:
                 self._num_steps_beyond_done = 0
         else:
-            if self._enable_reward_terminal and \
+            if self.enable_reward_terminal and \
                     self._num_steps_beyond_done == 0:
                 logger.error(
                     "Calling 'step' even though this environment has "
@@ -638,7 +635,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             self._log_data, _ = self.get_log()
 
             # Compute the terminal reward, if any
-            if self._enable_reward_terminal:
+            if self.enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
         return self.get_obs(), reward, done, self._info

@@ -387,7 +387,7 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
             This definition remains true, independently of whether or not the
             environment is wrapped with a controller using this class. On the
-            contrary, `env.controller_dt` corresponds to the apparent control
+            contrary, `env.control_dt` corresponds to the apparent control
             update period, namely the update period of the higher-level
             controller if multiple are piped together.
 
@@ -406,6 +406,11 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         # Make sure the environment actually derive for BaseJiminyEnv
         assert isinstance(env.unwrapped, BaseJiminyEnv), (
             "env.unwrapped must derived from `BaseJiminyEnv`.")
+
+        # Make sure the controller period is higher than environment timestep
+        assert env.dt < controller.control_dt, (
+            "The controller update period must be larger than the environment "
+            "simulation timestep.")
 
         # Initialize base wrapper and interfaces through multiple inheritance
         super().__init__(env)
@@ -446,11 +451,11 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         t = self.simulator.stepper_state.t
 
         # Update the target to send to the subsequent block if necessary
-        if _is_breakpoint(t, self.controller_dt, self._dt_eps):
+        if _is_breakpoint(t, self.control_dt, self._dt_eps):
             set_value(self._target, self.controller.compute_command(action))
 
         # Update the command to send to the actuators of the robot if necessary
-        if _is_breakpoint(t, self.env.controller_dt, self._dt_eps):
+        if _is_breakpoint(t, self.env.control_dt, self._dt_eps):
             self._command[:] = self.env.compute_command(self._target)
 
         return self._command
@@ -506,14 +511,13 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
         self.debug = self.env.debug
 
         # Assertion(s) for type checker
-        assert (self.env.controller_dt is not None and
+        assert (self.env.control_dt is not None and
                 self.env.action_space is not None and
                 self.env.observation_space is not None)
 
         # Reset the controller
         self.controller.reset(self.env)
-        self.controller_dt = (
-            self.env.controller_dt * self.controller.update_ratio)
+        self.control_dt = self.env.control_dt * self.controller.update_ratio
 
         # Set the controller name.
         # It corresponds to the number of subsequent control blocks.
@@ -602,6 +606,12 @@ class ControlledJiminyEnv(gym.Wrapper, ControlInterface, ObserveInterface):
 
         # Compute the next learning step
         self._observation_env, reward, done, info = self.env.step()
+
+        # Compute controller's rewards and sum it to total reward
+        reward += self.controller.compute_reward(info=info)
+        if self.controller.enable_reward_terminal:
+            if done and self.env.unwrapped._num_steps_beyond_done == 0:
+                reward += self.controller.compute_reward_terminal(info=info)
 
         # Compute the unified observation
         self._observation = self.fetch_obs()
