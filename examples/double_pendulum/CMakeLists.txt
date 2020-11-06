@@ -19,13 +19,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # Link with other libraries
 target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core "${Boost_LIBRARIES}")
 
-# Activate c++14
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-)
-
 # Install
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"

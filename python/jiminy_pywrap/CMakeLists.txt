@@ -49,13 +49,6 @@ else()
     target_link_libraries(${PROJECT_NAME} eigenpy) # Fallback to raw library name
 endif()
 
-# Activate C++14
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 14
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-)
-
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
