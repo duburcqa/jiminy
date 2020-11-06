@@ -44,12 +44,19 @@ else:
 
 
 from pyppeteer.errors import NetworkError
-from pyppeteer.connection import Connection
+
+# ==================== Monkey-patch pyppeteer ============================
+
+from pyppeteer.connection import (
+    Connection, logger, logger_connection, logger_session)
 from pyppeteer.browser import Browser
 from pyppeteer.launcher import Launcher, get_ws_endpoint
 
 
-# ==================== Monkey-patch pyppeteer ============================
+# Disable pyppeteer logger(s)
+logger.disabled = True
+logger_connection.disabled = True
+logger_session.disabled = True
 
 # Make sure raise SIGINT does not kill chrome pyppeteer browser backend
 # automatically, so that it allows a closing handle to be manually registered.
