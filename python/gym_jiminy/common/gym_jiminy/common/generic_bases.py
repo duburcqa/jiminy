@@ -51,6 +51,8 @@ class ControlInterface:
 
         .. warning::
             This method is not supposed to be called manually nor overloaded.
+            It must be passed to `set_controller_handle` to send to use the
+            controller to send commands directly to the robot.
         """
         # pylint: disable=unused-argument
 

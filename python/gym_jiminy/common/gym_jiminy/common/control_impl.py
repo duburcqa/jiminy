@@ -8,7 +8,7 @@ import gym
 
 from jiminy_py.core import EncoderSensor as encoder
 
-from .control_bases import BaseControllerBlock
+from .block_bases import BaseControllerBlock
 from .utils import SpaceDictRecursive, FieldDictRecursive
 
 
