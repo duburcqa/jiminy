@@ -163,7 +163,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self._command: Optional[np.ndarray] = None
         self._observation_env: Optional[SpaceDictRecursive] = None
         self._dt_eps: Optional[float] = None
-        self._controller_name: Optional[str] = None
+        self.controller_name: Optional[str] = None
 
         # Reset the unified environment
         self.reset()
@@ -223,7 +223,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             assert isinstance(obs, dict)
 
             obs.setdefault('targets', OrderedDict())[
-                self._controller_name] = self._action
+                self.controller_name] = self._action
         return obs
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
@@ -262,7 +262,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             "environment simulation timestep.")
 
         # Set the controller name, based on the controller index
-        self._controller_name = f"controller_{self._get_block_index()}"
+        self.controller_name = f"controller_{self._get_block_index()}"
 
         # Update the action space
         self.action_space = self.controller.action_space
@@ -298,7 +298,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # It may be useful later for computing the terminal reward or debug.
         register_variables(
             self.simulator.controller, self.controller.get_fieldnames(),
-            self._action, self._controller_name)
+            self._action, self.controller_name)
 
         # Check that 'augment_observation' can be enabled
         assert not self.augment_observation or isinstance(
@@ -310,7 +310,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self.observation_space = self.env.observation_space
         if self.augment_observation:
             self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict())[self._controller_name] = \
+                'targets', gym.spaces.Dict())[self.controller_name] = \
                     self.controller.action_space
 
         # Compute the unified observation
@@ -442,7 +442,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             assert isinstance(obs, dict)
 
             obs.setdefault('features', OrderedDict())[
-                self._observer_name] = obs_features
+                self.observer_name] = obs_features
         else:
             obs = obs_features
         return obs
@@ -477,7 +477,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.observer.reset(self.env)
 
         # Set the controller name, based on the controller index
-        self._observer_name = f"observer_{self._get_block_index()}"
+        self.observer_name = f"observer_{self._get_block_index()}"
 
         # Assertion(s) for type checker
         assert (self.observer.action_space is not None and
@@ -493,7 +493,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         if self.augment_observation:
             self.observation_space = self.env.observation_space
             self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict())[self._observer_name] = \
+                'features', gym.spaces.Dict())[self.observer_name] = \
                 self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
