@@ -1,7 +1,7 @@
 import copy
 import logging
 import numpy as np
-from typing import Dict, List
+from typing import Dict, Sequence
 
 from gym.spaces import Space
 
@@ -101,8 +101,8 @@ class FullyConnectedNetwork(TorchModelV2, nn.Module):
     @override(TorchModelV2)
     def forward(self,
                 input_dict: Dict[str, TensorType],
-                state: List[TensorType],
-                seq_lens: TensorType) -> (TensorType, List[TensorType]):
+                state: Sequence[TensorType],
+                seq_lens: TensorType) -> (TensorType, Sequence[TensorType]):
         obs = input_dict["obs_flat"].float()
         if self._shared_hidden_layers is not None:
             features = self._shared_hidden_layers(

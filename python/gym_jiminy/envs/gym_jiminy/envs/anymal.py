@@ -6,7 +6,7 @@ from pkg_resources import resource_filename
 
 from ..common.env_locomotion import WalkerJiminyEnv
 from ..common.control_impl import PDController
-from ..common.control_bases import build_controlled_env
+from ..common.pipeline_bases import build_pipeline
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0
@@ -69,6 +69,21 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
         return np.concatenate(self._state)
 
 
-ANYmalPDControlJiminyEnv = build_controlled_env(
-    ANYmalJiminyEnv, PDController, observe_target=False,
-    update_ratio=HLC_TO_LLC_RATIO, pid_kp=PID_KP, pid_kd=PID_KD)
+ANYmalPDControlJiminyEnv = build_pipeline(**{
+    'env_config': (
+        ANYmalJiminyEnv,
+        {}
+    ),
+    'controllers_config': [(
+        PDController,
+        {
+            'update_ratio': HLC_TO_LLC_RATIO,
+            'pid_kp': PID_KP,
+            'pid_kd': PID_KD
+        },
+        {
+            'augment_observation': False
+        }
+    )],
+    'observers_config': ()
+})

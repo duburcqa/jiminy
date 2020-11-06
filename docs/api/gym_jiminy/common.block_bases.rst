@@ -1,7 +1,7 @@
-common.control_bases
-====================
+common.block_bases
+==================
 
-.. automodule:: gym_jiminy.common.control_bases
+.. automodule:: gym_jiminy.common.block_bases
    :members:
    :undoc-members:
    :private-members:

@@ -5,7 +5,7 @@ import socket
 import pathlib
 import tempfile
 from datetime import datetime
-from typing import Optional, List, Union, Callable, Dict, Any
+from typing import Optional, Sequence, Union, Callable, Dict, Any
 
 import gym
 
@@ -28,7 +28,7 @@ def onpolicy_trainer(
         frame_per_epoch: int,
         collect_per_step: int,
         repeat_per_collect: int,
-        episode_per_test: Union[int, List[int]],
+        episode_per_test: Union[int, Sequence[int]],
         batch_size: int,
         train_fn: Optional[Callable[[int, int], None]] = None,
         test_fn: Optional[Callable[[int, Optional[int]], None]] = None,

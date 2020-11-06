@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import scipy
 from scipy.interpolate import interp1d
-from typing import Union, Dict, Tuple, List
+from typing import Union, Dict, Tuple, Sequence
 
 import jiminy_py.core as jiminy
 from pinocchio import Quaternion, log3, exp3
@@ -55,7 +55,7 @@ class SimulateSimplePendulum(unittest.TestCase):
             tf: float,
             x0: Union[Dict[str, np.ndarray], np.ndarray],
             split: bool = False) -> Union[
-                List[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
+                Sequence[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
         """
         @brief Simulate the dynamics of the system and retrieve the imu
             sensor evolution over time.

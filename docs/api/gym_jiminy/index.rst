@@ -7,6 +7,7 @@ Gym Jiminy API
    common.utils
    common.generic_bases
    common.env_bases
-   common.control_bases
+   common.block_bases
    common.control_impl
+   common.pipeline_bases
    common.env_locomotion

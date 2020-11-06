@@ -59,31 +59,21 @@ class Capsule(Geometry):
         N = self.radialSegments
 
         # Initialize internal buffers
-        vertices, normals, faces = [], [], []
+        vertices, faces = [], []
 
-        # Top cap vertices
-        for i in range(int(N//4) + 1):
-            for j in range(N + 1):
-                theta = j * 2 * math.pi / N
-                phi = math.pi * (i / (N // 2) - 1 / 2)
-                vertex = np.empty(3)
-                vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
-                vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
-                vertex[2] = self.radius * math.sin(phi) - self.height / 2
-                vertices.append(vertex)
-                normals.append(vertex.copy())
-
-        # Bottom cap vertices
-        for i in range(int(N//4), int(N//2) + 1):
-            for j in range(N + 1):
-                theta = j * 2 * math.pi / N
-                phi = math.pi * (i / (N // 2) - 1 / 2)
-                vertex = np.empty(3)
-                vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
-                vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
-                vertex[2] = self.radius * math.sin(phi) + self.height / 2
-                vertices.append(vertex)
-                normals.append(vertex.copy())
+        # Top and bottom caps vertices
+        for e, rng in enumerate([
+                range(int(N//4) + 1), range(int(N//4), int(N//2) + 1)]):
+            for i in rng:
+                for j in range(N + 1):
+                    theta = j * 2 * math.pi / N
+                    phi = math.pi * (i / (N // 2) - 1 / 2)
+                    vertex = np.empty(3)
+                    vertex[0] = self.radius * math.cos(phi) * math.cos(theta)
+                    vertex[1] = self.radius * math.cos(phi) * math.sin(theta)
+                    vertex[2] = self.radius * math.sin(phi)
+                    vertex[2] += (2.0 * (e - 0.5)) * self.height / 2
+                    vertices.append(vertex)
 
         # Faces
         for i in range(int(N//2) + 1):
@@ -101,8 +91,8 @@ class Capsule(Geometry):
 
         # Convert to array
         self.vertices = np.vstack(vertices).astype(np.float32)
-        self.normals = np.vstack(normals).astype(np.float32)
         self.faces = np.vstack(faces).astype(np.uint32)
+        self.normals = self.vertices
 
     def lower(self, object_data: Any) -> MsgType:
         return {

@@ -6,7 +6,7 @@ from pinocchio import neutral
 
 from ..common.env_locomotion import WalkerJiminyEnv
 from ..common.control_impl import PDController
-from ..common.control_bases import build_controlled_env
+from ..common.pipeline_bases import build_pipeline
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])
@@ -103,6 +103,21 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
         return qpos
 
 
-AtlasPDControlJiminyEnv = build_controlled_env(
-    AtlasJiminyEnv, PDController, observe_target=False,
-    update_ratio=HLC_TO_LLC_RATIO, pid_kp=PID_KP, pid_kd=PID_KD)
+AtlasPDControlJiminyEnv = build_pipeline(**{
+    'env_config': (
+        AtlasJiminyEnv,
+        {}
+    ),
+    'controllers_config': [(
+        PDController,
+        {
+            'update_ratio': HLC_TO_LLC_RATIO,
+            'pid_kp': PID_KP,
+            'pid_kd': PID_KD
+        },
+        {
+            'augment_observation': False
+        }
+    )],
+    'observers_config': ()
+})

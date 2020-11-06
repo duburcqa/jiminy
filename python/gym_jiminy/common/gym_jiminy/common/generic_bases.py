@@ -13,7 +13,7 @@ from .utils import _clamp, SpaceDictRecursive
 class ControlInterface:
     """Controller interface for both controllers and environments.
     """
-    controller_dt: Optional[float]
+    control_dt: Optional[float]
     action_space: Optional[gym.Space]
     _action: Optional[SpaceDictRecursive]
 
@@ -28,9 +28,12 @@ class ControlInterface:
                        multiple inheritance through multiple inheritance.
         """
         # Define some attributes
-        self.controller_dt = None
+        self.control_dt = None
         self.action_space = None
         self._action = None
+        self.enable_reward_terminal = (
+            self.compute_reward_terminal.  # type: ignore[attr-defined]
+            __func__ is not ControlInterface.compute_reward_terminal)
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
@@ -48,6 +51,8 @@ class ControlInterface:
 
         .. warning::
             This method is not supposed to be called manually nor overloaded.
+            It must be passed to `set_controller_handle` to send to use the
+            controller to send commands directly to the robot.
         """
         # pylint: disable=unused-argument
 
