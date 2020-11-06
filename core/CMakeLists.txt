@@ -88,15 +88,15 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>"
 )
 
-# Configure jsoncpp dependency.
+# Configure jsoncpp and hdf5 dependencies.
 # Note that defining only BUILD_INTERFACE will prevent the header files to be exported,
 # thus not making them available by a side-project depending on Jiminy. However, since
 # jsoncpp is installed on the system as an external project, those side-projects must
 # simply call find_package(jsoncpp) and it will be included automatically.
-add_dependencies(${PROJECT_NAME} jsoncpp_external)
-EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external SOURCE_DIR)
+add_dependencies(${PROJECT_NAME} jsoncpp_external hdf5_external)
+EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external INSTALL_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
-    $<BUILD_INTERFACE:${SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${INSTALL_DIR}/include>
 )
 
 # Include headers from other libraries (in such a way to avoid any warnings compiling them)
@@ -123,14 +123,18 @@ else()
     target_link_libraries(${PROJECT_NAME} urdfdom_model) # Fallback to raw library name
 endif()
 target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
-target_link_libraries(${PROJECT_NAME} jsoncpp_lib "${Boost_LIBRARIES}")
+target_link_libraries(${PROJECT_NAME} jsoncpp hdf5_cpp hdf5 zlib "${Boost_LIBRARIES}")  # Beware the order is critical !
+if(NOT WIN32)
+    target_link_libraries(${PROJECT_NAME} -ldl)  # Link some libraries that are not automatically linked with HDF5
+endif()
 
-# Activate C++14 on Linux (not properly supported by MSVC 2015)
+# Activate c++14 for this target and propagate it
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

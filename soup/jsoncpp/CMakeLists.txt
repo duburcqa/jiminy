@@ -4,16 +4,14 @@ cmake_minimum_required(VERSION 3.10)
 # Project and library name
 project(jsoncpp_external)
 
-# Set the path of the generated library
-set(${PROJECT_NAME}_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME}-build/lib")
+# Set the path of the generated libraries
+include(GNUInstallDirs)
 
 if(NOT WIN32)
-     set(jsoncpp_lib_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/libjsoncpp.a")
-     set(jsoncpp_lib_PATH_Release "${${PROJECT_NAME}_LIB_DIR}/libjsoncpp.a")
-     set(jsoncpp_lib_NINJA BUILD_BYPRODUCTS "${jsoncpp_lib_PATH_${CMAKE_BUILD_TYPE}}")
+     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libjsoncpp.a")
+     set(jsoncpp_NINJA BUILD_BYPRODUCTS "${jsoncpp_PATH_${CMAKE_BUILD_TYPE}}")
 else(NOT WIN32)
-     set(jsoncpp_lib_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/Debug/jsoncpp.lib")
-     set(jsoncpp_lib_PATH_Release "${${PROJECT_NAME}_LIB_DIR}/Release/jsoncpp.lib")
+     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
 endif(NOT WIN32)
 
 # Download, build and install jsoncpp.
@@ -24,24 +22,24 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 
      CMAKE_ARGS
-     -DJSONCPP_WITH_TESTS=OFF
-     -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF
-     -DJSONCPP_WITH_PKGCONFIG_SUPPORT=OFF
-     -DJSONCPP_WITH_CMAKE_PACKAGE=ON
-     -DBUILD_SHARED_LIBS=OFF
-     -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-     -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
-     -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
-     ${EXTERNALPROJECT_BUILD_TYPE_CMD}
+          -DJSONCPP_WITH_TESTS=OFF
+          -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF
+          -DJSONCPP_WITH_PKGCONFIG_SUPPORT=OFF
+          -DJSONCPP_WITH_CMAKE_PACKAGE=ON
+          -DBUILD_SHARED_LIBS=OFF
+          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+          -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
+          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
+          ${EXTERNALPROJECT_BUILD_TYPE_CMD}
+     INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
 
-     ${jsoncpp_lib_NINJA}
+     ${jsoncpp_NINJA}
 
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
 
 # Import the generated library as a target
-add_library(jsoncpp_lib STATIC IMPORTED GLOBAL)
-set_target_properties(jsoncpp_lib PROPERTIES
-     IMPORTED_LOCATION_DEBUG ${jsoncpp_lib_PATH_Debug}
-     IMPORTED_LOCATION_RELEASE ${jsoncpp_lib_PATH_Release}
+add_library(jsoncpp STATIC IMPORTED GLOBAL)
+set_target_properties(jsoncpp PROPERTIES
+     IMPORTED_LOCATION ${jsoncpp_PATH}
 )
