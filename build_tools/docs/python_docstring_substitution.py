@@ -4,7 +4,7 @@ import sys
 import pathlib
 from queue import deque
 from textwrap import indent, dedent
-from typing import List
+from typing import Sequence
 
 
 def redent(txt: str, n: int = 0) -> str:
@@ -15,8 +15,8 @@ def redent(txt: str, n: int = 0) -> str:
         line.strip() + '\n' for line in txt.splitlines(True)]), ' ' * n)
 
 
-def find_include_files(input_files_fullpath: List[str],
-                       include_dir: str) -> List[str]:
+def find_include_files(input_files_fullpath: Sequence[str],
+                       include_dir: str) -> Sequence[str]:
     """Scan recursively the list of header files included in given header files
     and contain in a specific include directory.
     """

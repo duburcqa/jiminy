@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from typing import Optional, Dict, Union, List
+from typing import Optional, Dict, Union, Sequence
 
 
 def smoothing_filter(
@@ -8,7 +8,7 @@ def smoothing_filter(
         val_in: np.ndarray,
         time_out: Optional[np.ndarray] = None,
         relabel: Optional[np.ndarray] = None,
-        params: Optional[Dict[str, Union[float, List[float]]]] = None
+        params: Optional[Dict[str, Union[float, Sequence[float]]]] = None
         ) -> np.ndarray:
     """Smoothing filter with relabeling and resampling features.
 

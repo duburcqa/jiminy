@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional, Tuple, List, Callable, Union, Dict, Any
+from typing import Optional, Tuple, Sequence, Callable, Union, Dict, Any
 
 import gym
 import torch
@@ -20,7 +20,7 @@ class Net(nn.Module):
                 obs: np.ndarray,
                 state: Optional[Any] = None,
                 info: Optional[Dict[str, Any]] = None
-                ) -> Tuple[Union[np.ndarray, List[np.ndarray]], Any]:
+                ) -> Tuple[Union[np.ndarray, Sequence[np.ndarray]], Any]:
         if not isinstance(obs, torch.Tensor):
             device = next(self.model.parameters()).device
             obs = torch.tensor(obs, device=device, dtype=torch.float32)
@@ -53,7 +53,7 @@ class Actor(nn.Module):
                 obs: np.ndarray,
                 state: Optional[Any] = None,
                 info: Optional[Dict[str, Any]] = None
-                ) -> Tuple[Union[np.ndarray, List[np.ndarray]], Any]:
+                ) -> Tuple[Union[np.ndarray, Sequence[np.ndarray]], Any]:
         logits, h = self.preprocess(obs, state)
         if self.is_action_space_discrete:
             logits = nn.functional.softmax(self.onehot(logits), dim=-1)

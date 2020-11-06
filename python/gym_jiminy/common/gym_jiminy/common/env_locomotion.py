@@ -1,6 +1,6 @@
 """ TODO: Write documentation.
 """
-from typing import Optional, Dict, Union, Callable, List, Any
+from typing import Optional, Dict, Union, Callable, Sequence, Any
 
 import numpy as np
 import numba as nb
@@ -148,8 +148,8 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self.avoid_instable_collisions = avoid_instable_collisions
 
         # Robot and engine internal buffers
-        self._forces_impulse: List[ForceImpulseType] = []
-        self._forces_profile: List[ForceProfileType] = []
+        self._forces_impulse: Sequence[ForceImpulseType] = []
+        self._forces_profile: Sequence[ForceProfileType] = []
         self._f_xy_profile_spline: Optional[
             nb.core.dispatcher.Dispatcher] = None
         self._power_consumption_max: Optional[float] = None

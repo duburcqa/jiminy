@@ -7,7 +7,7 @@ import umsgpack
 import tornado.web
 import tornado.ioloop
 import multiprocessing
-from typing import Optional, Tuple, List, Dict
+from typing import Optional, Tuple, Sequence, Dict
 
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
@@ -134,7 +134,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         else:
             self.ioloop.call_later(0.1, self.wait_for_websockets)
 
-    def handle_zmq(self, frames: List[bytes]) -> None:
+    def handle_zmq(self, frames: Sequence[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
         if cmd == "ready":
             if not self.websocket_pool and not self.comm_pool:
@@ -148,7 +148,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
         else:
             super().handle_zmq(frames)
 
-    def handle_comm(self, frames: List[bytes]) -> None:
+    def handle_comm(self, frames: Sequence[bytes]) -> None:
         cmd = frames[0].decode("utf-8")
         if cmd.startswith("open:"):
             comm_id = f"{cmd.split(':', 1)[1]}".encode()
@@ -175,7 +175,7 @@ class ZMQWebSocketIpythonBridge(ZMQWebSocketBridge):
                 self.websocket_msg, self.comm_msg = [], []
                 self.is_waiting_ready_msg = False
 
-    def forward_to_websockets(self, frames: List[bytes]) -> None:
+    def forward_to_websockets(self, frames: Sequence[bytes]) -> None:
         # Check if the objects are still available in cache
         cmd, path, data = frames
         cache_hit = (cmd == "set_object" and
