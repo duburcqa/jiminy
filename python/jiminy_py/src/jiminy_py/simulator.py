@@ -8,7 +8,7 @@ from collections import OrderedDict
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from typing import Optional, Union, Type, Dict, Tuple, List, Any
+from typing import Optional, Union, Type, Dict, Tuple, Sequence, Any
 
 import pinocchio as pin
 
@@ -206,7 +206,7 @@ class Simulator:
             return AttributeError(
                 f"'{self.__class__}' object has no attribute '{name}'.")
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> Sequence[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
@@ -418,14 +418,14 @@ class Simulator:
         # Define some internal helper functions
         def extract_fields(log_data: Dict[str, np.ndarray],
                            namespace: Optional[str],
-                           fieldnames: List[str],
-                           ) -> Optional[List[np.ndarray]]:
+                           fieldnames: Sequence[str],
+                           ) -> Optional[Sequence[np.ndarray]]:
             """Extract value associated with a set of fieldnames in a specific
             namespace.
 
             :param log_data: Log file, as returned by `get_log` method.
             :param namespace: Namespace of the fieldnames. None to disable.
-            :param fieldnames: List of fieldnames.
+            :param fieldnames: Sequence of fieldnames.
             """
             field_values = [log_data.get(
                     '.'.join((filter(None, (namespace, field)))), None)

@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Dict, List
+from typing import Optional, Union, Dict, Sequence
 
 import numpy as np
 import numba as nb
@@ -12,7 +12,7 @@ import jiminy_py.core as jiminy
 
 SpaceDictRecursive = Union[  # type: ignore
     Dict[str, 'SpaceDictRecursive'], np.ndarray]  # type: ignore
-ListStrRecursive = List[Union[str, 'ListStrRecursive']]  # type: ignore
+ListStrRecursive = Sequence[Union[str, 'ListStrRecursive']]  # type: ignore
 FieldDictRecursive = Union[  # type: ignore
     Dict[str, 'FieldDictRecursive'], ListStrRecursive]  # type: ignore
 

@@ -12,17 +12,14 @@ It implements:
       unified environment.
 """
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, Type, List
+from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence
 
 import numpy as np
 import gym
 
-import jiminy_py.core as jiminy
-from jiminy_py.simulator import Simulator
-
 from .utils import (
     _is_breakpoint, zeros, set_value, register_variables,
-    SpaceDictRecursive, FieldDictRecursive)
+    SpaceDictRecursive)
 from .generic_bases import ControlInterface, ObserveInterface
 from .env_bases import BaseJiminyEnv
 from .block_bases import BlockInterface, BaseControllerBlock, BaseObserverBlock
@@ -44,6 +41,7 @@ class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
         policy itself if they have to be trainable.
     """
     env: Union[gym.Wrapper, BaseJiminyEnv]
+
     def __init__(self,
                  env: Union[gym.Wrapper, BaseJiminyEnv],
                  augment_observation: bool = False) -> None:
@@ -61,7 +59,7 @@ class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
         # Backup some user arguments
         self.augment_observation = augment_observation
 
-    def _get_block_index(self):
+    def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
         block, namely how many blocks deriving from the same wrapper type than
         the current one are already wrapped in the environment.
@@ -419,7 +417,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         """
         return self.env.compute_command(action)
 
-
     def fetch_obs(self) -> SpaceDictRecursive:
         """Compute high-level features based on the current wrapped
         environment's observation.
@@ -437,7 +434,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         :returns: Updated environment's observation with the controller's
                   target appended.
         """
-        obs_features = self.observer.fetch_obs(self._observation_env)
+        obs_features = self.observer.fetch_obs()
         if self.augment_observation:
             obs = self._observation_env
 
@@ -497,7 +494,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             self.observation_space = self.env.observation_space
             self.observation_space.spaces.setdefault(
                 'features', gym.spaces.Dict())[self._observer_name] = \
-                    self.observer.observation_space
+                self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
 
@@ -527,14 +524,14 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 def build_pipeline(env_config: Tuple[
                        Type[BaseJiminyEnv],
                        Dict[str, Any]],
-                   controllers_config: Optional[List[Tuple[
+                   controllers_config: Sequence[Tuple[
                        Type[BaseControllerBlock],
                        Dict[str, Any],
-                       Dict[str, Any]]]] = None,
-                   observers_config: Optional[List[Tuple[
+                       Dict[str, Any]]] = (),
+                   observers_config: Sequence[Tuple[
                        Type[BaseObserverBlock],
                        Dict[str, Any],
-                       Dict[str, Any]]]] = None,
+                       Dict[str, Any]]] = (),
                    ) -> Type[BasePipelineWrapper]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
     number of controllers and observers as a unified pipeline environment class
@@ -614,7 +611,8 @@ def build_pipeline(env_config: Tuple[
         # Implementation of __init__ method must be done after declaration of
         # the class, because the required closure for calling `super()` is not
         # available when creating a class dynamically.
-        def __init__(self: wrapper_class, **kwargs: Any) -> None:
+        def __init__(self: wrapper_class,  # type: ignore[valid-type]
+                     **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped
                            environment and the controller. It will overwrite
@@ -633,6 +631,7 @@ def build_pipeline(env_config: Tuple[
 
         return wrapped_env_class
 
+    env_kwargs: Optional[Dict[str, Any]]
     env_class, env_kwargs = env_config
     pipeline_class = env_class
     for (ctrl_class, ctrl_kwargs, wrapper_kwargs) in controllers_config:

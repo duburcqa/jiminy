@@ -1,7 +1,7 @@
 import numpy as np
 from collections import defaultdict
 from copy import copy as _copy, deepcopy
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, Sequence, Dict
 
 from pinocchio import Force, StdVec_Force
 
@@ -11,12 +11,12 @@ class State:
     """
     def __init__(self,
                  t: float,
-                 q: Union[np.ndarray, List[float]],
-                 v: Optional[Union[np.ndarray, List[float]]] = None,
-                 a: Optional[Union[np.ndarray, List[float]]] = None,
-                 tau: Optional[Union[np.ndarray, List[float]]] = None,
+                 q: Union[np.ndarray, Sequence[float]],
+                 v: Optional[Union[np.ndarray, Sequence[float]]] = None,
+                 a: Optional[Union[np.ndarray, Sequence[float]]] = None,
+                 tau: Optional[Union[np.ndarray, Sequence[float]]] = None,
                  contact_frame: str = None,
-                 f_ext: Optional[Union[List[Force], StdVec_Force]] = None,
+                 f_ext: Optional[Union[Sequence[Force], StdVec_Force]] = None,
                  copy: bool = False,
                  **kwargs):
         """
@@ -47,12 +47,13 @@ class State:
             self.f_ext = deepcopy(f_ext) if copy else f_ext
 
     @staticmethod
-    def todict(state_list: List['State']) -> Dict[
-            str, Union[np.ndarray, List[Union[List[Force], StdVec_Force]]]]:
+    def todict(state_list: Sequence['State']) -> Dict[
+            str, Union[np.ndarray, Sequence[
+                Union[Sequence[Force], StdVec_Force]]]]:
         """Get the dictionary whose keys are the kinematics and dynamics
         data at several time steps from a list of State objects.
 
-        :param state_list: List of State objects
+        :param state_list: Sequence of State objects
 
         :returns: Kinematics and dynamics data as a dictionary.
                   Each property is a 2D numpy array (row: state, column: time).
@@ -70,8 +71,9 @@ class State:
     @classmethod
     def fromdict(cls,
                  state_dict: Dict[str, Union[
-                     np.ndarray, List[Union[List[Force], StdVec_Force]]]]
-                 ) -> List['State']:
+                     np.ndarray, Sequence[
+                         Union[Sequence[Force], StdVec_Force]]]]
+                 ) -> Sequence['State']:
         """Get a list of State objects from a dictionary whose keys are the
         kinematics and dynamics data at several time steps.
 
@@ -79,7 +81,7 @@ class State:
                            dynamics data. Each property is a 2D numpy
                            array (row: state, column: time).
 
-        :returns: List of State.
+        :returns: Sequence of State.
         """
         _state_dict = defaultdict(
             lambda: [None for i in range(len(state_dict['t']))], state_dict)

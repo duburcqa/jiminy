@@ -4,7 +4,7 @@
 import os
 import numpy as np
 from scipy.integrate import ode
-from typing import Optional, Union, Dict, List, Tuple, Callable
+from typing import Optional, Union, Dict, Sequence, Tuple, Callable
 
 import jiminy_py.core as jiminy
 
@@ -12,7 +12,7 @@ from pinocchio import neutral
 
 
 def load_urdf_default(urdf_name: str,
-                      motor_names: List[str] = (),
+                      motor_names: Sequence[str] = (),
                       has_freeflyer: bool = False) -> jiminy.Robot:
     """
     @brief Create a jiminy.Robot from a URDF with several simplying

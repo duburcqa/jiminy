@@ -5,7 +5,7 @@ import logging
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout
-from typing import Optional, List, Dict, Any
+from typing import Optional, Sequence, Dict, Any
 
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
@@ -208,7 +208,7 @@ class CommManager:
         self.__comm_stream.close(linger=5)
         self.__comm_socket.close(linger=5)
 
-    def __forward_to_ipython(self, frames: List[bytes]) -> None:
+    def __forward_to_ipython(self, frames: Sequence[bytes]) -> None:
         comm_id, cmd = frames  # There must be always two parts each messages
         comm_id = comm_id.decode()
         try:

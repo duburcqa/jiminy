@@ -21,7 +21,7 @@ from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
-from typing import Optional, Union, List, Tuple, Dict, Any
+from typing import Optional, Union, Sequence, Tuple, Dict, Any
 
 import zmq
 import meshcat.transformations as mtf
@@ -64,7 +64,10 @@ def _default_backend() -> str:
         return 'gepetto-gui'
 
 
-def _get_backend_exceptions(backend: Optional[str] = None) -> List[Exception]:
+def _get_backend_exceptions(
+        backend: Optional[str] = None) -> Sequence[Exception]:
+    """Get the list of exceptions that may be raised by a given backend.
+    """
     if backend is None:
         backend = _default_backend()
     if backend.startswith('gepetto'):
@@ -558,7 +561,7 @@ class Viewer:
 
     @staticmethod
     def _get_colorized_urdf(urdf_path: str,
-                            rgb: List[float],
+                            rgb: Sequence[float],
                             output_root_path: Optional[str] = None) -> str:
         """Generate a unique colorized URDF.
 
@@ -1060,7 +1063,7 @@ class Viewer:
         self.refresh(wait)
 
     def replay(self,
-               evolution_robot: List[State],
+               evolution_robot: Sequence[State],
                replay_speed: float,
                xyz_offset: Optional[np.ndarray] = None,
                wait: bool = False) -> None:
@@ -1139,7 +1142,7 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
 def play_trajectories(trajectory_data: Dict[str, Any],
                       replay_speed: float = 1.0,
                       record_video_path: Optional[str] = None,
-                      viewers: List[Viewer] = None,
+                      viewers: Sequence[Viewer] = None,
                       start_paused: bool = False,
                       wait_for_client: bool = True,
                       travelling_frame: Optional[str] = None,
@@ -1147,16 +1150,16 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                           Union[Tuple[float, float, float], np.ndarray],
                           Union[Tuple[float, float, float],
                                 np.ndarray]]] = None,
-                      xyz_offset: Optional[List[Union[
+                      xyz_offset: Optional[Sequence[Union[
                           Tuple[float, float, float], np.ndarray]]] = None,
-                      urdf_rgba: Optional[List[
+                      urdf_rgba: Optional[Sequence[
                           Tuple[float, float, float, float]]] = None,
                       backend: Optional[str] = None,
                       window_name: str = 'jiminy',
                       scene_name: str = 'world',
                       close_backend: Optional[bool] = None,
                       delete_robot_on_close: Optional[bool] = None,
-                      verbose: bool = True) -> List[Viewer]:
+                      verbose: bool = True) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
 
     The ratio between the replay and the simulation time is kept constant to
@@ -1388,10 +1391,10 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     return viewers
 
 
-def play_logfiles(robots: Union[List[jiminy.Robot], jiminy.Robot],
-                  logs_data: Union[List[Dict[str, np.ndarray]],
+def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
+                  logs_data: Union[Sequence[Dict[str, np.ndarray]],
                                    Dict[str, np.ndarray]],
-                  **kwargs) -> List[Viewer]:
+                  **kwargs) -> Sequence[Viewer]:
     """Play the content of a logfile in a viewer.
 
     This method simply formats the data then calls play_trajectories.

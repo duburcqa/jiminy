@@ -221,7 +221,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
         super().reset(env)
 
         # Assertion(s) for type checker
-        assert self.env is not None
+        assert self.env is not None and self.env.control_dt is not None
 
         self.control_dt = self.env.control_dt * self.update_ratio
 

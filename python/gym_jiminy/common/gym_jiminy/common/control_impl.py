@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Union, Optional, List, Any
+from typing import Union, Optional, Sequence, Any
 
 import numpy as np
 import gym
@@ -40,7 +40,7 @@ class PDController(BaseControllerBlock):
         self.pid_kd = pid_kd
 
         # Low-level controller buffers
-        self.motor_to_encoder: Optional[List[int]] = None
+        self.motor_to_encoder: Optional[Sequence[int]] = None
         self._q_target = None
         self._v_target = None
 

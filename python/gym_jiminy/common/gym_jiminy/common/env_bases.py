@@ -4,7 +4,7 @@ import os
 import time
 import tempfile
 from collections import OrderedDict
-from typing import Optional, Tuple, List, Dict, Any, Union
+from typing import Optional, Tuple, Sequence, Dict, Any, Union
 
 import numpy as np
 import gym
@@ -511,7 +511,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         return self.get_obs()
 
-    def seed(self, seed: Optional[int] = None) -> List[np.uint32]:
+    def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
 
         .. warning::

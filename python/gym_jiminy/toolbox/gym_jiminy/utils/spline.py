@@ -2,7 +2,7 @@
 """
 # pylint: disable=invalid-name
 
-from typing import List, Optional, Tuple, Any
+from typing import Sequence, Optional, Tuple, Any
 
 import scipy.linalg
 import torch
@@ -38,7 +38,7 @@ class _SolveBanded(torch.autograd.Function):
     """
     @staticmethod
     def forward(ctx: Any,  # type: ignore[override]
-                band: List[int],
+                band: Sequence[int],
                 M: torch.Tensor,
                 b: torch.Tensor) -> torch.Tensor:
         """ TODO: Write documentation.

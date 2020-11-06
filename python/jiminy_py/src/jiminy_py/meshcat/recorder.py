@@ -58,6 +58,7 @@ logger.disabled = True
 logger_connection.disabled = True
 logger_session.disabled = True
 
+
 # Make sure raise SIGINT does not kill chrome pyppeteer browser backend
 # automatically, so that it allows a closing handle to be manually registered.
 # Note that only "egl" webgl renderer supports hardware acceleration in
