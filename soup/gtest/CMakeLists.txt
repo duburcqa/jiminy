@@ -39,9 +39,8 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
 
      CMAKE_ARGS
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-          -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
-          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS_EXTERNAL}
-          -Dgtest_force_shared_crt=ON # This option is required on Github Windows CI for some reasons..
+          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
+          -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons..
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
 
      ${gtest_NINJA}
