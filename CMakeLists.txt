@@ -34,12 +34,18 @@ endif()
 # Sub-projects
 add_subdirectory(soup)
 add_subdirectory(core)
+
+option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 if(BUILD_PYTHON_INTERFACE)
     add_subdirectory(python)
 endif()
+
+option(BUILD_EXAMPLES "Build the C++ examples" ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+option(BUILD_TESTING "Build the gtest testing tree." ON)
 if(BUILD_TESTING)
     add_subdirectory(unit)
 endif()
