@@ -4,14 +4,14 @@ not assessed that the viewer is working properly.
 """
 import warnings
 import unittest
-from typing import Callable
+from typing import Dict, Any
 
-import gym
 import numpy as np
 from torch import nn
 
 from stable_baselines3.ppo import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.env_util import make_vec_env
 
 from utilities import train
 
@@ -28,7 +28,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     30000 at best.
 
     .. warning::
-        It requires pytorch>=1.4 and stable-baselines3[extra]==0.9.
+        It requires pytorch>=1.4 and stable-baselines3[extra]>=0.10.0
     """
     def setUp(self):
         """Disable all warnings to avoid flooding.
@@ -67,15 +67,19 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
 
     @classmethod
     def _is_success_ppo_training(cls,
-                                 env_creator: Callable[[], gym.Env]) -> bool:
+                                 env_name: str,
+                                 env_kwargs: Dict[str, Any]) -> bool:
         """ Run PPO algorithm on a given algorithm and check if the reward
         threshold has been exceeded.
         """
 
         # Create a multiprocess environment
-        train_env = SubprocVecEnv(
-            [env_creator for _ in range(int(N_THREADS//2))])
-        test_env = DummyVecEnv([env_creator])
+        train_env = make_vec_env(
+            env_id=env_name, env_kwargs=env_kwargs, n_envs=int(N_THREADS//2),
+            vec_env_cls=SubprocVecEnv, seed=0)
+        test_env = make_vec_env(
+            env_id=env_name, env_kwargs=env_kwargs, n_envs=1,
+            vec_env_cls=DummyVecEnv, seed=0)
 
         # Create the learning agent according to the chosen algorithm
         config = cls._get_default_config_stable_baselines()
@@ -88,19 +92,13 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     def test_acrobot_stable_baselines(self):
         """Solve the Acrobot problem for continuous action space.
         """
-        def make_env() -> gym.Env:
-            return gym.make(
-                "gym_jiminy.envs:jiminy-acrobot-v0", continuous=True)
-
-        is_success = self._is_success_ppo_training(make_env)
+        is_success = self._is_success_ppo_training(
+            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': True})
         self.assertTrue(is_success)
 
     def test_cartpole_stable_baselines(self):
         """Solve the Cartpole problem for continuous action space.
         """
-        def make_env() -> gym.Env:
-            return gym.make(
-                "gym_jiminy.envs:jiminy-cartpole-v0", continuous=True)
-
-        is_success = self._is_success_ppo_training(make_env)
+        is_success = self._is_success_ppo_training(
+            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True})
         self.assertTrue(is_success)
