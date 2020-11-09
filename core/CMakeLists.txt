@@ -17,14 +17,14 @@ if(NOT LEGACY_MODE)
         endif()
     endif()
     if(urdfdom_VERSION)
-        message("-- Found urdfdom: version ${urdfdom_VERSION}")
+        message(STATUS "Found urdfdom: version ${urdfdom_VERSION}")
     else()
-        message("-- Found urdfdom")
+        message(STATUS "Found urdfdom")
     endif()
 
     find_package(pinocchio 2.4.4 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio >= 2.4.4 is required to support convex mesh collision and display
     if(pinocchio_FOUND)
-        message("-- Found pinocchio: version ${pinocchio_VERSION}")
+        message(STATUS "Found pinocchio: version ${pinocchio_VERSION}")
     else()
         find_package(hpp-fcl 1.5.4 REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH)  # hpp-fcl >= 1.5.4 adds support of collision of primitives with halfspace
     endif()

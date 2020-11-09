@@ -66,7 +66,7 @@ jobs:
         cmake "$RootDir" -DCMAKE_INSTALL_PREFIX="$InstallDir" \
               -DBoost_NO_SYSTEM_PATHS=OFF -DPYTHON_EXECUTABLE="${PYTHON_EXECUTABLE}" \
               -DBUILD_TESTING=ON -DBUILD_EXAMPLES=ON -DBUILD_PYTHON_INTERFACE=ON \
-              -DCMAKE_CXX_FLAGS="${CMAKE_CXX_FLAGS}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
+              -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"
         make install -j2
 
     #####################################################################################
