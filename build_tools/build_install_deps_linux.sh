@@ -36,6 +36,7 @@ if [ ! -d "$RootDir/boost" ]; then
 fi
 cd "$RootDir/boost"
 git checkout --force "boost-1.71.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
@@ -51,6 +52,7 @@ if [ ! -d "$RootDir/eigenpy" ]; then
 fi
 cd "$RootDir/eigenpy"
 git checkout --force "v2.5.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
 
@@ -98,6 +100,7 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
 fi
 cd "$RootDir/hpp-fcl"
 git checkout --force "v1.5.4"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"
 cd "$RootDir/hpp-fcl/third-parties/qhull"
@@ -109,6 +112,7 @@ if [ ! -d "$RootDir/pinocchio" ]; then
 fi
 cd "$RootDir/pinocchio"
 git checkout --force "v2.5.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinocchio.patch"
 

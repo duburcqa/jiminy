@@ -37,6 +37,7 @@ if (-not (Test-Path -PathType Container "$RootDir/boost")) {
 }
 Set-Location -Path "$RootDir/boost"
 git checkout --force "boost-1.71.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
@@ -53,6 +54,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 }
 Set-Location -Path "$RootDir/eigenpy"
 git checkout --force "v2.5.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
@@ -100,6 +102,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl"
 git checkout --force "v1.5.4"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
@@ -111,6 +114,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 }
 Set-Location -Path "$RootDir/pinocchio"
 git checkout --force "v2.5.0"
+git submodule foreach --recursive git reset --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 
@@ -182,7 +186,8 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus -DTIXML_USE_STL"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
+)     -DTIXML_USE_STL"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################## Build and install console_bridge ########################################
@@ -204,9 +209,9 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
-cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom_headers" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus" "$RootDir/urdfdom_headers"
+      -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ################################## Build and install urdfdom ###########################################
@@ -219,7 +224,8 @@ Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
+)     -D_USE_MATH_DEFINES -DURDFDOM_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ###################################### Build and install assimp ########################################
@@ -229,12 +235,12 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
 Set-Location -Path "$RootDir/assimp/build"
-cmake -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/assimp" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
-      -DCMAKE_CXX_FLAGS="/EHsc /bigobj" "$RootDir/assimp" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus -D_USE_MATH_DEFINES"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
+)     -D_USE_MATH_DEFINES"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ############################# Build and install qhull and hpp-fcl ######################################
@@ -261,7 +267,8 @@ cmake "$RootDir/hpp-fcl" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=OFF `
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON -DINSTALL_DOCUMENTATION=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4267 /permissive- /Zc:__cplusplus $(
-)     -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DHPP_FCL_STATIC"
+)     -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC $(
+)     -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ### Embedded the required dynamic library in the package folder
@@ -289,7 +296,8 @@ cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATO
       -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF `
       -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4715 /wd4834 /permissive- /Zc:__cplusplus $(
-)     -D_USE_MATH_DEFINES -DNOMINMAX -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+)     -D_USE_MATH_DEFINES -DNOMINMAX -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC $(
+)     -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
 ### Embedded the required dynamic library in the package folder
