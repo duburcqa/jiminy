@@ -144,7 +144,7 @@ mkdir -p "$RootDir/boost/build"
      --with-thread --with-serialization --with-test --with-python \
      --build-type=minimal architecture=x86 address-model=64 threading=multi \
      --layout=system link=shared runtime-link=shared \
-     toolset=gcc cxxflags="-std=c++11 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
+     toolset=gcc cxxflags="-std=c++14 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 

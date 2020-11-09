@@ -139,7 +139,7 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
          --with-thread --with-serialization --with-test --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=multi `
          --layout=system link=shared runtime-link=shared `
-         toolset=msvc-14.2 variant="$BuildTypeB2" install -q -d0 -j2
+         toolset=msvc-14.2 cxxflags="-std=c++14" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 

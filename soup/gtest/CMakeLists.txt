@@ -49,6 +49,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      ${gmock_main_NINJA}
 
      INSTALL_COMMAND ""  # Disable install of googletest on the system
+     UPDATE_COMMAND ""  # Avoid reinstalling systematically everything
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
 
