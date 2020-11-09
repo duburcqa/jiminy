@@ -185,12 +185,18 @@ if(BUILD_PYTHON_INTERFACE)
     # Define BOOST_PYTHON_LIB
     find_package(Boost QUIET REQUIRED)
     if(${Boost_MINOR_VERSION} GREATER_EQUAL 67)
+        # Make sure the shared library is found rather than the static one
+        set(Boost_USE_STATIC_LIBS_OLD ${Boost_USE_STATIC_LIBS})
+        set(Boost_USE_STATIC_LIBS NO)
+        unset(Boost_LIBRARIES)
+        unset(Boost_LIBRARIES CACHE)
         find_package(Boost REQUIRED COMPONENTS
                     "python${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}"
                     "numpy${PYTHON_VERSION_MAJOR}${PYTHON_VERSION_MINOR}")
         set(BOOST_PYTHON_LIB "${Boost_LIBRARIES}")
         unset(Boost_LIBRARIES)
         unset(Boost_LIBRARIES CACHE)
+        set(Boost_USE_STATIC_LIBS ${Boost_USE_STATIC_LIBS_OLD})
     else()
         set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
     endif()
