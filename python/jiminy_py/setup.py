@@ -69,6 +69,8 @@ setup(
         "scipy",
         # Standard library to generate figures.
         "matplotlib<3.3",
+        # Used internally to read HDF5 format log files.
+        "h5py",
         # Used internally by Robot to replace meshes by associated minimal
         # volume bounding box.
         "trimesh",

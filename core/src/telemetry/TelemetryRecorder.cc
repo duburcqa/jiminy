@@ -28,7 +28,7 @@ namespace jiminy
     integerSectionSize_(0),
     floatsAddress_(),
     floatSectionSize_(0),
-    timeLoggingPrecision_(0.0)
+    timeUnit_(0.0)
     {
         // Empty on purpose
     }
@@ -42,7 +42,7 @@ namespace jiminy
     }
 
     hresult_t TelemetryRecorder::initialize(TelemetryData       * telemetryData,
-                                            float64_t     const & timeLoggingPrecision)
+                                            float64_t     const & timeUnit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -52,8 +52,8 @@ namespace jiminy
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
         // Log the time unit as constant.
-        timeLoggingPrecision_ = timeLoggingPrecision;
-        telemetryData->registerConstant(TIME_UNIT, std::to_string(timeLoggingPrecision_));
+        timeUnit_ = timeUnit;
+        telemetryData->registerConstant(TIME_UNIT, std::to_string(timeUnit_));
 
         std::vector<char_t> header;
         if (returnCode == hresult_t::SUCCESS)
@@ -92,14 +92,14 @@ namespace jiminy
         return returnCode;
     }
 
-    float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeLoggingPrecision)
+    float64_t TelemetryRecorder::getMaximumLogTime(float64_t const & timeUnit)
     {
-        return std::numeric_limits<int64_t>::max() / timeLoggingPrecision;
+        return std::numeric_limits<int64_t>::max() / timeUnit;
     }
 
     float64_t TelemetryRecorder::getMaximumLogTime(void) const
     {
-        return getMaximumLogTime(timeLoggingPrecision_);
+        return getMaximumLogTime(timeUnit_);
     }
 
     bool_t const & TelemetryRecorder::getIsInitialized(void)
@@ -164,7 +164,7 @@ namespace jiminy
             flows_.back().write(START_LINE_TOKEN);
 
             // Write time
-            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeLoggingPrecision_)));
+            flows_.back().write(static_cast<int64_t>(std::round(timestamp * timeUnit_)));
 
             // Write data, integers first
             flows_.back().write(reinterpret_cast<uint8_t const *>(integersAddress_), integerSectionSize_);
@@ -208,20 +208,17 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void TelemetryRecorder::getData(std::vector<std::string>                   & header,
-                                    std::vector<float64_t>                     & timestamps,
-                                    std::vector<std::vector<int64_t> >         & intData,
-                                    std::vector<std::vector<float64_t> >       & floatData,
-                                    std::vector<AbstractIODevice *>            & flows,
-                                    int64_t                              const & integerSectionSize,
-                                    int64_t                              const & floatSectionSize,
-                                    int64_t                              const & headerSize,
-                                    int64_t                                      recordedBytesDataLine)
+    hresult_t TelemetryRecorder::getData(logData_t                                  & logData,
+                                         std::vector<AbstractIODevice *>            & flows,
+                                         int64_t                              const & integerSectionSize,
+                                         int64_t                              const & floatSectionSize,
+                                         int64_t                              const & headerSize,
+                                         int64_t                                      recordedBytesDataLine)
     {
-        header.clear();
-        timestamps.clear();
-        intData.clear();
-        floatData.clear();
+        logData.header.clear();
+        logData.timestamps.clear();
+        logData.intData.clear();
+        logData.floatData.clear();
 
         if (!flows.empty())
         {
@@ -241,18 +238,29 @@ namespace jiminy
                 // Dealing with version flag, constants, header, and descriptor
                 if (!isReadingHeaderDone)
                 {
-                    int32_t header_version_length = sizeof(int32_t);
-                    flow->seek(header_version_length); // Skip the version flag
+                    // Read version flag and check if valid
+                    int32_t version;
+                    flow->readData(&version, sizeof(int32_t));
+                    if (version != TELEMETRY_VERSION)
+                    {
+                        PRINT_ERROR("Log telemetry version not supported. Impossible to read log.")
+                        return hresult_t::ERROR_BAD_INPUT;
+                    }
+                    logData.version = version;
+
+                    // Read the rest of the header
                     std::vector<char_t> headerCharBuffer;
-                    headerCharBuffer.resize(headerSize - header_version_length);
+                    headerCharBuffer.resize(headerSize - sizeof(int32_t));
                     flow->read(headerCharBuffer);
+
+                    // Parse header
                     char_t const * pHeader = &headerCharBuffer[0];
                     uint32_t posHeader = 0;
                     std::string fieldHeader(pHeader);
                     while (true)
                     {
-                        header.push_back(std::move(fieldHeader));
-                        posHeader += header.back().size() + 1;
+                        logData.header.push_back(std::move(fieldHeader));
+                        posHeader += logData.header.back().size() + 1;
                         fieldHeader = std::string(pHeader + posHeader);
                         if (fieldHeader.size() == 0 || posHeader >= headerCharBuffer.size())
                         {
@@ -261,7 +269,7 @@ namespace jiminy
                         if (posHeader + fieldHeader.size() > headerCharBuffer.size())
                         {
                             fieldHeader = std::string(pHeader + posHeader, headerCharBuffer.size() - posHeader);
-                            header.push_back(std::move(fieldHeader));
+                            logData.header.push_back(std::move(fieldHeader));
                             break;
                         }
                     }
@@ -270,8 +278,8 @@ namespace jiminy
 
                 // In header, look for timeUnit constant - if not found, use default time unit.
                 float64_t timeUnit = TELEMETRY_DEFAULT_TIME_UNIT;
-                auto const lastConstantIt = std::find(header.begin(), header.end(), START_COLUMNS);
-                for (auto constantIt = header.begin() ; constantIt != lastConstantIt ; ++constantIt)
+                auto const lastConstantIt = std::find(logData.header.begin(), logData.header.end(), START_COLUMNS);
+                for (auto constantIt = logData.header.begin() ; constantIt != lastConstantIt ; ++constantIt)
                 {
                     int32_t const delimiter = constantIt->find("=");
                     if (constantIt->substr(0, delimiter) == TIME_UNIT)
@@ -280,14 +288,15 @@ namespace jiminy
                         break;
                     }
                 }
+                logData.timeUnit = timeUnit;
 
                 // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
                 if (recordedBytesDataLine > 0)
                 {
                     uint32_t numberLines = (flow->size() - flow->pos()) / recordedBytesDataLine;
-                    timestamps.reserve(timestamps.size() + numberLines);
-                    intData.reserve(intData.size() + numberLines);
-                    floatData.reserve(floatData.size() + numberLines);
+                    logData.timestamps.reserve(logData.timestamps.size() + numberLines);
+                    logData.intData.reserve(logData.intData.size() + numberLines);
+                    logData.floatData.reserve(logData.floatData.size() + numberLines);
                 }
 
                 while (flow->bytesAvailable() > 0)
@@ -297,27 +306,26 @@ namespace jiminy
                     flow->readData(intDataLine.data(), integerSectionSize);
                     flow->readData(floatDataLine.data(), floatSectionSize);
 
-                    if (!timestamps.empty() && timestamp == 0)
+                    if (!logData.timestamps.empty() && timestamp == 0)
                     {
                         // The buffer is not full, must stop reading !
                         break;
                     }
 
-                    timestamps.emplace_back(static_cast<float64_t>(timestamp / timeUnit));
-                    intData.emplace_back(intDataLine);
-                    floatData.emplace_back(floatDataLine);
+                    logData.timestamps.emplace_back(timestamp);
+                    logData.intData.emplace_back(intDataLine);
+                    logData.floatData.emplace_back(floatDataLine);
                 }
 
                 // Restore the cursor position
                 flow->seek(pos_old);
             }
         }
+
+        return hresult_t::SUCCESS;
     }
 
-    void TelemetryRecorder::getData(std::vector<std::string>             & header,
-                                    std::vector<float64_t>               & timestamps,
-                                    std::vector<std::vector<int64_t> >   & intData,
-                                    std::vector<std::vector<float64_t> > & floatData)
+    hresult_t TelemetryRecorder::getData(logData_t & logData)
     {
         std::vector<AbstractIODevice *> abstractFlows_;
         for (MemoryDevice & device: flows_)
@@ -325,14 +333,11 @@ namespace jiminy
             abstractFlows_.push_back(&device);
         }
 
-        getData(header,
-                timestamps,
-                intData,
-                floatData,
-                abstractFlows_,
-                integerSectionSize_,
-                floatSectionSize_,
-                headerSize_,
-                recordedBytesDataLine_);
+        return getData(logData,
+                       abstractFlows_,
+                       integerSectionSize_,
+                       floatSectionSize_,
+                       headerSize_,
+                       recordedBytesDataLine_);
     }
 }

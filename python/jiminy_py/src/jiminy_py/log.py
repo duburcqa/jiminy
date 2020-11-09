@@ -1,50 +1,78 @@
 import os
+import pathlib
 import fnmatch
 import argparse
-import numpy as np
-import matplotlib.pyplot as plt
 from csv import DictReader
 from textwrap import dedent
 from itertools import cycle
 from collections import OrderedDict
+from typing import Tuple, Dict, Optional
+
+import h5py
+import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from typing import Tuple, Dict
 
 from .core import Engine
 
 
-def _is_log_binary(filename: str) -> bool:
-    """Return True if the given filename appears to be binary log file.
+def _is_log_binary(fullpath: str) -> bool:
+    """Return True if the given fullpath appears to be binary log file.
 
     File is considered to be binary log if it contains a NULL byte.
 
     See https://stackoverflow.com/a/11301631/4820605 for reference.
     """
-    with open(filename, 'rb') as f:
-        for block in f:
-            if b'\0' in block:
-                return True
+    try:
+        with open(fullpath, 'rb') as f:
+            for block in f:
+                if b'\0' in block:
+                    return True
+    except IOError:
+        pass
     return False
 
 
-def read_log(filename: str) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
+def read_log(fullpath: str,
+             file_format: Optional[str] = None
+             ) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
     """Read a logfile from jiminy.
 
     This function supports both text (csv) and binary log.
 
-    :param filename: Name of the file to load.
+    :param fullpath: Name of the file to load.
+    :param file_format: Name of the file to load.
 
     :returns: Pair of dictionaries containing respectively the logged values,
               and the constants.
     """
+    # Handling of file file_format
+    if file_format is None:
+        file_ext = ''.join(pathlib.Path(fullpath).suffixes)
+        if file_ext == '.data':
+            file_format = 'binary'
+        elif file_ext == '.csv' or file_ext == '.txt':
+            file_format = 'csv'
+        elif file_ext == '.h5' or file_ext == '.hdf5':
+            file_format = 'hdf5'
+        if file_format is None and not _is_log_binary(fullpath):
+            file_format = 'csv'
+    if file_format is None:
+        raise ValueError(
+            "Impossible to determine the file format automatically. Please "
+            "specify it manually.")
+    if file_format not in ['binary', 'csv', 'hdf5']:
+        raise ValueError(
+            "Invalid 'file_format' argument. It must be either 'binary', "
+            "'csv' or 'hdf5'.")
 
-    if _is_log_binary(filename):
+    if file_format == 'binary':
         # Read binary file using C++ parser.
-        data_dict, constants_dict = Engine.read_log_binary(filename)
-    else:
+        data_dict, constants_dict = Engine.read_log_binary(fullpath)
+    elif file_format == 'csv':
         # Read text csv file.
         constants_dict = {}
-        with open(filename, 'r') as log:
+        with open(fullpath, 'r') as log:
             constants_str = next(log).split(', ')
             for c in constants_str:
                 # Extract the name and value of the constant.
@@ -70,6 +98,15 @@ def read_log(filename: str) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         # Convert every element to array to provide same API as the C++ parser,
         # removing spaces present before the keys.
         data_dict = {k.strip(): np.array(v) for k, v in data.items()}
+    elif file_format == 'hdf5':
+        file = h5py.File(fullpath, 'r')
+        constants_dict = {}
+        for key, value in dict(file['constants'].attrs).items():
+            constants_dict[key] = value.decode()
+        data_dict = {'Global.Time': file['Global.Time'][()]}
+        for key, value in file['variables'].items():
+            data_dict[key] = value['value'][()]
+
     return data_dict, constants_dict
 
 
@@ -123,8 +160,8 @@ def plot_log():
     # Load comparision logs, if any.
     compare_data = OrderedDict()
     if main_arguments.compare is not None:
-        for filename in main_arguments.compare.split(':'):
-            compare_data[filename], _ = read_log(filename)
+        for fullpath in main_arguments.compare.split(':'):
+            compare_data[fullpath], _ = read_log(fullpath)
 
     # Define linestyle cycle that will be used for comparison logs
     linestyles = ["--", "-.", ":"]

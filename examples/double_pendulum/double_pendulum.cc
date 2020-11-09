@@ -142,8 +142,18 @@ int main(int argc, char_t * argv[])
     engine->getLogData(header, log);
     std::cout << log.rows() << " log points" << std::endl;
     std::cout << engine->getStepperState().iter << " internal integration steps" << std::endl;
-    engine->writeLogTxt((outputDirPath / "log.txt").string());
-    engine->writeLogBinary((outputDirPath / "log.data").string());
+    timer.tic();
+    engine->writeLog((outputDirPath / "log.data").string(), "binary");
+    timer.toc();
+    std::cout << "Write log binary: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    timer.tic();
+    engine->writeLog((outputDirPath / "log.csv").string(), "csv");
+    timer.toc();
+    std::cout << "Write log CSV: " << (timer.dt * 1.0e3) << "ms" << std::endl;
+    timer.tic();
+    engine->writeLog((outputDirPath / "log.h5").string(), "hdf5");
+    timer.toc();
+    std::cout << "Write log HDF5: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 
     return 0;
 }

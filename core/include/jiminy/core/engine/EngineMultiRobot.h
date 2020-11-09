@@ -29,6 +29,7 @@ namespace jiminy
     class AbstractStepper;
     class TelemetryData;
     class TelemetryRecorder;
+    struct logData_t;
 
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
 
@@ -430,40 +431,20 @@ namespace jiminy
         bool_t const & getIsSimulationRunning(void) const;
         float64_t getMaxSimulationDuration(void) const;
 
-        void getLogDataRaw(std::vector<std::string>             & header,
-                           std::vector<float64_t>               & timestamps,
-                           std::vector<std::vector<int64_t> >   & intData,
-                           std::vector<std::vector<float64_t> > & floatData);
-
-        /// \brief Get the full logged content.
-        ///
-        /// \param[out] header      Header, vector of field names.
-        /// \param[out] logData     Corresponding data in the log file.
-        void getLogData(std::vector<std::string> & header,
-                        matrixN_t                & logData);
-
-        hresult_t writeLogTxt(std::string const & filename);
-        hresult_t writeLogBinary(std::string const & filename);
-
-        static hresult_t parseLogBinaryRaw(std::string                    const & filename,
-                                           std::vector<std::string>             & header,
-                                           std::vector<float64_t>               & timestamps,
-                                           std::vector<std::vector<int64_t> >   & intData,
-                                           std::vector<std::vector<float64_t> > & floatData);
-        static hresult_t parseLogBinary(std::string              const & filename,
-                                        std::vector<std::string>       & header,
-                                        matrixN_t                      & logData);
-
         hresult_t computeSystemDynamics(float64_t              const & t,
                                         std::vector<vectorN_t> const & qSplit,
                                         std::vector<vectorN_t> const & vSplit,
                                         std::vector<vectorN_t>       & aSplit);
+
     protected:
         hresult_t configureTelemetry(void);
         void updateTelemetry(void);
 
         void syncStepperStateWithSystems(void);
         void syncSystemsStateWithStepper(void);
+
+        void reset(bool_t const & resetRandomNumbers,
+                   bool_t const & resetDynamicForceRegister);
 
         static void computeForwardKinematics(systemHolder_t  & system,
                                              vectorN_t const & q,
@@ -514,8 +495,45 @@ namespace jiminy
                               std::vector<vectorN_t> const & qSplit,
                               std::vector<vectorN_t> const & vSplit);
 
-        void reset(bool_t const & resetRandomNumbers,
-                   bool_t const & resetDynamicForceRegister);
+        /// \brief Compute system acceleration from current system state.
+        ///
+        /// \details This function performs forward dynamics computation, either
+        ///          with kinematic constraints (using Lagrange multiplier for computing the forces)
+        ///          or unconstrained (aba).
+        ///
+        /// \param[in] system System for which to compute the dynamics.
+        /// \param[in] q Joint position.
+        /// \param[in] v Joint velocity.
+        /// \param[in] u Joint effort.
+        /// \param[in] fext External forces applied on the system.
+        /// \return System acceleration.
+        vectorN_t computeAcceleration(systemHolder_t       & system,
+                                      vectorN_t      const & q,
+                                      vectorN_t      const & v,
+                                      vectorN_t      const & u,
+                                      forceVector_t  const & fext);
+
+    public:
+        hresult_t getLogDataRaw(logData_t & logData);
+
+        /// \brief Get the full logged content.
+        ///
+        /// \param[out] header      Header, vector of field names.
+        /// \param[out] logMatrix   Corresponding data in the log file.
+        hresult_t getLogData(std::vector<std::string> & header,
+                             matrixN_t                & logMatrix);
+
+        hresult_t writeLog(std::string const & filename,
+                           std::string const & format = "binary");
+
+        static hresult_t parseLogBinaryRaw(std::string const & filename,
+                                           logData_t         & logData);
+        static hresult_t parseLogBinary(std::string              const & filename,
+                                        std::vector<std::string>       & header,
+                                        matrixN_t                      & logMatrix);
+    private:
+        hresult_t writeLogCsv(std::string const & filename);
+        hresult_t writeLogHdf5(std::string const & filename);
 
     private:
         template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
@@ -546,24 +564,6 @@ namespace jiminy
             Eigen::MatrixBase<TangentVectorType1>                  const & v,
             Eigen::MatrixBase<TangentVectorType2>                  const & tau,
             pinocchio::container::aligned_vector<ForceDerived>     const & fext);
-
-        /// \brief Compute system acceleration from current system state.
-        ///
-        /// \details This function performs forward dynamics computation, either
-        ///          with kinematic constraints (using Lagrange multiplier for computing the forces)
-        ///          or unconstrained (aba).
-        ///
-        /// \param[in] system System for which to compute the dynamics.
-        /// \param[in] q Joint position.
-        /// \param[in] v Joint velocity.
-        /// \param[in] u Joint effort.
-        /// \param[in] fext External forces applied on the system.
-        /// \return System acceleration.
-        vectorN_t computeAcceleration(systemHolder_t       & system,
-                                      vectorN_t      const & q,
-                                      vectorN_t      const & v,
-                                      vectorN_t      const & u,
-                                      forceVector_t  const & fext);
 
     public:
         std::unique_ptr<engineOptions_t const> engineOptions_;
