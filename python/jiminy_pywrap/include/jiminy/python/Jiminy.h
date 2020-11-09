@@ -16,6 +16,7 @@
 #include "jiminy/core/robot/WheelConstraint.h"
 #include "jiminy/core/control/ControllerFunctor.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
+#include "jiminy/core/telemetry/TelemetryRecorder.h"
 #include "jiminy/core/Types.h"
 
 #include "jiminy/python/Utilities.h"
@@ -1841,9 +1842,9 @@ namespace python
                                               (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
-                .def("write_log", &PyEngineMultiRobotVisitor::writeLog,
+                .def("write_log", &EngineMultiRobot::writeLog,
                                   (bp::arg("self"), "filename",
-                                   bp::arg("isModeBinary") = true))
+                                   bp::arg("format") = "hdf5"))
                 .def("read_log_binary", &PyEngineMultiRobotVisitor::parseLogBinary, (bp::arg("filename")))
                 .staticmethod("read_log_binary")
 
@@ -1987,20 +1988,6 @@ namespace python
             return convertToPython<std::vector<vectorN_t> >(aSplit);
         }
 
-        static void writeLog(EngineMultiRobot       & self,
-                             std::string      const & filename,
-                             bool_t           const & isModeBinary)
-        {
-            if (isModeBinary)
-            {
-                self.writeLogBinary(filename);
-            }
-            else
-            {
-                self.writeLogTxt(filename);
-            }
-        }
-
         static void registerForceImpulse(EngineMultiRobot       & self,
                                          std::string      const & systemName,
                                          std::string      const & frameName,
@@ -2029,117 +2016,95 @@ namespace python
         /// \brief      Getters and Setters
         ///////////////////////////////////////////////////////////////////////////////
 
-        static bp::tuple formatLog(std::vector<std::string>             const & header,
-                                   std::vector<float64_t>                     & timestamps,
-                                   std::vector<std::vector<int64_t> >         & intData,
-                                   std::vector<std::vector<float64_t> >       & floatData,
-                                   bool_t                               const & clear_memory = true)
+        static bp::tuple formatLogData(logData_t & logData)
         {
+            bp::dict variables;
             bp::dict constants;
-            bp::dict data;
 
             // Get constants
             int32_t const lastConstantIdx = std::distance(
-                header.begin(), std::find(header.begin(), header.end(), START_COLUMNS));
+                logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
-                int32_t const delimiter = header[i].find("=");
-                constants[header[i].substr(0, delimiter)] = header[i].substr(delimiter + 1);
+                int32_t const delimiter = logData.header[i].find("=");
+                constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
             }
 
             // Get Global.Time
-            if (!timestamps.empty())
+            if (!logData.timestamps.empty())
             {
-                Eigen::Ref<vectorN_t> timeBuffer = vectorN_t::Map(
-                    timestamps.data(), timestamps.size());
+                vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
+                    logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
                 PyObject * valuePyTime(getNumpyReference(timeBuffer));
-                data[header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
+                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
                     PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
                 Py_XDECREF(valuePyTime);
             }
 
             // Get intergers
-            Eigen::Matrix<int64_t, Eigen::Dynamic, Eigen::Dynamic> intMatrix;
-            if (!intData.empty())
+            if (!logData.intData.empty())
             {
-                intMatrix.resize(timestamps.size(), intData[0].size());
-                for (uint32_t i=0; i<intData.size(); ++i)
-                {
-                    intMatrix.row(i) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                        intData[i].data(), intData[0].size());
-                }
-                if (clear_memory)
-                {
-                    intData.clear();
-                }
+                Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
+                intVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<intMatrix.cols(); ++i)
+                for (uint32_t i=0; i<logData.intData[0].size(); ++i)
                 {
-                    Eigen::Ref<Eigen::Matrix<int64_t, -1, 1> > intCol(intMatrix.col(i));
-                    PyObject * valuePyInt(getNumpyReference(intCol));
-                    std::string const & header_i = header[i + (lastConstantIdx + 1) + 1];
+                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    for (uint32_t j=0; j < logData.intData.size(); ++j)
+                    {
+                        intVector[j] = logData.intData[j][i];
+                    }
+
                     /* One must make copies with PyArray_FROM_OF instead of using
                        raw pointer for floatMatrix and setting NPY_ARRAY_OWNDATA
                        because otherwise Python is not able to free the memory
                        associated with each columns independently. Moreover, one
                        must decrease manually the counter reference for some reasons... */
-                    data[header_i] = bp::object(bp::handle<>(
+                    PyObject * valuePyInt(getNumpyReference(intVector));
+                    variables[header_i] = bp::object(bp::handle<>(
                         PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
                     Py_XDECREF(valuePyInt);
                 }
             }
-
             // Get floats
-            Eigen::Matrix<float64_t, Eigen::Dynamic, Eigen::Dynamic> floatMatrix;
-            if (!floatData.empty())
+            if (!logData.floatData.empty())
             {
-                floatMatrix.resize(timestamps.size(), floatData[0].size());
-                for (uint32_t i=0; i<floatData.size(); ++i)
-                {
-                    floatMatrix.row(i) = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
-                        floatData[i].data(), floatData[0].size());
-                }
-                if (clear_memory)
-                {
-                    floatData.clear();
-                }
+                Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
+                floatVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<floatMatrix.cols(); ++i)
+                for (uint32_t i=0; i<logData.floatData[0].size(); ++i)
                 {
-                    Eigen::Ref<Eigen::Matrix<float64_t, -1, 1> > floatCol(floatMatrix.col(i));
-                    PyObject * valuePyFloat(getNumpyReference(floatCol));
                     std::string const & header_i =
-                        header[i + (lastConstantIdx + 1) + 1 + intData[0].size()];
-                    data[header_i] = bp::object(bp::handle<>(
+                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.intData[0].size()];
+                    for (uint32_t j=0; j < logData.floatData.size(); ++j)
+                    {
+                        floatVector[j] = logData.floatData[j][i];
+                    }
+
+                    PyObject * valuePyFloat(getNumpyReference(floatVector));
+                    variables[header_i] = bp::object(bp::handle<>(
                         PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
                     Py_XDECREF(valuePyFloat);
                 }
             }
 
-            return bp::make_tuple(data, constants);
+            return bp::make_tuple(variables, constants);
         }
 
         static bp::tuple getLog(EngineMultiRobot & self)
         {
-            std::vector<std::string> header;
-            std::vector<float64_t> timestamps;
-            std::vector<std::vector<int64_t> > intData;
-            std::vector<std::vector<float64_t> > floatData;
-            self.getLogDataRaw(header, timestamps, intData, floatData);
-            return formatLog(header, timestamps, intData, floatData);
+            logData_t logData;
+            self.getLogDataRaw(logData);
+            return formatLogData(logData);
         }
 
         static bp::tuple parseLogBinary(std::string const & filename)
         {
-            std::vector<std::string> header;
-            std::vector<float64_t> timestamps;
-            std::vector<std::vector<int64_t> > intData;
-            std::vector<std::vector<float64_t> > floatData;
-            hresult_t returnCode = EngineMultiRobot::parseLogBinaryRaw(
-                filename, header, timestamps, intData, floatData);
+            logData_t logData;
+            hresult_t returnCode = EngineMultiRobot::parseLogBinaryRaw(filename, logData);
             if (returnCode == hresult_t::SUCCESS)
             {
-                return formatLog(header, timestamps, intData, floatData);
+                return formatLogData(logData);
             }
             else
             {

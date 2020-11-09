@@ -33,6 +33,13 @@ Welcome to Jiminy's documentation!
    api/jiminy_py/index
    api/gym_jiminy/index
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Technical Specifications
+
+   spec/src/tlmc_format_specification.md
+   spec/pdf/index
+
 Indices and tables
 ==================
 

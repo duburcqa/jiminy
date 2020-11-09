@@ -122,7 +122,7 @@ namespace jiminy
             }
 
             currentPos += entry.size();
-            currentPos += 1U; // Null-terminated
+            currentPos += 1U;  // Null-terminated
 
             ++position;
         }
@@ -132,7 +132,7 @@ namespace jiminy
 
     void TelemetryData::formatHeader(std::vector<char_t> & header) const
     {
-        // Lock registering.
+        // Lock registering
         constantsHeader_->isRegisteringAvailable = false;
         integersHeader_->isRegisteringAvailable = false;
         floatsHeader_->isRegisteringAvailable = false;
@@ -140,25 +140,25 @@ namespace jiminy
         header.clear();
         header.reserve(64 * 1024);
 
-        // Record format version.
-        header.resize(sizeof(int32_t)); // version.
+        // Record format version
+        header.resize(sizeof(int32_t));
         header[0] = ((TELEMETRY_VERSION & 0x000000ff) >> 0);
         header[1] = ((TELEMETRY_VERSION & 0x0000ff00) >> 8);
         header[2] = ((TELEMETRY_VERSION & 0x00ff0000) >> 16);
         header[3] = ((TELEMETRY_VERSION & 0xff000000) >> 24);
 
-        // Record constants.
+        // Record constants
         header.insert(header.end(), START_CONSTANTS.data(), START_CONSTANTS.data() + START_CONSTANTS.size());
         header.push_back('\0');
         char_t const * startConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->startNameSection;
         char_t const * stopConstants = reinterpret_cast<char_t *>(constantsHeader_) + constantsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startConstants, stopConstants);
 
-        // Record entries numbers.
+        // Record entries numbers
         std::string entriesNumbers;
         entriesNumbers += NUM_INTS;
         entriesNumbers += std::to_string((integersHeader_->nextFreeDataOffset - integersHeader_->startDataSection) /
-                                         static_cast<int64_t>(sizeof(int64_t)) + 1); // +1 because we add Global.Time
+                                         static_cast<int64_t>(sizeof(int64_t)) + 1);  // +1 because we add Global.Time
         entriesNumbers += '\0';
         entriesNumbers += NUM_FLOATS;
         entriesNumbers += std::to_string((floatsHeader_->nextFreeDataOffset - floatsHeader_->startDataSection) /
@@ -166,7 +166,7 @@ namespace jiminy
         entriesNumbers += '\0';
         header.insert(header.end(), entriesNumbers.data(), entriesNumbers.data() + entriesNumbers.size());
 
-        // Record header - GLobal.Time - integers, floats.
+        // Record header - Global.Time - integers, floats
         header.insert(header.end(), START_COLUMNS.data(), START_COLUMNS.data() + START_COLUMNS.size());
         header.push_back('\0');
 
@@ -181,7 +181,7 @@ namespace jiminy
         char_t const * stopFloatsHeader  = reinterpret_cast<char_t *>(floatsHeader_) + floatsHeader_->nextFreeNameOffset;
         header.insert(header.end(), startFloatsHeader, stopFloatsHeader);
 
-        // Start data section.
+        // Start data section
         header.insert(header.end(), START_DATA.data(), START_DATA.data() + START_DATA.size());
     }
 

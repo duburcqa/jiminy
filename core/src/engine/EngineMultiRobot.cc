@@ -1,10 +1,13 @@
-#include <iostream>
 #include <cmath>
+#include <ctime>
 #include <algorithm>
+#include <iostream>
 
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/contact-dynamics.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
+
+#include "H5Cpp.h"
 
 #include "jiminy/core/io/FileDevice.h"
 #include "jiminy/core/telemetry/TelemetryData.h"
@@ -2349,202 +2352,6 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    // ===================================================================
-    // ================ Log reading and writing utilities ================
-    // ===================================================================
-
-    void logDataRawToEigenMatrix(std::vector<float64_t>               const & timestamps,
-                                 std::vector<std::vector<int64_t> >   const & intData,
-                                 std::vector<std::vector<float64_t> > const & floatData,
-                                 matrixN_t                                  & logData)
-    {
-        // Never empty since it contains at least the initial state
-        logData.resize(timestamps.size(), 1 + intData[0].size() + floatData[0].size());
-        logData.col(0) = Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
-            timestamps.data(), timestamps.size());
-        for (uint32_t i=0; i<intData.size(); ++i)
-        {
-            logData.block(i, 1, 1, intData[i].size()) =
-                Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    intData[i].data(), intData[i].size()).cast<float64_t>();
-        }
-        for (uint32_t i=0; i<floatData.size(); ++i)
-        {
-            logData.block(i, 1 + intData[0].size(), 1, floatData[i].size()) =
-                Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
-                    floatData[i].data(), floatData[i].size());
-        }
-    }
-
-    void EngineMultiRobot::getLogDataRaw(std::vector<std::string>             & header,
-                                         std::vector<float64_t>               & timestamps,
-                                         std::vector<std::vector<int64_t> >   & intData,
-                                         std::vector<std::vector<float64_t> > & floatData)
-    {
-        telemetryRecorder_->getData(header, timestamps, intData, floatData);
-    }
-
-    void EngineMultiRobot::getLogData(std::vector<std::string> & header,
-                                      matrixN_t                & logData)
-    {
-        std::vector<float64_t> timestamps;
-        std::vector<std::vector<int64_t> > intData;
-        std::vector<std::vector<float64_t> > floatData;
-        getLogDataRaw(header, timestamps, intData, floatData);
-        if (!intData.empty())
-        {
-            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
-        }
-    }
-
-    hresult_t EngineMultiRobot::writeLogTxt(std::string const & filename)
-    {
-        std::vector<std::string> header;
-        matrixN_t log;
-        getLogData(header, log);
-        if (header.empty())
-        {
-            PRINT_ERROR("No data available. Please start a simulation before writing log.")
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        std::ofstream myFile = std::ofstream(filename,
-                                             std::ios::out |
-                                             std::ofstream::trunc);
-
-        if (!myFile.is_open())
-        {
-            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
-                        "if you have writing permissions.")
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
-        std::copy(header.begin() + 1,
-                  indexConstantEnd - 1,
-                  std::ostream_iterator<std::string>(myFile, ", ")); // Discard the first one (start constant flag)
-        std::copy(indexConstantEnd - 1,
-                  indexConstantEnd,
-                  std::ostream_iterator<std::string>(myFile, "\n"));
-        std::copy(indexConstantEnd + 1,
-                  header.end() - 2,
-                  std::ostream_iterator<std::string>(myFile, ", "));
-        std::copy(header.end() - 2,
-                  header.end() - 1,
-                  std::ostream_iterator<std::string>(myFile, "\n")); // Discard the last one (start data flag)
-        Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
-        myFile << log.format(CSVFormat);
-
-        myFile.close();
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t EngineMultiRobot::writeLogBinary(std::string const & filename)
-    {
-        return telemetryRecorder_->writeDataBinary(filename);
-    }
-
-    hresult_t EngineMultiRobot::parseLogBinaryRaw(std::string                          const & filename,
-                                                  std::vector<std::string>                   & header,
-                                                  std::vector<float64_t>                     & timestamps,
-                                                  std::vector<std::vector<int64_t> >         & intData,
-                                                  std::vector<std::vector<float64_t> >       & floatData)
-    {
-        int64_t integerSectionSize;
-        int64_t floatSectionSize;
-        int64_t headerSize;
-
-        std::ifstream myFile = std::ifstream(filename,
-                                             std::ios::in |
-                                             std::ifstream::binary);
-
-        if (myFile.is_open())
-        {
-            // Skip the version flag
-            int32_t header_version_length = sizeof(int32_t);
-            myFile.seekg(header_version_length);
-
-            std::vector<std::string> headerBuffer;
-            std::string subHeaderBuffer;
-
-            // Get all the logged constants
-            while (std::getline(myFile, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != START_COLUMNS)
-            {
-                headerBuffer.push_back(subHeaderBuffer);
-            }
-
-            // Get the names of the logged variables
-            while (std::getline(myFile, subHeaderBuffer, '\0').good() &&
-                   subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
-            {
-                // Do nothing
-            }
-
-            // Make sure the log file is not corrupted
-            if (!myFile.good())
-            {
-                PRINT_ERROR("Corrupted log file.")
-                return hresult_t::ERROR_BAD_INPUT;
-            }
-
-            // Extract the number of intergers and floats from the list of logged constants
-            std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-            int32_t delimiter = headerNumIntEntries.find("=");
-            int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
-            std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
-            delimiter = headerNumFloatEntries.find("=");
-            int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
-
-            // Deduce the parameters required to parse the whole binary log file
-            integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t); // Remove Global.Time
-            floatSectionSize = NumFloatEntries * sizeof(float64_t);
-            headerSize = ((int32_t) myFile.tellg()) - START_LINE_TOKEN.size() - 1;
-
-            // Close the file
-            myFile.close();
-        }
-        else
-        {
-            PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
-                        "that you have reading permissions.")
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
-        FileDevice device(filename);
-        device.open(OpenMode::READ_ONLY);
-        std::vector<AbstractIODevice *> flows;
-        flows.push_back(&device);
-
-        TelemetryRecorder::getData(header,
-                                   timestamps,
-                                   intData,
-                                   floatData,
-                                   flows,
-                                   integerSectionSize,
-                                   floatSectionSize,
-                                   headerSize);
-
-        return hresult_t::SUCCESS;
-    }
-
-    hresult_t EngineMultiRobot::parseLogBinary(std::string              const & filename,
-                                               std::vector<std::string>       & header,
-                                               matrixN_t                      & logData)
-    {
-        std::vector<float64_t> timestamps;
-        std::vector<std::vector<int64_t> > intData;
-        std::vector<std::vector<float64_t> > floatData;
-        hresult_t returnCode = parseLogBinaryRaw(
-            filename, header, timestamps, intData, floatData);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            logDataRawToEigenMatrix(timestamps, intData, floatData, logData);
-        }
-        return returnCode;
-    }
-
     vectorN_t EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
                                                     vectorN_t      const & q,
                                                     vectorN_t      const & v,
@@ -2607,5 +2414,357 @@ namespace jiminy
             return pinocchio_overload::aba(
                 system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
+    }
+
+    // ===================================================================
+    // ================ Log reading and writing utilities ================
+    // ===================================================================
+
+    void logDataToEigenMatrix(logData_t const & logData,
+                              matrixN_t       & logMatrix)
+    {
+        // Never empty since it contains at least the initial state
+        logMatrix.resize(logData.timestamps.size(), 1 + logData.intData[0].size() + logData.floatData[0].size());
+        logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
+            logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
+        for (uint32_t i=0; i<logData.intData.size(); ++i)
+        {
+            logMatrix.block(i, 1, 1, logData.intData[i].size()) =
+                Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
+                    logData.intData[i].data(), logData.intData[i].size()).cast<float64_t>();
+        }
+        for (uint32_t i=0; i<logData.floatData.size(); ++i)
+        {
+            logMatrix.block(i, 1 + logData.intData[0].size(), 1, logData.floatData[i].size()) =
+                Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
+                    logData.floatData[i].data(), logData.floatData[i].size());
+        }
+    }
+
+    hresult_t EngineMultiRobot::getLogDataRaw(logData_t & logData)
+    {
+        return telemetryRecorder_->getData(logData);
+    }
+
+    hresult_t EngineMultiRobot::getLogData(std::vector<std::string> & header,
+                                           matrixN_t                & logMatrix)
+    {
+        logData_t logData;
+        hresult_t returnCode = getLogDataRaw(logData);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!logData.timestamps.empty())
+            {
+                logDataToEigenMatrix(logData, logMatrix);
+                std::swap(header, logData.header);
+            }
+        }
+
+        return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::writeLogCsv(std::string const & filename)
+    {
+        std::vector<std::string> header;
+        matrixN_t logMatrix;
+        hresult_t returnCode = getLogData(header, logMatrix);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (header.empty())
+            {
+                PRINT_ERROR("No data available. Please start a simulation before writing log.")
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            std::ofstream file = std::ofstream(filename,
+                                                std::ios::out |
+                                                std::ofstream::trunc);
+
+            if (!file.is_open())
+            {
+                PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
+                            "if you have writing permissions.")
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
+            std::copy(header.begin() + 1,
+                    indexConstantEnd - 1,
+                    std::ostream_iterator<std::string>(file, ", ")); // Discard the first one (start constant flag)
+            std::copy(indexConstantEnd - 1,
+                    indexConstantEnd,
+                    std::ostream_iterator<std::string>(file, "\n"));
+            std::copy(indexConstantEnd + 1,
+                    header.end() - 2,
+                    std::ostream_iterator<std::string>(file, ", "));
+            std::copy(header.end() - 2,
+                    header.end() - 1,
+                    std::ostream_iterator<std::string>(file, "\n")); // Discard the last one (start data flag)
+            Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
+            file << logMatrix.format(CSVFormat);
+
+            file.close();
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::writeLogHdf5(std::string const & filename)
+    {
+        // Extract raw log data
+        logData_t logData;
+        hresult_t returnCode = getLogDataRaw(logData);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (logData.intData.empty())
+            {
+                PRINT_ERROR("No data available. Please start a simulation before writing log.")
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Open HDF5 logfile
+            std::unique_ptr<H5::H5File> file;
+            try {
+                file = std::make_unique<H5::H5File>(filename, H5F_ACC_TRUNC);
+            } catch (H5::FileIException const & open_file) {
+                PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
+                            "if you have writing permissions.")
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            // Add "VERSION" attribute
+            H5::DataSpace versionSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute versionAttrib = file->createAttribute(
+                "VERSION", H5::PredType::NATIVE_INT, versionSpace);
+            versionAttrib.write(H5::PredType::NATIVE_INT, &logData.version);
+
+            // Add "START_TIME" attribute
+            int64_t time = std::time(nullptr);
+            H5::DataSpace startTimeSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute startTimeAttrib = file->createAttribute(
+                "START_TIME", H5::PredType::NATIVE_LONG, startTimeSpace);
+            startTimeAttrib.write(H5::PredType::NATIVE_LONG, &time);
+
+            // Add GLOBAL_TIME vector
+            hsize_t vectorDims[1] = {hsize_t(logData.timestamps.size())};
+            H5::DataSpace globalTimeSpace = H5::DataSpace(1, vectorDims);
+            H5::DataSet globalTimeDataSet = file->createDataSet(
+                GLOBAL_TIME, H5::PredType::NATIVE_LONG, globalTimeSpace);
+            globalTimeDataSet.write(logData.timestamps.data(), H5::PredType::NATIVE_LONG);
+
+            // Add "unit" attribute to GLOBAL_TIME vector
+            H5::DataSpace unitSpace = H5::DataSpace(H5S_SCALAR);
+            H5::Attribute unitAttrib = globalTimeDataSet.createAttribute(
+                "unit", H5::PredType::NATIVE_DOUBLE, unitSpace);
+            unitAttrib.write(H5::PredType::NATIVE_DOUBLE, &logData.timeUnit);
+
+            // Add group "constants"
+            H5::Group constantsGroup(file->createGroup("constants"));
+            int32_t const lastConstantIdx = std::distance(
+                logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
+            for (int32_t i = 1; i < lastConstantIdx; ++i)
+            {
+                std::string const & constantDescr = logData.header[i];
+                int32_t const delimiterIdx = constantDescr.find("=");
+                std::string const key = constantDescr.substr(0, delimiterIdx);
+                char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
+
+                H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
+                H5::StrType stringType(H5::PredType::C_S1, hsize_t(constantDescr.size() - (delimiterIdx + 1)));
+                H5::Attribute constantAttrib = constantsGroup.createAttribute(
+                    key, stringType, constantSpace);
+                constantAttrib.write(stringType, value);
+            }
+
+            /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.
+               We need to access the time evolution of each variable individually instead
+               of every variable at each timestamp. */
+            Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
+            Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
+            intVector.resize(logData.timestamps.size());
+            floatVector.resize(logData.timestamps.size());
+
+            // Add group "variables"
+            H5::Group variablesGroup(file->createGroup("variables"));
+            for (uint32_t i=0; i < logData.intData[0].size(); ++i)
+            {
+                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1];
+
+                // Create group for field
+                H5::Group fieldGroup(variablesGroup.createGroup(key));
+
+                // Enable compression and shuffling
+                H5::DSetCreatPropList plist;
+                hsize_t chunkSize[1];
+                chunkSize[0] = logData.timestamps.size();  // Read the whole vector at once.
+                plist.setChunk(1, chunkSize);
+                plist.setShuffle();
+                plist.setDeflate(4);
+
+                // Create time dataset using symbolic link
+                fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+
+                // Create variable dataset
+                H5::DataSpace valueSpace = H5::DataSpace(1, vectorDims);
+                H5::DataSet valueDataset = fieldGroup.createDataSet(
+                    "value", H5::PredType::NATIVE_LONG, valueSpace, plist);
+
+                // Write values in one-shot for efficiency
+                for (uint32_t j=0; j < logData.intData.size(); ++j)
+                {
+                    intVector[j] = logData.intData[j][i];
+                }
+                valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
+            }
+            for (uint32_t i=0; i < logData.floatData[0].size(); ++i)
+            {
+                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1 + logData.intData[0].size()];
+
+                // Create group for field
+                H5::Group fieldGroup(variablesGroup.createGroup(key));
+
+                // Enable compression and shuffling
+                H5::DSetCreatPropList plist;
+                hsize_t chunkSize[1];
+                chunkSize[0] = logData.timestamps.size();  // Read the whole vector at once.
+                plist.setChunk(1, chunkSize);
+                plist.setShuffle();
+                plist.setDeflate(4);
+
+                // Create time dataset using symbolic link
+                fieldGroup.link(H5L_TYPE_HARD, "/" + GLOBAL_TIME, "time");
+
+                // Create variable dataset
+                H5::DataSpace valueSpace = H5::DataSpace(1, vectorDims);
+                H5::DataSet valueDataset = fieldGroup.createDataSet(
+                    "value", H5::PredType::NATIVE_DOUBLE, valueSpace, plist);
+
+                // Write values
+                for (uint32_t j=0; j < logData.floatData.size(); ++j)
+                {
+                    floatVector[j] = logData.floatData[j][i];
+                }
+                valueDataset.write(floatVector.data(), H5::PredType::NATIVE_DOUBLE);
+            }
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t EngineMultiRobot::writeLog(std::string const & filename,
+                                         std::string const & format)
+    {
+        if (format == "binary")
+        {
+            return telemetryRecorder_->writeDataBinary(filename);
+        }
+        else if (format == "csv")
+        {
+            return writeLogCsv(filename);
+        }
+        else if (format == "hdf5")
+        {
+            return writeLogHdf5(filename);
+        }
+        else
+        {
+            PRINT_ERROR("Format not recognized. It must be either 'binary', 'csv', or 'hdf5'.")
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+    }
+
+    hresult_t EngineMultiRobot::parseLogBinaryRaw(std::string const & filename,
+                                                  logData_t         & logData)
+    {
+        int64_t integerSectionSize;
+        int64_t floatSectionSize;
+        int64_t headerSize;
+
+        std::ifstream file = std::ifstream(filename,
+                                           std::ios::in |
+                                           std::ifstream::binary);
+
+        if (file.is_open())
+        {
+            // Skip the version flag
+            int32_t header_version_length = sizeof(int32_t);
+            file.seekg(header_version_length);
+
+            std::vector<std::string> headerBuffer;
+            std::string subHeaderBuffer;
+
+            // Get all the logged constants
+            while (std::getline(file, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != START_COLUMNS)
+            {
+                headerBuffer.push_back(subHeaderBuffer);
+            }
+
+            // Get the names of the logged variables
+            while (std::getline(file, subHeaderBuffer, '\0').good() &&
+                   subHeaderBuffer != (START_DATA + START_LINE_TOKEN))
+            {
+                // Do nothing
+            }
+
+            // Make sure the log file is not corrupted
+            if (!file.good())
+            {
+                PRINT_ERROR("Corrupted log file.")
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            // Extract the number of integers and floats from the list of logged constants
+            std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
+            int32_t delimiter = headerNumIntEntries.find("=");
+            int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
+            std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
+            delimiter = headerNumFloatEntries.find("=");
+            int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
+
+            // Deduce the parameters required to parse the whole binary log file
+            integerSectionSize = (NumIntEntries - 1) * sizeof(int64_t);  // Remove Global.Time
+            floatSectionSize = NumFloatEntries * sizeof(float64_t);
+            headerSize = ((int32_t) file.tellg()) - START_LINE_TOKEN.size() - 1;
+
+            // Close the file
+            file.close();
+        }
+        else
+        {
+            PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
+                        "that you have reading permissions.")
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        FileDevice device(filename);
+        device.open(OpenMode::READ_ONLY);
+        std::vector<AbstractIODevice *> flows;
+        flows.push_back(&device);
+
+        return TelemetryRecorder::getData(logData,
+                                          flows,
+                                          integerSectionSize,
+                                          floatSectionSize,
+                                          headerSize);
+    }
+
+    hresult_t EngineMultiRobot::parseLogBinary(std::string              const & filename,
+                                               std::vector<std::string>       & header,
+                                               matrixN_t                      & logMatrix)
+    {
+        logData_t logData;
+        hresult_t returnCode = parseLogBinaryRaw(filename, logData);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            logDataToEigenMatrix(logData, logMatrix);
+        }
+        return returnCode;
     }
 }

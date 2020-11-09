@@ -15,6 +15,29 @@ namespace jiminy
 {
     class TelemetryData;
 
+    struct logData_t
+    {
+    public:
+        logData_t(void) :
+        header(),
+        version(0),
+        timeUnit(0.0),
+        timestamps(),
+        intData(),
+        floatData()
+        {
+            // Empty on purpose.
+        }
+
+    public:
+        std::vector<std::string> header;
+        int32_t version;
+        float64_t timeUnit;
+        std::vector<int64_t> timestamps;
+        std::vector<std::vector<int64_t> > intData;
+        std::vector<std::vector<float64_t> > floatData;
+    };
+
     ////////////////////////////////////////////////////////////////////////
     /// \class TelemetryRecorder
     ////////////////////////////////////////////////////////////////////////
@@ -30,11 +53,11 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         /// \brief Initialize the recorder.
         /// \param[in] telemetryData Data to log.
-        /// \param[in] timeLoggingPrecision Unit with which the time will be logged
-        ///                                 (note that time is logged as an int).
+        /// \param[in] timeUnit Unit with which the time will be logged.
+        ///                     Note that time is logged as an int.
         ////////////////////////////////////////////////////////////////////////
         hresult_t initialize(TelemetryData       * telemetryData,
-                             float64_t     const & timeLoggingPrecision);
+                             float64_t     const & timeUnit);
 
         bool_t const & getIsInitialized(void);
 
@@ -44,7 +67,7 @@ namespace jiminy
 
         /// \brief Get the maximum time that can be logged with the given precision.
         /// \return Max time, in second.
-        static float64_t getMaximumLogTime(float64_t const & timeLoggingPrecision);
+        static float64_t getMaximumLogTime(float64_t const & timeUnit);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief Reset the recorder.
@@ -60,19 +83,13 @@ namespace jiminy
         /// \brief Get access to the memory device holding the data
         ////////////////////////////////////////////////////////////////////////
         hresult_t writeDataBinary(std::string const & filename);
-        static void getData(std::vector<std::string>                   & header,
-                            std::vector<float64_t>                     & timestamps,
-                            std::vector<std::vector<int64_t> >         & intData,
-                            std::vector<std::vector<float64_t> >       & floatData,
-                            std::vector<AbstractIODevice *>            & flows,
-                            int64_t                              const & integerSectionSize,
-                            int64_t                              const & floatSectionSize,
-                            int64_t                              const & headerSize,
-                            int64_t                                      recordedBytesDataLine = -1);
-        void getData(std::vector<std::string>             & header,
-                     std::vector<float64_t>               & timestamps,
-                     std::vector<std::vector<int64_t> >   & intData,
-                     std::vector<std::vector<float64_t> > & floatData);
+        static hresult_t getData(logData_t                                  & logData,
+                                 std::vector<AbstractIODevice *>            & flows,
+                                 int64_t                              const & integerSectionSize,
+                                 int64_t                              const & floatSectionSize,
+                                 int64_t                              const & headerSize,
+                                 int64_t                                      recordedBytesDataLine = -1);
+        hresult_t getData(logData_t & logData);
     private:
         ////////////////////////////////////////////////////////////////////////
         /// \brief   Create a new file to continue the recording.
@@ -101,7 +118,7 @@ namespace jiminy
 
         char_t const * floatsAddress_;      ///< Address of the float data section.
         int64_t floatSectionSize_;          ///< Size in byte of the float data section.
-        float64_t timeLoggingPrecision_;    ///< Precision to use when logging the time.
+        float64_t timeUnit_;                ///< Precision to use when logging the time.
     };
 }
 
