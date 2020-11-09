@@ -2,21 +2,18 @@
 cmake_minimum_required (VERSION 3.10)
 
 # Check if network is available for compiling gtest
-option(BUILD_TESTING "Build the gtest testing tree." ON)
-if(BUILD_TESTING)
-    if(NOT WIN32)
-        unset(BUILD_OFFLINE)
-        unset(BUILD_OFFLINE CACHE)
-        execute_process(COMMAND bash -c
-                                "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
-                        OUTPUT_STRIP_TRAILING_WHITESPACE
-                        OUTPUT_VARIABLE BUILD_OFFLINE)
-    else()
-        set(BUILD_OFFLINE 0)
-    endif()
-    if(${BUILD_OFFLINE})
-        message("-- No internet connection. Not building external projects.")
-    endif()
+if(NOT WIN32)
+    unset(BUILD_OFFLINE)
+    unset(BUILD_OFFLINE CACHE)
+    execute_process(COMMAND bash -c
+                            "if ping -q -c 1 -W 1 8.8.8.8 ; then echo 0; else echo 1; fi"
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE BUILD_OFFLINE)
+else()
+    set(BUILD_OFFLINE 0)
+endif()
+if(${BUILD_OFFLINE})
+    message(STATUS "No internet connection. Not building external projects.")
 endif()
 
 # Set default warning flags
@@ -49,10 +46,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
 endif()
 
-# Determine if Python bindings must be generated
-option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
-option(BUILD_EXAMPLES "Build the C++ examples" ON)
-
 # Define search strategy for Boost package
 # TODO: Remove hard-coded path
 option(Boost_NO_SYSTEM_PATHS "Do not search for boost on system." ON)
@@ -75,7 +68,7 @@ if(LEGACY_MODE)
     if(WIN32)
         message(FATAL_ERROR "Boost >= 1.71.0 required.")
     else()
-        message("-- Old boost version detected. Fallback to Ubuntu 18 legacy mode. Make sure depedencies have been installed using apt-get.")
+        message(STATUS "Old boost version detected. Fallback to Ubuntu 18 legacy mode. Make sure depedencies have been installed using apt-get.")
     endif()
 endif()
 
@@ -121,7 +114,7 @@ if(BUILD_PYTHON_INTERFACE)
     list(GET _VERSION 2 PYTHON_VERSION_PATCH)
     set(PYTHON_VERSION "${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
     if(${PYTHON_VERSION_MAJOR} EQUAL 3)
-        message("-- Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
+        message(STATUS "Found PythonInterp: ${PYTHON_EXECUTABLE} (found version \"${PYTHON_VERSION_STRING}\")")
     else()
         message(FATAL_ERROR "Python3 is required if BUILD_PYTHON_INTERFACE=ON.")
     endif()
@@ -131,11 +124,11 @@ if(BUILD_PYTHON_INTERFACE)
                             "import sysconfig; print(sysconfig.get_paths()['purelib'])"
                     OUTPUT_STRIP_TRAILING_WHITESPACE
                     OUTPUT_VARIABLE PYTHON_SYS_SITELIB)
-    message("-- Python system site-packages: ${PYTHON_SYS_SITELIB}")
+    message(STATUS "Python system site-packages: ${PYTHON_SYS_SITELIB}")
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 OUTPUT_VARIABLE PYTHON_USER_SITELIB)
-    message("-- Python user site-package: ${PYTHON_USER_SITELIB}")
+    message(STATUS "Python user site-package: ${PYTHON_USER_SITELIB}")
 
     # Check write permissions on Python system site-package to
     # determine whether to use user site as fallback.
@@ -153,7 +146,7 @@ if(BUILD_PYTHON_INTERFACE)
     if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
         set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
-        message("-- No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
+        message(STATUS "No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
     else()
         set(PYTHON_SITELIB "${PYTHON_SYS_SITELIB}")
     endif()
@@ -183,7 +176,7 @@ if(BUILD_PYTHON_INTERFACE)
         get_filename_component(PYTHON_ROOT ${PYTHON_SYS_SITELIB} DIRECTORY)
         get_filename_component(PYTHON_ROOT ${PYTHON_ROOT} DIRECTORY)
         link_directories("${PYTHON_ROOT}/libs/")
-        message("-- Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
+        message(STATUS "Found PythonLibraryDirs: ${PYTHON_ROOT}/libs/")
     endif()
 
     # Define NUMPY_INCLUDE_DIRS
@@ -201,7 +194,7 @@ if(BUILD_PYTHON_INTERFACE)
     else()
         set(BOOST_PYTHON_LIB "boost_numpy3;boost_python3")
     endif()
-    message("-- Boost Python Libs: ${BOOST_PYTHON_LIB}")
+    message(STATUS "Boost Python Libs: ${BOOST_PYTHON_LIB}")
 
     # Define Python install helpers
     function(deployPythonPackage)

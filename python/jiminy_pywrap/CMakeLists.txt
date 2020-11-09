@@ -10,7 +10,7 @@ if(NOT LEGACY_MODE)
     if((NOT eigenpy_FOUND) AND (WIN32))
         message(FATAL_ERROR "Eigenpy not found, CMake will exit.")
     elseif(eigenpy_FOUND)
-        message("-- Found eigenpy: version ${eigenpy_VERSION}")
+        message(STATUS "Found eigenpy: version ${eigenpy_VERSION}")
     endif()
 endif()
 

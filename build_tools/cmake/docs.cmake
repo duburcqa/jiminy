@@ -68,6 +68,6 @@ MACRO (BUILD_DOCS)
                 COMPONENT docs
                 EXCLUDE_FROM_ALL)
     else()
-        message("-- Doxygen with Dot component not found. Documentation generation disabled.")
+        message(STATUS "Doxygen with Dot component not found. Documentation generation disabled.")
     endif()
 ENDMACRO()
