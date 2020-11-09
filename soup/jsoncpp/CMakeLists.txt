@@ -17,7 +17,7 @@ endif(NOT WIN32)
 # Download, build and install jsoncpp.
 EXTERNALPROJECT_ADD(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
-     GIT_TAG           1.9.3
+     GIT_TAG           1.9.4
      GIT_SHALLOW       TRUE
      GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
 

@@ -5,7 +5,7 @@ include(ExternalProject)
 if(NOT WIN32)
     set(CMAKE_COMPILE_FLAGS_EXTERNAL "-w -fPIC")
 else(NOT WIN32)
-    set(CMAKE_COMPILE_FLAGS_EXTERNAL "/EHsc /bigobj -W1 -fPIC")
+    set(CMAKE_COMPILE_FLAGS_EXTERNAL "/EHsc /bigobj /w")
 endif(NOT WIN32)
 
 # Set fake credential
