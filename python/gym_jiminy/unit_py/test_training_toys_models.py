@@ -89,13 +89,6 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Run the learning process
         return train(train_agent, max_timesteps=100000)
 
-    def test_acrobot_stable_baselines(self):
-        """Solve the Acrobot problem for continuous action space.
-        """
-        is_success = self._is_success_ppo_training(
-            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': True})
-        self.assertTrue(is_success)
-
     def test_cartpole_stable_baselines(self):
         """Solve the Cartpole problem for continuous action space.
         """
