@@ -14,8 +14,8 @@ if(NOT WIN32)
      set(hdf5_cpp_NINJA BUILD_BYPRODUCTS "${hdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
 else(NOT WIN32)
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
-     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/hdf5.lib")
-     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/hdf5_cpp.lib")
+     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
 endif(NOT WIN32)
 
 # Download, build and install zlib.
@@ -78,7 +78,12 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
           -DHDF5_ALLOW_EXTERNAL_SUPPORT:STRING=NO
           -DHDF5_ENABLE_Z_LIB_SUPPORT=ON
           -DHDF5_ENABLE_SZIP_SUPPORT=OFF
+          -DZLIB_PACKAGE_NAME:STRING=NOT_FOUND  # Hack to avoid finding some zlib config files already installed and not skipping find_package(ZLIB)
           -DZLIB_ROOT:PATH=${CMAKE_INSTALL_PREFIX}
+          -DZLIB_LIBRARY:PATH=${zlib_PATH}  # Using ZLIB_ROOT only is finding the shared lib instead of the static one
+          -DHDF5_DISABLE_COMPILER_WARNINGS=ON
+          -DHDF5_ENABLE_SYMBOLS=OFF
+          -DHDF5_ENABLE_OPTIMIZATION=ON
           -DBUILD_TESTING=OFF
           #-DBUILD_STATIC_LIBS=ON
           -DBUILD_SHARED_LIBS=OFF
@@ -86,7 +91,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -DCMAKE_ANSI_CFLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
+          -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
      INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
 
