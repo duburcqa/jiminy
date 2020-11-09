@@ -100,7 +100,6 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 )
 
 # Include headers from other libraries (in such a way to avoid any warnings compiling them)
-list(REMOVE_ITEM Boost_LIBRARIES ${BOOST_PYTHON_LIB})
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${Boost_INCLUDE_DIRS}")
 if(NOT LEGACY_MODE)
     target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC "${urdfdom_INCLUDE_DIRS}")
