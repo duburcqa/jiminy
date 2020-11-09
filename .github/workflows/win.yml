@@ -44,7 +44,7 @@ jobs:
       run: |
         & "./build_tools/build_install_deps_windows.ps1"
         pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        python -m pip install numba stable_baselines3
+        python -m pip install stable_baselines3
 
     #####################################################################################
 

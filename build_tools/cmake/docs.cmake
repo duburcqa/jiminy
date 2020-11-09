@@ -1,9 +1,11 @@
-MACRO (BUILD_DOCS)
-    # Build the doc
-    # =============
-
-    find_package(Doxygen QUIET COMPONENTS dot)
-    find_package(Sphinx QUIET)
+macro(create_component_docs)
+    # Look for Doxygen and Sphinx utilities
+    find_package(Doxygen COMPONENTS dot)
+    find_package(Sphinx)
+    if (NOT Sphinx_FOUND OR NOT Doxygen_FOUND)
+        message(STATUS "Doxygen or Sphinx not available. Not creating 'docs' cmake component.")
+        return()
+    endif()
 
     # Define some environment variables
     set(DOXYFILE_IN ${CMAKE_SOURCE_DIR}/build_tools/docs/jiminy.doxyfile.in)

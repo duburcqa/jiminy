@@ -45,13 +45,13 @@ if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-option(BUILD_TESTING "Build the gtest testing tree." ON)
+option(BUILD_TESTING "Build the C++ unit tests." ON)
 if(BUILD_TESTING)
     add_subdirectory(unit)
 endif()
 
-# Build documentation from Doxygen.
-BUILD_DOCS()
+# Create 'docs' optional cmake component to generate documentation.
+create_component_docs()
 
 # Install the source cmake files
 file(GLOB_RECURSE SOURCE_CMAKE_FILES "${CMAKE_SOURCE_DIR}/build_tools/cmake/Find*.cmake")
