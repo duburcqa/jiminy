@@ -48,7 +48,7 @@ jobs:
       run: |
         sudo "${GITHUB_WORKSPACE}/build_tools/easy_install_deps_ubuntu.sh"
         "${PYTHON_EXECUTABLE}" -m pip install torch==1.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-        "${PYTHON_EXECUTABLE}" -m pip install numba stable_baselines3
+        "${PYTHON_EXECUTABLE}" -m pip install stable_baselines3>=0.10.0
 
     #####################################################################################
 
