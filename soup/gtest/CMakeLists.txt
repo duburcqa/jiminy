@@ -4,8 +4,32 @@ cmake_minimum_required(VERSION 3.10)
 # Project and library name
 project(gtest_external)
 
-# Set the path of the generated libraries
-set(${PROJECT_NAME}_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}-prefix/src/${PROJECT_NAME}-build/lib")
+# Download and build gtest.
+EXTERNALPROJECT_ADD(${PROJECT_NAME}
+     GIT_REPOSITORY    https://github.com/google/googletest.git
+     GIT_TAG           release-1.10.0
+     GIT_SHALLOW       TRUE
+     GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
+
+     CMAKE_ARGS
+          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
+          -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons..
+          ${EXTERNALPROJECT_BUILD_TYPE_CMD}
+
+     ${gtest_NINJA}
+     ${gtest_main_NINJA}
+     ${gmock_NINJA}
+     ${gmock_main_NINJA}
+
+     INSTALL_COMMAND ""  # Disable install of googletest on the system
+     UPDATE_COMMAND ""  # Avoid reinstalling systematically everything
+     UPDATE_DISCONNECTED ${BUILD_OFFLINE}
+)
+
+# Get the path of the generated libraries
+ExternalProject_Get_property(${PROJECT_NAME} BINARY_DIR)
+set(${PROJECT_NAME}_LIB_DIR "${BINARY_DIR}/lib")
 if(NOT WIN32)
      set(gtest_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/libgtestd.a")
      set(gtest_PATH_Release "${${PROJECT_NAME}_LIB_DIR}/libgtest.a")
@@ -29,29 +53,6 @@ else(NOT WIN32)
      set(gmock_main_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/Debug/gmock_main.lib")
      set(gmock_main_PATH_Release "${${PROJECT_NAME}_LIB_DIR}/Release/gmock_main.lib")
 endif(NOT WIN32)
-
-# Download and build gtest.
-EXTERNALPROJECT_ADD(${PROJECT_NAME}
-     GIT_REPOSITORY    https://github.com/google/googletest.git
-     GIT_TAG           release-1.10.0
-     GIT_SHALLOW       TRUE
-     GIT_CONFIG        advice.detachedHead=false;${GIT_CREDENTIAL_EXTERNAL}
-
-     CMAKE_ARGS
-          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-          -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
-          -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons..
-          ${EXTERNALPROJECT_BUILD_TYPE_CMD}
-
-     ${gtest_NINJA}
-     ${gtest_main_NINJA}
-     ${gmock_NINJA}
-     ${gmock_main_NINJA}
-
-     INSTALL_COMMAND ""  # Disable install of googletest on the system
-     UPDATE_COMMAND ""  # Avoid reinstalling systematically everything
-     UPDATE_DISCONNECTED ${BUILD_OFFLINE}
-)
 
 # Import the generated libraries as targets
 add_library(gtest::gtest STATIC IMPORTED GLOBAL)
