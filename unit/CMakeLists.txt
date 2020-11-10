@@ -25,10 +25,11 @@ target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 add_dependencies(${PROJECT_NAME} gtest_external)
 EXTERNALPROJECT_GET_PROPERTY(gtest_external SOURCE_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
-     ${SOURCE_DIR}/googletest/include
-     ${SOURCE_DIR}/googlemock/include
+     $<BUILD_INTERFACE:${SOURCE_DIR}/googletest/include>
+     $<BUILD_INTERFACE:${SOURCE_DIR}/googlemock/include>
 )
-target_link_libraries(${PROJECT_NAME} gtest gtest_main gmock gmock_main "${CMAKE_THREAD_LIBS_INIT}")
+target_link_libraries(${PROJECT_NAME} gtest::gtest gtest::gtest_main gtest::gmock gtest::gmock_main)
+target_link_libraries(${PROJECT_NAME} "${CMAKE_THREAD_LIBS_INIT}")
 set_property(TARGET ${PROJECT_NAME} PROPERTY
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
 )
