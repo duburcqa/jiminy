@@ -37,7 +37,7 @@ fi
 cd "$RootDir/boost"
 git reset --hard
 git checkout --force "boost-1.71.0"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
@@ -55,7 +55,7 @@ fi
 cd "$RootDir/eigenpy"
 git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
 
@@ -109,7 +109,7 @@ fi
 cd "$RootDir/hpp-fcl"
 git reset --hard
 git checkout --force "v1.5.4"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"
 cd "$RootDir/hpp-fcl/third-parties/qhull"
@@ -122,7 +122,7 @@ fi
 cd "$RootDir/pinocchio"
 git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinocchio.patch"
 
@@ -155,7 +155,12 @@ mkdir -p "$RootDir/boost/build"
 ./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
      --with-chrono --with-timer --with-date_time --with-headers --with-math \
      --with-stacktrace --with-system --with-filesystem --with-atomic \
-     --with-thread --with-serialization --with-test --with-python \
+     --with-thread --with-serialization --with-test \
+     --build-type=minimal architecture=x86 address-model=64 threading=multi \
+     --layout=system link=static runtime-link=static \
+     toolset=gcc cxxflags="-std=c++14 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
+./b2 --prefix="$InstallDir" --build-dir="$RootDir/boost/build" \
+     --with-python \
      --build-type=minimal architecture=x86 address-model=64 threading=multi \
      --layout=system link=shared runtime-link=shared \
      toolset=gcc cxxflags="-std=c++14 -fPIC -s" variant="$BuildTypeB2" install -q -d0 -j2
@@ -176,7 +181,7 @@ cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
@@ -238,10 +243,10 @@ cd "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DQhull_PREFIX="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
-      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-parameter" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-parameter -Wno-ignored-qualifiers" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 make install -j2
 
 ################################# Build and install Pinocchio ##########################################
@@ -252,7 +257,7 @@ cd "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
-      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" -DBoost_USE_STATIC_LIBS=OFF \
+      -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON \
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-fPIC -s -Wno-unused-local-typedefs -Wno-uninitialized" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"

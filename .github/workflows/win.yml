@@ -65,6 +65,7 @@ jobs:
         }
         Set-Location -Path $RootDir/build
         cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+              -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -76,8 +77,6 @@ jobs:
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         }
-        Copy-Item -Path "$InstallDir/lib/boost_filesystem*.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `

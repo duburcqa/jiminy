@@ -55,6 +55,26 @@ index d675c2c..c503cf1 100644
  
  pkg_config_append_libs("hpp-fcl")
  IF(HPP_FCL_HAVE_OCTOMAP)
+diff --git a/cmake/boost.cmake b/cmake/boost.cmake
+index bea38e4..3dcfbf6 100644
+--- a/cmake/boost.cmake
++++ b/cmake/boost.cmake
+@@ -115,7 +115,15 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
+     MESSAGE(WARNING "Impossible to check Boost.Python version. Trying with 'python'.")
+   ENDIF(NOT BOOST_PYTHON_FOUND)
+
++  set(Boost_USE_STATIC_LIBS OFF)
++  set(Boost_LIB_PREFIX "")
++  unset(Boost_LIBRARIES)
+   FIND_PACKAGE(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
++  unset(Boost_LIBRARIES)
++  if(WIN32)
++    set(Boost_LIB_PREFIX "lib")
++  endif()
++  set(Boost_USE_STATIC_LIBS ON)
+   STRING(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
+
+   LIST(APPEND LOGGING_WATCHED_VARIABLES
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index 043d18b..dcc79be 100644
 --- a/src/CMakeLists.txt
@@ -107,3 +127,17 @@ index 0726e3e..8fd0928 100644
  #  else
  // If the compiler is not recognized, drop the feature.
  #   define @PACKAGE_CPPNAME@_DEPRECATED /* nothing */
+diff --git a/third-parties/qhull/CMakeLists.txt b/third-parties/qhull/CMakeLists.txt
+index 59dff41..2765817 100644
+--- a/third-parties/qhull/CMakeLists.txt
++++ b/third-parties/qhull/CMakeLists.txt
+@@ -624,3 +624,9 @@ install(FILES html/qhull.man         DESTINATION ${MAN_INSTALL_DIR} RENAME qhull
+ install(FILES html/rbox.man          DESTINATION ${MAN_INSTALL_DIR} RENAME rbox.1)
+ install(FILES ${doc_FILES}           DESTINATION ${DOC_INSTALL_DIR})
+ install(DIRECTORY html/              DESTINATION ${DOC_INSTALL_DIR})
++
++add_compile_options(
++    $<$<CONFIG:>:/MD> #---------|
++    $<$<CONFIG:Debug>:/MDd> #---|-- Statically link the runtime libraries
++    $<$<CONFIG:Release>:/MD> #--|
++)
