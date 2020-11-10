@@ -4,20 +4,6 @@ cmake_minimum_required(VERSION 3.10)
 # Project and library name
 project(hdf5_external)
 
-# Set the path of the generated libraries
-if(NOT WIN32)
-     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
-     set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH_${CMAKE_BUILD_TYPE}}")
-     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
-     set(hdf5_NINJA BUILD_BYPRODUCTS "${hdf5_PATH_${CMAKE_BUILD_TYPE}}")
-     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
-     set(hdf5_cpp_NINJA BUILD_BYPRODUCTS "${hdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
-else(NOT WIN32)
-     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
-     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
-     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
-endif(NOT WIN32)
-
 # Download, build and install zlib.
 # TGZ overwrites some global cmake flags for no reason, and official GIT repo does
 # not have fPIC enabled by default, making the whole build process fail. So zlib is
@@ -30,6 +16,7 @@ EXTERNALPROJECT_ADD(zlib_external
 
      CMAKE_ARGS
           -DSKIP_INSTALL_FILES=ON  # Disable install of manual and pkgconfig files
+          -DSKIP_INSTALL_LIBRARIES=ON  # Do not install libraries automatically. It will be handled manually to avoid installing shared libs
           -DBUILD_SHARED_LIBS=OFF
           -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
@@ -42,7 +29,20 @@ EXTERNALPROJECT_ADD(zlib_external
      UPDATE_COMMAND ""  # For some reason, it is required to avoid rebuild systematically everything...
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
-
+if(NOT WIN32)
+     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz.a")
+     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
+else(NOT WIN32)
+     set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
+     set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
+endif(NOT WIN32)
+ExternalProject_Add_Step(
+     zlib_external zlib_install_static_only
+     COMMENT "Manually installing only static library"
+     DEPENDEES install
+     COMMAND ${CMAKE_COMMAND} -E copy ${zlib_BUILD_LIB_PATH} ${zlib_PATH}
+)
+ 
 # Download, build and install hdf5.
 EXTERNALPROJECT_ADD(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
@@ -103,6 +103,18 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      UPDATE_COMMAND ""  # For some reason, it is required to avoid rebuild systematically everything...
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
+
+# Get the path of the generated libraries
+if(NOT WIN32)
+     set(zlib_NINJA BUILD_BYPRODUCTS "${zlib_PATH_${CMAKE_BUILD_TYPE}}")
+     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.a")
+     set(hdf5_NINJA BUILD_BYPRODUCTS "${hdf5_PATH_${CMAKE_BUILD_TYPE}}")
+     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
+     set(hdf5_cpp_NINJA BUILD_BYPRODUCTS "${hdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
+else(NOT WIN32)
+     set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
+     set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
+endif(NOT WIN32)
 
 # Import the generated libraries as targets
 add_library(hdf5::zlib STATIC IMPORTED GLOBAL)

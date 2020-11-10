@@ -4,16 +4,6 @@ cmake_minimum_required(VERSION 3.10)
 # Project and library name
 project(jsoncpp_external)
 
-# Set the path of the generated libraries
-include(GNUInstallDirs)
-
-if(NOT WIN32)
-     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libjsoncpp.a")
-     set(jsoncpp_NINJA BUILD_BYPRODUCTS "${jsoncpp_PATH_${CMAKE_BUILD_TYPE}}")
-else(NOT WIN32)
-     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
-endif(NOT WIN32)
-
 # Download, build and install jsoncpp.
 EXTERNALPROJECT_ADD(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/open-source-parsers/jsoncpp.git
@@ -38,6 +28,15 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      UPDATE_COMMAND ""  # Avoid reinstalling systematically everything
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
+
+# Get the path of the generated libraries
+include(GNUInstallDirs)
+if(NOT WIN32)
+     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libjsoncpp.a")
+     set(jsoncpp_NINJA BUILD_BYPRODUCTS "${jsoncpp_PATH_${CMAKE_BUILD_TYPE}}")
+else(NOT WIN32)
+     set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
+endif(NOT WIN32)
 
 # Import the generated library as a target
 add_library(jsoncpp::jsoncpp STATIC IMPORTED GLOBAL)
