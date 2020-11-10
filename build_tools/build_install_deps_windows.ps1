@@ -36,8 +36,9 @@ if (-not (Test-Path -PathType Container "$RootDir/boost")) {
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 }
 Set-Location -Path "$RootDir/boost"
+git reset --hard
 git checkout --force "boost-1.71.0"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
@@ -53,8 +54,9 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 }
 Set-Location -Path "$RootDir/eigenpy"
+git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --hard
+git submodul foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
@@ -63,6 +65,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml")) {
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 }
 Set-Location -Path "$RootDir/tinyxml"
+git reset --hard
 git checkout --force "master"
 
 ### Checkout console_bridge, then apply some patches (generated using `git diff --submodule=diff`)
@@ -70,6 +73,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge")) {
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 }
 Set-Location -Path "$RootDir/console_bridge"
+git reset --hard
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
@@ -77,6 +81,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers")) {
   git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 }
 Set-Location -Path "$RootDir/urdfdom_headers"
+git reset --hard
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
@@ -84,6 +89,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
   git clone https://github.com/ros/urdfdom.git "$RootDir/urdfdom"
 }
 Set-Location -Path "$RootDir/urdfdom"
+git reset --hard
 git checkout --force "1.0.4"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
@@ -92,6 +98,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
 }
 Set-Location -Path "$RootDir/assimp"
+git reset --hard
 git checkout --force "v5.0.1"
 dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"  # Fix encoding, just in case
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
@@ -101,8 +108,9 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
   git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
 }
 Set-Location -Path "$RootDir/hpp-fcl"
+git reset --hard
 git checkout --force "v1.5.4"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
@@ -113,8 +121,9 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
   git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 }
 Set-Location -Path "$RootDir/pinocchio"
+git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 

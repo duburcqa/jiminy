@@ -35,8 +35,9 @@ if [ ! -d "$RootDir/boost" ]; then
   git clone https://github.com/boostorg/boost.git "$RootDir/boost"
 fi
 cd "$RootDir/boost"
+git reset --hard
 git checkout --force "boost-1.71.0"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
@@ -44,6 +45,7 @@ if [ ! -d "$RootDir/eigen3" ]; then
   git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
 fi
 cd "$RootDir/eigen3"
+git reset --hard
 git checkout --force "3.3.7"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
@@ -51,8 +53,9 @@ if [ ! -d "$RootDir/eigenpy" ]; then
   git clone https://github.com/stack-of-tasks/eigenpy.git "$RootDir/eigenpy"
 fi
 cd "$RootDir/eigenpy"
+git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/eigenpy.patch"
 
@@ -61,6 +64,7 @@ if [ ! -d "$RootDir/tinyxml" ]; then
   git clone https://github.com/robotology-dependencies/tinyxml.git "$RootDir/tinyxml"
 fi
 cd "$RootDir/tinyxml"
+git reset --hard
 git checkout --force "master"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/tinyxml.patch"
 
@@ -69,6 +73,7 @@ if [ ! -d "$RootDir/console_bridge" ]; then
   git clone https://github.com/ros/console_bridge.git "$RootDir/console_bridge"
 fi
 cd "$RootDir/console_bridge"
+git reset --hard
 git checkout --force "0.4.4"
 
 ### Checkout urdfdom_headers
@@ -76,6 +81,7 @@ if [ ! -d "$RootDir/urdfdom_headers" ]; then
   git clone https://github.com/ros/urdfdom_headers.git "$RootDir/urdfdom_headers"
 fi
 cd "$RootDir/urdfdom_headers"
+git reset --hard
 git checkout --force "1.0.5"
 
 ### Checkout urdfdom, then apply some patches (generated using `git diff --submodule=diff`)
@@ -84,6 +90,7 @@ if [ ! -d "$RootDir/urdfdom" ]; then
 fi
 cd "$RootDir/urdfdom"
 git checkout --force "1.0.4"
+git reset --hard
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/urdfdom.patch"
 
 ### Checkout assimp
@@ -91,6 +98,7 @@ if [ ! -d "$RootDir/assimp" ]; then
   git clone https://github.com/assimp/assimp.git "$RootDir/assimp"
 fi
 cd "$RootDir/assimp"
+git reset --hard
 git checkout --force "v5.0.1"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/assimp.patch"
 
@@ -99,8 +107,9 @@ if [ ! -d "$RootDir/hpp-fcl" ]; then
   git clone https://github.com/humanoid-path-planner/hpp-fcl.git "$RootDir/hpp-fcl"
 fi
 cd "$RootDir/hpp-fcl"
+git reset --hard
 git checkout --force "v1.5.4"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/hppfcl.patch"
 cd "$RootDir/hpp-fcl/third-parties/qhull"
@@ -111,8 +120,9 @@ if [ ! -d "$RootDir/pinocchio" ]; then
   git clone https://github.com/stack-of-tasks/pinocchio.git "$RootDir/pinocchio"
 fi
 cd "$RootDir/pinocchio"
+git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --hard
+git submodule foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_linux/pinocchio.patch"
 
