@@ -151,7 +151,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigen3/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigen3/build"
 }
 Set-Location -Path "$RootDir/eigen3/build"
-cmake "$RootDir/eigen3" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigen3" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF -DEIGEN_BUILD_PKGCONFIG=OFF `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
@@ -164,7 +164,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/eigenpy/build"
 }
 Set-Location -Path "$RootDir/eigenpy/build"
-cmake "$RootDir/eigenpy" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
@@ -184,7 +184,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/tinyxml/build"
 }
 Set-Location -Path "$RootDir/tinyxml/build"
-cmake "$RootDir/tinyxml" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DTIXML_USE_STL"
@@ -197,7 +197,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/console_bridge/build"
 }
 Set-Location -Path "$RootDir/console_bridge/build"
-cmake "$RootDir/console_bridge" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -209,7 +209,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom_headers/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom_headers/build"
 }
 Set-Location -Path "$RootDir/urdfdom_headers/build"
-cmake "$RootDir/urdfdom_headers" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom_headers" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -221,7 +221,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/urdfdom/build"
 }
 Set-Location -Path "$RootDir/urdfdom/build"
-cmake "$RootDir/urdfdom" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
@@ -235,7 +235,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/assimp/build"
 }
 Set-Location -Path "$RootDir/assimp/build"
-cmake "$RootDir/assimp" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
@@ -250,7 +250,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/third-parties/qhull/bu
   New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 }
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
-cmake "$RootDir/hpp-fcl/third-parties/qhull" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DCMAKE_CXX_FLAGS="/EHsc /bigobj /Zc:__cplusplus" -DCMAKE_C_FLAGS="/EHsc /bigobj"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -260,7 +260,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/build"
 }
 Set-Location -Path "$RootDir/hpp-fcl/build"
-cmake "$RootDir/hpp-fcl" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
@@ -289,7 +289,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/pinocchio/build"
 }
 Set-Location -Path "$RootDir/pinocchio/build"
-cmake "$RootDir/pinocchio" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
