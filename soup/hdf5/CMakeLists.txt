@@ -22,7 +22,7 @@ endif(NOT WIN32)
 # TGZ overwrites some global cmake flags for no reason, and official GIT repo does
 # not have fPIC enabled by default, making the whole build process fail. So zlib is
 # installed manually and set add dependency of hdf5
-EXTERNALPROJECT_ADD(zlib_deps
+EXTERNALPROJECT_ADD(zlib_external
      GIT_REPOSITORY    https://github.com/madler/zlib.git
      GIT_TAG           v1.2.11
      GIT_SHALLOW       TRUE
@@ -98,22 +98,22 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
      ${hdf5_NINJA}
      ${hdf5_cpp_NINJA}
 
-     DEPENDS zlib_deps
+     DEPENDS zlib_external
 
      UPDATE_COMMAND ""  # For some reason, it is required to avoid rebuild systematically everything...
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
 
 # Import the generated libraries as targets
-add_library(zlib STATIC IMPORTED GLOBAL)
-set_target_properties(zlib PROPERTIES
+add_library(hdf5::zlib STATIC IMPORTED GLOBAL)
+set_target_properties(hdf5::zlib PROPERTIES
      IMPORTED_LOCATION ${zlib_PATH}
 )
-add_library(hdf5 STATIC IMPORTED GLOBAL)
-set_target_properties(hdf5 PROPERTIES
+add_library(hdf5::hdf5 STATIC IMPORTED GLOBAL)
+set_target_properties(hdf5::hdf5 PROPERTIES
      IMPORTED_LOCATION ${hdf5_PATH}
 )
-add_library(hdf5_cpp STATIC IMPORTED GLOBAL)
-set_target_properties(hdf5_cpp PROPERTIES
+add_library(hdf5::hdf5_cpp STATIC IMPORTED GLOBAL)
+set_target_properties(hdf5::hdf5_cpp PROPERTIES
      IMPORTED_LOCATION ${hdf5_cpp_PATH}
 )

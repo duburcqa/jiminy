@@ -54,23 +54,23 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
 )
 
 # Import the generated libraries as targets
-add_library(gtest STATIC IMPORTED GLOBAL)
-set_target_properties(gtest PROPERTIES
+add_library(gtest::gtest STATIC IMPORTED GLOBAL)
+set_target_properties(gtest::gtest PROPERTIES
      IMPORTED_LOCATION_DEBUG ${gtest_PATH_Debug}
      IMPORTED_LOCATION_RELEASE ${gtest_PATH_Release}
 )
-add_library(gtest_main STATIC IMPORTED GLOBAL)
-set_target_properties(gtest_main PROPERTIES
+add_library(gtest::gtest_main STATIC IMPORTED GLOBAL)
+set_target_properties(gtest::gtest_main PROPERTIES
      IMPORTED_LOCATION_DEBUG ${gtest_main_PATH_Debug}
      IMPORTED_LOCATION_RELEASE ${gtest_main_PATH_Release}
 )
-add_library(gmock STATIC IMPORTED GLOBAL)
-set_target_properties(gmock PROPERTIES
+add_library(gtest::gmock STATIC IMPORTED GLOBAL)
+set_target_properties(gtest::gmock PROPERTIES
      IMPORTED_LOCATION_DEBUG ${gmock_PATH_Debug}
      IMPORTED_LOCATION_RELEASE ${gmock_PATH_Release}
 )
-add_library(gmock_main STATIC IMPORTED GLOBAL)
-set_target_properties(gmock_main PROPERTIES
+add_library(gtest::gmock_main STATIC IMPORTED GLOBAL)
+set_target_properties(gtest::gmock_main PROPERTIES
      IMPORTED_LOCATION_DEBUG ${gmock_main_PATH_Debug}
      IMPORTED_LOCATION_RELEASE ${gmock_main_PATH_Release}
 )

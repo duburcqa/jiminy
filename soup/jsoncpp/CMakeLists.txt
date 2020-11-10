@@ -40,7 +40,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
 )
 
 # Import the generated library as a target
-add_library(jsoncpp STATIC IMPORTED GLOBAL)
-set_target_properties(jsoncpp PROPERTIES
+add_library(jsoncpp::jsoncpp STATIC IMPORTED GLOBAL)
+set_target_properties(jsoncpp::jsoncpp PROPERTIES
      IMPORTED_LOCATION ${jsoncpp_PATH}
 )
