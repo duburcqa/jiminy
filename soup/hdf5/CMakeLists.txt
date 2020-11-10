@@ -32,10 +32,10 @@ EXTERNALPROJECT_ADD(zlib_external
 if(NOT WIN32)
      set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/libz.a")
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/libz.a")
-else(NOT WIN32)
+else()
      set(zlib_BUILD_LIB_PATH "<BINARY_DIR>/Release/zlibstatic.lib")
      set(zlib_PATH "${CMAKE_INSTALL_PREFIX}/lib/zlibstatic.lib")
-endif(NOT WIN32)
+endif()
 ExternalProject_Add_Step(
      zlib_external zlib_install_static_only
      COMMENT "Manually installing only static library"
@@ -111,10 +111,10 @@ if(NOT WIN32)
      set(hdf5_NINJA BUILD_BYPRODUCTS "${hdf5_PATH_${CMAKE_BUILD_TYPE}}")
      set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.a")
      set(hdf5_cpp_NINJA BUILD_BYPRODUCTS "${hdf5_cpp_PATH_${CMAKE_BUILD_TYPE}}")
-else(NOT WIN32)
+else()
      set(hdf5_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5.lib")
      set(hdf5_cpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/libhdf5_cpp.lib")
-endif(NOT WIN32)
+endif()
 
 # Import the generated libraries as targets
 add_library(hdf5::zlib STATIC IMPORTED GLOBAL)

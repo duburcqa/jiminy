@@ -34,9 +34,9 @@ include(GNUInstallDirs)
 if(NOT WIN32)
      set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/libjsoncpp.a")
      set(jsoncpp_NINJA BUILD_BYPRODUCTS "${jsoncpp_PATH_${CMAKE_BUILD_TYPE}}")
-else(NOT WIN32)
+else()
      set(jsoncpp_PATH "${CMAKE_INSTALL_PREFIX}/lib/jsoncpp.lib")
-endif(NOT WIN32)
+endif()
 
 # Import the generated library as a target
 add_library(jsoncpp::jsoncpp STATIC IMPORTED GLOBAL)

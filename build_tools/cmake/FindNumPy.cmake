@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 2.6)
 
-if (PYTHON_EXECUTABLE)
+if(PYTHON_EXECUTABLE)
     # Find out the include path
     execute_process(
         COMMAND "${PYTHON_EXECUTABLE}" -c
@@ -16,9 +16,9 @@ if (PYTHON_EXECUTABLE)
         COMMAND "${PYTHON_EXECUTABLE}" -c
         "from __future__ import print_function\ntry: import numpy; print(numpy.__version__, end='')\nexcept:pass\n"
         OUTPUT_VARIABLE __numpy_version)
-else(PYTHON_EXECUTABLE)
+else()
     message(FATAL_ERROR "Python executable not found.")
-endif(PYTHON_EXECUTABLE)
+endif()
 
 unset(NUMPY_INCLUDE_DIRS)
 unset(NUMPY_INCLUDE_DIRS CACHE)
@@ -27,7 +27,7 @@ find_path(NUMPY_INCLUDE_DIRS numpy/arrayobject.h
 
 if(NUMPY_INCLUDE_DIRS)
     set(NUMPY_FOUND 1 CACHE INTERNAL "Python numpy found")
-endif(NUMPY_INCLUDE_DIRS)
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(NumPy REQUIRED_VARS NUMPY_INCLUDE_DIRS
