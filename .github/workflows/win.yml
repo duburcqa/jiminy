@@ -77,13 +77,10 @@ jobs:
         if (-not (Test-Path -PathType Container "$RootDir/build/pypi/jiminy_py/src/jiminy_py")) {
           New-Item -ItemType "directory" -Force -Path "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         }
-        Copy-Item -Path "$InstallDir/lib/boost_numpy*.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
-        Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-                  -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
         Copy-Item -Force -Recurse -Path "$InstallDir/lib/site-packages/*" `
                   -Destination "$RootDir/build/pypi/jiminy_py/src/jiminy_py"
 
+        $env:Path += ";$InstallDir/lib"
         cmake --build . --target INSTALL --config "${Env:BUILD_TYPE}" --parallel 2
 
     #####################################################################################
@@ -91,15 +88,32 @@ jobs:
     - name: Generating the Python Pip wheels
       if: success() && github.repository == 'Wandercraft/jiminy'
       run: |
-        Set-Location -Path "./build"
+        $RootDir = "${Env:GITHUB_WORKSPACE}" -replace '\\', '/'
+        $InstallDir = "$RootDir/install"
+
+        $env:Path += ";$InstallDir/lib"
+
+        Set-Location -Path "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
-        Remove-Item -Path "./pypi/jiminy_py/dist/*" -Include *.tar.gz
+
+        python -m pip install pefile machomachomangler
+        Remove-Item -Recurse -Path "$RootDir/build/pypi" -Include *.tar.gz
+        Get-ChildItem -Recurse -Path "$RootDir/build/pypi" -Filter *.whl |
+        Foreach-Object {
+            $wheel_path = ($_.FullName)
+            python "$RootDir/build_tools/wheel_repair.py" "$wheel_path" -d "$InstallDir/lib" -w "$RootDir/build/wheelhouse"
+        }
+        Get-ChildItem -Path "$RootDir/build/wheelhouse" -Filter *.whl |
+        Foreach-Object {
+            $wheel_path = ($_.FullName)
+            python -m pip install --force-reinstall --no-deps $wheel_path
+        }
     - name: Upload the wheel for Windows of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy'
       uses: actions/upload-artifact@v1
       with:
         name: jiminy_py${{ matrix.python-version }}-wheel
-        path: ./build/pypi/jiminy_py/dist
+        path: build/wheelhouse
 
     #####################################################################################
 

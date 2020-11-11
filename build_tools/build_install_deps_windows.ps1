@@ -146,13 +146,13 @@ Set-Location -Path "$RootDir/boost"
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
 #   Note that on Windows, the shared (C++) runtime library is used even for static
-#   libraries. Indeed, "Using static runtime with shared libraries is impossible on 
-#   Linux, and dangerous on Windows" (see boost/Jamroot#handle-static-runtime). 
+#   libraries. Indeed, "Using static runtime with shared libraries is impossible on
+#   Linux, and dangerous on Windows" (see boost/Jamroot#handle-static-runtime).
 #   See also https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features
 #   [Because a DLL built by linking to a static CRT will have its own CRT state ...].
-#   Anyway, dynamic linkage is not a big deal in practice because the (universal) 
+#   Anyway, dynamic linkage is not a big deal in practice because the (universal)
 #   C++ runtime  library Windows (aka (U)CRT) ships as part of Windows 10.
-#   Note that static linkage is still possible on windows but Jamroot must be edited 
+#   Note that static linkage is still possible on windows but Jamroot must be edited
 #   to remove line "<conditional>@handle-static-runtime".
 $BuildTypeB2 = ${Env:BUILD_TYPE}.ToLower()
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
@@ -200,10 +200,6 @@ cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/eigenpy"
 
 ################################## Build and install tinyxml ###########################################
 
@@ -303,10 +299,6 @@ cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_G
 )     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/hppfcl"
-
 ################################ Build and install Pinocchio ##########################################
 
 ### Build and install pinocchio, finally !
@@ -325,7 +317,3 @@ cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4715 /wd4834 /permissive- /Zc:__cplusplus $(
 )     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DNOMINMAX -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/pinocchio"
