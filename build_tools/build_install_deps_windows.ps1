@@ -38,9 +38,8 @@ if (-not (Test-Path -PathType Container "$RootDir/boost")) {
 Set-Location -Path "$RootDir/boost"
 git reset --hard
 git checkout --force "boost-1.71.0"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
-git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/boost.patch"
 
 ### Checkout eigen3
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
@@ -56,8 +55,9 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {
 Set-Location -Path "$RootDir/eigenpy"
 git reset --hard
 git checkout --force "v2.5.0"
-git submodul foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+dos2unix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/eigenpy.patch"
 
 ### Checkout tinyxml (robotology fork for cmake compatibility)
@@ -91,6 +91,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom")) {
 Set-Location -Path "$RootDir/urdfdom"
 git reset --hard
 git checkout --force "1.0.4"
+dos2unix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/urdfdom.patch"
 
 ### Checkout assimp
@@ -100,7 +101,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp")) {
 Set-Location -Path "$RootDir/assimp"
 git reset --hard
 git checkout --force "v5.0.1"
-dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"  # Fix encoding, just in case
+dos2unix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/assimp.patch"
 
 ### Checkout hpp-fcl
@@ -110,8 +111,9 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl")) {
 Set-Location -Path "$RootDir/hpp-fcl"
 git reset --hard
 git checkout --force "v1.5.4"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+dos2unix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/hppfcl.patch"
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull"
 git checkout --force "v8.0.2"
@@ -123,8 +125,9 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
 git checkout --force "v2.5.0"
-git submodule foreach --recursive git reset --quiet --hard
+git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
+dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 git apply --reject --whitespace=fix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
 
 ################################### Build and install boost ############################################
@@ -142,6 +145,15 @@ Set-Location -Path "$RootDir/boost"
 
 ### Build and install and install boost
 #   (Replace -d0 option by -d1 and remove -q option to check compilation errors)
+#   Note that on Windows, the shared (C++) runtime library is used even for static
+#   libraries. Indeed, "Using static runtime with shared libraries is impossible on
+#   Linux, and dangerous on Windows" (see boost/Jamroot#handle-static-runtime).
+#   See also https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features
+#   [Because a DLL built by linking to a static CRT will have its own CRT state ...].
+#   Anyway, dynamic linkage is not a big deal in practice because the (universal)
+#   C++ runtime  library Windows (aka (U)CRT) ships as part of Windows 10.
+#   Note that static linkage is still possible on windows but Jamroot must be edited
+#   to remove line "<conditional>@handle-static-runtime".
 $BuildTypeB2 = ${Env:BUILD_TYPE}.ToLower()
 if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
   New-Item -ItemType "directory" -Force -Path "$RootDir/boost/build"
@@ -149,10 +161,15 @@ if (-not (Test-Path -PathType Container "$RootDir/boost/build")) {
 ./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
          --with-chrono --with-timer --with-date_time --with-headers --with-math `
          --with-stacktrace --with-system --with-filesystem --with-atomic `
-         --with-thread --with-serialization --with-test --with-python `
+         --with-thread --with-serialization --with-test `
+         --build-type=minimal architecture=x86 address-model=64 threading=multi `
+         --layout=system link=static runtime-link=shared `
+         toolset=msvc-14.2 variant="$BuildTypeB2" install -q -d0 -j2
+./b2.exe --prefix="$InstallDir" --build-dir="$RootDir/boost/build" `
+         --with-python `
          --build-type=minimal architecture=x86 address-model=64 threading=multi `
          --layout=system link=shared runtime-link=shared `
-         toolset=msvc-14.2 cxxflags="-std=c++14" variant="$BuildTypeB2" install -q -d0 -j2
+         toolset=msvc-14.2 cxxflags="/permissive-" variant="$BuildTypeB2" install -q -d0 -j2
 
 #################################### Build and install eigen3 ##########################################
 
@@ -174,18 +191,15 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 }
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=OFF `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
-)     -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC -DEIGENPY_STATIC"
+)     -DBOOST_ALL_NO_LIB -DEIGENPY_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/eigenpy"
 
 ################################## Build and install tinyxml ###########################################
 
@@ -194,6 +208,7 @@ if (-not (Test-Path -PathType Container "$RootDir/tinyxml/build")) {
 }
 Set-Location -Path "$RootDir/tinyxml/build"
 cmake "$RootDir/tinyxml" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
 )     -DTIXML_USE_STL"
@@ -207,6 +222,7 @@ if (-not (Test-Path -PathType Container "$RootDir/console_bridge/build")) {
 }
 Set-Location -Path "$RootDir/console_bridge/build"
 cmake "$RootDir/console_bridge" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
@@ -231,6 +247,7 @@ if (-not (Test-Path -PathType Container "$RootDir/urdfdom/build")) {
 }
 Set-Location -Path "$RootDir/urdfdom/build"
 cmake "$RootDir/urdfdom" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DBUILD_TESTING=OFF `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj -DNDEBUG /O2 /Zc:__cplusplus $(
@@ -245,6 +262,7 @@ if (-not (Test-Path -PathType Container "$RootDir/assimp/build")) {
 }
 Set-Location -Path "$RootDir/assimp/build"
 cmake "$RootDir/assimp" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF `
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF -DASSIMP_INSTALL_PDB=OFF `
@@ -255,9 +273,9 @@ cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
 ############################# Build and install qhull and hpp-fcl ######################################
 
 ### Build qhull
-if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/third-parties/qhull/build")) {
-  New-Item -ItemType "directory" -Force -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
-}
+#   Note that 'CMAKE_MSVC_RUNTIME_LIBRARY' is not working with qhull. So, it must be patched instead to
+#   add the desired flag at the end of CMAKE_CXX_FLAGS ("/MT", "/MD"...). It will take precedence over
+#   any existing flag if any.
 Set-Location -Path "$RootDir/hpp-fcl/third-parties/qhull/build"
 cmake "$RootDir/hpp-fcl/third-parties/qhull" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
@@ -270,26 +288,16 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
 }
 Set-Location -Path "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=OFF `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON `
       -DINSTALL_DOCUMENTATION=OFF -DENABLE_PYTHON_DOXYGEN_AUTODOC=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4267 /permissive- /Zc:__cplusplus $(
-)     -D_USE_MATH_DEFINES -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC $(
-)     -DEIGENPY_STATIC -DHPP_FCL_STATIC"
+)     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DEIGENPY_STATIC -DHPP_FCL_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_filesystem*.dll" `
-          -Destination "$InstallDir/lib/site-packages/hppfcl"
-Copy-Item -Path "$InstallDir/lib/boost_timer*.dll" `
-          -Destination "$InstallDir/lib/site-packages/hppfcl"
-Copy-Item -Path "$InstallDir/lib/boost_chrono*.dll" `
-          -Destination "$InstallDir/lib/site-packages/hppfcl"
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/hppfcl"
 
 ################################ Build and install Pinocchio ##########################################
 
@@ -299,21 +307,13 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 }
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
+      -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
       -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
-      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE -DBoost_USE_STATIC_LIBS=OFF `
+      -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
       -DBUILD_WITH_COLLISION_SUPPORT=ON -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_PYTHON_INTERFACE=ON `
       -DBUILD_TESTING=OFF -DINSTALL_DOCUMENTATION=OFF -DCMAKE_DISABLE_FIND_PACKAGE_Doxygen=ON `
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="/EHsc /bigobj /wd4068 /wd4715 /wd4834 /permissive- /Zc:__cplusplus $(
-)     -D_USE_MATH_DEFINES -DNOMINMAX -DBOOST_ALL_NO_LIB -DBOOST_LIB_DIAGNOSTIC $(
-)     -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
+)     -DBOOST_ALL_NO_LIB -D_USE_MATH_DEFINES -DNOMINMAX -DEIGENPY_STATIC -DURDFDOM_STATIC -DHPP_FCL_STATIC -DPINOCCHIO_STATIC"
 cmake --build . --target install --config "${Env:BUILD_TYPE}" --parallel 2
-
-### Embedded the required dynamic library in the package folder
-Copy-Item -Path "$InstallDir/lib/boost_filesystem*.dll" `
-          -Destination "$InstallDir/lib/site-packages/pinocchio"
-Copy-Item -Path "$InstallDir/lib/boost_serialization*.dll" `
-          -Destination "$InstallDir/lib/site-packages/pinocchio"
-Copy-Item -Path "$InstallDir/lib/boost_python*.dll" `
-          -Destination "$InstallDir/lib/site-packages/pinocchio"

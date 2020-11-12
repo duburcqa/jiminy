@@ -55,6 +55,21 @@ index d675c2c..c503cf1 100644
 
  pkg_config_append_libs("hpp-fcl")
  IF(HPP_FCL_HAVE_OCTOMAP)
+diff --git a/cmake/boost.cmake b/cmake/boost.cmake
+index bea38e4..3dcfbf6 100644
+--- a/cmake/boost.cmake
++++ b/cmake/boost.cmake
+@@ -115,7 +115,10 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
+     MESSAGE(WARNING "Impossible to check Boost.Python version. Trying with 'python'.")
+   ENDIF(NOT BOOST_PYTHON_FOUND)
+
++  unset(Boost_LIBRARIES)
+   FIND_PACKAGE(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
++  unset(Boost_LIBRARIES)
++  set(Boost_USE_STATIC_LIBS ON)
+   STRING(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
+
+   LIST(APPEND LOGGING_WATCHED_VARIABLES
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index 043d18b..dcc79be 100644
 --- a/src/CMakeLists.txt
