@@ -16,10 +16,10 @@ from typing import Awaitable, Any, Optional
 
 from requests_html import HTMLSession, HTMLResponse
 
-from .utilities import is_notebook
+from .utilities import interactive_mode
 
 
-if is_notebook() == 2:
+if interactive_mode() == 2:
     # Must overload 'chromium_executable' for Google Colaboratory to
     # the native browser instead: "/usr/lib/chromium-browser/chromium-browser".
     # Note that the downside is that chrome must be installed manually.

@@ -3,9 +3,9 @@ from typing import Callable
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot
-from .viewer import is_notebook
+from .viewer import interactive_mode
 
-if is_notebook():
+if interactive_mode():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm

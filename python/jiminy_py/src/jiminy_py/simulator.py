@@ -80,7 +80,11 @@ class Simulator:
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        self.engine.initialize(robot, controller, self._callback)
+        hresult = self.engine.initialize(robot, controller, self._callback)
+        if hresult != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError(
+                "Invalid robot or controller. Make sure they are both "
+                "initialized.")
 
         # Viewer management
         self._viewer = None

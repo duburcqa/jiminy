@@ -12,12 +12,12 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 import meshcat
 
-from .utilities import is_notebook
+from .utilities import interactive_mode
 from .server import start_meshcat_server
 from .recorder import MeshcatRecorder
 
 
-if is_notebook() == 1:
+if interactive_mode() == 1:
     # The IO message rate limit has already been increased to 1e6 on Google
     # Colab, so no need to throw this warning.
     logging.warning(
@@ -26,7 +26,7 @@ if is_notebook() == 1:
         "extra argument '--NotebookApp.iopub_msg_rate_limit=100000' when "
         "executing 'jupyter notebook'.")
 
-if is_notebook():
+if interactive_mode():
     # Google colab is using an older version of ipykernel (4.10), which is
     # not compatible with >= 5.0. The new API is more flexible and enable
     # to process only the relevant messages because every incoming messages
@@ -282,7 +282,7 @@ class MeshcatWrapper:
         # the original ones to avoid altering too much the original
         # implementation of Meshcat.
         self.comm_manager = None
-        if must_launch_server and is_notebook():
+        if must_launch_server and interactive_mode():
             self.comm_manager = CommManager(comm_url)
 
         # Make sure the server is properly closed
