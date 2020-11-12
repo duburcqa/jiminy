@@ -46,7 +46,9 @@ setup(
     ],
     keywords="robotics physics simulator",
     distclass=BinaryDistribution,
-    cmdclass={"install": InstallPlatlib},
+    cmdclass={
+        "install": InstallPlatlib
+    },
     packages=find_packages("src"),
     package_dir={"": "src"},
     package_data={"jiminy_py": [

@@ -93,7 +93,7 @@ print(log_constants)
 trajectory_data_log = extract_viewer_data_from_log(log_data, robot)
 
 # Save the log in CSV
-engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"), False)
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"))
 
 # ############################ Display the results ######################################
 

@@ -98,7 +98,7 @@ jobs:
 
         python -m pip install pefile machomachomangler
         Remove-Item -Recurse -Path "$RootDir/build/pypi" -Include *.tar.gz
-        Get-ChildItem -Recurse -Path "$RootDir/build/pypi" -Filter *.whl |
+        Get-ChildItem -Recurse -Path "$RootDir/build/pypi/dist/jiminy_py" -Filter *.whl |
         Foreach-Object {
             $wheel_path = ($_.FullName)
             python "$RootDir/build_tools/wheel_repair.py" "$wheel_path" -d "$InstallDir/lib" -w "$RootDir/build/wheelhouse"

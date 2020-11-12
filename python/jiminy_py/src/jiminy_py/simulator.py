@@ -321,7 +321,7 @@ class Simulator:
         # Write log
         if log_path is not None:
             log_path = str(pathlib.Path(log_path).with_suffix('.data'))
-            self.engine.write_log(log_path, True)
+            self.engine.write_log(log_path)
 
     def render(self,
                return_rgb_array: bool = False,

@@ -126,8 +126,8 @@ if(BUILD_PYTHON_INTERFACE)
                     OUTPUT_VARIABLE PYTHON_SYS_SITELIB)
     message(STATUS "Python system site-packages: ${PYTHON_SYS_SITELIB}")
     execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m site --user-site
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                OUTPUT_VARIABLE PYTHON_USER_SITELIB)
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    OUTPUT_VARIABLE PYTHON_USER_SITELIB)
     message(STATUS "Python user site-package: ${PYTHON_USER_SITELIB}")
 
     # Check write permissions on Python system site-package to
@@ -142,7 +142,7 @@ if(BUILD_PYTHON_INTERFACE)
         set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
     endif()
 
-    set(PYTHON_INSTALL_FLAGS "--upgrade --use-feature=2020-resolver ")
+    set(PYTHON_INSTALL_FLAGS "--use-feature=2020-resolver ")
     if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
         set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
         set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
@@ -208,6 +208,8 @@ if(BUILD_PYTHON_INTERFACE)
         # The input arguments are [TARGET_NAME...]
         foreach(TARGET_NAME IN LISTS ARGN)
             install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
+                                          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
+                          execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade --no-deps --force-reinstall .
                                           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
         endforeach()
     endfunction()

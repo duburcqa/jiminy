@@ -24,7 +24,7 @@ install(CODE "file(GLOB_RECURSE src_file_list FOLLOW_SYMLINKS
 
 # Build Python wheels and archives
 buildPythonWheel("python/${LIBRARY_NAME}_py"
-                 "${CMAKE_BINARY_DIR}/pypi/${LIBRARY_NAME}_py/dist")
+                 "${CMAKE_BINARY_DIR}/pypi/dist/${LIBRARY_NAME}_py")
 
 # Install Python package jiminy_py
 deployPythonPackage("${LIBRARY_NAME}_py")
@@ -34,7 +34,7 @@ deployPythonPackage("${LIBRARY_NAME}_py")
 buildPythonWheel("python/gym_${LIBRARY_NAME}/common"
                  "python/gym_${LIBRARY_NAME}/envs"
                  "python/gym_${LIBRARY_NAME}/toolbox"
-                 "${CMAKE_BINARY_DIR}/pypi/gym_${LIBRARY_NAME}")
+                 "${CMAKE_BINARY_DIR}/pypi/dist/gym_${LIBRARY_NAME}")
 deployPythonPackageDevelop("python/gym_${LIBRARY_NAME}/common"
                            "python/gym_${LIBRARY_NAME}/envs"
                            "python/gym_${LIBRARY_NAME}/toolbox")
