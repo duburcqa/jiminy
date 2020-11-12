@@ -25,8 +25,8 @@ Beside a strong focus on performance to answer machine learning's need for runni
 - Designed with machine learning in mind, with seemless wrapping of robots in `gym` environments using one-liners. Jiminy provides both the physical engine and the robot model (including sensors) required for learning.
 - Easy to install: `pip` is all that is needed to [get you started](#getting-started) !
 - Dedicated integration in jupyter notebook working out-of-the-box - including 3D rendering using [Meshcat](https://github.com/rdeits/MeshCat.jl). This facilitates working on remote headless environnement such as machine learning clusters.
-- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or HDF5 format.
-- Available for both Linux and Windows platform.
+- Rich simulation log output, easily customizable for recording, introspection and debugging. The simulation log is made available in RAM directly for fast access, and can be exported in raw binary, CSV or [HDF5](https://portal.hdfgroup.org/display/HDF5/Introduction+to+HDF5) format.
+- Available for both Linux and Windows platforms.
 
 ### Physics
 
@@ -56,7 +56,7 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Getting started
 
-Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows, and can be installed using `pip`:
+Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows 10, and can be installed using `pip`:
 
 ```bash
 python -m pip install jiminy_py

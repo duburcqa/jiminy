@@ -46,8 +46,10 @@ function(buildPythonWheel)
                 COMPONENT pypi
                 EXCLUDE_FROM_ALL
         )
-        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py sdist bdist_wheel
-                                              --dist-dir \"${OUTPUT_DIR}\"
+        install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py clean --all
+                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
+                      execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py sdist bdist_wheel
+                                      --dist-dir \"${OUTPUT_DIR}\"
                                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})"
                 COMPONENT pypi
                 EXCLUDE_FROM_ALL

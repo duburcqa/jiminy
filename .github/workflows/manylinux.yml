@@ -84,7 +84,7 @@ jobs:
         cd "$RootDir/build"
         cmake . -DCOMPONENT=pypi -P ./cmake_install.cmake
 
-        auditwheel repair -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/jiminy_py/dist/*.whl
+        auditwheel repair -w "$RootDir/build/wheelhouse" "$RootDir"/build/pypi/dist/jiminy_py/*.whl
         "${PYTHON_EXECUTABLE}" -m pip install --force-reinstall --no-deps "$RootDir"/build/wheelhouse/*.whl
     - name: Upload the wheel for Linux of Jiminy_py
       if: success() && github.repository == 'Wandercraft/jiminy'
@@ -112,11 +112,11 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: build/wheelhouse/
+        packages_dir: build/wheelhouse
     - name: Publish on PyPi the wheel of Gym Jiminy (Any platform / Any python3 version)
       if: matrix.PYTHON_VERSION == '3.6' && success() && github.repository == 'Wandercraft/jiminy' && github.event_name == 'push' && github.ref == 'refs/heads/master'
       uses: pypa/gh-action-pypi-publish@master
       with:
         user: __token__
         password: ${{ secrets.PYPI_DEPLOY }}
-        packages_dir: build/pypi/gym_jiminy/
+        packages_dir: build/pypi/dist/gym_jiminy
