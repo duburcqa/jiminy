@@ -587,7 +587,7 @@ def build_pipeline(env_config: Tuple[
         :param env_kwargs_default: Keyword arguments to forward to the
                                    constructor of the wrapped environment. Note
                                    that it will only overwrite the default
-                                   value, and it will still be possible to set
+                                   value, so it will still be possible to set
                                    different values by explicitly defining them
                                    when calling the constructor of the
                                    generated wrapper.
@@ -611,7 +611,7 @@ def build_pipeline(env_config: Tuple[
         # Implementation of __init__ method must be done after declaration of
         # the class, because the required closure for calling `super()` is not
         # available when creating a class dynamically.
-        def __init__(self: wrapper_class,  # type: ignore[valid-type]
+        def __init__(self: wrapped_env_class,  # type: ignore[valid-type]
                      **kwargs: Any) -> None:
             """
             :param kwargs: Keyword arguments to forward to both the wrapped

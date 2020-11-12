@@ -4,9 +4,10 @@ import os
 import numpy as np
 from pkg_resources import resource_filename
 
-from ..common.env_locomotion import WalkerJiminyEnv
-from ..common.control_impl import PDController
-from ..common.pipeline_bases import build_pipeline
+from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
+from gym_jiminy.common.control_impl import PDController
+from gym_jiminy.common.pipeline_bases import build_pipeline
+
 
 # Default simulation duration (:float [s])
 SIMULATION_DURATION = 20.0

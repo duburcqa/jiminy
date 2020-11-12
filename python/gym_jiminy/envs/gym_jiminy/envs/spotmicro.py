@@ -1,7 +1,7 @@
 import os
 from pkg_resources import resource_filename
 
-from ..common.env_locomotion import WalkerJiminyEnv
+from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 
 
 # Default simulation duration (:float [s])

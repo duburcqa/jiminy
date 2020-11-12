@@ -10,7 +10,7 @@ from gym import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
+from gym_jiminy.common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
 # Stepper update period
