@@ -154,14 +154,18 @@ class ObserveInterface:
         """
         raise NotImplementedError
 
-    def get_obs(self) -> SpaceDictRecursive:
+    def get_obs(self, safe: bool = True) -> SpaceDictRecursive:
         """Get post-processed observation.
-
-        It clamps the observation to make sure it does not violate the lower
-        and upper bounds.
 
         .. warning::
             In most cases, it is not necessary to overloaded this method, and
             doing so may lead to unexpected behavior if not done carefully.
+
+        :param safe: Whether to clamp the observation to make sure it does not
+                     violate the lower and upper bounds or to return the
+                     original without any processing.
         """
-        return _clamp(self.observation_space, self._observation)
+        if safe:
+            return _clamp(self.observation_space, self._observation)
+        else:
+            return self._observation

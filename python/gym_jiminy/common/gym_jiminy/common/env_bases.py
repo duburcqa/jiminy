@@ -470,8 +470,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
-        # Initialize the observation buffer with a random observation
-        self._observation = self.observation_space.sample()
+        # Initialize the observation buffer
+        self._observation = zeros(self.observation_space)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()

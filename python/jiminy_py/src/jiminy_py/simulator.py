@@ -223,7 +223,8 @@ class Simulator:
         """Getter of the current state of the robot.
 
         .. warning::
-            Return a copy, which is computationally inefficient but safe.
+            Return a reference whenever it is possible, which is
+            computationally efficient but unsafe.
         """
         if self.engine.is_simulation_running:
             q = self.engine.system_state.q
@@ -231,7 +232,7 @@ class Simulator:
             if self.robot.is_flexible and self.use_theoretical_model:
                 return self.robot.get_rigid_state_from_flexible(q, v)
             else:
-                return q.copy(), v.copy()
+                return q, v
         else:
             raise RuntimeError(
                 "No simulation running. Impossible to get current state.")
