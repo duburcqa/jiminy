@@ -3,6 +3,7 @@
 import os
 import time
 import tempfile
+from copy import deepcopy
 from collections import OrderedDict
 from typing import Optional, Tuple, Sequence, Dict, Any, Union
 
@@ -42,9 +43,6 @@ SENSOR_FORCE_MAX = 100000.0
 SENSOR_MOMENT_MAX = 10000.0
 SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
-
-
-SensorDataType = Dict[str, Union[Dict[str, np.ndarray], np.ndarray]]
 
 
 class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
@@ -113,7 +111,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Current observation and action of the robot
         self._state: Optional[Tuple[np.ndarray, np.ndarray]] = None
-        self._sensors_data: Optional[SensorDataType] = None
+        self._sensors_data: Optional[Dict[str, np.ndarray]] = None
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
@@ -407,8 +405,10 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Invalid initial state.")
 
-        # Backup sensors data
-        self._sensors_data = OrderedDict(self.robot.sensors_data)  # copy
+        # Backup sensors data.
+        # Deepcopy must be done to avoid sensors data being cleaned-up at
+        # engine restart.
+        self._sensors_data = deepcopy(OrderedDict(self.robot.sensors_data))
 
         # Initialize some internal buffers
         self._is_ready = True
@@ -453,6 +453,10 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Make sure the environment is properly setup
         self._setup()
+
+        # Initialize sensors data shared memory
+        self._sensors_data = OrderedDict(self.robot.sensors_data)
+
 
         # Backup the controller update period
         engine_options = self.simulator.engine.get_options()
@@ -592,8 +596,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
         # Fetch the new observation
-        self._sensors_data = OrderedDict(self.robot.sensors_data)  # copy
-        self._state = self.simulator.state
         self._observation = self.fetch_obs()
 
         # Check if the simulation is over.
@@ -875,13 +877,19 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             This method is called right after updating the internal buffer
             `_state`. This method, alongside `_refresh_observation_space`, must
             be overwritten in order to use a custom observation space.
+
+        .. warning::
+            This method partially returns references to the simulation state
+            for the sake of efficiency. As a result, it is not safe to store
+            the observation without copying it first. Calling `get_obs` with
+            'safe=True' right after calling this method would do the job.
         """
         # Assertion(s) for type checker
         assert self.simulator is not None
 
         obs = OrderedDict()
-        obs['t'] = np.array([self.simulator.stepper_state.t])
-        obs['state'] = np.concatenate(self._state)
+        obs['t'] = np.array([self.simulator.stepper_state.t])  # Scalar copy
+        obs['state'] = OrderedDict(zip(encoder.fieldnames, self._state))  # Ref
         obs['sensors'] = self._sensors_data
         return obs
 

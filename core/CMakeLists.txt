@@ -128,13 +128,13 @@ if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} -ldl)  # Link some libraries that are not automatically linked with HDF5
 endif()
 
-# Activate c++14 for this target and propagate it
+# Activate C++17 for this target and propagate it
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    CXX_STANDARD 14
+    CXX_STANDARD 17
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_14)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 
 # Install C++ headers
 install(DIRECTORY "include/${LIBRARY_NAME}"

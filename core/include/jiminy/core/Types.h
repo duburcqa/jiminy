@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <optional>
 
 #include "pinocchio/fwd.hpp"
 #include "pinocchio/multibody/fwd.hpp"
@@ -169,9 +170,9 @@ namespace jiminy
     };
 
     using namespace boost::multi_index;
-    struct IndexByName {};
     struct IndexByIdx {};
-    using sensorDataTypeMap_t = multi_index_container<
+    struct IndexByName {};
+    using sensorDataTypeMapImpl_t = multi_index_container<
         sensorDataTypePair_t,
         indexed_by<
             ordered_unique<
@@ -185,6 +186,51 @@ namespace jiminy
             >
         >
     >;
+    struct sensorDataTypeMap_t : public sensorDataTypeMapImpl_t
+    {
+    public:
+        sensorDataTypeMap_t(std::optional<std::reference_wrapper<matrixN_t const> > sharedData = std::nullopt) :
+        sensorDataTypeMapImpl_t(),
+        sharedData_(sharedData)
+        {
+            // Empty on purpose.
+        }
+
+        matrixN_t const & getAll(void) const
+        {
+            /* Use static shared buffer if no shared memory available.
+               It is useful if the sensors data is not contiguous in the first place,
+               which is likely to be the case when allocated from Python, or when
+               re-generating sensor data from log files. */
+            static matrixN_t sharedData;
+
+            if (sharedData_.has_value())
+            {
+                /* Return shared memory directly it is up to the suer to make sure
+                   that it is actually up-to-date. */
+                return sharedData_.value().get();
+            }
+            else
+            {
+                // Resize internal buffer if needed
+                if (size() != size_type(sharedData.rows()))
+                {
+                    sharedData.resize(size(), this->begin()->value.size());
+                }
+
+                // Set internal buffer by copying sensor data sequentially
+                for (auto const & sensor : *this)
+                {
+                    sharedData.row(sensor.idx) = sensor.value;
+                }
+
+                return sharedData;
+            }
+        }
+
+    private:
+        std::optional<std::reference_wrapper<matrixN_t const> > sharedData_;
+    };
 
     using sensorsDataMap_t = std::unordered_map<std::string, sensorDataTypeMap_t>;
 

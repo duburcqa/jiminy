@@ -116,7 +116,7 @@ namespace jiminy
                     {
                         if (returnCode == hresult_t::SUCCESS)
                         {
-                            if (sensorTelemetryOptions_.at(sensorGroup.first))
+                            if (sensorTelemetryOptions_[sensorGroup.first])
                             {
                                 returnCode = sensor->configureTelemetry(telemetryData_, objectPrefixName);
                             }
@@ -342,7 +342,7 @@ namespace jiminy
             }
 
             // Attach the sensor
-            returnCode = sensor->attach(this, sensorsSharedHolder_.at(sensorType).get());
+            returnCode = sensor->attach(this, sensorsSharedHolder_[sensorType].get());
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -446,7 +446,7 @@ namespace jiminy
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
-            std::vector<std::string> sensorGroupNames = sensorsNames_.at(sensorType); // Make a copy since calling detachSensors update it !
+            std::vector<std::string> sensorGroupNames = sensorsNames_[sensorType];  // Make a copy since calling detachSensors update it !
             for (std::string const & sensorName : sensorGroupNames)
             {
                 if (returnCode == hresult_t::SUCCESS)
@@ -1378,17 +1378,19 @@ namespace jiminy
     sensorsDataMap_t Robot::getSensorsData(void) const
     {
         sensorsDataMap_t data;
-        for (auto & sensorGroup : sensorsGroupHolder_)
+        sensorsGroupHolder_t::const_iterator sensorsGroupIt = sensorsGroupHolder_.begin();
+        sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
+        for (; sensorsGroupIt != sensorsGroupHolder_.end() ; sensorsGroupIt++, sensorsSharedIt++)
         {
-            sensorDataTypeMap_t dataType;
-            for (auto & sensor : sensorGroup.second)
+            sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
+            for (auto & sensor : sensorsGroupIt->second)
             {
                 auto & sensorConst = const_cast<AbstractSensorBase const &>(*sensor);
                 dataType.emplace(sensorConst.getName(),
                                  sensorConst.getIdx(),
                                  sensorConst.get());
             }
-            data.emplace(sensorGroup.first, std::move(dataType));
+            data.emplace(sensorsGroupIt->first, std::move(dataType));
         }
         return data;
     }

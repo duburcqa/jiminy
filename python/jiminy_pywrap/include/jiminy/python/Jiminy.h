@@ -457,8 +457,8 @@ namespace python
         {
             try
             {
-                auto & sensorDataTypeByName = self.at(sensorType).get<IndexByName>();
-                auto sensorDataIt = sensorDataTypeByName.find(sensorName);
+                auto & sensorsDataTypeByName = self.at(sensorType).get<IndexByName>();
+                auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
                 Eigen::Ref<vectorN_t const> const & sensorDataValue = sensorDataIt->value;
                 bp::handle<> valuePy(getNumpyReference(sensorDataValue));
                 return bp::object(valuePy);
@@ -476,24 +476,9 @@ namespace python
             try
             {
                 auto & sensorsDataType = self.at(sensorType);
-                auto sensorDataIt = sensorsDataType.begin();
-
-                npy_intp dims[2] = {npy_intp(sensorDataIt->value.size()),
-                                    npy_intp(sensorsDataType.size())};
-                PyObject * dataPyPtr = PyArray_SimpleNew(2, dims, NPY_FLOAT64);
-                float64_t * dataPyDataPtr = reinterpret_cast<float64_t *>(
-                    PyArray_DATA(reinterpret_cast<PyArrayObject *>(dataPyPtr)));
-
-                for (; sensorDataIt != sensorsDataType.end(); ++sensorDataIt)
-                {
-                    for (uint32_t i=0 ; i < dims[0] ; ++i)
-                    {
-                        auto dataIdxOffset = i * dims[1] + sensorDataIt->idx;
-                        *(dataPyDataPtr + dataIdxOffset) = sensorDataIt->value[i];
-                    }
-                }
-
-                return bp::object(bp::handle<>(dataPyPtr));
+                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.getAll());
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                return bp::object(valuePy);
             }
             catch (...)
             {
@@ -507,12 +492,12 @@ namespace python
         {
             std::string const sensorType = bp::extract<std::string>(sensorInfo[0]);
             std::string const sensorName = bp::extract<std::string>(sensorInfo[1]);
-            auto const & sensorDataType = self.find(sensorType);
-            if (sensorDataType != self.end())
+            auto const & sensorsDataType = self.find(sensorType);
+            if (sensorsDataType != self.end())
             {
-                auto & sensorDataTypeByName = sensorDataType->second.get<IndexByName>();
-                auto sensorDataIt = sensorDataTypeByName.find(sensorName);
-                if (sensorDataIt != sensorDataTypeByName.end())
+                auto & sensorsDataTypeByName = sensorsDataType->second.get<IndexByName>();
+                auto sensorDataIt = sensorsDataTypeByName.find(sensorName);
+                if (sensorDataIt != sensorsDataTypeByName.end())
                 {
                     return true;
                 }
@@ -544,9 +529,11 @@ namespace python
         static bp::list values(sensorsDataMap_t & self)
         {
             bp::list sensorsValue;
-            for (auto const & sensorDataType : self)
+            for (auto const & sensorsDataType : self)
             {
-                sensorsValue.append(getSub(self, sensorDataType.first));
+                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.second.getAll());
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                sensorsValue.append(bp::object(valuePy));
             }
             return sensorsValue;
         }
@@ -554,10 +541,11 @@ namespace python
         static bp::list items(sensorsDataMap_t & self)
         {
             bp::list sensorsDataPy;
-            for (auto const & sensorDataType : self)
+            for (auto const & sensorsDataType : self)
             {
-                sensorsDataPy.append(bp::make_tuple(sensorDataType.first,
-                                                    getSub(self, sensorDataType.first)));
+                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.second.getAll());
+                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                sensorsDataPy.append(bp::make_tuple(sensorsDataType.first, bp::object(valuePy)));
             }
             return sensorsDataPy;
         }
@@ -567,11 +555,11 @@ namespace python
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
 
-            for (auto const & sensorDataType : self)
+            for (auto const & sensorsDataType : self)
             {
-                std::string const & sensorTypeName = sensorDataType.first;
+                std::string const & sensorTypeName = sensorsDataType.first;
                 s << sensorTypeName << ":\n";
-                for (auto const & sensorData : sensorDataType.second)
+                for (auto const & sensorData : sensorsDataType.second)
                 {
                     std::string const & sensorName = sensorData.name;
                     int32_t const & sensorIdx = sensorData.idx;
