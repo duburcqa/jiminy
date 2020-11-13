@@ -68,10 +68,10 @@ class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
         assert self.env is not None
 
         i = 0
-        env = self.env
-        while isinstance(self.env, self.__class__):
-            i += 1
-            env = env.env
+        block = self.env
+        while not isinstance(block, BaseJiminyEnv):
+            i += isinstance(block, self.__class__)
+            block = block.env
         return i
 
 
@@ -93,17 +93,17 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                 |         | "obs"              |          | "cmd_1"              |          | "cmd_2"
                 +---------+                    +----------+                      +----------+
 
-                      +-----------------------------------+
-                      |                                   |
-                      v                                   |
-                +-----+----+         +----------+         |   +---------+
-        "act_3" |          | "act_2" |          | "act_1" |   |         |
-        ------->+ "ctrl_2" +-------->+ "ctrl_1" +---------o-->+  "env"  +--o------------------------->
-                |          | "cmd_2" |          | "cmd_1"     |         |  | "obs or {obs + [cmd_1...] + [cmd_2...]}"
-                +----------+         +-----+----+             +---------+  |
-                                           ^                               |
-                                           |                               |
-                                           +-------------------------------+
+                      +----------------------------------------------------+
+                      |                                                    |
+                      v                                                    |
+                +-----+----+         +----------+         +---------+      |
+        "act_3" |          | "act_2" |          | "act_1" |         |      | "obs + cmd_1 + cmd_2"
+        ------->+ "ctrl_2" +-------->+ "ctrl_1" +-------->+  "env"  +--o---o---------------------->
+                |          | "cmd_2" |          | "cmd_1" |         |  | "obs + cmd_1"
+                +----------+         +-----+----+         +---------+  |
+                                           ^                           |
+                                           |                           |
+                                           +---------------------------+
 
     The output command 'cmd_X' of 'ctrl_X' must be consistent with the action
     space 'act_X' of the subsequent block. The action space of the outcoming
@@ -131,8 +131,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                  augment_observation: bool = False):
         """
         .. note::
-            As a reminder, `env.dt` refers to the learning step period,
-            namely the timestep between two successive samples:
+            As a reminder, `env.step_dt` refers to the learning step period,
+            namely the timestep between two successive frames:
 
                 [obs, reward, done, info]
 
@@ -140,7 +140,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             environment is wrapped with a controller using this class. On the
             contrary, `env.control_dt` corresponds to the apparent control
             update period, namely the update period of the higher-level
-            controller if multiple are piped together.
+            controller if multiple are piped together. The same goes for
+            `env.observe_dt`.
 
         :param env: Environment to control. It can be an already controlled
                     environment wrapped in `ControlledJiminyEnv` if one desires
@@ -257,7 +258,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         assert self.control_dt is not None
 
         # Make sure the controller period is lower than environment timestep
-        assert self.control_dt <= self.env.unwrapped.dt, (
+        assert self.control_dt <= self.env.unwrapped.step_dt, (
             "The control update period must be lower than or equal to the "
             "environment simulation timestep.")
 
@@ -310,7 +311,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self.observation_space = self.env.observation_space
         if self.augment_observation:
             self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict())[self.controller_name] = \
+                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
                     self.controller.action_space
 
         # Compute the unified observation
@@ -604,7 +605,7 @@ def build_pipeline(env_config: Tuple[
         # pylint: disable-all
 
         wrapped_env_class = type(
-            f"{block_class.__name__}{env_class.__name__}",  # Class name
+            f"{block_class.__name__}Env",  # Class name
             (wrapper_class,),  # Bases
             {})  # methods (__init__ cannot be implemented this way, cf below)
 

@@ -40,7 +40,7 @@ class SpotmicroJiminyEnv(WalkerJiminyEnv):
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
-            dt=STEP_DT,
+            step_dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
             avoid_instable_collisions=False,

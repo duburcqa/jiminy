@@ -47,7 +47,7 @@ SENSOR_NOISE_SCALE = {
 }
 
 DEFAULT_SIMULATION_DURATION = 20.0  # (s) Default simulation duration
-DEFAULT_ENGINE_DT = 1.0e-3  # (s) Stepper update period
+DEFAULT_STEP_DT = 1.0e-3  # (s) Stepper update period
 
 DEFAULT_HLC_TO_LLC_RATIO = 1  # (NA)
 
@@ -77,7 +77,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                  hardware_path: Optional[str] = None,
                  mesh_path: Optional[str] = None,
                  simu_duration_max: float = DEFAULT_SIMULATION_DURATION,
-                 dt: float = DEFAULT_ENGINE_DT,
+                 step_dt: float = DEFAULT_STEP_DT,
                  enforce_bounded: Optional[bool] = False,
                  reward_mixture: Optional[dict] = None,
                  std_ratio: Optional[dict] = None,
@@ -95,8 +95,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
                           used if available.
         :param simu_duration_max: Maximum duration of a simulation before
                                   returning done.
-        :param dt: Engine timestep. It corresponds to the controller and
-                   sensors update period.
+        :param step_dt: Simulation timestep for learning.
         :param enforce_bounded: Whether or not to enforce finite bounds for the
                                 observation and action spaces. If so, then
                                 '\*_MAX' are used whenever it is necessary.
@@ -156,7 +155,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._height_neutral: Optional[float] = None
 
         # Configure and initialize the learning environment
-        super().__init__(None, dt, enforce_bounded, debug, **kwargs)
+        super().__init__(None, step_dt, enforce_bounded, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.

@@ -69,7 +69,7 @@ class ControlInterface:
     def compute_command(self,
                         action: SpaceDictRecursive
                         ) -> SpaceDictRecursive:
-        """Compute the command sent to the subsequent block.
+        """Compute the command to send to the subsequent block.
 
         :param action: Action to perform.
         """
@@ -122,7 +122,7 @@ class ControlInterface:
 class ObserveInterface:
     """Observer interface for both observers and environments.
     """
-    dt: Optional[float]
+    observe_dt: Optional[float]
     observation_space: Optional[gym.Space]
     _observation: Optional[SpaceDictRecursive]
 
@@ -137,7 +137,7 @@ class ObserveInterface:
                        multiple inheritance through multiple inheritance.
         """
         # Define some attributes
-        self.dt = None
+        self.observe_dt = None
         self.observation_space = None
         self._observation = None
 

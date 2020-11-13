@@ -133,8 +133,8 @@ def test(test_agent: BaseAlgorithm,
         raise ValueError(
             "Either 'max_episodes' or 'max_duration' must be finite.")
 
-    # Get environment dt
-    dt = test_agent.eval_env.envs[0].dt
+    # Get environment timestep
+    step_dt = test_agent.eval_env.envs[0].step_dt
 
     try:
         t_init, t_cur = time.time(), time.time()
@@ -153,7 +153,7 @@ def test(test_agent: BaseAlgorithm,
 
                 # Render the current state in default viewer
                 test_agent.eval_env.render()
-                sleep(dt - (time.time() - t_cur))
+                sleep(step_dt - (time.time() - t_cur))
                 t_cur = time.time()
 
                 # Break the simulation if max duration reached

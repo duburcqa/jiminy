@@ -192,7 +192,7 @@ def test(test_agent: Trainer,
 
                 # Render the current state in default viewer
                 env.render()
-                sleep(env.dt - (time.time() - t_cur))
+                sleep(env.step_dt - (time.time() - t_cur))
                 t_cur = time.time()
 
                 # Break the simulation if max duration reached

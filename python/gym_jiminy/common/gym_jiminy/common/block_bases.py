@@ -31,20 +31,28 @@ class BlockInterface:
     observation_space: Optional[gym.Space]
     action_space: Optional[gym.Space]
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self,
+                 update_ratio: int = 1,
+                 *args: Any,
+                 **kwargs: Any) -> None:
         """Initialize the block interface.
 
         It only allocates some attributes.
 
+        :param update_ratio: Ratio between the update period of the high-level
+                             controller and the one of the subsequent
+                             lower-level controller.
         :param args: Extra arguments that may be useful for mixing
                      multiple inheritance through multiple inheritance.
-        :param kwargs: Extra keyword arguments that may be useful for mixing
-                       multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
         """
         # Define some attributes
         self.env = None
         self.observation_space = None
         self.action_space = None
+
+        # Backup some user arguments
+        self.update_ratio = update_ratio
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
@@ -170,7 +178,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
     The update period of the controller must be higher than the control update
     period of the environment, but both can be infinite, ie time-continuous.
     """
-    def __init__(self, update_ratio: int = 1, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
         .. note::
             The space in which the command must be contained is completely
@@ -181,20 +189,15 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
             On the contrary, the action space of the controller 'action_ctrl'
             is free and it is up to the user to define it.
 
-        :param update_ratio: Ratio between the update period of the high-level
-                             controller and the one of the subsequent
-                             lower-level controller.
-        :param kwargs: Extra keyword arguments that may be useful for dervied
-                       controller with multiple inheritance, and to allow
-                       automatic pipeline wrapper generation.
+        :param args: Extra arguments that may be useful for mixing multiple
+                     inheritance through multiple inheritance, and to allow
+                     automatic pipeline wrapper generation.
+        :param kwargs: Extra keyword arguments. See 'args'.
         """
         # pylint: disable=unused-argument
 
         # Initialize the block and control interface
-        super().__init__()
-
-        # Backup some user arguments
-        self.update_ratio: int = update_ratio
+        super().__init__(*args, **kwargs)
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation space of the controller.
@@ -204,7 +207,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
 
         .. warning::
             This method that must not be overloaded. If one need to overload
-            it, when using `BaseObserverBlock` or `BlockInterface` directly
+            it, then using `BaseObserverBlock` or `BlockInterface` directly
             is probably the way to go.
         """
         assert self.env is not None
@@ -327,8 +330,23 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
 
         .. warning::
             This method that must not be overloaded. If one need to overload
-            it, when using `BaseControllerBlock` or `BlockInterface` directly
+            it, then using `BaseControllerBlock` or `BlockInterface` directly
             is probably the way to go.
         """
         assert self.env is not None
         self.action_space = self.env.observation_space
+
+    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
+        """Reset the observer for a given environment.
+
+        In addition to the base implementation, it also set 'observe_dt'
+        dynamically, based on the environment 'observe_dt'.
+
+        :param env: Environment to observe, eventually already wrapped.
+        """
+        super().reset(env)
+
+        # Assertion(s) for type checker
+        assert self.env is not None and self.env.observe_dt is not None
+
+        self.observe_dt = self.env.observe_dt * self.update_ratio

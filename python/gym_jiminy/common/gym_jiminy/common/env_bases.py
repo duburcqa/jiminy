@@ -68,7 +68,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
     def __init__(self,
                  simulator: Optional[Simulator],
-                 dt: float,
+                 step_dt: float,
                  enforce_bounded: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs: Any) -> None:
@@ -77,8 +77,10 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                           computations. Can be `None` if `_setup`
                           has been overwritten such that 'self.simulator' is
                           a valid and completely initialized engine.
-        :param dt: Simulation timestep. It also corresponds to the observation
-                   update period.
+        :param step_dt: Simulation timestep for learning. Note that it is
+                        independent from the controller and observation update
+                        periods. The latter are configured via
+                        `engine.set_options`.
         :param enforce_bounded: Whether or not to enforce finite bounds for the
                                 observation and action spaces. If so, then
                                 '\*_MAX' are used whenever it is necessary.
@@ -98,7 +100,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Backup some user arguments
         self.simulator = simulator
-        self.dt = dt
+        self.step_dt = step_dt
         self.enforce_bounded = enforce_bounded
         self.debug = debug
 
@@ -414,7 +416,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self._is_ready = True
         self.num_steps = 0
         self.max_steps = int(
-            self.simulator.simulation_duration_max // self.dt)
+            self.simulator.simulation_duration_max // self.step_dt)
 
         # Stop the engine, to avoid locking the robot and the telemetry too
         # early, so that it remains possible to register external forces,
@@ -457,11 +459,16 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Initialize sensors data shared memory
         self._sensors_data = OrderedDict(self.robot.sensors_data)
 
-
-        # Backup the controller update period
+        # Extract the controller and observer update period.
+        # There is no actual observer by default, apart from the robot's state
+        # and raw sensors data, so the observation period matches the one of
+        # the sensors. Similarly, there is no actual controller by default,
+        # apart from forwarding the command torque to the motors.
         engine_options = self.simulator.engine.get_options()
         self.control_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
+        self.observer_dt = \
+            float(engine_options['stepper']['sensorsUpdatePeriod'])
 
         # Refresh the observation and action spaces
         self._refresh_observation_space()
@@ -585,7 +592,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                 self._is_ready = False
 
             # Perform a single inetgration step
-            return_code = self.simulator.step(self.dt)
+            return_code = self.simulator.step(self.step_dt)
             if return_code != jiminy.hresult_t.SUCCESS:
                 raise RuntimeError("Failed to perform the simulation step.")
 
@@ -716,9 +723,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         :param key: Key to press to start the interaction.
         """
-        # Assertion(s) for type checker
-        assert self.dt is not None
-
         t_init = time.time()
         if key is not None:
             action = self._key_to_action(key)
@@ -726,7 +730,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             action = None
         _, _, done, _ = self.step(action)
         self.render()
-        sleep(self.dt - (time.time() - t_init))
+        sleep(self.step_dt - (time.time() - t_init))
         return done
 
     # methods to override:
@@ -972,9 +976,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     """
     def __init__(self,
                  simulator: Optional[Simulator],
-                 dt: float,
+                 step_dt: float,
                  debug: bool = False) -> None:
-        super().__init__(simulator, dt, debug)
+        super().__init__(simulator, step_dt, debug)
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker
