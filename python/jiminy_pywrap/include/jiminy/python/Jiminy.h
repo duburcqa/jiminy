@@ -476,8 +476,7 @@ namespace python
             try
             {
                 auto & sensorsDataType = self.at(sensorType);
-                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.getAll());
-                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                bp::handle<> valuePy(getNumpyReference(sensorsDataType.getAll()));
                 return bp::object(valuePy);
             }
             catch (...)
@@ -531,8 +530,7 @@ namespace python
             bp::list sensorsValue;
             for (auto const & sensorsDataType : self)
             {
-                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.second.getAll());
-                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                bp::handle<> valuePy(getNumpyReference(sensorsDataType.second.getAll()));
                 sensorsValue.append(bp::object(valuePy));
             }
             return sensorsValue;
@@ -543,8 +541,7 @@ namespace python
             bp::list sensorsDataPy;
             for (auto const & sensorsDataType : self)
             {
-                matrixN_t & sensorDataValue = const_cast<matrixN_t &>(sensorsDataType.second.getAll());
-                bp::handle<> valuePy(getNumpyReference(sensorDataValue));
+                bp::handle<> valuePy(getNumpyReference(sensorsDataType.second.getAll()));
                 sensorsDataPy.append(bp::make_tuple(sensorsDataType.first, bp::object(valuePy)));
             }
             return sensorsDataPy;

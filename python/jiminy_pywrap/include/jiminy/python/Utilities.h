@@ -53,10 +53,21 @@ namespace python
     }
 
     template<typename T, int RowsAtCompileTime>
+    PyObject * getNumpyReferenceFromEigenVector(Eigen::Matrix<T, RowsAtCompileTime, 1> const & value)
+    {
+        PyObject * array = getNumpyReferenceFromEigenVector(
+            const_cast<Eigen::Matrix<T, RowsAtCompileTime, 1> &>(value));
+        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
+        return array;
+    }
+
+    template<typename T, int RowsAtCompileTime>
     PyObject * getNumpyReferenceFromEigenVector(Eigen::Ref<Eigen::Matrix<T, RowsAtCompileTime, 1> const> const & value)
     {
         npy_intp dims[1] = {npy_intp(value.size())};
-        return PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
+        PyObject * array = PyArray_SimpleNewFromData(1, dims, getPyType(*value.data()), const_cast<T*>(value.data()));
+        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
+        return array;
     }
 
     template<typename T>
@@ -64,7 +75,7 @@ namespace python
     {
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
         return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
-            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL);
+            PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), const_cast<T*>(value.data()))), NULL);
     }
 
     template<typename T>
@@ -73,6 +84,15 @@ namespace python
         npy_intp dims[2] = {npy_intp(value.cols()), npy_intp(value.rows())};
         return PyArray_Transpose(reinterpret_cast<PyArrayObject *>(
             PyArray_SimpleNewFromData(2, dims, getPyType(*value.data()), value.data())), NULL);
+    }
+
+    template<typename T>
+    PyObject * getNumpyReferenceFromEigenMatrix(Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> const & value)
+    {
+        PyObject * array = getNumpyReferenceFromEigenMatrix(
+            const_cast<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> &>(value));
+        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
+        return array;
     }
 
     /// Generic converter to Numpy array by reference
