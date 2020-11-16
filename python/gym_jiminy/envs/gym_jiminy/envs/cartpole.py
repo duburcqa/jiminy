@@ -173,14 +173,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_range)
         return qpos, qvel
 
-    def fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::fetch_obs
+    def compute_observation(self) -> None:
+        # @copydoc BaseJiminyEnv::compute_observation
         return np.concatenate(self._state)
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
         """
-        x, theta, _, _ = self.get_obs()
+        x, theta, _, _ = self.get_observation()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def compute_reward(self,  # type: ignore[override]

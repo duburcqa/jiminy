@@ -15,7 +15,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from .utils import FieldDictRecursive
+from .utils import FieldDictRecursive, SpaceDictRecursive
 from .generic_bases import ControlInterface, ObserveInterface
 from .env_bases import BaseJiminyEnv
 
@@ -284,7 +284,10 @@ BaseControllerBlock.compute_command.__doc__ = \
         after `reset`.  This method has to deal with the initialization of
         the internal state, but `_setup` method does so.
 
-    :param action: Action to perform.
+    :param measure: Observation of the environment.
+    :param target: Target to achieve.
+
+    :returns: Action to perform
     """
 
 
@@ -350,3 +353,14 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
         assert self.env is not None and self.env.observe_dt is not None
 
         self.observe_dt = self.env.observe_dt * self.update_ratio
+
+    def compute_observation(self,
+                            measure: SpaceDictRecursive
+                            ) -> SpaceDictRecursive:
+        """Compute observed features based on the current simulation state and
+        lower-level measure.
+
+        :param measure: Measure from the environment to process to get
+                        high-level observation.
+        """
+        raise NotImplementedError

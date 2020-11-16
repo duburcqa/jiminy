@@ -26,8 +26,8 @@ from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, SpaceDictRecursive
-from .generic_bases import ControlInterface, ObserveInterface
+from .utils import _clamp, _is_breakpoint, set_value, zeros, SpaceDictRecursive
+from .generic_bases import ObserveAndControlInterface
 from .play import loop_interactive
 
 
@@ -45,7 +45,7 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
+class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -74,16 +74,16 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                  **kwargs: Any) -> None:
         r"""
         :param simulator: Jiminy Python simulator used for physics
-                          computations. Can be `None` if `_setup`
-                          has been overwritten such that 'self.simulator' is
-                          a valid and completely initialized engine.
+                          computations. Can be `None` if `_setup` has been
+                          overwritten such that 'self.simulator' is a valid and
+                          completely initialized engine.
         :param step_dt: Simulation timestep for learning. Note that it is
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
         :param enforce_bounded: Whether or not to enforce finite bounds for the
                                 observation and action spaces. If so, then
-                                '\*_MAX' are used whenever it is necessary.
+                                '*_MAX' are used whenever it is necessary.
                                 Note that whose bounds are very spread to make
                                 sure it is suitable for the vast majority of
                                 systems.
@@ -440,7 +440,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Update the observation
         self._state = (qpos, qvel)
-        self._observation = self.fetch_obs()
+        self._observation = self.compute_observation()
 
     def reset(self) -> SpaceDictRecursive:
         """Reset the environment.
@@ -455,9 +455,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Make sure the environment is properly setup
         self._setup()
-
-        # Initialize sensors data shared memory
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Extract the controller and observer update period.
         # There is no actual observer by default, apart from the robot's state
@@ -477,9 +474,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
-        # Initialize the observation buffer
-        self._observation = zeros(self.observation_space)
-
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
         if not jiminy.is_position_valid(
@@ -490,15 +484,15 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                 "model.")
         self.set_state(qpos, qvel)
 
-        # Make sure the state is valid, otherwise there `fetch_obs` and
-        # `_refresh_observation_space` are inconsistent.
+        # Make sure the state is valid, otherwise there `compute_observation` and
+        # `_refresh_observation_space` are probably inconsistent.
         try:
             is_obs_valid = self.observation_space.contains(self._observation)
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `fetch_obs` is inconsistent "
+                "The observation returned by `compute_observation` is inconsistent "
                 "with the observation space defined by "
                 "`_refresh_observation_space`.")
 
@@ -520,7 +514,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         self.simulator.set_controller(controller)
         controller.set_controller_handle(self._send_command)
 
-        return self.get_obs()
+        return self.get_observation()
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -574,7 +568,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         # Update the action to perform if necessary
         if action is not None:
-            self._action[:] = action
+            np.copyto(self._action, action)
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -591,7 +585,10 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
                     raise RuntimeError("Failed to start the simulation.")
                 self._is_ready = False
 
-            # Perform a single inetgration step
+                # Initialize sensors data shared memories
+                self._sensors_data = OrderedDict(self.robot.sensors_data)
+
+            # Perform a single integration step
             return_code = self.simulator.step(self.step_dt)
             if return_code != jiminy.hresult_t.SUCCESS:
                 raise RuntimeError("Failed to perform the simulation step.")
@@ -601,9 +598,6 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             is_step_failed = False
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
-
-        # Fetch the new observation
-        self._observation = self.fetch_obs()
 
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
@@ -620,15 +614,15 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             if self.enable_reward_terminal and \
                     self._num_steps_beyond_done == 0:
                 logger.error(
-                    "Calling 'step' even though this environment has "
-                    "already returned done = True whereas terminal "
-                    "reward is enabled. You must call `reset` "
-                    "to avoid further undefined behavior.")
+                    "Calling 'step' even though this environment has already "
+                    "returned done = True whereas terminal reward is enabled. "
+                    "Please call `reset` to avoid further undefined behavior.")
             self._num_steps_beyond_done += 1
 
-        # Early return in case of low-level engine integration failure
+        # Early return in case of low-level engine integration failure.
+        # In such a case, it always returns reward = 0.0 and done = True.
         if is_step_failed:
-            return self.get_obs(), 0.0, done, self._info
+            return self.get_observation(), 0.0, True, self._info
 
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
@@ -647,7 +641,7 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             if self.enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
-        return self.get_obs(), reward, done, self._info
+        return self.get_observation(), reward, done, self._info
 
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
@@ -747,8 +741,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
             beginning. This method can be overwritten to postpone the engine
             and robot creation at `reset`. One have to delegate the creation
             and initialization of the engine to this method, so that it
-            alleviates the requirement to specify a valid the engine during
-            the instantiation of the environment.
+            alleviates the requirement to specify a valid the engine during the
+            instantiation of the environment.
         """
         # Assertion(s) for type checker
         assert self.simulator is not None and self.robot is not None
@@ -796,13 +790,13 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         .. note::
             This method is called internally by `reset` method at the very end,
             just before computing and returning the initial observation. This
-            method, alongside 'fetch_obs', must be overwritten in order to use
-            a custom observation space.
+            method, alongside `compute_observation`, must be overwritten in
+            order to define a custom observation space.
         """
-        self.observation_space = gym.spaces.Dict(
+        self.observation_space = gym.spaces.Dict(OrderedDict(
             t=self._get_time_space(),
             state=self._get_state_space(),
-            sensors=self._get_sensors_space())
+            sensors=self._get_sensors_space()))
 
     def _neutral(self) -> np.ndarray:
         """Returns a neutral valid configuration for the robot.
@@ -849,9 +843,8 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         going through the ground and up to three are in contact.
 
         .. note::
-            This method is called internally by `reset` to generate the
-            initial state. It can be overloaded to act as a random state
-            generator.
+            This method is called internally by `reset` to generate the initial
+            state. It can be overloaded to act as a random state generator.
         """
         # Assertion(s) for type checker
         assert self.simulator is not None and self.robot is not None
@@ -871,40 +864,30 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
 
         return qpos, qvel
 
-    def fetch_obs(self) -> SpaceDictRecursive:
-        """Fetch the observation based on the current state of the robot.
-
-        By default, no filtering is applied on the raw data extracted from the
-        engine.
-
-        .. note::
-            This method is called right after updating the internal buffer
-            `_state`. This method, alongside `_refresh_observation_space`, must
-            be overwritten in order to use a custom observation space.
-
-        .. warning::
-            This method partially returns references to the simulation state
-            for the sake of efficiency. As a result, it is not safe to store
-            the observation without copying it first. Calling `get_obs` with
-            'safe=True' right after calling this method would do the job.
+    def compute_observation(self) -> SpaceDictRecursive:
+        """Compute the observation based on the current state of the robot.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None
+        # Update some internal buffers
+        if self.simulator.is_simulation_running:
+            self._state = self.simulator.state
 
-        obs = OrderedDict()
-        obs['t'] = np.array([self.simulator.stepper_state.t])  # Scalar copy
-        obs['state'] = OrderedDict(zip(encoder.fieldnames, self._state))  # Ref
-        obs['sensors'] = self._sensors_data
-        return obs
+        return OrderedDict(
+            t=np.array([self.simulator.stepper_state.t]),
+            state=np.concatenate(self._state),
+            sensors=self._sensors_data)
 
-    def compute_command(self, action: SpaceDictRecursive) -> np.ndarray:
+    def compute_command(self,
+                        measure: SpaceDictRecursive,
+                        action: np.ndarray
+                        ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it just clamps the action to make sure it does not violate
+        By default, it just clamps the target to make sure it does not violate
         the lower and upper bounds. There is no further processing whatsoever
-        since the action is the command by default.
+        since the target is the command by default.
 
-        :param action: Action to perform. `None` to not update the action.
+        :param measure: Observation of the environment.
+        :param action: Desired motors efforts.
         """
         return _clamp(self.action_space, action)
 
@@ -915,14 +898,14 @@ class BaseJiminyEnv(gym.Env, ControlInterface, ObserveInterface):
         lower or upper limit.
 
         .. note::
-            This method is called right after calling `fetch_obs`, so that the
-            internal buffer '_observation' is up-to-date. It can be overloaded
-            to implement a custom termination condition for the simulation.
+            This method is called right after calling `compute_observation`, so
+            that the internal buffer '_observation' is up-to-date. It can be
+            overloaded to implement a custom termination condition for the
+            simulation.
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.
-        :param kwargs: Extra keyword arguments that may be useful for derived
-                       environments.
+        :param kwargs: Extra keyword arguments. See 'args'.
         """
         # pylint: disable=unused-argument
 
@@ -960,8 +943,7 @@ BaseJiminyEnv.compute_reward.__doc__ = \
     :param args: Extra arguments that may be useful for derived environments,
                  for example `Gym.GoalEnv`.
     :param info: Dictionary of extra information for monitoring.
-    :param kwargs: Extra keyword arguments that may be useful for derived
-                   environments.
+    :param kwargs: Extra keyword arguments. See 'args'.
 
     :returns: Total reward.
     """
@@ -989,21 +971,21 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         super()._refresh_observation_space()
 
         # Append default desired and achieved goal spaces to observation space
-        self.observation_space = gym.spaces.Dict(
+        self.observation_space = gym.spaces.Dict(OrderedDict(
             observation=self.observation_space,
             desired_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float64),
             achieved_goal=gym.spaces.Box(
                 -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64))
+                dtype=np.float64)))
 
-    def fetch_obs(self) -> SpaceDictRecursive:
-        obs = OrderedDict()
-        obs['observation'] = super().fetch_obs()
-        obs['achieved_goal'] = self._get_achieved_goal()
-        obs['desired_goal'] = self._desired_goal.copy()
-        return obs
+    def compute_observation(self) -> SpaceDictRecursive:
+        return OrderedDict(
+            observation=super().compute_observation(),
+            achieved_goal=self._get_achieved_goal(),
+            desired_goal=self._desired_goal.copy()
+        )
 
     def reset(self) -> SpaceDictRecursive:
         self._desired_goal = self._sample_goal()
@@ -1028,9 +1010,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
-            This method can be called by `fetch_obs` to get the currently
-            achieved goal. This method must be overloaded while implementing
-            a goal environment.
+            This method can be called by `compute_observation` to get the
+            currently achieved goal. This method must be overloaded while
+            implementing a goal environment.
 
         :returns: Currently achieved goal.
         """
@@ -1045,12 +1027,12 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         environment.
 
         .. note::
-            This method is called right after calling `fetch_obs`, so that the
-            internal buffer '_observation' is up-to-date. This method can be
-            overloaded while implementing a goal environment.
+            This method is called right after calling `compute_observation`, so
+            that the internal buffer '_observation' is up-to-date. This method
+            can be overloaded while implementing a goal environment.
 
-        :param achieved_goal: Achieved goal. If set to None, one is supposed
-                              to call `_get_achieved_goal` instead.
+        :param achieved_goal: Achieved goal. If set to None, one is supposed to
+                              call `_get_achieved_goal` instead.
                               Optional: None by default.
         :param desired_goal: Desired goal. If set to None, one is supposed to
                              use the internal buffer '_desired_goal' instead.

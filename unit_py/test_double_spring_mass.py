@@ -189,7 +189,7 @@ class SimulateTwoMasses(unittest.TestCase):
                 f_ext = engine.system_state.f_external[
                     joint_idx].vector
                 self.assertTrue(np.allclose(f_ext, f_local, atol=TOLERANCE))
-            u[:] = 0.0
+            u.fill(0.0)
 
         # Create and initialize the engine
         engine = jiminy.Engine()
@@ -343,7 +343,7 @@ class SimulateTwoMasses(unittest.TestCase):
                     self.nu = nu
 
                 def compute_command(self, t, q, v, sensors_data, u):
-                    u[:] = 0
+                    u.fill(0.0)
 
                 def internal_dynamics(self, t, q, v, sensors_data, u):
                     u[6:] = - self.k * q[7:] - self.nu * v[6:]

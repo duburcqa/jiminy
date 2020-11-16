@@ -205,7 +205,7 @@ class SimulateSimpleMass(unittest.TestCase):
                     f_joint_sensor.vector, f_jiminy.vector, atol=TOLERANCE))
 
             # Set the command torque to zero
-            u[:] = 0.0
+            u.fill(0.0)
 
         # Internal dynamics: make the mass spin to generate nontrivial
         # rotations.

@@ -30,7 +30,7 @@ def computeCommand(t, q, v, sensors_data, u):
     u[0] = 0.0
 
 def internalDynamics(t, q, v, sensors_data, u):
-    u[:] = 0.0
+    u.fill(0.0)
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)

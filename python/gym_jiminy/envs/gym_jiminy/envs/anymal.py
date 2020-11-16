@@ -7,6 +7,7 @@ from pkg_resources import resource_filename
 from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 from gym_jiminy.common.control_impl import PDController
 from gym_jiminy.common.pipeline_bases import build_pipeline
+from gym_jiminy.common.wrappers import PartialFrameStack, build_wrapper
 
 
 # Default simulation duration (:float [s])
@@ -56,7 +57,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
-            dt=STEP_DT,
+            step_dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
             avoid_instable_collisions=False,

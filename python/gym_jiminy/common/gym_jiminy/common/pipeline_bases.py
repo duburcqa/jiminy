@@ -11,6 +11,7 @@ It implements:
       environment, eventually already wrapped, so that it appears as a single,
       unified environment.
 """
+from copy import deepcopy
 from collections import OrderedDict
 from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence
 
@@ -18,14 +19,14 @@ import numpy as np
 import gym
 
 from .utils import (
-    _is_breakpoint, zeros, set_value, register_variables,
+    _is_breakpoint, _clamp, zeros, set_value, register_variables,
     SpaceDictRecursive)
-from .generic_bases import ControlInterface, ObserveInterface
+from .generic_bases import ObserveAndControlInterface
 from .env_bases import BaseJiminyEnv
 from .block_bases import BlockInterface, BaseControllerBlock, BaseObserverBlock
 
 
-class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
+class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
     """Wrap a `BaseJiminyEnv` Gym environment and a single block, so that it
     appears as a single, unified, environment. Eventually, the environment can
     already be wrapped inside one or several `gym.Wrapper` containers.
@@ -59,6 +60,9 @@ class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
         # Backup some user arguments
         self.augment_observation = augment_observation
 
+        # Define some internal buffers
+        self._dt_eps: Optional[float] = None
+
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
         block, namely how many blocks deriving from the same wrapper type than
@@ -73,6 +77,33 @@ class BasePipelineWrapper(gym.Wrapper, ControlInterface, ObserveInterface):
             i += isinstance(block, self.__class__)
             block = block.env
         return i
+
+    def get_observation(self, bypass: bool = False) -> SpaceDictRecursive:
+        """Get post-processed observation.
+
+        By default, it clamps the observation to make sure it does not violate
+        the lower and upper bounds.
+
+        :param bypass: Whether to nor to bypass post-processing and return
+                       the original environment's observation instead.
+        """
+        if bypass:
+            return self.env.get_observation(True)
+        else:
+            return _clamp(self.observation_space, self._observation)
+
+    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
+        """Reset the unified environment.
+
+        In practice, it resets the environment and initializes the generic
+        pipeline internal buffers.
+        """
+        # Reset the environment
+        self.env.reset()
+
+        # Get the temporal resolution of simulator steps
+        engine_options = self.simulator.engine.get_options()
+        self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
 
 
 class ControlledJiminyEnv(BasePipelineWrapper):
@@ -160,16 +191,17 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Backup user arguments
         self.controller = controller
+
+        # Define some internal buffers
         self._target: Optional[SpaceDictRecursive] = None
         self._command: Optional[np.ndarray] = None
-        self._observation_env: Optional[SpaceDictRecursive] = None
-        self._dt_eps: Optional[float] = None
         self.controller_name: Optional[str] = None
 
         # Reset the unified environment
         self.reset()
 
     def compute_command(self,
+                        measure: SpaceDictRecursive,
                         action: SpaceDictRecursive
                         ) -> SpaceDictRecursive:
         """Compute the motors efforts to apply on the robot.
@@ -180,28 +212,31 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             - the command send to the robot by the environment through the
               subsequent block
 
-        .. warning::
-            This method is not meant to be overloaded.
-
-        :param action: Next high-level action to perform.
+        :param measure: Observation of the environment.
+        :param action: High-level target to achieve.
         """
         # Assertion(s) for type checker
         assert self.simulator is not None and self._command is not None
 
-        # Get the current time
-        t = self.simulator.stepper_state.t
+        # Update the target to send to the subsequent block if necessary.
+        # Note that `_observation` buffer has already been updated right before
+        # calling this method by `_send_command`, so it can be used as measure
+        # argument without issue.
+        if _is_breakpoint(measure['t'], self.control_dt, self._dt_eps):
+            target = self.controller.compute_command(self._observation, action)
+            set_value(self._target, target)
 
-        # Update the target to send to the subsequent block if necessary
-        if _is_breakpoint(t, self.control_dt, self._dt_eps):
-            set_value(self._target, self.controller.compute_command(action))
-
-        # Update the command to send to the actuators of the robot if necessary
-        if _is_breakpoint(t, self.env.control_dt, self._dt_eps):
-            self._command[:] = self.env.compute_command(self._target)
+        # Update the command to send to the actuators of the robot.
+        # Note that the environment itself is responsible of making sure to
+        # update the command of the right period. Ultimately, this is done
+        # automatically by the engine, which is calling `_send_command` at the
+        # right period.
+        np.copyto(self._command, self.env.compute_command(
+            self._observation, self._target))
 
         return self._command
 
-    def fetch_obs(self) -> SpaceDictRecursive:
+    def compute_observation(self) -> SpaceDictRecursive:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -210,19 +245,16 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         directly without any further processing.
 
         .. warning::
-            Beware it updates and returns the internal buffer of environment
-            observation '_observation_env' whenever it is possible for the sake
-            of efficiency. Even so, it is always safe to call this method
-            multiple times successively.
+            Beware it shares the environment observation whenever it is
+            possible for the sake of efficiency. Despite that, it is safe to
+            call this method multiple times successively.
 
-        :returns: Updated environment's observation with the controller's
-                  target appended.
+        :returns: Original environment observation, eventually including
+                  controllers targets if requested.
         """
-        obs = self._observation_env
+        self.env.fetch_observation()
+        obs = self.get_observation(bypass=True).copy()  # No deepcopy !
         if self.augment_observation:
-            # Assertion(s) for type checker
-            assert isinstance(obs, dict)
-
             obs.setdefault('targets', OrderedDict())[
                 self.controller_name] = self._action
         return obs
@@ -242,8 +274,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Assertion(s) for type checker
         assert self.simulator is not None
 
-        # Reset the environment
-        self._observation_env = self.env.reset()
+        # Reset base pipeline
+        super().reset()
 
         # Assertion(s) for type checker
         assert (self.env.control_dt is not None and
@@ -273,7 +305,14 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Initialize the controller's input action and output target
         self._action = zeros(self.action_space)
-        self._target = self.controller.compute_command(self._action)
+        self._target = zeros(self.env.action_space)
+
+        # Initialize the unified observation with zero target
+        self._observation = self.compute_observation()
+
+        # Compute the actual initial target based on the initialized observation
+        self._target = self.controller.compute_command(
+            self._observation, self._action)
 
         # Check that the initial action of the controller is consistent with
         # the action space of the environment.
@@ -282,11 +321,24 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             "subsequent block.")
 
         # Initialize the command to apply on the robot
-        self._command = self.env.compute_command(self._target)
+        self._command = self.env.compute_command(
+            self._observation, self._target)
 
-        # Backup the temporal resolution of simulator steps
-        engine_options = self.simulator.engine.get_options()
-        self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
+        # Compute the actual initial unified observation, with updated target
+        self._observation = self.compute_observation()
+
+        # Check that 'augment_observation' can be enabled
+        assert not self.augment_observation or isinstance(
+            self.env.observation_space, gym.spaces.Dict), (
+            "'augment_observation' is only available for environments whose "
+            "observation space inherits from `gym.spaces.Dict`.")
+
+        # Append the controller's target to the observation if requested
+        self.observation_space = deepcopy(self.env.observation_space)
+        if self.augment_observation:
+            self.observation_space.spaces.setdefault(
+                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
+                    self.controller.action_space
 
         # Enforce the low-level controller.
         # Note that altering the original controller of the wrapped environment
@@ -301,23 +353,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             self.simulator.controller, self.controller.get_fieldnames(),
             self._action, self.controller_name)
 
-        # Check that 'augment_observation' can be enabled
-        assert not self.augment_observation or isinstance(
-            self.env.observation_space, gym.spaces.Dict), (
-            "'augment_observation' is only available for environments whose "
-            "observation space inherits from `gym.spaces.Dict`.")
-
-        # Append the controller's target to the observation if requested
-        self.observation_space = self.env.observation_space
-        if self.augment_observation:
-            self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
-                    self.controller.action_space
-
-        # Compute the unified observation
-        self._observation = self.fetch_obs()
-
-        return self.get_obs()
+        return self.get_observation()
 
     def step(self,
              action: Optional[np.ndarray] = None
@@ -334,7 +370,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             set_value(self._action, action)
 
         # Compute the next learning step
-        self._observation_env, reward, done, info = self.env.step()
+        _, reward, done, info = self.env.step()
 
         # Compute controller's rewards and sum it to total reward
         reward += self.controller.compute_reward(info=info)
@@ -343,9 +379,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                 reward += self.controller.compute_reward_terminal(info=info)
 
         # Compute the unified observation
-        self._observation = self.fetch_obs()
+        set_value(self._observation, self.compute_observation())
 
-        return self.get_obs(), reward, done, info
+        return self.get_observation(), reward, done, info
 
 
 class ObservedJiminyEnv(BasePipelineWrapper):
@@ -403,22 +439,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Reset the unified environment
         self.reset()
 
-    def compute_command(self,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
-        """Compute the motors efforts to apply on the robot.
-
-        In practice, it forwards the command computed by the environment
-        itself.
-
-        .. warning::
-            This method is not meant to be overloaded.
-
-        :param action: Next high-level action to perform.
-        """
-        return self.env.compute_command(action)
-
-    def fetch_obs(self) -> SpaceDictRecursive:
+    def compute_observation(self) -> SpaceDictRecursive:
         """Compute high-level features based on the current wrapped
         environment's observation.
 
@@ -427,26 +448,45 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         the features directly without any further processing.
 
         .. warning::
-            Beware it updates and returns the internal buffer of environment
-            observation '_observation_env' whenever it is possible for the sake
-            of efficiency. Even so, it is always safe to call this method
-            multiple times successively.
+            Beware it updates and returns '_observation' buffer to deal with
+            multiple observers with different update periods. Even so, it is
+            safe to call this method multiple times successively.
 
-        :returns: Updated environment's observation with the controller's
-                  target appended.
+        :returns: Updated part of the observation only for efficiency.
         """
-        obs_features = self.observer.fetch_obs()
+        is_breakpoint = _is_breakpoint(t, self.observe_dt, self._dt_eps)
+
+        # Refresh environment observation
+        self.env.fetch_observation()
         if self.augment_observation:
-            obs = self._observation_env
+            obs = self.get_observation(bypass=True).copy()  # No deepcopy !
 
-            # Assertion(s) for type checker
-            assert isinstance(obs, dict)
-
-            obs.setdefault('features', OrderedDict())[
-                self.observer_name] = obs_features
+        # Update observed features if necessary
+        if _is_breakpoint(t, self.observe_dt, self._dt_eps):
+            features = self.observer.compute_observation(obs)
+            if self.augment_observation:
+                obs.setdefault(
+                    'features', OrderedDict())[self.observer_name] = features
+            else:
+                obs = features
         else:
-            obs = obs_features
+            if not self.augment_observation:
+                obs = OrderedDict()  # Nothing new to observe.
+
         return obs
+
+    def compute_command(self,
+                        measure: SpaceDictRecursive,
+                        target: SpaceDictRecursive
+                        ) -> SpaceDictRecursive:
+        """Compute the motors efforts to apply on the robot.
+
+        In practice, it forwards the command computed by the environment.
+
+        :param measure: Observation of the environment.
+        :param target: Target to achieve.
+        """
+        return self.env.compute_command(measure, target)
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
@@ -461,7 +501,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # pylint: disable=unused-argument
 
         # Reset the environment
-        self._observation_env = self.env.reset()
+        observation = super().reset()
 
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
@@ -486,13 +526,13 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         # Check that the initial observation of the environment is consistent
         # with the action space of the observer.
-        assert self.observer.action_space.contains(self._observation_env), (
+        assert self.observer.action_space.contains(observation), (
             "The command is not consistent with the action space of the "
             "subsequent block.")
 
         # Update the observation space
         if self.augment_observation:
-            self.observation_space = self.env.observation_space
+            self.observation_space = deepcopy(self.env.observation_space)
             self.observation_space.spaces.setdefault(
                 'features', gym.spaces.Dict())[self.observer_name] = \
                 self.observer.observation_space
@@ -500,8 +540,9 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             self.observation_space = self.observer.observation_space
 
         # Compute the unified observation
-        self._observation = self.fetch_obs()
-        return self.get_obs()
+        self._observation = self.compute_observation()
+
+        return self.get_observation()
 
     def step(self,
              action: Optional[np.ndarray] = None
@@ -514,12 +555,9 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                   not), and a dictionary of extra information
         """
         # Compute the next learning step
-        self._observation_env, reward, done, info = self.env.step(action)
+        _, reward, done, info = self.env.step(action)
 
-        # Compute the unified observation
-        self._observation = self.fetch_obs()
-
-        return self.get_obs(), reward, done, info
+        return self.get_observation(), reward, done, info
 
 
 def build_pipeline(env_config: Tuple[

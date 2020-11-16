@@ -37,13 +37,21 @@ def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
 
 def set_value(data: SpaceDictRecursive,
               fill_value: SpaceDictRecursive) -> None:
-    """Set to zero data from `Gym.Space`.
+    """Partially set data from `Gym.Space` to .
+
+    It avoids memory allocation, so that memory pointers of 'data' remains
+    unchanged. A direct consequences, it is necessary to preallocate memory
+    beforehand, and to work with fixed size buffers.
+
+    .. note::
+        If 'data' is a dictionary, 'fill_value' must be a subtree of 'data',
+        whose leaf values must be broadcastable with the ones of 'data'.
     """
     if isinstance(data, dict):
-        for sub_data, sub_val in zip(data.values(), fill_value.values()):
-            set_value(sub_data, sub_val)
+        for field, sub_val in fill_value.items():
+            set_value(data[field], sub_val)
     elif isinstance(data, np.ndarray):
-        data[:] = fill_value
+        np.copyto(data, fill_value)
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported by this method.")
