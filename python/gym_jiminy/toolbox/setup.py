@@ -2,7 +2,7 @@ from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('gym_jiminy_common').version
+version = get_distribution('gym_jiminy').version
 
 setup(
     name="gym_jiminy_toolbox",
@@ -27,7 +27,7 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        f"gym_jiminy_common~={version}",
+        f"gym_jiminy~={version}",
         "tensorboard"
     ],
     zip_safe=False

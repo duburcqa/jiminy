@@ -2,7 +2,7 @@ from pkg_resources import get_distribution
 from setuptools import setup, find_namespace_packages
 
 
-version = get_distribution('gym_jiminy_common').version
+version = get_distribution('gym_jiminy').version
 
 setup(
     name="gym_jiminy_zoo",
@@ -29,7 +29,7 @@ setup(
     package_data={"gym_jiminy.envs": ["data/**/*"]},
     include_package_data=True,
     install_requires=[
-        f"gym_jiminy_common~={version}"
+        f"gym_jiminy~={version}"
     ],
     zip_safe=False
 )
