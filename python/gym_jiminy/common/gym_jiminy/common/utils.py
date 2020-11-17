@@ -17,27 +17,25 @@ FieldDictRecursive = Union[  # type: ignore
     Dict[str, 'FieldDictRecursive'], ListStrRecursive]  # type: ignore
 
 
-def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
-    """Clamp an element from Gym.Space to make sure it is within bounds.
-
-    :meta private:
+def zeros(space: gym.Space) -> SpaceDictRecursive:
+    """Set to zero data from `Gym.Space`.
     """
     if isinstance(space, gym.spaces.Dict):
-        return OrderedDict(
-            (k, _clamp(subspace, x[k]))
-            for k, subspace in space.spaces.items())
+        value = OrderedDict()
+        for field, subspace in space.spaces.items():
+            value[field] = zeros(subspace)
+        return value
     if isinstance(space, gym.spaces.Box):
-        return np.clip(x, space.low, space.high)
+        return np.zeros(space.shape, dtype=space.dtype)
     if isinstance(space, gym.spaces.Discrete):
-        return np.clip(x, 0, space.n)
+        return 0
     raise NotImplementedError(
-        f"Gym.Space of type {type(space)} is not supported by this "
-        "method.")
+        f"Space of type {type(space)} is not supported by this method.")
 
 
 def set_value(data: SpaceDictRecursive,
               fill_value: SpaceDictRecursive) -> None:
-    """Partially set data from `Gym.Space` to .
+    """Partially set 'data' from `Gym.Space` to 'fill_value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
     unchanged. A direct consequences, it is necessary to preallocate memory
@@ -57,20 +55,22 @@ def set_value(data: SpaceDictRecursive,
             f"Data of type {type(data)} is not supported by this method.")
 
 
-def zeros(space: gym.Space) -> SpaceDictRecursive:
-    """Set to zero data from `Gym.Space`.
+def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
+    """Clamp an element from Gym.Space to make sure it is within bounds.
+
+    :meta private:
     """
     if isinstance(space, gym.spaces.Dict):
-        value = OrderedDict()
-        for field, subspace in space.spaces.items():
-            value[field] = zeros(subspace)
-        return value
+        return OrderedDict(
+            (k, _clamp(subspace, x[k]))
+            for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=space.dtype)
+        return np.clip(x, space.low, space.high)
     if isinstance(space, gym.spaces.Discrete):
-        return 0
+        return np.clip(x, 0, space.n)
     raise NotImplementedError(
-        f"Space of type {type(space)} is not supported by this method.")
+        f"Gym.Space of type {type(space)} is not supported by this "
+        "method.")
 
 
 @nb.jit(nopython=True, nogil=True)

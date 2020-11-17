@@ -205,9 +205,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self._command: Optional[np.ndarray] = None
         self.controller_name: Optional[str] = None
 
-        # Reset the unified environment
-        self.reset()
-
     def compute_command(self,
                         measure: SpaceDictRecursive,
                         action: SpaceDictRecursive
@@ -279,11 +276,11 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         """
         # pylint: disable=unused-argument
 
-        # Assertion(s) for type checker
-        assert self.simulator is not None
-
         # Reset base pipeline
         super().reset()
+
+        # Assertion(s) for type checker
+        assert self.simulator is not None
 
         # Assertion(s) for type checker
         assert (self.env.control_dt is not None and
@@ -318,22 +315,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Initialize the unified observation with zero target
         self._observation = self.compute_observation()
 
-        # Compute the actual initial target based on the initialized observation
-        self._target = self.controller.compute_command(
-            self._observation, self._action)
-
-        # Check that the initial action of the controller is consistent with
-        # the action space of the environment.
-        assert self.env.action_space.contains(self._target), (
-            "The command is not consistent with the action space of the "
-            "subsequent block.")
-
         # Initialize the command to apply on the robot
-        self._command = self.env.compute_command(
-            self._observation, self._target)
-
-        # Compute the actual initial unified observation, with updated target
-        self._observation = self.compute_observation()
+        self._command = zeros(self.env.unwrapped.action_space)
 
         # Check that 'augment_observation' can be enabled
         assert not self.augment_observation or isinstance(

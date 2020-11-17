@@ -476,6 +476,25 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
+        # Initialize some internal buffers
+        self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
+        self._sensors_data = zeros(self._get_sensors_space())
+        self._observation = zeros(self.observation_space)
+        self._action = zeros(self.action_space)
+
+        # Enforce the low-level controller.
+        # Note that `BaseJiminyController` is used by default instead of
+        # `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
+        # the controller handle without instantiating a new controller, which
+        # is necessary in many cases. Indeed, otherwise already registered
+        # variables would be removed whe update the controller handle, which is
+        # often undesirable.
+        controller = BaseJiminyController()
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
+        controller.set_controller_handle(self._send_command)
+
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
         if not jiminy.is_position_valid(
@@ -502,19 +521,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             raise RuntimeError(
                 "The simulation is already done at `reset`. "
                 "Check the implementation of `is_done` if overloaded.")
-
-        # Enforce the low-level controller.
-        # Note that `BaseJiminyController` is used by default instead of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller, which
-        # is necessary in many cases. Indeed, otherwise already registered
-        # variables would be removed whe update the controller handle, which is
-        # often undesirable.
-        controller = BaseJiminyController()
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
-        controller.set_controller_handle(self._send_command)
 
         return self.get_observation()
 
