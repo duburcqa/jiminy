@@ -198,8 +198,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         return reward
 
     def compute_command(self,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictRecursive,
+                        action: np.ndarray
+                        ) -> np.ndarray:
         """ TODO: Write documentation.
         """
         if not self.continuous and action is not None:

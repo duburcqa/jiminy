@@ -123,9 +123,8 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         self.max_steps: Optional[int] = None
         self._num_steps_beyond_done: Optional[int] = None
 
-        # Set the seed of the simulation and reset the simulation
+        # Set the seed of the simulation
         self.seed()
-        self.reset()
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -456,6 +455,9 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Make sure the environment is properly setup
         self._setup()
 
+        # Set the seed of the simulator
+        self.simulator.seed(self._seed)
+
         # Extract the controller and observer update period.
         # There is no actual observer by default, apart from the robot's state
         # and raw sensors data, so the observation period matches the one of
@@ -537,10 +539,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # presence of concurrency.
         self._seed = np.uint32(
             seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
-
-        # Reset the seed of Jiminy Engine, if available
-        if self.simulator is not None:
-            self.simulator.seed(self._seed)
 
         return [self._seed]
 

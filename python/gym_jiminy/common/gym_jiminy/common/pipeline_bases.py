@@ -63,6 +63,14 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
         # Define some internal buffers
         self._dt_eps: Optional[float] = None
 
+    def __dir__(self) -> Sequence[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return super().__dir__() + self.env.__dir__()
+
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
         block, namely how many blocks deriving from the same wrapper type than
