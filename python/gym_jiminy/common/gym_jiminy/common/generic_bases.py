@@ -62,10 +62,7 @@ class ControlInterface:
         """
         raise NotImplementedError
 
-    def compute_reward(self,
-                       *args: Any,
-                       info: Dict[str, Any],
-                       **kwargs: Any) -> float:
+    def compute_reward(self, *args: Any, **kwargs: Any) -> float:
         """Compute reward at current episode state.
 
         By default, it always returns 0.0. It must be overloaded to implement
@@ -78,7 +75,6 @@ class ControlInterface:
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.
-        :param info: Dictionary of extra information for monitoring.
         :param kwargs: Extra keyword arguments. See 'args'.
 
         :returns: Total reward.

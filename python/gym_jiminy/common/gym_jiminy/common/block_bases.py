@@ -32,7 +32,6 @@ class BlockInterface:
     action_space: Optional[gym.Space]
 
     def __init__(self,
-                 *args: Any,
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
@@ -42,9 +41,8 @@ class BlockInterface:
         :param update_ratio: Ratio between the update period of the high-level
                              controller and the one of the subsequent
                              lower-level controller.
-        :param args: Extra arguments that may be useful for mixing
-                     multiple inheritance through multiple inheritance.
-        :param kwargs: Extra keyword arguments. See 'args'.
+        :param kwargs: Extra keyword arguments that may be useful for mixing
+                       multiple inheritance through multiple inheritance.
         """
         # Define some attributes
         self.env = None
@@ -55,7 +53,7 @@ class BlockInterface:
         self.update_ratio = update_ratio
 
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
+        super().__init__(**kwargs)  # type: ignore[call-arg]
 
     @property
     def robot(self) -> jiminy.Robot:
