@@ -1,7 +1,7 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Type, Dict, Sequence, Callable, Any
+from typing import Tuple, Type, Dict, Sequence, List, Optional, Any
 
 import numpy as np
 
@@ -93,7 +93,7 @@ class PartialFrameStack(gym.Wrapper):
         self.observation_space = deepcopy(self.env.observation_space)
         for fields in self.leaf_fields_list:
             root_space = reduce(lambda d, key: d[key], fields[:-1],
-                                  self.observation_space)
+                                self.observation_space)
             space = root_space[fields[-1]]
             if not isinstance(space, gym.spaces.Box):
                 raise TypeError(

@@ -445,12 +445,13 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         :returns: Updated part of the observation only for efficiency.
         """
-        is_breakpoint = _is_breakpoint(t, self.observe_dt, self._dt_eps)
-
         # Refresh environment observation
         self.env.fetch_observation()
         if self.augment_observation:
             obs = self.get_observation(bypass=True).copy()  # No deepcopy !
+
+        # Get the current time
+        t = self.simulator.stepper_state.t
 
         # Update observed features if necessary
         if _is_breakpoint(t, self.observe_dt, self._dt_eps):

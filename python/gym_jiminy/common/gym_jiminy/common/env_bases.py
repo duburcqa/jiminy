@@ -5,7 +5,7 @@ import time
 import tempfile
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Union
+from typing import Optional, Tuple, Sequence, Dict, Any
 
 import numpy as np
 import gym
@@ -26,7 +26,7 @@ from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
-from .utils import _clamp, _is_breakpoint, set_value, zeros, SpaceDictRecursive
+from .utils import _clamp, zeros, SpaceDictRecursive
 from .generic_bases import ObserveAndControlInterface
 from .play import loop_interactive
 
@@ -505,16 +505,16 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                 "model.")
         self.set_state(qpos, qvel)
 
-        # Make sure the state is valid, otherwise there `compute_observation` and
-        # `_refresh_observation_space` are probably inconsistent.
+        # Make sure the state is valid, otherwise there `compute_observation`
+        # and s`_refresh_observation_space` are probably inconsistent.
         try:
             is_obs_valid = self.observation_space.contains(self._observation)
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `compute_observation` is inconsistent "
-                "with the observation space defined by "
+                "The observation returned by `compute_observation` is "
+                "inconsistent with the observation space defined by "
                 "`_refresh_observation_space`.")
 
         if self.is_done():
