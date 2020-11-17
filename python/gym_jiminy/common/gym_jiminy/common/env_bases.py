@@ -880,6 +880,8 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
     def compute_observation(self) -> SpaceDictRecursive:
         """Compute the observation based on the current state of the robot.
         """
+        # pylint: disable=arguments-differ
+
         # Update some internal buffers
         if self.simulator.is_simulation_running:
             self._state = self.simulator.state

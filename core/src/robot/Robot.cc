@@ -1380,7 +1380,7 @@ namespace jiminy
         sensorsDataMap_t data;
         sensorsGroupHolder_t::const_iterator sensorsGroupIt = sensorsGroupHolder_.begin();
         sensorsSharedHolder_t::const_iterator sensorsSharedIt = sensorsSharedHolder_.begin();
-        for (; sensorsGroupIt != sensorsGroupHolder_.end() ; sensorsGroupIt++, sensorsSharedIt++)
+        for (; sensorsGroupIt != sensorsGroupHolder_.end() ; ++sensorsGroupIt, ++sensorsSharedIt)
         {
             sensorDataTypeMap_t dataType(sensorsSharedIt->second->dataMeasured_);
             for (auto & sensor : sensorsGroupIt->second)

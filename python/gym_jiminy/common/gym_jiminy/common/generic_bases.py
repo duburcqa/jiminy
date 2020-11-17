@@ -155,8 +155,7 @@ class ObserveInterface:
         """
         if bypass:
             return self._observation
-        else:
-            return _clamp(self.observation_space, self._observation)
+        return _clamp(self.observation_space, self._observation)
 
     # methods to override:
     # ----------------------------
@@ -180,6 +179,9 @@ class ObserveInterface:
 
 
 class ObserveAndControlInterface(ObserveInterface, ControlInterface):
+    """Observer plus controller interface for both generic pipeline blocks,
+    including environments.
+    """
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]

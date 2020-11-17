@@ -32,8 +32,8 @@ class BlockInterface:
     action_space: Optional[gym.Space]
 
     def __init__(self,
-                 update_ratio: int = 1,
                  *args: Any,
+                 update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
 
@@ -363,4 +363,6 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
         :param measure: Measure from the environment to process to get
                         high-level observation.
         """
+        # pylint: disable=arguments-differ
+
         raise NotImplementedError
