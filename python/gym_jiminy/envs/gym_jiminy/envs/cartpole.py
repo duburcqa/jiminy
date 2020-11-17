@@ -115,7 +115,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Bounds of hypercube associated with initial state of robot
         self.position_random_range = np.array([
-            THETA_RANDOM_RANGE, X_RANDOM_RANGE])
+            X_RANDOM_RANGE, THETA_RANDOM_RANGE])
         self.velocity_random_range = np.array([
             DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 

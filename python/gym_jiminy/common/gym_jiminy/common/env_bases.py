@@ -123,8 +123,10 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         self.max_steps: Optional[int] = None
         self._num_steps_beyond_done: Optional[int] = None
 
-        # Set the seed of the simulation
+        # Set the seed of the simulation and reset the environment
         self.seed()
+        self.reset()
+        self._is_ready = False  # Do not consider the environment as ready yet
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -133,6 +135,13 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         if self.simulator is None:
             raise RuntimeError("Backend simulator undefined.")
         return self.simulator.robot
+
+    @property
+    def is_running(self) -> bool:
+        """Check if an episode is running.
+        """
+        return (self.simulator is not None and
+                (self.simulator.is_simulation_running or self._is_ready))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -565,6 +574,10 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
+        if not self.is_running:
+            raise RuntimeError(
+                "No simulation running. Please call `reset` before `step`.")
+
         # Assertion(s) for type checker
         assert (self.simulator is not None and
                 self.max_steps is not None and
@@ -579,10 +592,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         try:
             # Start the simulation if it is not already the case
             if not self.simulator.is_simulation_running:
-                if not self._is_ready:
-                    raise RuntimeError(
-                        "Simulation not initialized. Please call `reset` "
-                        "once before calling 'step'.")
                 hresult = self.simulator.start(
                     *self._state, self.simulator.use_theoretical_model)
                 if hresult != jiminy.hresult_t.SUCCESS:
