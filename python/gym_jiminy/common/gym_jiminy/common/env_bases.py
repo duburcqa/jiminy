@@ -635,7 +635,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         if done and self._num_steps_beyond_done == 0:
             # Write log file if simulation is over (debug mode only)
             if self.debug:
-                self.simulator.write_log(self.log_path)
+                self.simulator.write_log(self.log_path, format="data")
 
             # Extract log data from the simulation, which could be used
             # for computing terminal reward.

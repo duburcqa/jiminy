@@ -325,8 +325,8 @@ class Simulator:
 
         # Write log
         if log_path is not None:
-            log_path = str(pathlib.Path(log_path).with_suffix('.data'))
-            self.engine.write_log(log_path)
+            log_path = str(pathlib.Path(log_path).with_suffix('.hdf5'))
+            self.engine.write_log(log_path, format="hdf5")
 
     def render(self,
                return_rgb_array: bool = False,
