@@ -143,6 +143,25 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
 
         return self.get_observation()
 
+    def step(self,
+             action: Optional[np.ndarray] = None
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+        """Run a simulation step for a given action.
+
+        :param action: Next action to perform. `None` to not update it.
+
+        :returns: Next observation, reward, status of the episode (done or
+                  not), and a dictionary of extra information.
+        """
+        # Backup the action to perform, if any
+        if action is not None:
+            set_value(self._action, action)
+
+        # Compute the next learning step
+        _, reward, done, info = self.env.step()
+
+        return self.get_observation(), reward, done, info
+
     # methods to override:
     # ----------------------------
 
@@ -371,19 +390,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
     def step(self,
              action: Optional[np.ndarray] = None
              ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """Run a simulation step for a given action.
-
-        :param action: Next action to perform. `None` to not update it.
-
-        :returns: Next observation, reward, status of the episode (done or
-                  not), and a dictionary of extra information
-        """
-        # Backup the action to perform, if any
-        if action is not None:
-            set_value(self._action, action)
-
         # Compute the next learning step
-        _, reward, done, info = self.env.step()
+        observation, reward, done, info = super().step(action)
 
         # Compute controller's rewards and sum it to total reward
         reward += self.controller.compute_reward(info=info)
@@ -391,10 +399,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             if done and self.env.unwrapped._num_steps_beyond_done == 0:
                 reward += self.controller.compute_reward_terminal(info=info)
 
-        # Compute the unified observation
-        set_value(self._observation, self.compute_observation())
-
-        return self.get_observation(), reward, done, info
+        return observation, reward, done, info
 
 
 class ObservedJiminyEnv(BasePipelineWrapper):
@@ -539,21 +544,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                 self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
-
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        """Run a simulation step for a given action.
-
-        :param action: Next action to perform. `None` to not update it.
-
-        :returns: Next observation, reward, status of the episode (done or
-                  not), and a dictionary of extra information
-        """
-        # Compute the next learning step
-        _, reward, done, info = self.env.step(action)
-
-        return self.get_observation(), reward, done, info
 
 
 def build_pipeline(env_config: Tuple[
