@@ -1,11 +1,12 @@
 import numpy as np
-from typing import Callable
+from typing import Callable, Optional
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot
-from .viewer import is_notebook
+from .viewer import interactive_mode
 
-if is_notebook():
+from tqdm import tqdm as tqdmType
+if interactive_mode():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
@@ -24,15 +25,20 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         JIT compiler such a Numba. Doing it is out of scope of this project
         for now and left to the user.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """
         .. note::
             Since no robot is available at this point, it is not possible to
             specify a callable function directly, since it would be impossible
             to check that it has the right signature and is properly defined.
         """
-        self.__pbar = None
-        self.__robot = None
+        # Define some buffer to help factorizing computations
+        self.robot: Optional[jiminy.Robot] = None
+
+        # Internal buffer for progress bar management
+        self.__pbar: Optional[tqdmType] = None
+
+        # Initialize base controller
         self.__controller_handle = lambda t, q, v, sensors_data, u: u.fill(0.0)
         super().__init__(
             self.__compute_command, self.internal_dynamics)
@@ -44,8 +50,8 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         """
         if self.is_initialized:
             raise RuntimeError("Controller already initialized.")
-        self.__robot = robot
-        return_code = super().initialize(self.__robot)
+        self.robot = robot
+        return_code = super().initialize(self.robot)
         if return_code == jiminy.hresult_t.SUCCESS:
             raise ValueError(
                 "Impossible to instantiate the controller.  There is "
@@ -80,9 +86,9 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         """
         try:
             t = 0.0
-            y, dy = np.zeros(self.__robot.nq), np.zeros(self.__robot.nv)
-            sensors_data = self.__robot.sensors_data
-            u_command = np.zeros(self.__robot.nmotors)
+            y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
+            sensors_data = self.robot.sensors_data
+            u_command = np.zeros(self.robot.nmotors)
             controller_handle(t, y, dy, sensors_data, u_command)
             self.__controller_handle = controller_handle
         except Exception as e:

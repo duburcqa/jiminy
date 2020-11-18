@@ -1,7 +1,7 @@
 import os
 from pkg_resources import resource_filename
 
-from ..common.env_locomotion import WalkerJiminyEnv
+from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 
 
 # Default simulation duration (:float [s])
@@ -40,7 +40,7 @@ class SpotmicroJiminyEnv(WalkerJiminyEnv):
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
-            dt=STEP_DT,
+            step_dt=STEP_DT,
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
             avoid_instable_collisions=False,

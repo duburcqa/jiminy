@@ -21,6 +21,7 @@ namespace jiminy
         using motorsHolder_t = std::vector<std::shared_ptr<AbstractMotorBase> >;
         using sensorsHolder_t = std::vector<std::shared_ptr<AbstractSensorBase> >;
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
+        using sensorsSharedHolder_t = std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> >;
 
         struct robotConstraint_t
         {
@@ -205,7 +206,7 @@ namespace jiminy
     private:
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
-        std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> > sensorsSharedHolder_;
+        sensorsSharedHolder_t sensorsSharedHolder_;
         vectorN_t zeroAccelerationVector_; ///< A vector of zeros of the dimension the size of the velocity vector - for computing constraints.
     };
 }

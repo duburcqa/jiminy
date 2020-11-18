@@ -80,7 +80,11 @@ class Simulator:
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        self.engine.initialize(robot, controller, self._callback)
+        hresult = self.engine.initialize(robot, controller, self._callback)
+        if hresult != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError(
+                "Invalid robot or controller. Make sure they are both "
+                "initialized.")
 
         # Viewer management
         self._viewer = None
@@ -219,7 +223,8 @@ class Simulator:
         """Getter of the current state of the robot.
 
         .. warning::
-            Return a copy, which is computationally inefficient but safe.
+            Return a reference whenever it is possible, which is
+            computationally efficient but unsafe.
         """
         if self.engine.is_simulation_running:
             q = self.engine.system_state.q
@@ -227,7 +232,7 @@ class Simulator:
             if self.robot.is_flexible and self.use_theoretical_model:
                 return self.robot.get_rigid_state_from_flexible(q, v)
             else:
-                return q.copy(), v.copy()
+                return q, v
         else:
             raise RuntimeError(
                 "No simulation running. Impossible to get current state.")
@@ -320,8 +325,8 @@ class Simulator:
 
         # Write log
         if log_path is not None:
-            log_path = str(pathlib.Path(log_path).with_suffix('.data'))
-            self.engine.write_log(log_path)
+            log_path = str(pathlib.Path(log_path).with_suffix('.hdf5'))
+            self.engine.write_log(log_path, format="hdf5")
 
     def render(self,
                return_rgb_array: bool = False,

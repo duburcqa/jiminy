@@ -8,7 +8,7 @@ from gym import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
+from gym_jiminy.common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
 
 
 # Stepper update period
@@ -117,8 +117,8 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
         self.observation_space.spaces['observation'] = \
             self.observation_space['observation']['state']
 
-    def fetch_obs(self) -> None:
-        """Fetch the observation based on the current state of the robot.
+    def compute_observation(self) -> None:
+        """Compute the observation based on the current simulation state.
 
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.
@@ -127,7 +127,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        obs = super().fetch_obs()
+        obs = super().compute_observation()
         obs['observation'] = obs['observation']['state']
         return obs
 
@@ -278,12 +278,12 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         else:
             return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
 
-    def fetch_obs(self) -> SpaceDictRecursive:
-        """Fetch the observation based on the current state of the robot.
+    def compute_observation(self) -> SpaceDictRecursive:
+        """Fetch the observation based on the current simulation state.
 
-        Only the state is observed.
+        In practice, it just returns the current state.
         """
-        obs = super().fetch_obs()
+        obs = super().compute_observation()
         if self.enable_goal_env:
             return obs
         else:

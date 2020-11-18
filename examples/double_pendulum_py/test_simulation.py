@@ -30,7 +30,7 @@ def computeCommand(t, q, v, sensors_data, u):
     u[0] = 0.0
 
 def internalDynamics(t, q, v, sensors_data, u):
-    u[:] = 0.0
+    u.fill(0.0)
 
 controller = jiminy.ControllerFunctor(computeCommand, internalDynamics)
 controller.initialize(robot)
@@ -93,7 +93,7 @@ print(log_constants)
 trajectory_data_log = extract_viewer_data_from_log(log_data, robot)
 
 # Save the log in CSV
-engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"))
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"), format="csv")
 
 # ############################ Display the results ######################################
 

@@ -98,23 +98,19 @@ class PDController(BaseControllerBlock):
                     break
             if not encoder_found:
                 raise RuntimeError(
-                    "No encoder sensor associated with motor '{name}'. Every "
+                    f"No encoder sensor associated with motor '{name}'. Every "
                     "actuated joint must have an encoder sensor attached.")
 
-        # Initialize the internal state
-        self._q_target = self.system_state.q[sum(
-            self.robot.motors_position_idx, [])]
-        self._v_target = self.system_state.v[self.robot.motors_velocity_idx]
-
     def get_fieldnames(self) -> FieldDictRecursive:
-        pos_fieldnames = ["targetPosition" + name
+        pos_fieldnames = [f"targetPosition{name}"
                           for name in self.robot.motors_names]
-        vel_fieldnames = ["targetVelocity" + name
+        vel_fieldnames = [f"targetVelocity{name}"
                           for name in self.robot.motors_names]
         return OrderedDict([(encoder.fieldnames[0], pos_fieldnames),
                             (encoder.fieldnames[1], vel_fieldnames)])
 
     def compute_command(self,
+                        measure: SpaceDictRecursive,
                         action: SpaceDictRecursive
                         ) -> np.ndarray:
         """Compute the motor torques using a PD controller.
@@ -122,20 +118,20 @@ class PDController(BaseControllerBlock):
         It is proportional to the error between the measured motors positions/
         velocities and the target ones.
 
-        :param action: Target motors positions and velocities as a vector.
-                       `None` to return zero motor torques vector.
+        :param measure: Observation of the environment.
+        :param action: Desired motors positions and velocities as a dictionary.
         """
         # Update the internal state of the controller
-        self._q_target = action[encoder.fieldnames[0]]
-        self._v_target = action[encoder.fieldnames[1]]
+        q_target = action[encoder.fieldnames[0]]
+        v_target = action[encoder.fieldnames[1]]
 
         # Estimate position and motor velocity from encoder data
-        encoders_data = self.robot.sensors_data[encoder.type]
+        encoders_data = measure['sensors'][encoder.type]
         q_measured, v_measured = encoders_data[:, self.motor_to_encoder]
 
         # Compute the joint tracking error
-        q_error = q_measured - self._q_target
-        v_error = v_measured - self._v_target
+        q_error = q_measured - q_target
+        v_error = v_measured - v_target
 
         # Compute PD command
         return - self.pid_kp * (q_error + self.pid_kd * v_error)

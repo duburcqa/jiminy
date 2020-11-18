@@ -33,7 +33,7 @@ from pinocchio.visualize import GepettoVisualizer
 
 from . import core as jiminy
 from .state import State
-from .meshcat.utilities import is_notebook
+from .meshcat.utilities import interactive_mode
 from .meshcat.wrapper import MeshcatWrapper
 from .meshcat.meshcat_visualizer import MeshcatVisualizer
 
@@ -58,7 +58,7 @@ def _default_backend() -> str:
     """Determine the default backend viewer, depending on the running
     environment and the set of available backends.
     """
-    if is_notebook() or 'gepetto-gui' not in backends_available:
+    if interactive_mode() or 'gepetto-gui' not in backends_available:
         return 'meshcat'
     else:
         return 'gepetto-gui'
@@ -167,6 +167,12 @@ class _ProcessWrapper:
 
 
 class Viewer:
+    """ TODO: Write documentation.
+
+    .. note::
+        The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
+        used to force disabling interactive display.
+    """
     backend = _default_backend()
     _backend_obj = None
     _backend_exceptions = _get_backend_exceptions()
@@ -360,7 +366,7 @@ class Viewer:
             # Note that the scene is created automatically as client level, it
             # is not managed by the server.
             if Viewer.backend.startswith('meshcat'):
-                if not is_notebook():
+                if not interactive_mode():
                     if self.is_backend_parent and open_gui_if_parent:
                         self.open_gui()
                 else:
@@ -424,7 +430,7 @@ class Viewer:
                     Viewer.__get_client(start_if_needed)
             viewer_url = Viewer._backend_obj.gui.url()
 
-            if is_notebook():
+            if interactive_mode():
                 import urllib
                 from IPython.core.display import HTML, display
 
@@ -443,7 +449,7 @@ class Viewer:
                     {js_content}
                     </script>""")
 
-                if is_notebook() == 1:
+                if interactive_mode() == 1:
                     # Embed HTML in iframe on Jupyter, since it is not
                     # possible to load HTML/Javascript content directly.
                     html_content = html_content.replace(
@@ -696,7 +702,7 @@ class Viewer:
             # message on ipython ports will throw a low-level exception, that
             # is not blocking on Jupyter, but is on Google Colab.
             excluded_ports = []
-            if is_notebook():
+            if interactive_mode():
                 try:
                     excluded_ports += list(
                         get_ipython().kernel._recorded_ports.values())
@@ -1250,7 +1256,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     if viewers is None:
         # Delete robot by default only if not in notebook
         if delete_robot_on_close is None:
-            delete_robot_on_close = not is_notebook()
+            delete_robot_on_close = not interactive_mode()
 
         # Create new viewer instances
         viewers = []
@@ -1300,15 +1306,15 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     # Wait for the meshes to finish loading if non video recording mode
     if wait_for_client and record_video_path is None:
         if Viewer.backend.startswith('meshcat'):
-            if verbose and not is_notebook():
+            if verbose and not interactive_mode():
                 print("Waiting for meshcat client in browser to connect: "
                       f"{Viewer._backend_obj.gui.url()}")
             Viewer.wait(require_client=True)
-            if verbose and not is_notebook():
+            if verbose and not interactive_mode():
                 print("Browser connected! Starting to replay the simulation.")
 
     # Handle start-in-pause mode
-    if start_paused and not is_notebook():
+    if start_paused and not interactive_mode():
         input("Press Enter to continue...")
 
     # Replay the trajectory

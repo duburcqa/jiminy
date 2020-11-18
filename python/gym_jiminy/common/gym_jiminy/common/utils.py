@@ -17,6 +17,44 @@ FieldDictRecursive = Union[  # type: ignore
     Dict[str, 'FieldDictRecursive'], ListStrRecursive]  # type: ignore
 
 
+def zeros(space: gym.Space) -> SpaceDictRecursive:
+    """Set to zero data from `Gym.Space`.
+    """
+    if isinstance(space, gym.spaces.Dict):
+        value = OrderedDict()
+        for field, subspace in space.spaces.items():
+            value[field] = zeros(subspace)
+        return value
+    if isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=space.dtype)
+    if isinstance(space, gym.spaces.Discrete):
+        return 0
+    raise NotImplementedError(
+        f"Space of type {type(space)} is not supported by this method.")
+
+
+def set_value(data: SpaceDictRecursive,
+              fill_value: SpaceDictRecursive) -> None:
+    """Partially set 'data' from `Gym.Space` to 'fill_value'.
+
+    It avoids memory allocation, so that memory pointers of 'data' remains
+    unchanged. A direct consequences, it is necessary to preallocate memory
+    beforehand, and to work with fixed size buffers.
+
+    .. note::
+        If 'data' is a dictionary, 'fill_value' must be a subtree of 'data',
+        whose leaf values must be broadcastable with the ones of 'data'.
+    """
+    if isinstance(data, dict):
+        for field, sub_val in fill_value.items():
+            set_value(data[field], sub_val)
+    elif isinstance(data, np.ndarray):
+        np.copyto(data, fill_value)
+    else:
+        raise NotImplementedError(
+            f"Data of type {type(data)} is not supported by this method.")
+
+
 def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
     """Clamp an element from Gym.Space to make sure it is within bounds.
 
@@ -33,36 +71,6 @@ def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")
-
-
-def set_value(data: SpaceDictRecursive,
-              fill_value: SpaceDictRecursive) -> None:
-    """Set to zero data from `Gym.Space`.
-    """
-    if isinstance(data, dict):
-        for sub_data, sub_val in zip(data.values(), fill_value.values()):
-            set_value(sub_data, sub_val)
-    elif isinstance(data, np.ndarray):
-        data[:] = fill_value
-    else:
-        raise NotImplementedError(
-            f"Data of type {type(data)} is not supported by this method.")
-
-
-def zeros(space: gym.Space) -> SpaceDictRecursive:
-    """Set to zero data from `Gym.Space`.
-    """
-    if isinstance(space, gym.spaces.Dict):
-        value = OrderedDict()
-        for field, subspace in space.spaces.items():
-            value[field] = zeros(subspace)
-        return value
-    if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=space.dtype)
-    if isinstance(space, gym.spaces.Discrete):
-        return 0
-    raise NotImplementedError(
-        f"Space of type {type(space)} is not supported by this method.")
 
 
 @nb.jit(nopython=True, nogil=True)

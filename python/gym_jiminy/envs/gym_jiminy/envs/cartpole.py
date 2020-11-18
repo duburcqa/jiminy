@@ -10,7 +10,7 @@ from gym import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from ..common.env_bases import SpaceDictRecursive, BaseJiminyEnv
+from gym_jiminy.common.env_bases import SpaceDictRecursive, BaseJiminyEnv
 
 
 # Stepper update period
@@ -115,7 +115,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
         # Bounds of hypercube associated with initial state of robot
         self.position_random_range = np.array([
-            THETA_RANDOM_RANGE, X_RANDOM_RANGE])
+            X_RANDOM_RANGE, THETA_RANDOM_RANGE])
         self.velocity_random_range = np.array([
             DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 
@@ -173,14 +173,14 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_range)
         return qpos, qvel
 
-    def fetch_obs(self) -> None:
-        # @copydoc BaseJiminyEnv::fetch_obs
+    def compute_observation(self) -> None:
+        # @copydoc BaseJiminyEnv::compute_observation
         return np.concatenate(self._state)
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
         """
-        x, theta, _, _ = self.get_obs()
+        x, theta, _, _ = self.get_observation()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def compute_reward(self,  # type: ignore[override]
@@ -198,8 +198,9 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         return reward
 
     def compute_command(self,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictRecursive,
+                        action: np.ndarray
+                        ) -> np.ndarray:
         """ TODO: Write documentation.
         """
         if not self.continuous and action is not None:

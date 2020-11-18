@@ -109,7 +109,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Dynamics: simulate a spring of stiffness k
         k_spring = 500
         def spring_force(t, q, v, sensors_data, u):
-            u[:] = - k_spring * q[:]
+            np.copyto(u, - k_spring * q.flatten())
 
         # Initialize the controller and setup the engine
         engine = jiminy.Engine()
@@ -520,7 +520,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         k_control = 100.0
         nu_control = 1.0
         def ControllerPD(t, q, v, sensors_data, u):
-            u[:] = -k_control * q[4] - nu_control * v[3]
+            np.copyto(u, - k_control * q[4] - nu_control * v[3])
 
         engine = jiminy.Engine()
         setup_controller_and_engine(
@@ -593,7 +593,7 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Create an engine: simulate a spring internal dynamics
         k_spring = 500
         def spring_force(t, q, v, sensors_data, u):
-            u[:] = - k_spring * q[-1]
+            np.copyto(u, - k_spring * q[-1])
 
         engine = jiminy.Engine()
         setup_controller_and_engine(

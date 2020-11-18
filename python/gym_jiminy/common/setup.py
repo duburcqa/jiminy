@@ -17,11 +17,11 @@ extras["all"] = list(set(chain.from_iterable(extras.values())))
 
 
 setup(
-    name="gym_jiminy_common",
+    name="gym_jiminy",
     version=version,
     description=(
-        "Python-native OpenAI Gym interface between Jiminy "
-        "open-source simulator and Reinforcement Learning frameworks."),
+        "Python-native OpenAI Gym interface between Jiminy open-source "
+        "simulator and Reinforcement Learning frameworks."),
     author="Alexis Duburcq",
     author_email="alexis.duburcq@wandercraft.eu",
     maintainer="Wandercraft",

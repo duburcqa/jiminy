@@ -21,6 +21,7 @@ class PipelineControlAtlas(unittest.TestCase):
     def test_pid_standing(self):
         """ TODO: Write documentation
         """
+        # Reset the environment
         obs_init = self.env.reset()
 
         # The initial target corresponds to the initial joints state, so that
@@ -29,10 +30,6 @@ class PipelineControlAtlas(unittest.TestCase):
         action_init = dict(zip(
             encoder.fieldnames,
             encoder_data[:, self.env.controller.motor_to_encoder]))
-
-        # Check that it is not possible to get simulation log at this point
-        self.assertRaises(RuntimeError, self.env.get_log)
-
         # Run the simulation during 5s
         for _ in range(5000):
             self.env.step(action_init)
