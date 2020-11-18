@@ -3,9 +3,8 @@
 import os
 import time
 import tempfile
-from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable
 
 import numpy as np
 import gym
@@ -22,7 +21,6 @@ from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
 from jiminy_py.controller import BaseJiminyController
-from jiminy_py.dynamics import update_quantities
 
 from pinocchio import neutral
 
@@ -106,7 +104,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
-        self._is_ready = False
         self._seed: Optional[np.uint32] = None
         self._log_data: Optional[Dict[str, np.ndarray]] = None
         self.log_path: Optional[str] = None
@@ -123,10 +120,13 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         self.max_steps: Optional[int] = None
         self._num_steps_beyond_done: Optional[int] = None
 
-        # Set the seed of the simulation and reset the environment
+        # Set the seed of the simulation and reset the environment.
+        # Note that `reset` is called to make sure the environment is
+        # completely configured at initialization, which is required by many
+        # external libraries since it is an implicit required on the OpenAI
+        # Gym standard interface.
         self.seed()
         self.reset()
-        self._is_ready = False  # Do not consider the environment as ready yet
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -135,13 +135,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         if self.simulator is None:
             raise RuntimeError("Backend simulator undefined.")
         return self.simulator.robot
-
-    @property
-    def is_running(self) -> bool:
-        """Check if an episode is running.
-        """
-        return (self.simulator is not None and
-                (self.simulator.is_simulation_running or self._is_ready))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -393,9 +386,10 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         beginning) and observation (at the end).
 
         .. warning::
-            It does NOT start the simulation immediately but rather wait for
-            the first 'step' call. Note that once the simulations starts, it
-            is no longer possible to changed the robot (included options).
+            It starts the simulation immediately. As a result, it is not
+            possible to changed the robot (included options), nor to register
+            log variable. Yet, it is possible to do it passing a custom
+            'controller_hook' to `reset` method.
 
         :param qpos: Configuration of the robot.
         :param qvel: Velocity vector of the robot.
@@ -413,31 +407,14 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         hresult = self.simulator.start(
             qpos, qvel, self.simulator.use_theoretical_model)
         if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError("Invalid initial state.")
-
-        # Backup sensors data.
-        # Deepcopy must be done to avoid sensors data being cleaned-up at
-        # engine restart.
-        self._sensors_data = deepcopy(OrderedDict(self.robot.sensors_data))
+            raise RuntimeError(
+                "Failed to start the simulation. Probably because the "
+                "initial state is invalid.")
 
         # Initialize some internal buffers
-        self._is_ready = True
         self.num_steps = 0
         self.max_steps = int(
             self.simulator.simulation_duration_max // self.step_dt)
-
-        # Stop the engine, to avoid locking the robot and the telemetry too
-        # early, so that it remains possible to register external forces,
-        # register log variables, change the options...etc.
-        self.simulator.reset()
-
-        # Restore the initial internal pinocchio data
-        update_quantities(
-            self.robot, qpos, qvel,
-            update_physics=True, update_com=True, update_energy=True,
-            use_theoretical_model=self.simulator.use_theoretical_model)
-
-        # Reset some internal buffers
         self._num_steps_beyond_done = None
         self._log_data = None
 
@@ -446,23 +423,52 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
             os.close(fd)
 
-        # Update the observation
+        #
         self._state = (qpos, qvel)
+
+        # Update the observation
         self._observation = self.compute_observation()
 
-    def reset(self) -> SpaceDictRecursive:
+    def reset(self,
+              controller_hook: Optional[Callable[[], None]] = None
+              ) -> SpaceDictRecursive:
         """Reset the environment.
 
         The initial state is obtained by calling '_sample_state'.
 
-        :returns: Initial state of the episode.
+        :param controller_hook: Custom controller hook. It will be executed
+                                right after initialization of the environment,
+                                and just before actually starting the
+                                simulation. It is useful to override partially
+                                the configuration of the low-level engine, set
+                                a custom low-level controller handle, or to
+                                register custom variables to the telemetry.
+                                `None` to disable.
+                                Optional: Disable by default.
+
+        :returns: Initial observation of the episode.
         """
+        # pylint: disable=arguments-differ
+
+        # Define default controller hook
+        def register_controller() -> None:
+            nonlocal self
+
+            # Assertion(s) for type checker
+            assert self.simulator is not None
+
+            self.simulator.controller.set_controller_handle(
+                self._send_command)
+
         # Stop simulator if still running
         if self.simulator is not None:
             self.simulator.stop()
 
         # Make sure the environment is properly setup
         self._setup()
+
+        # Initialize sensors data shared memory
+        self._sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Set the seed of the simulator
         self.simulator.seed(self._seed)
@@ -487,7 +493,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         # Initialize some internal buffers
         self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
-        self._sensors_data = zeros(self._get_sensors_space())
         self._observation = zeros(self.observation_space)
         self._action = zeros(self.action_space)
 
@@ -495,14 +500,16 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Note that `BaseJiminyController` is used by default instead of
         # `jiminy.ControllerFunctor`. Although it is less efficient because
         # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller, which
-        # is necessary in many cases. Indeed, otherwise already registered
-        # variables would be removed whe update the controller handle, which is
-        # often undesirable.
+        # the controller handle without instantiating a new controller.
         controller = BaseJiminyController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
-        controller.set_controller_handle(self._send_command)
+
+        # Run controller hook
+        if controller_hook is None:
+            register_controller()
+        else:
+            controller_hook()
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -574,14 +581,15 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
-        if not self.is_running:
-            raise RuntimeError(
-                "No simulation running. Please call `reset` before `step`.")
-
         # Assertion(s) for type checker
         assert (self.simulator is not None and
                 self.max_steps is not None and
                 isinstance(self._action, np.ndarray))
+
+        # Make sure a simulation is already running
+        if not self.simulator.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please call `reset` before `step`.")
 
         # Update the action to perform if necessary
         if action is not None:
@@ -590,17 +598,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Try to perform a single simulation step
         is_step_failed = True
         try:
-            # Start the simulation if it is not already the case
-            if not self.simulator.is_simulation_running:
-                hresult = self.simulator.start(
-                    *self._state, self.simulator.use_theoretical_model)
-                if hresult != jiminy.hresult_t.SUCCESS:
-                    raise RuntimeError("Failed to start the simulation.")
-                self._is_ready = False
-
-                # Initialize sensors data shared memories
-                self._sensors_data = OrderedDict(self.robot.sensors_data)
-
             # Perform a single integration step
             return_code = self.simulator.step(self.step_dt)
             if return_code != jiminy.hresult_t.SUCCESS:
@@ -662,11 +659,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Assertion(s) for type checker
         assert self.simulator is not None
 
-        if self.simulator.is_simulation_running:
-            return self.simulator.get_log()
-        raise RuntimeError(
-            "No data available. Please perform at least one simulation step "
-            "before calling this method.")
+        return self.simulator.get_log()
 
     def render(self,
                mode: str = 'human',
@@ -1002,9 +995,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
             desired_goal=self._desired_goal.copy()
         )
 
-    def reset(self) -> SpaceDictRecursive:
+    def reset(self,
+              controller_hook: Optional[Callable[[], None]] = None
+              ) -> SpaceDictRecursive:
         self._desired_goal = self._sample_goal()
-        return super().reset()
+        return super().reset(controller_hook)
 
     # methods to override:
     # ----------------------------

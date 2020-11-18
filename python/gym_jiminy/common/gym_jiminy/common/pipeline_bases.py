@@ -13,7 +13,7 @@ It implements:
 """
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence
+from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence, Callable
 
 import numpy as np
 import gym
@@ -100,18 +100,61 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
         else:
             return _clamp(self.observation_space, self._observation)
 
-    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
+    def reset(self,
+              controller_hook: Optional[Callable[[], None]] = None,
+              **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
-        pipeline internal buffers.
-        """
-        # Reset the environment
-        self.env.reset()
+        pipeline internal buffers through the use of 'controller_hook'.
 
-        # Get the temporal resolution of simulator steps
-        engine_options = self.simulator.engine.get_options()
-        self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
+        :param controller_hook: Custom controller hook to use in place of the
+                                one provided by the controller itself. Used
+                                for chaining multiple `ControlledJiminyEnv`.
+                                It is not meant to be defined manually.
+                                Optional: None by default.
+        :param kwargs: Extra keyword arguments to comply with OpenAI Gym API.
+        """
+        # pylint: disable=unused-argument
+
+        # Define chained controller hook
+        def register_controller() -> None:
+            nonlocal self, controller_hook
+
+            # Assertion(s) for type checker
+            assert self.env is not None
+
+            # Get the temporal resolution of simulator steps
+            engine_options = self.simulator.engine.get_options()
+            self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
+
+            # Initialize the pipeline wrapper
+            self._setup()
+
+            # Register the controller handle or use the custom hook is defined
+            if controller_hook is None:
+                self.env.simulator.controller.set_controller_handle(
+                    self._send_command)
+            else:
+                controller_hook()
+
+        # Reset base pipeline
+        self.env.reset(register_controller, **kwargs)
+
+        return self.get_observation()
+
+    # methods to override:
+    # ----------------------------
+
+    def _setup(self):
+        """Configure the wrapper.
+
+        This method does nothing by default. One is expected to overload it.
+
+        .. note::
+            This method must be called once, after the environment has been
+            reset. This is done automatically when calling `reset` method.
+        """
 
 
 class ControlledJiminyEnv(BasePipelineWrapper):
@@ -205,6 +248,67 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self._command: Optional[np.ndarray] = None
         self.controller_name: Optional[str] = None
 
+    def _setup(self):
+        # Assertion(s) for type checker
+        assert self.simulator is not None
+
+        # Assertion(s) for type checker
+        assert (self.env.control_dt is not None and
+                self.env.action_space is not None and
+                self.env.observation_space is not None)
+
+        # Reset the controller
+        self.controller.reset(self.env)
+        self.control_dt = self.controller.control_dt
+
+        # Assertion(s) for type checker
+        assert self.control_dt is not None
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.control_dt <= self.env.unwrapped.step_dt, (
+            "The control update period must be lower than or equal to the "
+            "environment simulation timestep.")
+
+        # Set the controller name, based on the controller index
+        self.controller_name = f"controller_{self._get_block_index()}"
+
+        # Update the action space
+        self.action_space = self.controller.action_space
+
+        # Assertion(s) for type checker
+        assert self.action_space is not None
+
+        # Initialize the controller's input action and output target
+        self._action = zeros(self.action_space)
+        self._target = zeros(self.env.action_space)
+
+        # Initialize the unified observation with zero target
+        self._observation = self.compute_observation()
+
+        # Initialize the command to apply on the robot
+        self._command = zeros(self.env.unwrapped.action_space)
+
+        # Check that 'augment_observation' can be enabled
+        assert not self.augment_observation or isinstance(
+            self.env.observation_space, gym.spaces.Dict), (
+            "'augment_observation' is only available for environments whose "
+            "observation space inherits from `gym.spaces.Dict`.")
+
+        # Append the controller's target to the observation if requested
+        self.observation_space = deepcopy(self.env.observation_space)
+        if self.augment_observation:
+            self.observation_space.spaces.setdefault(
+                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
+                    self.controller.action_space
+
+        # Register the controller target to the telemetry.
+        # It may be useful later for computing the terminal reward or debug.
+        # Note that it is not necessary for the controller to be fully
+        # initialized before registering variables.
+        register_variables(
+            self.simulator.controller, self.controller.get_fieldnames(),
+            self._action, self.controller_name)
+
     def compute_command(self,
                         measure: SpaceDictRecursive,
                         action: SpaceDictRecursive
@@ -263,88 +367,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             obs.setdefault('targets', OrderedDict())[
                 self.controller_name] = self._action
         return obs
-
-    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
-        """Reset the unified environment.
-
-        In practice, it resets first the wrapped environment, next comes the
-        controller, the observation space, and finally the low-level simulator
-        controller.
-
-        :param kwargs: Extra keyword arguments to match the standard OpenAI gym
-                       Wrapper API.
-        """
-        # pylint: disable=unused-argument
-
-        # Reset base pipeline
-        super().reset()
-
-        # Assertion(s) for type checker
-        assert self.simulator is not None
-
-        # Assertion(s) for type checker
-        assert (self.env.control_dt is not None and
-                self.env.action_space is not None and
-                self.env.observation_space is not None)
-
-        # Reset the controller
-        self.controller.reset(self.env)
-        self.control_dt = self.controller.control_dt
-
-        # Assertion(s) for type checker
-        assert self.control_dt is not None
-
-        # Make sure the controller period is lower than environment timestep
-        assert self.control_dt <= self.env.unwrapped.step_dt, (
-            "The control update period must be lower than or equal to the "
-            "environment simulation timestep.")
-
-        # Set the controller name, based on the controller index
-        self.controller_name = f"controller_{self._get_block_index()}"
-
-        # Update the action space
-        self.action_space = self.controller.action_space
-
-        # Assertion(s) for type checker
-        assert self.action_space is not None
-
-        # Initialize the controller's input action and output target
-        self._action = zeros(self.action_space)
-        self._target = zeros(self.env.action_space)
-
-        # Initialize the unified observation with zero target
-        self._observation = self.compute_observation()
-
-        # Initialize the command to apply on the robot
-        self._command = zeros(self.env.unwrapped.action_space)
-
-        # Check that 'augment_observation' can be enabled
-        assert not self.augment_observation or isinstance(
-            self.env.observation_space, gym.spaces.Dict), (
-            "'augment_observation' is only available for environments whose "
-            "observation space inherits from `gym.spaces.Dict`.")
-
-        # Append the controller's target to the observation if requested
-        self.observation_space = deepcopy(self.env.observation_space)
-        if self.augment_observation:
-            self.observation_space.spaces.setdefault(
-                'targets', gym.spaces.Dict()).spaces[self.controller_name] = \
-                    self.controller.action_space
-
-        # Enforce the low-level controller.
-        # Note that altering the original controller of the wrapped environment
-        # is possible since it is systematically re-initialized at reset. So
-        # one can restore a valid state for the environment after unwrapping it
-        # simply calling `reset` method.
-        self.simulator.controller.set_controller_handle(self._send_command)
-
-        # Register the controller target to the telemetry.
-        # It may be useful later for computing the terminal reward or debug.
-        register_variables(
-            self.simulator.controller, self.controller.get_fieldnames(),
-            self._action, self.controller_name)
-
-        return self.get_observation()
 
     def step(self,
              action: Optional[np.ndarray] = None
@@ -480,21 +502,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         """
         return self.env.compute_command(measure, target)
 
-    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
-        """Reset the unified environment.
-
-        In practice, it resets first the wrapped environment, next comes the
-        controller, the observation space, and finally the low-level simulator
-        controller.
-
-        :param kwargs: Extra keyword arguments to match the standard OpenAI gym
-                       Wrapper API.
-        """
-        # pylint: disable=unused-argument
-
-        # Reset the environment
-        observation = super().reset()
-
+    def _setup(self):
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
                 self.env.observation_space is not None)
@@ -518,6 +526,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         # Check that the initial observation of the environment is consistent
         # with the action space of the observer.
+        observation = self.env.get_observation()
         assert self.observer.action_space.contains(observation), (
             "The command is not consistent with the action space of the "
             "subsequent block.")
@@ -530,11 +539,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                 self.observer.observation_space
         else:
             self.observation_space = self.observer.observation_space
-
-        # Compute the unified observation
-        self._observation = self.compute_observation()
-
-        return self.get_observation()
 
     def step(self,
              action: Optional[np.ndarray] = None
