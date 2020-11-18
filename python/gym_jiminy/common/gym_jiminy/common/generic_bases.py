@@ -180,7 +180,7 @@ class ObserveAndControlInterface(ObserveInterface, ControlInterface):
     """
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
+        super().__init__(*args, **kwargs)
 
     def _send_command(self,
                       t: float,

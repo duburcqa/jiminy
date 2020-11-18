@@ -283,7 +283,7 @@ BaseControllerBlock.compute_command.__doc__ = \
         the internal state, but `_setup` method does so.
 
     :param measure: Observation of the environment.
-    :param target: Target to achieve.
+    :param action: Target to achieve.
 
     :returns: Action to perform
     """
@@ -352,7 +352,7 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
 
         self.observe_dt = self.env.observe_dt * self.update_ratio
 
-    def compute_observation(self,
+    def compute_observation(self,  # type: ignore[override]
                             measure: SpaceDictRecursive
                             ) -> SpaceDictRecursive:
         """Compute observed features based on the current simulation state and

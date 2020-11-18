@@ -1,7 +1,7 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Type, Dict, Sequence, List, Optional, Any
+from typing import Tuple, Type, Dict, Sequence, List, Optional, Any, Iterator
 
 import numpy as np
 
@@ -31,8 +31,9 @@ class PartialFrameStack(gym.Wrapper):
         :param num_stack: Number of observation frames to partially stack.
         """
         # Backup user arguments
-        self.nested_fields_list = list(map(list, nested_fields_list))
-        self.leaf_fields_list: Optional[Sequence[Sequence[str]]] = None
+        self.nested_fields_list: List[List[str]] = list(
+            map(list, nested_fields_list))  # type: ignore[arg-type]
+        self.leaf_fields_list: List[List[str]] = []
         self.num_stack = num_stack
 
         # Define some internal buffers
@@ -44,7 +45,7 @@ class PartialFrameStack(gym.Wrapper):
         # Create internal buffers
         self._frames: List[deque] = []
 
-    def get_observation(self):
+    def get_observation(self) -> SpaceDictRecursive:
         assert (self._observation is not None and
                 all(len(frames) == self.num_stack for frames in self._frames))
 
@@ -56,7 +57,9 @@ class PartialFrameStack(gym.Wrapper):
 
         return self._observation
 
-    def step(self, action):
+    def step(self,
+             action: SpaceDictRecursive
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         self._observation, reward, done, info = self.env.step(action)
 
         # Backup the nested observation fields to stack
@@ -66,8 +69,8 @@ class PartialFrameStack(gym.Wrapper):
 
         return self.get_observation(), reward, done, info
 
-    def reset(self, **kwargs):
-        def _get_branches(root):
+    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
+        def _get_branches(root: Any) -> Iterator[List[str]]:
             if isinstance(root, dict):
                 for field, node in root.items():
                     if isinstance(node, dict):
@@ -113,7 +116,8 @@ class PartialFrameStack(gym.Wrapper):
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
-            [frames.append(leaf_obs) for _ in range(self.num_stack)]
+            for _ in range(self.num_stack):
+                frames.append(leaf_obs)
 
         return self.get_observation()
 
@@ -157,7 +161,7 @@ def build_wrapper(env_config: Tuple[
         (wrapper_class,),
         {})
 
-    def __init__(self: wrapped_env_class):  # type: ignore[valid-type]
+    def __init__(self: wrapped_env_class) -> None:  # type: ignore[valid-type]
         env = env_class(**env_kwargs)
         super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
             env, **wrapper_kwargs)

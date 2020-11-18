@@ -451,7 +451,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # pylint: disable=arguments-differ
 
         # Define default controller hook
-        def register_controller() -> None:
+        def register() -> None:
             nonlocal self
 
             # Assertion(s) for type checker
@@ -507,7 +507,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         # Run controller hook
         if controller_hook is None:
-            register_controller()
+            register()
         else:
             controller_hook()
 
@@ -870,10 +870,14 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         return qpos, qvel
 
-    def compute_observation(self) -> SpaceDictRecursive:
+    def compute_observation(self  # type: ignore[override]
+                            ) -> SpaceDictRecursive:
         """Compute the observation based on the current state of the robot.
         """
         # pylint: disable=arguments-differ
+
+        # Assertion(s) for type checker
+        assert self.simulator is not None
 
         # Update some internal buffers
         if self.simulator.is_simulation_running:
@@ -988,7 +992,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float64)))
 
-    def compute_observation(self) -> SpaceDictRecursive:
+    def compute_observation(self  # type: ignore[override]
+                            ) -> SpaceDictRecursive:
         return OrderedDict(
             observation=super().compute_observation(),
             achieved_goal=self._get_achieved_goal(),

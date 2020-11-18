@@ -118,11 +118,11 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
         # pylint: disable=unused-argument
 
         # Define chained controller hook
-        def register_controller() -> None:
+        def register() -> None:
             nonlocal self, controller_hook
 
             # Assertion(s) for type checker
-            assert self.env is not None
+            assert self.env is not None and self.env.simulator is not None
 
             # Get the temporal resolution of simulator steps
             engine_options = self.simulator.engine.get_options()
@@ -139,12 +139,13 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
                 controller_hook()
 
         # Reset base pipeline
-        self.env.reset(register_controller, **kwargs)
+        self.env.reset(  # type: ignore[call-arg]
+            controller_hook=register, **kwargs)
 
         return self.get_observation()
 
     def step(self,
-             action: Optional[np.ndarray] = None
+             action: Optional[SpaceDictRecursive] = None
              ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
@@ -165,7 +166,7 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
     # methods to override:
     # ----------------------------
 
-    def _setup(self):
+    def _setup(self) -> None:
         """Configure the wrapper.
 
         This method does nothing by default. One is expected to overload it.
@@ -267,7 +268,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         self._command: Optional[np.ndarray] = None
         self.controller_name: Optional[str] = None
 
-    def _setup(self):
+    def _setup(self) -> None:
         # Assertion(s) for type checker
         assert self.simulator is not None
 
@@ -364,7 +365,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return self._command
 
-    def compute_observation(self) -> SpaceDictRecursive:
+    def compute_observation(self  # type: ignore[override]
+                            ) -> SpaceDictRecursive:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -380,6 +382,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :returns: Original environment observation, eventually including
                   controllers targets if requested.
         """
+        # pylint: disable=arguments-differ
+
         self.env.fetch_observation()
         obs = self.get_observation(bypass=True).copy()  # No deepcopy !
         if self.augment_observation:
@@ -457,7 +461,8 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Reset the unified environment
         self.reset()
 
-    def compute_observation(self) -> SpaceDictRecursive:
+    def compute_observation(self  # type: ignore[override]
+                            ) -> SpaceDictRecursive:
         """Compute high-level features based on the current wrapped
         environment's observation.
 
@@ -472,6 +477,8 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         :returns: Updated part of the observation only for efficiency.
         """
+        # pylint: disable=arguments-differ
+
         # Refresh environment observation
         self.env.fetch_observation()
         if self.augment_observation:
@@ -496,28 +503,34 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
     def compute_command(self,
                         measure: SpaceDictRecursive,
-                        target: SpaceDictRecursive
+                        action: SpaceDictRecursive
                         ) -> SpaceDictRecursive:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it forwards the command computed by the environment.
 
         :param measure: Observation of the environment.
-        :param target: Target to achieve.
+        :param action: Target to achieve.
         """
-        return self.env.compute_command(measure, target)
+        return self.env.compute_command(measure, action)
 
-    def _setup(self):
+    def _setup(self) -> None:
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
                 self.env.observation_space is not None)
 
+        # Retrieve the environment observation
+        observation = self.env.get_observation()
+
         # Update the action space
         self.action_space = self.env.action_space
 
+        # Initialize the unified observation with zero target
+        self._observation = self.compute_observation()
+
         # Initialize the environment's action and command
         self._action = zeros(self.action_space)
-        self._command = self.env.compute_command(self._action)
+        self._command = zeros(self.env.unwrapped.action_space)
 
         # Reset the observer
         self.observer.reset(self.env)
@@ -531,7 +544,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         # Check that the initial observation of the environment is consistent
         # with the action space of the observer.
-        observation = self.env.get_observation()
         assert self.observer.action_space.contains(observation), (
             "The command is not consistent with the action space of the "
             "subsequent block.")
