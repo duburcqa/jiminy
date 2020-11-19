@@ -23,6 +23,19 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Make sure the simulation is properly stopped
+        if (isSimulationRunning_)
+        {
+            stop();
+        }
+
+        // Remove the existing system if already initialized
+        if(isInitialized_)
+        {
+            removeSystem("");  // It cannot fail at this point
+            isInitialized_ = false;
+        }
+
         /* Add the system without associated name, since
            it is irrelevant for a single robot engine. */
         returnCode = addSystem("", std::move(robot),

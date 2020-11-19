@@ -63,11 +63,11 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             debug=debug,
             **kwargs)
 
-    def _refresh_observation_space(self) -> None:
-        self.observation_space = self._get_state_space()
+    # def _refresh_observation_space(self) -> None:
+    #     self.observation_space = self._get_state_space()
 
-    def fetch_obs(self) -> None:
-        return np.concatenate(self._state)
+    # def compute_observation(self) -> None:
+    #     return np.concatenate(self._state)
 
 
 ANYmalPDControlJiminyEnv = build_pipeline(**{

@@ -33,8 +33,11 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        // Backup robot
         robot_ = robot;
-        sensorsData_ = robot_->getSensorsData();
+
+        // Reset the controller completely
+        reset(true);
 
         try
         {

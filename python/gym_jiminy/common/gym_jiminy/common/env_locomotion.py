@@ -70,8 +70,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         'render.modes': ['human'],
     }
 
-    simulator: Optional[Simulator]
-
     def __init__(self,
                  urdf_path: str,
                  hardware_path: Optional[str] = None,
@@ -151,40 +149,39 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._forces_profile: Sequence[ForceProfileType] = []
         self._f_xy_profile_spline: Optional[
             nb.core.dispatcher.Dispatcher] = None
-        self._power_consumption_max: Optional[float] = None
-        self._height_neutral: Optional[float] = None
+        self._power_consumption_max = 0.0
+        self._height_neutral = 0.0
 
         # Configure and initialize the learning environment
-        super().__init__(None, step_dt, enforce_bounded, debug, **kwargs)
+        simulator = Simulator.build(
+            self.urdf_path, self.hardware_path, self.mesh_path,
+            has_freeflyer=True, use_theoretical_model=False,
+            config_path=self.config_path,
+            avoid_instable_collisions=self.avoid_instable_collisions,
+            debug=debug)
+        super().__init__(simulator, step_dt, enforce_bounded, debug, **kwargs)
 
     def _setup(self) -> None:
         """Configure the environment.
 
         It is doing the following steps, successively:
 
-            - creates a low-level engine is necessary,
             - updates some proxies that will be used for computing the
               reward and termination condition,
             - enforce some options of the low-level robot and engine,
             - randomize the environment according to 'std_ratio'.
 
-        .. note::
+        .. note:: TODO WRONG
             This method is called internally by `reset` method at the very
-            beginning. This method can be overwritten to implement new
-            contributions to the environment stochasticity, or to create
-            custom low-level robot if the model must be different for each
-            learning eposide for some reason.
+            beginning. One must overide it to implement new contributions to
+            the environment stochasticity, or to create custom low-level robot
+            if the model must be different for each learning episode.
         """
+        # Call the base implementation
+        super()._setup()
+
         # Check that a valid engine is available, and if not, create one
-        if self.simulator is None:
-            self.simulator = Simulator.build(
-                self.urdf_path, self.hardware_path, self.mesh_path,
-                has_freeflyer=True, use_theoretical_model=False,
-                config_path=self.config_path,
-                avoid_instable_collisions=self.avoid_instable_collisions,
-                debug=self.debug)
-        else:
-            self.simulator.remove_forces()
+        self.simulator.remove_forces()
 
         if not self.robot.has_freeflyer:
             raise RuntimeError(
@@ -381,11 +378,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
-        assert (self.simulator is not None and
-                self._state is not None and
-                self._height_neutral is not None)
-
         if self._state[0][2] < self._height_neutral * 0.75:
             return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
@@ -406,10 +398,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :returns: Total reward.
         """
         # pylint: disable=arguments-differ
-
-        # Assertion(s) for type checker
-        assert (self.simulator is not None and
-                self._power_consumption_max is not None)
 
         reward_dict = info.setdefault('reward', {})
 

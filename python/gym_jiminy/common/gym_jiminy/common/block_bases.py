@@ -208,7 +208,9 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
             it, then using `BaseObserverBlock` or `BlockInterface` directly
             is probably the way to go.
         """
+        # Assertion(s) for type checker
         assert self.env is not None
+
         self.observation_space = self.env.action_space
 
     def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
@@ -219,10 +221,11 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
 
         :param env: Environment to control, eventually already wrapped.
         """
+        # Call base implementation
         super().reset(env)
 
         # Assertion(s) for type checker
-        assert self.env is not None and self.env.control_dt is not None
+        assert self.env is not None
 
         self.control_dt = self.env.control_dt * self.update_ratio
 
@@ -334,7 +337,9 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
             it, then using `BaseControllerBlock` or `BlockInterface` directly
             is probably the way to go.
         """
+        # Assertion(s) for type checker
         assert self.env is not None
+
         self.action_space = self.env.observation_space
 
     def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
@@ -345,10 +350,11 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
 
         :param env: Environment to observe, eventually already wrapped.
         """
+        # Call base implementation
         super().reset(env)
 
         # Assertion(s) for type checker
-        assert self.env is not None and self.env.observe_dt is not None
+        assert self.env is not None
 
         self.observe_dt = self.env.observe_dt * self.update_ratio
 

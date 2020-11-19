@@ -13,7 +13,7 @@ from .utils import _clamp, set_value, SpaceDictRecursive
 class ControlInterface:
     """Controller interface for both controllers and environments.
     """
-    control_dt: Optional[float]
+    control_dt: float
     action_space: Optional[gym.Space]
     _action: Optional[SpaceDictRecursive]
 
@@ -27,7 +27,7 @@ class ControlInterface:
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # Define some attributes
-        self.control_dt = None
+        self.control_dt = 0.0
         self.action_space = None
         self._action = None
 
@@ -104,7 +104,7 @@ class ControlInterface:
 class ObserveInterface:
     """Observer interface for both observers and environments.
     """
-    observe_dt: Optional[float]
+    observe_dt: float
     observation_space: Optional[gym.Space]
     _observation: Optional[SpaceDictRecursive]
 
@@ -118,14 +118,14 @@ class ObserveInterface:
         :param kwargs: Extra keyword arguments. See 'args'.
         """
         # Define some attributes
-        self.observe_dt = None
+        self.observe_dt = 0.0
         self.observation_space = None
         self._observation = None
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
-    def fetch_observation(self) -> None:
+    def refresh_observation(self) -> None:
         """Refresh the observation.
 
         .. warning::
@@ -218,7 +218,7 @@ class ObserveAndControlInterface(ObserveInterface, ControlInterface):
         # breakpoint. A dedicated `BaseObserverBlock` must be used if one wants
         # to observe a low-frequency features instead of overloading
         # `compute_observation` and `_refresh_observation_space` directly.
-        self.fetch_observation()
+        self.refresh_observation()
 
         # Compute the command to send to the motors
         np.copyto(u_command, self.compute_command(

@@ -77,9 +77,6 @@ class PDController(BaseControllerBlock):
 
         It updates the mapping from motors to encoders indices.
         """
-        # Assertion(s) for type checker
-        assert self.robot is not None and self.system_state is not None
-
         # Refresh the mapping between the motors and encoders
         encoder_joints = []
         for name in self.robot.sensors_names[encoder.type]:
