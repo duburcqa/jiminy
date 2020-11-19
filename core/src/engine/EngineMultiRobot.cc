@@ -627,9 +627,6 @@ namespace jiminy
         // Reset the robot, controller, engine, and registered impulse forces if requested
         reset(resetRandomNumbers, resetDynamicForceRegister);
 
-        // At this point, consider that the simulation is running
-        isSimulationRunning_ = true;
-
         auto systemIt = systems_.begin();
         auto systemDataIt = systemsDataHolder_.begin();
         for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
@@ -852,6 +849,14 @@ namespace jiminy
             {
                 systemData.statePrev = systemData.state;
             }
+        }
+
+        // At this point, consider that the simulation is running
+        isSimulationRunning_ = true;
+
+        if (returnCode != hresult_t::SUCCESS)
+        {
+            stop();
         }
 
         return returnCode;
