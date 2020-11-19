@@ -1,13 +1,13 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Type, Dict, Sequence, List, Optional, Any, Iterator
+from typing import Tuple, Type, Dict, Sequence, List, Any, Iterator
 
 import numpy as np
 
 import gym
 
-from .utils import SpaceDictRecursive
+from .utils import zeros, SpaceDictRecursive
 
 
 class PartialFrameStack(gym.Wrapper):
@@ -30,46 +30,7 @@ class PartialFrameStack(gym.Wrapper):
                                    will be stacked.
         :param num_stack: Number of observation frames to partially stack.
         """
-        # Backup user arguments
-        self.nested_fields_list: List[List[str]] = list(
-            map(list, nested_fields_list))  # type: ignore[arg-type]
-        self.leaf_fields_list: List[List[str]] = []
-        self.num_stack = num_stack
-
-        # Define some internal buffers
-        self._observation: Optional[SpaceDictRecursive] = None
-
-        # Initialize base wrapper
-        super().__init__(env)
-
-        # Create internal buffers
-        self._frames: List[deque] = []
-
-    def get_observation(self) -> SpaceDictRecursive:
-        assert (self._observation is not None and
-                all(len(frames) == self.num_stack for frames in self._frames))
-
-        # Replace nested fields of original observation by the stacked ones
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            root_obs = reduce(lambda d, key: d[key], fields[:-1],
-                              self._observation)
-            root_obs[fields[-1]] = np.stack(frames)
-
-        return self._observation
-
-    def step(self,
-             action: SpaceDictRecursive
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        self._observation, reward, done, info = self.env.step(action)
-
-        # Backup the nested observation fields to stack
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
-            frames.append(leaf_obs)
-
-        return self.get_observation(), reward, done, info
-
-    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
+        # Define helper that will be used to determine the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
             if isinstance(root, dict):
                 for field, node in root.items():
@@ -79,10 +40,20 @@ class PartialFrameStack(gym.Wrapper):
                     else:
                         yield [field]
 
-        self._observation = self.env.reset(**kwargs)
+        # Backup user arguments
+        self.nested_fields_list: List[List[str]] = list(
+            map(list, nested_fields_list))  # type: ignore[arg-type]
+        self.num_stack = num_stack
 
-        # Determine leaf fields to stack
-        self.leaf_fields_list = []
+        # Initialize base wrapper
+        super().__init__(env)
+
+        # Define some internal buffers
+        self._observation: SpaceDictRecursive = zeros(
+            self.env.observation_space)
+
+        # Get the leaf fields to stack
+        self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_fields_list:
             root_field = reduce(
                 lambda d, key: d[key], fields, self._observation)
@@ -109,9 +80,34 @@ class PartialFrameStack(gym.Wrapper):
             root_space.spaces[fields[-1]] = gym.spaces.Box(
                 low=low, high=high, dtype=space.dtype)
 
-        # Allocate the frames buffers
-        self._frames = [deque(maxlen=self.num_stack)
-                        for _ in range(len(self.leaf_fields_list))]
+        # Allocate internal frames buffers
+        self._frames: List[deque] = [
+            deque(maxlen=self.num_stack)
+            for _ in range(len(self.leaf_fields_list))]
+
+    def get_observation(self) -> SpaceDictRecursive:
+        # Replace nested fields of original observation by the stacked ones
+        for fields, frames in zip(self.leaf_fields_list, self._frames):
+            root_obs = reduce(lambda d, key: d[key], fields[:-1],
+                              self._observation)
+            root_obs[fields[-1]] = np.stack(frames)
+        return self._observation
+
+    def step(self,
+             action: SpaceDictRecursive
+             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+        # Perform a single step
+        self._observation, reward, done, info = self.env.step(action)
+
+        # Backup the nested observation fields to stack
+        for fields, frames in zip(self.leaf_fields_list, self._frames):
+            leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
+            frames.append(leaf_obs)
+
+        return self.get_observation(), reward, done, info
+
+    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
+        self._observation = self.env.reset(**kwargs)
 
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
@@ -161,11 +157,21 @@ def build_wrapper(env_config: Tuple[
         (wrapper_class,),
         {})
 
-    def __init__(self: wrapped_env_class) -> None:  # type: ignore[valid-type]
+    def __init__(self: gym.Wrapper) -> None:
         env = env_class(**env_kwargs)
         super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
             env, **wrapper_kwargs)
 
+    def __dir__(self: gym.Wrapper) -> Sequence[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return super(  # type: ignore[arg-type]
+            wrapped_env_class, self).__dir__() + self.env.__dir__()
+
     wrapped_env_class.__init__ = __init__  # type: ignore[misc]
+    wrapped_env_class.__dir__ = __dir__  # type: ignore[assignment]
 
     return wrapped_env_class

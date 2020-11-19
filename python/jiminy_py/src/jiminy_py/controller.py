@@ -12,6 +12,11 @@ else:
     from tqdm import tqdm
 
 
+ControllerHandleType = Callable[[
+    float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray
+], None]
+
+
 class BaseJiminyController(jiminy.ControllerFunctor):
     """Base class to instantiate a Jiminy controller based on a callable
     function that can be changed on-the-fly.
@@ -63,12 +68,9 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         super().reset()
         self.close_progress_bar()
 
-    def set_controller_handle(
-            self,
-            controller_handle: Callable[[
-                float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray
-                ], None]
-            ) -> None:
+    def set_controller_handle(self,
+                              controller_handle: ControllerHandleType
+                              ) -> None:
         r"""Set the controller callback function to use.
 
         :param compute_command:

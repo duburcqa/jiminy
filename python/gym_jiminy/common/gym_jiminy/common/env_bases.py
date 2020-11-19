@@ -20,7 +20,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
-from jiminy_py.controller import BaseJiminyController
+from jiminy_py.controller import BaseJiminyController, ControllerHandleType
 
 from pinocchio import neutral
 
@@ -62,19 +62,15 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         'render.modes': ['human', 'rgb_array'],
     }
 
-    simulator: Optional[Simulator]
-
     def __init__(self,
-                 simulator: Optional[Simulator],
+                 simulator: Simulator,
                  step_dt: float,
                  enforce_bounded: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs: Any) -> None:
         r"""
         :param simulator: Jiminy Python simulator used for physics
-                          computations. Can be `None` if `_setup` has been
-                          overwritten such that 'self.simulator' is a valid and
-                          completely initialized engine.
+                          computations.
         :param step_dt: Simulation timestep for learning. Note that it is
                         independent from the controller and observation update
                         periods. The latter are configured via
@@ -94,7 +90,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # pylint: disable=unused-argument
 
         # Initialize the interfaces through multiple inheritance
-        super().__init__()
+        super().__init__(**kwargs)
 
         # Backup some user arguments
         self.simulator = simulator
@@ -108,40 +104,43 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         self._log_data: Optional[Dict[str, np.ndarray]] = None
         self.log_path: Optional[str] = None
 
-        # Current observation and action of the robot
-        self._state: Optional[Tuple[np.ndarray, np.ndarray]] = None
-        self._sensors_data: Optional[Dict[str, np.ndarray]] = None
+        # Initialize sensors data shared memory
+        self._sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Information about the learning process
         self._info: Dict[str, Any] = {}
 
         # Number of simulation steps performed
         self.num_steps = -1
-        self.max_steps: Optional[int] = None
+        self.max_steps = int(
+            self.simulator.simulation_duration_max // self.step_dt)
         self._num_steps_beyond_done: Optional[int] = None
 
-        # Set the seed of the simulation and reset the environment.
-        # Note that `reset` is called to make sure the environment is
-        # completely configured at initialization, which is required by many
-        # external libraries since it is an implicit required on the OpenAI
-        # Gym standard interface.
+        # Initialize the seed of the environment
         self.seed()
-        self.reset()
+
+        # Refresh the observation and action spaces
+        self._refresh_observation_space()
+        self._refresh_action_space()
+
+        # Assertion(s) for type checker
+        assert (self.observation_space is not None and
+                self.action_space is not None)
+
+        # Initialize some internal buffers
+        self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
+        self._observation = zeros(self.observation_space)
+        self._action = zeros(self.action_space)
 
     @property
     def robot(self) -> jiminy.Robot:
-        """ TODO: Write documentation.
+        """ Get robot.
         """
-        if self.simulator is None:
-            raise RuntimeError("Backend simulator undefined.")
         return self.simulator.robot
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None
-
         return gym.spaces.Box(
             low=0.0, high=self.simulator.simulation_duration_max, shape=(1,),
             dtype=np.float64)
@@ -162,9 +161,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                                       value 'simulator.use_theoretical_model'.
                                       Optional: `None` by default.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None and self.robot is not None
-
         # Handling of default argument
         if use_theoretical_model is None:
             use_theoretical_model = self.simulator.use_theoretical_model
@@ -379,42 +375,55 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             high=effort_limit[motors_velocity_idx],
             dtype=np.float64)
 
-    def set_state(self, qpos: np.ndarray, qvel: np.ndarray) -> None:
-        """Reset the simulation and specify the initial state of the robot.
+    def reset(self,
+              controller_hook: Optional[
+                  Callable[[], Optional[ControllerHandleType]]] = None
+              ) -> SpaceDictRecursive:
+        """Reset the environment.
 
+        In practice, it resets the backend simulator and set the initial state
+        of the robot. The initial state is obtained by calling '_sample_state'.
         This method is also in charge of setting the initial action (at the
         beginning) and observation (at the end).
 
         .. warning::
             It starts the simulation immediately. As a result, it is not
-            possible to changed the robot (included options), nor to register
-            log variable. Yet, it is possible to do it passing a custom
-            'controller_hook' to `reset` method.
+            possible to change the robot (included options), nor to register
+            log variable. The only way to do so is via 'controller_hook'.
 
-        :param qpos: Configuration of the robot.
-        :param qvel: Velocity vector of the robot.
+        :param controller_hook: Custom controller hook. It will be executed
+                                right after initialization of the environment,
+                                and just before actually starting the
+                                simulation. It is a callable that optionally
+                                returns a controller handle. If so, it will be
+                                used to initialize the low-level jiminy
+                                controller. It is useful to override partially
+                                the configuration of the low-level engine, set
+                                a custom low-level controller handle, or to
+                                register custom variables to the telemetry. Set
+                                to `None` if unused.
+                                Optional: Disable by default.
+
+        :returns: Initial observation of the episode.
         """
+        # pylint: disable=arguments-differ
+
         # Assertion(s) for type checker
-        assert self.simulator is not None
+        assert self.observation_space is not None
 
         # Reset the simulator
         self.simulator.reset()
 
-        # Set default action. It will be used for the initial step.
+        # Re-initialize sensors data shared memory.
+        # It must be done because the robot may have changed.
+        self._sensors_data = OrderedDict(self.robot.sensors_data)
+
+        # Set default action.
+        # It will be used for the initial step.
         self._action = zeros(self.action_space)
 
-        # Start the engine, in order to initialize the sensors data
-        hresult = self.simulator.start(
-            qpos, qvel, self.simulator.use_theoretical_model)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Failed to start the simulation. Probably because the "
-                "initial state is invalid.")
-
-        # Initialize some internal buffers
+        # Reset some internal buffers
         self.num_steps = 0
-        self.max_steps = int(
-            self.simulator.simulation_duration_max // self.step_dt)
         self._num_steps_beyond_done = None
         self._log_data = None
 
@@ -422,56 +431,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         if self.debug:
             fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
             os.close(fd)
-
-        #
-        self._state = (qpos, qvel)
-
-        # Update the observation
-        self._observation = self.compute_observation()
-
-    def reset(self,
-              controller_hook: Optional[Callable[[], None]] = None
-              ) -> SpaceDictRecursive:
-        """Reset the environment.
-
-        The initial state is obtained by calling '_sample_state'.
-
-        :param controller_hook: Custom controller hook. It will be executed
-                                right after initialization of the environment,
-                                and just before actually starting the
-                                simulation. It is useful to override partially
-                                the configuration of the low-level engine, set
-                                a custom low-level controller handle, or to
-                                register custom variables to the telemetry.
-                                `None` to disable.
-                                Optional: Disable by default.
-
-        :returns: Initial observation of the episode.
-        """
-        # pylint: disable=arguments-differ
-
-        # Define default controller hook
-        def register() -> None:
-            nonlocal self
-
-            # Assertion(s) for type checker
-            assert self.simulator is not None
-
-            self.simulator.controller.set_controller_handle(
-                self._send_command)
-
-        # Stop simulator if still running
-        if self.simulator is not None:
-            self.simulator.stop()
-
-        # Make sure the environment is properly setup
-        self._setup()
-
-        # Initialize sensors data shared memory
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
-
-        # Set the seed of the simulator
-        self.simulator.seed(self._seed)
 
         # Extract the controller and observer update period.
         # There is no actual observer by default, apart from the robot's state
@@ -481,35 +440,30 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         engine_options = self.simulator.engine.get_options()
         self.control_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
-        self.observer_dt = \
+        self.observe_dt = \
             float(engine_options['stepper']['sensorsUpdatePeriod'])
 
-        # Refresh the observation and action spaces
-        self._refresh_observation_space()
-        self._refresh_action_space()
-
-        # Assertion(s) for type checker
-        assert self.observation_space is not None
-
-        # Initialize some internal buffers
-        self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
-        self._observation = zeros(self.observation_space)
-        self._action = zeros(self.action_space)
-
         # Enforce the low-level controller.
-        # Note that `BaseJiminyController` is used by default instead of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller.
+        # The backend robot may have changed, for example if it is randomly
+        # generated based on different URDF files. As a result, it is necessary
+        # to instantiate a new low-level controller.
+        # Note that `BaseJiminyController` is used by default in place of
+        # `jiminy.ControllerFunctor`. Although it is less efficient because it
+        # adds an extra layer of indirection, it makes it possible to update
+        # the controller handle without instantiating a new controller, which
+        # is necessary to allow registering telemetry variables before knowing
+        # the controller handle in advance.
         controller = BaseJiminyController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
-        # Run controller hook
-        if controller_hook is None:
-            register()
-        else:
-            controller_hook()
+        # Run controller hook and set the controller handle
+        controller_handle = None
+        if controller_hook is not None:
+            controller_handle = controller_hook()
+        if controller_handle is None:
+            controller_handle = self._send_command
+        self.simulator.controller.set_controller_handle(controller_handle)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -519,7 +473,17 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                 "The initial state provided by `_sample_state` is "
                 "inconsistent with the dimension or types of joints of the "
                 "model.")
-        self.set_state(qpos, qvel)
+
+        # Start the engine, in order to initialize the sensors data
+        hresult = self.simulator.start(
+            qpos, qvel, self.simulator.use_theoretical_model)
+        if hresult != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError(
+                "Failed to start the simulation. Probably because the "
+                "initial state is invalid.")
+
+        # Update the observation
+        self._observation = self.compute_observation()
 
         # Make sure the state is valid, otherwise there `compute_observation`
         # and s`_refresh_observation_space` are probably inconsistent.
@@ -562,14 +526,16 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         self._seed = np.uint32(
             seeding._int_list_from_bigint(seeding.hash_seed(self._seed))[0])
 
+        # Reset the seed of Jiminy Engine
+        self.simulator.seed(self._seed)
+
         return [self._seed]
 
     def close(self) -> None:
         """Terminate the Python Jiminy engine. Mostly defined for
            compatibility with Gym OpenAI.
         """
-        if self.simulator is not None:
-            self.simulator.close()
+        self.simulator.close()
 
     def step(self,
              action: Optional[np.ndarray] = None
@@ -581,11 +547,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
-        # Assertion(s) for type checker
-        assert (self.simulator is not None and
-                self.max_steps is not None and
-                isinstance(self._action, np.ndarray))
-
         # Make sure a simulation is already running
         if not self.simulator.is_simulation_running:
             raise RuntimeError(
@@ -656,9 +617,10 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None
-
+        if not self.simulator.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please call `reset` at least one "
+                "before getting log.")
         return self.simulator.get_log()
 
     def render(self,
@@ -678,9 +640,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         :returns: RGB array if 'mode' is 'rgb_array', None otherwise.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None
-
         if mode == 'human':
             return_rgb_array = False
         elif mode == 'rgb_array':
@@ -696,9 +655,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         :param kwargs: Extra keyword arguments for `play_logfiles` delegation.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None and self.robot is not None
-
         if self._log_data is not None:
             log_data = self._log_data
         else:
@@ -743,16 +699,8 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         By default, it enforces some options of the engine.
 
         .. note::
-            This method is called internally by `reset` method at the very
-            beginning. This method can be overwritten to postpone the engine
-            and robot creation at `reset`. One have to delegate the creation
-            and initialization of the engine to this method, so that it
-            alleviates the requirement to specify a valid the engine during the
-            instantiation of the environment.
+            This method is called internally by `reset` methods.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None and self.robot is not None
-
         # Extract some proxies
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
@@ -820,9 +768,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             initial state. It can be overloaded to ensure static stability of
             the configuration.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None and self.robot is not None
-
         # Get the neutral configuration of the actual model
         qpos = neutral(self.robot.pinocchio_model)
 
@@ -852,9 +797,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             This method is called internally by `reset` to generate the initial
             state. It can be overloaded to act as a random state generator.
         """
-        # Assertion(s) for type checker
-        assert self.simulator is not None and self.robot is not None
-
         # Get the neutral configuration
         qpos = self._neutral()
 
@@ -875,9 +817,6 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         """Compute the observation based on the current state of the robot.
         """
         # pylint: disable=arguments-differ
-
-        # Assertion(s) for type checker
-        assert self.simulator is not None
 
         # Update some internal buffers
         if self.simulator.is_simulation_running:
@@ -972,7 +911,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  simulator: Optional[Simulator],
                  step_dt: float,
                  debug: bool = False) -> None:
+        # Initialize base class
         super().__init__(simulator, step_dt, debug)
+
+        # Define some internal buffers
+        self._desired_goal: Optional[np.ndarray] = None
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker
@@ -994,6 +937,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
     def compute_observation(self  # type: ignore[override]
                             ) -> SpaceDictRecursive:
+        # Assertion(s) for type checker
+        assert self._desired_goal is not None
+
         return OrderedDict(
             observation=super().compute_observation(),
             achieved_goal=self._get_achieved_goal(),
