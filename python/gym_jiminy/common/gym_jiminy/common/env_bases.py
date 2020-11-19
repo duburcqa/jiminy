@@ -24,7 +24,7 @@ from jiminy_py.controller import BaseJiminyController, ControllerHandleType
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, SpaceDictRecursive
+from .utils import _clamp, zeros, fill, SpaceDictRecursive
 from .generic_bases import ObserveAndControlInterface
 from .play import loop_interactive
 
@@ -128,9 +128,9 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                 self.action_space is not None)
 
         # Initialize some internal buffers
+        self._action = zeros(self.action_space)
         self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
         self._observation = zeros(self.observation_space)
-        self._action = zeros(self.action_space)
 
     @property
     def robot(self) -> jiminy.Robot:
@@ -414,13 +414,16 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Reset the simulator
         self.simulator.reset()
 
+        # Make sure the environment is properly setup
+        self._setup()
+
         # Re-initialize sensors data shared memory.
         # It must be done because the robot may have changed.
         self._sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Set default action.
         # It will be used for the initial step.
-        self._action = zeros(self.action_space)
+        fill(self._action, 0.0)
 
         # Reset some internal buffers
         self.num_steps = 0
@@ -708,7 +711,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         # Disable part of the telemetry in non debug mode, to speed up the
         # simulation. Only the required data for log replay are enabled. It is
         # up to the user to overload this method if logging more data is
-        # necessary for terminal reward computation.
+        # necessary for computating the terminal reward.
         for field in robot_options["telemetry"].keys():
             robot_options["telemetry"][field] = self.debug
         for field in engine_options["telemetry"].keys():

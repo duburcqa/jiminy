@@ -33,23 +33,37 @@ def zeros(space: gym.Space) -> SpaceDictRecursive:
         f"Space of type {type(space)} is not supported by this method.")
 
 
+def fill(data: SpaceDictRecursive,
+         fill_value: float) -> None:
+    """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
+    """
+    if isinstance(data, dict):
+        for sub_data in data.values():
+            fill(sub_data, fill_value)
+    elif isinstance(data, np.ndarray):
+        data.fill(fill_value)
+    else:
+        raise NotImplementedError(
+            f"Data of type {type(data)} is not supported by this method.")
+
+
 def set_value(data: SpaceDictRecursive,
-              fill_value: SpaceDictRecursive) -> None:
-    """Partially set 'data' from `Gym.Space` to 'fill_value'.
+              value: SpaceDictRecursive) -> None:
+    """Partially set 'data' from `Gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
     unchanged. A direct consequences, it is necessary to preallocate memory
     beforehand, and to work with fixed size buffers.
 
     .. note::
-        If 'data' is a dictionary, 'fill_value' must be a subtree of 'data',
+        If 'data' is a dictionary, 'value' must be a subtree of 'data',
         whose leaf values must be broadcastable with the ones of 'data'.
     """
     if isinstance(data, dict):
-        for field, sub_val in fill_value.items():
+        for field, sub_val in value.items():
             set_value(data[field], sub_val)
     elif isinstance(data, np.ndarray):
-        np.copyto(data, fill_value)
+        np.copyto(data, value)
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported by this method.")

@@ -173,10 +173,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         .. note:: TODO WRONG
             This method is called internally by `reset` method at the very
-            beginning. This method can be overwritten to implement new
-            contributions to the environment stochasticity, or to create
-            custom low-level robot if the model must be different for each
-            learning eposide for some reason.
+            beginning. One must overide it to implement new contributions to
+            the environment stochasticity, or to create custom low-level robot
+            if the model must be different for each learning episode.
         """
         # Call the base implementation
         super()._setup()
