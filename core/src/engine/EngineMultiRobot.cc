@@ -67,6 +67,13 @@ namespace jiminy
                                           std::shared_ptr<AbstractController> controller,
                                           callbackFunctor_t callbackFct)
     {
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before adding a new system.")
+            return hresult_t::ERROR_GENERIC;
+        }
+
         if (!robot->getIsInitialized())
         {
             PRINT_ERROR("Robot not initialized.")
@@ -119,8 +126,18 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Remove every coupling forces involving the system
-        returnCode = removeCouplingForces(systemName);
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing a system.")
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            // Remove every coupling forces involving the system
+            returnCode = removeCouplingForces(systemName);
+        }
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -195,8 +212,18 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before adding coupling forces.")
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         int32_t systemIdx1;
-        returnCode = getSystemIdx(systemName1, systemIdx1);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystemIdx(systemName1, systemIdx1);
+        }
 
         int32_t systemIdx2;
         if (returnCode == hresult_t::SUCCESS)
@@ -239,8 +266,18 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.")
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         systemHolder_t * system1;
-        returnCode = getSystem(systemName1, system1);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName1, system1);
+        }
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -268,8 +305,18 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.")
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
         systemHolder_t * system;
-        returnCode = getSystem(systemName, system);
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName, system);
+        }
 
         if (returnCode == hresult_t::SUCCESS)
         {
