@@ -496,7 +496,7 @@ def compute_freeflyer_state_from_fixed_body(
         w_M_ff = w_M_ground.act(ff_M_fixed_body.inverse())
     position[:7] = pin.SE3ToXYZQUAT(w_M_ff)
 
-    if fixed_body_name is None:
+    if fixed_body_name is not None:
         if velocity is not None:
             ff_v_fixed_body = get_body_world_velocity(
                 robot, fixed_body_name, use_theoretical_model=False)

@@ -2181,7 +2181,7 @@ namespace jiminy
 
             // Convert contact force from the global frame to the local frame to store it in contactForces_
             pinocchio::SE3 const & transformContactInJoint = system.robot->pncModel_.frames[frameIdx].placement;
-            system.robot->contactForces_[i] = transformContactInJoint.act(fextLocal);
+            system.robot->contactForces_[i] = transformContactInJoint.actInv(fextLocal);
         }
 
         // Compute the force at collision bodies
