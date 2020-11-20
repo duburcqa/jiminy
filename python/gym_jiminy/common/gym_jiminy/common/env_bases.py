@@ -43,7 +43,7 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
+class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -89,14 +89,14 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         """
         # pylint: disable=unused-argument
 
-        # Initialize the interfaces through multiple inheritance
-        super().__init__(**kwargs)
-
         # Backup some user arguments
         self.simulator = simulator
         self.step_dt = step_dt
         self.enforce_bounded = enforce_bounded
         self.debug = debug
+
+        # Initialize the interfaces through multiple inheritance
+        super().__init__(**kwargs)
 
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
@@ -914,11 +914,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  simulator: Optional[Simulator],
                  step_dt: float,
                  debug: bool = False) -> None:
-        # Initialize base class
-        super().__init__(simulator, step_dt, debug)
-
         # Define some internal buffers
         self._desired_goal: Optional[np.ndarray] = None
+
+        # Initialize base class
+        super().__init__(simulator, step_dt, debug)
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker

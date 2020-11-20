@@ -8,7 +8,7 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Sequence
 
 import gym
 
@@ -27,51 +27,54 @@ class BlockInterface:
     any number of subsequent blocks, or directly to a `BaseJiminyEnv`
     environment.
     """
-    env: Optional[BaseJiminyEnv]
     observation_space: Optional[gym.Space]
     action_space: Optional[gym.Space]
 
     def __init__(self,
+                 env: BaseJiminyEnv,
                  update_ratio: int = 1,
                  **kwargs: Any) -> None:
         """Initialize the block interface.
 
         It only allocates some attributes.
 
+        :param env: Environment to ultimately control, ie completely unwrapped.
         :param update_ratio: Ratio between the update period of the high-level
                              controller and the one of the subsequent
                              lower-level controller.
         :param kwargs: Extra keyword arguments that may be useful for mixing
                        multiple inheritance through multiple inheritance.
         """
-        # Define some attributes
-        self.env = None
-        self.observation_space = None
-        self.action_space = None
-
         # Backup some user arguments
+        self.env = env
         self.update_ratio = update_ratio
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(**kwargs)  # type: ignore[call-arg]
 
-    @property
-    def robot(self) -> jiminy.Robot:
-        """Get low-level Jiminy robot of the associated environment.
-        """
-        if self.env is None:
-            raise RuntimeError("Associated environment undefined.")
-        return self.env.robot
+        # Refresh the observation and action spaces
+        self._refresh_observation_space()
+        self._refresh_action_space()
 
-    @property
-    def simulator(self) -> Simulator:
-        """Get low-level simulator of the associated environment.
+        # Assertion(s) for type checker
+        assert (self.observation_space is not None and
+                self.action_space is not None)
+
+    def __getattr__(self, name: str) -> Any:
+        """Fallback attribute getter.
+
+        It enables to get access to the attribute and methods of the low-level
+        Jiminy engine directly, without having to do it through `env`.
         """
-        if self.env is None:
-            raise RuntimeError("Associated environment undefined.")
-        if self.env.simulator is None:
-            raise RuntimeError("Associated environment not initialized.")
-        return self.env.simulator
+        return getattr(self.env, name)
+
+    def __dir__(self) -> Sequence[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return super().__dir__() + self.env.__dir__()
 
     @property
     def system_state(self) -> jiminy.SystemState:
@@ -79,48 +82,20 @@ class BlockInterface:
         """
         return self.simulator.engine.system_state
 
-    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
-        """Reset the block for a given environment, eventually already wrapped.
-
-        .. note::
-            The environment itself is not necessarily directly connected to
-            this block since it may actually be connected to another block
-            instead.
-
-        .. warning::
-            This method that must not be overloaded. `_setup` is the
-            unique entry-point to customize the block's initialization.
-
-        :param env: Environment.
-        """
-        # Backup the unwrapped environment
-        if isinstance(env, gym.Wrapper):
-            # Make sure the environment actually derive for BaseJiminyEnv
-            assert isinstance(env.unwrapped, BaseJiminyEnv), (
-                "env.unwrapped must derived from `BaseJiminyEnv`.")
-            self.env = env.unwrapped
-        else:
-            self.env = env
-
-        # Configure the block
-        self._setup()
-
-        # Refresh the observation and action spaces
-        self._refresh_observation_space()
-        self._refresh_action_space()
-
     # methods to override:
     # ----------------------------
 
     def _setup(self) -> None:
-        """Configure the block.
+        """Reset the internal state of the block.
 
         .. note::
-            Note that the environment `env` has already been fully initialized
-            at this point, so that each of its internal buffers is up-to-date,
-            but the simulation is not running yet. As a result, it is still
-            possible to update the configuration of the simulator, and for
-            example, to register some extra variables to monitor the internal
+            The environment itself is not necessarily directly connected to
+            this block since it may actually be connected through another block
+            instead.
+
+        .. note::
+            It is possible to update the configuration of the simulator, for
+            example to register some extra variables to monitor the internal
             state of the block.
         """
 
@@ -131,10 +106,6 @@ class BlockInterface:
             The observation space refers to the output of system once connected
             with another block. For example, for a controller, it is the
             action from the next block.
-
-        .. note::
-            This method is called right after `_setup`, so that both the
-            environment and this block should be already initialized.
         """
         raise NotImplementedError
 
@@ -145,15 +116,11 @@ class BlockInterface:
             The action space refers to the input of the block. It does not have
             to be an actual action. For example, for an observer, it is the
             observation from the previous block.
-
-        .. note::
-            This method is called right after `_setup`, so that both the
-            environment and this block should be already initialized.
         """
         raise NotImplementedError
 
 
-class BaseControllerBlock(BlockInterface, ControlInterface):
+class BaseControllerBlock(ControlInterface, BlockInterface):
     r"""Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
@@ -197,6 +164,14 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
         # Initialize the block and control interface
         super().__init__(*args, **kwargs)
 
+        # Compute the update period
+        self.control_dt = self.env.control_dt * self.update_ratio
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.control_dt <= self.env.step_dt, (
+            "The controller update period must be lower than or equal to the "
+            "environment simulation timestep.")
+
     def _refresh_observation_space(self) -> None:
         """Configure the observation space of the controller.
 
@@ -208,26 +183,7 @@ class BaseControllerBlock(BlockInterface, ControlInterface):
             it, then using `BaseObserverBlock` or `BlockInterface` directly
             is probably the way to go.
         """
-        # Assertion(s) for type checker
-        assert self.env is not None
-
         self.observation_space = self.env.action_space
-
-    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
-        """Reset the controller for a given environment.
-
-        In addition to the base implementation, it also set 'control_dt'
-        dynamically, based on the environment 'control_dt'.
-
-        :param env: Environment to control, eventually already wrapped.
-        """
-        # Call base implementation
-        super().reset(env)
-
-        # Assertion(s) for type checker
-        assert self.env is not None
-
-        self.control_dt = self.env.control_dt * self.update_ratio
 
     # methods to override:
     # ----------------------------
@@ -292,7 +248,7 @@ BaseControllerBlock.compute_command.__doc__ = \
     """
 
 
-class BaseObserverBlock(BlockInterface, ObserveInterface):
+class BaseObserverBlock(ObserveInterface, BlockInterface):
     r"""Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
@@ -326,6 +282,14 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
         # Initialize the block and observe interface
         super().__init__(*args, **kwargs)
 
+        # Compute the update period
+        self.observe_dt = self.env.observe_dt * self.update_ratio
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.observe_dt <= self.env.step_dt, (
+            "The observer update period must be lower than or equal to the "
+            "environment simulation timestep.")
+
     def _refresh_action_space(self) -> None:
         """Configure the action space of the observer.
 
@@ -337,26 +301,7 @@ class BaseObserverBlock(BlockInterface, ObserveInterface):
             it, then using `BaseControllerBlock` or `BlockInterface` directly
             is probably the way to go.
         """
-        # Assertion(s) for type checker
-        assert self.env is not None
-
         self.action_space = self.env.observation_space
-
-    def reset(self, env: Union[gym.Wrapper, BaseJiminyEnv]) -> None:
-        """Reset the observer for a given environment.
-
-        In addition to the base implementation, it also set 'observe_dt'
-        dynamically, based on the environment 'observe_dt'.
-
-        :param env: Environment to observe, eventually already wrapped.
-        """
-        # Call base implementation
-        super().reset(env)
-
-        # Assertion(s) for type checker
-        assert self.env is not None
-
-        self.observe_dt = self.env.observe_dt * self.update_ratio
 
     def compute_observation(self,  # type: ignore[override]
                             measure: SpaceDictRecursive

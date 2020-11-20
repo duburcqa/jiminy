@@ -152,13 +152,15 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         self._power_consumption_max = 0.0
         self._height_neutral = 0.0
 
-        # Configure and initialize the learning environment
+        # Configure the backend simulator
         simulator = Simulator.build(
             self.urdf_path, self.hardware_path, self.mesh_path,
             has_freeflyer=True, use_theoretical_model=False,
             config_path=self.config_path,
             avoid_instable_collisions=self.avoid_instable_collisions,
             debug=debug)
+
+        # Initialize base class
         super().__init__(simulator, step_dt, enforce_bounded, debug, **kwargs)
 
     def _setup(self) -> None:
@@ -171,7 +173,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             - enforce some options of the low-level robot and engine,
             - randomize the environment according to 'std_ratio'.
 
-        .. note:: TODO WRONG
+        .. note::
             This method is called internally by `reset` method at the very
             beginning. One must overide it to implement new contributions to
             the environment stochasticity, or to create custom low-level robot

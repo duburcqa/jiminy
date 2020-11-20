@@ -8,6 +8,7 @@ import gym
 
 from jiminy_py.core import EncoderSensor as encoder
 
+from .env_bases import BaseJiminyEnv
 from .block_bases import BaseControllerBlock
 from .utils import SpaceDictRecursive, FieldDictRecursive
 
@@ -20,6 +21,7 @@ class PDController(BaseControllerBlock):
         intermediary controllers.
     """
     def __init__(self,
+                 env: BaseJiminyEnv,
                  update_ratio: int = 1,
                  pid_kp: Union[float, np.ndarray] = 0.0,
                  pid_kd: Union[float, np.ndarray] = 0.0,
@@ -32,17 +34,33 @@ class PDController(BaseControllerBlock):
         :param kwargs: Used arguments to allow automatic pipeline wrapper
                        generation.
         """
-        # Initialize the controller
-        super().__init__(update_ratio)
-
         # Backup some user arguments
         self.pid_kp = pid_kp
         self.pid_kd = pid_kd
 
-        # Low-level controller buffers
-        self.motor_to_encoder: Optional[Sequence[int]] = None
-        self._q_target = None
-        self._v_target = None
+        # Define the mapping from motors to encoders
+        encoder_joints = []
+        for name in env.robot.sensors_names[encoder.type]:
+            sensor = env.robot.get_sensor(encoder.type, name)
+            encoder_joints.append(sensor.joint_name)
+
+        self.motor_to_encoder = []
+        for name in env.robot.motors_names:
+            motor = env.robot.get_motor(name)
+            motor_joint = motor.joint_name
+            encoder_found = False
+            for i, encoder_joint in enumerate(encoder_joints):
+                if motor_joint == encoder_joint:
+                    self.motor_to_encoder.append(i)
+                    encoder_found = True
+                    break
+            if not encoder_found:
+                raise RuntimeError(
+                    f"No encoder sensor associated with motor '{name}'. Every "
+                    "actuated joint must have an encoder sensor attached.")
+
+        # Initialize the controller
+        super().__init__(env, update_ratio)
 
     def _refresh_action_space(self) -> None:
         """Configure the action space of the controller.
@@ -50,9 +68,6 @@ class PDController(BaseControllerBlock):
         The action spaces corresponds to the position and velocity of motors
         instead of the torque.
         """
-        # Assertion(s) for type checker
-        assert self.env is not None
-
         # Extract the position and velocity bounds for the observation space
         sensors_space = self.env._get_sensors_space()
         encoders_space = sensors_space[encoder.type]
@@ -71,32 +86,6 @@ class PDController(BaseControllerBlock):
                 low=pos_low, high=pos_high, dtype=np.float64)),
             (encoder.fieldnames[1], gym.spaces.Box(
                 low=vel_low, high=vel_high, dtype=np.float64))])
-
-    def _setup(self) -> None:
-        """Configure the controller.
-
-        It updates the mapping from motors to encoders indices.
-        """
-        # Refresh the mapping between the motors and encoders
-        encoder_joints = []
-        for name in self.robot.sensors_names[encoder.type]:
-            sensor = self.robot.get_sensor(encoder.type, name)
-            encoder_joints.append(sensor.joint_name)
-
-        self.motor_to_encoder = []
-        for name in self.robot.motors_names:
-            motor = self.robot.get_motor(name)
-            motor_joint = motor.joint_name
-            encoder_found = False
-            for i, encoder_joint in enumerate(encoder_joints):
-                if motor_joint == encoder_joint:
-                    self.motor_to_encoder.append(i)
-                    encoder_found = True
-                    break
-            if not encoder_found:
-                raise RuntimeError(
-                    f"No encoder sensor associated with motor '{name}'. Every "
-                    "actuated joint must have an encoder sensor attached.")
 
     def get_fieldnames(self) -> FieldDictRecursive:
         pos_fieldnames = [f"targetPosition{name}"

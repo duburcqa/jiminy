@@ -8,6 +8,7 @@ import numpy as np
 import gym
 
 from .utils import zeros, SpaceDictRecursive
+from .pipeline_bases import BasePipelineWrapper
 
 
 class PartialFrameStack(gym.Wrapper):
@@ -21,7 +22,8 @@ class PartialFrameStack(gym.Wrapper):
     def __init__(self,
                  env: gym.Env,
                  nested_fields_list: Sequence[Sequence[str]],
-                 num_stack: int):
+                 num_stack: int,
+                 **kwargs: Any):
         """
         :param env: Environment to wrap.
         :param nested_fields_list: List of nested observation fields to stack.
@@ -29,6 +31,8 @@ class PartialFrameStack(gym.Wrapper):
                                    not, then every leaves fields from this root
                                    will be stacked.
         :param num_stack: Number of observation frames to partially stack.
+        :param kwargs: Extra keyword arguments to allow automatic pipeline
+                       wrapper generation.
         """
         # Define helper that will be used to determine the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
@@ -46,7 +50,7 @@ class PartialFrameStack(gym.Wrapper):
         self.num_stack = num_stack
 
         # Initialize base wrapper
-        super().__init__(env)
+        super().__init__(env, **kwargs)
 
         # Define some internal buffers
         self._observation: SpaceDictRecursive = zeros(
@@ -85,7 +89,7 @@ class PartialFrameStack(gym.Wrapper):
             deque(maxlen=self.num_stack)
             for _ in range(len(self.leaf_fields_list))]
 
-    def get_observation(self) -> SpaceDictRecursive:
+    def observation(self) -> SpaceDictRecursive:
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             root_obs = reduce(lambda d, key: d[key], fields[:-1],
@@ -104,7 +108,7 @@ class PartialFrameStack(gym.Wrapper):
             leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
             frames.append(leaf_obs)
 
-        return self.get_observation(), reward, done, info
+        return self.observation(), reward, done, info
 
     def reset(self, **kwargs: Any) -> SpaceDictRecursive:
         self._observation = self.env.reset(**kwargs)
@@ -115,7 +119,7 @@ class PartialFrameStack(gym.Wrapper):
             for _ in range(self.num_stack):
                 frames.append(leaf_obs)
 
-        return self.get_observation()
+        return self.observation()
 
 
 def build_wrapper(env_config: Tuple[

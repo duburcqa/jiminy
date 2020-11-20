@@ -47,20 +47,12 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
 
     def __init__(self,
                  env: Union[gym.Wrapper, BaseJiminyEnv],
-                 augment_observation: bool = False) -> None:
+                 **kwargs: Any) -> None:
         """
-        :param augment_observation: Whether or not to augment the observation
-                                    of the environment with information
-                                    provided by the wrapped block. What it
-                                    means in practice depends on the type of
-                                    the wrapped block.
-                                    Optional: disable by default.
+        :param kwargs: Extra keyword arguments for multiple inheritance.
         """
-        # Backup some user arguments
-        self.augment_observation = augment_observation
-
         # Initialize base wrapper and interfaces through multiple inheritance
-        super().__init__(env)
+        super().__init__(env, **kwargs)
 
         # Define some internal buffers
         self._dt_eps: Optional[float] = None
@@ -171,6 +163,12 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
 
         # Compute the next learning step
         _, reward, done, info = self.env.step()
+
+        # Compute block's reward and sum it to total
+        reward += self.compute_reward(info=info)
+        if self.enable_reward_terminal:
+            if done and self.env.unwrapped._num_steps_beyond_done == 0:
+                reward += self.compute_reward_terminal(info=info)
 
         return self.get_observation(), reward, done, info
 
@@ -300,24 +298,23 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
-        # Initialize base wrapper
-        super().__init__(env, augment_observation)
-
         # Backup user arguments
         self.controller = controller
+        self.augment_observation = augment_observation
+
+        # Make sure that the unwrapped environment matches the controlled one
+        assert env.unwrapped is controller.env
+
+        # Initialize base wrapper
+        super().__init__(env, **kwargs)
 
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
                 self.env.observation_space is not None)
 
-        # Reset the controller
-        self.controller.reset(self.env)
+        # Forward some controller buffers
         self.control_dt = self.controller.control_dt
-
-        # Make sure the controller period is lower than environment timestep
-        assert self.control_dt <= self.env.unwrapped.step_dt, (
-            "The control update period must be lower than or equal to the "
-            "environment simulation timestep.")
+        self.enable_reward_terminal = self.controller.enable_reward_terminal
 
         # Set the controller name, based on the controller index
         self.controller_name = f"controller_{self._get_block_index()}"
@@ -349,9 +346,12 @@ class ControlledJiminyEnv(BasePipelineWrapper):
     def _setup(self) -> None:
         """Configure the wrapper.
 
-        In addition to the base implementation, it resgisters the controller's
-        target to the telemetry.
+        In addition to the base implementation, it configures the controller
+        and registers its target to the telemetry.
         """
+        # Configure the controller
+        self.controller._setup()
+
         # Call base implementation
         super()._setup()
 
@@ -428,19 +428,12 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return obs
 
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        # Compute the next learning step
-        observation, reward, done, info = super().step(action)
+    def compute_reward(self, *args: Any, **kwargs: Any) -> float:
+        return self.controller.compute_reward(*args, **kwargs)
 
-        # Compute controller's rewards and sum it to total reward
-        reward += self.controller.compute_reward(info=info)
-        if self.controller.enable_reward_terminal:
-            if done and self.env.unwrapped._num_steps_beyond_done == 0:
-                reward += self.controller.compute_reward_terminal(info=info)
+    def compute_reward_terminal(self, info: Dict[str, Any]) -> float:
+        return self.controller.compute_reward_terminal(*args, **kwargs)
 
-        return observation, reward, done, info
 
 
 class ObservedJiminyEnv(BasePipelineWrapper):
@@ -493,10 +486,14 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                        wrapper generation.
         """
         # Initialize base wrapper
-        super().__init__(env, augment_observation)
+        super().__init__(env, **kwargs)
+
+        # Make sure that the unwrapped environment matches the controlled one
+        assert env.unwrapped is controller.env
 
         # Backup user arguments
         self.observer = observer
+        self.augment_observation = augment_observation
 
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
@@ -508,8 +505,8 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Update the action space
         self.action_space = self.env.action_space
 
-        # Reset the observer
-        self.observer.reset(self.env)
+        # Forward some controller buffers
+        self.observe_dt = self.observer.observe_dt
 
         # Set the controller name, based on the controller index
         self.observer_name = f"observer_{self._get_block_index()}"
@@ -536,6 +533,17 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Initialize some internal buffers
         self._action = zeros(self.action_space)
         self._observation = zeros(self.observation_space)
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to the base implementation, it configures the observer.
+        """
+        # Configure the observer
+        self.observer._setup()
+
+        # Call base implementation
+        super()._setup()
 
     def compute_observation(self  # type: ignore[override]
                             ) -> SpaceDictRecursive:
@@ -676,7 +684,8 @@ def build_pipeline(env_config: Tuple[
             else:
                 env_kwargs = kwargs
             env = env_class(**env_kwargs)
-            block = block_class(**{**block_kwargs_default, **kwargs})
+            block = block_class(
+                env.unwrapped, **{**block_kwargs_default, **kwargs})
             super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
                 env, block, **{**wrapper_kwargs_default, **kwargs})
 
