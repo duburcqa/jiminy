@@ -22,7 +22,7 @@ from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
 from .utils import (
     _is_breakpoint, _clamp, zeros, fill, set_value, register_variables,
-    SpaceDictRecursive)
+    SpaceDictNested)
 from .generic_bases import ObserverControllerInterface
 from .env_bases import BaseJiminyEnv
 from .block_bases import BlockInterface, BaseControllerBlock, BaseObserverBlock
@@ -81,7 +81,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             block = block.env
         return i
 
-    def get_observation(self, bypass: bool = False) -> SpaceDictRecursive:
+    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
         """Get post-processed observation.
 
         By default, it returns either the original observation from the
@@ -100,7 +100,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
               controller_hook: Optional[Callable[[], Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]] = None,
-              **kwargs: Any) -> SpaceDictRecursive:
+              **kwargs: Any) -> SpaceDictNested:
         """Reset the unified environment.
 
         In practice, it resets the environment and initializes the generic
@@ -150,8 +150,8 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         return self.get_observation()
 
     def step(self,
-             action: Optional[SpaceDictRecursive] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+             action: Optional[SpaceDictNested] = None
+             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Next action to perform. `None` to not update it.
@@ -191,7 +191,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         fill(self._observation, 0.0)
 
     def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+                            ) -> SpaceDictNested:
         """Compute the unified observation.
 
         By default, it forwards the observation computed by the environment.
@@ -204,9 +204,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         return self.get_observation(bypass=True)
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictNested,
+                        action: SpaceDictNested
+                        ) -> SpaceDictNested:
         """Compute the motors efforts to apply on the robot.
 
         By default, it forwards the command computed by the environment.
@@ -370,9 +370,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
             self._action, self.controller_name)
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictNested,
+                        action: SpaceDictNested
+                        ) -> SpaceDictNested:
         """Compute the motors efforts to apply on the robot.
 
         In practice, it updates, whenever it is necessary:
@@ -407,7 +407,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         return self._command
 
     def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+                            ) -> SpaceDictNested:
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -552,7 +552,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.control_dt = self.env.control_dt
 
     def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+                            ) -> SpaceDictNested:
         """Compute high-level features based on the current wrapped
         environment's observation.
 

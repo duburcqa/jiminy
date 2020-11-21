@@ -8,7 +8,7 @@ from gym import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.env_bases import SpaceDictRecursive, BaseJiminyGoalEnv
+from gym_jiminy.common.env_bases import SpaceDictNested, BaseJiminyGoalEnv
 
 
 # Stepper update period
@@ -214,7 +214,7 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
 
     def step(self,
              action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         Convert a discrete action into its actual value if necessary, then add
@@ -278,7 +278,7 @@ class AcrobotJiminyEnv(AcrobotJiminyGoalEnv):
         else:
             return HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
 
-    def compute_observation(self) -> SpaceDictRecursive:
+    def compute_observation(self) -> SpaceDictNested:
         """Fetch the observation based on the current simulation state.
 
         In practice, it just returns the current state.

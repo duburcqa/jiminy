@@ -7,7 +7,7 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from .utils import _clamp, set_value, copy, SpaceDictRecursive
+from .utils import _clamp, set_value, copy, SpaceDictNested
 
 
 class ControllerInterface:
@@ -15,7 +15,7 @@ class ControllerInterface:
     """
     control_dt: float
     action_space: Optional[gym.Space]
-    _action: Optional[SpaceDictRecursive]
+    _action: Optional[SpaceDictNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -47,9 +47,9 @@ class ControllerInterface:
         raise NotImplementedError
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictNested,
+                        action: SpaceDictNested
+                        ) -> SpaceDictNested:
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 
@@ -106,7 +106,7 @@ class ObserverInterface:
     """
     observe_dt: float
     observation_space: Optional[gym.Space]
-    _observation: Optional[SpaceDictRecursive]
+    _observation: Optional[SpaceDictNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -136,7 +136,7 @@ class ObserverInterface:
         """
         set_value(self._observation, self.compute_observation())
 
-    def get_observation(self, bypass: bool = False) -> SpaceDictRecursive:
+    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
         """Get post-processed observation.
 
         By default, it clamps the observation to make sure it does not violate
@@ -164,7 +164,7 @@ class ObserverInterface:
 
     def compute_observation(self,
                             *args: Any,
-                            **kwargs: Any) -> SpaceDictRecursive:
+                            **kwargs: Any) -> SpaceDictNested:
         """Compute the observation based on the current simulation state and
         lower-level measure.
 

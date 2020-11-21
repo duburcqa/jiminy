@@ -15,7 +15,7 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from .utils import FieldDictRecursive, SpaceDictRecursive
+from .utils import FieldDictNested, SpaceDictNested
 from .generic_bases import ControllerInterface, ObserverInterface
 from .env_bases import BaseJiminyEnv
 
@@ -189,7 +189,7 @@ class BaseControllerBlock(ControllerInterface, BlockInterface):
             "The controller update period must be lower than or equal to the "
             "environment simulation timestep.")
 
-    def get_fieldnames(self) -> FieldDictRecursive:
+    def get_fieldnames(self) -> FieldDictNested:
         """Get mapping between each scalar element of the action space of the
         controller and the associated fieldname for logging.
 
@@ -309,8 +309,8 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
             "environment simulation timestep.")
 
     def compute_observation(self,  # type: ignore[override]
-                            measure: SpaceDictRecursive
-                            ) -> SpaceDictRecursive:
+                            measure: SpaceDictNested
+                            ) -> SpaceDictNested:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 

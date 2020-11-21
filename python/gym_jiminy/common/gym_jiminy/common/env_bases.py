@@ -25,7 +25,7 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, fill, SpaceDictRecursive
+from .utils import _clamp, zeros, fill, SpaceDictNested
 from .generic_bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -380,7 +380,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
               controller_hook: Optional[Callable[[], Tuple[
                   Optional[ObserverHandleType],
                   Optional[ControllerHandleType]]]] = None
-              ) -> SpaceDictRecursive:
+              ) -> SpaceDictNested:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -540,7 +540,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def step(self,
              action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Action to perform. `None` to not update the action.
@@ -812,7 +812,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         return qpos, qvel
 
     def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+                            ) -> SpaceDictNested:
         """Compute the observation based on the current state of the robot.
         """
         # pylint: disable=arguments-differ
@@ -827,7 +827,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             sensors=self._sensors_data)
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
+                        measure: SpaceDictNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -935,7 +935,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                 dtype=np.float64)))
 
     def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+                            ) -> SpaceDictNested:
         # Assertion(s) for type checker
         assert self._desired_goal is not None
 
@@ -947,14 +947,14 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
     def reset(self,
               controller_hook: Optional[Callable[[], None]] = None
-              ) -> SpaceDictRecursive:
+              ) -> SpaceDictNested:
         self._desired_goal = self._sample_goal()
         return super().reset(controller_hook)
 
     # methods to override:
     # ----------------------------
 
-    def _sample_goal(self) -> SpaceDictRecursive:
+    def _sample_goal(self) -> SpaceDictNested:
         """Sample a goal randomly.
 
         .. note::
@@ -966,7 +966,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """
         raise NotImplementedError
 
-    def _get_achieved_goal(self) -> SpaceDictRecursive:
+    def _get_achieved_goal(self) -> SpaceDictNested:
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
@@ -979,8 +979,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def is_done(self,  # type: ignore[override]
-                achieved_goal: Optional[SpaceDictRecursive] = None,
-                desired_goal: Optional[SpaceDictRecursive] = None) -> bool:
+                achieved_goal: Optional[SpaceDictNested] = None,
+                desired_goal: Optional[SpaceDictNested] = None) -> bool:
         """Determine whether a desired goal has been achieved.
 
         By default, it uses the termination condition inherited from normal
@@ -1003,8 +1003,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def compute_reward(self,  # type: ignore[override]
-                       achieved_goal: Optional[SpaceDictRecursive] = None,
-                       desired_goal: Optional[SpaceDictRecursive] = None,
+                       achieved_goal: Optional[SpaceDictNested] = None,
+                       desired_goal: Optional[SpaceDictNested] = None,
                        *, info: Dict[str, Any]) -> float:
         """Compute the reward for any given episode state.
 
