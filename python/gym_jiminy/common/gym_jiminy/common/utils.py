@@ -10,14 +10,14 @@ import gym
 import jiminy_py.core as jiminy
 
 
-SpaceDictRecursive = Union[  # type: ignore
-    Dict[str, 'SpaceDictRecursive'], np.ndarray]  # type: ignore
+SpaceDictNested = Union[  # type: ignore
+    Dict[str, 'SpaceDictNested'], np.ndarray]  # type: ignore
 ListStrRecursive = Sequence[Union[str, 'ListStrRecursive']]  # type: ignore
-FieldDictRecursive = Union[  # type: ignore
-    Dict[str, 'FieldDictRecursive'], ListStrRecursive]  # type: ignore
+FieldDictNested = Union[  # type: ignore
+    Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
 
 
-def zeros(space: gym.Space) -> SpaceDictRecursive:
+def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     """Set to zero data from `Gym.Space`.
     """
     if isinstance(space, gym.spaces.Dict):
@@ -33,7 +33,7 @@ def zeros(space: gym.Space) -> SpaceDictRecursive:
         f"Space of type {type(space)} is not supported by this method.")
 
 
-def fill(data: SpaceDictRecursive,
+def fill(data: SpaceDictNested,
          fill_value: float) -> None:
     """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
     """
@@ -47,8 +47,8 @@ def fill(data: SpaceDictRecursive,
             f"Data of type {type(data)} is not supported by this method.")
 
 
-def set_value(data: SpaceDictRecursive,
-              value: SpaceDictRecursive) -> None:
+def set_value(data: SpaceDictNested,
+              value: SpaceDictNested) -> None:
     """Partially set 'data' from `Gym.Space` to 'value'.
 
     It avoids memory allocation, so that memory pointers of 'data' remains
@@ -69,19 +69,31 @@ def set_value(data: SpaceDictRecursive,
             f"Data of type {type(data)} is not supported by this method.")
 
 
-def _clamp(space: gym.Space, x: SpaceDictRecursive) -> SpaceDictRecursive:
+def copy(data: SpaceDictNested) -> SpaceDictNested:
+    """Shadow copy recursively 'data' from `Gym.Space`, so that only leaves
+    are still references.
+    """
+    if isinstance(data, dict):
+        value = data.__class__()
+        for field, sub_data in data.items():
+            value[field] = copy(sub_data)
+        return value
+    return data
+
+
+def _clamp(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     """Clamp an element from Gym.Space to make sure it is within bounds.
 
     :meta private:
     """
     if isinstance(space, gym.spaces.Dict):
         return OrderedDict(
-            (k, _clamp(subspace, x[k]))
+            (k, _clamp(subspace, value[k]))
             for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Box):
-        return np.clip(x, space.low, space.high)
+        return np.clip(value, space.low, space.high)
     if isinstance(space, gym.spaces.Discrete):
-        return np.clip(x, 0, space.n)
+        return np.clip(value, 0, space.n)
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")
@@ -106,8 +118,8 @@ def _is_breakpoint(t: float, dt: float, eps: float) -> bool:
 
 
 def register_variables(controller: jiminy.AbstractController,
-                       field: FieldDictRecursive,
-                       data: SpaceDictRecursive,
+                       field: FieldDictNested,
+                       data: SpaceDictNested,
                        namespace: Optional[str] = None) -> bool:
     """Register data from `Gym.Space` to the telemetry of a controller.
 

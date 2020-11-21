@@ -7,15 +7,15 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from .utils import _clamp, set_value, SpaceDictRecursive
+from .utils import _clamp, set_value, copy, SpaceDictNested
 
 
-class ControlInterface:
+class ControllerInterface:
     """Controller interface for both controllers and environments.
     """
     control_dt: float
     action_space: Optional[gym.Space]
-    _action: Optional[SpaceDictRecursive]
+    _action: Optional[SpaceDictNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the control interface.
@@ -33,7 +33,7 @@ class ControlInterface:
 
         self.enable_reward_terminal = (
             self.compute_reward_terminal.  # type: ignore[attr-defined]
-            __func__ is not ControlInterface.compute_reward_terminal)
+            __func__ is not ControllerInterface.compute_reward_terminal)
 
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
@@ -47,9 +47,9 @@ class ControlInterface:
         raise NotImplementedError
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
-                        action: SpaceDictRecursive
-                        ) -> SpaceDictRecursive:
+                        measure: SpaceDictNested,
+                        action: SpaceDictNested
+                        ) -> SpaceDictNested:
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 
@@ -101,12 +101,12 @@ class ControlInterface:
         raise NotImplementedError
 
 
-class ObserveInterface:
+class ObserverInterface:
     """Observer interface for both observers and environments.
     """
     observe_dt: float
     observation_space: Optional[gym.Space]
-    _observation: Optional[SpaceDictRecursive]
+    _observation: Optional[SpaceDictNested]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Initialize the observation interface.
@@ -136,7 +136,7 @@ class ObserveInterface:
         """
         set_value(self._observation, self.compute_observation())
 
-    def get_observation(self, bypass: bool = False) -> SpaceDictRecursive:
+    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
         """Get post-processed observation.
 
         By default, it clamps the observation to make sure it does not violate
@@ -147,10 +147,11 @@ class ObserveInterface:
             doing so may lead to unexpected behavior if not done carefully.
 
         :param bypass: Whether to nor to bypass post-processing and return
-                       the original observation instead.
+                       the original observation instead (yet recursively
+                       shadow copied).
         """
         if bypass:
-            return self._observation
+            return copy(self._observation)
         return _clamp(self.observation_space, self._observation)
 
     # methods to override:
@@ -163,7 +164,7 @@ class ObserveInterface:
 
     def compute_observation(self,
                             *args: Any,
-                            **kwargs: Any) -> SpaceDictRecursive:
+                            **kwargs: Any) -> SpaceDictNested:
         """Compute the observation based on the current simulation state and
         lower-level measure.
 
@@ -174,7 +175,7 @@ class ObserveInterface:
         raise NotImplementedError
 
 
-class ObserveAndControlInterface(ObserveInterface, ControlInterface):
+class ObserverControllerInterface(ObserverInterface, ControllerInterface):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
@@ -182,12 +183,23 @@ class ObserveAndControlInterface(ObserveInterface, ControlInterface):
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 
-    def _send_command(self,
-                      t: float,
-                      q: np.ndarray,
-                      v: np.ndarray,
-                      sensors_data: jiminy.sensorsData,
-                      u_command: np.ndarray) -> None:
+    def _observer_handle(self,
+                         t: float,
+                         q: np.ndarray,
+                         v: np.ndarray,
+                         sensors_data: jiminy.sensorsData) -> None:
+        """TODO Write documentation.
+        """
+        # pylint: disable=unused-argument
+
+        self.refresh_observation()
+
+    def _controller_handle(self,
+                           t: float,
+                           q: np.ndarray,
+                           v: np.ndarray,
+                           sensors_data: jiminy.sensorsData,
+                           u_command: np.ndarray) -> None:
         """This method is the main entry-point to interact with the simulator.
         It is design to apply motors efforts on the robot, but in practice it
         also updates the observation before computing the command.
@@ -212,14 +224,5 @@ class ObserveAndControlInterface(ObserveInterface, ControlInterface):
         """
         # pylint: disable=unused-argument
 
-        # Refresh the observation.
-        # Note that the controller update period must be multiple of the sensor
-        # update period, so that it is unnecessary to check if it is a
-        # breakpoint. A dedicated `BaseObserverBlock` must be used if one wants
-        # to observe a low-frequency features instead of overloading
-        # `compute_observation` and `_refresh_observation_space` directly.
-        self.refresh_observation()
-
-        # Compute the command to send to the motors
         np.copyto(u_command, self.compute_command(
             self.get_observation(bypass=True), self._action))

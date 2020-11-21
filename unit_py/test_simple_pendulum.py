@@ -208,12 +208,12 @@ class SimulateSimplePendulum(unittest.TestCase):
         # Compute sensor acceleration, i.e. acceleration in polar coordinates
         theta = x_rk_python[:, 0]
         dtheta = x_rk_python[:, 1]
+        dtheta = x_rk_python[:, 1]
 
         # Acceleration: to resolve algebraic loop (current acceleration is
         # function of input which itself is function of sensor signal, sensor
-        # data is computed using q_t, v_t, a_(t-1)
-        ddtheta = np.concatenate([
-            np.zeros(1), dynamics(0.0, x_rk_python)[:-1, 1]])
+        # data is computed using q_t, v_t, a_t
+        ddtheta = dynamics(0.0, x_rk_python)[:, 1]
 
         expected_accel = np.stack([
             - self.l * ddtheta + self.g * np.sin(theta),

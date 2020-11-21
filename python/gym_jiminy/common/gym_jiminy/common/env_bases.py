@@ -20,12 +20,13 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
-from jiminy_py.controller import BaseJiminyController, ControllerHandleType
+from jiminy_py.controller import (
+    ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, fill, SpaceDictRecursive
-from .generic_bases import ObserveAndControlInterface
+from .utils import _clamp, zeros, fill, set_value, SpaceDictNested
+from .generic_bases import ObserverControllerInterface
 from .play import loop_interactive
 
 
@@ -43,7 +44,7 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
+class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -89,14 +90,14 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         """
         # pylint: disable=unused-argument
 
-        # Initialize the interfaces through multiple inheritance
-        super().__init__(**kwargs)
-
         # Backup some user arguments
         self.simulator = simulator
         self.step_dt = step_dt
         self.enforce_bounded = enforce_bounded
         self.debug = debug
+
+        # Initialize the interfaces through multiple inheritance
+        super().__init__(**kwargs)
 
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
@@ -376,9 +377,10 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             dtype=np.float64)
 
     def reset(self,
-              controller_hook: Optional[
-                  Callable[[], Optional[ControllerHandleType]]] = None
-              ) -> SpaceDictRecursive:
+              controller_hook: Optional[Callable[[], Optional[Tuple[
+                  Optional[ObserverHandleType],
+                  Optional[ControllerHandleType]]]]] = None
+              ) -> SpaceDictNested:
         """Reset the environment.
 
         In practice, it resets the backend simulator and set the initial state
@@ -395,13 +397,14 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                                 right after initialization of the environment,
                                 and just before actually starting the
                                 simulation. It is a callable that optionally
-                                returns a controller handle. If so, it will be
-                                used to initialize the low-level jiminy
-                                controller. It is useful to override partially
-                                the configuration of the low-level engine, set
-                                a custom low-level controller handle, or to
-                                register custom variables to the telemetry. Set
-                                to `None` if unused.
+                                returns observer and/or controller handles. If
+                                defined, it will be used to initialize the
+                                low-level jiminy controller. It is useful to
+                                override partially the configuration of the
+                                low-level engine, set a custom low-level
+                                observer/controller handle, or to register
+                                custom variables to the telemetry. Set to
+                                `None` if unused.
                                 Optional: Disable by default.
 
         :returns: Initial observation of the episode.
@@ -435,37 +438,39 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
             os.close(fd)
 
-        # Extract the controller and observer update period.
+        # Extract the observer/controller update period.
         # There is no actual observer by default, apart from the robot's state
-        # and raw sensors data, so the observation period matches the one of
-        # the sensors. Similarly, there is no actual controller by default,
-        # apart from forwarding the command torque to the motors.
+        # and raw sensors data. Similarly, there is no actual controller by
+        # default, apart from forwarding the command torque to the motors.
         engine_options = self.simulator.engine.get_options()
-        self.control_dt = \
+        self.control_dt = self.observe_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
-        self.observe_dt = \
-            float(engine_options['stepper']['sensorsUpdatePeriod'])
 
         # Enforce the low-level controller.
         # The backend robot may have changed, for example if it is randomly
         # generated based on different URDF files. As a result, it is necessary
         # to instantiate a new low-level controller.
-        # Note that `BaseJiminyController` is used by default in place of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because it
-        # adds an extra layer of indirection, it makes it possible to update
+        # Note that `BaseJiminyObserverController` is used by default in place
+        # of `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
         # the controller handle in advance.
-        controller = BaseJiminyController()
+        controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
-        # Run controller hook and set the controller handle
-        controller_handle = None
+        # Run controller hook and set the observer and controller handles
+        observer_handle, controller_handle = None, None
         if controller_hook is not None:
-            controller_handle = controller_hook()
+            handles = controller_hook()
+            if handles is not None:
+                observer_handle, controller_handle = handles
+        if observer_handle is None:
+            observer_handle = self._observer_handle
+        self.simulator.controller.set_observer_handle(observer_handle)
         if controller_handle is None:
-            controller_handle = self._send_command
+            controller_handle = self._controller_handle
         self.simulator.controller.set_controller_handle(controller_handle)
 
         # Sample the initial state and reset the low-level engine
@@ -477,13 +482,8 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
                 "inconsistent with the dimension or types of joints of the "
                 "model.")
 
-        # Start the engine, in order to initialize the sensors data
-        hresult = self.simulator.start(
-            qpos, qvel, self.simulator.use_theoretical_model)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Failed to start the simulation. Probably because the "
-                "initial state is invalid.")
+        # Start the engine
+        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
         # Update the observation
         self._observation = self.compute_observation()
@@ -542,7 +542,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
     def step(self,
              action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
+             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
         """Run a simulation step for a given action.
 
         :param action: Action to perform. `None` to not update the action.
@@ -563,9 +563,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         is_step_failed = True
         try:
             # Perform a single integration step
-            return_code = self.simulator.step(self.step_dt)
-            if return_code != jiminy.hresult_t.SUCCESS:
-                raise RuntimeError("Failed to perform the simulation step.")
+            self.simulator.step(self.step_dt)
 
             # Update some internal buffers
             self.num_steps += 1
@@ -815,8 +813,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 
         return qpos, qvel
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
         """
         # pylint: disable=arguments-differ
@@ -831,7 +828,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
             sensors=self._sensors_data)
 
     def compute_command(self,
-                        measure: SpaceDictRecursive,
+                        measure: SpaceDictNested,
                         action: np.ndarray
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
@@ -843,6 +840,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        set_value(self._action, action)
         return _clamp(self.action_space, action)
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:
@@ -887,7 +885,7 @@ class BaseJiminyEnv(gym.Env, ObserveAndControlInterface):
 BaseJiminyEnv.compute_reward.__doc__ = \
     """Compute reward at current episode state.
 
-    See `ControlInterface.compute_reward` for details.
+    See `ControllerInterface.compute_reward` for details.
 
     .. note::
         This method is called after updating the internal buffer
@@ -914,11 +912,11 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  simulator: Optional[Simulator],
                  step_dt: float,
                  debug: bool = False) -> None:
-        # Initialize base class
-        super().__init__(simulator, step_dt, debug)
-
         # Define some internal buffers
         self._desired_goal: Optional[np.ndarray] = None
+
+        # Initialize base class
+        super().__init__(simulator, step_dt, debug)
 
     def _refresh_observation_space(self) -> None:
         # Assertion(s) for type checker
@@ -938,8 +936,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float64)))
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictRecursive:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         # Assertion(s) for type checker
         assert self._desired_goal is not None
 
@@ -950,15 +947,17 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         )
 
     def reset(self,
-              controller_hook: Optional[Callable[[], None]] = None
-              ) -> SpaceDictRecursive:
+              controller_hook: Optional[Callable[[], Optional[Tuple[
+                  Optional[ObserverHandleType],
+                  Optional[ControllerHandleType]]]]] = None
+              ) -> SpaceDictNested:
         self._desired_goal = self._sample_goal()
         return super().reset(controller_hook)
 
     # methods to override:
     # ----------------------------
 
-    def _sample_goal(self) -> SpaceDictRecursive:
+    def _sample_goal(self) -> SpaceDictNested:
         """Sample a goal randomly.
 
         .. note::
@@ -970,7 +969,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """
         raise NotImplementedError
 
-    def _get_achieved_goal(self) -> SpaceDictRecursive:
+    def _get_achieved_goal(self) -> SpaceDictNested:
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
@@ -983,8 +982,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def is_done(self,  # type: ignore[override]
-                achieved_goal: Optional[SpaceDictRecursive] = None,
-                desired_goal: Optional[SpaceDictRecursive] = None) -> bool:
+                achieved_goal: Optional[SpaceDictNested] = None,
+                desired_goal: Optional[SpaceDictNested] = None) -> bool:
         """Determine whether a desired goal has been achieved.
 
         By default, it uses the termination condition inherited from normal
@@ -1007,8 +1006,8 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         raise NotImplementedError
 
     def compute_reward(self,  # type: ignore[override]
-                       achieved_goal: Optional[SpaceDictRecursive] = None,
-                       desired_goal: Optional[SpaceDictRecursive] = None,
+                       achieved_goal: Optional[SpaceDictNested] = None,
+                       desired_goal: Optional[SpaceDictNested] = None,
                        *, info: Dict[str, Any]) -> float:
         """Compute the reward for any given episode state.
 

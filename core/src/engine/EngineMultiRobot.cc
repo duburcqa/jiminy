@@ -1127,48 +1127,24 @@ namespace jiminy
                 }
             }
 
-            if (stepperUpdatePeriod_ > EPS)
+            // Update the controller command if necessary (only for finite update frequency)
+            if (stepperUpdatePeriod_ > EPS && engineOptions_->stepper.controllerUpdatePeriod > EPS)
             {
-                // Update the sensor data if necessary (only for finite update frequency)
-                if (engineOptions_->stepper.sensorsUpdatePeriod > EPS)
+                float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
+                float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
+                if (dtNextControllerUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
                 {
-                    float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-                    float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
-                    if (dtNextSensorsUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                    || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
+                    auto systemIt = systems_.begin();
+                    auto systemDataIt = systemsDataHolder_.begin();
+                    for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
                     {
-                        auto systemIt = systems_.begin();
-                        auto systemDataIt = systemsDataHolder_.begin();
-                        for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-                        {
-                            vectorN_t const & q = systemDataIt->state.q;
-                            vectorN_t const & v = systemDataIt->state.v;
-                            vectorN_t const & a = systemDataIt->state.a;
-                            vectorN_t const & uMotor = systemDataIt->state.uMotor;
-                            systemIt->robot->setSensorsData(t, q, v, a, uMotor);
-                        }
+                        vectorN_t const & q = systemDataIt->state.q;
+                        vectorN_t const & v = systemDataIt->state.v;
+                        vectorN_t & uCommand = systemDataIt->state.uCommand;
+                        computeCommand(*systemIt, t, q, v, uCommand);
                     }
-                }
-
-                // Update the controller command if necessary (only for finite update frequency)
-                if (engineOptions_->stepper.controllerUpdatePeriod > EPS)
-                {
-                    float64_t const & controllerUpdatePeriod = engineOptions_->stepper.controllerUpdatePeriod;
-                    float64_t dtNextControllerUpdatePeriod = controllerUpdatePeriod - std::fmod(t, controllerUpdatePeriod);
-                    if (dtNextControllerUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
-                    || controllerUpdatePeriod - dtNextControllerUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0)
-                    {
-                        auto systemIt = systems_.begin();
-                        auto systemDataIt = systemsDataHolder_.begin();
-                        for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-                        {
-                            vectorN_t const & q = systemDataIt->state.q;
-                            vectorN_t const & v = systemDataIt->state.v;
-                            vectorN_t & uCommand = systemDataIt->state.uCommand;
-                            computeCommand(*systemIt, t, q, v, uCommand);
-                        }
-                        hasDynamicsChanged = true;
-                    }
+                    hasDynamicsChanged = true;
                 }
             }
 
@@ -1397,6 +1373,29 @@ namespace jiminy
 
                     // Initialize the next dt
                     dt = dtLargest;
+                }
+            }
+
+            // Update sensors data if necessary, namely if time-continuous or breakpoint
+            float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
+            bool mustUpdateSensors = sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP;
+            if (!mustUpdateSensors)
+            {
+                float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
+                mustUpdateSensors = (dtNextSensorsUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                || sensorsUpdatePeriod - dtNextSensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+            }
+            if (mustUpdateSensors)
+            {
+                auto systemIt = systems_.begin();
+                auto systemDataIt = systemsDataHolder_.begin();
+                for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+                {
+                    vectorN_t const & q = systemDataIt->state.q;
+                    vectorN_t const & v = systemDataIt->state.v;
+                    vectorN_t const & a = systemDataIt->state.a;
+                    vectorN_t const & uMotor = systemDataIt->state.uMotor;
+                    systemIt->robot->setSensorsData(t, q, v, a, uMotor);
                 }
             }
 

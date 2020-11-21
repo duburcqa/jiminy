@@ -8,7 +8,7 @@ from collections import OrderedDict
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from typing import Optional, Union, Type, Dict, Tuple, Sequence, Any
+from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import pinocchio as pin
 
@@ -19,7 +19,7 @@ from .core import (EncoderSensor as encoder,
                    ForceSensor as force,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
-from .controller import BaseJiminyController
+from .controller import BaseJiminyObserverController
 from .viewer import Viewer
 
 
@@ -56,10 +56,10 @@ class Simulator:
                  viewer_backend: Optional[str] = None):
         """
         :param robot: Jiminy robot already initialized.
-        :param controller: Jiminy controller already initialized.
-                           Optional: jiminy_py.core.ControllerFunctor doing
+        :param controller: Jiminy (observer-)controller already initialized.
+                           Optional: `BaseJiminyObserverController` doing
                            nothing by default.
-        :param engine_class: The class of engine to use.
+        :param engine_class: Class of engine to use.
                              Optional: jiminy_py.core.Engine by default.
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
@@ -75,7 +75,7 @@ class Simulator:
 
         # Instantiate and initialize a controller doing nothing if necessary
         if controller is None:
-            controller = BaseJiminyController()
+            controller = BaseJiminyObserverController()
             controller.initialize(robot)
 
         # Instantiate the low-level Jiminy engine, then initialize it
@@ -210,7 +210,7 @@ class Simulator:
             return AttributeError(
                 f"'{self.__class__}' object has no attribute '{name}'.")
 
-    def __dir__(self) -> Sequence[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
@@ -283,6 +283,52 @@ class Simulator:
         self.engine.set_options(engine_options)
         self.engine.reset()
 
+    def start(self,
+              q0: np.ndarray,
+              v0: np.ndarray,
+              is_state_theoretical: bool = False) -> None:
+        """Initialize a simulation, starting from x0=(q0,v0) at t=0.
+
+        :param q0: Initial configuration.
+        :param v0: Initial velocity.
+        :param is_state_theoretical: Whether or not the initial state is
+                                     associated with the actual or theoretical
+                                     model of the robot.
+        """
+        hresult = self.engine.start(q0, v0, is_state_theoretical)
+        if hresult != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError(
+                "Failed to start the simulation. Probably because the "
+                "initial state is invalid.")
+
+        # Update the observer at the end, if suitable
+        if isinstance(self.controller, BaseJiminyObserverController):
+            self.controller.refresh_observation(
+                self.engine.stepper_state.t,
+                self.engine.system_state.q,
+                self.engine.system_state.v,
+                self.robot.sensors_data)
+
+    def step(self, step_dt: float = -1) -> None:
+        """Integrate system dynamics from current state for a given duration.
+
+        :param step_dt: Duration for which to integrate. -1 to use default
+                        duration, namely until the next breakpoint if any,
+                        or 'engine_options["stepper"]["dtMax"]'.
+        """
+        # Perform a single integration step
+        return_code = self.engine.step(step_dt)
+        if return_code != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError("Failed to perform the simulation step.")
+
+        # Update the observer at the end, if suitable
+        if isinstance(self.controller, BaseJiminyObserverController):
+            self.controller.refresh_observation(
+                self.engine.stepper_state.t,
+                self.engine.system_state.q,
+                self.engine.system_state.v,
+                self.robot.sensors_data)
+
     def run(self,
             tf: float,
             q0: np.ndarray,
@@ -295,9 +341,9 @@ class Simulator:
         .. note::
             Optionally, log the result of the simulation.
 
+        :param tf: Simulation end time.
         :param q0: Initial configuration.
         :param v0: Initial velocity.
-        :param tf: Simulation end time.
         :param is_state_theoretical: Whether or not the initial state is
                                      associated with the actual or theoretical
                                      model of the robot.
@@ -317,7 +363,8 @@ class Simulator:
                 if show_progress_bar:
                     raise RuntimeError(
                         "'show_progress_bar' can only be used with controller "
-                        "inherited from `BaseJiminyController`.") from e
+                        "inherited from `BaseJiminyObserverController`."
+                        ) from e
                 show_progress_bar = False
         self.engine.simulate(tf, q0, v0, is_state_theoretical)
         if show_progress_bar is not False:

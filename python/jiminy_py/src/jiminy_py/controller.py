@@ -12,39 +12,35 @@ else:
     from tqdm import tqdm
 
 
+ObserverHandleType = Callable[[
+    float, np.ndarray, np.ndarray, jiminy.sensorsData], None]
 ControllerHandleType = Callable[[
-    float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray
-], None]
+    float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray], None]
 
 
-class BaseJiminyController(jiminy.ControllerFunctor):
-    """Base class to instantiate a Jiminy controller based on a callable
-    function that can be changed on-the-fly.
-
-    This class is primarily intended to be used for prototyping, for those who
-    want to experiment various models of internal dynamics for a given robot.
+class BaseJiminyObserverController(jiminy.ControllerFunctor):
+    """Base class to instantiate a Jiminy observer and/or controller based on
+    callables that can be changed on-the-fly.
 
     .. note::
         Native Python implementation of internal dynamics would be extremely
-        slow, so it is recommended to compile this class using for instance a
-        JIT compiler such a Numba. Doing it is out of scope of this project
-        for now and left to the user.
+        slow, so it is recommended to compile this class using a JIT compiler
+        such a Numba. Doing it is left to the user.
     """
     def __init__(self) -> None:
-        """
-        .. note::
-            Since no robot is available at this point, it is not possible to
-            specify a callable function directly, since it would be impossible
-            to check that it has the right signature and is properly defined.
-        """
         # Define some buffer to help factorizing computations
         self.robot: Optional[jiminy.Robot] = None
 
         # Internal buffer for progress bar management
         self.__pbar: Optional[tqdmType] = None
 
+        # Define some internal buffers
+        self.__must_refresh_observer = True
+        self.__controller_handle = \
+            lambda t, q, v, sensors_data, u: u.fill(0.0)
+        self.__observer_handle = lambda t, q, v, sensors_data: None
+
         # Initialize base controller
-        self.__controller_handle = lambda t, q, v, sensors_data, u: u.fill(0.0)
         super().__init__(
             self.__compute_command, self.internal_dynamics)
 
@@ -68,10 +64,13 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         super().reset()
         self.close_progress_bar()
 
-    def set_controller_handle(self,
-                              controller_handle: ControllerHandleType
-                              ) -> None:
-        r"""Set the controller callback function to use.
+    def set_observer_handle(self,
+                            observer_handle: ObserverHandleType) -> None:
+        r"""Set the observer callback function.
+
+        By default, the observer update period is the same of the controller.
+        One is responsible to implement custom breakpoint point management if
+        it must be different.
 
         :param compute_command:
             .. raw:: html
@@ -79,12 +78,40 @@ class BaseJiminyController(jiminy.ControllerFunctor):
                 Controller entry-point, implemented as a callback function.
                 It must have the following signature:
 
-            | controller_handle\(
-            |                    **t**: float,
+            | controller_handle\(**t**: float,
+            |                    **q**: np.ndarray,
+            |                    **v**: np.ndarray,
+            |                    **sensors_data**: jiminy_py.core.sensorsData
+            |                    \) -> None
+        """
+        try:
+            t = 0.0
+            y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
+            sensors_data = self.robot.sensors_data
+            observer_handle(t, y, dy, sensors_data)
+            self.__observer_handle = observer_handle
+        except Exception as e:
+            raise RuntimeError(
+                "The observer handle has wrong signature. It is expected:"
+                "\ncontroller_handle(t, y, dy, sensorsData) -> None"
+                ) from e
+
+    def set_controller_handle(self,
+                              controller_handle: ControllerHandleType) -> None:
+        r"""Set the controller callback function.
+
+        :param compute_command:
+            .. raw:: html
+
+                Controller entry-point, implemented as a callback function.
+                It must have the following signature:
+
+            | controller_handle\(**t**: float,
             |                    **q**: np.ndarray,
             |                    **v**: np.ndarray,
             |                    **sensors_data**: jiminy_py.core.sensorsData,
-            |                    **u_command**: np.ndarray\) -> None
+            |                    **u_command**: np.ndarray
+            |                    \) -> None
         """
         try:
             t = 0.0
@@ -95,7 +122,7 @@ class BaseJiminyController(jiminy.ControllerFunctor):
             self.__controller_handle = controller_handle
         except Exception as e:
             raise RuntimeError(
-                "The controller handle has a wrong signature. It is expected:"
+                "The controller handle has wrong signature. It is expected:"
                 "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
                 ) from e
 
@@ -109,7 +136,21 @@ class BaseJiminyController(jiminy.ControllerFunctor):
         """
         if self.__pbar is not None:
             self.__pbar.update(t - self.__pbar.n)
+        if self.__must_refresh_observer:
+            self.__observer_handle(t, q, v, sensors_data)
         self.__controller_handle(t, q, v, sensors_data, u)
+        self.__must_refresh_observer = True
+
+    def refresh_observation(self,
+                            t: float,
+                            q: np.ndarray,
+                            v: np.ndarray,
+                            sensors_data: jiminy.sensorsData) -> None:
+        """Refresh observer.
+        """
+        if self.__must_refresh_observer:
+            self.__observer_handle(t, q, v, sensors_data)
+        self.__must_refresh_observer = False
 
     def set_progress_bar(self, tf: float) -> None:
         """Reset the progress bar. It must be called manually after calling
@@ -130,7 +171,7 @@ class BaseJiminyController(jiminy.ControllerFunctor):
                           q: np.ndarray,
                           v: np.ndarray,
                           sensors_data: jiminy.sensorsData,
-                          u_command: np.ndarray) -> None:
+                          u: np.ndarray) -> None:
         """Internal dynamics of the robot.
 
         Overload this method to implement a custom internal dynamics for the

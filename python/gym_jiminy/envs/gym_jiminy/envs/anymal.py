@@ -6,6 +6,7 @@ from pkg_resources import resource_filename
 
 from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 from gym_jiminy.common.control_impl import PDController
+from gym_jiminy.common.wrappers import StackedJiminyEnv
 from gym_jiminy.common.pipeline_bases import build_pipeline
 
 
@@ -63,28 +64,29 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             debug=debug,
             **kwargs)
 
-    # def _refresh_observation_space(self) -> None:
-    #     self.observation_space = self._get_state_space()
-
-    # def compute_observation(self) -> None:
-    #     return np.concatenate(self._state)
-
 
 ANYmalPDControlJiminyEnv = build_pipeline(**{
-    'env_config': (
-        ANYmalJiminyEnv,
-        {}
-    ),
-    'controllers_config': [(
-        PDController,
-        {
+    'env_config': {
+        'env_class': ANYmalJiminyEnv
+    },
+    'blocks_config': [{
+        'block_class': PDController,
+        'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
             'pid_kp': PID_KP,
             'pid_kd': PID_KD
         },
+        'wrapper_kwargs': {
+            'augment_observation': True
+        }},
         {
-            'augment_observation': False
-        }
-    )],
-    'observers_config': ()
+        'wrapper_class': StackedJiminyEnv,
+        'wrapper_kwargs': {
+            'nested_fields_list': [
+                ('targets',)
+            ],
+            'num_stack': 3,
+            'skip_frames_ratio': 1
+        }}
+    ]
 })

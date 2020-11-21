@@ -1069,7 +1069,7 @@ namespace jiminy
         }
         catch (std::logic_error const & e)
         {
-            std::cout << "hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls." << std::endl;
+            PRINT_WARNING("hpp-fcl not built with qhull. Impossible to convert meshes to convex hulls.");
         }
 
         // Instantiate ground FCL box geometry, wrapped as a pinocchio collision geometry.
