@@ -92,7 +92,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                        observation or the post-processed computed features.
         """
         if bypass:
-            return self.env.get_observation(True)
+            return self.env.get_observation(bypass=True)
         else:
             return _clamp(self.observation_space, self._observation)
 
@@ -201,7 +201,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # pylint: disable=arguments-differ
 
         self.env.refresh_observation()
-        return self.get_observation(bypass=True).copy()  # No deepcopy !
+        return self.get_observation(bypass=True)
 
     def compute_command(self,
                         measure: SpaceDictRecursive,

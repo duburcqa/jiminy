@@ -7,7 +7,7 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from .utils import _clamp, set_value, SpaceDictRecursive
+from .utils import _clamp, set_value, copy, SpaceDictRecursive
 
 
 class ControllerInterface:
@@ -147,10 +147,11 @@ class ObserverInterface:
             doing so may lead to unexpected behavior if not done carefully.
 
         :param bypass: Whether to nor to bypass post-processing and return
-                       the original observation instead.
+                       the original observation instead (yet recursively
+                       shadow copied).
         """
         if bypass:
-            return self._observation
+            return copy(self._observation)
         return _clamp(self.observation_space, self._observation)
 
     # methods to override:
