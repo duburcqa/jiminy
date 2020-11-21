@@ -18,6 +18,7 @@ from typing import (
 
 import numpy as np
 import gym
+from typing_extensions import TypedDict
 
 from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
@@ -93,7 +94,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                        observation or the post-processed computed features.
         """
         if bypass:
-            return self.env.get_observation(bypass=True)
+            return self.env.get_observation()
         else:
             return _clamp(self.observation_space, self._observation)
 
@@ -587,62 +588,79 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         return obs
 
 
-def build_pipeline(env_config: Tuple[
-                       Type[BaseJiminyEnv],
-                       Dict[str, Any]],
-                   controllers_config: Sequence[Tuple[
-                       Type[BaseControllerBlock],
-                       Dict[str, Any],
-                       Dict[str, Any]]] = (),
-                   observers_config: Sequence[Tuple[
-                       Type[BaseObserverBlock],
-                       Dict[str, Any],
-                       Dict[str, Any]]] = (),
+class EnvConfig(TypedDict, total=False):
+    """Environment class type.
+    """
+    env_class: Type[BaseJiminyEnv]
+
+    """Environment constructor default arguments.
+
+    This attribute can be omitted.
+    """
+    env_kwargs: Dict[str, Any]
+
+
+class BlockConfig(TypedDict, total=False):
+    """Block class type. If specified, it must derive from
+    `BaseControllerBlock` for controller blocks or `BaseObserverBlock` for
+    observer blocks.
+
+    This attribute can be omitted. If so, then 'block_kwargs' must be omitted
+    and 'wrapper_class' must be specified. Indeed, not all block are associated
+    with a dedicated observer or controller object. It happens when the block
+    is not doing any computation on its own but just transforming the action or
+    observation, e.g. stacking observation frames.
+    """
+    block_class: Union[
+        Type[BaseControllerBlock], Type[BaseObserverBlock]]
+
+    """Block constructor default arguments.
+
+    This attribute can be omitted.
+    """
+    block_kwargs: Dict[str, Any]
+
+    """Wrapper class type.
+
+    This attribute can be omitted. If so, then 'wrapper_kwargs' must be omitted
+    and 'block_class' must be specified. The latter will be used to infer the
+    default wrapper type.
+    """
+    wrapper_class: Type[BasePipelineWrapper]
+
+    """Wrapper constructor default arguments.
+
+    This attribute can be omitted.
+    """
+    wrapper_kwargs: Dict[str, Any]
+
+
+def build_pipeline(env_config: EnvConfig,
+                   blocks_config: Sequence[BlockConfig] = ()
                    ) -> Type[BasePipelineWrapper]:
     """Wrap together an environment inheriting from `BaseJiminyEnv` with any
-    number of controllers and observers as a unified pipeline environment class
-    inheriting from `BasePipelineWrapper`.
-
-    Each controller and observers are wrapped individually, successively. The
-    controllers are wrapped first, using `ControlledJiminyEnv`. Then comes the
-    observers, using `ObservedJiminyEnv`, so that intermediary controllers
-    targets are always available if requested.
+    number of blocks, as a unified pipeline environment class inheriting from
+    `BasePipelineWrapper`. Each block is wrapped individually and successively.
 
     :param env_config:
-        Configuration of the environment, as a tuple:
+        Configuration of the environment, as a dict of type `EnvConfig`.
 
-          - [0] Environment class type.
-          - [1] Environment constructor default arguments.
-
-    :param controllers_config:
-        Configuration of the controllers, as a list. The list is ordered from
-        the lowest level controller to the highest, each element corresponding
-        to the configuration of a individual controller, as a tuple:
-
-          - [0] Controller class type.
-          - [1] Controller constructor default arguments.
-          - [2] `ControlledJiminyEnv` constructor default arguments.
-
-    :param observers_config:
-        Configuration of the observers, as a list. The list is ordered from
-        the lowest level observer to the highest, each element corresponding
-        to the configuration of a individual observer, as a tuple:
-
-          - [0] Observer class type.
-          - [1] Observer constructor default arguments.
-          - [2] `ObservedJiminyEnv` constructor default arguments.
+    :param blocks_config:
+        Configuration of the blocks, as a list. The list is ordered from the
+        lowest level block to the highest, each element corresponding to the
+        configuration of a individual block, as a dict of type `BlockConfig`.
     """
     # pylint: disable-all
 
     def _build_wrapper(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
-                       env_kwargs_default: Optional[Dict[str, Any]],
-                       block_class: Type[BlockInterface],
-                       block_kwargs_default: Dict[str, Any],
-                       wrapper_class: Type[BasePipelineWrapper],
-                       wrapper_kwargs_default: Dict[str, Any]
+                       env_kwargs: Optional[Dict[str, Any]] = None,
+                       block_class: Optional[Type[BlockInterface]] = None,
+                       block_kwargs: Optional[Dict[str, Any]] = None,
+                       wrapper_class: Optional[Type[BasePipelineWrapper]] = None,
+                       wrapper_kwargs: Optional[Dict[str, Any]] = None
                        ) -> Type[ControlledJiminyEnv]:
-        """Generate a class inheriting from 'wrapper_class' and wrapping a
-        given type of environment and block together.
+        """Generate a class inheriting from 'wrapper_class' wrapping a given
+        type of environment, optionally gathered with a block.
 
         .. warning::
             Beware of the collision between the keywords arguments of the
@@ -650,29 +668,41 @@ def build_pipeline(env_config: Tuple[
             overwrite their default values independently.
 
         :param env_class: Type of environment to wrap.
-        :param env_kwargs_default: Keyword arguments to forward to the
-                                   constructor of the wrapped environment. Note
-                                   that it will only overwrite the default
-                                   value, so it will still be possible to set
-                                   different values by explicitly defining them
-                                   when calling the constructor of the
-                                   generated wrapper.
-        :param block_class: Type of block to connect to the environment.
-        :param block_kwargs_default: Keyword arguments to forward to the
-                                     constructor of the wrapped block.
-                                     See 'env_kwargs_default'.
+        :param env_kwargs: Keyword arguments to forward to the constructor of
+                           the wrapped environment. Note that it will only
+                           overwrite the default value, so it will still be
+                           possible to set different values by explicitly
+                           defining them when calling the constructor of the
+                           generated wrapper.
+        :param block_class: Type of block to connect to the environment, if
+                            any. `None` to disable.
+                            Optional: Disable by default
+        :param block_kwargs: Keyword arguments to forward to the constructor of
+                             the wrapped block. See 'env_kwargs'.
         :param wrapper_class: Type of wrapper to use to gather the environment
                               and the block.
-        :param wrapper_kwargs_default: Keyword arguments to forward to the
-                                       constructor of the wrapper.
-                                       See 'env_kwargs_default'.
+        :param wrapper_kwargs: Keyword arguments to forward to the constructor
+                               of the wrapper. See 'env_kwargs'.
         """
         # pylint: disable-all
 
-        wrapped_env_class = type(
-            f"{block_class.__name__}Env",  # Class name
-            (wrapper_class,),  # Bases
-            {})  # methods (__init__ cannot be implemented this way, cf below)
+        # Handling of default arguments
+        if block_class is not None and wrapper_class is None:
+            if issubclass(block_class, BaseControllerBlock):
+                wrapper_class = ControlledJiminyEnv
+            elif issubclass(block_class, BaseObserverBlock):
+                wrapper_class = ObservedJiminyEnv
+            else:
+                raise ValueError(
+                    f"Block of type '{block_class}' does not support "
+                    "automatic default wrapper type inference. Please specify "
+                    "it manually.")
+
+        # Dynamically generate wrapping class
+        wrapper_name = f"{wrapper_class.__name__}Wrapper"
+        if block_class is not None:
+            wrapper_name += f"{block_class.__name__}Block"
+        wrapped_env_class = type(wrapper_name, (wrapper_class,), {})
 
         # Implementation of __init__ method must be done after declaration of
         # the class, because the required closure for calling `super()` is not
@@ -684,31 +714,45 @@ def build_pipeline(env_config: Tuple[
                            environment and the controller. It will overwrite
                            default values.
             """
-            if env_kwargs_default is not None:
-                env_kwargs = {**env_kwargs_default, **kwargs}
+            nonlocal env_class, env_kwargs, block_class, block_kwargs, \
+                     wrapper_kwargs
+
+            # Initialize constructor arguments
+            args = []
+
+            # Define the arguments related to the environment
+            if env_kwargs is not None:
+                env_kwargs = {**env_kwargs, **kwargs}
             else:
                 env_kwargs = kwargs
             env = env_class(**env_kwargs)
-            block = block_class(
-                env.unwrapped, **{**block_kwargs_default, **kwargs})
+            args.append(env)
+
+            # Define the arguments related to the block, if any
+            if block_class is not None:
+                if block_kwargs is not None:
+                    block_kwargs = {**block_kwargs, **kwargs}
+                else:
+                    block_kwargs = kwargs
+                args.append(block_class(env.unwrapped, **block_kwargs))
+
+            # Define the arguments related to the wrapper
+            if wrapper_kwargs is not None:
+                wrapper_kwargs = {**wrapper_kwargs, **kwargs}
+            else:
+                wrapper_kwargs = kwargs
+
             super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-                env, block, **{**wrapper_kwargs_default, **kwargs})
+               *args, **wrapper_kwargs)
 
         wrapped_env_class.__init__ = __init__  # type: ignore[misc]
 
         return wrapped_env_class
 
-    env_kwargs: Optional[Dict[str, Any]]
-    env_class, env_kwargs = env_config
-    pipeline_class = env_class
-    for (ctrl_class, ctrl_kwargs, wrapper_kwargs) in controllers_config:
+    pipeline_class = env_config['env_class']
+    env_kwargs = env_config.get('env_kwargs', None)
+    for config in blocks_config:
         pipeline_class = _build_wrapper(
-            pipeline_class, env_kwargs, ctrl_class, ctrl_kwargs,
-            ControlledJiminyEnv, wrapper_kwargs)
-        env_kwargs = None
-    for (obs_class, obs_kwargs, wrapper_kwargs) in observers_config:
-        pipeline_class = _build_wrapper(
-            pipeline_class, env_kwargs, obs_class, obs_kwargs,
-            ObservedJiminyEnv, wrapper_kwargs)
+            pipeline_class, env_kwargs, **config)
         env_kwargs = None
     return pipeline_class

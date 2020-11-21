@@ -63,28 +63,21 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             debug=debug,
             **kwargs)
 
-    # def _refresh_observation_space(self) -> None:
-    #     self.observation_space = self._get_state_space()
-
-    # def compute_observation(self) -> None:
-    #     return np.concatenate(self._state)
-
 
 ANYmalPDControlJiminyEnv = build_pipeline(**{
-    'env_config': (
-        ANYmalJiminyEnv,
-        {}
-    ),
-    'controllers_config': [(
-        PDController,
-        {
+    'env_config': {
+        'env_class': ANYmalJiminyEnv
+    },
+    'blocks_config': [{
+        'block_class': PDController,
+        'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
             'pid_kp': PID_KP,
             'pid_kd': PID_KD
         },
+        'wrapper_kwargs': {
+            'augment_observation': True
+        }}
         {
-            'augment_observation': False
-        }
-    )],
-    'observers_config': ()
+    ]
 })

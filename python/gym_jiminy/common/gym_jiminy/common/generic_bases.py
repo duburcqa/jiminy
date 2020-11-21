@@ -190,6 +190,8 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                          sensors_data: jiminy.sensorsData) -> None:
         """TODO Write documentation.
         """
+        # pylint: disable=unused-argument
+
         self.refresh_observation()
 
     def _controller_handle(self,

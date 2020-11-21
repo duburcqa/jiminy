@@ -104,20 +104,18 @@ class AtlasJiminyEnv(WalkerJiminyEnv):
 
 
 AtlasPDControlJiminyEnv = build_pipeline(**{
-    'env_config': (
-        AtlasJiminyEnv,
-        {}
-    ),
-    'controllers_config': [(
-        PDController,
-        {
+    'env_config': {
+        'env_class': AtlasJiminyEnv
+    },
+    'blocks_config': [{
+        'block_class': PDController,
+        'block_kwargs': {
             'update_ratio': HLC_TO_LLC_RATIO,
             'pid_kp': PID_KP,
             'pid_kd': PID_KD
         },
-        {
+        'wrapper_kwargs': {
             'augment_observation': False
-        }
-    )],
-    'observers_config': ()
+        }}
+    ]
 })
