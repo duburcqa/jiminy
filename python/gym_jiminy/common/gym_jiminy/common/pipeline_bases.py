@@ -660,7 +660,8 @@ def build_pipeline(env_config: EnvConfig,
                        env_kwargs: Optional[Dict[str, Any]] = None,
                        block_class: Optional[Type[BlockInterface]] = None,
                        block_kwargs: Optional[Dict[str, Any]] = None,
-                       wrapper_class: Optional[Type[BasePipelineWrapper]] = None,
+                       wrapper_class: Optional[
+                           Type[BasePipelineWrapper]] = None,
                        wrapper_kwargs: Optional[Dict[str, Any]] = None
                        ) -> Type[ControlledJiminyEnv]:
         """Generate a class inheriting from 'wrapper_class' wrapping a given
@@ -702,6 +703,9 @@ def build_pipeline(env_config: EnvConfig,
                     "automatic default wrapper type inference. Please specify "
                     "it manually.")
 
+        # Assertion(s) for type checker
+        assert wrapper_class is not None
+
         # Dynamically generate wrapping class
         wrapper_name = f"{wrapper_class.__name__}Wrapper"
         if block_class is not None:
@@ -719,7 +723,7 @@ def build_pipeline(env_config: EnvConfig,
                            default values.
             """
             nonlocal env_class, env_kwargs, block_class, block_kwargs, \
-                     wrapper_kwargs
+                wrapper_kwargs
 
             # Initialize constructor arguments
             args = []
