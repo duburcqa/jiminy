@@ -7,7 +7,7 @@ import numpy as np
 
 import gym
 
-from .utils import zeros, SpaceDictRecursive
+from .utils import _is_breakpoint, zeros, fill, set_value, SpaceDictNested
 from .pipeline_bases import BasePipelineWrapper
 
 
@@ -36,9 +36,9 @@ class PartialFrameStack(gym.Wrapper):
         """
         # Define helper that will be used to determine the leaf fields to stack
         def _get_branches(root: Any) -> Iterator[List[str]]:
-            if isinstance(root, dict):
-                for field, node in root.items():
-                    if isinstance(node, dict):
+            if isinstance(root, gym.spaces.Dict):
+                for field, node in root.spaces.items():
+                    if isinstance(node, gym.spaces.Dict):
                         for path in _get_branches(node):
                             yield [field] + path
                     else:
@@ -52,16 +52,12 @@ class PartialFrameStack(gym.Wrapper):
         # Initialize base wrapper
         super().__init__(env, **kwargs)
 
-        # Define some internal buffers
-        self._observation: SpaceDictRecursive = zeros(
-            self.env.observation_space)
-
         # Get the leaf fields to stack
         self.leaf_fields_list: List[List[str]] = []
         for fields in self.nested_fields_list:
             root_field = reduce(
-                lambda d, key: d[key], fields, self._observation)
-            if isinstance(root_field, dict):
+                lambda d, key: d[key], fields, self.env.observation_space)
+            if isinstance(root_field, gym.spaces.Dict):
                 leaf_paths = _get_branches(root_field)
                 self.leaf_fields_list += [fields + path for path in leaf_paths]
             else:
@@ -70,8 +66,8 @@ class PartialFrameStack(gym.Wrapper):
         # Compute stacked observation space
         self.observation_space = deepcopy(self.env.observation_space)
         for fields in self.leaf_fields_list:
-            root_space = reduce(lambda d, key: d[key], fields[:-1],
-                                self.observation_space)
+            root_space = reduce(
+                lambda d, key: d[key], fields[:-1], self.observation_space)
             space = root_space[fields[-1]]
             if not isinstance(space, gym.spaces.Box):
                 raise TypeError(
@@ -89,37 +85,92 @@ class PartialFrameStack(gym.Wrapper):
             deque(maxlen=self.num_stack)
             for _ in range(len(self.leaf_fields_list))]
 
-    def observation(self) -> SpaceDictRecursive:
+    def _setup(self) -> None:
+        # Initialize the frames by duplicating the original one
+        for fields, frames in zip(self.leaf_fields_list, self._frames):
+            leaf_space = reduce(
+                lambda d, key: d[key], fields, self.env.observation_space)
+            for _ in range(self.num_stack):
+                frames.append(zeros(leaf_space))
+
+    def observation(self, observation: SpaceDictNested) -> SpaceDictNested:
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             root_obs = reduce(lambda d, key: d[key], fields[:-1],
-                              self._observation)
+                              observation)
             root_obs[fields[-1]] = np.stack(frames)
-        return self._observation
 
-    def step(self,
-             action: SpaceDictRecursive
-             ) -> Tuple[SpaceDictRecursive, float, bool, Dict[str, Any]]:
-        # Perform a single step
-        self._observation, reward, done, info = self.env.step(action)
+        # Return the stacked observation
+        return observation
 
+    def compute_observation(self, measure: SpaceDictNested) -> SpaceDictNested:
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
-            frames.append(leaf_obs)
+            leaf_obs = reduce(lambda d, key: d[key], fields, measure)
+            frames.append(leaf_obs.copy())  # Copy to make sure not altered
 
-        return self.observation(), reward, done, info
+        # Return the stacked observation
+        return self.observation(measure)
 
-    def reset(self, **kwargs: Any) -> SpaceDictRecursive:
-        self._observation = self.env.reset(**kwargs)
+    def step(self,
+             action: SpaceDictNested
+             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
+        observation, reward, done, info = self.env.step(action)
+        return self.compute_observation(observation), reward, done, info
 
-        # Initialize the frames by duplicating the original one
-        for fields, frames in zip(self.leaf_fields_list, self._frames):
-            leaf_obs = reduce(lambda d, key: d[key], fields, self._observation)
-            for _ in range(self.num_stack):
-                frames.append(leaf_obs)
+    def reset(self, **kwargs: Any) -> SpaceDictNested:
+        observation = self.env.reset(**kwargs)
+        self._setup()
+        return self.compute_observation(observation)
 
-        return self.observation()
+
+class StackedJiminyEnv(BasePipelineWrapper):
+    # Multiple inheritance is properly not working properly because of gym.Wrapper
+    def __init__(self, env: gym.Env, **kwargs: Any) -> None:
+        # Initialize base classes
+        super().__init__(env)
+
+        # Instantiate wrapper
+        self.wrapper = PartialFrameStack(env, **kwargs)
+
+        # Assertion(s) for type checker
+        assert self.env.action_space is not None
+
+        # Define the observation and action spaces
+        self.action_space = self.env.action_space
+        self.observation_space = self.wrapper.observation_space
+
+        # Initialize some internal buffers
+        self._action = zeros(self.action_space)
+        self._observation = zeros(self.observation_space)
+
+    def _setup(self) -> None:
+        # Call base implementation
+        super()._setup()
+
+        # Setup wrapper
+        self.wrapper._setup()
+
+        # Compute the observe and control update periods
+        self.control_dt = self.env.control_dt
+        self.observe_dt = self.env.observe_dt
+
+        # Make sure observe update is discrete-time
+        if (self.observe_dt <= 0.0):
+            raise ValueError(
+                "`StackedJiminyEnv` does not support time-continuous update.")
+
+    def compute_observation(self) -> SpaceDictNested:
+        # Get environment observation
+        obs = super().compute_observation()
+
+        # Update observed features if necessary
+        t = self.simulator.stepper_state.t
+        if self.simulator.is_simulation_running and \
+                _is_breakpoint(t, self.observe_dt, self._dt_eps):
+            return self.wrapper.compute_observation(obs)
+        else:
+            return self.wrapper.observation(obs)
 
 
 def build_wrapper(env_config: Tuple[
