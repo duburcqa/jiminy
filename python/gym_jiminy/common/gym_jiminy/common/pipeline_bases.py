@@ -53,7 +53,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         :param kwargs: Extra keyword arguments for multiple inheritance.
         """
         # Initialize base wrapper and interfaces through multiple inheritance
-        super().__init__(env, **kwargs)
+        super().__init__(env)  # Do not forward extra arguments, if any
 
         # Define some internal buffers
         self._dt_eps: Optional[float] = None
@@ -98,9 +98,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             return _clamp(self.observation_space, self._observation)
 
     def reset(self,
-              controller_hook: Optional[Callable[[], Tuple[
+              controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
-                  Optional[ControllerHandleType]]]] = None,
+                  Optional[ControllerHandleType]]]]] = None,
               **kwargs: Any) -> SpaceDictNested:
         """Reset the unified environment.
 
@@ -138,7 +138,9 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             # ones of this block otherwise.
             observer_handle, controller_handle = None, None
             if controller_hook is not None:
-                observer_handle, controller_handle = controller_hook()
+                handles = controller_hook()
+                if handles is not None:
+                    observer_handle, controller_handle = handles
             if controller_handle is None:
                 observer_handle = self._observer_handle
             if controller_handle is None:

@@ -377,9 +377,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             dtype=np.float64)
 
     def reset(self,
-              controller_hook: Optional[Callable[[], Tuple[
+              controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
-                  Optional[ControllerHandleType]]]] = None
+                  Optional[ControllerHandleType]]]]] = None
               ) -> SpaceDictNested:
         """Reset the environment.
 
@@ -463,7 +463,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Run controller hook and set the observer and controller handles
         observer_handle, controller_handle = None, None
         if controller_hook is not None:
-            observer_handle, controller_handle = controller_hook()
+            handles = controller_hook()
+            if handles is not None:
+                observer_handle, controller_handle = handles
         if observer_handle is None:
             observer_handle = self._observer_handle
         self.simulator.controller.set_observer_handle(observer_handle)
@@ -944,9 +946,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         )
 
     def reset(self,
-              controller_hook: Optional[Callable[[], Tuple[
+              controller_hook: Optional[Callable[[], Optional[Tuple[
                   Optional[ObserverHandleType],
-                  Optional[ControllerHandleType]]]] = None
+                  Optional[ControllerHandleType]]]]] = None
               ) -> SpaceDictNested:
         self._desired_goal = self._sample_goal()
         return super().reset(controller_hook)
