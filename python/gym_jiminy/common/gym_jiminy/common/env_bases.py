@@ -25,7 +25,7 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, fill, SpaceDictNested
+from .utils import _clamp, zeros, fill, set_value, SpaceDictNested
 from .generic_bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -840,6 +840,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        set_value(self._action, action)
         return _clamp(self.action_space, action)
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:

@@ -217,6 +217,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         :param measure: Observation of the environment.
         :param action: Target to achieve.
         """
+        set_value(self._action, action)
         return self.env.compute_command(measure, action)
 
 
@@ -387,6 +388,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param measure: Observation of the environment.
         :param action: High-level target to achieve.
         """
+        # Backup the action
+        set_value(self._action, action)
+
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
