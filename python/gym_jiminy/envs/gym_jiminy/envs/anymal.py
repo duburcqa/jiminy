@@ -6,6 +6,7 @@ from pkg_resources import resource_filename
 
 from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 from gym_jiminy.common.control_impl import PDController
+from gym_jiminy.common.wrappers import StackedJiminyEnv
 from gym_jiminy.common.pipeline_bases import build_pipeline
 
 
@@ -77,7 +78,15 @@ ANYmalPDControlJiminyEnv = build_pipeline(**{
         },
         'wrapper_kwargs': {
             'augment_observation': True
-        }}
+        }},
         {
+        'wrapper_class': StackedJiminyEnv,
+        'wrapper_kwargs': {
+            'nested_fields_list': [
+                ('targets',)
+            ],
+            'num_stack': 3,
+            'skip_frames_ratio': 1
+        }}
     ]
 })

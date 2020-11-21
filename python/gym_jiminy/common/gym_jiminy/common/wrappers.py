@@ -135,11 +135,17 @@ class PartialFrameStack(gym.Wrapper):
 class StackedJiminyEnv(BasePipelineWrapper):
     """ TODO: Write documentation.
     """
-    def __init__(self, env: gym.Env, **kwargs: Any) -> None:
+    def __init__(self,
+                 env: gym.Env,
+                 skip_frames_ratio: int = 0,
+                 **kwargs: Any) -> None:
         """ TODO: Write documentation.
         """
+        # Backup some user argument(s)
+        self.skip_frames_ratio = skip_frames_ratio
+
         # Initialize base classes
-        super().__init__(env)
+        super().__init__(env, **kwargs)
 
         # Instantiate wrapper
         self.wrapper = PartialFrameStack(env, **kwargs)
@@ -152,6 +158,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         self.observation_space = self.wrapper.observation_space
 
         # Initialize some internal buffers
+        self.__n_last_stack = 0
         self._action = zeros(self.action_space)
         self._observation = zeros(self.observation_space)
 
@@ -161,6 +168,10 @@ class StackedJiminyEnv(BasePipelineWrapper):
 
         # Setup wrapper
         self.wrapper._setup()
+
+        # Re-initialize some internal buffer(s)
+        # Note that the initial observation is always stored.
+        self.__n_last_stack = self.skip_frames_ratio - 1
 
         # Compute the observe and control update periods
         self.control_dt = self.env.control_dt
@@ -179,6 +190,9 @@ class StackedJiminyEnv(BasePipelineWrapper):
         t = self.simulator.stepper_state.t
         if self.simulator.is_simulation_running and \
                 _is_breakpoint(t, self.observe_dt, self._dt_eps):
+            self.__n_last_stack += 1
+        if self.__n_last_stack == self.skip_frames_ratio:
+            self.__n_last_stack = -1
             return self.wrapper.compute_observation(obs)
         else:
             return self.wrapper.observation(obs)
