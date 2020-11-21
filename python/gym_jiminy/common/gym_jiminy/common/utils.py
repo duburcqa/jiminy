@@ -17,7 +17,7 @@ FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
 
 
-def zeros(space: gym.Space) ->  Union[SpaceDictNested, int]:
+def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     """Set to zero data from `Gym.Space`.
     """
     if isinstance(space, gym.spaces.Dict):
@@ -69,7 +69,7 @@ def set_value(data: SpaceDictNested,
             f"Data of type {type(data)} is not supported by this method.")
 
 
-def copy(data: SpaceDictNested) -> None:
+def copy(data: SpaceDictNested) -> SpaceDictNested:
     """Shadow copy recursively 'data' from `Gym.Space`, so that only leaves
     are still references.
     """

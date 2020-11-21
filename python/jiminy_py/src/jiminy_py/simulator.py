@@ -8,7 +8,7 @@ from collections import OrderedDict
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from typing import Optional, Union, Type, Dict, Tuple, Sequence, Any
+from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import pinocchio as pin
 
@@ -210,7 +210,7 @@ class Simulator:
             return AttributeError(
                 f"'{self.__class__}' object has no attribute '{name}'.")
 
-    def __dir__(self) -> Sequence[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded

@@ -8,12 +8,11 @@ It implements:
     - the base controller block
     - the base observer block
 """
-from typing import Optional, Any, Union, Sequence
+from typing import Optional, Any, List
 
 import gym
 
 import jiminy_py.core as jiminy
-from jiminy_py.simulator import Simulator
 
 from .utils import FieldDictNested, SpaceDictNested
 from .generic_bases import ControllerInterface, ObserverInterface
@@ -68,13 +67,13 @@ class BlockInterface:
         """
         return getattr(self.env, name)
 
-    def __dir__(self) -> Sequence[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
         to get consistent autocompletion wrt `getattr`.
         """
-        return super().__dir__() + self.env.__dir__()
+        return super().__dir__() + self.env.__dir__()  # type: ignore[operator]
 
     @property
     def system_state(self) -> jiminy.SystemState:

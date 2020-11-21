@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Union, Optional, Sequence, Any
+from typing import Union, Any
 
 import numpy as np
 import gym

@@ -1,3 +1,5 @@
+""" TODO: Write documentation.
+"""
 from copy import deepcopy
 from functools import reduce
 from collections import deque
@@ -7,7 +9,7 @@ import numpy as np
 
 import gym
 
-from .utils import _is_breakpoint, zeros, fill, set_value, SpaceDictNested
+from .utils import _is_breakpoint, zeros, SpaceDictNested
 from .pipeline_bases import BasePipelineWrapper
 
 
@@ -86,6 +88,8 @@ class PartialFrameStack(gym.Wrapper):
             for _ in range(len(self.leaf_fields_list))]
 
     def _setup(self) -> None:
+        """ TODO: Write documentation.
+        """
         # Initialize the frames by duplicating the original one
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_space = reduce(
@@ -94,6 +98,8 @@ class PartialFrameStack(gym.Wrapper):
                 frames.append(zeros(leaf_space))
 
     def observation(self, observation: SpaceDictNested) -> SpaceDictNested:
+        """ TODO: Write documentation.
+        """
         # Replace nested fields of original observation by the stacked ones
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             root_obs = reduce(lambda d, key: d[key], fields[:-1],
@@ -104,6 +110,8 @@ class PartialFrameStack(gym.Wrapper):
         return observation
 
     def compute_observation(self, measure: SpaceDictNested) -> SpaceDictNested:
+        """ TODO: Write documentation.
+        """
         # Backup the nested observation fields to stack
         for fields, frames in zip(self.leaf_fields_list, self._frames):
             leaf_obs = reduce(lambda d, key: d[key], fields, measure)
@@ -125,8 +133,11 @@ class PartialFrameStack(gym.Wrapper):
 
 
 class StackedJiminyEnv(BasePipelineWrapper):
-    # Multiple inheritance is properly not working properly because of gym.Wrapper
+    """ TODO: Write documentation.
+    """
     def __init__(self, env: gym.Env, **kwargs: Any) -> None:
+        """ TODO: Write documentation.
+        """
         # Initialize base classes
         super().__init__(env)
 
@@ -160,7 +171,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
-    def compute_observation(self) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         # Get environment observation
         obs = super().compute_observation()
 
@@ -173,12 +184,12 @@ class StackedJiminyEnv(BasePipelineWrapper):
             return self.wrapper.observation(obs)
 
 
-def build_wrapper(env_config: Tuple[
-                      Type[gym.Env],
-                      Dict[str, Any]],
-                  wrapper_config: Tuple[
-                      Type[gym.Wrapper],
-                      Dict[str, Any]]) -> Type[gym.Env]:
+def build_outer_wrapper(env_config: Tuple[
+                            Type[gym.Env],
+                            Dict[str, Any]],
+                        wrapper_config: Tuple[
+                            Type[gym.Wrapper],
+                            Dict[str, Any]]) -> Type[gym.Env]:
     """Generate a class inheriting from `gym.Wrapper` wrapping a given type of
     environment.
 
@@ -217,7 +228,7 @@ def build_wrapper(env_config: Tuple[
         super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
             env, **wrapper_kwargs)
 
-    def __dir__(self: gym.Wrapper) -> Sequence[str]:
+    def __dir__(self: gym.Wrapper) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded

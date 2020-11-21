@@ -450,9 +450,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # The backend robot may have changed, for example if it is randomly
         # generated based on different URDF files. As a result, it is necessary
         # to instantiate a new low-level controller.
-        # Note that `BaseJiminyObserverController` is used by default in place of
-        # `jiminy.ControllerFunctor`. Although it is less efficient because it
-        # adds an extra layer of indirection, it makes it possible to update
+        # Note that `BaseJiminyObserverController` is used by default in place
+        # of `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
         # the controller handle in advance.
@@ -811,8 +811,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
         """
         # pylint: disable=arguments-differ
@@ -934,8 +933,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                 -np.inf, np.inf, shape=self._desired_goal.shape,
                 dtype=np.float64)))
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         # Assertion(s) for type checker
         assert self._desired_goal is not None
 
@@ -946,7 +944,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         )
 
     def reset(self,
-              controller_hook: Optional[Callable[[], None]] = None
+              controller_hook: Optional[Callable[[], Tuple[
+                  Optional[ObserverHandleType],
+                  Optional[ControllerHandleType]]]] = None
               ) -> SpaceDictNested:
         self._desired_goal = self._sample_goal()
         return super().reset(controller_hook)

@@ -13,7 +13,8 @@ It implements:
 """
 from copy import deepcopy
 from collections import OrderedDict
-from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence, Callable
+from typing import (
+    Optional, Union, Tuple, Dict, Any, Type, Sequence, List, Callable)
 
 import numpy as np
 import gym
@@ -58,7 +59,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         self._dt_eps: Optional[float] = None
         self._command = zeros(self.env.unwrapped.action_space)
 
-    def __dir__(self) -> Sequence[str]:
+    def __dir__(self) -> List[str]:
         """Attribute lookup.
 
         It is mainly used by autocomplete feature of Ipython. It is overloaded
@@ -190,8 +191,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         fill(self._command, 0.0)
         fill(self._observation, 0.0)
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the unified observation.
 
         By default, it forwards the observation computed by the environment.
@@ -386,8 +386,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         """
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
-        # calling this method by `_controller_handle`, so it can be used as measure
-        # argument without issue.
+        # calling this method by `_controller_handle`, so it can be used as
+        # measure argument without issue.
         t = self.simulator.stepper_state.t
         if _is_breakpoint(t, self.control_dt, self._dt_eps):
             target = self.controller.compute_command(self._observation, action)
@@ -396,8 +396,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to
         # update the command of the right period. Ultimately, this is done
-        # automatically by the engine, which is calling `_controller_handle` at the
-        # right period.
+        # automatically by the engine, which is calling `_controller_handle` at
+        # the right period.
         if self.env.simulator.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
@@ -406,8 +406,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return self._command
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -436,9 +435,8 @@ class ControlledJiminyEnv(BasePipelineWrapper):
     def compute_reward(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward(*args, **kwargs)
 
-    def compute_reward_terminal(self, info: Dict[str, Any]) -> float:
+    def compute_reward_terminal(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward_terminal(*args, **kwargs)
-
 
 
 class ObservedJiminyEnv(BasePipelineWrapper):
@@ -490,15 +488,15 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         :param kwargs: Extra keyword arguments to allow automatic pipeline
                        wrapper generation.
         """
-        # Initialize base wrapper
-        super().__init__(env, **kwargs)
-
-        # Make sure that the unwrapped environment matches the controlled one
-        assert env.unwrapped is controller.env
-
         # Backup user arguments
         self.observer = observer
         self.augment_observation = augment_observation
+
+        # Make sure that the unwrapped environment matches the controlled one
+        assert env.unwrapped is observer.env
+
+        # Initialize base wrapper
+        super().__init__(env, **kwargs)
 
         # Assertion(s) for type checker
         assert (self.env.action_space is not None and
@@ -551,8 +549,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.observer.observe_dt
         self.control_dt = self.env.control_dt
 
-    def compute_observation(self  # type: ignore[override]
-                            ) -> SpaceDictNested:
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute high-level features based on the current wrapped
         environment's observation.
 
