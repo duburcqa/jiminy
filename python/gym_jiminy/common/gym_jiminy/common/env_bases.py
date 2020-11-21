@@ -20,12 +20,13 @@ from jiminy_py.core import (EncoderSensor as encoder,
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
 from jiminy_py.viewer import sleep, play_logfiles
-from jiminy_py.controller import BaseJiminyController, ControllerHandleType
+from jiminy_py.controller import (
+    ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
 from pinocchio import neutral
 
 from .utils import _clamp, zeros, fill, SpaceDictRecursive
-from .generic_bases import ObserveAndControlInterface
+from .generic_bases import ObserverControllerInterface
 from .play import loop_interactive
 
 
@@ -43,7 +44,7 @@ SENSOR_GYRO_MAX = 100.0
 SENSOR_ACCEL_MAX = 10000.0
 
 
-class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
+class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     """Base class to train a robot in Gym OpenAI using a user-specified Python
     Jiminy engine for physics computations.
 
@@ -376,8 +377,9 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
             dtype=np.float64)
 
     def reset(self,
-              controller_hook: Optional[
-                  Callable[[], Optional[ControllerHandleType]]] = None
+              controller_hook: Optional[Callable[[], Tuple[
+                  Optional[ObserverHandleType],
+                  Optional[ControllerHandleType]]]] = None
               ) -> SpaceDictRecursive:
         """Reset the environment.
 
@@ -395,13 +397,14 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
                                 right after initialization of the environment,
                                 and just before actually starting the
                                 simulation. It is a callable that optionally
-                                returns a controller handle. If so, it will be
-                                used to initialize the low-level jiminy
-                                controller. It is useful to override partially
-                                the configuration of the low-level engine, set
-                                a custom low-level controller handle, or to
-                                register custom variables to the telemetry. Set
-                                to `None` if unused.
+                                returns observer and/or controller handles. If
+                                defined, it will be used to initialize the
+                                low-level jiminy controller. It is useful to
+                                override partially the configuration of the
+                                low-level engine, set a custom low-level
+                                observer/controller handle, or to register
+                                custom variables to the telemetry. Set to
+                                `None` if unused.
                                 Optional: Disable by default.
 
         :returns: Initial observation of the episode.
@@ -447,22 +450,25 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
         # The backend robot may have changed, for example if it is randomly
         # generated based on different URDF files. As a result, it is necessary
         # to instantiate a new low-level controller.
-        # Note that `BaseJiminyController` is used by default in place of
+        # Note that `BaseJiminyObserverController` is used by default in place of
         # `jiminy.ControllerFunctor`. Although it is less efficient because it
         # adds an extra layer of indirection, it makes it possible to update
         # the controller handle without instantiating a new controller, which
         # is necessary to allow registering telemetry variables before knowing
         # the controller handle in advance.
-        controller = BaseJiminyController()
+        controller = BaseJiminyObserverController()
         controller.initialize(self.robot)
         self.simulator.set_controller(controller)
 
-        # Run controller hook and set the controller handle
-        controller_handle = None
+        # Run controller hook and set the observer and controller handles
+        observer_handle, controller_handle = None, None
         if controller_hook is not None:
-            controller_handle = controller_hook()
+            observer_handle, controller_handle = controller_hook()
+        if observer_handle is None:
+            observer_handle = self._observer_handle
+        self.simulator.controller.set_observer_handle(observer_handle)
         if controller_handle is None:
-            controller_handle = self._send_command
+            controller_handle = self._controller_handle
         self.simulator.controller.set_controller_handle(controller_handle)
 
         # Sample the initial state and reset the low-level engine
@@ -474,13 +480,8 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
                 "inconsistent with the dimension or types of joints of the "
                 "model.")
 
-        # Start the engine, in order to initialize the sensors data
-        hresult = self.simulator.start(
-            qpos, qvel, self.simulator.use_theoretical_model)
-        if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Failed to start the simulation. Probably because the "
-                "initial state is invalid.")
+        # Start the engine
+        self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
         # Update the observation
         self._observation = self.compute_observation()
@@ -560,9 +561,7 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
         is_step_failed = True
         try:
             # Perform a single integration step
-            return_code = self.simulator.step(self.step_dt)
-            if return_code != jiminy.hresult_t.SUCCESS:
-                raise RuntimeError("Failed to perform the simulation step.")
+            self.simulator.step(self.step_dt)
 
             # Update some internal buffers
             self.num_steps += 1
@@ -884,7 +883,7 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
 BaseJiminyEnv.compute_reward.__doc__ = \
     """Compute reward at current episode state.
 
-    See `ControlInterface.compute_reward` for details.
+    See `ControllerInterface.compute_reward` for details.
 
     .. note::
         This method is called after updating the internal buffer

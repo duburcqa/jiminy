@@ -18,17 +18,17 @@ from typing import Optional, Union, Tuple, Dict, Any, Type, Sequence, Callable
 import numpy as np
 import gym
 
-from jiminy_py.controller import ControllerHandleType
+from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
 from .utils import (
     _is_breakpoint, _clamp, zeros, fill, set_value, register_variables,
     SpaceDictRecursive)
-from .generic_bases import ObserveAndControlInterface
+from .generic_bases import ObserverControllerInterface
 from .env_bases import BaseJiminyEnv
 from .block_bases import BlockInterface, BaseControllerBlock, BaseObserverBlock
 
 
-class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
+class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
     """Wrap a `BaseJiminyEnv` Gym environment and a single block, so that it
     appears as a single, unified, environment. Eventually, the environment can
     already be wrapped inside one or several `gym.Wrapper` containers.
@@ -84,11 +84,12 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
     def get_observation(self, bypass: bool = False) -> SpaceDictRecursive:
         """Get post-processed observation.
 
-        By default, it clamps the observation to make sure it does not violate
-        the lower and upper bounds.
+        By default, it returns either the original observation from the
+        environment, and the clamped computed features to make sure it does not
+        violate the lower and upper bounds for block observation space.
 
-        :param bypass: Whether to nor to bypass post-processing and return
-                       the original environment's observation instead.
+        :param bypass: Whether to nor to return the original environment's
+                       observation or the post-processed computed features.
         """
         if bypass:
             return self.env.get_observation(True)
@@ -96,8 +97,9 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
             return _clamp(self.observation_space, self._observation)
 
     def reset(self,
-              controller_hook: Optional[
-                  Callable[[], Optional[ControllerHandleType]]] = None,
+              controller_hook: Optional[Callable[[], Tuple[
+                  Optional[ObserverHandleType],
+                  Optional[ControllerHandleType]]]] = None,
               **kwargs: Any) -> SpaceDictRecursive:
         """Reset the unified environment.
 
@@ -113,7 +115,7 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
         # pylint: disable=unused-argument
 
         # Define chained controller hook
-        def register() -> ControllerHandleType:
+        def register() -> Tuple[ObserverHandleType, ControllerHandleType]:
             """Register the block to the higher-level block.
 
             This method is used internally to make sure that `_setup` method
@@ -123,9 +125,6 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
             """
             nonlocal self, controller_hook
 
-            # Assertion(s) for type checker
-            assert self.env is not None
-
             # Get the temporal resolution of simulator steps
             engine_options = self.simulator.engine.get_options()
             self._dt_eps = 1.0 / engine_options["telemetry"]["timeUnit"]
@@ -133,14 +132,17 @@ class BasePipelineWrapper(ObserveAndControlInterface, gym.Wrapper):
             # Initialize the pipeline wrapper
             self._setup()
 
-            # Forward the controller handle provided by the controller hook,
-            # if any, or use the one of the controller otherwise.
-            controller_handle = None
+            # Forward the observer and controller handles provided by the
+            # controller hook of higher-level block, if any, or use the
+            # ones of this block otherwise.
+            observer_handle, controller_handle = None, None
             if controller_hook is not None:
-                controller_handle = controller_hook()
+                observer_handle, controller_handle = controller_hook()
             if controller_handle is None:
-                controller_handle = self._send_command
-            return controller_handle
+                observer_handle = self._observer_handle
+            if controller_handle is None:
+                controller_handle = self._controller_handle
+            return observer_handle, controller_handle
 
         # Reset base pipeline
         self.env.reset(register, **kwargs)  # type: ignore[call-arg]
@@ -384,7 +386,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         """
         # Update the target to send to the subsequent block if necessary.
         # Note that `_observation` buffer has already been updated right before
-        # calling this method by `_send_command`, so it can be used as measure
+        # calling this method by `_controller_handle`, so it can be used as measure
         # argument without issue.
         t = self.simulator.stepper_state.t
         if _is_breakpoint(t, self.control_dt, self._dt_eps):
@@ -394,7 +396,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Update the command to send to the actuators of the robot.
         # Note that the environment itself is responsible of making sure to
         # update the command of the right period. Ultimately, this is done
-        # automatically by the engine, which is calling `_send_command` at the
+        # automatically by the engine, which is calling `_controller_handle` at the
         # right period.
         if self.env.simulator.is_simulation_running:
             # Do not update command during the first iteration because the

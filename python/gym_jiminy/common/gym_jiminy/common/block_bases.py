@@ -16,7 +16,7 @@ import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
 from .utils import FieldDictRecursive, SpaceDictRecursive
-from .generic_bases import ControlInterface, ObserveInterface
+from .generic_bases import ControllerInterface, ObserverInterface
 from .env_bases import BaseJiminyEnv
 
 
@@ -120,7 +120,7 @@ class BlockInterface:
         raise NotImplementedError
 
 
-class BaseControllerBlock(ControlInterface, BlockInterface):
+class BaseControllerBlock(ControllerInterface, BlockInterface):
     r"""Base class to implement controller that can be used compute targets to
     apply to the robot of a `BaseJiminyEnv` environment, through any number of
     lower-level controllers.
@@ -249,7 +249,7 @@ BaseControllerBlock.compute_command.__doc__ = \
     """
 
 
-class BaseObserverBlock(ObserveInterface, BlockInterface):
+class BaseObserverBlock(ObserverInterface, BlockInterface):
     r"""Base class to implement observe that can be used compute observation
     features of a `BaseJiminyEnv` environment, through any number of
     lower-level observer.
