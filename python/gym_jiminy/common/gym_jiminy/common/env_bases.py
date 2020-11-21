@@ -435,16 +435,13 @@ class BaseJiminyEnv(ObserveAndControlInterface, gym.Env):
             fd, self.log_path = tempfile.mkstemp(prefix="log_", suffix=".data")
             os.close(fd)
 
-        # Extract the controller and observer update period.
+        # Extract the observer/controller update period.
         # There is no actual observer by default, apart from the robot's state
-        # and raw sensors data, so the observation period matches the one of
-        # the sensors. Similarly, there is no actual controller by default,
-        # apart from forwarding the command torque to the motors.
+        # and raw sensors data. Similarly, there is no actual controller by
+        # default, apart from forwarding the command torque to the motors.
         engine_options = self.simulator.engine.get_options()
-        self.control_dt = \
+        self.control_dt = self.observe_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
-        self.observe_dt = \
-            float(engine_options['stepper']['sensorsUpdatePeriod'])
 
         # Enforce the low-level controller.
         # The backend robot may have changed, for example if it is randomly

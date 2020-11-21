@@ -164,14 +164,6 @@ class BaseControllerBlock(ControlInterface, BlockInterface):
         # Initialize the block and control interface
         super().__init__(*args, **kwargs)
 
-        # Compute the update period
-        self.control_dt = self.env.control_dt * self.update_ratio
-
-        # Make sure the controller period is lower than environment timestep
-        assert self.control_dt <= self.env.step_dt, (
-            "The controller update period must be lower than or equal to the "
-            "environment simulation timestep.")
-
     def _refresh_observation_space(self) -> None:
         """Configure the observation space of the controller.
 
@@ -187,6 +179,15 @@ class BaseControllerBlock(ControlInterface, BlockInterface):
 
     # methods to override:
     # ----------------------------
+
+    def _setup(self) -> None:
+        # Compute the update period
+        self.control_dt = self.env.control_dt * self.update_ratio
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.control_dt <= self.env.step_dt, (
+            "The controller update period must be lower than or equal to the "
+            "environment simulation timestep.")
 
     def get_fieldnames(self) -> FieldDictRecursive:
         """Get mapping between each scalar element of the action space of the
@@ -282,14 +283,6 @@ class BaseObserverBlock(ObserveInterface, BlockInterface):
         # Initialize the block and observe interface
         super().__init__(*args, **kwargs)
 
-        # Compute the update period
-        self.observe_dt = self.env.observe_dt * self.update_ratio
-
-        # Make sure the controller period is lower than environment timestep
-        assert self.observe_dt <= self.env.step_dt, (
-            "The observer update period must be lower than or equal to the "
-            "environment simulation timestep.")
-
     def _refresh_action_space(self) -> None:
         """Configure the action space of the observer.
 
@@ -302,6 +295,18 @@ class BaseObserverBlock(ObserveInterface, BlockInterface):
             is probably the way to go.
         """
         self.action_space = self.env.observation_space
+
+    # methods to override:
+    # ----------------------------
+
+    def _setup(self) -> None:
+        # Compute the update period
+        self.observe_dt = self.env.observe_dt * self.update_ratio
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.observe_dt <= self.env.step_dt, (
+            "The observer update period must be lower than or equal to the "
+            "environment simulation timestep.")
 
     def compute_observation(self,  # type: ignore[override]
                             measure: SpaceDictRecursive

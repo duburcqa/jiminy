@@ -312,8 +312,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         assert (self.env.action_space is not None and
                 self.env.observation_space is not None)
 
-        # Forward some controller buffers
-        self.control_dt = self.controller.control_dt
+        # Enable terminal reward only if the controller implements it
         self.enable_reward_terminal = self.controller.enable_reward_terminal
 
         # Set the controller name, based on the controller index
@@ -357,6 +356,10 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Reset some additional internal buffers
         fill(self._target, 0.0)
+
+        # Compute the observe and control update periods
+        self.observe_dt = self.env.observe_dt
+        self.control_dt = self.controller.control_dt
 
         # Register the controller target to the telemetry.
         # It may be useful for computing the terminal reward or debugging.
@@ -505,9 +508,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # Update the action space
         self.action_space = self.env.action_space
 
-        # Forward some controller buffers
-        self.observe_dt = self.observer.observe_dt
-
         # Set the controller name, based on the controller index
         self.observer_name = f"observer_{self._get_block_index()}"
 
@@ -544,6 +544,10 @@ class ObservedJiminyEnv(BasePipelineWrapper):
 
         # Call base implementation
         super()._setup()
+
+        # Compute the observe and control update periods
+        self.observe_dt = self.observer.observe_dt
+        self.control_dt = self.env.control_dt
 
     def compute_observation(self  # type: ignore[override]
                             ) -> SpaceDictRecursive:
