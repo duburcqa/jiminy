@@ -6,7 +6,6 @@ from pkg_resources import resource_filename
 
 from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
 from gym_jiminy.common.control_impl import PDController
-from gym_jiminy.common.wrappers import StackedJiminyEnv
 from gym_jiminy.common.pipeline_bases import build_pipeline
 
 
@@ -53,7 +52,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
         urdf_path = os.path.join(data_root_dir, "anymal.urdf")
 
         # Initialize the walker environment
-        super().__init__(
+        super().__init__(**{**dict(
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
@@ -61,8 +60,7 @@ class ANYmalJiminyEnv(WalkerJiminyEnv):
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
             avoid_instable_collisions=False,
-            debug=debug,
-            **kwargs)
+            debug=debug), **kwargs})
 
 
 ANYmalPDControlJiminyEnv = build_pipeline(**{
@@ -77,16 +75,7 @@ ANYmalPDControlJiminyEnv = build_pipeline(**{
             'pid_kd': PID_KD
         },
         'wrapper_kwargs': {
-            'augment_observation': True
-        }},
-        {
-        'wrapper_class': StackedJiminyEnv,
-        'wrapper_kwargs': {
-            'nested_fields_list': [
-                ('targets',)
-            ],
-            'num_stack': 3,
-            'skip_frames_ratio': 1
+            'augment_observation': False
         }}
     ]
 })
