@@ -883,9 +883,6 @@ namespace jiminy
             // Write the header: this locks the registration of new variables
             telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
-            // Log current buffer content as first point of the log data.
-            updateTelemetry();
-
             // Initialize the last system states
             for (auto & systemData : systemsDataHolder_)
             {
@@ -1191,11 +1188,37 @@ namespace jiminy
                 }
             }
 
+            /* Update telemetry if necessary.
+               It monitors the current iteration number, the current time, and the
+               systems state, command, and sensors data.
+               Note that the acceleration is logged BEFORE updating the dynamics if the
+               command has been updated. The acceleration is discontinuous so their is
+               no way to log both the acceleration at the end of the previous step and
+               at the beginning of the next. Logging the previous acceleration is more
+               natural since it preserves the consistency between sensors data and
+               robot state.
+               */
+            if (stepperUpdatePeriod_ < EPS || !engineOptions_->stepper.logInternalStepperSteps)
+            {
+                bool mustUpdateTelemetry = stepperUpdatePeriod_ < EPS;
+                if (!mustUpdateTelemetry)
+                {
+                    float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                }
+                if (mustUpdateTelemetry)
+                {
+                    updateTelemetry();
+                }
+            }
+
             // Fix the FSAL issue if the dynamics has changed
-            if (hasDynamicsChanged)
+            if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemDynamics(t, qSplit, vSplit, aSplit);
                 syncSystemsStateWithStepper();
+                hasDynamicsChanged = false;
             }
 
             if (stepperUpdatePeriod_ > EPS)
@@ -1204,7 +1227,7 @@ namespace jiminy
                    a breakpoint occurs if we reached tEnd, if an external force
                    is applied, or if we need to update the sensors / controller. */
                 float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
-                float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                float64_t const dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
                     /* Step to reach next sensors/controller update is too short:
@@ -1232,6 +1255,20 @@ namespace jiminy
                 sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
+                    // Log every stepper state only if the user asked for
+                    if (engineOptions_->stepper.logInternalStepperSteps)
+                    {
+                        updateTelemetry();
+                    }
+
+                    // Fix the FSAL issue if the dynamics has changed
+                    if (hasDynamicsChanged)
+                    {
+                        computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                        syncSystemsStateWithStepper();
+                        hasDynamicsChanged = false;
+                    }
+
                     /* Adjust stepsize to end up exactly at the next breakpoint,
                        prevent steps larger than dtMax, trying to reach multiples of
                        STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
@@ -1291,12 +1328,6 @@ namespace jiminy
 
                         // Increment the iteration counter only for successful steps
                         ++stepperState_.iter;
-
-                        // Log every stepper state only if the user asked for
-                        if (engineOptions_->stepper.logInternalStepperSteps)
-                        {
-                            updateTelemetry();
-                        }
 
                         /* Restore the step size dt if it has been significantly
                            decreased to because of a breakpoint. It is set
@@ -1382,12 +1413,6 @@ namespace jiminy
                         // Increment the iteration counter
                         ++stepperState_.iter;
 
-                        // Log every stepper state only if required
-                        if (engineOptions_->stepper.logInternalStepperSteps)
-                        {
-                            updateTelemetry();
-                        }
-
                         // Restore the step size if necessary
                         if (isBreakpointReached)
                         {
@@ -1421,7 +1446,7 @@ namespace jiminy
 
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-            bool mustUpdateSensors = sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP;
+            bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
             if (!mustUpdateSensors)
             {
                 float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
@@ -1471,15 +1496,8 @@ namespace jiminy
            so he is expecting this value to be reached. */
         if (returnCode == hresult_t::SUCCESS)
         {
-            stepperState_.t = tEnd;
-            stepperState_.dt = stepSize;
-        }
-
-        /* Monitor current iteration number, and log the current time,
-           state, command, and sensors data. */
-        if (!engineOptions_->stepper.logInternalStepperSteps)
-        {
-            updateTelemetry();
+            t = tEnd;
+            dt = stepSize;
         }
 
         if (returnCode != hresult_t::SUCCESS)
@@ -1497,6 +1515,9 @@ namespace jiminy
         {
             return;
         }
+
+        // Log current buffer content as final point of the log data
+        updateTelemetry();
 
         // Release the lock on the robots
         for (auto & systemData : systemsDataHolder_)
