@@ -730,28 +730,28 @@ def build_pipeline(env_config: EnvConfig,
 
             # Define the arguments related to the environment
             if env_kwargs is not None:
-                env_kwargs = {**env_kwargs, **kwargs}
+                env_kwargs_default = {**env_kwargs, **kwargs}
             else:
-                env_kwargs = kwargs
-            env = env_class(**env_kwargs)
+                env_kwargs_default = kwargs
+            env = env_class(**env_kwargs_default)
             args.append(env)
 
             # Define the arguments related to the block, if any
             if block_class is not None:
                 if block_kwargs is not None:
-                    block_kwargs = {**block_kwargs, **kwargs}
+                    block_kwargs_default = {**block_kwargs, **kwargs}
                 else:
-                    block_kwargs = kwargs
-                args.append(block_class(env.unwrapped, **block_kwargs))
+                    block_kwargs_default = kwargs
+                args.append(block_class(env.unwrapped, **block_kwargs_default))
 
             # Define the arguments related to the wrapper
             if wrapper_kwargs is not None:
-                wrapper_kwargs = {**wrapper_kwargs, **kwargs}
+                wrapper_kwargs_default = {**wrapper_kwargs, **kwargs}
             else:
-                wrapper_kwargs = kwargs
+                wrapper_kwargs_default = kwargs
 
             super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-               *args, **wrapper_kwargs)
+               *args, **wrapper_kwargs_default)
 
         wrapped_env_class.__init__ = __init__  # type: ignore[misc]
 

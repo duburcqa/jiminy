@@ -97,7 +97,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.debug = debug
 
         # Initialize the interfaces through multiple inheritance
-        super().__init__(**kwargs)
+        super().__init__()  # Do not forward extra arguments, if any
 
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
