@@ -29,7 +29,7 @@ namespace jiminy
     sensorTelemetryOptions_(),
     motorsNames_(),
     sensorsNames_(),
-    motorEffortFieldnames_(),
+    commandFieldnames_(),
     nmotors_(-1),
     constraintsHolder_(),
     constraintsJacobian_(),
@@ -666,20 +666,13 @@ namespace jiminy
                            });
 
             // Generate the fieldnames associated with the motor efforts
-            motorEffortFieldnames_.clear();
-            motorEffortFieldnames_.reserve(nmotors_);
+            commandFieldnames_.clear();
+            commandFieldnames_.reserve(nmotors_);
             std::transform(motorsHolder_.begin(), motorsHolder_.end(),
-                           std::back_inserter(motorEffortFieldnames_),
+                           std::back_inserter(commandFieldnames_),
                            [](auto const & elem) -> std::string
                            {
-                               if (elem->getJointType() == joint_t::LINEAR)
-                               {
-                                   return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Force");
-                               }
-                               else
-                               {
-                                   return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Torque");
-                               }
+                                return addCircumfix(elem->getName(), JOINT_PREFIX_BASE + "Command");
                            });
         }
 
@@ -1551,9 +1544,9 @@ namespace jiminy
         return motorsInertias;
     }
 
-    std::vector<std::string> const & Robot::getMotorEffortFieldnames(void) const
+    std::vector<std::string> const & Robot::getCommandFieldnames(void) const
     {
-        return motorEffortFieldnames_;
+        return commandFieldnames_;
     }
 
     int32_t const & Robot::nmotors(void) const

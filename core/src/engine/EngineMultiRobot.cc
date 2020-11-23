@@ -360,8 +360,8 @@ namespace jiminy
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
                                  systemIt->name, "", TELEMETRY_DELIMITER);
-                systemDataIt->motorEffortFieldnames =
-                    addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
+                systemDataIt->commandFieldnames =
+                    addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
@@ -397,11 +397,11 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    if (engineOptions_->telemetry.enableEffort)
+                    if (engineOptions_->telemetry.enableCommand)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->motorEffortFieldnames,
-                            systemDataIt->state.uMotor);
+                            systemDataIt->commandFieldnames,
+                            systemDataIt->state.uCommand);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -469,10 +469,10 @@ namespace jiminy
                 telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
                                              systemDataIt->state.a);
             }
-            if (engineOptions_->telemetry.enableEffort)
+            if (engineOptions_->telemetry.enableCommand)
             {
-                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
-                                             systemDataIt->state.uMotor);
+                telemetrySender_.updateValue(systemDataIt->commandFieldnames,
+                                             systemDataIt->state.uCommand);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {

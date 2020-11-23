@@ -506,12 +506,12 @@ class Simulator:
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
-        # Get motors information
+        # Get command information
         u = extract_fields(
             log_data, 'HighLevelController',
-            self.robot.logfile_motor_effort_headers)
+            self.robot.logfile_command_headers)
         if u is not None:
-            data['Motors Effort'] = OrderedDict(
+            data['Command'] = OrderedDict(
                 (field, val) for field, val in zip(self.robot.motors_names, u))
 
         # Get sensors information
