@@ -1091,26 +1091,21 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getFlexibleStateFromRigid(vectorN_t const & qRigid,
-                                               vectorN_t const & vRigid,
-                                               vectorN_t       & qFlex,
-                                               vectorN_t       & vFlex) const
+    hresult_t Model::getFlexibleConfigurationFromRigid(vectorN_t const & qRigid,
+                                                       vectorN_t       & qFlex) const
     {
         // Define some proxies
         uint32_t const & nqRigid = pncModelRigidOrig_.nq;
-        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
-        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
-        if (qRigid.size() != nqRigid || vRigid.size() != nvRigid)
+        if (qRigid.size() != nqRigid)
         {
-            PRINT_ERROR("Size of xRigid inconsistent with theoretical model.")
+            PRINT_ERROR("Size of qRigid inconsistent with theoretical model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Initialize the flexible state
         qFlex = pinocchio::neutral(pncModelFlexibleOrig_);
-        vFlex = vectorN_t::Zero(nvFlex);
 
         // Compute the flexible state based on the rigid state
         int32_t idxRigid = 0;
@@ -1127,8 +1122,6 @@ namespace jiminy
                 {
                     qFlex.segment(jointFlex.idx_q(), jointFlex.nq()) =
                         qRigid.segment(jointRigid.idx_q(), jointRigid.nq());
-                    vFlex.segment(jointFlex.idx_v(), jointFlex.nv()) =
-                        vRigid.segment(jointRigid.idx_v(), jointRigid.nv());
                 }
                 ++idxRigid;
             }
@@ -1137,26 +1130,21 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t Model::getRigidStateFromFlexible(vectorN_t const & qFlex,
-                                               vectorN_t const & vFlex,
-                                               vectorN_t       & qRigid,
-                                               vectorN_t       & vRigid) const
+    hresult_t Model::getRigidConfigurationFromFlexible(vectorN_t const & qFlex,
+                                                       vectorN_t       & qRigid) const
     {
         // Define some proxies
-        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
         uint32_t const & nqFlex = pncModelFlexibleOrig_.nq;
-        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
 
         // Check the size of the input state
-        if (qFlex.size() != nqFlex || vFlex.size() != nvFlex)
+        if (qFlex.size() != nqFlex)
         {
-            PRINT_ERROR("Size of xFlex inconsistent with flexible model.")
+            PRINT_ERROR("Size of qFlex inconsistent with flexible model.")
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Initialize the rigid state
         qRigid = pinocchio::neutral(pncModelRigidOrig_);
-        vRigid = vectorN_t::Zero(nvRigid);
 
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
@@ -1173,6 +1161,87 @@ namespace jiminy
                 {
                     qRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
                         qFlex.segment(jointFlex.idx_q(), jointFlex.nq());
+                }
+            }
+            else
+            {
+                ++idxFlex;
+            }
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Model::getFlexibleVelocityFromRigid(vectorN_t const & vRigid,
+                                                  vectorN_t       & vFlex) const
+    {
+        // Define some proxies
+        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
+
+        // Check the size of the input state
+        if (vRigid.size() != nvRigid)
+        {
+            PRINT_ERROR("Size of vRigid inconsistent with theoretical model.")
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Initialize the flexible state
+        vFlex = vectorN_t::Zero(nvFlex);
+
+        // Compute the flexible state based on the rigid state
+        int32_t idxRigid = 0;
+        int32_t idxFlex = 0;
+        for (; idxRigid < pncModelRigidOrig_.njoints; ++idxFlex)
+        {
+            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
+            if (jointRigidName == jointFlexName)
+            {
+                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
+                if (jointRigid.idx_q() >= 0)
+                {
+                    vFlex.segment(jointFlex.idx_v(), jointFlex.nv()) =
+                        vRigid.segment(jointRigid.idx_v(), jointRigid.nv());
+                }
+                ++idxRigid;
+            }
+        }
+
+        return hresult_t::SUCCESS;
+    }
+
+    hresult_t Model::getRigidVelocityFromFlexible(vectorN_t const & vFlex,
+                                                  vectorN_t       & vRigid) const
+    {
+        // Define some proxies
+        uint32_t const & nvRigid = pncModelRigidOrig_.nv;
+        uint32_t const & nvFlex = pncModelFlexibleOrig_.nv;
+
+        // Check the size of the input state
+        if (vFlex.size() != nvFlex)
+        {
+            PRINT_ERROR("Size of vFlex inconsistent with flexible model.")
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        // Initialize the rigid state
+        vRigid = vectorN_t::Zero(nvRigid);
+
+        // Compute the rigid state based on the flexible state
+        int32_t idxRigid = 0;
+        int32_t idxFlex = 0;
+        for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxRigid, ++idxFlex)
+        {
+            std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
+            std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
+            if (jointRigidName == jointFlexName)
+            {
+                auto const & jointRigid = pncModelRigidOrig_.joints[idxRigid];
+                auto const & jointFlex = pncModelFlexibleOrig_.joints[idxFlex];
+                if (jointRigid.idx_q() >= 0)
+                {
                     vRigid.segment(jointRigid.idx_v(), jointRigid.nv()) =
                         vFlex.segment(jointFlex.idx_v(), jointFlex.nv());
                 }

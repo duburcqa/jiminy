@@ -54,7 +54,8 @@ namespace jiminy
 
         void reset(float64_t              const & dtInit,
                    std::vector<vectorN_t> const & qSplitInit,
-                   std::vector<vectorN_t> const & vSplitInit)
+                   std::vector<vectorN_t> const & vSplitInit,
+                   std::vector<vectorN_t> const & aSplitInit)
         {
             iter = 0U;
             iterFailed = 0U;
@@ -66,14 +67,7 @@ namespace jiminy
             tError = 0.0;
             qSplit = qSplitInit;
             vSplit = vSplitInit;
-            aSplit.clear();
-            aSplit.reserve(vSplitInit.size());
-            std::transform(vSplitInit.begin(), vSplitInit.end(),
-                           std::back_inserter(aSplit),
-                           [](auto const & v) -> vectorN_t
-                           {
-                               return vectorN_t::Zero(v.size());
-                           });
+            aSplit = aSplitInit;
         }
 
     public:
@@ -366,11 +360,13 @@ namespace jiminy
         ///
         /// \param[in] qInit Initial configuration of every system.
         /// \param[in] vInit Initial velocity of every system.
+        /// \param[in] aInit Initial acceleration of every system. Optional: Zero by default.
         /// \param[in] resetRandomNumbers Whether or not to reset the random number generator.
         /// \param[in] resetDynamicForceRegister Whether or not to register the external force profiles applied
         ///                                      during the simulation.
         hresult_t start(std::map<std::string, vectorN_t> const & qInit,
                         std::map<std::string, vectorN_t> const & vInit,
+                        std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt,
                         bool_t const & resetRandomNumbers = false,
                         bool_t const & resetDynamicForceRegister = false);
 
@@ -397,9 +393,11 @@ namespace jiminy
         /// \param[in] tEnd End time, i.e. amount of time to simulate.
         /// \param[in] qInit Initial configuration of every system, i.e. at t=0.0.
         /// \param[in] vInit Initial velocity of every system, i.e. at t=0.0.
+        /// \param[in] aInit Initial acceleration of every system, i.e. at t=0.0. Optional: Zero by default.
         hresult_t simulate(float64_t const & tEnd,
                            std::map<std::string, vectorN_t> const & qInit,
-                           std::map<std::string, vectorN_t> const & vInit);
+                           std::map<std::string, vectorN_t> const & vInit,
+                           std::optional<std::map<std::string, vectorN_t> > const & aInit = std::nullopt);
 
         /// \brief Apply an impulse force on a frame for a given duration at the desired time.
         ///        The force must be given in the world frame.

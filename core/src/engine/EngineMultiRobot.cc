@@ -529,6 +529,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
+                                      std::optional<std::map<std::string, vectorN_t> > const & aInit,
                                       bool_t const & resetRandomNumbers,
                                       bool_t const & resetDynamicForceRegister)
     {
@@ -564,7 +565,7 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                PRINT_ERROR("At least one of the systems does not have an initial configuration or velocity.")
+                PRINT_ERROR("System '", system.name, "'does not have an initial configuration or velocity.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -572,8 +573,8 @@ namespace jiminy
             vectorN_t const & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
-                PRINT_ERROR("The size of the initial configuration or velocity is inconsistent "
-                            "with model size for at least one of the systems.")
+                PRINT_ERROR("The dimension of the initial configuration or velocity is inconsistent "
+                            "with model size for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -582,7 +583,7 @@ namespace jiminy
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "
-                            "joints of the model for at least one of the systems.")
+                            "joints of the model for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -591,13 +592,54 @@ namespace jiminy
                 (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
             {
-                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for at "
-                            "least one of the systems.")
+                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
             qSplit.emplace_back(q);
             vSplit.emplace_back(v);
+        }
+
+        std::vector<vectorN_t> aSplit;
+        aSplit.reserve(systems_.size());
+        if (aInit)
+        {
+            // Check the dimension of the initial acceleration associated with every system and order them
+            if (aInit->size() != systems_.size())
+            {
+                PRINT_ERROR("If specified, the number of initial accelerations must match the number of systems.")
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            for (auto & system : systems_)
+            {
+                auto aInitIt = aInit->find(system.name);
+                if (aInitIt == aInit->end())
+                {
+                    PRINT_ERROR("System '", system.name, "'does not have an initial acceleration.")
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
+
+                vectorN_t const & a = aInitIt->second;
+                if (a.rows() != system.robot->nv())
+                {
+                    PRINT_ERROR("The dimension of the initial acceleration is inconsistent "
+                                "with model size for system '", system.name, "'.")
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
+
+                aSplit.emplace_back(a);
+            }
+        }
+        else
+        {
+            // Zero acceleration by default
+            std::transform(vSplit.begin(), vSplit.end(),
+                           std::back_inserter(aSplit),
+                           [](auto const & v) -> vectorN_t
+                           {
+                               return vectorN_t::Zero(v.size());
+                           });
         }
 
         for (auto & system : systems_)
@@ -692,7 +734,7 @@ namespace jiminy
 
             // Initialize the stepper state
             float64_t const t = 0.0;
-            stepperState_.reset(dt, qSplit, vSplit);
+            stepperState_.reset(dt, qSplit, vSplit, aSplit);
 
             // Synchronize the individual system states with the global stepper state
             syncSystemsStateWithStepper();
@@ -864,7 +906,8 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::simulate(float64_t                        const & tEnd,
                                          std::map<std::string, vectorN_t> const & qInit,
-                                         std::map<std::string, vectorN_t> const & vInit)
+                                         std::map<std::string, vectorN_t> const & vInit,
+                                         std::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -883,7 +926,7 @@ namespace jiminy
         // Reset the robot, controller, and engine
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = start(qInit, vInit, true, false);
+            returnCode = start(qInit, vInit, aInit, true, false);
         }
 
         // Now that telemetry has been initialized, check simulation duration.
