@@ -1,7 +1,7 @@
 """ TODO: Write documentation.
 """
 from collections import OrderedDict
-from typing import Union, Any
+from typing import Union, Any, List
 
 import numpy as np
 import gym
@@ -23,8 +23,8 @@ class PDController(BaseControllerBlock):
     def __init__(self,
                  env: BaseJiminyEnv,
                  update_ratio: int = 1,
-                 pid_kp: Union[float, np.ndarray] = 0.0,
-                 pid_kd: Union[float, np.ndarray] = 0.0,
+                 pid_kp: Union[float, List[float], np.ndarray] = 0.0,
+                 pid_kd: Union[float, List[float], np.ndarray] = 0.0,
                  **kwargs: Any) -> None:
         """
         :param update_ratio: Ratio between the update period of the controller
@@ -35,8 +35,8 @@ class PDController(BaseControllerBlock):
                        generation.
         """
         # Backup some user arguments
-        self.pid_kp = pid_kp
-        self.pid_kd = pid_kd
+        self.pid_kp = np.asarray(pid_kp)
+        self.pid_kd = np.asarray(pid_kd)
 
         # Define the mapping from motors to encoders
         encoder_joints = []

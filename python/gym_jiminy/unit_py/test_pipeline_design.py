@@ -1,10 +1,11 @@
 """ TODO: Write documentation
 """
+import os
 import unittest
 
 import numpy as np
 
-from gym_jiminy.common.pipeline import build_pipeline
+from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
 
 
 class PipelineDesign(unittest.TestCase):
@@ -49,6 +50,26 @@ class PipelineDesign(unittest.TestCase):
                 }}
             ]
         })
+
+    def test_load_files(self):
+        """ TODO: Write documentation
+        """
+        # Get data path
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+
+        # Load TOML pipeline description, create env and perform a step
+        toml_file = os.path.join(data_dir, "anymal_pipeline.toml")
+        ANYmalPipelineEnv = load_pipeline(toml_file)
+        env = ANYmalPipelineEnv()
+        env.reset()
+        env.step()
+
+        # Load JSON pipeline description, create env and perform a step
+        json_file = os.path.join(data_dir, "anymal_pipeline.json")
+        ANYmalPipelineEnv = load_pipeline(json_file)
+        env = ANYmalPipelineEnv()
+        env.reset()
+        env.step()
 
     def test_override_default(self):
         """ TODO: Write documentation

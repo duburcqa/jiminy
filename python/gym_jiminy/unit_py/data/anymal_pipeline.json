@@ -1,0 +1,33 @@
+{
+  "env_config": {
+    "env_class": "gym_jiminy.envs.ANYmalJiminyEnv",
+    "env_kwargs": {
+      "step_dt": 0.005
+    }
+  },
+  "blocks_config": [
+    {
+      "block_class": "gym_jiminy.common.controllers.PDController",
+      "block_kwargs": {
+        "update_ratio": 2,
+        "pid_kp": [1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+        "pid_kd": [3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3, 3.0e-3]
+      },
+      "wrapper_kwargs": {
+        "augment_observation": true
+      }
+    },
+    {
+      "wrapper_class": "gym_jiminy.common.wrappers.StackedJiminyEnv",
+      "wrapper_kwargs": {
+        "nested_fields_list": [
+          ["t"],
+          ["sensors", "ImuSensor"],
+          ["targets"]
+        ],
+        "num_stack": 3,
+        "skip_frames_ratio": 2
+      }
+    }
+  ]
+}
