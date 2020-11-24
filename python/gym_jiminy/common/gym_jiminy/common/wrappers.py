@@ -52,7 +52,7 @@ class PartialFrameStack(gym.Wrapper):
         self.num_stack = num_stack
 
         # Initialize base wrapper
-        super().__init__(env, **kwargs)
+        super().__init__(env)  # Do not forward extra arguments, if any
 
         # Get the leaf fields to stack
         self.leaf_fields_list: List[List[str]] = []

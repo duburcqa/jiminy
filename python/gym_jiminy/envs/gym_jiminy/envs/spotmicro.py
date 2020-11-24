@@ -36,7 +36,7 @@ class SpotmicroJiminyEnv(WalkerJiminyEnv):
         urdf_path = os.path.join(data_root_dir, "spotmicro.urdf")
 
         # Initialize the walker environment
-        super().__init__(
+        super().__init__(**{**dict(
             urdf_path=urdf_path,
             mesh_path=data_root_dir,
             simu_duration_max=SIMULATION_DURATION,
@@ -44,5 +44,4 @@ class SpotmicroJiminyEnv(WalkerJiminyEnv):
             reward_mixture=REWARD_MIXTURE,
             std_ratio=STD_RATIO,
             avoid_instable_collisions=False,
-            debug=debug,
-            **kwargs)
+            debug=debug), **kwargs})

@@ -466,7 +466,7 @@ namespace python
             catch (...)
             {
                 PyErr_SetString(PyExc_KeyError, "This combination of keys does not exist.");
-                return bp::object();
+                return bp::object();  // Return None
             }
         }
 
@@ -482,7 +482,7 @@ namespace python
             catch (...)
             {
                 PyErr_SetString(PyExc_KeyError, "This key does not exist.");
-                return bp::object();
+                return bp::object();  // Return None
             }
         }
 
@@ -995,10 +995,14 @@ namespace python
                 .def("remove_contact_points", &PyModelVisitor::removeContactPoints,
                                               (bp::arg("self"), "frame_names"))
 
-                .def("get_flexible_state_from_rigid", &PyModelVisitor::getFlexibleStateFromRigid,
-                                                      (bp::arg("self"), "rigid_state"))
-                .def("get_rigid_state_from_flexible", &PyModelVisitor::getRigidStateFromFlexible,
-                                                      (bp::arg("self"), "flexible_state"))
+                .def("get_flexible_configuration_from_rigid", &PyModelVisitor::getFlexibleConfigurationFromRigid,
+                                                              (bp::arg("self"), "rigid_position"))
+                .def("get_flexible_velocity_from_rigid", &PyModelVisitor::getFlexibleVelocityFromRigid,
+                                                         (bp::arg("self"), "rigid_velocity"))
+                .def("get_rigid_configuration_from_flexible", &PyModelVisitor::getRigidConfigurationFromFlexible,
+                                                              (bp::arg("self"), "flexible_position"))
+                .def("get_rigid_velocity_from_flexible", &PyModelVisitor::getRigidVelocityFromFlexible,
+                                                         (bp::arg("self"), "flexible_velocity"))
 
                 .add_property("pinocchio_model", bp::make_getter(&Model::pncModel_,
                                                  bp::return_internal_reference<>()))
@@ -1102,24 +1106,36 @@ namespace python
             return self.removeContactPoints(frameNames);
         }
 
-        static bp::tuple getFlexibleStateFromRigid(Model           & self,
-                                                   vectorN_t const & qRigid,
-                                                   vectorN_t const & vRigid)
+        static vectorN_t getFlexibleConfigurationFromRigid(Model           & self,
+                                                           vectorN_t const & qRigid)
         {
             vectorN_t qFlexible;
-            vectorN_t vFlexible;
-            self.getFlexibleStateFromRigid(qRigid, vRigid, qFlexible, vFlexible);
-            return bp::make_tuple(qFlexible, vFlexible);
+            self.getFlexibleConfigurationFromRigid(qRigid, qFlexible);
+            return qFlexible;
         }
 
-        static bp::tuple getRigidStateFromFlexible(Model           & self,
-                                                   vectorN_t const & qFlexible,
-                                                   vectorN_t const & vFlexible)
+        static vectorN_t getFlexibleVelocityFromRigid(Model           & self,
+                                                      vectorN_t const & vRigid)
+        {
+            vectorN_t vFlexible;
+            self.getFlexibleVelocityFromRigid(vRigid, vFlexible);
+            return vFlexible;
+        }
+
+        static vectorN_t getRigidConfigurationFromFlexible(Model           & self,
+                                                           vectorN_t const & qFlexible)
         {
             vectorN_t qRigid;
+            self.getRigidConfigurationFromFlexible(qFlexible, qRigid);
+            return qRigid;
+        }
+
+        static vectorN_t getRigidVelocityFromFlexible(Model           & self,
+                                                      vectorN_t const & vFlexible)
+        {
             vectorN_t vRigid;
-            self.getRigidStateFromFlexible(qFlexible, vFlexible, qRigid, vRigid);
-            return bp::make_tuple(qRigid, vRigid);
+            self.getRigidVelocityFromFlexible(vFlexible, vRigid);
+            return vRigid;
         }
 
         ///////////////////////////////////////////////////////////////////////////////
@@ -1216,8 +1232,8 @@ namespace python
                 .add_property("effort_limit", &Robot::getEffortLimit)
                 .add_property("motors_inertias", &Robot::getMotorsInertias)
 
-                .add_property("logfile_motor_effort_headers", bp::make_function(&Robot::getMotorEffortFieldnames,
-                                                              bp::return_value_policy<bp::copy_const_reference>()))
+                .add_property("logfile_command_headers", bp::make_function(&Robot::getCommandFieldnames,
+                                                         bp::return_value_policy<bp::copy_const_reference>()))
                 ;
         }
 
@@ -1522,7 +1538,7 @@ namespace python
             cl
                 .def("__init__", bp::make_constructor(&PyControllerFunctorVisitor::factory,
                                  bp::default_call_policies(),
-                                (bp::arg("compute_command") = bp::object(),  // bp::object() means None in Python
+                                (bp::arg("compute_command") = bp::object(),  // bp::object() means 'None' in Python
                                  bp::arg("internal_dynamics") = bp::object())))
                 ;
         }
@@ -1816,13 +1832,15 @@ namespace python
                     (bp::arg("self"), bp::arg("remove_forces") = false))
                 .def("start", &PyEngineMultiRobotVisitor::start,
                               (bp::arg("self"), "q_init_list", "v_init_list",
+                               bp::arg("a_init_list") = bp::object(),  // bp::object() means 'None' in Python
                                bp::arg("reset_random_generator") = false,
                                bp::arg("remove_forces") = false))
                 .def("step", &PyEngineMultiRobotVisitor::step,
                              (bp::arg("self"), bp::arg("dt_desired") = -1))
                 .def("stop", &EngineMultiRobot::stop, (bp::arg("self")))
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
-                                 (bp::arg("self"), "t_end", "q_init_list", "q_init_list"))
+                                 (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
+                                  bp::arg("a_init_list") = bp::object()))
                 .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
                                               (bp::arg("self"), "t_end", "q_list", "v_list"))
 
@@ -1930,13 +1948,20 @@ namespace python
         }
 
         static hresult_t start(EngineMultiRobot       & self,
-                               bp::object       const & qInit,
-                               bp::object       const & vInit,
+                               bp::object       const & qInitPy,
+                               bp::object       const & vInitPy,
+                               bp::object       const & aInitPy,
                                bool             const & resetRandomGenerator,
                                bool             const & removeForces)
         {
-            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(qInit),
-                              convertFromPython<std::map<std::string, vectorN_t> >(vInit),
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
+            if (!aInitPy.is_none())
+            {
+                aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
+            }
+            return self.start(convertFromPython<std::map<std::string, vectorN_t> >(qInitPy),
+                              convertFromPython<std::map<std::string, vectorN_t> >(vInitPy),
+                              aInit,
                               resetRandomGenerator,
                               removeForces);
         }
@@ -1950,12 +1975,19 @@ namespace python
 
         static hresult_t simulate(EngineMultiRobot       & self,
                                   float64_t        const & endTime,
-                                  bp::object       const & qInit,
-                                  bp::object       const & vInit)
+                                  bp::object       const & qInitPy,
+                                  bp::object       const & vInitPy,
+                                  bp::object       const & aInitPy)
         {
+            std::optional<std::map<std::string, vectorN_t> > aInit = std::nullopt;
+            if (!aInitPy.is_none())
+            {
+                aInit.emplace(convertFromPython<std::map<std::string, vectorN_t> >(aInitPy));
+            }
             return self.simulate(endTime,
-                                 convertFromPython<std::map<std::string, vectorN_t> >(qInit),
-                                 convertFromPython<std::map<std::string, vectorN_t> >(vInit));
+                                 convertFromPython<std::map<std::string, vectorN_t> >(qInitPy),
+                                 convertFromPython<std::map<std::string, vectorN_t> >(vInitPy),
+                                 aInit);
         }
 
         static bp::object computeSystemDynamics(EngineMultiRobot       & self,
@@ -2142,18 +2174,16 @@ namespace python
                     (bp::arg("self"), "controller"))
 
                 .def("start",
-                    static_cast<
-                        hresult_t (Engine::*)(vectorN_t const &, vectorN_t const &, bool_t const &, bool_t const &, bool_t const &)
-                    >(&Engine::start),
+                    &PyEngineVisitor::start,
                     (bp::arg("self"), "q_init", "v_init",
+                     bp::arg("a_init") = bp::object(),
                      bp::arg("is_state_theoretical") = false,
                      bp::arg("reset_random_generator") = false,
                      bp::arg("remove_forces") = false))
                 .def("simulate",
-                    static_cast<
-                        hresult_t (Engine::*)(float64_t const &, vectorN_t const &, vectorN_t const &, bool_t const &)
-                    >(&Engine::simulate),
+                    &PyEngineVisitor::simulate,
                     (bp::arg("self"), "t_end", "q_init", "v_init",
+                     bp::arg("a_init") = bp::object(),
                      bp::arg("is_state_theoretical") = false))
 
                 .def("register_force_impulse", &PyEngineVisitor::registerForceImpulse,
@@ -2242,6 +2272,37 @@ namespace python
             systemState_t const * systemState;
             self.getSystemState(systemState);  // getSystemState is making sure that systemState is always assigned to a well-defined systemState_t
             return *systemState;
+        }
+
+        static hresult_t start(Engine           & self,
+                               vectorN_t  const & qInit,
+                               vectorN_t  const & vInit,
+                               bp::object const & aInitPy,
+                               bool       const & isStateTheoretical,
+                               bool       const & resetRandomGenerator,
+                               bool       const & removeForces)
+        {
+            std::optional<vectorN_t> aInit = std::nullopt;
+            if (!aInitPy.is_none())
+            {
+                aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
+            }
+            return self.start(qInit, vInit, aInit, isStateTheoretical, resetRandomGenerator, removeForces);
+        }
+
+        static hresult_t simulate(Engine           & self,
+                                  float64_t  const & endTime,
+                                  vectorN_t  const & qInit,
+                                  vectorN_t  const & vInit,
+                                  bp::object const & aInitPy,
+                                  bool       const & isStateTheoretical)
+        {
+            std::optional<vectorN_t> aInit = std::nullopt;
+            if (!aInitPy.is_none())
+            {
+                aInit.emplace(convertFromPython<vectorN_t>(aInitPy));
+            }
+            return self.simulate(endTime, qInit, vInit, aInit, isStateTheoretical);
         }
 
         ///////////////////////////////////////////////////////////////////////////////

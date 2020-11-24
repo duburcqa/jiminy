@@ -12,6 +12,8 @@ from gym_jiminy.envs import AtlasPDControlJiminyEnv
 
 
 class PipelineControlAtlas(unittest.TestCase):
+    """ TODO: Write documentation
+    """
     def setUp(self):
         """ TODO: Write documentation
         """
@@ -50,7 +52,8 @@ class PipelineControlAtlas(unittest.TestCase):
         # Check that the final posture matches the expected one.
         robot_name = self.env.robot.pinocchio_model.name
         img_name = '_'.join((robot_name, "standing_meshcat.png"))
-        img_fullpath = os.path.join(os.path.dirname(__file__), img_name)
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+        img_fullpath = os.path.join(data_dir, img_name)
         rgba_array_rel_orig = plt.imread(img_fullpath)
         rgb_array_abs_orig = (
             rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)

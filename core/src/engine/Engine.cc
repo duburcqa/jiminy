@@ -82,8 +82,66 @@ namespace jiminy
         return setController("", controller);
     }
 
+    hresult_t singleToMultipleSystemsInitialData(Robot const & robot,
+                                                 bool_t const & isStateTheoretical,
+                                                 vectorN_t const & qInit,
+                                                 vectorN_t const & vInit,
+                                                 std::optional<vectorN_t> const & aInit,
+                                                 std::map<std::string, vectorN_t> & qInitList,
+                                                 std::map<std::string, vectorN_t> & vInitList,
+                                                 std::optional<std::map<std::string, vectorN_t> > & aInitList)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+        {
+            vectorN_t q0;
+            returnCode = robot.getFlexibleConfigurationFromRigid(qInit, q0);
+            qInitList.emplace("", std::move(q0));
+        }
+        else
+        {
+            qInitList.emplace("", qInit);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+            {
+                vectorN_t v0;
+                returnCode = robot.getFlexibleVelocityFromRigid(vInit, v0);
+                vInitList.emplace("", std::move(v0));
+            }
+            else
+            {
+                vInitList.emplace("", vInit);
+            }
+        }
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (aInit)
+            {
+                aInitList.emplace();
+                if (isStateTheoretical && robot.mdlOptions_->dynamics.enableFlexibleModel)
+                {
+                    vectorN_t a0;
+                    returnCode = robot.getFlexibleVelocityFromRigid(*aInit, a0);
+                    aInitList->emplace("", std::move(a0));
+                }
+                else
+                {
+                    aInitList->emplace("", *aInit);
+                }
+            }
+        }
+
+        return returnCode;
+    }
+
+
     hresult_t Engine::start(vectorN_t const & qInit,
                             vectorN_t const & vInit,
+                            std::optional<vectorN_t> const & aInit,
                             bool_t    const & isStateTheoretical,
                             bool_t    const & resetRandomNumbers,
                             bool_t    const & resetDynamicForceRegister)
@@ -98,27 +156,17 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
+        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                vectorN_t q0;
-                vectorN_t v0;
-                returnCode = robot_->getFlexibleStateFromRigid(qInit, vInit, q0, v0);
-                qInitList.emplace("", std::move(q0));
-                vInitList.emplace("", std::move(v0));
-            }
-            else
-            {
-                qInitList.emplace("", std::move(qInit));
-                vInitList.emplace("", std::move(vInit));
-            }
+            returnCode = singleToMultipleSystemsInitialData(
+                *robot_, isStateTheoretical, qInit, vInit, aInit, qInitList, vInitList, aInitList);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = EngineMultiRobot::start(
-                qInitList, vInitList, resetRandomNumbers, resetDynamicForceRegister);
+                qInitList, vInitList, aInitList, resetRandomNumbers, resetDynamicForceRegister);
         }
 
         return returnCode;
@@ -127,6 +175,7 @@ namespace jiminy
     hresult_t Engine::simulate(float64_t const & tEnd,
                                vectorN_t const & qInit,
                                vectorN_t const & vInit,
+                               std::optional<vectorN_t> const & aInit,
                                bool_t    const & isStateTheoretical)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
@@ -139,26 +188,16 @@ namespace jiminy
 
         std::map<std::string, vectorN_t> qInitList;
         std::map<std::string, vectorN_t> vInitList;
+        std::optional<std::map<std::string, vectorN_t> > aInitList = std::nullopt;
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (isStateTheoretical && robot_->mdlOptions_->dynamics.enableFlexibleModel)
-            {
-                vectorN_t q0;
-                vectorN_t v0;
-                returnCode = robot_->getFlexibleStateFromRigid(qInit, vInit, q0, v0);
-                qInitList.emplace("", std::move(q0));
-                vInitList.emplace("", std::move(v0));
-            }
-            else
-            {
-                qInitList.emplace("", std::move(qInit));
-                vInitList.emplace("", std::move(vInit));
-            }
+            returnCode = singleToMultipleSystemsInitialData(
+                *robot_, isStateTheoretical, qInit, vInit, aInit, qInitList, vInitList, aInitList);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = EngineMultiRobot::simulate(tEnd, qInitList, vInitList);
+            returnCode = EngineMultiRobot::simulate(tEnd, qInitList, vInitList, aInitList);
         }
 
         return returnCode;

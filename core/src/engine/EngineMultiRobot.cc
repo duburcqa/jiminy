@@ -360,8 +360,8 @@ namespace jiminy
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
                                  systemIt->name, "", TELEMETRY_DELIMITER);
-                systemDataIt->motorEffortFieldnames =
-                    addCircumfix(systemIt->robot->getMotorEffortFieldnames(),
+                systemDataIt->commandFieldnames =
+                    addCircumfix(systemIt->robot->getCommandFieldnames(),
                                  systemIt->name, "", TELEMETRY_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
@@ -397,11 +397,11 @@ namespace jiminy
                 }
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    if (engineOptions_->telemetry.enableEffort)
+                    if (engineOptions_->telemetry.enableCommand)
                     {
                         returnCode = telemetrySender_.registerVariable(
-                            systemDataIt->motorEffortFieldnames,
-                            systemDataIt->state.uMotor);
+                            systemDataIt->commandFieldnames,
+                            systemDataIt->state.uCommand);
                     }
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -469,10 +469,10 @@ namespace jiminy
                 telemetrySender_.updateValue(systemDataIt->accelerationFieldnames,
                                              systemDataIt->state.a);
             }
-            if (engineOptions_->telemetry.enableEffort)
+            if (engineOptions_->telemetry.enableCommand)
             {
-                telemetrySender_.updateValue(systemDataIt->motorEffortFieldnames,
-                                             systemDataIt->state.uMotor);
+                telemetrySender_.updateValue(systemDataIt->commandFieldnames,
+                                             systemDataIt->state.uCommand);
             }
             if (engineOptions_->telemetry.enableEnergy)
             {
@@ -529,6 +529,7 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
+                                      std::optional<std::map<std::string, vectorN_t> > const & aInit,
                                       bool_t const & resetRandomNumbers,
                                       bool_t const & resetDynamicForceRegister)
     {
@@ -564,7 +565,7 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                PRINT_ERROR("At least one of the systems does not have an initial configuration or velocity.")
+                PRINT_ERROR("System '", system.name, "'does not have an initial configuration or velocity.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -572,8 +573,8 @@ namespace jiminy
             vectorN_t const & v = vInitIt->second;
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
-                PRINT_ERROR("The size of the initial configuration or velocity is inconsistent "
-                            "with model size for at least one of the systems.")
+                PRINT_ERROR("The dimension of the initial configuration or velocity is inconsistent "
+                            "with model size for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -582,7 +583,7 @@ namespace jiminy
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "
-                            "joints of the model for at least one of the systems.")
+                            "joints of the model for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -591,13 +592,54 @@ namespace jiminy
                 (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
             {
-                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for at "
-                            "least one of the systems.")
+                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.")
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
             qSplit.emplace_back(q);
             vSplit.emplace_back(v);
+        }
+
+        std::vector<vectorN_t> aSplit;
+        aSplit.reserve(systems_.size());
+        if (aInit)
+        {
+            // Check the dimension of the initial acceleration associated with every system and order them
+            if (aInit->size() != systems_.size())
+            {
+                PRINT_ERROR("If specified, the number of initial accelerations must match the number of systems.")
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+
+            for (auto & system : systems_)
+            {
+                auto aInitIt = aInit->find(system.name);
+                if (aInitIt == aInit->end())
+                {
+                    PRINT_ERROR("System '", system.name, "'does not have an initial acceleration.")
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
+
+                vectorN_t const & a = aInitIt->second;
+                if (a.rows() != system.robot->nv())
+                {
+                    PRINT_ERROR("The dimension of the initial acceleration is inconsistent "
+                                "with model size for system '", system.name, "'.")
+                    return hresult_t::ERROR_BAD_INPUT;
+                }
+
+                aSplit.emplace_back(a);
+            }
+        }
+        else
+        {
+            // Zero acceleration by default
+            std::transform(vSplit.begin(), vSplit.end(),
+                           std::back_inserter(aSplit),
+                           [](auto const & v) -> vectorN_t
+                           {
+                               return vectorN_t::Zero(v.size());
+                           });
         }
 
         for (auto & system : systems_)
@@ -692,7 +734,7 @@ namespace jiminy
 
             // Initialize the stepper state
             float64_t const t = 0.0;
-            stepperState_.reset(dt, qSplit, vSplit);
+            stepperState_.reset(dt, qSplit, vSplit, aSplit);
 
             // Synchronize the individual system states with the global stepper state
             syncSystemsStateWithStepper();
@@ -841,9 +883,6 @@ namespace jiminy
             // Write the header: this locks the registration of new variables
             telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
-            // Log current buffer content as first point of the log data.
-            updateTelemetry();
-
             // Initialize the last system states
             for (auto & systemData : systemsDataHolder_)
             {
@@ -864,7 +903,8 @@ namespace jiminy
 
     hresult_t EngineMultiRobot::simulate(float64_t                        const & tEnd,
                                          std::map<std::string, vectorN_t> const & qInit,
-                                         std::map<std::string, vectorN_t> const & vInit)
+                                         std::map<std::string, vectorN_t> const & vInit,
+                                         std::optional<std::map<std::string, vectorN_t> > const & aInit)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -883,7 +923,7 @@ namespace jiminy
         // Reset the robot, controller, and engine
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = start(qInit, vInit, true, false);
+            returnCode = start(qInit, vInit, aInit, true, false);
         }
 
         // Now that telemetry has been initialized, check simulation duration.
@@ -1148,11 +1188,37 @@ namespace jiminy
                 }
             }
 
+            /* Update telemetry if necessary.
+               It monitors the current iteration number, the current time, and the
+               systems state, command, and sensors data.
+               Note that the acceleration is logged BEFORE updating the dynamics if the
+               command has been updated. The acceleration is discontinuous so their is
+               no way to log both the acceleration at the end of the previous step and
+               at the beginning of the next. Logging the previous acceleration is more
+               natural since it preserves the consistency between sensors data and
+               robot state.
+               */
+            if (stepperUpdatePeriod_ < EPS || !engineOptions_->stepper.logInternalStepperSteps)
+            {
+                bool mustUpdateTelemetry = stepperUpdatePeriod_ < EPS;
+                if (!mustUpdateTelemetry)
+                {
+                    float64_t dtNextStepperUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                    mustUpdateTelemetry = (dtNextStepperUpdatePeriod <= SIMULATION_MIN_TIMESTEP / 2.0
+                    || stepperUpdatePeriod_ - dtNextStepperUpdatePeriod < SIMULATION_MIN_TIMESTEP / 2.0);
+                }
+                if (mustUpdateTelemetry)
+                {
+                    updateTelemetry();
+                }
+            }
+
             // Fix the FSAL issue if the dynamics has changed
-            if (hasDynamicsChanged)
+            if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemDynamics(t, qSplit, vSplit, aSplit);
                 syncSystemsStateWithStepper();
+                hasDynamicsChanged = false;
             }
 
             if (stepperUpdatePeriod_ > EPS)
@@ -1161,7 +1227,7 @@ namespace jiminy
                    a breakpoint occurs if we reached tEnd, if an external force
                    is applied, or if we need to update the sensors / controller. */
                 float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
-                float64_t dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
+                float64_t const dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
                     /* Step to reach next sensors/controller update is too short:
@@ -1189,6 +1255,20 @@ namespace jiminy
                 sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
+                    // Log every stepper state only if the user asked for
+                    if (engineOptions_->stepper.logInternalStepperSteps)
+                    {
+                        updateTelemetry();
+                    }
+
+                    // Fix the FSAL issue if the dynamics has changed
+                    if (hasDynamicsChanged)
+                    {
+                        computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                        syncSystemsStateWithStepper();
+                        hasDynamicsChanged = false;
+                    }
+
                     /* Adjust stepsize to end up exactly at the next breakpoint,
                        prevent steps larger than dtMax, trying to reach multiples of
                        STEPPER_MIN_TIMESTEP whenever possible. The idea here is to
@@ -1248,12 +1328,6 @@ namespace jiminy
 
                         // Increment the iteration counter only for successful steps
                         ++stepperState_.iter;
-
-                        // Log every stepper state only if the user asked for
-                        if (engineOptions_->stepper.logInternalStepperSteps)
-                        {
-                            updateTelemetry();
-                        }
 
                         /* Restore the step size dt if it has been significantly
                            decreased to because of a breakpoint. It is set
@@ -1339,12 +1413,6 @@ namespace jiminy
                         // Increment the iteration counter
                         ++stepperState_.iter;
 
-                        // Log every stepper state only if required
-                        if (engineOptions_->stepper.logInternalStepperSteps)
-                        {
-                            updateTelemetry();
-                        }
-
                         // Restore the step size if necessary
                         if (isBreakpointReached)
                         {
@@ -1378,7 +1446,7 @@ namespace jiminy
 
             // Update sensors data if necessary, namely if time-continuous or breakpoint
             float64_t const & sensorsUpdatePeriod = engineOptions_->stepper.sensorsUpdatePeriod;
-            bool mustUpdateSensors = sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP;
+            bool mustUpdateSensors = sensorsUpdatePeriod < EPS;
             if (!mustUpdateSensors)
             {
                 float64_t dtNextSensorsUpdatePeriod = sensorsUpdatePeriod - std::fmod(t, sensorsUpdatePeriod);
@@ -1428,15 +1496,8 @@ namespace jiminy
            so he is expecting this value to be reached. */
         if (returnCode == hresult_t::SUCCESS)
         {
-            stepperState_.t = tEnd;
-            stepperState_.dt = stepSize;
-        }
-
-        /* Monitor current iteration number, and log the current time,
-           state, command, and sensors data. */
-        if (!engineOptions_->stepper.logInternalStepperSteps)
-        {
-            updateTelemetry();
+            t = tEnd;
+            dt = stepSize;
         }
 
         if (returnCode != hresult_t::SUCCESS)
@@ -1454,6 +1515,9 @@ namespace jiminy
         {
             return;
         }
+
+        // Log current buffer content as final point of the log data
+        updateTelemetry();
 
         // Release the lock on the robots
         for (auto & systemData : systemsDataHolder_)

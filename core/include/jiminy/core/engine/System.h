@@ -138,7 +138,7 @@ namespace jiminy
         std::vector<std::string> positionFieldnames;
         std::vector<std::string> velocityFieldnames;
         std::vector<std::string> accelerationFieldnames;
-        std::vector<std::string> motorEffortFieldnames;
+        std::vector<std::string> commandFieldnames;
         std::string energyFieldname;
 
         systemState_t state;       ///< Internal buffer with the state for the integration loop

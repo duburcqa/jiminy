@@ -230,7 +230,8 @@ class Simulator:
             q = self.engine.system_state.q
             v = self.engine.system_state.v
             if self.robot.is_flexible and self.use_theoretical_model:
-                return self.robot.get_rigid_state_from_flexible(q, v)
+                q = self.robot.get_rigid_configuration_from_flexible(q)
+                v = self.robot.get_rigid_velocity_from_flexible(v)
             else:
                 return q, v
         else:
@@ -295,7 +296,7 @@ class Simulator:
                                      associated with the actual or theoretical
                                      model of the robot.
         """
-        hresult = self.engine.start(q0, v0, is_state_theoretical)
+        hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError(
                 "Failed to start the simulation. Probably because the "
@@ -366,7 +367,7 @@ class Simulator:
                         "inherited from `BaseJiminyObserverController`."
                         ) from e
                 show_progress_bar = False
-        self.engine.simulate(tf, q0, v0, is_state_theoretical)
+        self.engine.simulate(tf, q0, v0, None, is_state_theoretical)
         if show_progress_bar is not False:
             self.engine.controller.close_progress_bar()
 
@@ -505,12 +506,12 @@ class Simulator:
                     (field[len("current"):].replace(fields_type, ""), val)
                     for field, val in zip(fieldnames, values))
 
-        # Get motors information
+        # Get command information
         u = extract_fields(
             log_data, 'HighLevelController',
-            self.robot.logfile_motor_effort_headers)
+            self.robot.logfile_command_headers)
         if u is not None:
-            data['Motors Effort'] = OrderedDict(
+            data['Command'] = OrderedDict(
                 (field, val) for field, val in zip(self.robot.motors_names, u))
 
         # Get sensors information

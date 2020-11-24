@@ -174,7 +174,7 @@ namespace jiminy
         vectorN_t getEffortLimit(void) const;
         vectorN_t getMotorsInertias(void) const;
 
-        std::vector<std::string> const & getMotorEffortFieldnames(void) const;
+        std::vector<std::string> const & getCommandFieldnames(void) const;
         // Getters without 'get' prefix for consistency with pinocchio C++ API
         int32_t const & nmotors(void) const;
 
@@ -196,7 +196,7 @@ namespace jiminy
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
-        std::vector<std::string> motorEffortFieldnames_;                            ///< Fieldnames of the efforts
+        std::vector<std::string> commandFieldnames_;                            ///< Fieldnames of the efforts
         int32_t nmotors_;                                                           ///< The number of motors
 
         std::vector<robotConstraint_t> constraintsHolder_;
