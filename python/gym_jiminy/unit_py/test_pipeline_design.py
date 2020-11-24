@@ -1,13 +1,11 @@
 """ TODO: Write documentation
 """
+import os
 import unittest
 
 import numpy as np
 
-from gym_jiminy.common.control_impl import PDController
-from gym_jiminy.common.wrappers import StackedJiminyEnv
-from gym_jiminy.common.pipeline_bases import build_pipeline
-from gym_jiminy.envs import ANYmalJiminyEnv
+from gym_jiminy.common.pipeline import build_pipeline, load_pipeline
 
 
 class PipelineDesign(unittest.TestCase):
@@ -24,13 +22,13 @@ class PipelineDesign(unittest.TestCase):
 
         self.ANYmalPipelineEnv = build_pipeline(**{
             'env_config': {
-                'env_class': ANYmalJiminyEnv,
+                'env_class': 'gym_jiminy.envs.ANYmalJiminyEnv',
                 'env_kwargs': {
                     'step_dt': self.step_dt
                 }
             },
             'blocks_config': [{
-                'block_class': PDController,
+                'block_class': 'gym_jiminy.common.controllers.PDController',
                 'block_kwargs': {
                     'update_ratio': 2,
                     'pid_kp': self.pid_kp,
@@ -40,7 +38,7 @@ class PipelineDesign(unittest.TestCase):
                     'augment_observation': True
                 }},
                 {
-                'wrapper_class': StackedJiminyEnv,
+                'wrapper_class': 'gym_jiminy.common.wrappers.StackedJiminyEnv',
                 'wrapper_kwargs': {
                     'nested_fields_list': [
                         ('t',),
@@ -52,6 +50,26 @@ class PipelineDesign(unittest.TestCase):
                 }}
             ]
         })
+
+    def test_load_files(self):
+        """ TODO: Write documentation
+        """
+        # Get data path
+        data_dir = os.path.join(os.path.dirname(__file__), "data")
+
+        # Load TOML pipeline description, create env and perform a step
+        toml_file = os.path.join(data_dir, "anymal_pipeline.toml")
+        ANYmalPipelineEnv = load_pipeline(toml_file)
+        env = ANYmalPipelineEnv()
+        env.reset()
+        env.step()
+
+        # Load JSON pipeline description, create env and perform a step
+        json_file = os.path.join(data_dir, "anymal_pipeline.json")
+        ANYmalPipelineEnv = load_pipeline(json_file)
+        env = ANYmalPipelineEnv()
+        env.reset()
+        env.step()
 
     def test_override_default(self):
         """ TODO: Write documentation

@@ -25,8 +25,8 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral
 
-from .utils import _clamp, zeros, fill, set_value, SpaceDictNested
-from .generic_bases import ObserverControllerInterface
+from ..utils import _clamp, zeros, fill, set_value, SpaceDictNested
+from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
 
@@ -78,7 +78,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         `engine.set_options`.
         :param enforce_bounded: Whether or not to enforce finite bounds for the
                                 observation and action spaces. If so, then
-                                '*_MAX' are used whenever it is necessary.
+                                '\*_MAX' are used whenever it is necessary.
                                 Note that whose bounds are very spread to make
                                 sure it is suitable for the vast majority of
                                 systems.

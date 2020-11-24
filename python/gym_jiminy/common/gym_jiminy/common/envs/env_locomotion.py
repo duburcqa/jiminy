@@ -15,8 +15,8 @@ from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 
-from .env_bases import BaseJiminyEnv
-from .distributions import PeriodicGaussianProcess
+from ..utils import PeriodicGaussianProcess
+from .env_generic import BaseJiminyEnv
 
 
 MIN_GROUND_STIFFNESS_LOG = 5.5

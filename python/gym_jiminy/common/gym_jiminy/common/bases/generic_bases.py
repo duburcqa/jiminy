@@ -7,7 +7,81 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from .utils import _clamp, set_value, copy, SpaceDictNested
+from ..utils import _clamp, set_value, copy, SpaceDictNested
+
+
+class ObserverInterface:
+    """Observer interface for both observers and environments.
+    """
+    observe_dt: float
+    observation_space: Optional[gym.Space]
+    _observation: Optional[SpaceDictNested]
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """Initialize the observation interface.
+
+        It only allocates some attributes.
+
+        :param args: Extra arguments that may be useful for mixing
+                     multiple inheritance through multiple inheritance.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        # Define some attributes
+        self.observe_dt = 0.0
+        self.observation_space = None
+        self._observation = None
+
+        # Call super to allow mixing interfaces through multiple inheritance
+        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
+
+    def refresh_observation(self) -> None:
+        """Refresh the observation.
+
+        .. warning::
+            This is an internal method that is not intended to be called
+            manually. In most cases, it is not necessary to overloaded this
+            method, and  doing so may lead to unexpected behavior if not done
+            carefully.
+        """
+        set_value(self._observation, self.compute_observation())
+
+    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
+        """Get post-processed observation.
+
+        By default, it clamps the observation to make sure it does not violate
+        the lower and upper bounds.
+
+        .. warning::
+            In most cases, it is not necessary to overloaded this method, and
+            doing so may lead to unexpected behavior if not done carefully.
+
+        :param bypass: Whether to nor to bypass post-processing and return
+                       the original observation instead (yet recursively
+                       shadow copied).
+        """
+        if bypass:
+            return copy(self._observation)
+        return _clamp(self.observation_space, self._observation)
+
+    # methods to override:
+    # ----------------------------
+
+    def _refresh_observation_space(self) -> None:
+        """Configure the observation space.
+        """
+        raise NotImplementedError
+
+    def compute_observation(self,
+                            *args: Any,
+                            **kwargs: Any) -> SpaceDictNested:
+        """Compute the observation based on the current simulation state and
+        lower-level measure.
+
+        :param args: Extra arguments that may be useful to derived
+                     implementations.
+        :param kwargs: Extra keyword arguments. See 'args'.
+        """
+        raise NotImplementedError
 
 
 class ControllerInterface:
@@ -97,80 +171,6 @@ class ControllerInterface:
         :param info: Dictionary of extra information for monitoring.
 
         :returns: Terminal reward.
-        """
-        raise NotImplementedError
-
-
-class ObserverInterface:
-    """Observer interface for both observers and environments.
-    """
-    observe_dt: float
-    observation_space: Optional[gym.Space]
-    _observation: Optional[SpaceDictNested]
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Initialize the observation interface.
-
-        It only allocates some attributes.
-
-        :param args: Extra arguments that may be useful for mixing
-                     multiple inheritance through multiple inheritance.
-        :param kwargs: Extra keyword arguments. See 'args'.
-        """
-        # Define some attributes
-        self.observe_dt = 0.0
-        self.observation_space = None
-        self._observation = None
-
-        # Call super to allow mixing interfaces through multiple inheritance
-        super().__init__(*args, **kwargs)  # type: ignore[call-arg]
-
-    def refresh_observation(self) -> None:
-        """Refresh the observation.
-
-        .. warning::
-            This is an internal method that is not intended to be called
-            manually. In most cases, it is not necessary to overloaded this
-            method, and  doing so may lead to unexpected behavior if not done
-            carefully.
-        """
-        set_value(self._observation, self.compute_observation())
-
-    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
-        """Get post-processed observation.
-
-        By default, it clamps the observation to make sure it does not violate
-        the lower and upper bounds.
-
-        .. warning::
-            In most cases, it is not necessary to overloaded this method, and
-            doing so may lead to unexpected behavior if not done carefully.
-
-        :param bypass: Whether to nor to bypass post-processing and return
-                       the original observation instead (yet recursively
-                       shadow copied).
-        """
-        if bypass:
-            return copy(self._observation)
-        return _clamp(self.observation_space, self._observation)
-
-    # methods to override:
-    # ----------------------------
-
-    def _refresh_observation_space(self) -> None:
-        """Configure the observation space.
-        """
-        raise NotImplementedError
-
-    def compute_observation(self,
-                            *args: Any,
-                            **kwargs: Any) -> SpaceDictNested:
-        """Compute the observation based on the current simulation state and
-        lower-level measure.
-
-        :param args: Extra arguments that may be useful to derived
-                     implementations.
-        :param kwargs: Extra keyword arguments. See 'args'.
         """
         raise NotImplementedError
 

@@ -92,7 +92,7 @@ jobs:
         for name in "${gym_modules[@]}"; do
           cd "$RootDir/python/gym_jiminy/$name"
 
-          pylint --unsafe-load-any-extension=y --ignore-imports=y \
+          pylint --unsafe-load-any-extension=y --ignore-imports=y --min-similarity-lines=5 \
                  --good-names=i,j,k,t,q,v,x,e,u,s,v,b,M,dt,rg,fd,_ \
                  --disable=fixme,abstract-method,protected-access,useless-super-delegation \
                  --disable=too-many-instance-attributes,too-many-arguments,too-few-public-methods,too-many-lines \

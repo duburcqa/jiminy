@@ -3,14 +3,14 @@
 from copy import deepcopy
 from functools import reduce
 from collections import deque
-from typing import Tuple, Type, Dict, Sequence, List, Any, Iterator
+from typing import Tuple, Dict, Sequence, List, Any, Iterator
 
 import numpy as np
 
 import gym
 
-from .utils import _is_breakpoint, zeros, SpaceDictNested
-from .pipeline_bases import BasePipelineWrapper
+from ..utils import _is_breakpoint, zeros, SpaceDictNested
+from ..bases import BasePipelineWrapper
 
 
 class PartialFrameStack(gym.Wrapper):
@@ -21,7 +21,7 @@ class PartialFrameStack(gym.Wrapper):
         The observation space must be `gym.spaces.Dict`, while, ultimately,
         stacked leaf fields must be `gym.spaces.Box`.
     """
-    def __init__(self,
+    def __init__(self,  # pylint: disable=unused-argument
                  env: gym.Env,
                  nested_fields_list: Sequence[Sequence[str]],
                  num_stack: int,
@@ -178,7 +178,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.env.observe_dt
 
         # Make sure observe update is discrete-time
-        if (self.observe_dt <= 0.0):
+        if self.observe_dt <= 0.0:
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
@@ -194,64 +194,4 @@ class StackedJiminyEnv(BasePipelineWrapper):
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
             return self.wrapper.compute_observation(obs)
-        else:
-            return self.wrapper.observation(obs)
-
-
-def build_outer_wrapper(env_config: Tuple[
-                            Type[gym.Env],
-                            Dict[str, Any]],
-                        wrapper_config: Tuple[
-                            Type[gym.Wrapper],
-                            Dict[str, Any]]) -> Type[gym.Env]:
-    """Generate a class inheriting from `gym.Wrapper` wrapping a given type of
-    environment.
-
-    .. warning::
-        The generated class takes no input argument. Therefore it will not be
-        possible to set the arguments of the constructor of the environment and
-        wrapper after generation.
-
-    :param env_config:
-        Configuration of the environment, as a tuple:
-
-          - [0] Environment class type.
-          - [1] Keyword arguments to forward to the constructor of the wrapped
-                environment.
-
-    :param wrapper_config:
-        Configuration of the wrapper, as a tuple:
-
-          - [0] Wrapper class type to apply on the environment.
-          - [1] Keyword arguments to forward to the constructor of the wrapper,
-                'env' itself excluded.
-    """
-    # pylint: disable-all
-
-    # Extract user arguments
-    env_class, env_kwargs = env_config
-    wrapper_class, wrapper_kwargs = wrapper_config
-
-    wrapped_env_class = type(
-        f"{wrapper_class.__name__}Env",
-        (wrapper_class,),
-        {})
-
-    def __init__(self: gym.Wrapper) -> None:
-        env = env_class(**env_kwargs)
-        super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-            env, **wrapper_kwargs)
-
-    def __dir__(self: gym.Wrapper) -> List[str]:
-        """Attribute lookup.
-
-        It is mainly used by autocomplete feature of Ipython. It is overloaded
-        to get consistent autocompletion wrt `getattr`.
-        """
-        return super(  # type: ignore[arg-type]
-            wrapped_env_class, self).__dir__() + self.env.__dir__()
-
-    wrapped_env_class.__init__ = __init__  # type: ignore[misc]
-    wrapped_env_class.__dir__ = __dir__  # type: ignore[assignment]
-
-    return wrapped_env_class
+        return self.wrapper.observation(obs)
