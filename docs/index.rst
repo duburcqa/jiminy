@@ -31,7 +31,7 @@ Welcome to Jiminy's documentation!
 
    api/jiminy/index
    api/jiminy_py/index
-   api/gym_jiminy/index
+   api/gym_jiminy/common/index
 
 .. toctree::
    :maxdepth: 1

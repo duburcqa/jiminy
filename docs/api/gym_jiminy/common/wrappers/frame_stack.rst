@@ -1,7 +1,7 @@
-common.block_bases
-==================
+Frames Stacking
+===============
 
-.. automodule:: gym_jiminy.common.block_bases
+.. automodule:: gym_jiminy.common.wrappers.frame_stack
    :members:
    :undoc-members:
    :private-members:

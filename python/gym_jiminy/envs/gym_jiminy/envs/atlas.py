@@ -4,9 +4,9 @@ from pkg_resources import resource_filename
 
 from pinocchio import neutral
 
-from gym_jiminy.common.env_locomotion import WalkerJiminyEnv
-from gym_jiminy.common.control_impl import PDController
-from gym_jiminy.common.pipeline_bases import build_pipeline
+from gym_jiminy.common.envs import WalkerJiminyEnv
+from gym_jiminy.common.controllers import PDController
+from gym_jiminy.common.pipeline import build_pipeline
 
 
 # Sagittal hip angle of neutral configuration (:float [rad])

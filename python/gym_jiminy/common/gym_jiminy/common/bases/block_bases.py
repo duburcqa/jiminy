@@ -14,9 +14,9 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from .utils import FieldDictNested, SpaceDictNested
+from ..utils import FieldDictNested, SpaceDictNested
+from ..envs import BaseJiminyEnv
 from .generic_bases import ControllerInterface, ObserverInterface
-from .env_bases import BaseJiminyEnv
 
 
 class BlockInterface:
@@ -116,6 +116,79 @@ class BlockInterface:
             to be an actual action. For example, for an observer, it is the
             observation from the previous block.
         """
+        raise NotImplementedError
+
+
+class BaseObserverBlock(ObserverInterface, BlockInterface):
+    r"""Base class to implement observe that can be used compute observation
+    features of a `BaseJiminyEnv` environment, through any number of
+    lower-level observer.
+
+    .. aafig::
+        :proportional:
+        :textual:
+
+                  +------------+
+        "obs_env" |            |
+         -------->+ "observer" +--------->
+                  |            | "features"
+                  +------------+
+
+    Formally, an observer is a defined as a block mapping the observation space
+    of the preceding observer, if any, and directly the one of the environment
+    'obs_env', to any observation space 'features'. It is more generic than
+    estimating the state of the robot.
+
+    The update period of the observer is the same than the simulation timestep
+    of the environment for now.
+    """
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        """
+        :param kwargs: Extra keyword arguments that may be useful for dervied
+                       observer with multiple inheritance, and to allow
+                       automatic pipeline wrapper generation.
+        """
+        # pylint: disable=unused-argument
+
+        # Initialize the block and observe interface
+        super().__init__(*args, **kwargs)
+
+    def _refresh_action_space(self) -> None:
+        """Configure the action space of the observer.
+
+        It does nothing but to return the action space of the environment
+        since it is only affecting the observation space.
+
+        .. warning::
+            This method that must not be overloaded. If one need to overload
+            it, then using `BaseControllerBlock` or `BlockInterface` directly
+            is probably the way to go.
+        """
+        self.action_space = self.env.observation_space
+
+    # methods to override:
+    # ----------------------------
+
+    def _setup(self) -> None:
+        # Compute the update period
+        self.observe_dt = self.env.observe_dt * self.update_ratio
+
+        # Make sure the controller period is lower than environment timestep
+        assert self.observe_dt <= self.env.step_dt, (
+            "The observer update period must be lower than or equal to the "
+            "environment simulation timestep.")
+
+    def compute_observation(self,  # type: ignore[override]
+                            measure: SpaceDictNested
+                            ) -> SpaceDictNested:
+        """Compute observed features based on the current simulation state and
+        lower-level measure.
+
+        :param measure: Measure from the environment to process to get
+                        high-level observation.
+        """
+        # pylint: disable=arguments-differ
+
         raise NotImplementedError
 
 
@@ -246,76 +319,3 @@ BaseControllerBlock.compute_command.__doc__ = \
 
     :returns: Action to perform
     """
-
-
-class BaseObserverBlock(ObserverInterface, BlockInterface):
-    r"""Base class to implement observe that can be used compute observation
-    features of a `BaseJiminyEnv` environment, through any number of
-    lower-level observer.
-
-    .. aafig::
-        :proportional:
-        :textual:
-
-                  +------------+
-        "obs_env" |            |
-         -------->+ "observer" +--------->
-                  |            | "features"
-                  +------------+
-
-    Formally, an observer is a defined as a block mapping the observation space
-    of the preceding observer, if any, and directly the one of the environment
-    'obs_env', to any observation space 'features'. It is more generic than
-    estimating the state of the robot.
-
-    The update period of the observer is the same than the simulation timestep
-    of the environment for now.
-    """
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """
-        :param kwargs: Extra keyword arguments that may be useful for dervied
-                       observer with multiple inheritance, and to allow
-                       automatic pipeline wrapper generation.
-        """
-        # pylint: disable=unused-argument
-
-        # Initialize the block and observe interface
-        super().__init__(*args, **kwargs)
-
-    def _refresh_action_space(self) -> None:
-        """Configure the action space of the observer.
-
-        It does nothing but to return the action space of the environment
-        since it is only affecting the observation space.
-
-        .. warning::
-            This method that must not be overloaded. If one need to overload
-            it, then using `BaseControllerBlock` or `BlockInterface` directly
-            is probably the way to go.
-        """
-        self.action_space = self.env.observation_space
-
-    # methods to override:
-    # ----------------------------
-
-    def _setup(self) -> None:
-        # Compute the update period
-        self.observe_dt = self.env.observe_dt * self.update_ratio
-
-        # Make sure the controller period is lower than environment timestep
-        assert self.observe_dt <= self.env.step_dt, (
-            "The observer update period must be lower than or equal to the "
-            "environment simulation timestep.")
-
-    def compute_observation(self,  # type: ignore[override]
-                            measure: SpaceDictNested
-                            ) -> SpaceDictNested:
-        """Compute observed features based on the current simulation state and
-        lower-level measure.
-
-        :param measure: Measure from the environment to process to get
-                        high-level observation.
-        """
-        # pylint: disable=arguments-differ
-
-        raise NotImplementedError

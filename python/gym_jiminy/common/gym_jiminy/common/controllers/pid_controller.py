@@ -8,9 +8,9 @@ import gym
 
 from jiminy_py.core import EncoderSensor as encoder
 
-from .env_bases import BaseJiminyEnv
-from .block_bases import BaseControllerBlock
-from .utils import SpaceDictNested, FieldDictNested
+from ..bases import BaseControllerBlock
+from ..envs import BaseJiminyEnv
+from ..utils import SpaceDictNested, FieldDictNested
 
 
 class PDController(BaseControllerBlock):

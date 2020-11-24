@@ -13,21 +13,19 @@ It implements:
 """
 from copy import deepcopy
 from collections import OrderedDict
-from typing import (
-    Optional, Union, Tuple, Dict, Any, Type, Sequence, List, Callable)
+from typing import Optional, Union, Tuple, Dict, Any, List, Callable
 
 import numpy as np
 import gym
-from typing_extensions import TypedDict
 
 from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
-from .utils import (
+from ..utils import (
     _is_breakpoint, _clamp, zeros, fill, set_value, register_variables,
     SpaceDictNested)
+from ..envs import BaseJiminyEnv
+from .block_bases import BaseControllerBlock, BaseObserverBlock
 from .generic_bases import ObserverControllerInterface
-from .env_bases import BaseJiminyEnv
-from .block_bases import BlockInterface, BaseControllerBlock, BaseObserverBlock
 
 
 class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
@@ -95,8 +93,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         if bypass:
             return self.env.get_observation()
-        else:
-            return _clamp(self.observation_space, self._observation)
+        return _clamp(self.observation_space, self._observation)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -114,7 +111,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                                 Optional: None by default.
         :param kwargs: Extra keyword arguments to comply with OpenAI Gym API.
         """
-        # pylint: disable=unused-argument
+        # pylint: disable=arguments-differ,unused-argument
 
         # Define chained controller hook
         def register() -> Tuple[ObserverHandleType, ControllerHandleType]:
@@ -219,6 +216,152 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         set_value(self._action, action)
         return self.env.compute_command(measure, action)
+
+
+class ObservedJiminyEnv(BasePipelineWrapper):
+    """Wrap a `BaseJiminyEnv` Gym environment and a single observer, so that
+    it appears as a single, unified, environment. Eventually, the environment
+    can already be wrapped inside one or several `gym.Wrapper` containers.
+
+    .. aafig::
+        :proportional:
+        :textual:
+
+                +---------+           +------------+
+        "act_1" |         | "obs_env" |            |
+        ------->+  "env"  +---------->+ "observer" +----------->
+                |         |   "obs"   |            | "features"
+                +---------+           +------------+
+
+    The input observation 'obs_env' of 'observer' must be consistent with the
+    observation space 'obs' of the environment. The observation space of the
+    outcoming unified environment will be the observation space of the
+    highest-level observer, while its action space will be the one of the
+    unwrapped environment 'obs'.
+
+    .. warning::
+        This design is not suitable for learning the observer, but rather for
+        robotic-oriented observers, such as sensor fusion algorithms, Kalman
+        filters... It is recommended to add the observer into the policy
+        itself if it has to be trainable.
+    """  # noqa: E501  # pylint: disable=line-too-long
+    env: Union[gym.Wrapper, BaseJiminyEnv]
+    observation_space: Optional[gym.Space]
+
+    def __init__(self,
+                 env: Union[gym.Wrapper, BaseJiminyEnv],
+                 observer: BaseObserverBlock,
+                 augment_observation: bool = False,
+                 **kwargs: Any):
+        """
+        :param env: Environment to control. It can be an already controlled
+                    environment wrapped in `ObservedJiminyEnv` if one desires
+                    to stack several controllers with `BaseJiminyEnv`.
+        :param observer: Observer to use to extract higher-level features.
+        :param augment_observation: Whether or not to gather the high-level
+                                    features computed by the observer with the
+                                    raw observation of the environment. This
+                                    option is only available if the observation
+                                    space is of type `gym.spaces.Dict`.
+                                    Optional: disable by default.
+        :param kwargs: Extra keyword arguments to allow automatic pipeline
+                       wrapper generation.
+        """
+        # Backup user arguments
+        self.observer = observer
+        self.augment_observation = augment_observation
+
+        # Make sure that the unwrapped environment matches the controlled one
+        assert env.unwrapped is observer.env
+
+        # Initialize base wrapper
+        super().__init__(env, **kwargs)
+
+        # Assertion(s) for type checker
+        assert (self.env.action_space is not None and
+                self.env.observation_space is not None)
+
+        # Retrieve the environment observation
+        observation = self.env.get_observation()
+
+        # Update the action space
+        self.action_space = self.env.action_space
+
+        # Set the controller name, based on the controller index
+        self.observer_name = f"observer_{self._get_block_index()}"
+
+        # Assertion(s) for type checker
+        assert (self.observer.action_space is not None and
+                self.observer.observation_space is not None)
+
+        # Check that the initial observation of the environment is consistent
+        # with the action space of the observer.
+        assert self.observer.action_space.contains(observation), (
+            "The command is not consistent with the action space of the "
+            "subsequent block.")
+
+        # Update the observation space
+        if self.augment_observation:
+            self.observation_space = deepcopy(self.env.observation_space)
+            self.observation_space.spaces.setdefault(
+                'features', gym.spaces.Dict())[self.observer_name] = \
+                self.observer.observation_space
+        else:
+            self.observation_space = self.observer.observation_space
+
+        # Initialize some internal buffers
+        self._action = zeros(self.action_space)
+        self._observation = zeros(self.observation_space)
+
+    def _setup(self) -> None:
+        """Configure the wrapper.
+
+        In addition to the base implementation, it configures the observer.
+        """
+        # Configure the observer
+        self.observer._setup()
+
+        # Call base implementation
+        super()._setup()
+
+        # Compute the observe and control update periods
+        self.observe_dt = self.observer.observe_dt
+        self.control_dt = self.env.control_dt
+
+    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+        """Compute high-level features based on the current wrapped
+        environment's observation.
+
+        It gathers the original observation from the environment with the
+        features computed by the observer, if requested, otherwise it forwards
+        the features directly without any further processing.
+
+        .. warning::
+            Beware it updates and returns '_observation' buffer to deal with
+            multiple observers with different update periods. Even so, it is
+            safe to call this method multiple times successively.
+
+        :returns: Updated part of the observation only for efficiency.
+        """
+        # pylint: disable=arguments-differ
+
+        # Get environment observation
+        obs = super().compute_observation()
+
+        # Update observed features if necessary
+        t = self.simulator.stepper_state.t
+        if _is_breakpoint(t, self.observe_dt, self._dt_eps):
+            features = self.observer.compute_observation(obs)
+            if self.augment_observation:
+                obs.setdefault(
+                    'features', OrderedDict())[self.observer_name] = features
+            else:
+                obs = features
+        else:
+            if not self.augment_observation:
+                obs = OrderedDict()  # Nothing new to observe.
+
+        return obs
 
 
 class ControlledJiminyEnv(BasePipelineWrapper):
@@ -444,323 +587,3 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
     def compute_reward_terminal(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward_terminal(*args, **kwargs)
-
-
-class ObservedJiminyEnv(BasePipelineWrapper):
-    """Wrap a `BaseJiminyEnv` Gym environment and a single observer, so that
-    it appears as a single, unified, environment. Eventually, the environment
-    can already be wrapped inside one or several `gym.Wrapper` containers.
-
-    .. aafig::
-        :proportional:
-        :textual:
-
-                +---------+           +------------+
-        "act_1" |         | "obs_env" |            |
-        ------->+  "env"  +---------->+ "observer" +----------->
-                |         |   "obs"   |            | "features"
-                +---------+           +------------+
-
-    The input observation 'obs_env' of 'observer' must be consistent with the
-    observation space 'obs' of the environment. The observation space of the
-    outcoming unified environment will be the observation space of the
-    highest-level observer, while its action space will be the one of the
-    unwrapped environment 'obs'.
-
-    .. warning::
-        This design is not suitable for learning the observer, but rather for
-        robotic-oriented observers, such as sensor fusion algorithms, Kalman
-        filters... It is recommended to add the observer into the policy
-        itself if it has to be trainable.
-    """  # noqa: E501  # pylint: disable=line-too-long
-    env: Union[gym.Wrapper, BaseJiminyEnv]
-    observation_space: Optional[gym.Space]
-
-    def __init__(self,
-                 env: Union[gym.Wrapper, BaseJiminyEnv],
-                 observer: BaseObserverBlock,
-                 augment_observation: bool = False,
-                 **kwargs: Any):
-        """
-        :param env: Environment to control. It can be an already controlled
-                    environment wrapped in `ObservedJiminyEnv` if one desires
-                    to stack several controllers with `BaseJiminyEnv`.
-        :param observer: Observer to use to extract higher-level features.
-        :param augment_observation: Whether or not to gather the high-level
-                                    features computed by the observer with the
-                                    raw observation of the environment. This
-                                    option is only available if the observation
-                                    space is of type `gym.spaces.Dict`.
-                                    Optional: disable by default.
-        :param kwargs: Extra keyword arguments to allow automatic pipeline
-                       wrapper generation.
-        """
-        # Backup user arguments
-        self.observer = observer
-        self.augment_observation = augment_observation
-
-        # Make sure that the unwrapped environment matches the controlled one
-        assert env.unwrapped is observer.env
-
-        # Initialize base wrapper
-        super().__init__(env, **kwargs)
-
-        # Assertion(s) for type checker
-        assert (self.env.action_space is not None and
-                self.env.observation_space is not None)
-
-        # Retrieve the environment observation
-        observation = self.env.get_observation()
-
-        # Update the action space
-        self.action_space = self.env.action_space
-
-        # Set the controller name, based on the controller index
-        self.observer_name = f"observer_{self._get_block_index()}"
-
-        # Assertion(s) for type checker
-        assert (self.observer.action_space is not None and
-                self.observer.observation_space is not None)
-
-        # Check that the initial observation of the environment is consistent
-        # with the action space of the observer.
-        assert self.observer.action_space.contains(observation), (
-            "The command is not consistent with the action space of the "
-            "subsequent block.")
-
-        # Update the observation space
-        if self.augment_observation:
-            self.observation_space = deepcopy(self.env.observation_space)
-            self.observation_space.spaces.setdefault(
-                'features', gym.spaces.Dict())[self.observer_name] = \
-                self.observer.observation_space
-        else:
-            self.observation_space = self.observer.observation_space
-
-        # Initialize some internal buffers
-        self._action = zeros(self.action_space)
-        self._observation = zeros(self.observation_space)
-
-    def _setup(self) -> None:
-        """Configure the wrapper.
-
-        In addition to the base implementation, it configures the observer.
-        """
-        # Configure the observer
-        self.observer._setup()
-
-        # Call base implementation
-        super()._setup()
-
-        # Compute the observe and control update periods
-        self.observe_dt = self.observer.observe_dt
-        self.control_dt = self.env.control_dt
-
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
-        """Compute high-level features based on the current wrapped
-        environment's observation.
-
-        It gathers the original observation from the environment with the
-        features computed by the observer, if requested, otherwise it forwards
-        the features directly without any further processing.
-
-        .. warning::
-            Beware it updates and returns '_observation' buffer to deal with
-            multiple observers with different update periods. Even so, it is
-            safe to call this method multiple times successively.
-
-        :returns: Updated part of the observation only for efficiency.
-        """
-        # pylint: disable=arguments-differ
-
-        # Get environment observation
-        obs = super().compute_observation()
-
-        # Update observed features if necessary
-        t = self.simulator.stepper_state.t
-        if _is_breakpoint(t, self.observe_dt, self._dt_eps):
-            features = self.observer.compute_observation(obs)
-            if self.augment_observation:
-                obs.setdefault(
-                    'features', OrderedDict())[self.observer_name] = features
-            else:
-                obs = features
-        else:
-            if not self.augment_observation:
-                obs = OrderedDict()  # Nothing new to observe.
-
-        return obs
-
-
-class EnvConfig(TypedDict, total=False):
-    """Environment class type.
-    """
-    env_class: Type[BaseJiminyEnv]
-
-    """Environment constructor default arguments.
-
-    This attribute can be omitted.
-    """
-    env_kwargs: Dict[str, Any]
-
-
-class BlockConfig(TypedDict, total=False):
-    """Block class type. If specified, it must derive from
-    `BaseControllerBlock` for controller blocks or `BaseObserverBlock` for
-    observer blocks.
-
-    This attribute can be omitted. If so, then 'block_kwargs' must be omitted
-    and 'wrapper_class' must be specified. Indeed, not all block are associated
-    with a dedicated observer or controller object. It happens when the block
-    is not doing any computation on its own but just transforming the action or
-    observation, e.g. stacking observation frames.
-    """
-    block_class: Union[
-        Type[BaseControllerBlock], Type[BaseObserverBlock]]
-
-    """Block constructor default arguments.
-
-    This attribute can be omitted.
-    """
-    block_kwargs: Dict[str, Any]
-
-    """Wrapper class type.
-
-    This attribute can be omitted. If so, then 'wrapper_kwargs' must be omitted
-    and 'block_class' must be specified. The latter will be used to infer the
-    default wrapper type.
-    """
-    wrapper_class: Type[BasePipelineWrapper]
-
-    """Wrapper constructor default arguments.
-
-    This attribute can be omitted.
-    """
-    wrapper_kwargs: Dict[str, Any]
-
-
-def build_pipeline(env_config: EnvConfig,
-                   blocks_config: Sequence[BlockConfig] = ()
-                   ) -> Type[BasePipelineWrapper]:
-    """Wrap together an environment inheriting from `BaseJiminyEnv` with any
-    number of blocks, as a unified pipeline environment class inheriting from
-    `BasePipelineWrapper`. Each block is wrapped individually and successively.
-
-    :param env_config:
-        Configuration of the environment, as a dict of type `EnvConfig`.
-
-    :param blocks_config:
-        Configuration of the blocks, as a list. The list is ordered from the
-        lowest level block to the highest, each element corresponding to the
-        configuration of a individual block, as a dict of type `BlockConfig`.
-    """
-    # pylint: disable-all
-
-    def _build_wrapper(env_class: Type[Union[gym.Wrapper, BaseJiminyEnv]],
-                       env_kwargs: Optional[Dict[str, Any]] = None,
-                       block_class: Optional[Type[BlockInterface]] = None,
-                       block_kwargs: Optional[Dict[str, Any]] = None,
-                       wrapper_class: Optional[
-                           Type[BasePipelineWrapper]] = None,
-                       wrapper_kwargs: Optional[Dict[str, Any]] = None
-                       ) -> Type[ControlledJiminyEnv]:
-        """Generate a class inheriting from 'wrapper_class' wrapping a given
-        type of environment, optionally gathered with a block.
-
-        .. warning::
-            Beware of the collision between the keywords arguments of the
-            wrapped environment and block. It would be impossible to
-            overwrite their default values independently.
-
-        :param env_class: Type of environment to wrap.
-        :param env_kwargs: Keyword arguments to forward to the constructor of
-                           the wrapped environment. Note that it will only
-                           overwrite the default value, so it will still be
-                           possible to set different values by explicitly
-                           defining them when calling the constructor of the
-                           generated wrapper.
-        :param block_class: Type of block to connect to the environment, if
-                            any. `None` to disable.
-                            Optional: Disable by default
-        :param block_kwargs: Keyword arguments to forward to the constructor of
-                             the wrapped block. See 'env_kwargs'.
-        :param wrapper_class: Type of wrapper to use to gather the environment
-                              and the block.
-        :param wrapper_kwargs: Keyword arguments to forward to the constructor
-                               of the wrapper. See 'env_kwargs'.
-        """
-        # pylint: disable-all
-
-        # Handling of default arguments
-        if block_class is not None and wrapper_class is None:
-            if issubclass(block_class, BaseControllerBlock):
-                wrapper_class = ControlledJiminyEnv
-            elif issubclass(block_class, BaseObserverBlock):
-                wrapper_class = ObservedJiminyEnv
-            else:
-                raise ValueError(
-                    f"Block of type '{block_class}' does not support "
-                    "automatic default wrapper type inference. Please specify "
-                    "it manually.")
-
-        # Assertion(s) for type checker
-        assert wrapper_class is not None
-
-        # Dynamically generate wrapping class
-        wrapper_name = f"{wrapper_class.__name__}Wrapper"
-        if block_class is not None:
-            wrapper_name += f"{block_class.__name__}Block"
-        wrapped_env_class = type(wrapper_name, (wrapper_class,), {})
-
-        # Implementation of __init__ method must be done after declaration of
-        # the class, because the required closure for calling `super()` is not
-        # available when creating a class dynamically.
-        def __init__(self: wrapped_env_class,  # type: ignore[valid-type]
-                     **kwargs: Any) -> None:
-            """
-            :param kwargs: Keyword arguments to forward to both the wrapped
-                           environment and the controller. It will overwrite
-                           default values.
-            """
-            nonlocal env_class, env_kwargs, block_class, block_kwargs, \
-                wrapper_kwargs
-
-            # Initialize constructor arguments
-            args = []
-
-            # Define the arguments related to the environment
-            if env_kwargs is not None:
-                env_kwargs_default = {**env_kwargs, **kwargs}
-            else:
-                env_kwargs_default = kwargs
-            env = env_class(**env_kwargs_default)
-            args.append(env)
-
-            # Define the arguments related to the block, if any
-            if block_class is not None:
-                if block_kwargs is not None:
-                    block_kwargs_default = {**block_kwargs, **kwargs}
-                else:
-                    block_kwargs_default = kwargs
-                args.append(block_class(env.unwrapped, **block_kwargs_default))
-
-            # Define the arguments related to the wrapper
-            if wrapper_kwargs is not None:
-                wrapper_kwargs_default = {**wrapper_kwargs, **kwargs}
-            else:
-                wrapper_kwargs_default = kwargs
-
-            super(wrapped_env_class, self).__init__(  # type: ignore[arg-type]
-               *args, **wrapper_kwargs_default)
-
-        wrapped_env_class.__init__ = __init__  # type: ignore[misc]
-
-        return wrapped_env_class
-
-    pipeline_class = env_config['env_class']
-    env_kwargs = env_config.get('env_kwargs', None)
-    for config in blocks_config:
-        pipeline_class = _build_wrapper(
-            pipeline_class, env_kwargs, **config)
-        env_kwargs = None
-    return pipeline_class

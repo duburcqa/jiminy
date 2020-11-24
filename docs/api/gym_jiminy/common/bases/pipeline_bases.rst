@@ -1,7 +1,7 @@
-common.control_impl
-===================
+Pipeline
+========
 
-.. automodule:: gym_jiminy.common.control_impl
+.. automodule:: gym_jiminy.common.bases.pipeline_bases
    :members:
    :undoc-members:
    :private-members:
