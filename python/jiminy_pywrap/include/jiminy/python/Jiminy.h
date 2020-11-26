@@ -82,10 +82,16 @@ namespace python
 
     template<typename T>
     std::enable_if_t<is_eigen<T>::value, bp::handle<> >
+    FctPyWrapperArgToPython(T & arg)
+    {
+        return bp::handle<>(getNumpyReference(arg));
+    }
+
+    template<typename T>
+    std::enable_if_t<is_eigen<T>::value, bp::handle<> >
     FctPyWrapperArgToPython(T const & arg)
     {
-        // Pass the arguments by reference (be careful const qualifiers are lost)
-        return bp::handle<>(getNumpyReference(const_cast<T &>(arg)));
+        return bp::handle<>(getNumpyReference(arg));
     }
 
     template<typename T>
@@ -176,24 +182,18 @@ namespace python
     };
 
     template<typename T>
-    using TimeStateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                                  float64_t /* t */,
-                                                  vectorN_t /* q */,
-                                                  vectorN_t /* v */>;
-
-    template<typename T>
     using TimeStateFctPyWrapper = FctPyWrapper<T /* OutputType */,
                                                float64_t /* t */,
                                                vectorN_t /* q */,
                                                vectorN_t /* v */>;
 
     template<typename T>
-    using TimeBistateRefFctPyWrapper = FctPyWrapper<T /* OutputType */,
-                                                    float64_t /* t */,
-                                                    vectorN_t /* q1 */,
-                                                    vectorN_t /* v1 */,
-                                                    vectorN_t /* q2 */,
-                                                    vectorN_t /* v2 */ >;
+    using TimeBistateFctPyWrapper = FctPyWrapper<T /* OutputType */,
+                                                 float64_t /* t */,
+                                                 vectorN_t /* q1 */,
+                                                 vectorN_t /* v1 */,
+                                                 vectorN_t /* q2 */,
+                                                 vectorN_t /* v2 */ >;
 
     // **************************** FctInOutPyWrapper *******************************
 
@@ -1942,7 +1942,7 @@ namespace python
                                           std::string      const & frameName2,
                                           bp::object       const & forcePy)
         {
-            TimeBistateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeBistateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(
                 systemName1, systemName2, frameName1, frameName2, std::move(forceFct));
         }
@@ -2020,7 +2020,7 @@ namespace python
                                          std::string      const & frameName,
                                          bp::object       const & forcePy)
         {
-            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(systemName, frameName, std::move(forceFct));
         }
 
@@ -2277,7 +2277,7 @@ namespace python
                                          std::string const & frameName,
                                          bp::object  const & forcePy)
         {
-            TimeStateRefFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
         }
 
