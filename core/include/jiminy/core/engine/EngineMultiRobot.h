@@ -104,10 +104,8 @@ namespace jiminy
         configHolder_t getDefaultJointOptions()
         {
             configHolder_t config;
-            config["boundStiffness"] = 1.0e5;
-            config["boundDamping"] = 2.0e3;
-            config["transitionPositionEps"] = 2.0e-3; // [rad] 2.0e-3 ~= 0.1 degrees
-            config["transitionVelocityEps"] = 1.0e+1; // [rad.s-1]
+            config["boundStiffness"] = 1.0e7;
+            config["boundDamping"] = 1.0e4;
 
             return config;
         };
@@ -196,14 +194,10 @@ namespace jiminy
         {
             float64_t const boundStiffness;
             float64_t const boundDamping;
-            float64_t const transitionPositionEps;
-            float64_t const transitionVelocityEps;
 
             jointOptions_t(configHolder_t const & options) :
             boundStiffness(boost::get<float64_t>(options.at("boundStiffness"))),
-            boundDamping(boost::get<float64_t>(options.at("boundDamping"))),
-            transitionPositionEps(boost::get<float64_t>(options.at("transitionPositionEps"))),
-            transitionVelocityEps(boost::get<float64_t>(options.at("transitionVelocityEps")))
+            boundDamping(boost::get<float64_t>(options.at("boundDamping")))
             {
                 // Empty.
             }

@@ -1719,23 +1719,6 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // Make sure the joints options are fine
-        configHolder_t jointsOptions = boost::get<configHolder_t>(engineOptions.at("joints"));
-        float64_t const & jointsTransitionPositionEps =
-            boost::get<float64_t>(jointsOptions.at("transitionPositionEps"));
-        if (jointsTransitionPositionEps < EPS)
-        {
-            PRINT_ERROR("The joints option 'transitionPositionEps' must be strictly positive.")
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-        float64_t const & jointsTransitionVelocityEps =
-            boost::get<float64_t>(jointsOptions.at("transitionVelocityEps"));
-        if (jointsTransitionVelocityEps < EPS)
-        {
-            PRINT_ERROR("The joints option 'transitionVelocityEps' must be strictly positive.")
-            return hresult_t::ERROR_BAD_INPUT;
-        }
-
         // Compute the breakpoints' period (for command or observation) during the integration loop
         if (sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
         {
@@ -2226,10 +2209,8 @@ namespace jiminy
             }
 
             // Generate acceleration in the opposite direction if out-of-bounds
-            float64_t const blendingFactor = std::abs(qJointError - jointOptions.transitionPositionEps *
-                std::tanh(qJointError / jointOptions.transitionPositionEps));
             float64_t const accelJoint = - jointOptions.boundStiffness * qJointError
-                                        - jointOptions.boundDamping * blendingFactor * vJointError;
+                                         - jointOptions.boundDamping * vJointError;
 
             // Apply the resulting force
             u[velocityIdx] += Ia * accelJoint;
@@ -2303,8 +2284,7 @@ namespace jiminy
             }
 
             // Generate acceleration in the opposite direction if out-of-bounds
-            float64_t const accelJoint = - jointOptions.boundDamping *
-                std::tanh(vJointError / jointOptions.transitionVelocityEps);
+            float64_t const accelJoint = - 2.0 * jointOptions.boundDamping * vJointError;
 
             // Apply the resulting force
             u[velocityIdx] += Ia * accelJoint;
