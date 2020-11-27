@@ -713,7 +713,7 @@ namespace jiminy
             }
         }
 
-        PRINT_ERROR("Velocity index out of range.")
+        PRINT_ERROR("Velocity index out of range.");
         return hresult_t::ERROR_BAD_INPUT;
     }
 

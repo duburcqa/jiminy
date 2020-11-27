@@ -1921,16 +1921,41 @@ namespace jiminy
                                                     vectorN_t      const & v,
                                                     vectorN_t      const & a)
     {
-        pinocchio::forwardKinematics(system.robot->pncModel_, system.robot->pncData_, q, v, a);
-        pinocchio::centerOfMass(system.robot->pncModel_, system.robot->pncData_);
-        pinocchio::updateFramePlacements(system.robot->pncModel_, system.robot->pncData_);
-        pinocchio::updateGeometryPlacements(system.robot->pncModel_,
-                                            system.robot->pncData_,
+        // Create proxies for convenience
+        pinocchio::Model & pncModel = system.robot->pncModel_;
+        pinocchio::Data & pncData = system.robot->pncData_;
+
+        // Update forward kinematics
+        pinocchio::forwardKinematics(pncModel, pncData, q, v, a);
+
+        /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
+           which is doing more computation than necessary. */
+        for (int32_t i = 1; i < pncModel.njoints; ++i)
+        {
+            int32_t const & jointIdx = pncModel.joints[i].id();
+            pncData.Ycrb[jointIdx] = pncModel.inertias[jointIdx];
+        }
+        for (int32_t i = pncModel.njoints-1; i > 0; --i)
+        {
+            int32_t const & jointIdx = pncModel.joints[i].id();
+            int32_t const & parentIdx = pncModel.parents[jointIdx];
+            if (parentIdx > 0)
+            {
+                pncData.Ycrb[parentIdx] += pncData.liMi[jointIdx].act(pncData.Ycrb[jointIdx]);
+            }
+        }
+
+        // Now that Ycrb is available, it is possible to extract the center of mass directly
+        pinocchio::getComFromCrba(pncModel, pncData);
+
+        // Update frame placements and collision informations
+        pinocchio::updateFramePlacements(pncModel, pncData);
+        pinocchio::updateGeometryPlacements(pncModel, pncData,
                                             system.robot->pncGeometryModel_,
                                             *system.robot->pncGeometryData_);
         pinocchio::computeCollisions(system.robot->pncGeometryModel_,
                                      *system.robot->pncGeometryData_,
-                                     false);  // Update collision results
+                                     false);
     }
 
     pinocchio::Force EngineMultiRobot::computeContactDynamicsAtBody(systemHolder_t const & system,
@@ -2118,6 +2143,194 @@ namespace jiminy
         system.controller->computeCommand(t, q, v, u);
     }
 
+    template<typename Scalar, int Options, int axis>
+    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const &,
+                                           pinocchio::Inertia const & Isubtree)
+    {
+        return Isubtree.inertia()(axis, axis);
+    }
+
+    template<typename Scalar, int Options>
+    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteUnalignedTpl<Scalar, Options> const & model,
+                                           pinocchio::Inertia const & Isubtree)
+    {
+        return model.axis.dot(Isubtree.inertia() * model.axis);
+    }
+
+    template<typename Scalar, int Options, int axis>
+    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const &,
+                                           pinocchio::Inertia const & Isubtree)
+    {
+        return Isubtree.mass();
+    }
+
+    template<typename Scalar, int Options>
+    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticUnalignedTpl<Scalar, Options> const & model,
+                                           pinocchio::Inertia const & Isubtree)
+    {
+        return Isubtree.mass();
+    }
+
+    struct computePositionLimitsForcesAlgo
+    : public pinocchio::fusion::JointUnaryVisitorBase<computePositionLimitsForcesAlgo>
+    {
+        typedef boost::fusion::vector<pinocchio::Data const & /* pncData */,
+                                      vectorN_t const & /* q */,
+                                      vectorN_t const & /* v */,
+                                      vectorN_t const & /* positionLimitMin */,
+                                      vectorN_t const & /* positionLimitMax */,
+                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      vectorN_t & /* u */> ArgsType;
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
+                             || is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                             || is_pinocchio_joint_prismatic_v<JointModel>
+                             || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & q,
+             vectorN_t const & v,
+             vectorN_t const & positionLimitMin,
+             vectorN_t const & positionLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Define some proxies for convenience
+            uint32_t const & jointIdx = joint.id();
+            uint32_t const & positionIdx = joint.idx_q();
+            uint32_t const & velocityIdx = joint.idx_v();
+            float64_t const & qJoint = q[positionIdx];
+            float64_t const & qJointMin = positionLimitMin[positionIdx];
+            float64_t const & qJointMax = positionLimitMax[positionIdx];
+            float64_t const & vJoint = v[velocityIdx];
+            float64_t const & Ia = getSubtreeInertiaProj(
+                joint.derived(), pncData.Ycrb[jointIdx]);
+
+            // Compute joint position error
+            float64_t qJointError = 0.0;
+            float64_t vJointError = 0.0;
+            if (qJoint > qJointMax)
+            {
+                qJointError = qJoint - qJointMax;
+                vJointError = std::max(vJoint, 0.0);
+            }
+            else if (qJoint < qJointMin)
+            {
+                qJointError = qJoint - qJointMin;
+                vJointError = std::min(vJoint, 0.0);
+            }
+            else
+            {
+                return;
+            }
+
+            // Generate acceleration in the opposite direction if out-of-bounds
+            float64_t const blendingFactor = std::abs(qJointError - jointOptions.transitionPositionEps *
+                std::tanh(qJointError / jointOptions.transitionPositionEps));
+            float64_t const accelJoint = - jointOptions.boundStiffness * qJointError
+                                        - jointOptions.boundDamping * blendingFactor * vJointError;
+
+            // Apply the resulting force
+            u[velocityIdx] += Ia * accelJoint;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>
+                             || is_pinocchio_joint_spherical_v<JointModel>
+                             || is_pinocchio_joint_spherical_zyx_v<JointModel>
+                             || is_pinocchio_joint_translation_v<JointModel>
+                             || is_pinocchio_joint_planar_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
+                             || is_pinocchio_joint_mimic_v<JointModel>
+                             || is_pinocchio_joint_composite_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & q,
+             vectorN_t const & v,
+             vectorN_t const & positionLimitMin,
+             vectorN_t const & positionLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Empty on purpose
+        }
+    };
+
+    struct computeVelocityLimitsForcesAlgo
+    : public pinocchio::fusion::JointUnaryVisitorBase<computeVelocityLimitsForcesAlgo>
+    {
+        typedef boost::fusion::vector<pinocchio::Data const & /* pncData */,
+                                      vectorN_t const & /* v */,
+                                      vectorN_t const & /* velocityLimitMax */,
+                                      EngineMultiRobot::jointOptions_t const & /* jointOptions */,
+                                      vectorN_t & /* u */> ArgsType;
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
+                             || is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                             || is_pinocchio_joint_prismatic_v<JointModel>
+                             || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & v,
+             vectorN_t const & velocityLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Define some proxies for convenience
+            uint32_t const & jointIdx = joint.id();
+            uint32_t const & velocityIdx = joint.idx_v();
+            float64_t const & vJoint = v[velocityIdx];
+            float64_t const & vJointMin = -velocityLimitMax[velocityIdx];
+            float64_t const & vJointMax = velocityLimitMax[velocityIdx];
+            float64_t const & Ia = getSubtreeInertiaProj(
+                joint.derived(), pncData.Ycrb[jointIdx]);
+
+            // Compute joint velocity error
+            float64_t vJointError = 0.0;
+            if (vJoint > vJointMax)
+            {
+                vJointError = vJoint - vJointMax;
+            }
+            else if (vJoint < vJointMin)
+            {
+                vJointError = vJoint - vJointMin;
+            }
+            else
+            {
+                return;
+            }
+
+            // Generate acceleration in the opposite direction if out-of-bounds
+            float64_t const accelJoint = - jointOptions.boundDamping *
+                std::tanh(vJointError / jointOptions.transitionVelocityEps);
+
+            // Apply the resulting force
+            u[velocityIdx] += Ia * accelJoint;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>
+                             || is_pinocchio_joint_spherical_v<JointModel>
+                             || is_pinocchio_joint_spherical_zyx_v<JointModel>
+                             || is_pinocchio_joint_translation_v<JointModel>
+                             || is_pinocchio_joint_planar_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
+                             || is_pinocchio_joint_mimic_v<JointModel>
+                             || is_pinocchio_joint_composite_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & v,
+             vectorN_t const & velocityLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Empty on purpose
+        }
+    };
+
     void EngineMultiRobot::computeInternalDynamics(systemHolder_t       & system,
                                                    float64_t      const & t,
                                                    vectorN_t      const & q,
@@ -2131,77 +2344,32 @@ namespace jiminy
         system.controller->internalDynamics(t, q, v, u);
 
         // Define some proxies
-        auto const & jointOptions = engineOptions_->joints;
+        jointOptions_t const & jointOptions = engineOptions_->joints;
         pinocchio::Model const & pncModel = system.robot->pncModel_;
+        pinocchio::Data const & pncData = system.robot->pncData_;
 
-        /* Enforce the position limit for the rigid joints only.
-           Note that posiiton limits are not supported for spherical and revolute unbounded joints. */
+        // Enforce the position limit (rigid joints only)
         if (system.robot->mdlOptions_->joints.enablePositionLimit)
         {
             vectorN_t const & positionLimitMin = system.robot->getPositionLimitMin();
             vectorN_t const & positionLimitMax = system.robot->getPositionLimitMax();
             for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
-                uint32_t const & positionIdx = pncModel.joints[rigidIdx].idx_q();
-                uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
-                int32_t const & jointDof = pncModel.joints[rigidIdx].nq();  // Assuming joint.nq == joint.nv, which is not always the case
-                for (int32_t j = 0; j < jointDof; ++j)
-                {
-                    float64_t const & qJoint = q[positionIdx + j];
-                    float64_t const & qJointMin = positionLimitMin[positionIdx + j];
-                    float64_t const & qJointMax = positionLimitMax[positionIdx + j];
-                    float64_t const & vJoint = v[velocityIdx + j];  // It is wrong for revolute unbounded and spherical joints, but no big deal since never out-of-bound
-
-                    float64_t qJointError = 0.0;
-                    float64_t vJointError = 0.0;
-                    if (qJoint > qJointMax)
-                    {
-                        qJointError = qJoint - qJointMax;
-                        vJointError = std::max(vJoint, 0.0);
-                    }
-                    else if (qJoint < qJointMin)
-                    {
-                        qJointError = qJoint - qJointMin;
-                        vJointError = std::min(vJoint, 0.0);
-                    }
-                    float64_t const blendingFactor = std::abs(qJointError - jointOptions.transitionPositionEps *
-                        std::tanh(qJointError / jointOptions.transitionPositionEps));
-                    float64_t const forceJoint = - jointOptions.boundStiffness * qJointError
-                                                 - jointOptions.boundDamping * blendingFactor * vJointError;
-
-                    u[velocityIdx + j] += forceJoint;
-                }
+                computePositionLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
+                    typename computePositionLimitsForcesAlgo::ArgsType(
+                        pncData, q, v, positionLimitMin, positionLimitMax, jointOptions, u));
             }
         }
 
-        // Enforce the velocity limit
+        // Enforce the velocity limit (rigid joints only)
         if (system.robot->mdlOptions_->joints.enableVelocityLimit)
         {
             vectorN_t const & velocityLimitMax = system.robot->getVelocityLimit();
             for (int32_t const & rigidIdx : system.robot->getRigidJointsModelIdx())
             {
-                uint32_t const & velocityIdx = pncModel.joints[rigidIdx].idx_v();
-                uint32_t const & jointDof = pncModel.joints[rigidIdx].nv();
-                for (uint32_t j = 0; j < jointDof; ++j)
-                {
-                    float64_t const & vJoint = v[velocityIdx + j];
-                    float64_t const & vJointMin = -velocityLimitMax[velocityIdx + j];
-                    float64_t const & vJointMax = velocityLimitMax[velocityIdx + j];
-
-                    float64_t vJointError = 0.0;
-                    if (vJoint > vJointMax)
-                    {
-                        vJointError = vJoint - vJointMax;
-                    }
-                    else if (vJoint < vJointMin)
-                    {
-                        vJointError = vJoint - vJointMin;
-                    }
-                    float64_t forceJoint = - jointOptions.boundDamping *
-                        std::tanh(vJointError / jointOptions.transitionVelocityEps);
-
-                    u[velocityIdx + j] += forceJoint;
-                }
+                computeVelocityLimitsForcesAlgo::run(pncModel.joints[rigidIdx],
+                    typename computeVelocityLimitsForcesAlgo::ArgsType(
+                        pncData, v, velocityLimitMax, jointOptions, u));
             }
         }
 
@@ -2216,7 +2384,7 @@ namespace jiminy
             vectorN_t const & damping = mdlDynOptions.flexibilityConfig[i].damping;
 
             float64_t theta;
-            quaternion_t const quat(q.segment<4>(positionIdx).data()); // Only way to initialize with [x,y,z,w] order
+            quaternion_t const quat(q.segment<4>(positionIdx).data());  // Only way to initialize with [x,y,z,w] order
             vectorN_t const axis = pinocchio::quaternion::log3(quat, theta);
             u.segment<3>(velocityIdx).array() += - stiffness.array() * axis.array()
                 - damping.array() * v.segment<3>(velocityIdx).array();

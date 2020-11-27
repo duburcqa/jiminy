@@ -4,6 +4,8 @@
 #include <chrono>
 #include <type_traits>
 
+#include "pinocchio/multibody/joint/joints.hpp"
+
 #include "json/json.h"
 
 #include "jiminy/core/Macro.h"
@@ -152,6 +154,9 @@ namespace jiminy
                                                  matrixN_t                const & logData);
 
     // ******************** Pinocchio utilities *********************
+
+    template<typename Scalar, int32_t Options, int32_t axis>
+    int32_t getJointAxis(pinocchio::JointModelBase<pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> > const & joint);
 
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
                                           int32_t          const & idIn,
