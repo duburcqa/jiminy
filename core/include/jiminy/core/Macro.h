@@ -77,6 +77,9 @@ namespace jiminy
     template<typename T>
     struct is_vector<std::vector<T> > : std::true_type {};
 
+    template<typename T>
+    inline constexpr bool is_vector_v = is_vector<T>::value;
+
     // ========================= is_eigen ===========================
 
     namespace isEigenObjectDetail {
@@ -98,6 +101,9 @@ namespace jiminy
 
     template<typename T>
     struct is_eigen<T, typename std::enable_if<isEigenObject<T>::value>::type> : std::true_type {};
+
+    template<typename T>
+    inline constexpr bool is_eigen_v = is_eigen<T>::value;
 
     // ====================== is_not_eigen_expr =======================
 
@@ -129,6 +135,9 @@ namespace jiminy
     template<typename T>
     struct is_eigen_vector<T, typename std::enable_if<isEigenVector<T>::value>::type> : std::true_type {};
 
+    template<typename T>
+    inline constexpr bool is_eigen_vector_v = is_eigen_vector<T>::value;
+
     // ========================== is_map ============================
 
     namespace isMapDetail {
@@ -147,6 +156,9 @@ namespace jiminy
 
     template<typename T>
     struct is_map<T, typename std::enable_if<isMap<T>::value>::type> : std::true_type {};
+
+    template<typename T>
+    inline constexpr bool is_map_v = is_map<T>::value;
 
     // ************* Error message generation ****************
 
