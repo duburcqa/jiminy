@@ -27,7 +27,7 @@ import zmq
 import meshcat.transformations as mtf
 
 import pinocchio as pin
-from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSe3
+from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSE3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -805,7 +805,7 @@ class Viewer:
         # Compute the relative transformation if applicable
         if relative == 'camera':
             if Viewer.backend.startswith('gepetto'):
-                H_orig = XYZQUATToSe3(
+                H_orig = XYZQUATToSE3(
                     self._gui.getCameraTransform(self._client.windowID))
             else:
                 raise RuntimeError(
@@ -1242,12 +1242,13 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
-        if not Viewer.is_open() is None:
+        if not Viewer.is_open():
             viewers = None
-        for viewer in viewers:
-            if not viewer.is_open():
-                viewers = None
-                break
+        else:
+            for viewer in viewers:
+                if not viewer.is_open():
+                    viewers = None
+                    break
 
         # Do not close backend by default if it was supposed to be available
         if close_backend is None:
@@ -1292,10 +1293,19 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     elif camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
 
-    # Load robots in gepetto viewer
+    # Handle default robot offset
     if xyz_offset is None:
-        xyz_offset = len(trajectory_data) * (None,)
+        xyz_offset = len(trajectory_data) * [None]
+    xyz_offset = list(xyz_offset)
 
+    # Do not display trajectories without data
+    trajectory_data = list(trajectory_data).copy()  # No deepcopy
+    for i in reversed(range(len(trajectory_data))):
+        if not trajectory_data[i]['evolution_robot']:
+            del trajectory_data[i]
+            del xyz_offset[i]
+
+    # Load robots in gepetto viewer
     for i in range(len(trajectory_data)):
         try:
             viewers[i].display(

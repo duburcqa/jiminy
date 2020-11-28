@@ -651,10 +651,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise ValueError(f"Rendering mode {mode} not supported.")
         return self.simulator.render(return_rgb_array, **kwargs)
 
+    def plot(self) -> None:
+        """Display common simulation data over time.
+        """
+        self.simulator.plot()
+
     def replay(self, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
-        :param kwargs: Extra keyword arguments for `play_logfiles` delegation.
+        :param kwargs: Extra keyword arguments for delegation to
+                       `viewer.play_trajectories` method.
         """
         if self._log_data is not None:
             log_data = self._log_data
@@ -662,8 +668,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             log_data, _ = self.get_log()
         self.simulator._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self.simulator._viewer],
-            close_backend=False, verbose=True, **kwargs
-        )[0]
+            close_backend=False, verbose=True, **kwargs)[0]
 
     @loop_interactive()
     def play_interactive(self, key: Optional[str] = None) -> bool:
