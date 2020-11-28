@@ -153,9 +153,6 @@ namespace jiminy
 
     // ******************** Pinocchio utilities *********************
 
-    template<typename Scalar, int32_t Options, int32_t axis>
-    int32_t getJointAxis(pinocchio::JointModelBase<pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> > const & joint);
-
     hresult_t getJointNameFromPositionIdx(pinocchio::Model const & model,
                                           int32_t          const & idIn,
                                           std::string            & jointNameOut);

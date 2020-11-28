@@ -142,14 +142,6 @@ namespace jiminy
         return vec;
     }
 
-    // ******************** Pinocchio utilities *********************
-
-    template<typename Scalar, int32_t Options, int32_t axis>
-    int32_t getJointAxis(pinocchio::JointModelBase<pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> > const & joint)
-    {
-        return axis;
-    }
-
     // ******************** Std::vector helpers *********************
 
     template<typename T>
