@@ -4,8 +4,6 @@
 #include <chrono>
 #include <type_traits>
 
-#include "pinocchio/multibody/joint/joints.hpp"
-
 #include "json/json.h"
 
 #include "jiminy/core/Macro.h"
