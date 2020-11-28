@@ -26,7 +26,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            PRINT_ERROR("Motor not attached to any robot. Impossible to initialize it.")
+            PRINT_ERROR("Motor not attached to any robot. Impossible to initialize it.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -57,27 +57,27 @@ namespace jiminy
             // Make sure the user-defined position limit has the right dimension
             if (boost::get<float64_t>(motorOptions.at("frictionViscousPositive")) > 0.0)
             {
-                PRINT_ERROR("'frictionViscousPositive' must be negative.")
+                PRINT_ERROR("'frictionViscousPositive' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionViscousNegative")) > 0.0)
             {
-                PRINT_ERROR("'frictionViscousNegative' must be negative.")
+                PRINT_ERROR("'frictionViscousNegative' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDryPositive")) > 0.0)
             {
-                PRINT_ERROR("'frictionDryPositive' must be negative.")
+                PRINT_ERROR("'frictionDryPositive' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDryNegative")) > 0.0)
             {
-                PRINT_ERROR("'frictionDryNegative' must be negative.")
+                PRINT_ERROR("'frictionDryNegative' must be negative.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
             if (boost::get<float64_t>(motorOptions.at("frictionDrySlope")) < 0.0)
             {
-                PRINT_ERROR("'frictionDrySlope' must be positive.")
+                PRINT_ERROR("'frictionDrySlope' must be positive.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -98,7 +98,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Motor not initialized. Impossible to compute actual motor effort.")
+            PRINT_ERROR("Motor not initialized. Impossible to compute actual motor effort.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 

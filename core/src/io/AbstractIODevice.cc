@@ -48,7 +48,7 @@ namespace jiminy
 
         if (isOpen())
         {
-            PRINT_ERROR("Already open.")
+            PRINT_ERROR("Already open.");
             returnCode = lastError_ = hresult_t::ERROR_GENERIC;
         }
 
@@ -56,7 +56,7 @@ namespace jiminy
         {
             if ((modes & supportedModes_) != modes)
             {
-                PRINT_ERROR("At least of the modes ", modes, " is not supported.")
+                PRINT_ERROR("At least of the modes ", modes, " is not supported.");
                 returnCode = lastError_ = hresult_t::ERROR_GENERIC;
             }
         }
@@ -134,14 +134,14 @@ namespace jiminy
     hresult_t AbstractIODevice::resize(int64_t size)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This method is not available.")
+        PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
     hresult_t AbstractIODevice::seek(int64_t pos)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This method is not available.")
+        PRINT_ERROR("This method is not available.");
         return lastError_;
     }
 
@@ -172,7 +172,7 @@ namespace jiminy
             if (writtenBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("Something went wrong. No data was written.")
+                PRINT_ERROR("Something went wrong. No data was written.");
                 return lastError_;
             }
             toWrite -= writtenBytes;
@@ -193,7 +193,7 @@ namespace jiminy
             if (readBytes <= 0)
             {
                 lastError_ = hresult_t::ERROR_GENERIC;
-                PRINT_ERROR("Something went wrong. No data was read.")
+                PRINT_ERROR("Something went wrong. No data was read.");
                 return lastError_;
             }
             toRead -= readBytes;
@@ -205,7 +205,7 @@ namespace jiminy
     hresult_t AbstractIODevice::setBlockingMode(bool_t shouldBlock)
     {
         lastError_ = hresult_t::ERROR_GENERIC;
-        PRINT_ERROR("This methid is not available.")
+        PRINT_ERROR("This methid is not available.");
         return lastError_;
     }
 

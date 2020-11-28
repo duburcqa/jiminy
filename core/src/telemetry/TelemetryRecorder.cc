@@ -48,7 +48,7 @@ namespace jiminy
 
         if (isInitialized_)
         {
-            PRINT_ERROR("TelemetryRecorder already initialized.")
+            PRINT_ERROR("TelemetryRecorder already initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
         // Log the time unit as constant.
@@ -202,7 +202,7 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if you have writing permissions.")
+            PRINT_ERROR("Impossible to create the log file. Check if root folder exists and if you have writing permissions.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         return hresult_t::SUCCESS;
@@ -243,7 +243,7 @@ namespace jiminy
                     flow->readData(&version, sizeof(int32_t));
                     if (version != TELEMETRY_VERSION)
                     {
-                        PRINT_ERROR("Log telemetry version not supported. Impossible to read log.")
+                        PRINT_ERROR("Log telemetry version not supported. Impossible to read log.");
                         return hresult_t::ERROR_BAD_INPUT;
                     }
                     logData.version = version;

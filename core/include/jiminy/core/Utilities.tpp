@@ -73,7 +73,7 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Unknown data type: ", root.type())
+            PRINT_ERROR("Unknown data type: ", root.type());
             root["type"] = "unknown";
         }
 

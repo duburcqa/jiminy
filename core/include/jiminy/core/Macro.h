@@ -165,13 +165,13 @@ namespace jiminy
     #define FILE_LINE __FILE__ ":" STRINGIFY(__LINE__)
 
     #define PRINT_ERROR(...) \
-    std::cout << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;32merror:\033[0m " << to_string(__VA_ARGS__) << std::endl;
+    std::cout << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;32merror:\033[0m " << to_string(__VA_ARGS__) << std::endl
 
     #ifdef NDEBUG
     #define PRINT_WARNING(...)
     #else
     #define PRINT_WARNING(...) \
-    std::cout << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;93mwarning:\033[0m " << to_string(__VA_ARGS__) << std::endl;
+    std::cout << "In " FILE_LINE ": In " << BOOST_CURRENT_FUNCTION << ":\n\033[1;93mwarning:\033[0m " << to_string(__VA_ARGS__) << std::endl
     #endif
 }
 

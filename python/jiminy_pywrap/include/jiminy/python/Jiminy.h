@@ -1395,13 +1395,13 @@ namespace python
                 }
                 else
                 {
-                    PRINT_ERROR("'value' input array must have dtype 'np.float64' and a single element.")
+                    PRINT_ERROR("'value' input array must have dtype 'np.float64' and a single element.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else
             {
-                PRINT_ERROR("'value' input must have type 'numpy.ndarray'.")
+                PRINT_ERROR("'value' input must have type 'numpy.ndarray'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1423,13 +1423,13 @@ namespace python
                 }
                 else
                 {
-                    PRINT_ERROR("'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'.")
+                    PRINT_ERROR("'values' input array must have dtype 'np.float64' and the same length as 'fieldnames'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
             else
             {
-                PRINT_ERROR("'values' input must have type 'numpy.ndarray'.")
+                PRINT_ERROR("'values' input must have type 'numpy.ndarray'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }

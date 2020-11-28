@@ -70,19 +70,19 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before adding a new system.")
+            PRINT_ERROR("A simulation is already running. Stop it before adding a new system.");
             return hresult_t::ERROR_GENERIC;
         }
 
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (!controller->getIsInitialized())
         {
-            PRINT_ERROR("Controller not initialized.")
+            PRINT_ERROR("Controller not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -102,7 +102,7 @@ namespace jiminy
     {
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -129,7 +129,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before removing a system.")
+            PRINT_ERROR("A simulation is already running. Stop it before removing a system.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -174,7 +174,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before setting a new controller for a system.")
+            PRINT_ERROR("A simulation is already running. Stop it before setting a new controller for a system.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -183,7 +183,7 @@ namespace jiminy
         {
             if (!controller->getIsInitialized())
             {
-                PRINT_ERROR("Controller not initialized.")
+                PRINT_ERROR("Controller not initialized.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -215,7 +215,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before adding coupling forces.")
+            PRINT_ERROR("A simulation is already running. Stop it before adding coupling forces.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -269,7 +269,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.")
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -308,7 +308,7 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.")
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -340,7 +340,7 @@ namespace jiminy
 
         if (systems_.empty())
         {
-            PRINT_ERROR("No system added to the engine.")
+            PRINT_ERROR("No system added to the engine.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -538,19 +538,19 @@ namespace jiminy
         // Make sure that no simulation is running
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is already running. Stop it before starting again.")
+            PRINT_ERROR("A simulation is already running. Stop it before starting again.");
             return hresult_t::ERROR_GENERIC;
         }
 
         if (systems_.empty())
         {
-            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.")
+            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         if (qInit.size() != systems_.size() || vInit.size() != systems_.size())
         {
-            PRINT_ERROR("The number of initial configurations and velocities must match the number of systems.")
+            PRINT_ERROR("The number of initial configurations and velocities must match the number of systems.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -565,7 +565,7 @@ namespace jiminy
             auto vInitIt = vInit.find(system.name);
             if (qInitIt == qInit.end() || vInitIt == vInit.end())
             {
-                PRINT_ERROR("System '", system.name, "'does not have an initial configuration or velocity.")
+                PRINT_ERROR("System '", system.name, "'does not have an initial configuration or velocity.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -574,7 +574,7 @@ namespace jiminy
             if (q.rows() != system.robot->nq() || v.rows() != system.robot->nv())
             {
                 PRINT_ERROR("The dimension of the initial configuration or velocity is inconsistent "
-                            "with model size for system '", system.name, "'.")
+                            "with model size for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -583,7 +583,7 @@ namespace jiminy
             if (!isValid)
             {
                 PRINT_ERROR("The initial configuration is not consistent with the types of "
-                            "joints of the model for system '", system.name, "'.")
+                            "joints of the model for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -592,7 +592,7 @@ namespace jiminy
                 (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
             {
-                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.")
+                PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -607,7 +607,7 @@ namespace jiminy
             // Check the dimension of the initial acceleration associated with every system and order them
             if (aInit->size() != systems_.size())
             {
-                PRINT_ERROR("If specified, the number of initial accelerations must match the number of systems.")
+                PRINT_ERROR("If specified, the number of initial accelerations must match the number of systems.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -616,7 +616,7 @@ namespace jiminy
                 auto aInitIt = aInit->find(system.name);
                 if (aInitIt == aInit->end())
                 {
-                    PRINT_ERROR("System '", system.name, "'does not have an initial acceleration.")
+                    PRINT_ERROR("System '", system.name, "'does not have an initial acceleration.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
@@ -624,7 +624,7 @@ namespace jiminy
                 if (a.rows() != system.robot->nv())
                 {
                     PRINT_ERROR("The dimension of the initial acceleration is inconsistent "
-                                "with model size for system '", system.name, "'.")
+                                "with model size for system '", system.name, "'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
@@ -650,7 +650,7 @@ namespace jiminy
                 {
                     if (!sensor->getIsInitialized())
                     {
-                        PRINT_ERROR("At least a sensor of a robot is not initialized.")
+                        PRINT_ERROR("At least a sensor of a robot is not initialized.");
                         return hresult_t::ERROR_INIT_FAILED;
                     }
                 }
@@ -660,7 +660,7 @@ namespace jiminy
             {
                 if (!motor->getIsInitialized())
                 {
-                    PRINT_ERROR("At least a motor of a robot is not initialized.")
+                    PRINT_ERROR("At least a motor of a robot is not initialized.");
                     return hresult_t::ERROR_INIT_FAILED;
                 }
             }
@@ -808,7 +808,7 @@ namespace jiminy
                 {
                     PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
                                 "which is forbidden for the sake of numerical stability. Please "
-                                "update the initial state.")
+                                "update the initial state.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
@@ -910,13 +910,13 @@ namespace jiminy
 
         if (systems_.empty())
         {
-            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.")
+            PRINT_ERROR("No system to simulate. Please add one before starting a simulation.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
         if (tEnd < 5e-3)
         {
-            PRINT_ERROR("The duration of the simulation cannot be shorter than 5ms.")
+            PRINT_ERROR("The duration of the simulation cannot be shorter than 5ms.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -931,7 +931,7 @@ namespace jiminy
         {
             PRINT_ERROR("Time overflow: with the current precision the maximum value that "
                         "can be logged is ", telemetryRecorder_->getMaximumLogTime(),
-                        "s. Decrease logger precision to simulate for longer than that.")
+                        "s. Decrease logger precision to simulate for longer than that.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1008,7 +1008,7 @@ namespace jiminy
         // Check if the simulation has started
         if (!isSimulationRunning_)
         {
-            PRINT_ERROR("No simulation running. Please start it before using step method.")
+            PRINT_ERROR("No simulation running. Please start it before using step method.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1017,7 +1017,7 @@ namespace jiminy
         {
             if ((a.array() != a.array()).any()) // isnan if NOT equal to itself
             {
-                PRINT_ERROR("The low-level ode solver failed. Consider increasing the stepper accuracy.")
+                PRINT_ERROR("The low-level ode solver failed. Consider increasing the stepper accuracy.");
                 return hresult_t::ERROR_GENERIC;
             }
         }
@@ -1025,7 +1025,7 @@ namespace jiminy
         // Check if the desired step size is suitable
         if (stepSize > EPS && stepSize < SIMULATION_MIN_TIMESTEP)
         {
-            PRINT_ERROR("The requested step size is out of bounds.")
+            PRINT_ERROR("The requested step size is out of bounds.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1060,7 +1060,7 @@ namespace jiminy
         {
             PRINT_ERROR("Time overflow: with the current precision the maximum value that "
                         "can be logged is ", telemetryRecorder_->getMaximumLogTime(),
-                        "s. Decrease logger precision to simulate for longer than that.")
+                        "s. Decrease logger precision to simulate for longer than that.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1470,14 +1470,14 @@ namespace jiminy
             if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
                 PRINT_ERROR("Too many successive iteration failures. Probably something is "
-                            "going wrong with the physics. Aborting integration.")
+                            "going wrong with the physics. Aborting integration.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
             if (dt < STEPPER_MIN_TIMESTEP)
             {
                 PRINT_ERROR("The internal time step is getting too small. Impossible to "
-                            "integrate physics further in time.")
+                            "integrate physics further in time.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
 
@@ -1485,7 +1485,7 @@ namespace jiminy
             if (EPS < engineOptions_->stepper.timeout
                 && engineOptions_->stepper.timeout < timer_.dt)
             {
-                PRINT_ERROR("Step computation timeout.")
+                PRINT_ERROR("Step computation timeout.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
         }
@@ -1550,13 +1550,13 @@ namespace jiminy
 
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.")
+            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
         if (dt < STEPPER_MIN_TIMESTEP)
         {
-            PRINT_ERROR("The force duration cannot be smaller than ", STEPPER_MIN_TIMESTEP, ".")
+            PRINT_ERROR("The force duration cannot be smaller than ", STEPPER_MIN_TIMESTEP, ".");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1593,7 +1593,7 @@ namespace jiminy
 
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.")
+            PRINT_ERROR("A simulation is running. Please stop it before registering new forces.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1628,7 +1628,7 @@ namespace jiminy
     {
         if (isSimulationRunning_)
         {
-            PRINT_ERROR("A simulation is running. Please stop it before updating the options.")
+            PRINT_ERROR("A simulation is running. Please stop it before updating the options.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1637,7 +1637,7 @@ namespace jiminy
         float64_t const & timeUnit = boost::get<float64_t>(telemetryOptions.at("timeUnit"));
         if (1.0 / STEPPER_MIN_TIMESTEP < timeUnit || timeUnit < 1.0 / SIMULATION_MAX_TIMESTEP)
         {
-            PRINT_ERROR("'timeUnit' is out of range.")
+            PRINT_ERROR("'timeUnit' is out of range.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1646,7 +1646,7 @@ namespace jiminy
         float64_t const & dtMax = boost::get<float64_t>(stepperOptions.at("dtMax"));
         if (SIMULATION_MAX_TIMESTEP < dtMax || dtMax < SIMULATION_MIN_TIMESTEP)
         {
-            PRINT_ERROR("'dtMax' option is out of range.")
+            PRINT_ERROR("'dtMax' option is out of range.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1654,7 +1654,7 @@ namespace jiminy
         uint32_t const & successiveIterFailedMax = boost::get<uint32_t>(stepperOptions.at("successiveIterFailedMax"));
         if (successiveIterFailedMax < 1)
         {
-            PRINT_ERROR("'successiveIterFailedMax' must be strictly positive.")
+            PRINT_ERROR("'successiveIterFailedMax' must be strictly positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1662,7 +1662,7 @@ namespace jiminy
         std::string const & odeSolver = boost::get<std::string>(stepperOptions.at("odeSolver"));
         if (STEPPERS.find(odeSolver) == STEPPERS.end())
         {
-            PRINT_ERROR("The requested 'odeSolver' is not available.")
+            PRINT_ERROR("The requested 'odeSolver' is not available.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1678,7 +1678,7 @@ namespace jiminy
         {
             PRINT_ERROR("Cannot simulate a discrete system with update period smaller than ",
                         SIMULATION_MIN_TIMESTEP, "s or larger than ", SIMULATION_MAX_TIMESTEP,
-                        "s. Increase period or switch to continuous mode by setting period to zero.")
+                        "s. Increase period or switch to continuous mode by setting period to zero.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         // Verify that, if both values are set above sensorsUpdatePeriod, they are multiple of each other:
@@ -1691,7 +1691,7 @@ namespace jiminy
                         controllerUpdatePeriod - std::fmod(sensorsUpdatePeriod, controllerUpdatePeriod)) > EPS))
         {
             PRINT_ERROR("In discrete mode, the controller and sensor update periods must be "
-                        "multiple of each other.")
+                        "multiple of each other.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1701,21 +1701,21 @@ namespace jiminy
             boost::get<float64_t>(contactsOptions.at("frictionStictionVel"));
         if (frictionStictionVel < 0.0)
         {
-            PRINT_ERROR("The contacts option 'frictionStictionVel' must be positive.")
+            PRINT_ERROR("The contacts option 'frictionStictionVel' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & frictionStictionRatio =
             boost::get<float64_t>(contactsOptions.at("frictionStictionRatio"));
         if (frictionStictionRatio < 0.0)
         {
-            PRINT_ERROR("The contacts option 'frictionStictionRatio' must be positive.")
+            PRINT_ERROR("The contacts option 'frictionStictionRatio' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         float64_t const & contactsTransitionEps =
             boost::get<float64_t>(contactsOptions.at("transitionEps"));
         if (contactsTransitionEps < 0.0)
         {
-            PRINT_ERROR("The contacts option 'transitionEps' must be positive.")
+            PRINT_ERROR("The contacts option 'transitionEps' must be positive.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1755,7 +1755,7 @@ namespace jiminy
         vectorN_t gravity = boost::get<vectorN_t>(worldOptions.at("gravity"));
         if (gravity.size() != 6)
         {
-            PRINT_ERROR("The size of the gravity force vector must be 6.")
+            PRINT_ERROR("The size of the gravity force vector must be 6.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1791,7 +1791,7 @@ namespace jiminy
                                      });
         if (systemIt == systems_.end())
         {
-            PRINT_ERROR("No system with this name has been added to the engine.")
+            PRINT_ERROR("No system with this name has been added to the engine.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1814,7 +1814,7 @@ namespace jiminy
                                      });
         if (systemIt == systems_.end())
         {
-            PRINT_ERROR("No system with this name has been added to the engine.")
+            PRINT_ERROR("No system with this name has been added to the engine.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -2384,7 +2384,7 @@ namespace jiminy
         // Make sure that a simulation is running
         if (systems_.empty())
         {
-            PRINT_ERROR("No system to simulate. Please add one before computing system dynamics.")
+            PRINT_ERROR("No system to simulate. Please add one before computing system dynamics.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -2587,7 +2587,7 @@ namespace jiminy
         {
             if (header.empty())
             {
-                PRINT_ERROR("No data available. Please start a simulation before writing log.")
+                PRINT_ERROR("No data available. Please start a simulation before writing log.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -2601,7 +2601,7 @@ namespace jiminy
             if (!file.is_open())
             {
                 PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
-                            "if you have writing permissions.")
+                            "if you have writing permissions.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -2636,7 +2636,7 @@ namespace jiminy
         {
             if (logData.intData.empty())
             {
-                PRINT_ERROR("No data available. Please start a simulation before writing log.")
+                PRINT_ERROR("No data available. Please start a simulation before writing log.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -2649,7 +2649,7 @@ namespace jiminy
                 file = std::make_unique<H5::H5File>(filename, H5F_ACC_TRUNC);
             } catch (H5::FileIException const & open_file) {
                 PRINT_ERROR("Impossible to create the log file. Check if root folder exists and "
-                            "if you have writing permissions.")
+                            "if you have writing permissions.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -2789,7 +2789,7 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Format not recognized. It must be either 'binary', 'csv', or 'hdf5'.")
+            PRINT_ERROR("Format not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
             return hresult_t::ERROR_BAD_INPUT;
         }
     }
@@ -2831,7 +2831,7 @@ namespace jiminy
             // Make sure the log file is not corrupted
             if (!file.good())
             {
-                PRINT_ERROR("Corrupted log file.")
+                PRINT_ERROR("Corrupted log file.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -2854,7 +2854,7 @@ namespace jiminy
         else
         {
             PRINT_ERROR("Impossible to open the log file. Check that the file exists and "
-                        "that you have reading permissions.")
+                        "that you have reading permissions.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

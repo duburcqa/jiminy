@@ -46,7 +46,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -59,7 +59,7 @@ namespace jiminy
                                         });
         if (constantIt != registeredConstants_.end())
         {
-            PRINT_ERROR("Constant already registered.")
+            PRINT_ERROR("Constant already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         registeredConstants_.emplace_back(fieldName, to_string(value));

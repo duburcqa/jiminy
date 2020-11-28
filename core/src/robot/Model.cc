@@ -137,7 +137,7 @@ namespace jiminy
         // Check that no frame with the same name already exists.
         if (pncModelRigidOrig_.existFrame(frameName))
         {
-            PRINT_ERROR("A frame with the same name already exists.")
+            PRINT_ERROR("A frame with the same name already exists.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -194,7 +194,7 @@ namespace jiminy
         {
             if (pncModelRigidOrig_.frames[frameId].type != frameType)
             {
-                PRINT_ERROR("Impossible to remove this frame. One should only remove frames added manually.")
+                PRINT_ERROR("Impossible to remove this frame. One should only remove frames added manually.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -224,21 +224,21 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
-            PRINT_ERROR("Some bodies are duplicates.")
+            PRINT_ERROR("Some bodies are duplicates.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that there is no collision already associated with any of the bodies in the list
         if (checkIntersection(collisionBodiesNames_, bodyNames))
         {
-            PRINT_ERROR("At least one of the bodies is already been associated with a collision.")
+            PRINT_ERROR("At least one of the bodies is already been associated with a collision.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -247,7 +247,7 @@ namespace jiminy
         {
             if (!pncModel_.existBodyName(name))
             {
-                PRINT_ERROR("At least one of the bodies does not exist.")
+                PRINT_ERROR("At least one of the bodies does not exist.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -269,7 +269,7 @@ namespace jiminy
             }
             if (!hasGeometry)
             {
-                PRINT_ERROR("At least one of the bodies is not associated with any collision geometry of requested type.")
+                PRINT_ERROR("At least one of the bodies is not associated with any collision geometry of requested type.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -309,21 +309,21 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
-            PRINT_ERROR("Some bodies are duplicates.")
+            PRINT_ERROR("Some bodies are duplicates.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that every body in the list is associated with a collision
         if (!checkInclusion(collisionBodiesNames_, bodyNames))
         {
-            PRINT_ERROR("At least one of the bodies is not associated with any collision.")
+            PRINT_ERROR("At least one of the bodies is not associated with any collision.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -375,21 +375,21 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            PRINT_ERROR("Some frames are duplicates.")
+            PRINT_ERROR("Some frames are duplicates.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that there is no contact already associated with any of the frames in the list
         if (checkIntersection(contactFramesNames_, frameNames))
         {
-            PRINT_ERROR("At least one of the frames is already been associated with a contact.")
+            PRINT_ERROR("At least one of the frames is already been associated with a contact.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -398,7 +398,7 @@ namespace jiminy
         {
             if (!pncModel_.existFrame(name))
             {
-                PRINT_ERROR("At least one of the frames does not exist.")
+                PRINT_ERROR("At least one of the frames does not exist.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -416,21 +416,21 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         // Make sure that no frame are duplicates
         if (checkDuplicates(frameNames))
         {
-            PRINT_ERROR("Some frames are duplicates.")
+            PRINT_ERROR("Some frames are duplicates.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
         // Make sure that every frame in the list is associated with a contact
         if (!checkInclusion(contactFramesNames_, frameNames))
         {
-            PRINT_ERROR("At least one of the frames is not associated with any contact.")
+            PRINT_ERROR("At least one of the frames is not associated with any contact.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -456,7 +456,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -503,7 +503,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -573,7 +573,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -776,7 +776,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -830,7 +830,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Model not initialized.")
+            PRINT_ERROR("Model not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -864,7 +864,7 @@ namespace jiminy
                 vectorN_t & jointsPositionLimitMin = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMin"));
                 if ((int32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMin.size())
                 {
-                    PRINT_ERROR("Wrong vector size for 'positionLimitMin'.")
+                    PRINT_ERROR("Wrong vector size for 'positionLimitMin'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 auto jointsPositionLimitMinDiff = jointsPositionLimitMin - mdlOptions_->joints.positionLimitMin;
@@ -872,7 +872,7 @@ namespace jiminy
                 vectorN_t & jointsPositionLimitMax = boost::get<vectorN_t>(jointOptionsHolder.at("positionLimitMax"));
                 if ((uint32_t) rigidJointsPositionIdx_.size() != jointsPositionLimitMax.size())
                 {
-                    PRINT_ERROR("Wrong vector size for 'positionLimitMax'.")
+                    PRINT_ERROR("Wrong vector size for 'positionLimitMax'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 auto jointsPositionLimitMaxDiff = jointsPositionLimitMax - mdlOptions_->joints.positionLimitMax;
@@ -884,7 +884,7 @@ namespace jiminy
                 vectorN_t & jointsVelocityLimit = boost::get<vectorN_t>(jointOptionsHolder.at("velocityLimit"));
                 if ((int32_t) rigidJointsVelocityIdx_.size() != jointsVelocityLimit.size())
                 {
-                    PRINT_ERROR("Wrong vector size for 'velocityLimit'.")
+                    PRINT_ERROR("Wrong vector size for 'velocityLimit'.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
                 auto jointsVelocityLimitDiff = jointsVelocityLimit - mdlOptions_->joints.velocityLimit;
@@ -937,7 +937,7 @@ namespace jiminy
             uint32_t const & maxContactPointsPerBody = boost::get<uint32_t>(collisionOptionsHolder.at("maxContactPointsPerBody"));
             if (maxContactPointsPerBody < 1)
             {
-                PRINT_ERROR("The number of contact points by collision pair 'maxContactPointsPerBody' must be at least 1.")
+                PRINT_ERROR("The number of contact points by collision pair 'maxContactPointsPerBody' must be at least 1.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
             if (mdlOptions_ && maxContactPointsPerBody != mdlOptions_->collisions.maxContactPointsPerBody)
@@ -1008,7 +1008,7 @@ namespace jiminy
     {
         if (!std::ifstream(urdfPath.c_str()).good())
         {
-            PRINT_ERROR("The URDF file does not exist. Impossible to load it.")
+            PRINT_ERROR("The URDF file does not exist. Impossible to load it.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1033,7 +1033,7 @@ namespace jiminy
         catch (std::exception const & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to build a model from it.\n"
-                        "Raised from exception: ", e.what())
+                        "Raised from exception: ", e.what());
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1049,7 +1049,7 @@ namespace jiminy
         catch (std::exception const & e)
         {
             PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
-                        "Raised from exception: ", e.what())
+                        "Raised from exception: ", e.what());
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1100,7 +1100,7 @@ namespace jiminy
         // Check the size of the input state
         if (qRigid.size() != nqRigid)
         {
-            PRINT_ERROR("Size of qRigid inconsistent with theoretical model.")
+            PRINT_ERROR("Size of qRigid inconsistent with theoretical model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1139,7 +1139,7 @@ namespace jiminy
         // Check the size of the input state
         if (qFlex.size() != nqFlex)
         {
-            PRINT_ERROR("Size of qFlex inconsistent with flexible model.")
+            PRINT_ERROR("Size of qFlex inconsistent with flexible model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1182,7 +1182,7 @@ namespace jiminy
         // Check the size of the input state
         if (vRigid.size() != nvRigid)
         {
-            PRINT_ERROR("Size of vRigid inconsistent with theoretical model.")
+            PRINT_ERROR("Size of vRigid inconsistent with theoretical model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1222,7 +1222,7 @@ namespace jiminy
         // Check the size of the input state
         if (vFlex.size() != nvFlex)
         {
-            PRINT_ERROR("Size of vFlex inconsistent with flexible model.")
+            PRINT_ERROR("Size of vFlex inconsistent with flexible model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 

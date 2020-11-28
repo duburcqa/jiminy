@@ -26,7 +26,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Sensor '", name_, "' of type '", getType(), "' is not initialized.")
+            PRINT_ERROR("Sensor '", name_, "' of type '", getType(), "' is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -50,7 +50,7 @@ namespace jiminy
                 }
                 else
                 {
-                    PRINT_ERROR("Telemetry not initialized. Impossible to log sensor data.")
+                    PRINT_ERROR("Telemetry not initialized. Impossible to log sensor data.");
                     returnCode = hresult_t::ERROR_INIT_FAILED;
                 }
             }

@@ -332,7 +332,7 @@ namespace jiminy
                     }
                     else
                     {
-                        PRINT_ERROR("Unknown data type: std::vector<", type, ">")
+                        PRINT_ERROR("Unknown data type: std::vector<", type, ">");
                         field = std::string{"ValueError"};
                     }
                 }
@@ -387,7 +387,7 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("Unknown data type: ", root->type())
+                PRINT_ERROR("Unknown data type: ", root->type());
                 field = std::string{"ValueError"};
             }
 
@@ -661,7 +661,7 @@ namespace jiminy
         auto iterator = std::find(header.begin(), header.end(), fieldName);
         if (iterator == header.end())
         {
-            PRINT_ERROR("Field does not exist.")
+            PRINT_ERROR("Field does not exist.");
             return fieldDataEmpty;
         }
 
@@ -690,7 +690,7 @@ namespace jiminy
             }
         }
 
-        PRINT_ERROR("Position index out of range.")
+        PRINT_ERROR("Position index out of range.");
         return hresult_t::ERROR_BAD_INPUT;
     }
 
@@ -809,7 +809,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -848,7 +848,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -861,7 +861,7 @@ namespace jiminy
     {
         if (!model.existFrame(frameName))
         {
-            PRINT_ERROR("Frame '", frameName, "' not found in robot model.")
+            PRINT_ERROR("Frame '", frameName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -896,7 +896,7 @@ namespace jiminy
     {
         if (!model.existBodyName(bodyName))
         {
-            PRINT_ERROR("Body '", bodyName, "' not found in robot model.")
+            PRINT_ERROR("Body '", bodyName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -933,7 +933,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -954,7 +954,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1014,7 +1014,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1054,7 +1054,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1075,7 +1075,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1133,7 +1133,7 @@ namespace jiminy
     {
         if (model.nq != position.size())
         {
-            PRINT_ERROR("Size of configuration vector inconsistent with model.")
+            PRINT_ERROR("Size of configuration vector inconsistent with model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1281,7 +1281,7 @@ namespace jiminy
 
         if (!modelInOut.existJointName(childJointNameIn))
         {
-            PRINT_ERROR("Child joint does not exist.")
+            PRINT_ERROR("Child joint does not exist.");
             return hresult_t::ERROR_GENERIC;
         }
 

@@ -116,7 +116,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to open the file using the desired mode.")
+            PRINT_ERROR("Impossible to open the file using the desired mode.");
             return lastError_;
         }
 
@@ -131,7 +131,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to close the file.")
+            PRINT_ERROR("Impossible to close the file.");
             return lastError_;
         }
         else
@@ -147,7 +147,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open, or the requested position '", pos, "' is out of scope.")
+            PRINT_ERROR("The file is not open, or the requested position '", pos, "' is out of scope.");
             return lastError_;
         }
         return hresult_t::SUCCESS;
@@ -159,7 +159,7 @@ namespace jiminy
         if (pos_cur < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open, or the position would be negative or beyond the end.")
+            PRINT_ERROR("The file is not open, or the position would be negative or beyond the end.");
         }
         return pos_cur;
     }
@@ -171,7 +171,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("Impossible to access the file.")
+            PRINT_ERROR("Impossible to access the file.");
         }
         return st.st_size;
     }
@@ -191,7 +191,7 @@ namespace jiminy
         if (readBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.")
+            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.");
         }
         return readBytes;
     }
@@ -202,7 +202,7 @@ namespace jiminy
         if (writtenBytes < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.")
+            PRINT_ERROR("The file is not open, or data buffer is outside accessible address space.");
         }
         return writtenBytes;
     }
@@ -218,7 +218,7 @@ namespace jiminy
         if (rc < 0)
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The file is not open.")
+            PRINT_ERROR("The file is not open.");
             return lastError_;
         }
         return hresult_t::SUCCESS;

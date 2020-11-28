@@ -28,7 +28,7 @@ namespace jiminy
     {
         if (isAttached_)
         {
-            PRINT_ERROR("Sensor already attached to a robot. Please 'detach' method before attaching it.")
+            PRINT_ERROR("Sensor already attached to a robot. Please 'detach' method before attaching it.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -65,7 +65,7 @@ namespace jiminy
 
         if (!isAttached_)
         {
-            PRINT_ERROR("Sensor not attached to any robot.")
+            PRINT_ERROR("Sensor not attached to any robot.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -289,7 +289,7 @@ namespace jiminy
         {
             if (idxLeft < 0)
             {
-                PRINT_ERROR("No data old enough is available.")
+                PRINT_ERROR("No data old enough is available.");
                 return hresult_t::ERROR_GENERIC;
             }
             else if (baseSensorOptions_->delayInterpolationOrder == 0)
@@ -304,7 +304,7 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("The delayInterpolationOrder must be either 0 or 1 so far.")
+                PRINT_ERROR("The delayInterpolationOrder must be either 0 or 1 so far.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
         }
