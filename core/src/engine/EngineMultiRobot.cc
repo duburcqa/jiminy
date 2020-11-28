@@ -2687,20 +2687,20 @@ namespace jiminy
                               matrixN_t       & logMatrix)
     {
         // Never empty since it contains at least the initial state
-        logMatrix.resize(logData.timestamps.size(), 1 + logData.intData[0].size() + logData.floatData[0].size());
+        logMatrix.resize(logData.timestamps.size(), 1 + logData.numInt + logData.numFloat);
         logMatrix.col(0) = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
             logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
         for (uint32_t i=0; i<logData.intData.size(); ++i)
         {
-            logMatrix.block(i, 1, 1, logData.intData[i].size()) =
+            logMatrix.block(i, 1, 1, logData.numInt) =
                 Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
-                    logData.intData[i].data(), logData.intData[i].size()).cast<float64_t>();
+                    logData.intData[i].data(), logData.numInt).cast<float64_t>();
         }
         for (uint32_t i=0; i<logData.floatData.size(); ++i)
         {
-            logMatrix.block(i, 1 + logData.intData[0].size(), 1, logData.floatData[i].size()) =
+            logMatrix.block(i, 1 + logData.numInt, 1, logData.numFloat) =
                 Eigen::Matrix<float64_t, 1, Eigen::Dynamic>::Map(
-                    logData.floatData[i].data(), logData.floatData[i].size());
+                    logData.floatData[i].data(), logData.numFloat);
         }
     }
 
@@ -2855,7 +2855,7 @@ namespace jiminy
 
             // Add group "variables"
             H5::Group variablesGroup(file->createGroup("variables"));
-            for (uint32_t i=0; i < logData.intData[0].size(); ++i)
+            for (uint32_t i=0; i < logData.numInt; ++i)
             {
                 std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1];
 
@@ -2885,9 +2885,9 @@ namespace jiminy
                 }
                 valueDataset.write(intVector.data(), H5::PredType::NATIVE_LONG);
             }
-            for (uint32_t i=0; i < logData.floatData[0].size(); ++i)
+            for (uint32_t i=0; i < logData.numFloat; ++i)
             {
-                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1 + logData.intData[0].size()];
+                std::string const & key = logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
 
                 // Create group for field
                 H5::Group fieldGroup(variablesGroup.createGroup(key));

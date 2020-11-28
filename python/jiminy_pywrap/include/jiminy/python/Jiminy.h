@@ -2057,6 +2057,12 @@ namespace python
                     PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
                 Py_XDECREF(valuePyTime);
             }
+            else
+            {
+                npy_intp dims[1] = {npy_intp(0)};
+                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
+                    PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
+            }
 
             // Get intergers
             if (!logData.intData.empty())
@@ -2064,7 +2070,7 @@ namespace python
                 Eigen::Matrix<int64_t, Eigen::Dynamic, 1> intVector;
                 intVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<logData.intData[0].size(); ++i)
+                for (uint32_t i=0; i<logData.numInt; ++i)
                 {
                     std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
                     for (uint32_t j=0; j < logData.intData.size(); ++j)
@@ -2083,16 +2089,27 @@ namespace python
                     Py_XDECREF(valuePyInt);
                 }
             }
+            else
+            {
+                npy_intp dims[1] = {npy_intp(0)};
+                for (uint32_t i=0; i<logData.numInt; ++i)
+                {
+                    std::string const & header_i = logData.header[i + (lastConstantIdx + 1) + 1];
+                    variables[header_i] = bp::object(bp::handle<>(
+                        PyArray_SimpleNew(1, dims, NPY_INT64)));
+                }
+            }
+
             // Get floats
             if (!logData.floatData.empty())
             {
                 Eigen::Matrix<float64_t, Eigen::Dynamic, 1> floatVector;
                 floatVector.resize(logData.timestamps.size());
 
-                for (uint32_t i=0; i<logData.floatData[0].size(); ++i)
+                for (uint32_t i=0; i<logData.numFloat; ++i)
                 {
                     std::string const & header_i =
-                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.intData[0].size()];
+                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
                     for (uint32_t j=0; j < logData.floatData.size(); ++j)
                     {
                         floatVector[j] = logData.floatData[j][i];
@@ -2102,6 +2119,17 @@ namespace python
                     variables[header_i] = bp::object(bp::handle<>(
                         PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
                     Py_XDECREF(valuePyFloat);
+                }
+            }
+            else
+            {
+                npy_intp dims[1] = {npy_intp(0)};
+                for (uint32_t i=0; i<logData.numFloat; ++i)
+                {
+                    std::string const & header_i =
+                        logData.header[i + (lastConstantIdx + 1) + 1 + logData.numInt];
+                    variables[header_i] = bp::object(bp::handle<>(
+                        PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
                 }
             }
 

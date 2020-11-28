@@ -67,7 +67,7 @@ namespace jiminy
                                    floatsAddress_,
                                    floatSectionSize_);
             recordedBytesDataLine_ = integerSectionSize_ + floatSectionSize_
-                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint64_t)); // unit64_t for Global.Time
+                                   + static_cast<int64_t>(START_LINE_TOKEN.size() + sizeof(uint64_t));  // uint64_t for Global.Time
 
             // Get the header
             telemetryData->formatHeader(header);
@@ -224,9 +224,11 @@ namespace jiminy
         {
             int64_t timestamp;
             std::vector<int64_t> intDataLine;
-            intDataLine.resize(integerSectionSize / sizeof(int64_t));
+            logData.numInt = integerSectionSize / sizeof(int64_t);
+            intDataLine.resize(logData.numInt);
             std::vector<float64_t> floatDataLine;
-            floatDataLine.resize(floatSectionSize / sizeof(float64_t));
+            logData.numFloat = floatSectionSize / sizeof(float64_t);
+            floatDataLine.resize(logData.numFloat);
 
             bool_t isReadingHeaderDone = false;
             for (auto & flow : flows)
@@ -293,20 +295,22 @@ namespace jiminy
                 // Dealing with data lines, starting with new line flag, time, integers, and ultimately floats
                 if (recordedBytesDataLine > 0)
                 {
-                    uint32_t numberLines = (flow->size() - flow->pos()) / recordedBytesDataLine;
+                    uint32_t numberLines = flow->bytesAvailable() / recordedBytesDataLine;
                     logData.timestamps.reserve(logData.timestamps.size() + numberLines);
                     logData.intData.reserve(logData.intData.size() + numberLines);
                     logData.floatData.reserve(logData.floatData.size() + numberLines);
                 }
 
+                std::vector<char_t> startLineTokenBuffer;
+                startLineTokenBuffer.resize(START_LINE_TOKEN.size());
                 while (flow->bytesAvailable() > 0)
                 {
-                    flow->seek(flow->pos() + START_LINE_TOKEN.size()); // Skip new line flag
+                    flow->read(startLineTokenBuffer);
                     flow->readData(&timestamp, sizeof(int64_t));
                     flow->readData(intDataLine.data(), integerSectionSize);
                     flow->readData(floatDataLine.data(), floatSectionSize);
 
-                    if (!logData.timestamps.empty() && timestamp == 0)
+                    if (startLineTokenBuffer[0] != START_LINE_TOKEN[0])
                     {
                         // The buffer is not full, must stop reading !
                         break;
