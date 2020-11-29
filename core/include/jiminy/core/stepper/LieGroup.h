@@ -1217,8 +1217,8 @@ namespace Eigen
 
     #define State_SHARED_ADDON \
     template<typename Derived, \
-                typename = typename std::enable_if<is_base_of_template<StateDerivativeBase, \
-                        typename internal::traits<Derived>::ValueType>::value, void>::type> \
+                typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
+                        typename internal::traits<Derived>::ValueType>::value, void> > \
     StateVector & sumInPlace(VectorContainerBase<Derived> const & other) \
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \
@@ -1232,8 +1232,8 @@ namespace Eigen
     } \
     \
     template<typename Derived, \
-                typename = typename std::enable_if<is_base_of_template<StateDerivativeBase, \
-                        typename internal::traits<Derived>::ValueType>::value, void>::type> \
+                typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
+                        typename internal::traits<Derived>::ValueType>::value, void> > \
     StateVector sum(VectorContainerBase<Derived> const & other) const \
     { \
         StateVector result = *this; \
@@ -1242,8 +1242,8 @@ namespace Eigen
     } \
     \
     template<typename Derived, \
-                typename = typename std::enable_if<is_base_of_template<StateBase, \
-                        typename internal::traits<Derived>::ValueType>::value, void>::type> \
+                typename = typename std::enable_if_t<is_base_of_template<StateBase, \
+                        typename internal::traits<Derived>::ValueType>::value, void> > \
     StateDerivativeVector difference(VectorContainerBase<Derived> const & other) const \
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \

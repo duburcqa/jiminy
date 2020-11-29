@@ -22,6 +22,8 @@ namespace jiminy
         header(),
         version(0),
         timeUnit(0.0),
+        numInt(0),
+        numFloat(0),
         timestamps(),
         intData(),
         floatData()
@@ -33,6 +35,8 @@ namespace jiminy
         std::vector<std::string> header;
         int32_t version;
         float64_t timeUnit;
+        uint32_t numInt;
+        uint32_t numFloat;
         std::vector<int64_t> timestamps;
         std::vector<std::vector<int64_t> > intData;
         std::vector<std::vector<float64_t> > floatData;

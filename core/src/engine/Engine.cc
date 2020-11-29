@@ -150,7 +150,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The engine is not initialized.")
+            PRINT_ERROR("The engine is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -182,7 +182,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The engine is not initialized.")
+            PRINT_ERROR("The engine is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -226,7 +226,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("The engine is not initialized.")
+            PRINT_ERROR("The engine is not initialized.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -239,7 +239,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("The engine is not initialized.")
+            PRINT_ERROR("The engine is not initialized.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -256,7 +256,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The engine is not initialized.")
+            PRINT_ERROR("The engine is not initialized.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 

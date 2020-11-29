@@ -33,7 +33,7 @@ namespace jiminy
 
         if (isAttached_)
         {
-            PRINT_ERROR("Constraint already attached to a robot.")
+            PRINT_ERROR("Constraint already attached to a robot.");
             return hresult_t::ERROR_GENERIC;
         }
 

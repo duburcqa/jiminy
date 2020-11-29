@@ -116,7 +116,7 @@ namespace jiminy
     {
         if (!robot.getIsInitialized())
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 

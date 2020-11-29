@@ -76,11 +76,11 @@ namespace jiminy
     class AbstractIODevice;
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value, Json::Value>
+    std::enable_if_t<!is_vector_v<T>, Json::Value>
     convertToJson(T const & value);
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, Json::Value>
+    std::enable_if_t<is_vector_v<T>, Json::Value>
     convertToJson(T const & value);
 
     hresult_t jsonDump(configHolder_t                    const & config,
@@ -89,11 +89,11 @@ namespace jiminy
     // ************* Conversion from JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value, T>
+    std::enable_if_t<!is_vector_v<T>, T>
     convertFromJson(Json::Value const & value);
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector_v<T>, T>
     convertFromJson(Json::Value const & value);
 
     hresult_t jsonLoad(configHolder_t                    & config,

@@ -16,16 +16,13 @@ logger = logging.getLogger(__name__)
 # ######################### Generic math ##############################
 # #####################################################################
 
-def se3ToXYZRPY(M):
+def SE3ToXYZRPY(M):
     """Convert Pinocchio SE3 object to [X,Y,Z,Roll,Pitch,Yaw] vector.
     """
-    p = np.empty((6,))
-    p[:3] = M.translation
-    p[3:] = matrixToRpy(M.rotation)
-    return p
+    return np.concatenate((M.translation, matrixToRpy(M.rotation)))
 
 
-def XYZRPYToSe3(xyzrpy):
+def XYZRPYToSE3(xyzrpy):
     """Convert [X,Y,Z,Roll,Pitch,Yaw] vector to Pinocchio SE3 object.
     """
     return pin.SE3(rpyToMatrix(xyzrpy[3:]), xyzrpy[:3])
@@ -593,7 +590,7 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
         # Move freeflyer to ensure continuity over time, if requested
         if freeflyer_continuity:
             # Extract the current freeflyer transform
-            w_M_ff = pin.XYZQUATToSe3(s.q[:7])
+            w_M_ff = pin.XYZQUATToSE3(s.q[:7])
 
             # Update the internal buffer of the freeflyer transform
             if contact_frame_prev is not None \

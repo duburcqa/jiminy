@@ -332,7 +332,7 @@ namespace jiminy
                     }
                     else
                     {
-                        PRINT_ERROR("Unknown data type: std::vector<", type, ">")
+                        PRINT_ERROR("Unknown data type: std::vector<", type, ">");
                         field = std::string{"ValueError"};
                     }
                 }
@@ -387,7 +387,7 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("Unknown data type: ", root->type())
+                PRINT_ERROR("Unknown data type: ", root->type());
                 field = std::string{"ValueError"};
             }
 
@@ -661,7 +661,7 @@ namespace jiminy
         auto iterator = std::find(header.begin(), header.end(), fieldName);
         if (iterator == header.end())
         {
-            PRINT_ERROR("Field does not exist.")
+            PRINT_ERROR("Field does not exist.");
             return fieldDataEmpty;
         }
 
@@ -690,7 +690,7 @@ namespace jiminy
             }
         }
 
-        PRINT_ERROR("Position index out of range.")
+        PRINT_ERROR("Position index out of range.");
         return hresult_t::ERROR_BAD_INPUT;
     }
 
@@ -713,62 +713,96 @@ namespace jiminy
             }
         }
 
-        PRINT_ERROR("Velocity index out of range.")
+        PRINT_ERROR("Velocity index out of range.");
         return hresult_t::ERROR_BAD_INPUT;
     }
 
-    hresult_t getJointTypeFromIdx(pinocchio::Model const & model,
-                                  int32_t          const & idIn,
-                                  joint_t                & jointTypeOut)
+    struct getJointTypeAlgo
+    : public pinocchio::fusion::JointUnaryVisitorBase<getJointTypeAlgo>
     {
-        if (model.njoints < idIn - 1)
+        typedef boost::fusion::vector<joint_t & /* jointType */> ArgsType;
+
+        template<typename JointModel>
+        static void algo(pinocchio::JointModelBase<JointModel> const & model,
+                         joint_t & jointType)
         {
-            PRINT_ERROR("Joint index out of range.")
+            jointType = getJointType(model.derived());
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::FREE;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_spherical_v<JointModel>
+                             || is_pinocchio_joint_spherical_zyx_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::SPHERICAL;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_translation_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::TRANSLATION;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_planar_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::PLANAR;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>
+                             || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::LINEAR;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
+                             || is_pinocchio_joint_revolute_unaligned_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::ROTARY;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::ROTARY_UNBOUNDED;
+        }
+
+        template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_mimic_v<JointModel>
+                             || is_pinocchio_joint_composite_v<JointModel>, joint_t>
+        getJointType(JointModel const &)
+        {
+            return joint_t::NONE;
+        }
+    };
+
+    hresult_t getJointTypeFromIdx(pinocchio::Model const & model,
+                                  int32_t const & idIn,
+                                  joint_t & jointTypeOut)
+    {
+        if (model.njoints < idIn - 1 || idIn < 0)
+        {
+            PRINT_ERROR("Joint index '", idIn, "' is out of range.");
             return hresult_t::ERROR_GENERIC;
         }
 
-        auto const & joint = model.joints[idIn];
-        std::string const & jointTypeStr = joint.shortname();
-
-        if (jointTypeStr == "JointModelFreeFlyer")
-        {
-            jointTypeOut = joint_t::FREE;
-        }
-        else if (jointTypeStr == "JointModelSpherical")
-        {
-            jointTypeOut = joint_t::SPHERICAL;
-        }
-        else if (jointTypeStr == "JointModelPlanar")
-        {
-            jointTypeOut = joint_t::PLANAR;
-        }
-        else if (jointTypeStr == "JointModelPX" ||
-                 jointTypeStr == "JointModelPY" ||
-                 jointTypeStr == "JointModelPZ")
-        {
-            jointTypeOut = joint_t::LINEAR;
-        }
-        else if (jointTypeStr == "JointModelRX" ||
-                 jointTypeStr == "JointModelRY" ||
-                 jointTypeStr == "JointModelRZ" ||
-                 jointTypeStr == "JointModelRevoluteUnaligned")
-        {
-            jointTypeOut = joint_t::ROTARY;
-        }
-        else if (jointTypeStr == "JointModelRUBX" ||
-                 jointTypeStr == "JointModelRUBY" ||
-                 jointTypeStr == "JointModelRUBZ" ||
-                 jointTypeStr == "JointModelRevoluteUnboundedUnaligned")
-        {
-            jointTypeOut = joint_t::ROTARY_UNBOUNDED;
-        }
-        else
-        {
-            // Unknown joint, throw an error to avoid any wrong manipulation.
-            jointTypeOut = joint_t::NONE;
-            PRINT_ERROR("Unknown joint type '", jointTypeStr, "'.")
-            return hresult_t::ERROR_GENERIC;
-        }
+        getJointTypeAlgo::run(model.joints[idIn],
+            typename getJointTypeAlgo::ArgsType(jointTypeOut));
 
         return hresult_t::SUCCESS;
     }
@@ -788,6 +822,10 @@ namespace jiminy
                                                              std::string("Sin")});
             break;
         case joint_t::PLANAR:
+            jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
+                                                             std::string("TransY")});
+            break;
+        case joint_t::TRANSLATION:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("TransX"),
                                                              std::string("TransY"),
                                                              std::string("TransZ")});
@@ -809,7 +847,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -830,6 +868,10 @@ namespace jiminy
             break;
         case joint_t::PLANAR:
             jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
+                                                             std::string("LinY")});
+            break;
+        case joint_t::TRANSLATION:
+            jointTypeSuffixesOut = std::vector<std::string>({std::string("LinX"),
                                                              std::string("LinY"),
                                                              std::string("LinZ")});
             break;
@@ -848,7 +890,7 @@ namespace jiminy
             break;
         case joint_t::NONE:
         default:
-            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.")
+            PRINT_ERROR("Joints of type 'NONE' do not have fieldnames.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -861,7 +903,7 @@ namespace jiminy
     {
         if (!model.existFrame(frameName))
         {
-            PRINT_ERROR("Frame '", frameName, "' not found in robot model.")
+            PRINT_ERROR("Frame '", frameName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -896,7 +938,7 @@ namespace jiminy
     {
         if (!model.existBodyName(bodyName))
         {
-            PRINT_ERROR("Body '", bodyName, "' not found in robot model.")
+            PRINT_ERROR("Body '", bodyName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -933,7 +975,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -954,7 +996,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1014,7 +1056,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1054,7 +1096,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1075,7 +1117,7 @@ namespace jiminy
 
         if (!model.existJointName(jointName))
         {
-            PRINT_ERROR("Joint '", jointName, "' not found in robot model.")
+            PRINT_ERROR("Joint '", jointName, "' not found in robot model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1133,7 +1175,7 @@ namespace jiminy
     {
         if (model.nq != position.size())
         {
-            PRINT_ERROR("Size of configuration vector inconsistent with model.")
+            PRINT_ERROR("Size of configuration vector inconsistent with model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1281,7 +1323,7 @@ namespace jiminy
 
         if (!modelInOut.existJointName(childJointNameIn))
         {
-            PRINT_ERROR("Child joint does not exist.")
+            PRINT_ERROR("Child joint does not exist.");
             return hresult_t::ERROR_GENERIC;
         }
 

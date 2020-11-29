@@ -30,7 +30,7 @@ namespace jiminy
     // *************** Convertion to JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value, Json::Value>
+    std::enable_if_t<!is_vector_v<T>, Json::Value>
     convertToJson(T const & value)
     {
         return {value};
@@ -52,28 +52,28 @@ namespace jiminy
     Json::Value convertToJson<configHolder_t>(configHolder_t const & value);
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, Json::Value>
+    std::enable_if_t<is_vector_v<T>, Json::Value>
     convertToJson(T const & value)
     {
         Json::Value root;
 
         using TVal = typename T::value_type;
-        if (std::is_same<TVal, std::string>::value)
+        if constexpr (std::is_same_v<TVal, std::string>)
         {
             root["type"] = "list(string)";
         }
-        else if (std::is_same<TVal, vectorN_t>::value
-              || std::is_same<TVal, matrixN_t>::value)
+        else if constexpr (std::is_same_v<TVal, vectorN_t>
+                        || std::is_same_v<TVal, matrixN_t>)
         {
             root["type"] = "list(array)";
         }
-        else if (std::is_same<TVal, flexibleJointData_t>::value)
+        else if constexpr (std::is_same_v<TVal, flexibleJointData_t>)
         {
             root["type"] = "list(flexibility)";
         }
         else
         {
-            PRINT_ERROR("Unknown data type: ", root.type())
+            PRINT_ERROR("Unknown data type: ", root.type());
             root["type"] = "unknown";
         }
 
@@ -90,7 +90,7 @@ namespace jiminy
     // ************* Convertion from JSON utilities *****************
 
     template<typename T>
-    std::enable_if_t<!is_vector<T>::value, T>
+    std::enable_if_t<!is_vector_v<T>, T>
     convertFromJson(Json::Value const & value)
     {
         T::undefined_template_specialization_for_this_type;
@@ -127,7 +127,7 @@ namespace jiminy
     configHolder_t convertFromJson<configHolder_t>(Json::Value const & value);
 
     template<typename T>
-    std::enable_if_t<is_vector<T>::value, T>
+    std::enable_if_t<is_vector_v<T>, T>
     convertFromJson(Json::Value const & value)
     {
         T vec;

@@ -68,7 +68,7 @@ namespace jiminy
         if ((pos < 0) || (pos > (int64_t) buffer_.size()))
         {
             lastError_ = hresult_t::ERROR_GENERIC;
-            PRINT_ERROR("The requested position '", pos, "' is out of scope.")
+            PRINT_ERROR("The requested position '", pos, "' is out of scope.");
             return lastError_;
         }
 

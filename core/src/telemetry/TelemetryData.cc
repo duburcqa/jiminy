@@ -81,20 +81,20 @@ namespace jiminy
 
         if (!header->isRegisteringAvailable)
         {
-            PRINT_ERROR("Registration is locked.")
+            PRINT_ERROR("Registration is locked.");
             return hresult_t::ERROR_GENERIC;
         }
 
         std::string const fullConstant = variableNameIn + "=" + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
-            PRINT_ERROR("Maximum number of registration exceeded.")
+            PRINT_ERROR("Maximum number of registration exceeded.");
             return hresult_t::ERROR_GENERIC;
         }
 
         if (findEntry(header, fullConstant) != -1)
         {
-            PRINT_ERROR("A constant with this name was already registered.")
+            PRINT_ERROR("A constant with this name was already registered.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -103,7 +103,7 @@ namespace jiminy
         header->nextFreeNameOffset += fullConstant.size();
         header->nextFreeNameOffset += 1U; // Null-terminated.
 
-        return hresult_t::SUCCESS;;
+        return hresult_t::SUCCESS;
     }
 
     int32_t TelemetryData::findEntry(struct memHeader        * header,

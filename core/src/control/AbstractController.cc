@@ -29,7 +29,7 @@ namespace jiminy
     {
         if (!robot->getIsInitialized())
         {
-            PRINT_ERROR("The robot is not initialized.")
+            PRINT_ERROR("The robot is not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -53,14 +53,14 @@ namespace jiminy
             {
                 if (uCommand.size() != (int32_t) robot_->getMotorsNames().size())
                 {
-                    PRINT_ERROR("'computeCommand' returns command with wrong size.")
+                    PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 internalDynamics(t, q, v, uInternal);
                 if (uInternal.size() != robot_->nv())
                 {
-                    PRINT_ERROR("'internalDynamics' returns command with wrong size.")
+                    PRINT_ERROR("'internalDynamics' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -70,7 +70,7 @@ namespace jiminy
         {
             isInitialized_ = false;
             PRINT_ERROR("Something is wrong, probably because of 'commandFct'.\n"
-                        "Raised from exception: ", e.what())
+                        "Raised from exception: ", e.what());
             return hresult_t::ERROR_GENERIC;
         }
     }
@@ -98,7 +98,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The controller is not initialized.")
+            PRINT_ERROR("The controller is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -135,7 +135,7 @@ namespace jiminy
             }
             else
             {
-                PRINT_ERROR("Telemetry not initialized. Impossible to log controller data.")
+                PRINT_ERROR("Telemetry not initialized. Impossible to log controller data.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -150,7 +150,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -166,7 +166,7 @@ namespace jiminy
                                            });
             if (variableIt != registeredVariables_.end())
             {
-                PRINT_ERROR("Variable already registered.")
+                PRINT_ERROR("Variable already registered.");
                 return hresult_t::ERROR_BAD_INPUT;
             }
             registeredVariables_.emplace_back(*fieldIt, values.data() + i);
@@ -182,7 +182,7 @@ namespace jiminy
 
         if (isTelemetryConfigured_)
         {
-            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.")
+            PRINT_ERROR("Telemetry already initialized. Impossible to register new variables.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -195,7 +195,7 @@ namespace jiminy
                                         });
         if (variableIt != registeredVariables_.end())
         {
-            PRINT_ERROR("Variable already registered.")
+            PRINT_ERROR("Variable already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         registeredVariables_.emplace_back(fieldName, &value);

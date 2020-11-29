@@ -94,7 +94,7 @@ namespace jiminy
 
             if (memAddress_ == nullptr)
             {
-                PRINT_ERROR("Memory allocation for the memory '", name_, "' failed.")
+                PRINT_ERROR("Memory allocation for the memory '", name_, "' failed.");
                 return hresult_t::ERROR_GENERIC;
             }
 

@@ -38,6 +38,7 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${PYTHON_VERSION}"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
+        sudo apt update
         sudo apt install -y gnupg curl wget build-essential cmake doxygen graphviz texlive-latex-base
 
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip

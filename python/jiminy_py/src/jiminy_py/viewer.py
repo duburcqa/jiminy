@@ -27,7 +27,7 @@ import zmq
 import meshcat.transformations as mtf
 
 import pinocchio as pin
-from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSe3
+from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSE3
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -225,7 +225,6 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
-        self.urdf_path = os.path.realpath(robot.urdf_path)
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
@@ -287,29 +286,6 @@ class Viewer:
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((window_name, scene_name, robot_name, "")))
 
-        # Extract the right Pinocchio model
-        if self.use_theoretical_model:
-            pinocchio_model = robot.pinocchio_model_th
-            pinocchio_data = robot.pinocchio_data_th
-        else:
-            pinocchio_model = robot.pinocchio_model
-            pinocchio_data = robot.pinocchio_data
-
-        # Generate colorized URDF file if using gepetto-gui backend, since it
-        # is not supported by default, because of memory optimizations.
-        if Viewer.backend.startswith('gepetto'):
-            if urdf_rgba is not None:
-                alpha = urdf_rgba[3]
-                self.urdf_path = Viewer._get_colorized_urdf(
-                    self.urdf_path, urdf_rgba[:3], self._tempdir)
-            else:
-                alpha = 1.0
-
-        # Create robot visual model
-        visual_model = pin.buildGeomFromUrdf(
-            pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
-            robot.mesh_package_dirs)
-
         # Access the current backend or create one if none is available
         self.__is_open = False
         self.is_backend_parent = False
@@ -322,44 +298,8 @@ class Viewer:
             self._gui = Viewer._backend_obj.gui
             self.__is_open = True
 
-            # Create backend wrapper to get (almost) backend-independent API
-            self._client = backends_available[Viewer.backend](
-                pinocchio_model, robot.collision_model, visual_model)
-            self._client.data = pinocchio_data
-            self._client.collision_data = robot.collision_data
-
-            # Create the scene and load robot
-            if Viewer.backend.startswith('gepetto'):
-                # Initialize the viewer
-                self._client.initViewer(
-                    viewer=Viewer._backend_obj, windowName=window_name,
-                    sceneName=scene_name, loadModel=False)
-
-                # Add missing scene elements
-                if Viewer.backend.startswith('gepetto'):
-                    self._gui.addFloor('/'.join((scene_name, "floor")))
-                    self._gui.addLandmark(scene_name, 0.1)
-
-                # Load the robot
-                self._client.loadViewerModel(rootNodeName=self.robot_name)
-                robot_node_path = '/'.join((scene_name, self.robot_name))
-                try:
-                    self._gui.setFloatProperty(robot_node_path, 'Alpha', alpha)
-                except Viewer._backend_exceptions:
-                    # Old Gepetto versions do no have 'Alpha' attribute but
-                    # 'Transparency'.
-                    self._gui.setFloatProperty(
-                        robot_node_path, 'Transparency', 1 - alpha)
-            else:
-                # Initialize the viewer
-                self._client.initViewer(
-                    viewer=self._gui, must_open=False, loadModel=False)
-
-                # Load the robot
-                root_name = '/'.join((self.scene_name, self.robot_name))
-                self._client.loadViewerModel(
-                    rootNodeName=root_name, color=urdf_rgba)
-
+            # Load the robot
+            self._setup(robot)
             Viewer._backend_robot_names.add(self.robot_name)
 
             # Open a gui window in browser, since the server is headless.
@@ -379,7 +319,7 @@ class Viewer:
                         self.open_gui()
         except Exception as e:
             raise RuntimeError(
-                "Impossible to create or connect to backend.") from e
+                "Impossible to create backend or connect to it.") from e
 
         # Set default camera pose
         if self.is_backend_parent:
@@ -410,6 +350,88 @@ class Viewer:
                     f"'{fct.__name__}'.")
             return fct(*args, **kwargs)
         return fct_safe
+
+    @__must_be_open
+    def _setup(self,
+               robot: jiminy.Robot,
+               urdf_rgba: Optional[Tuple[float, float, float, float]] = None):
+        """Load (or reload) robot in viewer.
+
+        .. note::
+            This method must be called after calling `engine.reset` since at
+            this point the viewer has dangling references to the collision
+            model and data of robot. Indeed, a new robot is generated at each
+            reset to add some stockasticity to the mass distribution and some
+            other parameters. This is done automatically if  one is using
+            `simulator.Simulator` instead of `jiminy_py.core.Engine` directly.
+
+        :param robot: Jiminy.Robot to display.
+        :param urdf_rgba: RGBA color to use to display this robot, as a list
+                          of 4 floating-point values between 0.0 and 1.0.
+                          Optional: It will override the original color of the
+                          meshes if specified.
+        """
+        # Generate colorized URDF file if using gepetto-gui backend, since it
+        # is not supported by default, because of memory optimizations.
+        self.urdf_path = os.path.realpath(robot.urdf_path)
+        if Viewer.backend.startswith('gepetto'):
+            if urdf_rgba is not None:
+                alpha = urdf_rgba[3]
+                self.urdf_path = Viewer._get_colorized_urdf(
+                    self.urdf_path, urdf_rgba[:3], self._tempdir)
+            else:
+                alpha = 1.0
+
+        # Extract the right Pinocchio model
+        if self.use_theoretical_model:
+            pinocchio_model = robot.pinocchio_model_th
+            pinocchio_data = robot.pinocchio_data_th
+        else:
+            pinocchio_model = robot.pinocchio_model
+            pinocchio_data = robot.pinocchio_data
+
+        # Create robot visual model
+        visual_model = pin.buildGeomFromUrdf(
+            pinocchio_model, self.urdf_path, pin.GeometryType.VISUAL,
+            robot.mesh_package_dirs)
+
+        # Create backend wrapper to get (almost) backend-independent API
+        self._client = backends_available[Viewer.backend](
+            pinocchio_model, robot.collision_model, visual_model)
+        self._client.data = pinocchio_data
+        self._client.collision_data = robot.collision_data
+
+        # Create the scene and load robot
+        if Viewer.backend.startswith('gepetto'):
+            # Initialize the viewer
+            self._client.initViewer(
+                viewer=Viewer._backend_obj, windowName=self.window_name,
+                sceneName=self.scene_name, loadModel=False)
+
+            # Add missing scene elements
+            if Viewer.backend.startswith('gepetto'):
+                self._gui.addFloor('/'.join((self.scene_name, "floor")))
+                self._gui.addLandmark(self.scene_name, 0.1)
+
+            # Load the robot
+            self._client.loadViewerModel(rootNodeName=self.robot_name)
+            robot_node_path = '/'.join((self.scene_name, self.robot_name))
+            try:
+                self._gui.setFloatProperty(robot_node_path, 'Alpha', alpha)
+            except Viewer._backend_exceptions:
+                # Old Gepetto versions do no have 'Alpha' attribute but
+                # 'Transparency'.
+                self._gui.setFloatProperty(
+                    robot_node_path, 'Transparency', 1 - alpha)
+        else:
+            # Initialize the viewer
+            self._client.initViewer(
+                viewer=self._gui, must_open=False, loadModel=False)
+
+            # Load the robot
+            root_name = '/'.join((self.scene_name, self.robot_name))
+            self._client.loadViewerModel(
+                rootNodeName=root_name, color=urdf_rgba)
 
     @staticmethod
     def open_gui(start_if_needed: bool = False) -> bool:
@@ -805,7 +827,7 @@ class Viewer:
         # Compute the relative transformation if applicable
         if relative == 'camera':
             if Viewer.backend.startswith('gepetto'):
-                H_orig = XYZQUATToSe3(
+                H_orig = XYZQUATToSE3(
                     self._gui.getCameraTransform(self._client.windowID))
             else:
                 raise RuntimeError(
@@ -1242,12 +1264,13 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
-        if not Viewer.is_open() is None:
+        if not Viewer.is_open():
             viewers = None
-        for viewer in viewers:
-            if not viewer.is_open():
-                viewers = None
-                break
+        else:
+            for viewer in viewers:
+                if not viewer.is_open():
+                    viewers = None
+                    break
 
         # Do not close backend by default if it was supposed to be available
         if close_backend is None:
@@ -1292,10 +1315,19 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     elif camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
 
-    # Load robots in gepetto viewer
+    # Handle default robot offset
     if xyz_offset is None:
-        xyz_offset = len(trajectory_data) * (None,)
+        xyz_offset = len(trajectory_data) * [None]
+    xyz_offset = list(xyz_offset)
 
+    # Do not display trajectories without data
+    trajectory_data = list(trajectory_data).copy()  # No deepcopy
+    for i in reversed(range(len(trajectory_data))):
+        if not trajectory_data[i]['evolution_robot']:
+            del trajectory_data[i]
+            del xyz_offset[i]
+
+    # Load robots in gepetto viewer
     for i in range(len(trajectory_data)):
         try:
             viewers[i].display(

@@ -41,13 +41,13 @@ class PipelineControlAtlas(unittest.TestCase):
         action_init = dict(zip(
             encoder.fieldnames,
             encoder_data[:, self.env.controller.motor_to_encoder]))
-        # Run the simulation during 5s
-        for _ in range(5000):
+        # Run the simulation during 3s
+        for _ in range(3000):
             self.env.step(action_init)
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(mode='rgb_array')
-        # plt.imsave("atlas_standing_meshcat.png", rgb_array)
+        plt.imsave("atlas_standing_meshcat.png", rgb_array)
 
         # Check that the final posture matches the expected one.
         robot_name = self.env.robot.pinocchio_model.name

@@ -56,10 +56,14 @@ Pre-configured environments for some well-known toys models and reference roboti
 
 ## Getting started
 
-Jiminy is compatible with Linux and Windows and supports Python3.6+. Jiminy is distributed on PyPi for Python 3.6/3.7/3.8 on Linux and Windows 10, and can be installed using `pip`:
+Jiminy and Gym Jiminy are compatible with Linux and Windows, and supports Python3.6+. They are distributed on PyPi for Python 3.6/3.7/3.8 for both platform, so they can be installed using `pip`:
 
 ```bash
+# For installing Jiminy
 python -m pip install jiminy_py
+
+# For installing Gym Jiminy
+python -m pip install gym_jiminy[all]
 ```
 
 Detailed installation instructions, including building from source, are available [here](./INSTALL.md).

@@ -33,7 +33,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            PRINT_ERROR("The controller is not initialized.")
+            PRINT_ERROR("The controller is not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -50,7 +50,7 @@ namespace jiminy
     {
         if (!getIsInitialized())
         {
-            PRINT_ERROR("The controller is not initialized.")
+            PRINT_ERROR("The controller is not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 

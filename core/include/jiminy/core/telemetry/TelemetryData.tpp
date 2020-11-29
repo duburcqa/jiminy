@@ -40,13 +40,13 @@ namespace jiminy
 
         if (!header->isRegisteringAvailable)
         {
-            PRINT_ERROR("Entry not found: register it if possible.")
+            PRINT_ERROR("Entry not found: register it if possible.");
             return hresult_t::ERROR_GENERIC;
         }
 
         if ((header->nextFreeNameOffset + static_cast<int64_t>(variableName.size()) + 1) >= header->startDataSection)
         {
-            PRINT_ERROR("Unspecified error.")  // TODO: write an appropriate error message
+            PRINT_ERROR("Unspecified error.");  // TODO: write an appropriate error message
             return hresult_t::ERROR_GENERIC;
         }
 

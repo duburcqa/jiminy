@@ -30,7 +30,7 @@ namespace jiminy
         auto it = intBufferPosition_.find(fieldNameIn);
         if (intBufferPosition_.end() == it)
         {
-            PRINT_ERROR("Cannot log the variable: it was never registered as an int64_t before! |", fieldNameIn.c_str(), "|")
+            PRINT_ERROR("Cannot log the variable: it was never registered as an int64_t before! |", fieldNameIn.c_str(), "|");
             return;
         }
 
@@ -45,7 +45,7 @@ namespace jiminy
         auto it = floatBufferPosition_.find(fieldNameIn);
         if (floatBufferPosition_.end() == it)
         {
-            PRINT_ERROR("Cannot log the variable: it was never registered as a float64_t before! |", fieldNameIn.c_str(), "|")
+            PRINT_ERROR("Cannot log the variable: it was never registered as a float64_t before! |", fieldNameIn.c_str(), "|");
             return;
         }
 

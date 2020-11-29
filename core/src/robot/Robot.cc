@@ -97,7 +97,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The robot is not initialized.")
+            PRINT_ERROR("The robot is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -140,7 +140,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The robot is not initialized.")
+            PRINT_ERROR("The robot is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -149,7 +149,7 @@ namespace jiminy
             if (getIsLocked())
             {
                 PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                            "Please stop it before adding motors.")
+                            "Please stop it before adding motors.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
         }
@@ -164,7 +164,7 @@ namespace jiminy
                                         });
             if (motorIt != motorsHolder_.end())
             {
-                PRINT_ERROR("A motor with the same name already exists.")
+                PRINT_ERROR("A motor with the same name already exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -193,7 +193,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -202,7 +202,7 @@ namespace jiminy
             if (getIsLocked())
             {
                 PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                            "Please stop it before removing motors.")
+                            "Please stop it before removing motors.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
         }
@@ -216,7 +216,7 @@ namespace jiminy
         {
             if (motorIt == motorsHolder_.end())
             {
-                PRINT_ERROR("No motor with this name exists.")
+                PRINT_ERROR("No motor with this name exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -251,7 +251,7 @@ namespace jiminy
             // Make sure that no motor names are duplicates
             if (checkDuplicates(motorsNames))
             {
-                PRINT_ERROR("Duplicated motor names.")
+                PRINT_ERROR("Duplicated motor names.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -260,7 +260,7 @@ namespace jiminy
                 // Make sure that every motor name exist
                 if (!checkInclusion(motorsNames_, motorsNames))
                 {
-                    PRINT_ERROR("At least one of the motor names does not exist.")
+                    PRINT_ERROR("At least one of the motor names does not exist.");
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -295,7 +295,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("The robot is not initialized.")
+            PRINT_ERROR("The robot is not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -303,8 +303,8 @@ namespace jiminy
         {
             if (getIsLocked())
             {
-                PRINT_ERROR("Robot is locked, probably because a simulation is running."\
-                            " Please stop it before adding sensors.")
+                PRINT_ERROR("Robot is locked, probably because a simulation is running."
+                            " Please stop it before adding sensors.");
                 returnCode = hresult_t::ERROR_GENERIC;
             }
         }
@@ -325,7 +325,7 @@ namespace jiminy
                                              });
                 if (sensorIt != sensorGroupIt->second.end())
                 {
-                    PRINT_ERROR("A sensor with the same type and name already exists.")
+                    PRINT_ERROR("A sensor with the same type and name already exists.");
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -365,7 +365,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before removing sensors.")
+                        "Please stop it before removing sensors.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -373,7 +373,7 @@ namespace jiminy
         {
             if (!isInitialized_)
             {
-                PRINT_ERROR("Robot not initialized.")
+                PRINT_ERROR("Robot not initialized.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -383,7 +383,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                PRINT_ERROR("This type of sensor does not exist.")
+                PRINT_ERROR("This type of sensor does not exist.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -399,7 +399,7 @@ namespace jiminy
                                     });
             if (sensorIt == sensorGroupIt->second.end())
             {
-                PRINT_ERROR("No sensor with this type and name exists.")
+                PRINT_ERROR("No sensor with this type and name exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -442,7 +442,7 @@ namespace jiminy
             auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                PRINT_ERROR("No sensor with this type exists.")
+                PRINT_ERROR("No sensor with this type exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
 
@@ -491,7 +491,7 @@ namespace jiminy
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
-            PRINT_ERROR("A constraint with name ", constraintName, " already exists.")
+            PRINT_ERROR("A constraint with name ", constraintName, " already exists.");
             returnCode = hresult_t::ERROR_BAD_INPUT;
         }
         else
@@ -523,7 +523,7 @@ namespace jiminy
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
-            PRINT_ERROR("No constraint with this name exists.")
+            PRINT_ERROR("No constraint with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -548,7 +548,7 @@ namespace jiminy
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
-            PRINT_ERROR("No constraint with this name exists.")
+            PRINT_ERROR("No constraint with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         else
@@ -565,7 +565,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -619,7 +619,7 @@ namespace jiminy
                 if (J.cols() != pncModel_.nv)
                 {
                     PRINT_ERROR("Robot::refreshConstraintsProxies: constraint has "
-                                "inconsistent jacobian and drift (size mismatch).")
+                                "inconsistent jacobian and drift (size mismatch).");
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
                 if (returnCode == hresult_t::SUCCESS)
@@ -646,7 +646,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -685,7 +685,7 @@ namespace jiminy
 
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -716,7 +716,7 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -727,7 +727,7 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            PRINT_ERROR("No motor with this name exists.")
+            PRINT_ERROR("No motor with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -763,14 +763,14 @@ namespace jiminy
     {
         if (!isInitialized_)
         {
-            PRINT_ERROR("Robot not initialized.")
+            PRINT_ERROR("Robot not initialized.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.")
+            PRINT_ERROR("This type of sensor does not exist.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -782,7 +782,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.")
+            PRINT_ERROR("No sensor with this type and name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -821,7 +821,7 @@ namespace jiminy
         modelOptionsIt = robotOptions.find("model");
         if (modelOptionsIt == robotOptions.end())
         {
-            PRINT_ERROR("'model' options are missing.")
+            PRINT_ERROR("'model' options are missing.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -838,7 +838,7 @@ namespace jiminy
             motorsOptionsIt = robotOptions.find("motors");
             if (motorsOptionsIt == robotOptions.end())
             {
-                PRINT_ERROR("'motors' options are missing.")
+                PRINT_ERROR("'motors' options are missing.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -856,7 +856,7 @@ namespace jiminy
             sensorsOptionsIt = robotOptions.find("sensors");
             if (sensorsOptionsIt == robotOptions.end())
             {
-                PRINT_ERROR("'sensors' options are missing.")
+                PRINT_ERROR("'sensors' options are missing.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -874,7 +874,7 @@ namespace jiminy
             telemetryOptionsIt = robotOptions.find("telemetry");
             if (telemetryOptionsIt == robotOptions.end())
             {
-                PRINT_ERROR("'telemetry' options are missing.")
+                PRINT_ERROR("'telemetry' options are missing.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
@@ -910,7 +910,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the motor options.")
+                        "Please stop it before updating the motor options.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -924,7 +924,7 @@ namespace jiminy
                                    });
             if (motorIt == motorsHolder_.end())
             {
-                PRINT_ERROR("No motor with this name exists.")
+                PRINT_ERROR("No motor with this name exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -944,7 +944,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the motor options.")
+                        "Please stop it before updating the motor options.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -979,7 +979,7 @@ namespace jiminy
                                     });
         if (motorIt == motorsHolder_.end())
         {
-            PRINT_ERROR("No motor with this name exists.")
+            PRINT_ERROR("No motor with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1007,7 +1007,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the sensor options.")
+                        "Please stop it before updating the sensor options.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1016,7 +1016,7 @@ namespace jiminy
         {
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                PRINT_ERROR("This type of sensor does not exist.")
+                PRINT_ERROR("This type of sensor does not exist.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1031,7 +1031,7 @@ namespace jiminy
         {
             if (sensorIt == sensorGroupIt->second.end())
             {
-                PRINT_ERROR("No sensor with this type and name exists.")
+                PRINT_ERROR("No sensor with this type and name exists.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1052,7 +1052,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the sensor options.")
+                        "Please stop it before updating the sensor options.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1062,7 +1062,7 @@ namespace jiminy
             sensorGroupIt = sensorsGroupHolder_.find(sensorType);
             if (sensorGroupIt == sensorsGroupHolder_.end())
             {
-                PRINT_ERROR("This type of sensor does not exist.")
+                PRINT_ERROR("This type of sensor does not exist.");
                 returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
@@ -1095,7 +1095,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the sensor options.")
+                        "Please stop it before updating the sensor options.");
             returnCode = hresult_t::ERROR_GENERIC;
         }
 
@@ -1127,7 +1127,7 @@ namespace jiminy
                             }
                             else
                             {
-                                PRINT_ERROR("No sensor with this name exists.")
+                                PRINT_ERROR("No sensor with this name exists.");
                                 returnCode = hresult_t::ERROR_BAD_INPUT;
                             }
                         }
@@ -1135,7 +1135,7 @@ namespace jiminy
                 }
                 else
                 {
-                    PRINT_ERROR("This type of sensor does not exist.")
+                    PRINT_ERROR("This type of sensor does not exist.");
                     returnCode = hresult_t::ERROR_BAD_INPUT;
                 }
             }
@@ -1151,7 +1151,7 @@ namespace jiminy
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.")
+            PRINT_ERROR("This type of sensor does not exist.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1163,7 +1163,7 @@ namespace jiminy
                                      });
         if (sensorIt == sensorGroupIt->second.end())
         {
-            PRINT_ERROR("No sensor with this type and name exists.")
+            PRINT_ERROR("No sensor with this type and name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
@@ -1178,7 +1178,7 @@ namespace jiminy
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
         if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            PRINT_ERROR("This type of sensor does not exist.")
+            PRINT_ERROR("This type of sensor does not exist.");
             return hresult_t::ERROR_BAD_INPUT;
         }
         sensorsOptions.clear();
@@ -1220,7 +1220,7 @@ namespace jiminy
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                        "Please stop it before updating the telemetry options.")
+                        "Please stop it before updating the telemetry options.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -1230,7 +1230,7 @@ namespace jiminy
             auto sensorTelemetryOptionIt = telemetryOptions.find(optionTelemetryName);
             if (sensorTelemetryOptionIt == telemetryOptions.end())
             {
-                PRINT_ERROR("Missing field.")
+                PRINT_ERROR("Missing field.");
                 return hresult_t::ERROR_GENERIC;
             }
             sensorGroupTelemetryOption.second = boost::get<bool_t>(sensorTelemetryOptionIt->second);
@@ -1427,7 +1427,7 @@ namespace jiminy
     {
         if (mutexLocal_.isLocked())
         {
-            PRINT_ERROR("Robot already locked. Please release the current lock first.")
+            PRINT_ERROR("Robot already locked. Please release the current lock first.");
             return hresult_t::ERROR_GENERIC;
         }
 
