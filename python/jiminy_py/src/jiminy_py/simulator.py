@@ -20,7 +20,7 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
-from .viewer import Viewer
+from .viewer import Viewer, play_logfiles
 
 
 SENSORS_FIELDS = {
@@ -475,6 +475,19 @@ class Simulator:
         # Compute rgb array if needed
         if return_rgb_array:
             return self._viewer.capture_frame(width, height)
+
+    def replay(self, **kwargs: Any) -> None:
+        """Replay the current episode until now.
+
+        :param kwargs: Extra keyword arguments for delegation to
+                       `viewer.play_trajectories` method.
+        """
+        if not self._is_viewer_available:
+            self.render()
+        log_data, _ = self.get_log()
+        play_logfiles(
+            [self.robot], [log_data], viewers=[self._viewer],
+            **{'verbose': True, **kwargs})
 
     def close(self) -> None:
         """Close the connection with the renderer.

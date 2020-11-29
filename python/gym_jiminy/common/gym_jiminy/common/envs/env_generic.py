@@ -19,7 +19,7 @@ from jiminy_py.core import (EncoderSensor as encoder,
                             ImuSensor as imu)
 from jiminy_py.dynamics import compute_freeflyer_state_from_fixed_body
 from jiminy_py.simulator import Simulator
-from jiminy_py.viewer import sleep, play_logfiles
+from jiminy_py.viewer import sleep
 from jiminy_py.controller import (
     ObserverHandleType, ControllerHandleType, BaseJiminyObserverController)
 
@@ -662,13 +662,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `viewer.play_trajectories` method.
         """
-        if self._log_data is not None:
-            log_data = self._log_data
-        else:
-            log_data, _ = self.get_log()
-        self.simulator._viewer = play_logfiles(
-            [self.robot], [log_data], viewers=[self.simulator._viewer],
-            close_backend=False, verbose=True, **kwargs)[0]
+        self.simulator.replay(**kwargs)
 
     @loop_interactive()
     def play_interactive(self, key: Optional[str] = None) -> bool:
