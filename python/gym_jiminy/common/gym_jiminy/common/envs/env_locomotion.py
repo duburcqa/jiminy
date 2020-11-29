@@ -217,11 +217,15 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # Enable the flexible model
         robot_options["model"]["dynamics"]["enableFlexibleModel"] = True
 
-        # Set maximum number of iterations by seconds in average
+        # Set maximum number of iterations by simulation seconds in average
         engine_options["stepper"]["iterMax"] = \
             int(self.simu_duration_max / 1.0e-4)
+
         # Set maximum computation time for single internal integration steps
-        engine_options["stepper"]["timeout"] = 1.0
+        if self.debug:
+            engine_options["stepper"]["timeout"] = -1
+        else:
+            engine_options["stepper"]["timeout"] = 1.0
 
         # ============= Add some stochasticity to the environment =============
 
