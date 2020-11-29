@@ -284,6 +284,30 @@ class Simulator:
         self.engine.set_options(engine_options)
         self.engine.reset()
 
+    def reset(self, remove_forces: bool = False):
+        """Reset the simulator.
+
+        It resets the simulation time to zero, and generate a new random model
+        of the robot. If one wants to get exactly the same result as before,
+        either set the randomness of the model and sensors to zero, or set the
+        seed once again to reinitialize the random number generator.
+
+        :param remove_forces: Whether or not to remove already registered
+                              external forces. It can also be done separately.
+                              Optional: Do not remove by default.
+        """
+        # Reset the backend engine
+        self.engine.reset(remove_forces)
+
+        # Note that the viewer must only be reset if available, otherwise it
+        # will have dangling reference to the old robot model.
+        if self._is_viewer_available:
+            try:
+                self._viewer._setup(self.robot)
+            except Viewer._backend_exceptions:
+                self._viewer.close()
+                self._is_viewer_available = False
+
     def start(self,
               q0: np.ndarray,
               v0: np.ndarray,
