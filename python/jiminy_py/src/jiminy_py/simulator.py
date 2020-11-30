@@ -90,6 +90,9 @@ class Simulator:
         self._viewer = None
         self._is_viewer_available = False
 
+        # Plot data holder
+        self.__plot_data: Optional[Dict[str, Any]] = None
+
         # Reset the low-level jiminy engine
         self.engine.reset()
 
@@ -480,6 +483,8 @@ class Simulator:
             self._viewer.close()
             self._is_viewer_available = False
             self._viewer = None
+        if hasattr(self, '__plot_data') and self.__plot_data is not None:
+            plt.close(self.__plot_data['fig'])
 
     def plot(self) -> None:
         """Display common simulation data over time.
@@ -568,7 +573,7 @@ class Simulator:
         # Plot the data
         fig = plt.figure()
         fig_axes = {}
-        ref_ax = None
+        tab_active = None
         for fig_name, fig_data in data.items():
             n_cols = len(fig_data)
             n_rows = 1
@@ -577,16 +582,20 @@ class Simulator:
                 n_cols = int(np.ceil(len(fig_data) / (1.0 * n_rows)))
 
             axes = []
+            ref_ax = None
             for i, plot_name in enumerate(fig_data.keys()):
                 uniq_label = '_'.join((fig_name, plot_name))
                 ax = fig.add_subplot(n_rows, n_cols, i+1, label=uniq_label)
-                ax.set_visible(False)
+                if fig_axes:
+                    fig.delaxes(ax)
                 if ref_ax is not None:
                     ax.get_shared_x_axes().join(ref_ax, ax)
                 else:
                     ref_ax = ax
                 axes.append(ax)
             fig_axes[fig_name] = axes
+            if tab_active is None:
+                tab_active = fig_name
 
             for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
                 if isinstance(plot_data, dict):
@@ -597,6 +606,8 @@ class Simulator:
                     ax.plot(t, plot_data)
                 ax.set_title(plot_name, fontsize='medium')
                 ax.grid()
+        fig_nav_stack = {key: [] for key in fig_axes.keys()}
+        fig_nav_pos = {key: -1 for key in fig_axes.keys()}
 
         # Add buttons to show/hide information
         button_axcut = {}
@@ -609,20 +620,44 @@ class Simulator:
                 button_axcut[fig_name], fig_name, color='white')
 
         def click(event: matplotlib.backend_bases.Event) -> None:
+            nonlocal fig, fig_axes, fig_nav_stack, fig_nav_pos, tab_active
+
+            # Update buttons style
             for b in buttons.values():
                 if b.ax == event.inaxes:
                     b.ax.set_facecolor('green')
                     b.color = 'green'
                     button_name = b.label.get_text()
-                    for fig_name, axes in fig_axes.items():
-                        for ax in axes:
-                            ax.set_visible(button_name == fig_name)
-                    fig.suptitle(button_name)
                 else:
                     b.ax.set_facecolor('white')
                     b.color = 'white'
-            fig.canvas.draw_idle()
 
+            # Backup navigation history
+            cur_stack = fig.canvas.toolbar._nav_stack
+            fig_nav_stack[tab_active] = cur_stack._elements.copy()
+            fig_nav_pos[tab_active] = cur_stack._pos
+
+            # Update axes and title
+            for ax in fig_axes[tab_active]:
+                fig.delaxes(ax)
+            for ax in fig_axes[button_name]:
+                fig.add_subplot(ax)
+            fig.suptitle(button_name)
+            tab_active = button_name
+
+            # Restore selected tab navigation history and toolbar state
+            cur_stack._elements = fig_nav_stack[button_name]
+            cur_stack._pos = fig_nav_pos[button_name]
+            fig.canvas.toolbar._actions['forward'].setEnabled(
+                fig_nav_pos[button_name] < len(cur_stack) - 1)
+            fig.canvas.toolbar._actions['back'].setEnabled(
+                fig_nav_pos[button_name] > 0)
+
+            # Refresh figure
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+
+        # Register buttons events
         for b in buttons.values():
             b.on_clicked(click)
 
@@ -636,7 +671,19 @@ class Simulator:
         fig.suptitle(fig_name)
         buttons[fig_name].ax.set_facecolor('green')
         buttons[fig_name].color = 'green'
-        fig.canvas.draw_idle()
+
+        # Create plot data holder to avoid garbage collection of widgets,
+        # therefore making the buttons unresponsive...
+        self.__plot_data = {
+            'figure': fig,
+            'fig_axes': fig_axes,
+            'fig_nav_stack': fig_nav_stack,
+            'fig_nav_pos': fig_nav_pos,
+            'tab_active': tab_active,
+            'buttons': buttons,
+        }
+
+        fig.canvas.draw()
         plt.show(block=False)
 
     def get_controller_options(self) -> dict:
