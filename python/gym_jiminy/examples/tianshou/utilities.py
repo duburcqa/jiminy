@@ -82,7 +82,7 @@ def onpolicy_trainer(
                 train_collector.reset_buffer()
                 step = 1
                 for v in losses.values():
-                    if isinstance(v, list):
+                    if isinstance(v, (list, tuple)):
                         step = max(step, len(v))
                 global_step += step * collect_per_step
                 for k in result.keys():

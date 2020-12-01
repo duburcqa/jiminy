@@ -1264,11 +1264,13 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     """
     if urdf_rgba is None:
         urdf_rgba = [None for _ in trajectory_data]
+    if urdf_rgba and not isinstance(urdf_rgba[0], (list, tuple)):
+        urdf_rgba = [urdf_rgba]
     assert len(urdf_rgba) == len(trajectory_data)
 
     if viewers is not None:
         # Make sure that viewers is a list
-        if not isinstance(viewers, list):
+        if not isinstance(viewers, (list, tuple)):
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
@@ -1460,9 +1462,9 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat everything as lists
-    if not isinstance(logs_data, list):
+    if not isinstance(logs_data, (list, tuple)):
         logs_data = [logs_data]
-    if not isinstance(robots, list):
+    if not isinstance(robots, (list, tuple)):
         robots = [robots] * len(logs_data)
 
     # For each pair (log, robot), extract a trajectory object for
