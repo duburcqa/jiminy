@@ -21,7 +21,7 @@ from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
-from typing import Optional, Union, Sequence, Tuple, Dict, Any
+from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
 import zmq
 import meshcat.transformations as mtf
@@ -225,6 +225,7 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
+        self.urdf_rgba = urdf_rgba
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
@@ -303,7 +304,7 @@ class Viewer:
             self.__is_open = True
 
             # Load the robot
-            self._setup(robot)
+            self._setup(robot, self.urdf_rgba)
             Viewer._backend_robot_names.add(self.robot_name)
 
             # Open a gui window in browser, since the server is headless.
@@ -341,7 +342,7 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct):
+    def __must_be_open(fct: Callable):
         @wraps(fct)
         def fct_safe(*args, **kwargs):
             self = None
@@ -375,14 +376,18 @@ class Viewer:
                           Optional: It will override the original color of the
                           meshes if specified.
         """
+        # Backup desired color
+        self.urdf_rgba = urdf_rgba
+
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
         self.urdf_path = os.path.realpath(robot.urdf_path)
         if Viewer.backend.startswith('gepetto'):
-            if urdf_rgba is not None:
-                alpha = urdf_rgba[3]
+            if self.urdf_rgba is not None:
+                assert len(self.urdf_rgba) == 4
+                alpha = self.urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    self.urdf_path, urdf_rgba[:3], self._tempdir)
+                    robot, self.urdf_rgba[:3], self._tempdir)
             else:
                 alpha = 1.0
 
@@ -416,6 +421,10 @@ class Viewer:
             if Viewer.backend.startswith('gepetto'):
                 self._gui.addFloor('/'.join((self.scene_name, "floor")))
                 self._gui.addLandmark(self.scene_name, 0.1)
+
+            # Delete existing robot, if any
+            Viewer._delete_nodes_viewer(
+                ['/'.join((self.scene_name, self.robot_name))])
 
             # Load the robot
             self._client.loadViewerModel(rootNodeName=self.robot_name)
@@ -592,16 +601,26 @@ class Viewer:
             pass
 
     @staticmethod
-    def _get_colorized_urdf(urdf_path: str,
-                            rgb: Sequence[float],
+    def _get_colorized_urdf(robot: jiminy.Robot,
+                            rgb: Tuple[float, float, float],
                             output_root_path: Optional[str] = None) -> str:
-        """Generate a unique colorized URDF.
+        """Generate a unique colorized URDF for a given robot model.
 
         .. note::
             Multiple identical URDF model of different colors can be loaded in
             Gepetto-viewer this way.
 
-        :param urdf_path: Full path of the URDF file.
+        .. warning:
+            Beware it is not working if the visual does not have a color
+            material block already defined as follow.
+
+            ```
+            <material name="">
+                <color rgba="0.400 0.700 0.300 1.0"/>
+            </material>
+            ```
+
+        :param robot: Jiminy.Robot already initialized for the desired URDF.
         :param rgb: RGB code defining the color of the model. It is the same
                     for each link.
         :param output_root_path: Root directory of the colorized URDF data.
@@ -609,6 +628,10 @@ class Viewer:
 
         :returns: Full path of the colorized URDF file.
         """
+        # Get the URDF path and mesh directory search paths if any
+        urdf_path = robot.urdf_path
+        mesh_package_dirs = robot.mesh_package_dirs
+
         # Convert RGB array to string and xml tag. Don't close tag with '>',
         # in order to handle <color/> and <color></color>.
         color_string = "%.3f_%.3f_%.3f_1.0" % tuple(rgb)
@@ -628,19 +651,39 @@ class Viewer:
             colorized_contents = urdf_file.read()
 
         for mesh_fullpath in re.findall(
-                '<mesh filename="(.*)"', colorized_contents):
+                '<mesh filename="([^"]*)"', colorized_contents):
+            # Make sure mesh path is fully qualified and exists
+            mesh_realpath = None
+            if mesh_fullpath.startswith('package://'):
+                for mesh_dir in mesh_package_dirs:
+                    mesh_searchpath = os.path.join(
+                        mesh_dir, mesh_fullpath[10:])
+                    if os.path.exists(mesh_searchpath):
+                        mesh_realpath = mesh_searchpath
+                        break
+            else:
+                mesh_realpath = mesh_fullpath
+            assert mesh_realpath is not None, (
+                f"Invalid mesh path '{mesh_fullpath}'.")
+
+            # Copy original meshes to temporary directory
             colorized_mesh_fullpath = os.path.join(
-                colorized_data_dir, mesh_fullpath[1:])
+                colorized_data_dir, mesh_realpath[1:])
             colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
             if not os.access(colorized_mesh_path, os.F_OK):
                 os.makedirs(colorized_mesh_path)
-            shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
+            shutil.copy2(mesh_realpath, colorized_mesh_fullpath)
+
+            # Update mesh path in URDF file
             colorized_contents = colorized_contents.replace(
                 '"' + mesh_fullpath + '"',
                 '"' + colorized_mesh_fullpath + '"', 1)
+
+        # Update color code in URDF file
         colorized_contents = re.sub(
             r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
 
+        # Write on disk the generated
         with open(colorized_urdf_path, 'w') as f:
             f.write(colorized_contents)
 
@@ -1316,12 +1359,11 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             if close_backend is None:
                 close_backend = True
     else:
-        assert len(viewers) == len(trajectory_data)
-
-        # Reset the robot model of the viewer.
-        # This is mainly done to update the color if requested.
+        # Reset robot model in viewer if requested color has changed
         for viewer, traj, color in zip(viewers, trajectory_data, urdf_rgba):
-            viewer._setup(traj['robot'], color)
+            if color != viewer.urdf_rgba:
+                viewer._setup(traj['robot'], color)
+    assert len(viewers) == len(trajectory_data)
 
     # Set camera pose or activate camera traveling if requested
     if travelling_frame is not None:
