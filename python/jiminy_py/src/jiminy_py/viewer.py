@@ -2,7 +2,6 @@ import os
 import re
 import io
 import time
-import types
 import psutil
 import shutil
 import base64
@@ -18,18 +17,19 @@ import multiprocessing
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from PIL import Image
+from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
-from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
+from typing import Optional, Union, Sequence, Tuple, Dict, Callable
 
 import zmq
 import meshcat.transformations as mtf
 
 import pinocchio as pin
-from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSE3
+from pinocchio import SE3, SE3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -860,14 +860,14 @@ class Viewer:
 
     @__must_be_open
     def set_camera_transform(self,
-                             translation: Optional[Tuple3FType] = None,
+                             position: Optional[Tuple3FType] = None,
                              rotation: Optional[Tuple3FType] = None,
                              relative: Optional[str] = None) -> None:
         """Apply transform to the camera pose.
 
-        :param translation: Position [X, Y, Z] as a list or 1D array.
-                            None to not update it.
-                            Optional: None by default.
+        :param position: Position [X, Y, Z] as a list or 1D array. None to not
+                         update it.
+                         Optional: None by default.
         :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array.
                          None to note update it.
                          Optional: None by default.
@@ -881,12 +881,12 @@ class Viewer:
             - **other string:** relative to a robot frame, not accounting for
               the rotation (travelling)
         """
-        # Handling of translation and rotation arguments
-        if translation is None:
-            translation = Viewer._camera_xyzrpy[0]
+        # Handling of position and rotation arguments
+        if position is None:
+            position = Viewer._camera_xyzrpy[0]
         if rotation is None:
             rotation = Viewer._camera_xyzrpy[1]
-        translation, rotation = np.asarray(translation), np.asarray(rotation)
+        position, rotation = np.asarray(position), np.asarray(rotation)
 
         # Compute associated rotation matrix
         rotation_mat = rpyToMatrix(rotation)
@@ -902,64 +902,82 @@ class Viewer:
                 body_transform = self._client.data.oMf[body_id]
             except IndexError:
                 raise ValueError("'relative' set to non-existing frame.")
-            H_orig = SE3(np.eye(3), body_transform.translation)
+            H_orig = SE3(np.eye(3), body_transform.position)
 
         # Perform the desired rotation
         if Viewer.backend.startswith('gepetto'):
-            H_abs = SE3(rotation_mat, translation)
+            H_abs = SE3(rotation_mat, position)
             if relative is None:
                 self._gui.setCameraTransform(
                     self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
             else:
                 # Not using recursive call for efficiency
                 H_abs = H_orig * H_abs
+                position = H_abs.position
                 self._gui.setCameraTransform(
                     self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
         elif Viewer.backend.startswith('meshcat'):
             if relative is None:
                 # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
                 # usual convention in robotics.
-                translation = CAMERA_INV_TRANSFORM_MESHCAT @ translation
-                rotation = matrixToRpy(
+                position_meshcat = CAMERA_INV_TRANSFORM_MESHCAT @ position
+                rotation_meshcat = matrixToRpy(
                     CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
                 self._gui["/Cameras/default/rotated/<object>"].\
                     set_transform(mtf.compose_matrix(
-                        translate=translation, angles=rotation))
+                        translate=position_meshcat, angles=rotation_meshcat))
             else:
-                H_abs = SE3(rotation_mat, translation)
+                H_abs = SE3(rotation_mat, position)
                 H_abs = H_orig * H_abs
-                # Note that the original rotation is not modified.
-                return self.set_camera_transform(H_abs.translation, rotation)
+                position = H_abs.position
+                return self.set_camera_transform(position, rotation)
 
         # Backup updated camera pose
-        Viewer._camera_xyzrpy[0] = translation.copy()
+        Viewer._camera_xyzrpy[0] = position.copy()
         Viewer._camera_xyzrpy[1] = rotation.copy()
 
     @staticmethod
-    def register_camera_motion(camera_motion: CameraMotionType) -> None:
+    def add_camera_motion(camera_motion: CameraMotionType) -> None:
         """Register camera motion. It will be used later by `replay` to set the
         absolute or relative camera pose, depending on whether or not
         travelling is enable.
 
-        :param camera_motion: Camera breakpoint poses over time, as a list of
-                              `CameraMotionBreakpointType` dict.
+        :param camera_motion:
+            Camera breakpoint poses over time, as a list of
+            `CameraMotionBreakpointType` dict. Here is an example::
+
+                [{'t': 0.00,
+                  'pose': ([3.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])},
+                 {'t': 0.33,
+                  'pose': ([4.5, 0.0, 1.4], [1.4, np.pi / 6, np.pi / 2])},
+                 {'t': 0.66,
+                  'pose': ([8.5, 0.0, 1.4], [1.4, np.pi / 3, np.pi / 2])},
+                 {'t': 1.00,
+                  'pose': ([9.5, 0.0, 1.4], [1.4, np.pi / 2, np.pi / 2])}]
         """
         t_camera = np.asarray([
-            camera_break['t'] for camera_break in Viewer._camera_motion])
+            camera_break['t'] for camera_break in camera_motion])
+        interp_kind = 'linear' if len(t_camera) < 4 else 'cubic'
         camera_xyz = np.stack([camera_break['pose'][0]
                                for camera_break in camera_motion], axis=0)
         camera_motion_xyz = interp1d(
             t_camera, camera_xyz,
-            kind='cubic', bounds_error=False,
+            kind=interp_kind, bounds_error=False,
             fill_value=(camera_xyz[0], camera_xyz[-1]), axis=0)
         camera_rpy = np.stack([camera_break['pose'][1]
                                for camera_break in camera_motion], axis=0)
         camera_motion_rpy = interp1d(
             t_camera, camera_rpy,
-            kind='cubic', bounds_error=False,
+            kind=interp_kind, bounds_error=False,
             fill_value=(camera_rpy[0], camera_rpy[-1]), axis=0)
         Viewer._camera_motion = lambda t: [
             camera_motion_xyz(t), camera_motion_rpy(t)]
+
+    @staticmethod
+    def remove_camera_motion() -> None:
+        """Remove camera motion.
+        """
+        Viewer._camera_motion = None
 
     def attach_camera(self,
                       frame: str,
@@ -1209,6 +1227,7 @@ class Viewer:
                            check for the robot actually have a freeflyer.
         :param wait: Whether or not to wait for rendering to finish.
         """
+        camera_xyzrpy_orig = deepcopy(Viewer._camera_xyzrpy)
         t = [s.t for s in evolution_robot]
         i = 0
         init_time = time.time()
@@ -1221,6 +1240,7 @@ class Viewer:
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
             wait = False  # It is enough to wait for the first timestep only
+        Viewer._camera_xyzrpy = camera_xyzrpy_orig
 
 
 class TrajectoryDataType(TypedDict, total=False):
@@ -1288,6 +1308,7 @@ def play_trajectories(trajectory_data: Union[
                       wait_for_client: bool = True,
                       travelling_frame: Optional[str] = None,
                       camera_xyzrpy: Optional[CameraPoseType] = None,
+                      camera_motion: Optional[CameraMotionType] = None,
                       xyz_offset: Optional[Union[
                           Tuple3FType, Sequence[Tuple3FType]]] = None,
                       urdf_rgba: Optional[Union[
@@ -1333,8 +1354,11 @@ def play_trajectories(trajectory_data: Union[
                           during replay, if travelling is disable, or the
                           relative pose wrt the tracked frame otherwise. None
                           to disable.
-                          Optional:None by default.
-    :param xyz_offset: List of constant translation of the root joint for each
+                          Optional: None by default.
+    :param camera_motion: Camera breakpoint poses over time, as a list of
+                          `CameraMotionBreakpointType` dict. None to disable.
+                          Optional: None by default.
+    :param xyz_offset: List of constant position of the root joint for each
                        robot in world frame. None to disable.
                        Optional: None by default.
     :param urdf_rgba: List of RGBA code defining the color for each robot. It
@@ -1427,6 +1451,10 @@ def play_trajectories(trajectory_data: Union[
         viewers[0].attach_camera(travelling_frame, camera_xyzrpy)
     elif camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
+
+    # Enable camera motion if requested
+    if camera_motion is not None:
+        Viewer.add_camera_motion(camera_motion)
 
     # Handle default robot offset
     if xyz_offset is None:
@@ -1532,9 +1560,11 @@ def play_trajectories(trajectory_data: Union[
         for thread in threads:
             thread.join()
 
-    # Disable camera travelling it was enabled
+    # Disable camera travelling and camera motion if it was enabled
     if travelling_frame is not None:
-        viewers[0].detach_camera()
+        Viewer.detach_camera()
+    if camera_motion is not None:
+        Viewer.remove_camera_motion()
 
     # Close backend if needed
     if close_backend:

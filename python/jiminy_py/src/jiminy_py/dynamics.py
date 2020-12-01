@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Optional, Tuple, Callable, Dict, Any
+from typing import Optional, Tuple, Callable
 
 import hppfcl
 import pinocchio as pin
