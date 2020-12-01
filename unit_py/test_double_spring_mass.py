@@ -388,15 +388,12 @@ class SimulateTwoMasses(unittest.TestCase):
             engine, self.tf, x_init, split=False)
 
         # Verify that both freeflyers didn't moved
-        for i in range(len(systems_names)):
-            self.assertTrue(np.allclose(
-                x_jiminy[i][:, 9:15], 0.0, atol=TOLERANCE))
-            self.assertTrue(np.allclose(
-                x_jiminy[i][:, :7], x_jiminy[i][0, :7], atol=TOLERANCE))
+        for x in x_jiminy:
+            self.assertTrue(np.allclose(x[:, 9:15], 0.0, atol=TOLERANCE))
+            self.assertTrue(np.allclose(x[:, :7], x[0, :7], atol=TOLERANCE))
 
         # Extract coordinates in a minimum state vector
-        x_jiminy_extract = np.hstack([x_jiminy[i][:, [7, 8, 15, 16]]
-                                      for i in range(len(systems_names))])
+        x_jiminy_extract = np.hstack([x[:, [7, 8, 15, 16]] for x in x_jiminy])
 
         # Define dynamics of this system
         def system_dynamics(t, x):

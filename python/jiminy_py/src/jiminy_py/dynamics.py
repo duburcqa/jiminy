@@ -333,7 +333,7 @@ def compute_transform_contact(
             contact_ground_transform.append(pin.SE3(ground_rot, ground_pos))
     else:
         contact_ground_transform = [
-            pin.SE3.Identity() for _ in range(len(contact_frames_transform))]
+            pin.SE3.Identity() for _ in contact_frames_transform]
 
     # Compute the position and normal of the contact points wrt their
     # respective ground transform.

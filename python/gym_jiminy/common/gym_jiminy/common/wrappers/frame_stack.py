@@ -84,8 +84,7 @@ class PartialFrameStack(gym.Wrapper):
 
         # Allocate internal frames buffers
         self._frames: List[deque] = [
-            deque(maxlen=self.num_stack)
-            for _ in range(len(self.leaf_fields_list))]
+            deque(maxlen=self.num_stack) for _ in self.leaf_fields_list]
 
     def _setup(self) -> None:
         """ TODO: Write documentation.

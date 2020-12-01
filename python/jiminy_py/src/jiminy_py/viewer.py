@@ -1292,15 +1292,15 @@ def play_trajectories(trajectory_data: Dict[str, Any],
         # Create new viewer instances
         viewers = []
         lock = Lock()
-        for i in range(len(trajectory_data)):
+        for i, (traj, color) in enumerate(zip(trajectory_data, urdf_rgba)):
             # Create a new viewer instance, and load the robot in it
-            robot = trajectory_data[i]['robot']
+            robot = traj['robot']
             robot_name = f"robot_{i}"
-            use_theoretical_model = trajectory_data[i]['use_theoretical_model']
+            use_theoretical_model = traj['use_theoretical_model']
             viewer = Viewer(
                 robot,
                 use_theoretical_model=use_theoretical_model,
-                urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None,
+                urdf_rgba=color,
                 robot_name=robot_name,
                 lock=lock,
                 backend=backend,
@@ -1344,10 +1344,10 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             del xyz_offset[i]
 
     # Load robots in gepetto viewer
-    for i in range(len(trajectory_data)):
+    for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
         try:
-            viewers[i].display(
-                trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
+            viewer.display(
+                traj['evolution_robot'][0].q, offset)
         except Viewer._backend_exceptions:
             break
 
@@ -1372,7 +1372,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                         for traj in trajectory_data])
         time_evolution = np.arange(
             0.0, time_max, replay_speed / VIDEO_FRAMERATE)
-        position_evolution = []
+        position_evolutions = []
         for traj in trajectory_data:
             data_orig = traj['evolution_robot']
             t_orig = np.array([s.t for s in data_orig])
@@ -1381,15 +1381,16 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                 t_orig, pos_orig,
                 kind='linear', bounds_error=False,
                 fill_value=(pos_orig[0], pos_orig[-1]), axis=0)
-            position_evolution.append(pos_interp(time_evolution))
+            position_evolutions.append(pos_interp(time_evolution))
 
         # Play trajectories without multithreading and record_video
         for i in tqdm(range(len(time_evolution)),
                       desc="Rendering frames",
                       disable=(not verbose)):
-            for j in range(len(trajectory_data)):
-                viewers[j].display(
-                    position_evolution[j][i], xyz_offset=xyz_offset[j])
+            for viewer, positions, offset in zip(
+                    viewers, position_evolutions, xyz_offset):
+                viewer.display(
+                    positions[i], xyz_offset=offset)
             if Viewer.backend != 'meshcat':
                 import cv2
                 frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
@@ -1419,19 +1420,19 @@ def play_trajectories(trajectory_data: Dict[str, Any],
 
         # Play trajectories with multithreading
         threads = []
-        for i in range(len(trajectory_data)):
+        for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
             threads.append(Thread(
                 target=replay_thread,
-                args=(viewers[i],
-                      trajectory_data[i]['evolution_robot'],
+                args=(viewer,
+                      traj['evolution_robot'],
                       replay_speed,
-                      xyz_offset[i],
+                      offset,
                       wait_for_client)))
-        for i in range(len(trajectory_data)):
-            threads[i].daemon = True
-            threads[i].start()
-        for i in range(len(trajectory_data)):
-            threads[i].join()
+        for thread in threads:
+            thread.daemon = True
+            thread.start()
+        for thread in threads:
+            thread.join()
 
     # Disable camera traveling it was enabled
     if travelling_frame is not None:
