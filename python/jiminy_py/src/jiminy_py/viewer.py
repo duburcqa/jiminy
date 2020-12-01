@@ -41,7 +41,9 @@ from .meshcat.meshcat_visualizer import MeshcatVisualizer
 
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])
+DEFAULT_CAMERA_ABS_XYZRPY = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
+DEFAULT_CAMERA_REL_XYZRPY = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
+
 DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
@@ -173,6 +175,19 @@ Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
 CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
 
 
+class CameraMotionBreakpointType(TypedDict, total=True):
+    """Time
+    """
+    t: float
+    """Absolute pose of the camera, as a tuple position [X, Y, Z], rotation
+    [Roll, Pitch, Yaw].
+    """
+    pose: Tuple[Tuple3FType, Tuple3FType]
+
+
+CameraMotionType = Sequence[CameraMotionBreakpointType]
+
+
 class Viewer:
     """ TODO: Write documentation.
 
@@ -185,7 +200,9 @@ class Viewer:
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
+    _camera_motion = None
     _camera_travelling = None
+    _camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -275,9 +292,10 @@ class Viewer:
         else:
             is_backend_running = False
 
-        # Clear robot names and disable travelling if backend not available
+        # Reset some class attribute if backend not available
         if not is_backend_running:
             Viewer._backend_robot_names = set()
+            Viewer._camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
             Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
@@ -328,10 +346,6 @@ class Viewer:
         except Exception as e:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
-
-        # Set default camera pose
-        if self.is_backend_parent:
-            self.set_camera_transform()
 
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
@@ -851,8 +865,12 @@ class Viewer:
                              relative: Optional[str] = None) -> None:
         """Apply transform to the camera pose.
 
-        :param translation: Position [X, Y, Z] as a list or 1D array
-        :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array
+        :param translation: Position [X, Y, Z] as a list or 1D array.
+                            None to not update it.
+                            Optional: None by default.
+        :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array.
+                         None to note update it.
+                         Optional: None by default.
         :param relative:
             .. raw:: html
 
@@ -864,34 +882,26 @@ class Viewer:
               the rotation (travelling)
         """
         # Handling of translation and rotation arguments
-        if relative is not None and relative != 'camera':
-            if translation is None:
-                translation = np.array([3.0, -3.0, 1.0])
-            if rotation is None:
-                rotation = np.array([1.3, 0.0, 0.8])
-        else:
-            if translation is None:
-                translation = DEFAULT_CAMERA_XYZRPY[0]
-            if rotation is None:
-                rotation = DEFAULT_CAMERA_XYZRPY[1]
-        rotation_mat = rpyToMatrix(np.asarray(rotation))
-        translation = np.asarray(translation)
+        if translation is None:
+            translation = Viewer._camera_xyzrpy[0]
+        if rotation is None:
+            rotation = Viewer._camera_xyzrpy[1]
+        translation, rotation = np.asarray(translation), np.asarray(rotation)
+
+        # Compute associated rotation matrix
+        rotation_mat = rpyToMatrix(rotation)
 
         # Compute the relative transformation if applicable
         if relative == 'camera':
-            if Viewer.backend.startswith('gepetto'):
-                H_orig = XYZQUATToSE3(
-                    self._gui.getCameraTransform(self._client.windowID))
-            else:
-                raise RuntimeError(
-                    "relative='camera' option is not available in Meshcat.")
+            H_orig = SE3(rpyToMatrix(np.asarray(Viewer._camera_xyzrpy[1])),
+                         np.asarray(Viewer._camera_xyzrpy[0]))
         elif relative is not None:
             # Get the body position, not taking into account the rotation
             body_id = self._client.model.getFrameId(relative)
             try:
                 body_transform = self._client.data.oMf[body_id]
             except IndexError:
-                raise ValueError("'relative' set to non existing frame.")
+                raise ValueError("'relative' set to non-existing frame.")
             H_orig = SE3(np.eye(3), body_transform.translation)
 
         # Perform the desired rotation
@@ -919,7 +929,37 @@ class Viewer:
                 H_abs = SE3(rotation_mat, translation)
                 H_abs = H_orig * H_abs
                 # Note that the original rotation is not modified.
-                self.set_camera_transform(H_abs.translation, rotation)
+                return self.set_camera_transform(H_abs.translation, rotation)
+
+        # Backup updated camera pose
+        Viewer._camera_xyzrpy[0] = translation.copy()
+        Viewer._camera_xyzrpy[1] = rotation.copy()
+
+    @staticmethod
+    def register_camera_motion(camera_motion: CameraMotionType) -> None:
+        """Register camera motion. It will be used later by `replay` to set the
+        absolute or relative camera pose, depending on whether or not
+        travelling is enable.
+
+        :param camera_motion: Camera breakpoint poses over time, as a list of
+                              `CameraMotionBreakpointType` dict.
+        """
+        t_camera = np.asarray([
+            camera_break['t'] for camera_break in Viewer._camera_motion])
+        camera_xyz = np.stack([camera_break['pose'][0]
+                               for camera_break in camera_motion], axis=0)
+        camera_motion_xyz = interp1d(
+            t_camera, camera_xyz,
+            kind='cubic', bounds_error=False,
+            fill_value=(camera_xyz[0], camera_xyz[-1]), axis=0)
+        camera_rpy = np.stack([camera_break['pose'][1]
+                               for camera_break in camera_motion], axis=0)
+        camera_motion_rpy = interp1d(
+            t_camera, camera_rpy,
+            kind='cubic', bounds_error=False,
+            fill_value=(camera_rpy[0], camera_rpy[-1]), axis=0)
+        Viewer._camera_motion = lambda t: [
+            camera_motion_xyz(t), camera_motion_rpy(t)]
 
     def attach_camera(self,
                       frame: str,
@@ -941,7 +981,7 @@ class Viewer:
 
         # Handling of default camera pose
         if camera_xyzrpy is None:
-            camera_xyzrpy = (None, None)
+            camera_xyzrpy = DEFAULT_CAMERA_REL_XYZRPY
 
         Viewer._camera_travelling = {
             'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
@@ -1100,12 +1140,14 @@ class Viewer:
                             geom, model_type)
                         self._client.viewer[nodeName].set_transform(T)
 
-            # Update the camera placement if necessary
-            if (Viewer._camera_travelling is not None and
-                    Viewer._camera_travelling['viewer'] is self):
-                self.set_camera_transform(
-                    *Viewer._camera_travelling['pose'],
-                    relative=Viewer._camera_travelling['frame'])
+            # Update the camera placement
+            if Viewer._camera_travelling is not None:
+                if Viewer._camera_travelling['viewer'] is self:
+                    self.set_camera_transform(
+                        *Viewer._camera_travelling['pose'],
+                        relative=Viewer._camera_travelling['frame'])
+            else:
+                self.set_camera_transform()
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend.startswith('gepetto'):
@@ -1172,11 +1214,13 @@ class Viewer:
         init_time = time.time()
         while i < len(evolution_robot):
             s = evolution_robot[i]
+            if Viewer._camera_motion is not None:
+                Viewer._camera_xyzrpy = Viewer._camera_motion(s.t)
             self.display(s.q, xyz_offset, wait)
             t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
-            wait = False  # It is enough to wait for the first timestep
+            wait = False  # It is enough to wait for the first timestep only
 
 
 class TrajectoryDataType(TypedDict, total=False):
