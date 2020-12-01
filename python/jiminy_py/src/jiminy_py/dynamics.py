@@ -7,6 +7,7 @@ import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 from . import core as jiminy
+from .viewer import TrajectoryDataType
 
 
 logger = logging.getLogger(__name__)
@@ -564,7 +565,7 @@ def compute_efforts_from_fixed_body(
 # ################### State sequence wrappers #########################
 # #####################################################################
 
-def retrieve_freeflyer(trajectory_data: Dict[str, Any],
+def retrieve_freeflyer(trajectory_data: TrajectoryDataType,
                        freeflyer_continuity: bool = True) -> None:
     """Retrieves the freeflyer positions and velocities.
 
@@ -604,7 +605,7 @@ def retrieve_freeflyer(trajectory_data: Dict[str, Any],
             s.q[:7] = pin.SE3ToXYZQUAT(w_M_ff)
 
 
-def compute_efforts(trajectory_data: Dict[str, Any]) -> None:
+def compute_efforts(trajectory_data: TrajectoryDataType) -> None:
     """Compute the efforts in the trajectory using RNEA method.
 
     :param trajectory_data: Sequence of States for which to compute the

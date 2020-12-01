@@ -22,6 +22,7 @@ from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
+from typing_extensions import TypedDict
 from typing import Optional, Union, Sequence, Tuple, Dict, Any, Callable
 
 import zmq
@@ -167,6 +168,11 @@ class _ProcessWrapper:
             multiprocessing.active_children()
 
 
+Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
+Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
+
+
 class Viewer:
     """ TODO: Write documentation.
 
@@ -184,7 +190,7 @@ class Viewer:
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 urdf_rgba: Optional[Tuple[float, float, float, float]] = None,
+                 urdf_rgba: Optional[Tuple4FType] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: bool = True,
@@ -360,7 +366,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple[float, float, float, float]] = None):
+               urdf_rgba: Optional[Tuple4FType] = None):
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -603,7 +609,7 @@ class Viewer:
 
     @staticmethod
     def _get_colorized_urdf(robot: jiminy.Robot,
-                            rgb: Tuple[float, float, float],
+                            rgb: Tuple3FType,
                             output_root_path: Optional[str] = None) -> str:
         """Generate a unique colorized URDF for a given robot model.
 
@@ -838,10 +844,8 @@ class Viewer:
 
     @__must_be_open
     def set_camera_transform(self,
-                             translation: Union[Tuple[float, float, float],
-                                                np.ndarray] = None,
-                             rotation: Union[Tuple[float, float, float],
-                                             np.ndarray] = None,
+                             translation: Optional[Tuple3FType] = None,
+                             rotation: Optional[Tuple3FType] = None,
                              relative: Optional[str] = None) -> None:
         """Apply transform to the camera pose.
 
@@ -1043,7 +1047,7 @@ class Viewer:
         """Refresh the configuration of Robot in the viewer.
 
         This method is also in charge of updating the camera placement for
-        traveling.
+        travelling.
 
         .. note::
             This method is copy-pasted from `Pinocchio.visualize.*.display`
@@ -1166,8 +1170,17 @@ class Viewer:
             wait = False  # It is enough to wait for the first timestep
 
 
+class TrajectoryDataType(TypedDict, total=False):
+    # List of State objects of increasing time.
+    evolution_robot: Sequence[State]
+    # Jiminy robot. None if omitted.
+    robot: Optional[jiminy.Robot]
+    # Whether to use theoretical or actual model
+    use_theoretical_model: bool
+
+
 def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
-                                 robot: jiminy.Robot) -> Dict[str, Any]:
+                                 robot: jiminy.Robot) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -1181,7 +1194,6 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
-
     # Get the current robot model options
     model_options = robot.get_model_options()
 
@@ -1214,21 +1226,19 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
             'use_theoretical_model': use_theoretical_model}
 
 
-def play_trajectories(trajectory_data: Dict[str, Any],
+def play_trajectories(trajectory_data: Union[
+                          TrajectoryDataType, Sequence[TrajectoryDataType]],
                       replay_speed: float = 1.0,
                       record_video_path: Optional[str] = None,
                       viewers: Sequence[Viewer] = None,
                       start_paused: bool = False,
                       wait_for_client: bool = True,
                       travelling_frame: Optional[str] = None,
-                      camera_xyzrpy: Optional[Tuple[
-                          Union[Tuple[float, float, float], np.ndarray],
-                          Union[Tuple[float, float, float],
-                                np.ndarray]]] = None,
-                      xyz_offset: Optional[Sequence[Union[
-                          Tuple[float, float, float], np.ndarray]]] = None,
-                      urdf_rgba: Optional[Sequence[
-                          Tuple[float, float, float, float]]] = None,
+                      camera_xyzrpy: Optional[CameraPoseType] = None,
+                      xyz_offset: Optional[Union[
+                          Tuple3FType, Sequence[Tuple3FType]]] = None,
+                      urdf_rgba: Optional[Union[
+                          Tuple4FType, Sequence[Tuple4FType]]] = None,
                       backend: Optional[str] = None,
                       window_name: str = 'jiminy',
                       scene_name: str = 'world',
@@ -1245,15 +1255,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
         Replay speed is independent of the platform (windows, linux...) and
         available CPU power.
 
-    :param trajectory_data:
-        .. raw:: html
-
-            List of trajectory dictionary with keys:
-
-        - **'evolution_robot':** list of State objects of increasing time.
-        - **'robot':** Jiminy robot. None if omitted.
-        - **'use_theoretical_model':** whether to use the theoretical or actual
-          model.
+    :param trajectory_data: List of `TrajectoryDataType` dicts.
     :param replay_speed: Speed ratio of the simulation.
                          Optional: 1.0 by default.
     :param record_video_path: Fullpath location where to save generated video
@@ -1478,7 +1480,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
         for thread in threads:
             thread.join()
 
-    # Disable camera traveling it was enabled
+    # Disable camera travelling it was enabled
     if travelling_frame is not None:
         viewers[0].detach_camera()
 
