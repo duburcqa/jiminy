@@ -1258,6 +1258,10 @@ def play_trajectories(trajectory_data: Dict[str, Any],
 
     :returns: List of viewers used to play the trajectories.
     """
+    if urdf_rgba is None:
+        urdf_rgba = [None for _ in trajectory_data]
+    assert len(urdf_rgba) == len(trajectory_data)
+
     if viewers is not None:
         # Make sure that viewers is a list
         if not isinstance(viewers, list):
@@ -1305,6 +1309,13 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             # Close backend by default
             if close_backend is None:
                 close_backend = True
+    else:
+        assert len(viewers) == len(trajectory_data)
+
+        # Reset the robot model of the viewer.
+        # This is mainly done to update the color if requested.
+        for viewer, traj, color in zip(viewers, trajectory_data, urdf_rgba):
+            viewer._setup(traj['robot'], color)
 
     # Set camera pose or activate camera traveling if requested
     if travelling_frame is not None:
@@ -1319,6 +1330,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     if xyz_offset is None:
         xyz_offset = len(trajectory_data) * [None]
     xyz_offset = list(xyz_offset)
+    assert len(xyz_offset) == len(trajectory_data)
 
     # Do not display trajectories without data
     trajectory_data = list(trajectory_data).copy()  # No deepcopy
@@ -1386,14 +1398,14 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             else:
                 if i == 0:
-                    record_video_path = str(
-                        pathlib.Path(record_video_path).with_suffix('.webm'))
                     viewers[0]._backend_obj.start_recording(
                         VIDEO_FRAMERATE, *VIDEO_SIZE)
                 viewers[0]._backend_obj.add_frame()
         if Viewer.backend != 'meshcat':
             out.release()
         else:
+            record_video_path = str(
+                pathlib.Path(record_video_path).with_suffix('.webm'))
             viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
         def replay_thread(viewer, *args):
