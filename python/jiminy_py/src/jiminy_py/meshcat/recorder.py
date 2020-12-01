@@ -84,12 +84,13 @@ async def launch(self) -> Browser:
         "--disable-setuid-sandbox",
         "--proxy-server='direct://'",
         "--proxy-bypass-list=*"]
+
     if not self.dumpio:
         options['stdout'] = subprocess.DEVNULL
         options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
         startupflags = subprocess.CREATE_NEW_PROCESS_GROUP
-        if (sys.version_info[0] == 3 and sys.version_info[1] > 6):
+        if sys.version_info > (3, 6):
             startupflags |= (subprocess.DETACHED_PROCESS |
                              subprocess.HIGH_PRIORITY_CLASS)
         self.proc = subprocess.Popen(

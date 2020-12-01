@@ -218,8 +218,7 @@ def _meshcat_server(info: Dict[str, str], verbose: bool) -> None:
         sys.stderr = open(os.devnull, 'w')
 
     # See https://bugs.python.org/issue37373 :(
-    if (sys.version_info[0] == 3 and sys.version_info[1] >= 8 and
-            sys.platform.startswith('win')):
+    if sys.platform.startswith('win') and sys.version_info >= (3, 8):
         asyncio.set_event_loop_policy(
             asyncio.WindowsSelectorEventLoopPolicy())
 

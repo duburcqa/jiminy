@@ -139,7 +139,8 @@ def register_variables(controller: jiminy.AbstractController,
             hresult = register_variables(
                 controller, subfield, value, namespace)
             is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
-    elif isinstance(field, list) and isinstance(field[0], list):
+    elif (isinstance(field, (list, tuple)) and
+            isinstance(field[0], (list, tuple))):
         is_success = True
         for subfield, value in zip(field, data):
             hresult = register_variables(

@@ -378,24 +378,24 @@ class SimulateSimplePendulum(unittest.TestCase):
         def sys(t):
             q = 0.0
             v = 0.0
-            for i in range(len(F_register)):
-                if t > F_register[i]["t"]:
+            for i, force in enumerate(F_register):
+                if t > force["t"]:
                     pos = self.l * np.array([
                         -np.cos(q - np.pi / 2), 0.0, np.sin(q - np.pi / 2)])
                     n = pos / np.linalg.norm(pos)
                     d = np.cross(self.axis, n)
-                    F_proj = F_register[i]["F"][:3].T.dot(d)
-                    v_delta = ((F_proj + F_register[i]["F"][4] / self.l) * min(
-                        F_register[i]["dt"], t - F_register[i]["t"])) / self.m
+                    F_proj = force["F"][:3].T.dot(d)
+                    v_delta = ((F_proj + force["F"][4] / self.l) * min(
+                        force["dt"], t - force["t"])) / self.m
                     if (i < len(F_register) - 1):
                         q += (v + v_delta) * max(0, min(t,
                             F_register[i + 1]["t"]) - \
-                                (F_register[i]["t"] + F_register[i]["dt"]))
+                                (force["t"] + force["dt"]))
                     else:
                         q += (v + v_delta) * max(0,
-                            t - F_register[i]["t"] + F_register[i]["dt"])
+                            t - force["t"] + force["dt"])
                     q += (v + v_delta/2) * min(
-                        F_register[i]["dt"], t - F_register[i]["t"])
+                        force["dt"], t - force["t"])
                     v += v_delta
                 else:
                     break

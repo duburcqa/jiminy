@@ -345,6 +345,9 @@ class Simulator:
                         or 'engine_options["stepper"]["dtMax"]'.
         """
         # Perform a single integration step
+        if not self.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please call `start` before `step`.")
         return_code = self.engine.step(step_dt)
         if return_code != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to perform the simulation step.")
@@ -430,6 +433,11 @@ class Simulator:
         :returns: Rendering as an RGB array (3D numpy array), if enabled, None
                   otherwise.
         """
+        # Make sure that a simulation is running
+        if not self.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please call `start` before `render`.")
+
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not (self._is_viewer_available and self._viewer.is_alive()):
@@ -482,12 +490,11 @@ class Simulator:
         :param kwargs: Extra keyword arguments for delegation to
                        `viewer.play_trajectories` method.
         """
-        if not self._is_viewer_available:
-            self.render()
         log_data, _ = self.get_log()
-        play_logfiles(
+        self._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self._viewer],
-            **{'verbose': True, **kwargs})
+            **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]
+        self._is_viewer_available = True
 
     def close(self) -> None:
         """Close the connection with the renderer.

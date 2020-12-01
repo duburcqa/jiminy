@@ -84,9 +84,9 @@ class State:
         :returns: Sequence of State.
         """
         _state_dict = defaultdict(
-            lambda: [None for i in range(len(state_dict['t']))], state_dict)
+            lambda: [None for _ in state_dict['t']], state_dict)
         state_list = []
-        for i in range(len(state_dict['t'])):
+        for i, _ in enumerate(state_dict['t']):
             state_list.append(cls(**{
                 k: v[..., i] if isinstance(v, np.ndarray) else v[i]
                 for k, v in _state_dict.items()}))
