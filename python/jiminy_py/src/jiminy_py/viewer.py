@@ -2,7 +2,6 @@ import os
 import re
 import io
 import time
-import types
 import psutil
 import shutil
 import base64
@@ -15,19 +14,22 @@ import subprocess
 import webbrowser
 import numpy as np
 import multiprocessing
+import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from PIL import Image
+from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
 from scipy.interpolate import interp1d
-from typing import Optional, Union, Sequence, Tuple, Dict, Any
+from typing_extensions import TypedDict
+from typing import Optional, Union, Sequence, Tuple, Dict, Callable
 
 import zmq
 import meshcat.transformations as mtf
 
 import pinocchio as pin
-from pinocchio import SE3, SE3ToXYZQUAT, XYZQUATToSE3
+from pinocchio import SE3, SE3ToXYZQUAT
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 from pinocchio.visualize import GepettoVisualizer
 
@@ -39,7 +41,9 @@ from .meshcat.meshcat_visualizer import MeshcatVisualizer
 
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_XYZRPY = ([7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])
+DEFAULT_CAMERA_ABS_XYZRPY = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
+DEFAULT_CAMERA_REL_XYZRPY = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
+
 DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
@@ -166,6 +170,24 @@ class _ProcessWrapper:
             multiprocessing.active_children()
 
 
+Tuple3FType = Union[Tuple[float, float, float], np.ndarray]
+Tuple4FType = Union[Tuple[float, float, float, float], np.ndarray]
+CameraPoseType = Tuple[Optional[Tuple3FType], Optional[Tuple3FType]]
+
+
+class CameraMotionBreakpointType(TypedDict, total=True):
+    """Time
+    """
+    t: float
+    """Absolute pose of the camera, as a tuple position [X, Y, Z], rotation
+    [Roll, Pitch, Yaw].
+    """
+    pose: Tuple[Tuple3FType, Tuple3FType]
+
+
+CameraMotionType = Sequence[CameraMotionBreakpointType]
+
+
 class Viewer:
     """ TODO: Write documentation.
 
@@ -178,12 +200,15 @@ class Viewer:
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
+    _camera_motion = None
+    _camera_travelling = None
+    _camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
                  robot: jiminy.Robot,
                  use_theoretical_model: bool = False,
-                 urdf_rgba: Optional[Tuple[float, float, float, float]] = None,
+                 urdf_rgba: Optional[Tuple4FType] = None,
                  lock: Optional[Lock] = None,
                  backend: Optional[str] = None,
                  open_gui_if_parent: bool = True,
@@ -225,28 +250,13 @@ class Viewer:
             robot_name = "_".join(("robot", uniq_id))
 
         # Backup some user arguments
+        self.urdf_rgba = urdf_rgba
         self.robot_name = robot_name
         self.scene_name = scene_name
         self.window_name = window_name
         self.use_theoretical_model = use_theoretical_model
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
-
-        # Define camera update function, that will be called systematically
-        # after calling refresh or update. It will be used later for enabling
-        # to attach the camera to a given frame and automatically track it
-        # without explicitly calling `set_camera_transform`.
-        self.detach_camera()
-
-        # Make sure that the windows, scene and robot names are valid
-        if scene_name == window_name:
-            raise ValueError(
-                "The name of the scene and window must be different.")
-
-        if robot_name in Viewer._backend_robot_names:
-            raise ValueError(
-                "Robot name already exists but must be unique. Please choose "
-                "a different one, or close the associated viewer.")
 
         # Select the desired backend
         if backend is None:
@@ -282,6 +292,22 @@ class Viewer:
         else:
             is_backend_running = False
 
+        # Reset some class attribute if backend not available
+        if not is_backend_running:
+            Viewer._backend_robot_names = set()
+            Viewer._camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
+            Viewer.detach_camera()
+
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == window_name:
+            raise ValueError(
+                "The name of the scene and window must be different.")
+
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose "
+                "a different one, or close the associated viewer.")
+
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
             prefix="_".join((window_name, scene_name, robot_name, "")))
@@ -299,7 +325,7 @@ class Viewer:
             self.__is_open = True
 
             # Load the robot
-            self._setup(robot)
+            self._setup(robot, self.urdf_rgba)
             Viewer._backend_robot_names.add(self.robot_name)
 
             # Open a gui window in browser, since the server is headless.
@@ -321,10 +347,6 @@ class Viewer:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
 
-        # Set default camera pose
-        if self.is_backend_parent:
-            self.set_camera_transform()
-
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
         self.refresh()
@@ -337,7 +359,7 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct):
+    def __must_be_open(fct: Callable):
         @wraps(fct)
         def fct_safe(*args, **kwargs):
             self = None
@@ -354,7 +376,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple[float, float, float, float]] = None):
+               urdf_rgba: Optional[Tuple4FType] = None):
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -371,14 +393,18 @@ class Viewer:
                           Optional: It will override the original color of the
                           meshes if specified.
         """
+        # Backup desired color
+        self.urdf_rgba = urdf_rgba
+
         # Generate colorized URDF file if using gepetto-gui backend, since it
         # is not supported by default, because of memory optimizations.
         self.urdf_path = os.path.realpath(robot.urdf_path)
         if Viewer.backend.startswith('gepetto'):
-            if urdf_rgba is not None:
-                alpha = urdf_rgba[3]
+            if self.urdf_rgba is not None:
+                assert len(self.urdf_rgba) == 4
+                alpha = self.urdf_rgba[3]
                 self.urdf_path = Viewer._get_colorized_urdf(
-                    self.urdf_path, urdf_rgba[:3], self._tempdir)
+                    robot, self.urdf_rgba[:3], self._tempdir)
             else:
                 alpha = 1.0
 
@@ -412,6 +438,10 @@ class Viewer:
             if Viewer.backend.startswith('gepetto'):
                 self._gui.addFloor('/'.join((self.scene_name, "floor")))
                 self._gui.addLandmark(self.scene_name, 0.1)
+
+            # Delete existing robot, if any
+            Viewer._delete_nodes_viewer(
+                ['/'.join((self.scene_name, self.robot_name))])
 
             # Load the robot
             self._client.loadViewerModel(rootNodeName=self.robot_name)
@@ -567,6 +597,7 @@ class Viewer:
                 # NEVER closing backend if closing instances, even for the
                 # parent. It will be closed at Python exit automatically.
                 Viewer._backend_robot_names.clear()
+                Viewer.detach_camera()
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None:
                     Viewer._backend_obj.close()
@@ -576,7 +607,12 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
             else:
+                # Disable travelling if associated with this viewer instance
+                if (Viewer._camera_travelling is not None and
+                        Viewer._camera_travelling['viewer'] is self):
+                    Viewer.detach_camera()
                 self.__is_open = False
+
             if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
                     shutil.rmtree(self._tempdir)
@@ -588,16 +624,16 @@ class Viewer:
             pass
 
     @staticmethod
-    def _get_colorized_urdf(urdf_path: str,
-                            rgb: Sequence[float],
+    def _get_colorized_urdf(robot: jiminy.Robot,
+                            rgb: Tuple3FType,
                             output_root_path: Optional[str] = None) -> str:
-        """Generate a unique colorized URDF.
+        """Generate a unique colorized URDF for a given robot model.
 
         .. note::
             Multiple identical URDF model of different colors can be loaded in
             Gepetto-viewer this way.
 
-        :param urdf_path: Full path of the URDF file.
+        :param robot: Jiminy.Robot already initialized for the desired URDF.
         :param rgb: RGB code defining the color of the model. It is the same
                     for each link.
         :param output_root_path: Root directory of the colorized URDF data.
@@ -605,40 +641,73 @@ class Viewer:
 
         :returns: Full path of the colorized URDF file.
         """
-        # Convert RGB array to string and xml tag. Don't close tag with '>',
-        # in order to handle <color/> and <color></color>.
-        color_string = "%.3f_%.3f_%.3f_1.0" % tuple(rgb)
-        color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % tuple(rgb)
+        # Get the URDF path and mesh directory search paths if any
+        urdf_path = robot.urdf_path
+        mesh_package_dirs = robot.mesh_package_dirs
+
+        # Define color tag and string representation
+        color_tag = " ".join(map(str, list(rgb) + [1.0]))
+        color_str = "_".join(map(str, list(rgb) + [1.0]))
 
         # Create the output directory
         if output_root_path is None:
             output_root_path = tempfile.mkdtemp()
         colorized_data_dir = os.path.join(
-            output_root_path, "colorized_urdf_rgba_" + color_string)
+            output_root_path, f"colorized_urdf_rgb_{color_str}")
         os.makedirs(colorized_data_dir, exist_ok=True)
         colorized_urdf_path = os.path.join(
             colorized_data_dir, os.path.basename(urdf_path))
 
-        # Copy the meshes in temporary directory and update paths in URDF file
-        with open(urdf_path, 'r') as urdf_file:
-            colorized_contents = urdf_file.read()
+        # Parse the URDF file
+        tree = ET.parse(robot.urdf_path)
+        root = tree.getroot()
 
-        for mesh_fullpath in re.findall(
-                '<mesh filename="(.*)"', colorized_contents):
-            colorized_mesh_fullpath = os.path.join(
-                colorized_data_dir, mesh_fullpath[1:])
-            colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
-            if not os.access(colorized_mesh_path, os.F_OK):
-                os.makedirs(colorized_mesh_path)
-            shutil.copy2(mesh_fullpath, colorized_mesh_fullpath)
-            colorized_contents = colorized_contents.replace(
-                '"' + mesh_fullpath + '"',
-                '"' + colorized_mesh_fullpath + '"', 1)
-        colorized_contents = re.sub(
-            r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
+        # Update mesh fullpath and material color for every visual
+        for visual in root.iterfind('./link/visual'):
+            # Get mesh full path
+            for geom in visual.iterfind('geometry'):
+                # Get mesh path if any, otherwise skip the geometry
+                mesh_descr = geom.find('mesh')
+                if mesh_descr is None:
+                    continue
+                mesh_fullpath = mesh_descr.get('filename')
 
-        with open(colorized_urdf_path, 'w') as f:
-            f.write(colorized_contents)
+                # Make sure mesh path is fully qualified and exists
+                mesh_realpath = None
+                if mesh_fullpath.startswith('package://'):
+                    for mesh_dir in mesh_package_dirs:
+                        mesh_searchpath = os.path.join(
+                            mesh_dir, mesh_fullpath[10:])
+                        if os.path.exists(mesh_searchpath):
+                            mesh_realpath = mesh_searchpath
+                            break
+                else:
+                    mesh_realpath = mesh_fullpath
+                assert mesh_realpath is not None, (
+                    f"Invalid mesh path '{mesh_fullpath}'.")
+
+                # Copy original meshes to temporary directory
+                colorized_mesh_fullpath = os.path.join(
+                    colorized_data_dir, mesh_realpath[1:])
+                colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
+                if not os.access(colorized_mesh_path, os.F_OK):
+                    os.makedirs(colorized_mesh_path)
+                shutil.copy2(mesh_realpath, colorized_mesh_fullpath)
+
+                # Update mesh fullpath
+                geom.find('mesh').set('filename', mesh_realpath)
+
+            # Update color tag if any, create one otherwise
+            material = visual.find('material')
+            if material is not None:
+                material.find('color').set('rgba', color_tag)
+            else:
+                material = ET.SubElement(visual, 'material', name='')
+                ET.SubElement(material, 'color', rgba=color_tag)
+
+        # Write on disk the generated URDF file
+        tree = ET.ElementTree(root)
+        tree.write(colorized_urdf_path)
 
         return colorized_urdf_path
 
@@ -791,15 +860,17 @@ class Viewer:
 
     @__must_be_open
     def set_camera_transform(self,
-                             translation: Union[Tuple[float, float, float],
-                                                np.ndarray] = None,
-                             rotation: Union[Tuple[float, float, float],
-                                             np.ndarray] = None,
+                             position: Optional[Tuple3FType] = None,
+                             rotation: Optional[Tuple3FType] = None,
                              relative: Optional[str] = None) -> None:
         """Apply transform to the camera pose.
 
-        :param translation: Position [X, Y, Z] as a list or 1D array
-        :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array
+        :param position: Position [X, Y, Z] as a list or 1D array. None to not
+                         update it.
+                         Optional: None by default.
+        :param rotation: Rotation [Roll, Pitch, Yaw] as a list or 1D np.array.
+                         None to note update it.
+                         Optional: None by default.
         :param relative:
             .. raw:: html
 
@@ -810,94 +881,137 @@ class Viewer:
             - **other string:** relative to a robot frame, not accounting for
               the rotation (travelling)
         """
-        # Handling of translation and rotation arguments
-        if relative is not None and relative != 'camera':
-            if translation is None:
-                translation = np.array([3.0, -3.0, 1.0])
-            if rotation is None:
-                rotation = np.array([1.3, 0.0, 0.8])
-        else:
-            if translation is None:
-                translation = DEFAULT_CAMERA_XYZRPY[0]
-            if rotation is None:
-                rotation = DEFAULT_CAMERA_XYZRPY[1]
-        rotation_mat = rpyToMatrix(np.asarray(rotation))
-        translation = np.asarray(translation)
+        # Handling of position and rotation arguments
+        if position is None:
+            position = Viewer._camera_xyzrpy[0]
+        if rotation is None:
+            rotation = Viewer._camera_xyzrpy[1]
+        position, rotation = np.asarray(position), np.asarray(rotation)
+
+        # Compute associated rotation matrix
+        rotation_mat = rpyToMatrix(rotation)
 
         # Compute the relative transformation if applicable
         if relative == 'camera':
-            if Viewer.backend.startswith('gepetto'):
-                H_orig = XYZQUATToSE3(
-                    self._gui.getCameraTransform(self._client.windowID))
-            else:
-                raise RuntimeError(
-                    "relative='camera' option is not available in Meshcat.")
+            H_orig = SE3(rpyToMatrix(np.asarray(Viewer._camera_xyzrpy[1])),
+                         np.asarray(Viewer._camera_xyzrpy[0]))
         elif relative is not None:
             # Get the body position, not taking into account the rotation
-            body_id = self.pinocchio_model.getFrameId(relative)
+            body_id = self._client.model.getFrameId(relative)
             try:
-                body_transform = self.pinocchio_data.oMf[body_id]
+                body_transform = self._client.data.oMf[body_id]
             except IndexError:
-                raise ValueError("'relative' set to non existing frame.")
-            H_orig = SE3(np.eye(3), body_transform.translation)
+                raise ValueError("'relative' set to non-existing frame.")
+            H_orig = SE3(np.eye(3), body_transform.position)
 
         # Perform the desired rotation
         if Viewer.backend.startswith('gepetto'):
-            H_abs = SE3(rotation_mat, translation)
+            H_abs = SE3(rotation_mat, position)
             if relative is None:
                 self._gui.setCameraTransform(
                     self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
             else:
                 # Not using recursive call for efficiency
                 H_abs = H_orig * H_abs
+                position = H_abs.position
                 self._gui.setCameraTransform(
                     self._client.windowID, SE3ToXYZQUAT(H_abs).tolist())
         elif Viewer.backend.startswith('meshcat'):
             if relative is None:
                 # Meshcat camera is rotated by -pi/2 along Roll axis wrt the
                 # usual convention in robotics.
-                translation = CAMERA_INV_TRANSFORM_MESHCAT @ translation
-                rotation = matrixToRpy(
+                position_meshcat = CAMERA_INV_TRANSFORM_MESHCAT @ position
+                rotation_meshcat = matrixToRpy(
                     CAMERA_INV_TRANSFORM_MESHCAT @ rotation_mat)
                 self._gui["/Cameras/default/rotated/<object>"].\
                     set_transform(mtf.compose_matrix(
-                        translate=translation, angles=rotation))
+                        translate=position_meshcat, angles=rotation_meshcat))
             else:
-                H_abs = SE3(rotation_mat, translation)
+                H_abs = SE3(rotation_mat, position)
                 H_abs = H_orig * H_abs
-                # Note that the original rotation is not modified.
-                self.set_camera_transform(H_abs.translation, rotation)
+                position = H_abs.position
+                return self.set_camera_transform(position, rotation)
+
+        # Backup updated camera pose
+        Viewer._camera_xyzrpy[0] = position.copy()
+        Viewer._camera_xyzrpy[1] = rotation.copy()
+
+    @staticmethod
+    def add_camera_motion(camera_motion: CameraMotionType) -> None:
+        """Register camera motion. It will be used later by `replay` to set the
+        absolute or relative camera pose, depending on whether or not
+        travelling is enable.
+
+        :param camera_motion:
+            Camera breakpoint poses over time, as a list of
+            `CameraMotionBreakpointType` dict. Here is an example::
+
+                [{'t': 0.00,
+                  'pose': ([3.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2])},
+                 {'t': 0.33,
+                  'pose': ([4.5, 0.0, 1.4], [1.4, np.pi / 6, np.pi / 2])},
+                 {'t': 0.66,
+                  'pose': ([8.5, 0.0, 1.4], [1.4, np.pi / 3, np.pi / 2])},
+                 {'t': 1.00,
+                  'pose': ([9.5, 0.0, 1.4], [1.4, np.pi / 2, np.pi / 2])}]
+        """
+        t_camera = np.asarray([
+            camera_break['t'] for camera_break in camera_motion])
+        interp_kind = 'linear' if len(t_camera) < 4 else 'cubic'
+        camera_xyz = np.stack([camera_break['pose'][0]
+                               for camera_break in camera_motion], axis=0)
+        camera_motion_xyz = interp1d(
+            t_camera, camera_xyz,
+            kind=interp_kind, bounds_error=False,
+            fill_value=(camera_xyz[0], camera_xyz[-1]), axis=0)
+        camera_rpy = np.stack([camera_break['pose'][1]
+                               for camera_break in camera_motion], axis=0)
+        camera_motion_rpy = interp1d(
+            t_camera, camera_rpy,
+            kind=interp_kind, bounds_error=False,
+            fill_value=(camera_rpy[0], camera_rpy[-1]), axis=0)
+        Viewer._camera_motion = lambda t: [
+            camera_motion_xyz(t), camera_motion_rpy(t)]
+
+    @staticmethod
+    def remove_camera_motion() -> None:
+        """Remove camera motion.
+        """
+        Viewer._camera_motion = None
 
     def attach_camera(self,
-                      frame: Optional[str] = None,
-                      translation: Optional[Union[Tuple[float, float, float],
-                                                  np.ndarray]] = None,
-                      rotation: Optional[Union[Tuple[float, float, float],
-                                               np.ndarray]] = None) -> None:
+                      frame: str,
+                      camera_xyzrpy: Optional[CameraPoseType] = None) -> None:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
         pose of the camera wrt to the frame can be further specified.
 
         :param frame: Frame of the robot to follow with the camera.
-        :param translation: Relative position [X, Y, Z] of the camera wrt the
-                            frame.
-        :param rotation: Relative rotation [Roll, Pitch, Yaw] of the camera wrt
-                         the frame.
+        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
+                              [Roll, Pitch, Yaw] corresponding to the relative
+                              pose of the camera wrt the tracked frame. None
+                              to use default pose.
+                              Optional: None by default.
         """
-        def __update_camera_transform(self):
-            nonlocal frame, translation, rotation
-            self.set_camera_transform(translation, rotation, relative=frame)
-        self.__update_camera_transform = types.MethodType(
-            __update_camera_transform, self)
+        # Make sure one is not trying to track the camera itself...
+        assert frame != 'camera', "Impossible to track the camera itself !"
 
-    def detach_camera(self) -> None:
+        # Handling of default camera pose
+        if camera_xyzrpy is None:
+            camera_xyzrpy = DEFAULT_CAMERA_REL_XYZRPY
+
+        Viewer._camera_travelling = {
+            'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
+
+    @staticmethod
+    def detach_camera() -> None:
         """Detach the camera.
 
         Must be called to undo `attach_camera`, so that it will stop
         automatically tracking a frame.
         """
-        self.__update_camera_transform = lambda: None
+        Viewer._camera_travelling = None
 
     @__must_be_open
     def capture_frame(self,
@@ -996,7 +1110,7 @@ class Viewer:
         """Refresh the configuration of Robot in the viewer.
 
         This method is also in charge of updating the camera placement for
-        traveling.
+        travelling.
 
         .. note::
             This method is copy-pasted from `Pinocchio.visualize.*.display`
@@ -1045,7 +1159,13 @@ class Viewer:
                         self._client.viewer[nodeName].set_transform(T)
 
             # Update the camera placement
-            self.__update_camera_transform()
+            if Viewer._camera_travelling is not None:
+                if Viewer._camera_travelling['viewer'] is self:
+                    self.set_camera_transform(
+                        *Viewer._camera_travelling['pose'],
+                        relative=Viewer._camera_travelling['frame'])
+            else:
+                self.set_camera_transform()
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend.startswith('gepetto'):
@@ -1107,20 +1227,33 @@ class Viewer:
                            check for the robot actually have a freeflyer.
         :param wait: Whether or not to wait for rendering to finish.
         """
+        camera_xyzrpy_orig = deepcopy(Viewer._camera_xyzrpy)
         t = [s.t for s in evolution_robot]
         i = 0
         init_time = time.time()
         while i < len(evolution_robot):
             s = evolution_robot[i]
+            if Viewer._camera_motion is not None:
+                Viewer._camera_xyzrpy = Viewer._camera_motion(s.t)
             self.display(s.q, xyz_offset, wait)
             t_simu = (time.time() - init_time) * replay_speed
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
-            wait = False  # It is enough to wait for the first timestep
+            wait = False  # It is enough to wait for the first timestep only
+        Viewer._camera_xyzrpy = camera_xyzrpy_orig
+
+
+class TrajectoryDataType(TypedDict, total=False):
+    # List of State objects of increasing time.
+    evolution_robot: Sequence[State]
+    # Jiminy robot. None if omitted.
+    robot: Optional[jiminy.Robot]
+    # Whether to use theoretical or actual model
+    use_theoretical_model: bool
 
 
 def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
-                                 robot: jiminy.Robot) -> Dict[str, Any]:
+                                 robot: jiminy.Robot) -> TrajectoryDataType:
     """Extract the minimal required information from raw log data in order to
     replay the simulation in a viewer.
 
@@ -1134,7 +1267,6 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
-
     # Get the current robot model options
     model_options = robot.get_model_options()
 
@@ -1167,21 +1299,20 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
             'use_theoretical_model': use_theoretical_model}
 
 
-def play_trajectories(trajectory_data: Dict[str, Any],
+def play_trajectories(trajectory_data: Union[
+                          TrajectoryDataType, Sequence[TrajectoryDataType]],
                       replay_speed: float = 1.0,
                       record_video_path: Optional[str] = None,
                       viewers: Sequence[Viewer] = None,
                       start_paused: bool = False,
                       wait_for_client: bool = True,
                       travelling_frame: Optional[str] = None,
-                      camera_xyzrpy: Optional[Tuple[
-                          Union[Tuple[float, float, float], np.ndarray],
-                          Union[Tuple[float, float, float],
-                                np.ndarray]]] = None,
-                      xyz_offset: Optional[Sequence[Union[
-                          Tuple[float, float, float], np.ndarray]]] = None,
-                      urdf_rgba: Optional[Sequence[
-                          Tuple[float, float, float, float]]] = None,
+                      camera_xyzrpy: Optional[CameraPoseType] = None,
+                      camera_motion: Optional[CameraMotionType] = None,
+                      xyz_offset: Optional[Union[
+                          Tuple3FType, Sequence[Tuple3FType]]] = None,
+                      urdf_rgba: Optional[Union[
+                          Tuple4FType, Sequence[Tuple4FType]]] = None,
                       backend: Optional[str] = None,
                       window_name: str = 'jiminy',
                       scene_name: str = 'world',
@@ -1198,23 +1329,15 @@ def play_trajectories(trajectory_data: Dict[str, Any],
         Replay speed is independent of the platform (windows, linux...) and
         available CPU power.
 
-    :param trajectory_data:
-        .. raw:: html
-
-            List of trajectory dictionary with keys:
-
-        - **'evolution_robot':** list of State objects of increasing time.
-        - **'robot':** Jiminy robot. None if omitted.
-        - **'use_theoretical_model':** whether to use the theoretical or actual
-          model.
+    :param trajectory_data: List of `TrajectoryDataType` dicts.
     :param replay_speed: Speed ratio of the simulation.
                          Optional: 1.0 by default.
     :param record_video_path: Fullpath location where to save generated video
                               (.mp4 extension is: mandatory). Must be specified
                               to enable video recording. None to disable.
                               Optional: None by default.
-    :param viewers: Already instantiated viewers, associated one by one in
-                    order to each trajectory data. None to disable.
+    :param viewers: List of already instantiated viewers, associated one by one
+                    in order to each trajectory data. None to disable.
                     Optional: None by default.
     :param start_paused: Start the simulation is pause, waiting for keyboard
                          input before starting to play the trajectories.
@@ -1222,20 +1345,24 @@ def play_trajectories(trajectory_data: Dict[str, Any],
     :param wait_for_client: Wait for the client to finish loading the meshes
                             before starting.
                             Optional: True by default.
-    :param travelling_frame: Name of the frame to automatically follow with the
-                             camera. None to disable.
+    :param travelling_frame: Name of the frame of the robot associated with the
+                             first trajectory_data. The camera will
+                             automatically follow it. None to disable.
                              Optional: None by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
                           during replay, if travelling is disable, or the
                           relative pose wrt the tracked frame otherwise. None
                           to disable.
-                          Optional:None by default.
-    :param xyz_offset: Constant translation of the root joint in world frame.
-                       None to disable.
+                          Optional: None by default.
+    :param camera_motion: Camera breakpoint poses over time, as a list of
+                          `CameraMotionBreakpointType` dict. None to disable.
+                          Optional: None by default.
+    :param xyz_offset: List of constant position of the root joint for each
+                       robot in world frame. None to disable.
                        Optional: None by default.
-    :param urdf_rgba: RGBA code defining the color of the model. It is the same
-                      for each link. None to disable.
+    :param urdf_rgba: List of RGBA code defining the color for each robot. It
+                      will apply to every link. None to disable.
                       Optional: Original colors of each link. No alpha.
     :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
                     'meshcat' is used in notebook environment and 'gepetto-gui'
@@ -1258,9 +1385,16 @@ def play_trajectories(trajectory_data: Dict[str, Any],
 
     :returns: List of viewers used to play the trajectories.
     """
+    if urdf_rgba is None:
+        urdf_rgba = [None for _ in trajectory_data]
+    if urdf_rgba and urdf_rgba[0] and not isinstance(
+            urdf_rgba[0], (list, tuple)):
+        urdf_rgba = [urdf_rgba]
+    assert len(urdf_rgba) == len(trajectory_data)
+
     if viewers is not None:
         # Make sure that viewers is a list
-        if not isinstance(viewers, list):
+        if not isinstance(viewers, (list, tuple)):
             viewers = [viewers]
 
         # Make sure the viewers are still running if specified
@@ -1284,15 +1418,15 @@ def play_trajectories(trajectory_data: Dict[str, Any],
         # Create new viewer instances
         viewers = []
         lock = Lock()
-        for i in range(len(trajectory_data)):
+        for i, (traj, color) in enumerate(zip(trajectory_data, urdf_rgba)):
             # Create a new viewer instance, and load the robot in it
-            robot = trajectory_data[i]['robot']
+            robot = traj['robot']
             robot_name = f"robot_{i}"
-            use_theoretical_model = trajectory_data[i]['use_theoretical_model']
+            use_theoretical_model = traj['use_theoretical_model']
             viewer = Viewer(
                 robot,
                 use_theoretical_model=use_theoretical_model,
-                urdf_rgba=urdf_rgba[i] if urdf_rgba is not None else None,
+                urdf_rgba=color,
                 robot_name=robot_name,
                 lock=lock,
                 backend=backend,
@@ -1305,20 +1439,28 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             # Close backend by default
             if close_backend is None:
                 close_backend = True
+    else:
+        # Reset robot model in viewer if requested color has changed
+        for viewer, traj, color in zip(viewers, trajectory_data, urdf_rgba):
+            if color != viewer.urdf_rgba:
+                viewer._setup(traj['robot'], color)
+    assert len(viewers) == len(trajectory_data)
 
-    # Set camera pose or activate camera traveling if requested
+    # Set camera pose or activate camera travelling if requested
     if travelling_frame is not None:
-        if camera_xyzrpy is not None:
-            viewers[0].attach_camera(travelling_frame, *camera_xyzrpy)
-        else:
-            viewers[0].attach_camera(travelling_frame)
+        viewers[0].attach_camera(travelling_frame, camera_xyzrpy)
     elif camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
+
+    # Enable camera motion if requested
+    if camera_motion is not None:
+        Viewer.add_camera_motion(camera_motion)
 
     # Handle default robot offset
     if xyz_offset is None:
         xyz_offset = len(trajectory_data) * [None]
     xyz_offset = list(xyz_offset)
+    assert len(xyz_offset) == len(trajectory_data)
 
     # Do not display trajectories without data
     trajectory_data = list(trajectory_data).copy()  # No deepcopy
@@ -1328,10 +1470,10 @@ def play_trajectories(trajectory_data: Dict[str, Any],
             del xyz_offset[i]
 
     # Load robots in gepetto viewer
-    for i in range(len(trajectory_data)):
+    for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
         try:
-            viewers[i].display(
-                trajectory_data[i]['evolution_robot'][0].q, xyz_offset[i])
+            viewer.display(
+                traj['evolution_robot'][0].q, offset)
         except Viewer._backend_exceptions:
             break
 
@@ -1356,7 +1498,7 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                         for traj in trajectory_data])
         time_evolution = np.arange(
             0.0, time_max, replay_speed / VIDEO_FRAMERATE)
-        position_evolution = []
+        position_evolutions = []
         for traj in trajectory_data:
             data_orig = traj['evolution_robot']
             t_orig = np.array([s.t for s in data_orig])
@@ -1365,15 +1507,16 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                 t_orig, pos_orig,
                 kind='linear', bounds_error=False,
                 fill_value=(pos_orig[0], pos_orig[-1]), axis=0)
-            position_evolution.append(pos_interp(time_evolution))
+            position_evolutions.append(pos_interp(time_evolution))
 
         # Play trajectories without multithreading and record_video
         for i in tqdm(range(len(time_evolution)),
                       desc="Rendering frames",
                       disable=(not verbose)):
-            for j in range(len(trajectory_data)):
-                viewers[j].display(
-                    position_evolution[j][i], xyz_offset=xyz_offset[j])
+            for viewer, positions, offset in zip(
+                    viewers, position_evolutions, xyz_offset):
+                viewer.display(
+                    positions[i], xyz_offset=offset)
             if Viewer.backend != 'meshcat':
                 import cv2
                 frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
@@ -1386,14 +1529,14 @@ def play_trajectories(trajectory_data: Dict[str, Any],
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             else:
                 if i == 0:
-                    record_video_path = str(
-                        pathlib.Path(record_video_path).with_suffix('.webm'))
                     viewers[0]._backend_obj.start_recording(
                         VIDEO_FRAMERATE, *VIDEO_SIZE)
                 viewers[0]._backend_obj.add_frame()
         if Viewer.backend != 'meshcat':
             out.release()
         else:
+            record_video_path = str(
+                pathlib.Path(record_video_path).with_suffix('.webm'))
             viewers[0]._backend_obj.stop_recording(record_video_path)
     else:
         def replay_thread(viewer, *args):
@@ -1403,23 +1546,25 @@ def play_trajectories(trajectory_data: Dict[str, Any],
 
         # Play trajectories with multithreading
         threads = []
-        for i in range(len(trajectory_data)):
+        for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
             threads.append(Thread(
                 target=replay_thread,
-                args=(viewers[i],
-                      trajectory_data[i]['evolution_robot'],
+                args=(viewer,
+                      traj['evolution_robot'],
                       replay_speed,
-                      xyz_offset[i],
+                      offset,
                       wait_for_client)))
-        for i in range(len(trajectory_data)):
-            threads[i].daemon = True
-            threads[i].start()
-        for i in range(len(trajectory_data)):
-            threads[i].join()
+        for thread in threads:
+            thread.daemon = True
+            thread.start()
+        for thread in threads:
+            thread.join()
 
-    # Disable camera traveling it was enabled
+    # Disable camera travelling and camera motion if it was enabled
     if travelling_frame is not None:
-        viewers[0].detach_camera()
+        Viewer.detach_camera()
+    if camera_motion is not None:
+        Viewer.remove_camera_motion()
 
     # Close backend if needed
     if close_backend:
@@ -1443,9 +1588,9 @@ def play_logfiles(robots: Union[Sequence[jiminy.Robot], jiminy.Robot],
     :param kwargs: Keyword arguments to forward to `play_trajectories` method.
     """
     # Reformat everything as lists
-    if not isinstance(logs_data, list):
+    if not isinstance(logs_data, (list, tuple)):
         logs_data = [logs_data]
-    if not isinstance(robots, list):
+    if not isinstance(robots, (list, tuple)):
         robots = [robots] * len(logs_data)
 
     # For each pair (log, robot), extract a trajectory object for

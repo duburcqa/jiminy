@@ -63,6 +63,8 @@ setup(
     install_requires=[
         # Used internally by Viewer to read/write snapshots.
         "pillow",
+        # Add support of TypedDict to any Python 3 version.
+        "typing_extensions",
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.

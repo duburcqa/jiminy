@@ -42,7 +42,6 @@ setup(
     install_requires=[
         "gym>=0.16.0",
         "numba",
-        "typing_extensions",
         f"jiminy-py~={version_required}"
     ],
     extras_require=extras,
