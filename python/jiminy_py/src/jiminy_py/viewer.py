@@ -838,9 +838,9 @@ class Viewer:
                     "relative='camera' option is not available in Meshcat.")
         elif relative is not None:
             # Get the body position, not taking into account the rotation
-            body_id = self.pinocchio_model.getFrameId(relative)
+            body_id = self._client.model.getFrameId(relative)
             try:
-                body_transform = self.pinocchio_data.oMf[body_id]
+                body_transform = self._client.data.oMf[body_id]
             except IndexError:
                 raise ValueError("'relative' set to non existing frame.")
             H_orig = SE3(np.eye(3), body_transform.translation)
