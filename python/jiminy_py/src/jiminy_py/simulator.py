@@ -490,12 +490,11 @@ class Simulator:
         :param kwargs: Extra keyword arguments for delegation to
                        `viewer.play_trajectories` method.
         """
-        if not self._is_viewer_available:
-            self.render()
         log_data, _ = self.get_log()
-        play_logfiles(
+        self._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self._viewer],
-            **{'verbose': True, **kwargs})
+            **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]
+        self._is_viewer_available = True
 
     def close(self) -> None:
         """Close the connection with the renderer.
