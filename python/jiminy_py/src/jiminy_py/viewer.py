@@ -238,16 +238,6 @@ class Viewer:
         # without explicitly calling `set_camera_transform`.
         self.detach_camera()
 
-        # Make sure that the windows, scene and robot names are valid
-        if scene_name == window_name:
-            raise ValueError(
-                "The name of the scene and window must be different.")
-
-        if robot_name in Viewer._backend_robot_names:
-            raise ValueError(
-                "Robot name already exists but must be unique. Please choose "
-                "a different one, or close the associated viewer.")
-
         # Select the desired backend
         if backend is None:
             backend = Viewer.backend
@@ -281,6 +271,20 @@ class Viewer:
                 Viewer._backend_exception = None
         else:
             is_backend_running = False
+
+        # Clear list of loaded robot names if not available
+        if not is_backend_running:
+            Viewer._backend_robot_names = set()
+
+        # Make sure that the windows, scene and robot names are valid
+        if scene_name == window_name:
+            raise ValueError(
+                "The name of the scene and window must be different.")
+
+        if robot_name in Viewer._backend_robot_names:
+            raise ValueError(
+                "Robot name already exists but must be unique. Please choose "
+                "a different one, or close the associated viewer.")
 
         # Create a unique temporary directory, specific to this viewer instance
         self._tempdir = tempfile.mkdtemp(
