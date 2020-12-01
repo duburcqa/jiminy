@@ -5,7 +5,7 @@ from contextlib import redirect_stderr as _redirect_stderr
 
 
 # Fix Dll seach path on windows for Python >= 3.8
-if _os.name == 'nt' and _sys.version_info >= (3, 8):
+if _sys.platform.startswith('win') and _sys.version_info >= (3, 8):
     for path in _os.environ['PATH'].split(_os.pathsep):
         if _os.path.exists(path):
             _os.add_dll_directory(path)
