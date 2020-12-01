@@ -185,6 +185,7 @@ class Viewer:
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
     _backend_robot_names = set()
+    _camera_travelling = None
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -240,12 +241,6 @@ class Viewer:
         self._lock = lock if lock is not None else Viewer._lock
         self.delete_robot_on_close = delete_robot_on_close
 
-        # Define camera update function, that will be called systematically
-        # after calling refresh or update. It will be used later for enabling
-        # to attach the camera to a given frame and automatically track it
-        # without explicitly calling `set_camera_transform`.
-        self.detach_camera()
-
         # Select the desired backend
         if backend is None:
             backend = Viewer.backend
@@ -280,9 +275,10 @@ class Viewer:
         else:
             is_backend_running = False
 
-        # Clear list of loaded robot names if not available
+        # Clear robot names and disable travelling if backend not available
         if not is_backend_running:
             Viewer._backend_robot_names = set()
+            Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
         if scene_name == window_name:
@@ -587,6 +583,7 @@ class Viewer:
                 # NEVER closing backend if closing instances, even for the
                 # parent. It will be closed at Python exit automatically.
                 Viewer._backend_robot_names.clear()
+                Viewer.detach_camera()
                 if Viewer.backend == 'meshcat' and \
                         Viewer._backend_obj is not None:
                     Viewer._backend_obj.close()
@@ -596,7 +593,12 @@ class Viewer:
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
             else:
+                # Disable travelling if associated with this viewer instance
+                if (Viewer._camera_travelling is not None and
+                        Viewer._camera_travelling['viewer'] is self):
+                    Viewer.detach_camera()
                 self.__is_open = False
+
             if self._tempdir.startswith(tempfile.gettempdir()):
                 try:
                     shutil.rmtree(self._tempdir)
@@ -920,35 +922,38 @@ class Viewer:
                 self.set_camera_transform(H_abs.translation, rotation)
 
     def attach_camera(self,
-                      frame: Optional[str] = None,
-                      translation: Optional[Union[Tuple[float, float, float],
-                                                  np.ndarray]] = None,
-                      rotation: Optional[Union[Tuple[float, float, float],
-                                               np.ndarray]] = None) -> None:
+                      frame: str,
+                      camera_xyzrpy: Optional[CameraPoseType] = None) -> None:
         """Attach the camera to a given robot frame.
 
         Only the position of the frame is taken into account. A custom relative
         pose of the camera wrt to the frame can be further specified.
 
         :param frame: Frame of the robot to follow with the camera.
-        :param translation: Relative position [X, Y, Z] of the camera wrt the
-                            frame.
-        :param rotation: Relative rotation [Roll, Pitch, Yaw] of the camera wrt
-                         the frame.
+        :param camera_xyzrpy: Tuple position [X, Y, Z], rotation
+                              [Roll, Pitch, Yaw] corresponding to the relative
+                              pose of the camera wrt the tracked frame. None
+                              to use default pose.
+                              Optional: None by default.
         """
-        def __update_camera_transform(self):
-            nonlocal frame, translation, rotation
-            self.set_camera_transform(translation, rotation, relative=frame)
-        self.__update_camera_transform = types.MethodType(
-            __update_camera_transform, self)
+        # Make sure one is not trying to track the camera itself...
+        assert frame != 'camera', "Impossible to track the camera itself !"
 
-    def detach_camera(self) -> None:
+        # Handling of default camera pose
+        if camera_xyzrpy is None:
+            camera_xyzrpy = (None, None)
+
+        Viewer._camera_travelling = {
+            'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
+
+    @staticmethod
+    def detach_camera() -> None:
         """Detach the camera.
 
         Must be called to undo `attach_camera`, so that it will stop
         automatically tracking a frame.
         """
-        self.__update_camera_transform = lambda: None
+        Viewer._camera_travelling = None
 
     @__must_be_open
     def capture_frame(self,
@@ -1095,8 +1100,12 @@ class Viewer:
                             geom, model_type)
                         self._client.viewer[nodeName].set_transform(T)
 
-            # Update the camera placement
-            self.__update_camera_transform()
+            # Update the camera placement if necessary
+            if (Viewer._camera_travelling is not None and
+                    Viewer._camera_travelling['viewer'] is self):
+                self.set_camera_transform(
+                    *Viewer._camera_travelling['pose'],
+                    relative=Viewer._camera_travelling['frame'])
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
             if Viewer.backend.startswith('gepetto'):
@@ -1262,8 +1271,8 @@ def play_trajectories(trajectory_data: Union[
                               (.mp4 extension is: mandatory). Must be specified
                               to enable video recording. None to disable.
                               Optional: None by default.
-    :param viewers: Already instantiated viewers, associated one by one in
-                    order to each trajectory data. None to disable.
+    :param viewers: List of already instantiated viewers, associated one by one
+                    in order to each trajectory data. None to disable.
                     Optional: None by default.
     :param start_paused: Start the simulation is pause, waiting for keyboard
                          input before starting to play the trajectories.
@@ -1271,8 +1280,9 @@ def play_trajectories(trajectory_data: Union[
     :param wait_for_client: Wait for the client to finish loading the meshes
                             before starting.
                             Optional: True by default.
-    :param travelling_frame: Name of the frame to automatically follow with the
-                             camera. None to disable.
+    :param travelling_frame: Name of the frame of the robot associated with the
+                             first trajectory_data. The camera will
+                             automatically follow it. None to disable.
                              Optional: None by default.
     :param camera_xyzrpy: Tuple position [X, Y, Z], rotation [Roll, Pitch, Yaw]
                           corresponding to the absolute pose of the camera
@@ -1280,11 +1290,11 @@ def play_trajectories(trajectory_data: Union[
                           relative pose wrt the tracked frame otherwise. None
                           to disable.
                           Optional:None by default.
-    :param xyz_offset: Constant translation of the root joint in world frame.
-                       None to disable.
+    :param xyz_offset: List of constant translation of the root joint for each
+                       robot in world frame. None to disable.
                        Optional: None by default.
-    :param urdf_rgba: RGBA code defining the color of the model. It is the same
-                      for each link. None to disable.
+    :param urdf_rgba: List of RGBA code defining the color for each robot. It
+                      will apply to every link. None to disable.
                       Optional: Original colors of each link. No alpha.
     :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
                     'meshcat' is used in notebook environment and 'gepetto-gui'
@@ -1309,7 +1319,8 @@ def play_trajectories(trajectory_data: Union[
     """
     if urdf_rgba is None:
         urdf_rgba = [None for _ in trajectory_data]
-    if urdf_rgba and not isinstance(urdf_rgba[0], (list, tuple)):
+    if urdf_rgba and urdf_rgba[0] and not isinstance(
+            urdf_rgba[0], (list, tuple)):
         urdf_rgba = [urdf_rgba]
     assert len(urdf_rgba) == len(trajectory_data)
 
@@ -1367,12 +1378,9 @@ def play_trajectories(trajectory_data: Union[
                 viewer._setup(traj['robot'], color)
     assert len(viewers) == len(trajectory_data)
 
-    # Set camera pose or activate camera traveling if requested
+    # Set camera pose or activate camera travelling if requested
     if travelling_frame is not None:
-        if camera_xyzrpy is not None:
-            viewers[0].attach_camera(travelling_frame, *camera_xyzrpy)
-        else:
-            viewers[0].attach_camera(travelling_frame)
+        viewers[0].attach_camera(travelling_frame, camera_xyzrpy)
     elif camera_xyzrpy is not None:
         viewers[0].set_camera_transform(*camera_xyzrpy)
 
