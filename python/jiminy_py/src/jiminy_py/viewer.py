@@ -15,6 +15,7 @@ import subprocess
 import webbrowser
 import numpy as np
 import multiprocessing
+import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from PIL import Image
 from functools import wraps
@@ -610,16 +611,6 @@ class Viewer:
             Multiple identical URDF model of different colors can be loaded in
             Gepetto-viewer this way.
 
-        .. warning:
-            Beware it is not working if the visual does not have a color
-            material block already defined as follow.
-
-            ```
-            <material name="">
-                <color rgba="0.400 0.700 0.300 1.0"/>
-            </material>
-            ```
-
         :param robot: Jiminy.Robot already initialized for the desired URDF.
         :param rgb: RGB code defining the color of the model. It is the same
                     for each link.
@@ -632,60 +623,69 @@ class Viewer:
         urdf_path = robot.urdf_path
         mesh_package_dirs = robot.mesh_package_dirs
 
-        # Convert RGB array to string and xml tag. Don't close tag with '>',
-        # in order to handle <color/> and <color></color>.
-        color_string = "%.3f_%.3f_%.3f_1.0" % tuple(rgb)
-        color_tag = "<color rgba=\"%.3f %.3f %.3f 1.0\"" % tuple(rgb)
+        # Define color tag and string representation
+        color_tag = " ".join(map(str, list(rgb) + [1.0]))
+        color_str = "_".join(map(str, list(rgb) + [1.0]))
 
         # Create the output directory
         if output_root_path is None:
             output_root_path = tempfile.mkdtemp()
         colorized_data_dir = os.path.join(
-            output_root_path, "colorized_urdf_rgba_" + color_string)
+            output_root_path, f"colorized_urdf_rgb_{color_str}")
         os.makedirs(colorized_data_dir, exist_ok=True)
         colorized_urdf_path = os.path.join(
             colorized_data_dir, os.path.basename(urdf_path))
 
-        # Copy the meshes in temporary directory and update paths in URDF file
-        with open(urdf_path, 'r') as urdf_file:
-            colorized_contents = urdf_file.read()
+        # Parse the URDF file
+        tree = ET.parse(robot.urdf_path)
+        root = tree.getroot()
 
-        for mesh_fullpath in re.findall(
-                '<mesh filename="([^"]*)"', colorized_contents):
-            # Make sure mesh path is fully qualified and exists
-            mesh_realpath = None
-            if mesh_fullpath.startswith('package://'):
-                for mesh_dir in mesh_package_dirs:
-                    mesh_searchpath = os.path.join(
-                        mesh_dir, mesh_fullpath[10:])
-                    if os.path.exists(mesh_searchpath):
-                        mesh_realpath = mesh_searchpath
-                        break
+        # Update mesh fullpath and material color for every visual
+        for visual in root.iterfind('./link/visual'):
+            # Get mesh full path
+            for geom in visual.iterfind('geometry'):
+                # Get mesh path if any, otherwise skip the geometry
+                mesh_descr = geom.find('mesh')
+                if mesh_descr is None:
+                    continue
+                mesh_fullpath = mesh_descr.get('filename')
+
+                # Make sure mesh path is fully qualified and exists
+                mesh_realpath = None
+                if mesh_fullpath.startswith('package://'):
+                    for mesh_dir in mesh_package_dirs:
+                        mesh_searchpath = os.path.join(
+                            mesh_dir, mesh_fullpath[10:])
+                        if os.path.exists(mesh_searchpath):
+                            mesh_realpath = mesh_searchpath
+                            break
+                else:
+                    mesh_realpath = mesh_fullpath
+                assert mesh_realpath is not None, (
+                    f"Invalid mesh path '{mesh_fullpath}'.")
+
+                # Copy original meshes to temporary directory
+                colorized_mesh_fullpath = os.path.join(
+                    colorized_data_dir, mesh_realpath[1:])
+                colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
+                if not os.access(colorized_mesh_path, os.F_OK):
+                    os.makedirs(colorized_mesh_path)
+                shutil.copy2(mesh_realpath, colorized_mesh_fullpath)
+
+                # Update mesh fullpath
+                geom.find('mesh').set('filename', mesh_realpath)
+
+            # Update color tag if any, create one otherwise
+            material = visual.find('material')
+            if material is not None:
+                material.find('color').set('rgba', color_tag)
             else:
-                mesh_realpath = mesh_fullpath
-            assert mesh_realpath is not None, (
-                f"Invalid mesh path '{mesh_fullpath}'.")
+                material = ET.SubElement(visual, 'material', name='')
+                ET.SubElement(material, 'color', rgba=color_tag)
 
-            # Copy original meshes to temporary directory
-            colorized_mesh_fullpath = os.path.join(
-                colorized_data_dir, mesh_realpath[1:])
-            colorized_mesh_path = os.path.dirname(colorized_mesh_fullpath)
-            if not os.access(colorized_mesh_path, os.F_OK):
-                os.makedirs(colorized_mesh_path)
-            shutil.copy2(mesh_realpath, colorized_mesh_fullpath)
-
-            # Update mesh path in URDF file
-            colorized_contents = colorized_contents.replace(
-                '"' + mesh_fullpath + '"',
-                '"' + colorized_mesh_fullpath + '"', 1)
-
-        # Update color code in URDF file
-        colorized_contents = re.sub(
-            r'<color rgba="[\d. ]*"', color_tag, colorized_contents)
-
-        # Write on disk the generated
-        with open(colorized_urdf_path, 'w') as f:
-            f.write(colorized_contents)
+        # Write on disk the generated URDF file
+        tree = ET.ElementTree(root)
+        tree.write(colorized_urdf_path)
 
         return colorized_urdf_path
 
