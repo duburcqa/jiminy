@@ -21,6 +21,7 @@ from copy import deepcopy
 from functools import wraps
 from bisect import bisect_right
 from threading import Thread, Lock
+from itertools import cycle, islice
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 from typing import Optional, Union, Sequence, Tuple, Dict, Callable
@@ -1385,9 +1386,24 @@ def play_trajectories(trajectory_data: Union[
 
     :returns: List of viewers used to play the trajectories.
     """
+    if not isinstance(trajectory_data, (list, tuple)):
+        trajectory_data = [trajectory_data]
+
     if urdf_rgba is None:
-        urdf_rgba = [None for _ in trajectory_data]
-    if urdf_rgba and urdf_rgba[0] and not isinstance(
+        if len(trajectory_data) == 1:
+            urdf_rgba = [None]
+        else:
+            colors = [
+                [0.4, 0.7, 0.3, 1.0],    # Green
+                [0.6, 0.0, 0.9, 1.0],    # Purple
+                [1.0, 0.45, 0.0, 1.0],   # Orange
+                [0.2, 0.7, 1.0, 1.0],    # Cyan
+                [0.9, 0.15, 0.15, 1.0],  # Red
+                [1.0, 0.7, 0.0, 1.0],    # Yellow
+                [0.25, 0.25, 1.0, 1.0],  # Blue
+            ]
+            urdf_rgba = list(islice(cycle(colors), len(trajectory_data)))
+    if urdf_rgba and urdf_rgba[0] is not None and not isinstance(
             urdf_rgba[0], (list, tuple)):
         urdf_rgba = [urdf_rgba]
     assert len(urdf_rgba) == len(trajectory_data)
