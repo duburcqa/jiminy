@@ -90,7 +90,7 @@ async def launch(self) -> Browser:
         options['stderr'] = subprocess.DEVNULL
     if sys.platform.startswith('win'):
         startupflags = subprocess.CREATE_NEW_PROCESS_GROUP
-        if sys.version_info > (3, 6):
+        if sys.version_info >= (3, 7):
             startupflags |= (subprocess.DETACHED_PROCESS |
                              subprocess.HIGH_PRIORITY_CLASS)
         self.proc = subprocess.Popen(
