@@ -271,7 +271,7 @@ class Viewer:
                 raise ValueError("%s backend not available." % backend)
 
         # Update the backend currently running, if any
-        if Viewer.backend != backend and Viewer._backend_obj is not None:
+        if Viewer.backend != backend and Viewer.is_alive():
             Viewer.close()
             logging.warning("Different backend already running. Closing it...")
         Viewer.backend = backend
@@ -279,8 +279,8 @@ class Viewer:
         # Configure exception handling
         Viewer._backend_exceptions = _get_backend_exceptions(backend)
 
-        # Check if the backend is still available, if any
-        if Viewer._backend_obj is not None:
+        # Check if the backend is still working, not just alive, if any
+        if Viewer.is_alive():
             is_backend_running = True
             if not Viewer.is_open():
                 is_backend_running = False
@@ -321,12 +321,17 @@ class Viewer:
         self.is_backend_parent = False
         try:
             # Create viewer backend if necessary
-            if Viewer._backend_obj is None:
+            if not Viewer.is_alive():
                 Viewer._backend_obj, Viewer._backend_proc = \
                     Viewer.__get_client(start_if_needed=True)
                 self.is_backend_parent = Viewer._backend_proc.is_parent()
             self._gui = Viewer._backend_obj.gui
             self.__is_open = True
+
+            # Keep track of the backend process associated to the viewer.
+            # The destructor of this instance must adapt its behavior to the
+            # case where the backend process has changed in the meantime.
+            self._backend_proc = Viewer._backend_proc
 
             # Load the robot
             self._setup(robot, self.urdf_rgba)
@@ -481,7 +486,7 @@ class Viewer:
             raise RuntimeError(
                 "Showing client is only available using 'meshcat' backend.")
         else:
-            if Viewer._backend_obj is None:
+            if not Viewer.is_alive():
                 Viewer._backend_obj, Viewer._backend_proc = \
                     Viewer.__get_client(start_if_needed)
             viewer_url = Viewer._backend_obj.gui.url()
@@ -584,27 +589,17 @@ class Viewer:
             than calling this method without specifying any viewer instance.
         """
         try:
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
-                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 50
             if self is None:
                 self = Viewer
-            else:
-                # Consider that the robot name is now available, no matter
-                # whether the robot has actually been deleted or not.
-                Viewer._backend_robot_names.discard(self.robot_name)
-                if self.delete_robot_on_close:
-                    Viewer._delete_nodes_viewer(
-                        ['/'.join((self.scene_name, self.robot_name))])
-            if self == Viewer:
+
+            if self is Viewer:
                 # NEVER closing backend if closing instances, even for the
                 # parent. It will be closed at Python exit automatically.
                 Viewer._backend_robot_names.clear()
                 Viewer.detach_camera()
-                if Viewer.backend == 'meshcat' and \
-                        Viewer._backend_obj is not None:
+                if Viewer.backend == 'meshcat' and Viewer.is_alive():
                     Viewer._backend_obj.close()
                     _ProcessWrapper(Viewer._backend_obj.recorder.proc).kill()
-                if Viewer.is_open():
                     Viewer._backend_proc.kill()
                 Viewer._backend_obj = None
                 Viewer._backend_proc = None
@@ -613,17 +608,37 @@ class Viewer:
                 if (Viewer._camera_travelling is not None and
                         Viewer._camera_travelling['viewer'] is self):
                     Viewer.detach_camera()
-                self.__is_open = False
 
-            if self._tempdir.startswith(tempfile.gettempdir()):
-                try:
-                    shutil.rmtree(self._tempdir)
-                except FileNotFoundError:
-                    pass
-            if Viewer.backend == 'meshcat' and Viewer._backend_obj is not None:
-                Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
-        except Exception:  # This method must not fail under any circumstances
+                # Check if the backend process has changed, which may happend
+                # if it has been closed manually in the meantime. If so, there
+                # is nothing left to do.
+                if Viewer._backend_proc is not self._backend_proc:
+                    return
+
+                # Make sure zmq does not hang
+                if Viewer.backend == 'meshcat' and Viewer.is_alive():
+                    Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = 50
+
+                # Consider that the robot name is now available, no matter
+                # whether the robot has actually been deleted or not.
+                Viewer._backend_robot_names.discard(self.robot_name)
+                if self.delete_robot_on_close:
+                    Viewer._delete_nodes_viewer(
+                        ['/'.join((self.scene_name, self.robot_name))])
+
+                if Viewer.backend == 'meshcat':
+                    Viewer._backend_obj.gui.window.zmq_socket.RCVTIMEO = -1
+
+                if self._tempdir.startswith(tempfile.gettempdir()):
+                    try:
+                        shutil.rmtree(self._tempdir)
+                    except FileNotFoundError:
+                        pass
+        except Exception:  # Do not fail under any circumstances
             pass
+
+        # At this point, consider the viewer has been closed, no matter what
+        self.__is_open = False
 
     @staticmethod
     def _get_colorized_urdf(robot: jiminy.Robot,
