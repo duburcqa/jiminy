@@ -4,7 +4,7 @@ import asyncio
 import logging
 import threading
 import tornado.ioloop
-from contextlib import redirect_stdout
+from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional, Sequence, Dict, Any
 
 import zmq
@@ -259,7 +259,8 @@ class MeshcatWrapper:
 
         # Connect to the meshcat server
         with open(os.devnull, 'w') as stdout, redirect_stdout(stdout):
-            self.gui = meshcat.Visualizer(zmq_url)
+            with open(os.devnull, 'w') as stderr, redirect_stderr(stderr):
+                self.gui = meshcat.Visualizer(zmq_url)
         self.__zmq_socket = self.gui.window.zmq_socket
 
         # Create a backend recorder. It is not fully initialized to reduce

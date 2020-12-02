@@ -441,12 +441,6 @@ class Simulator:
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
         if not (self._is_viewer_available and self._viewer.is_alive()):
-            # Reset viewer backend if the existing viewer backend is no
-            # longer available for some reason.
-            if self._is_viewer_available:
-                self._viewer.close()
-                self._is_viewer_available = False
-
             # Generate a new unique identifier if necessary
             if self._viewer is None:
                 uniq_id = next(tempfile._get_candidate_names())
@@ -470,7 +464,7 @@ class Simulator:
             self.viewer_backend = Viewer.backend
             if self._viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
-            self._viewer.wait(False)  # Wait for backend to finish loading
+            self._viewer.wait(require_client=False)  # Wait to finish loading
             self._is_viewer_available = True
 
         # Set the camera pose if requested

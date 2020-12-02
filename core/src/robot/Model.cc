@@ -19,11 +19,11 @@ namespace jiminy
 {
     Model::Model(void) :
     pncModel_(),
-    pncData_(pncModel_),
+    pncData_(),
     pncGeometryModel_(),
     pncGeometryData_(nullptr),
     pncModelRigidOrig_(),
-    pncDataRigidOrig_(pncModelRigidOrig_),
+    pncDataRigidOrig_(),
     mdlOptions_(nullptr),
     contactForces_(),
     isInitialized_(false),
@@ -69,11 +69,10 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Backup the original model and data
-            pncModelRigidOrig_ = pncModel_;
             pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
 
-            // Initialize Pinocchio data internal state, including
-            // stuffs as simple as the mass of the bodies.
+            // Initialize Pinocchio data internal state, including basic
+            // attributes such as the mass of each body.
             pinocchio::forwardKinematics(pncModelRigidOrig_,
                                          pncDataRigidOrig_,
                                          pinocchio::neutral(pncModelRigidOrig_),
@@ -87,10 +86,10 @@ namespace jiminy
                remove the 'universe' and 'root' if any, since they
                are not actual joints. */
             rigidJointsNames_ = pncModelRigidOrig_.names;
-            rigidJointsNames_.erase(rigidJointsNames_.begin()); // remove the 'universe'
+            rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove the 'universe'
             if (hasFreeflyer)
             {
-                rigidJointsNames_.erase(rigidJointsNames_.begin()); // remove the 'root'
+                rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove the 'root'
             }
         }
 
@@ -1019,15 +1018,16 @@ namespace jiminy
         try
         {
             // Build robot physics model
+            pncModelRigidOrig_ = pinocchio::Model();
             if (hasFreeflyer)
             {
                 pinocchio::urdf::buildModel(urdfPath,
                                             pinocchio::JointModelFreeFlyer(),
-                                            pncModel_);
+                                            pncModelRigidOrig_);
             }
             else
             {
-                pinocchio::urdf::buildModel(urdfPath, pncModel_);
+                pinocchio::urdf::buildModel(urdfPath, pncModelRigidOrig_);
             }
         }
         catch (std::exception const & e)
@@ -1040,7 +1040,8 @@ namespace jiminy
         try
         {
             // Build robot geometry model
-            pinocchio::urdf::buildGeom(pncModel_,
+            pncGeometryModel_ = pinocchio::GeometryModel();
+            pinocchio::urdf::buildGeom(pncModelRigidOrig_,
                                        urdfPath,
                                        pinocchio::COLLISION,
                                        pncGeometryModel_,
@@ -1086,7 +1087,7 @@ namespace jiminy
         pinocchio::GeometryObject groundPlane("ground", 0, 0, groudBox, groundPose);
 
         // Add the ground plane pinocchio to the robot model
-        pncGeometryModel_.addGeometryObject(groundPlane, pncModel_);
+        pncGeometryModel_.addGeometryObject(groundPlane, pncModelRigidOrig_);
 
         return hresult_t::SUCCESS;
     }

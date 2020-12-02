@@ -55,7 +55,7 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        // Remove all the motors and sensors
+        // Detach all the motors and sensors
         detachSensors({});
         detachMotors({});
 

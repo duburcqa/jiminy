@@ -14,7 +14,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 
 from meshcat.servers.tree import walk, find_node
 from meshcat.servers.zmqserver import (
-    DEFAULT_ZMQ_METHOD, VIEWER_ROOT,
+    DEFAULT_ZMQ_METHOD, VIEWER_ROOT, StaticFileHandlerNoCache,
     ZMQWebSocketBridge, WebSocketHandler, find_available_port)
 
 
@@ -35,7 +35,7 @@ WebSocketHandler.check_origin = lambda self, origin: True
 # three js "controls" of the camera, so that it can be moved
 # programmatically in any position, without any constraint, as
 # long as the user is not moving it manually using the mouse.
-class MyFileHandler(tornado.web.StaticFileHandler):
+class MyFileHandler(StaticFileHandlerNoCache):
     def initialize(self,
                    default_path: str,
                    default_filename: str,
@@ -44,10 +44,6 @@ class MyFileHandler(tornado.web.StaticFileHandler):
         self.default_filename = default_filename
         self.fallback_path = os.path.abspath(fallback_path)
         super().initialize(self.default_path, self.default_filename)
-
-    def set_extra_headers(self, path: str) -> None:
-        self.set_header('Cache-Control',
-                        'no-store, no-cache, must-revalidate, max-age=0')
 
     def validate_absolute_path(self,
                                root: str,

@@ -662,7 +662,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `viewer.play_trajectories` method.
         """
-        self.simulator.replay(**kwargs)
+        self.simulator.replay(**{'verbose': False, **kwargs})
 
     @loop_interactive()
     def play_interactive(self, key: Optional[str] = None) -> bool:

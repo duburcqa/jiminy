@@ -72,6 +72,7 @@ setup(
         # Used internally for interpolation and filtering.
         "scipy",
         # Standard library to generate figures.
+        # 3.3 is broken on Windows 64 bits and cannot be installed properly.
         "matplotlib<3.3",
         # Used internally to read HDF5 format log files.
         "h5py",
@@ -81,6 +82,9 @@ setup(
         # Parser for Jiminy's hardware description file.
         "toml",
         # Web-based mesh visualizer used as Viewer's backend.
+        # 0.19.0 introduces many new features, including loading generic
+        # geometries and jiminy_py viewer releases on it for rendering
+        # collision bodies.
         "meshcat>=0.0.19",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
@@ -116,6 +120,8 @@ setup(
       "gepetto": [
           # Used internally by Viewer to record video programmatically while
           # using Gepetto-viewer as backend.
+          # 4.3.0.36 is broken on Windows 64 bits because of some dependency
+          # not providing pre-compiled wheels.
           "opencv-python-headless<=4.3.0.36"
       ]
     },
