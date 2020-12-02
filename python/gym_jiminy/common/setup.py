@@ -24,6 +24,9 @@ setup(
         "simulator and Reinforcement Learning frameworks."),
     author="Alexis Duburcq",
     author_email="alexis.duburcq@wandercraft.eu",
+    url="https://github.com/Wandercraft/jiminy",
+    download_url=("https://github.com/Wandercraft/jiminy/archive/"
+                  "@PROJECT_VERSION@.tar.gz"),
     maintainer="Wandercraft",
     license="MIT",
     python_requires=">=3.6",
@@ -40,8 +43,14 @@ setup(
     keywords="reinforcement-learning robotics gym jiminy",
     packages=find_namespace_packages(),
     install_requires=[
-        "gym>=0.16.0",
-        "numba",
+        # Standard interface library for reinforcement learning.
+        # 0.17.3 introduces iterable space dict.
+        "gym>=0.17.3",
+        # Use internally to speedup computation of simple methods.
+        # Disable automatic forward compatibility with newer versions because
+        # numba relies on llvmlite, for which wheels take some time before
+        # being available on Pypi, making the whole installation process fail.
+        "numba<0.53",
         f"jiminy-py~={version_required}"
     ],
     extras_require=extras,
