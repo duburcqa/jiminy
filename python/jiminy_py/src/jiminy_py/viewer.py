@@ -159,7 +159,10 @@ class _ProcessWrapper:
         if self.is_parent() and self.is_alive():
             # Try to terminate cleanly
             self._proc.terminate()
-            self.wait(timeout=0.5)
+            try:
+                self.wait(timeout=0.5)
+            except (subprocess.TimeoutExpired, multiprocessing.TimeoutError):
+                pass
 
             # Force kill if necessary and reap the zombies
             try:
@@ -537,7 +540,7 @@ class Viewer:
                         "Please install one manually.")
                     return  # Skip waiting since there is nothing to wait for
 
-            # Wait for the display to finish loading
+            # Wait to finish loading
             Viewer.wait(require_client=True)
 
     @staticmethod
@@ -590,8 +593,6 @@ class Viewer:
                 # whether the robot has actually been deleted or not.
                 Viewer._backend_robot_names.discard(self.robot_name)
                 if self.delete_robot_on_close:
-                    # In case 'close' is called twice.
-                    self.delete_robot_on_close = False
                     Viewer._delete_nodes_viewer(
                         ['/'.join((self.scene_name, self.robot_name))])
             if self == Viewer:
@@ -838,7 +839,7 @@ class Viewer:
 
     @staticmethod
     @__must_be_open
-    def _delete_nodes_viewer(nodes_path: str) -> None:
+    def _delete_nodes_viewer(nodes_path: Sequence[str]) -> None:
         """Delete a 'node' in Gepetto-viewer.
 
         .. note::
@@ -848,16 +849,12 @@ class Viewer:
 
         :param nodes_path: Full path of the node to delete
         """
-        try:
-            if Viewer.backend.startswith('gepetto'):
-                for node_path in nodes_path:
-                    if node_path in Viewer._backend_obj.gui.getNodeList():
-                        Viewer._backend_obj.gui.deleteNode(node_path, True)
-            else:
-                for node_path in nodes_path:
-                    Viewer._backend_obj.gui[node_path].delete()
-        except Viewer._backend_exceptions:
-            pass
+        if Viewer.backend.startswith('gepetto'):
+            for node_path in nodes_path:
+                Viewer._backend_obj.gui.deleteNode(node_path, True)
+        else:
+            for node_path in nodes_path:
+                Viewer._backend_obj.gui[node_path].delete()
 
     @__must_be_open
     def set_camera_transform(self,
@@ -1174,7 +1171,7 @@ class Viewer:
 
             # Wait for the backend viewer to finish rendering if requested
             if wait:
-                Viewer.wait()
+                Viewer.wait(require_client=False)
 
     @__must_be_open
     def display(self,
