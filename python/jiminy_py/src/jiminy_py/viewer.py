@@ -49,6 +49,16 @@ DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
 
+DEFAULT_URDF_COLORS = {
+    'green': (0.4, 0.7, 0.3, 1.0),
+    'purple': (0.6, 0.0, 0.9, 1.0),
+    'orange': (1.0, 0.45, 0.0, 1.0),
+    'cyan': (0.2, 0.7, 1.0, 1.0),
+    'red': (0.9, 0.15, 0.15, 1.0),
+    'yellow': (1.0, 0.7, 0.0, 1.0),
+    'blue': (0.25, 0.25, 1.0, 1.0)
+}
+
 
 # Determine set the of available backends
 backends_available = {'meshcat': MeshcatVisualizer}
@@ -1410,19 +1420,13 @@ def play_trajectories(trajectory_data: Union[
         if len(trajectory_data) == 1:
             urdf_rgba = [None]
         else:
-            colors = [
-                [0.4, 0.7, 0.3, 1.0],    # Green
-                [0.6, 0.0, 0.9, 1.0],    # Purple
-                [1.0, 0.45, 0.0, 1.0],   # Orange
-                [0.2, 0.7, 1.0, 1.0],    # Cyan
-                [0.9, 0.15, 0.15, 1.0],  # Red
-                [1.0, 0.7, 0.0, 1.0],    # Yellow
-                [0.25, 0.25, 1.0, 1.0],  # Blue
-            ]
-            urdf_rgba = list(islice(cycle(colors), len(trajectory_data)))
-    if urdf_rgba and urdf_rgba[0] is not None and not isinstance(
-            urdf_rgba[0], (list, tuple)):
+            urdf_rgba = list(islice(
+                cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
+    if not isinstance(urdf_rgba, list) or isinstance(urdf_rgba[0], float):
         urdf_rgba = [urdf_rgba]
+    for i, color in enumerate(urdf_rgba):
+        if isinstance(color, str):
+            urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
     assert len(urdf_rgba) == len(trajectory_data)
 
     if viewers is not None:
