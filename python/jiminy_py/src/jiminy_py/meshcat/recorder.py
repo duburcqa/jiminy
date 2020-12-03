@@ -300,7 +300,7 @@ class MeshcatRecorder:
 
         self.is_open = True
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.release()
 
     def release(self) -> None:

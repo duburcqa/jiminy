@@ -196,7 +196,7 @@ class CommManager:
         self.__kernel.comm_manager.register_target(
             'meshcat', self.__comm_register)
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
     def close(self) -> None:
@@ -289,7 +289,7 @@ class MeshcatWrapper:
         # Make sure the server is properly closed
         atexit.register(self.close)
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()
 
     def close(self) -> None:

@@ -360,7 +360,7 @@ class Viewer:
         # visibility mode are not properly set at this point.
         self.refresh()
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor.
 
         .. note::
@@ -368,7 +368,7 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct: Callable):
+    def __must_be_open(fct: Callable) -> Callable:
         @wraps(fct)
         def fct_safe(*args, **kwargs):
             self = None
@@ -385,7 +385,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple4FType] = None):
+               urdf_rgba: Optional[Tuple4FType] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::

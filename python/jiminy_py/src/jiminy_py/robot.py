@@ -817,7 +817,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     options[name] = value
                 sensor.set_options(options)
 
-    def __del__(self):
+    def __del__(self) -> None:
         if self.urdf_path != self.urdf_path_orig:
             try:
                 os.remove(self.urdf_path)
