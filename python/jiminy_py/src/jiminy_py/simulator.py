@@ -485,6 +485,10 @@ class Simulator:
                        `viewer.play_trajectories` method.
         """
         log_data, _ = self.get_log()
+        if not log_data:
+            raise RuntimeError(
+                "Nothing to replay. Please run a simulation before calling "
+                "`replay` method.")
         self._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self._viewer],
             **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]
