@@ -1,32 +1,25 @@
 `tlmc` Version 1 format specification
 =====================================
 
-This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply
-a standard HDF-5 file with compression enable, that can be openned with any HDF-5 reader. This document specifies the
-organisation of data in this file.
+This file describes the content of the so-called `tlmc` format. `tlmc` stands for compressed telemetry: it is simply a standard HDF-5 file with compression enable, that can be openned with any HDF-5 reader. This document specifies the organization of data in this file.
 
 The examples in this document are made using the `h5py` library ; `file` is an `h5py.File` object.
 
 The telemetry of the robot outputs two different types of object: constants, wich are (key, value) pairs, and variables.
-Variables each have a unique name, and consists of two time series: one for time, one for values. Variables can have
-various basic types, and can have metadatas associated to them.
+Variables each have a unique name, and consists of two time series: one for time, one for values. Variables can have various basic types, and can have metadatas associated to them.
 
 The `tlmc` will be organised as follow:
 
- - The root group shall contain an attribute 'TLMC_VERSION', which stores an int specifying the version of the `tlmc`
- standard use. This document describes `VERSION=1`.
+ - The root group shall contain an attribute 'TLMC_VERSION', which stores an int specifying the version of the `tlmc` standard use. This document describes `VERSION=1`.
 
- - The root group shall contain an attribute 'START_TIME', which stores a float specifying the absolute start time of the log,
- in second relative to the UNIX epoch.
+ - The root group shall contain an attribute 'START_TIME', which stores a long specifying the absolute start time of the log, in second relative to the UNIX epoch.
 
  - A group `constants` will store the original telemetry constants in its attribute dictionary. As a reminder, only string type constant is supported.
 
  - A second group `variables` will store the variables.
     - Each subgroup `variableName` represents a variable, originally named `variableName`. Each variable group contains:
         - A `value` 1D dataset representing the variable's values through time.
-        - A `time` 1D dataset representing the time instants relative to the 'START_TIME' file constant. This dataset
-        will contain an attribute `unit` specifying the ratio to SI unit (i.e. 1 second). For instance when using
-        nanoseconds, `file["variables/myvariable/time"].attrs["unit"]` evaluates to `1e-9`.
+        - A `time` 1D dataset representing the time instants relative to the 'START_TIME' file constant. This dataset will contain an attribute `unit` specifying the ratio to SI unit (i.e. 1 second). For instance when using nanoseconds, `file["variables/myvariable/time"].attrs["unit"]` evaluates to `1e-9`.
         - Variable-specific metadatas stored in the group's attribute.
 
 For storage efficiency, all datasets will be stored using the 'gzip' filter with compression level of 4, and the 'shuffle' filter. The chunk size is equal to the number of timestamps to maxing-out reading performances. These are enabled in `h5py` using the following flags:
@@ -45,7 +38,7 @@ GROUP "/" {
       DATATYPE  H5T_IEEE_F64LE
       DATASPACE  SCALAR
       DATA {
-      (0): 1.60068e+09
+      (0): 1607002673
       }
    }
    ATTRIBUTE "VERSION" {
@@ -57,12 +50,7 @@ GROUP "/" {
    }
    GROUP "constants" {
       ATTRIBUTE "NumIntEntries" {
-         DATATYPE  H5T_STRING {
-            STRSIZE 1;
-            STRPAD H5T_STR_NULLTERM;
-            CSET H5T_CSET_ASCII;
-            CTYPE H5T_C_S1;
-         }
+         DATATYPE  H5T_STRING
          DATASPACE  SCALAR
          DATA {
          (0): "1"
