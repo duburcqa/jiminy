@@ -307,7 +307,7 @@ class Simulator:
         if self._is_viewer_available:
             try:
                 self._viewer._setup(self.robot)
-            except Viewer._backend_exceptions:
+            except RuntimeError:
                 self._viewer.close()
                 self._is_viewer_available = False
 
@@ -444,9 +444,9 @@ class Simulator:
             # Generate a new unique identifier if necessary
             if self._viewer is None:
                 uniq_id = next(tempfile._get_candidate_names())
-                robot_name = "_".join(("robot", uniq_id))
-                scene_name = "_".join(("scene", uniq_id))
-                window_name = "_".join(("window", uniq_id))
+                robot_name = f"{uniq_id}_robot"
+                scene_name = f"{uniq_id}_scene"
+                window_name = f"{uniq_id}_window"
             else:
                 robot_name = self._viewer.robot_name
                 scene_name = self._viewer.scene_name
