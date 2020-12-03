@@ -2038,6 +2038,12 @@ namespace python
             bp::dict variables;
             bp::dict constants;
 
+            // Early return if empty
+            if (logData.header.empty())
+            {
+                return bp::make_tuple(bp::dict(), bp::dict());
+            }
+
             // Get constants
             int32_t const lastConstantIdx = std::distance(
                 logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
