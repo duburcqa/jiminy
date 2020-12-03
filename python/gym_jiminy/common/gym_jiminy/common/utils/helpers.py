@@ -63,7 +63,10 @@ def set_value(data: SpaceDictNested,
         for field, sub_val in value.items():
             set_value(data[field], sub_val)
     elif isinstance(data, np.ndarray):
-        np.copyto(data, value)
+        try:
+            np.copyto(data, value)
+        except TypeError as e:
+            raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported by this method.")
