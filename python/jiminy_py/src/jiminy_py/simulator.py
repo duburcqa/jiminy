@@ -207,11 +207,7 @@ class Simulator:
         .. note::
             This method is not meant to be called manually.
         """
-        if name != 'engine' and hasattr(self, 'engine'):
-            return getattr(self.engine, name)
-        else:
-            return AttributeError(
-                f"'{self.__class__}' object has no attribute '{name}'.")
+        return getattr(self.engine, name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
