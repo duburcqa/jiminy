@@ -109,19 +109,18 @@ class PDController(BaseControllerBlock):
         vel_low = vel_low[self.motor_to_encoder]
 
         # Set the action space. Note that it is flattened.
-        self.action_space = gym.spaces.Dict([
-            (encoder.fieldnames[0], gym.spaces.Box(
-                low=pos_low, high=pos_high, dtype=np.float64)),
-            (encoder.fieldnames[1], gym.spaces.Box(
-                low=vel_low, high=vel_high, dtype=np.float64))])
+        self.action_space = gym.spaces.Dict(
+            Q=gym.spaces.Box(
+                low=pos_low, high=pos_high, dtype=np.float64),
+            V=gym.spaces.Box(
+                low=vel_low, high=vel_high, dtype=np.float64))
 
     def get_fieldnames(self) -> FieldDictNested:
         pos_fieldnames = [f"targetPosition{name}"
                           for name in self.robot.motors_names]
         vel_fieldnames = [f"targetVelocity{name}"
                           for name in self.robot.motors_names]
-        return OrderedDict(zip(
-            encoder.fieldnames, (pos_fieldnames, vel_fieldnames)))
+        return OrderedDict(Q=pos_fieldnames, V=vel_fieldnames)
 
     def compute_command(self,
                         measure: SpaceDictNested,
@@ -136,9 +135,7 @@ class PDController(BaseControllerBlock):
         :param action: Desired motors positions and velocities as a dictionary.
         """
         return _compute_command_impl(
-            q_target=action[encoder.fieldnames[0]],
-            v_target=action[encoder.fieldnames[1]],
+            q_target=action['Q'], v_target=action['V'],
             encoders_data=measure['sensors'][encoder.type],
             motor_to_encoder=self.motor_to_encoder,
-            pid_kp=self.pid_kp,
-            pid_kd=self.pid_kd)
+            pid_kp=self.pid_kp, pid_kd=self.pid_kd)

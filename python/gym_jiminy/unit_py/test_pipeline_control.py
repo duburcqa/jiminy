@@ -35,12 +35,13 @@ class PipelineControlAtlas(unittest.TestCase):
 
         obs_init = self.env.reset(controller_hook=configure_telemetry)
 
-        # The initial target corresponds to the initial joints state, so that
-        # the robot stand-still.
+        # Compute the initial target, so that the robot stand-still.
+        # In practice, it corresponds to the initial joints state.
         encoder_data = obs_init['sensors'][encoder.type]
-        action_init = dict(zip(
-            encoder.fieldnames,
-            encoder_data[:, self.env.controller.motor_to_encoder]))
+        action_init = {}
+        action_init['Q'], action_init['V'] = encoder_data[
+            :, self.env.controller.motor_to_encoder]
+
         # Run the simulation during 3s
         for _ in range(3000):
             self.env.step(action_init)
@@ -63,13 +64,11 @@ class PipelineControlAtlas(unittest.TestCase):
         # Get the simulation log
         log_data, _ = self.env.get_log()
 
-        # Check that joint velocity target is zero
-        controller_fieldnames = self.env.controller.get_fieldnames()
-        target_pos_name = controller_fieldnames[encoder.fieldnames[1]][0]
-        log_name = '.'.join((
-            'HighLevelController', self.env.controller_name, target_pos_name))
-        data = log_data[log_name]
-        self.assertTrue(np.all(np.abs(data) < 1e-9))
+        # Check that the joint velocity target is zero
+        velocity_target = np.stack([
+            log_data['.'.join(('HighLevelController', name))]
+            for name in self.env.controller.get_fieldnames()['V']], axis=-1)
+        self.assertTrue(np.all(np.abs(velocity_target[-1000:]) < 1e-9))
 
         # Check that the whole-body robot velocity is close to zero at the end
         velocity_mes = np.stack([

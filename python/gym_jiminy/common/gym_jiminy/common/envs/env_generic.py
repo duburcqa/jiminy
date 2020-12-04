@@ -196,13 +196,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             position_limit_upper = position_limit_upper[joints_position_idx]
             velocity_limit = velocity_limit[joints_velocity_idx]
 
-        return gym.spaces.Dict(OrderedDict(zip(encoder.fieldnames, (
-            gym.spaces.Box(low=position_limit_lower,
-                           high=position_limit_upper,
-                           dtype=np.float64),
-            gym.spaces.Box(low=-velocity_limit,
-                           high=velocity_limit,
-                           dtype=np.float64)))))
+        return gym.spaces.Dict(
+            Q=gym.spaces.Box(low=position_limit_lower,
+                             high=position_limit_upper,
+                             dtype=np.float64),
+            V=gym.spaces.Box(low=-velocity_limit,
+                             high=velocity_limit,
+                             dtype=np.float64))
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -237,8 +237,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         sensors_data = self.robot.sensors_data
         effort_limit = self.robot.effort_limit
 
-        position_space, velocity_space = self._get_state_space(
-            use_theoretical_model=False).spaces.values()
+        state_space = self._get_state_space(use_theoretical_model=False)
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -272,9 +271,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
-                    sensor_position_lower = position_space.low[joint.idx_q]
-                    sensor_position_upper = position_space.high[joint.idx_q]
-                sensor_velocity_limit = velocity_space.high[joint.idx_v]
+                    sensor_position_lower = state_space['Q'].low[joint.idx_q]
+                    sensor_position_upper = state_space['Q'].high[joint.idx_q]
+                sensor_velocity_limit = state_space['V'].high[joint.idx_v]
 
                 # Update the bounds accordingly
                 sensor_space_lower[encoder.type][0, sensor_idx] = \
@@ -823,9 +822,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         self._observation['t'][0] = self.stepper_state.t
         if self.simulator.use_theoretical_model and self.robot.is_flexible:
-            for field, value in zip((
-                    encoder.fieldnames, self.simulator.state)):
-                self._observation['t'][field] = value
+            (self._observation['state']['Q'],
+             self._observation['state']['V']) = self.simulator.state
         return self._observation
 
     def compute_command(self,
