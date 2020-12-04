@@ -463,10 +463,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 observer_handle, controller_handle = handles
         if observer_handle is None:
             observer_handle = self._observer_handle
-        self.simulator.controller.set_observer_handle(observer_handle)
+        self.simulator.controller.set_observer_handle(
+            observer_handle, unsafe=True)
         if controller_handle is None:
             controller_handle = self._controller_handle
-        self.simulator.controller.set_controller_handle(controller_handle)
+        self.simulator.controller.set_controller_handle(
+            controller_handle, unsafe=True)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -809,17 +811,22 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
     def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
+
+        .. warning::
+            In practice, it updates the internal buffer directly for the sake
+            of efficiency.
         """
         # pylint: disable=arguments-differ
 
-        # Update some internal buffers
-        if self.simulator.is_simulation_running:
-            self._state = self.simulator.state
+        # Assertion(s) for type checker
+        assert self.stepper_state is not None and self.sensors_data is not None
 
-        return OrderedDict(
-            t=np.array([self.simulator.stepper_state.t]),
-            state=np.concatenate(self._state),
-            sensors=self._sensors_data)
+        self._observation['t'][0] = self.stepper_state.t
+        if self.simulator.use_theoretical_model and self.robot.is_flexible:
+            for field, value in zip((
+                    encoder.fieldnames, self.simulator.state)):
+                self._observation['t'][field] = value
+        return self._observation
 
     def compute_command(self,
                         measure: SpaceDictNested,

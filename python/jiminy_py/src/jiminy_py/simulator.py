@@ -223,31 +223,27 @@ class Simulator:
         return super().__dir__() + self.engine.__dir__()
 
     @property
-    def state(self) -> np.ndarray:
+    def state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Getter of the current state of the robot.
 
         .. warning::
             Return a reference whenever it is possible, which is
             computationally efficient but unsafe.
         """
-        if self.engine.is_simulation_running:
-            q = self.engine.system_state.q
-            v = self.engine.system_state.v
-            if self.robot.is_flexible and self.use_theoretical_model:
-                q = self.robot.get_rigid_configuration_from_flexible(q)
-                v = self.robot.get_rigid_velocity_from_flexible(v)
-            else:
-                return q, v
+        q = self.system_state.q
+        v = self.system_state.v
+        if self.use_theoretical_model and self.robot.is_flexible:
+            q = self.robot.get_rigid_configuration_from_flexible(q)
+            v = self.robot.get_rigid_velocity_from_flexible(v)
         else:
-            raise RuntimeError(
-                "No simulation running. Impossible to get current state.")
+            return q, v
 
     @property
     def pinocchio_model(self) -> pin.Model:
         """Getter of the pinocchio model, depending on the value of
            'use_theoretical_model'.
         """
-        if self.robot.is_flexible and self.use_theoretical_model:
+        if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_model_th
         else:
             return self.robot.pinocchio_model
@@ -257,7 +253,7 @@ class Simulator:
         """Getter of the pinocchio data, depending on the value of
            'use_theoretical_model'.
         """
-        if self.robot.is_flexible and self.use_theoretical_model:
+        if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         else:
             return self.robot.pinocchio_data
