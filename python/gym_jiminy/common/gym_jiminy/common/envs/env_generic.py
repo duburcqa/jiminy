@@ -192,20 +192,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Define bounds of the state space
         if use_theoretical_model:
-            state_limit_lower = np.concatenate((
-                position_limit_lower[joints_position_idx],
-                -velocity_limit[joints_velocity_idx]))
-            state_limit_upper = np.concatenate((
-                position_limit_upper[joints_position_idx],
-                velocity_limit[joints_velocity_idx]))
-        else:
-            state_limit_lower = np.concatenate((
-                position_limit_lower, -velocity_limit))
-            state_limit_upper = np.concatenate((
-                position_limit_upper, velocity_limit))
+            position_limit_lower = position_limit_lower[joints_position_idx]
+            position_limit_upper = position_limit_upper[joints_position_idx]
+            velocity_limit = velocity_limit[joints_velocity_idx]
 
-        return gym.spaces.Box(
-            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
+        return gym.spaces.Dict(OrderedDict(zip(encoder.fieldnames, (
+            gym.spaces.Box(low=position_limit_lower,
+                           high=position_limit_upper,
+                           dtype=np.float64),
+            gym.spaces.Box(low=-velocity_limit,
+                           high=velocity_limit,
+                           dtype=np.float64)))))
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -240,7 +237,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         sensors_data = self.robot.sensors_data
         effort_limit = self.robot.effort_limit
 
-        state_space = self._get_state_space(use_theoretical_model=False)
+        position_space, velocity_space = self._get_state_space(
+            use_theoretical_model=False).spaces.values()
 
         # Replace inf bounds of the action space
         for motor_name in self.robot.motors_names:
@@ -274,10 +272,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
-                    sensor_position_lower = state_space.low[joint.idx_q]
-                    sensor_position_upper = state_space.high[joint.idx_q]
-                sensor_velocity_limit = state_space.high[
-                    self.robot.nq + joint.idx_v]
+                    sensor_position_lower = position_space.low[joint.idx_q]
+                    sensor_position_upper = position_space.high[joint.idx_q]
+                sensor_velocity_limit = velocity_space.high[joint.idx_v]
 
                 # Update the bounds accordingly
                 sensor_space_lower[encoder.type][0, sensor_idx] = \
