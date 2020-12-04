@@ -4,6 +4,7 @@ from collections import OrderedDict
 from typing import Union, Any, List
 
 import numpy as np
+import numba as nb
 import gym
 
 from jiminy_py.core import EncoderSensor as encoder
@@ -11,6 +12,32 @@ from jiminy_py.core import EncoderSensor as encoder
 from ..bases import BaseControllerBlock
 from ..envs import BaseJiminyEnv
 from ..utils import SpaceDictNested, FieldDictNested
+
+
+@nb.jit(nopython=True, nogil=True)
+def _compute_command_impl(q_target: np.ndarray,
+                          v_target: np.ndarray,
+                          encoders_data: np.ndarray,
+                          motor_to_encoder: np.ndarray,
+                          pid_kp: np.ndarray,
+                          pid_kd: np.ndarray) -> np.ndarray:
+    """Implementation of PD control law.
+
+    .. note::
+        Used internally by `PDController` to compute command but separated to
+        allow precompilation. It is not meant to be called manually.
+
+    :meta private:
+    """
+    # Estimate position and motor velocity from encoder data
+    q_measured, v_measured = encoders_data[:, motor_to_encoder]
+
+    # Compute the joint tracking error
+    q_error = q_measured - q_target
+    v_error = v_measured - v_target
+
+    # Compute PD command
+    return - pid_kp * (q_error + pid_kd * v_error)
 
 
 class PDController(BaseControllerBlock):
@@ -44,20 +71,21 @@ class PDController(BaseControllerBlock):
             sensor = env.robot.get_sensor(encoder.type, name)
             encoder_joints.append(sensor.joint_name)
 
-        self.motor_to_encoder = []
+        motor_to_encoder = []
         for name in env.robot.motors_names:
             motor = env.robot.get_motor(name)
             motor_joint = motor.joint_name
             encoder_found = False
             for i, encoder_joint in enumerate(encoder_joints):
                 if motor_joint == encoder_joint:
-                    self.motor_to_encoder.append(i)
+                    motor_to_encoder.append(i)
                     encoder_found = True
                     break
             if not encoder_found:
                 raise RuntimeError(
                     f"No encoder sensor associated with motor '{name}'. Every "
                     "actuated joint must have an encoder sensor attached.")
+        self.motor_to_encoder = np.array(motor_to_encoder)
 
         # Initialize the controller
         super().__init__(env, update_ratio)
@@ -107,17 +135,10 @@ class PDController(BaseControllerBlock):
         :param measure: Observation of the environment.
         :param action: Desired motors positions and velocities as a dictionary.
         """
-        # Update the internal state of the controller
-        q_target = action[encoder.fieldnames[0]]
-        v_target = action[encoder.fieldnames[1]]
-
-        # Estimate position and motor velocity from encoder data
-        encoders_data = measure['sensors'][encoder.type]
-        q_measured, v_measured = encoders_data[:, self.motor_to_encoder]
-
-        # Compute the joint tracking error
-        q_error = q_measured - q_target
-        v_error = v_measured - v_target
-
-        # Compute PD command
-        return - self.pid_kp * (q_error + self.pid_kd * v_error)
+        return _compute_command_impl(
+            q_target=action[encoder.fieldnames[0]],
+            v_target=action[encoder.fieldnames[1]],
+            encoders_data=measure['sensors'][encoder.type],
+            motor_to_encoder=self.motor_to_encoder,
+            pid_kp=self.pid_kp,
+            pid_kd=self.pid_kd)
