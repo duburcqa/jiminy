@@ -832,15 +832,16 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it just clamps the target to make sure it does not violate
-        the lower and upper bounds. There is no further processing whatsoever
-        since the target is the command by default.
+        By default, it does not perform any processing for the sake of
+        efficiency. One is responsible of overloading this method to clip the
+        action if necessary to make sure it does not violate the lower and
+        upper bounds.
 
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
         set_value(self._action, action)
-        return clip(self.action_space, action)
+        return self._action
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:
         """Determine whether the episode is over.

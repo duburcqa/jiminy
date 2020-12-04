@@ -83,16 +83,15 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
     def get_observation(self, bypass: bool = False) -> SpaceDictNested:
         """Get post-processed observation.
 
-        By default, it returns either the original observation from the
-        environment, and the clamped computed features to make sure it does not
-        violate the lower and upper bounds for block observation space.
+        By default, it either forward the environment's observation without any
+        processing, or return a recursively shadow copied block observation.
 
         :param bypass: Whether to nor to return the original environment's
                        observation or the post-processed computed features.
         """
         if bypass:
             return self.env.get_observation()
-        return clip(self.observation_space, self._observation)
+        return super().get_observation()
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[

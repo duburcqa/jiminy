@@ -48,8 +48,11 @@ class ObserverInterface:
     def get_observation(self, bypass: bool = False) -> SpaceDictNested:
         """Get post-processed observation.
 
-        By default, it clamps the observation to make sure it does not violate
-        the lower and upper bounds.
+        By default, it does not perform any post-processing for the sake of
+        efficiency. One is responsible to clipping the observation if necessary
+        to make sure it does not violate the lower and upper bounds. This can
+        be done either by overloading this method, or in the case of pipeline
+        design, by adding a clipping  observation block at the very end.
 
         .. warning::
             In most cases, it is not necessary to overloaded this method, and
@@ -59,9 +62,7 @@ class ObserverInterface:
                        the original observation instead (yet recursively
                        shadow copied).
         """
-        if bypass:
-            return copy(self._observation)
-        return clip(self.observation_space, self._observation)
+        return copy(self._observation)
 
     # methods to override:
     # ----------------------------
