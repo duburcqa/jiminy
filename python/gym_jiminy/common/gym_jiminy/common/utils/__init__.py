@@ -2,7 +2,7 @@
 
 from .helpers import (
     SpaceDictNested, FieldDictNested,
-    zeros, fill, set_value, copy, _clamp,
+    zeros, fill, set_value, copy, clip,
     _is_breakpoint, register_variables)
 from .period_gaussian_process import PeriodicGaussianProcess
 
@@ -14,7 +14,7 @@ __all__ = [
     'fill',
     'set_value',
     'copy',
-    '_clamp',
+    'clip',
     '_is_breakpoint',
     'register_variables',
     'PeriodicGaussianProcess'

@@ -7,7 +7,7 @@ import gym
 
 import jiminy_py.core as jiminy
 
-from ..utils import _clamp, set_value, copy, SpaceDictNested
+from ..utils import clip, set_value, copy, SpaceDictNested
 
 
 class ObserverInterface:
@@ -61,7 +61,7 @@ class ObserverInterface:
         """
         if bypass:
             return copy(self._observation)
-        return _clamp(self.observation_space, self._observation)
+        return clip(self.observation_space, self._observation)
 
     # methods to override:
     # ----------------------------

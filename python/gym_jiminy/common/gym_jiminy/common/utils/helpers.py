@@ -84,19 +84,17 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
     return data
 
 
-def _clamp(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
-    """Clamp an element from Gym.Space to make sure it is within bounds.
-
-    :meta private:
+def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
+    """Clamp value from Gym.Space to make sure it is within bounds.
     """
     if isinstance(space, gym.spaces.Box):
         return np.core.umath.clip(value, space.low, space.high)
     if isinstance(space, gym.spaces.Dict):
         return OrderedDict(
-            (k, _clamp(subspace, value[k]))
+            (k, clip(subspace, value[k]))
             for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Discrete):
-        return np.core.umath.clip(value, 0, space.n)
+        return value  # No need to clip Discrete space.
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")
