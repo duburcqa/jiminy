@@ -185,9 +185,15 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             This method must be called once, after the environment has been
             reset. This is done automatically when calling `reset` method.
         """
+        # Reset some internal buffers
         fill(self._action, 0.0)
         fill(self._command, 0.0)
         fill(self._observation, 0.0)
+
+        # Refresh some proxies for fast lookup
+        self.stepper_state = self.env.stepper_state
+        self.system_state = self.env.system_state
+        self.sensors_data = self.env.sensors_data
 
     def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
         """Compute the unified observation.
@@ -347,7 +353,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         obs = super().compute_observation()
 
         # Update observed features if necessary
-        t = self.simulator.stepper_state.t
+        t = self.stepper_state.t
         if _is_breakpoint(t, self.observe_dt, self._dt_eps):
             features = self.observer.compute_observation(obs)
             if self.augment_observation:
@@ -536,7 +542,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # Note that `_observation` buffer has already been updated right before
         # calling this method by `_controller_handle`, so it can be used as
         # measure argument without issue.
-        t = self.simulator.stepper_state.t
+        t = self.stepper_state.t
         if _is_breakpoint(t, self.control_dt, self._dt_eps):
             target = self.controller.compute_command(self._observation, action)
             set_value(self._target, target)

@@ -86,6 +86,11 @@ class Simulator:
                 "Invalid robot or controller. Make sure they are both "
                 "initialized.")
 
+        # Create shared memory for efficiency
+        self.stepper_state = self.engine.stepper_state
+        self.system_state = self.engine.system_state
+        self.sensors_data = self.robot.sensors_data
+
         # Viewer management
         self._viewer = None
         self._is_viewer_available = False
@@ -328,10 +333,10 @@ class Simulator:
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
             self.controller.refresh_observation(
-                self.engine.stepper_state.t,
-                self.engine.system_state.q,
-                self.engine.system_state.v,
-                self.robot.sensors_data)
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
     def step(self, step_dt: float = -1) -> None:
         """Integrate system dynamics from current state for a given duration.
@@ -351,10 +356,10 @@ class Simulator:
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
             self.controller.refresh_observation(
-                self.engine.stepper_state.t,
-                self.engine.system_state.q,
-                self.engine.system_state.v,
-                self.robot.sensors_data)
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
     def run(self,
             tf: float,

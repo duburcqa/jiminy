@@ -180,7 +180,16 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
+    stepper_state: Optional[jiminy.StepperState]
+    system_state: Optional[jiminy.SystemState]
+    sensors_data: Optional[Dict[str, np.ndarray]]
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # Define some attributes
+        self.stepper_state = None
+        self.system_state = None
+        self.sensors_data = None
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)
 

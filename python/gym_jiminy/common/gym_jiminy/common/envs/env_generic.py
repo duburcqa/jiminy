@@ -105,9 +105,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._log_data: Optional[Dict[str, np.ndarray]] = None
         self.log_path: Optional[str] = None
 
-        # Initialize sensors data shared memory
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
-
         # Information about the learning process
         self._info: Dict[str, Any] = {}
 
@@ -130,7 +127,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space)
-        self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
         self._observation = zeros(self.observation_space)
 
     @property
@@ -420,9 +416,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Make sure the environment is properly setup
         self._setup()
 
-        # Re-initialize sensors data shared memory.
+        # Initialize shared memories.
         # It must be done because the robot may have changed.
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
+        self.stepper_state = self.simulator.stepper_state
+        self.system_state = self.simulator.system_state
+        self.sensors_data = dict(self.robot.sensors_data)
 
         # Set default action.
         # It will be used for the initial step.

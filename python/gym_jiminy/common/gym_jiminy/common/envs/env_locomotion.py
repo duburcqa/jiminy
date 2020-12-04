@@ -384,7 +384,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         # pylint: disable=arguments-differ
 
-        if self._state[0][2] < self._height_neutral * 0.75:
+        if self.system_state.q[2] < self._height_neutral * 0.75:
             return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
             return True
@@ -405,6 +405,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         # pylint: disable=arguments-differ
 
+        # Assertion(s) for type checker
+        assert self.system_state is not None
+
         reward_dict = info.setdefault('reward', {})
 
         # Define some proxies
@@ -412,7 +415,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         if 'energy' in reward_mixture_keys:
             v_mot = self.robot.sensors_data[encoder.type][1]
-            u_command = self.simulator.engine.system_state.u_command
+            u_command = self.system_state.u_command
             power_consumption = sum(np.maximum(u_command * v_mot, 0.0))
             power_consumption_rel = \
                 power_consumption / self._power_consumption_max

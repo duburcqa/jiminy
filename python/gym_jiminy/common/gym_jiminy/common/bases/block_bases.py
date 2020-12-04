@@ -48,6 +48,10 @@ class BlockInterface:
         self.env = env
         self.update_ratio = update_ratio
 
+        # Define some attributes
+        self.observation_space = None
+        self.action_space = None
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(**kwargs)  # type: ignore[call-arg]
 
@@ -74,12 +78,6 @@ class BlockInterface:
         to get consistent autocompletion wrt `getattr`.
         """
         return super().__dir__() + self.env.__dir__()  # type: ignore[operator]
-
-    @property
-    def system_state(self) -> jiminy.SystemState:
-        """Get low-level engine system state of the associated environment.
-        """
-        return self.simulator.engine.system_state
 
     # methods to override:
     # ----------------------------
