@@ -246,6 +246,6 @@ def test(test_agent: BasePolicy,
     """
     env = env_creator()
     collector = Collector(test_agent, env)
-    result = collector.collect(n_episode=1, render=env.dt)
+    result = collector.collect(n_episode=1, render=env.step_dt)
     if verbose:
         print(f"Final reward: {result['rew']}, length: {result['len']}")

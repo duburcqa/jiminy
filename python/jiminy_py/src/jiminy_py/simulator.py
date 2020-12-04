@@ -207,11 +207,7 @@ class Simulator:
         .. note::
             This method is not meant to be called manually.
         """
-        if name != 'engine' and hasattr(self, 'engine'):
-            return getattr(self.engine, name)
-        else:
-            return AttributeError(
-                f"'{self.__class__}' object has no attribute '{name}'.")
+        return getattr(self.engine, name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
@@ -307,7 +303,7 @@ class Simulator:
         if self._is_viewer_available:
             try:
                 self._viewer._setup(self.robot)
-            except Viewer._backend_exceptions:
+            except RuntimeError:
                 self._viewer.close()
                 self._is_viewer_available = False
 
@@ -444,9 +440,9 @@ class Simulator:
             # Generate a new unique identifier if necessary
             if self._viewer is None:
                 uniq_id = next(tempfile._get_candidate_names())
-                robot_name = "_".join(("robot", uniq_id))
-                scene_name = "_".join(("scene", uniq_id))
-                window_name = "_".join(("window", uniq_id))
+                robot_name = f"{uniq_id}_robot"
+                scene_name = f"{uniq_id}_scene"
+                window_name = f"{uniq_id}_window"
             else:
                 robot_name = self._viewer.robot_name
                 scene_name = self._viewer.scene_name
@@ -485,6 +481,10 @@ class Simulator:
                        `viewer.play_trajectories` method.
         """
         log_data, _ = self.get_log()
+        if not log_data:
+            raise RuntimeError(
+                "Nothing to replay. Please run a simulation before calling "
+                "`replay` method.")
         self._viewer = play_logfiles(
             [self.robot], [log_data], viewers=[self._viewer],
             **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]

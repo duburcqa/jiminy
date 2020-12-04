@@ -49,6 +49,16 @@ DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
 
+DEFAULT_URDF_COLORS = {
+    'green': (0.4, 0.7, 0.3, 1.0),
+    'purple': (0.6, 0.0, 0.9, 1.0),
+    'orange': (1.0, 0.45, 0.0, 1.0),
+    'cyan': (0.2, 0.7, 1.0, 1.0),
+    'red': (0.9, 0.15, 0.15, 1.0),
+    'yellow': (1.0, 0.7, 0.0, 1.0),
+    'blue': (0.25, 0.25, 1.0, 1.0)
+}
+
 
 # Determine set the of available backends
 backends_available = {'meshcat': MeshcatVisualizer}
@@ -206,7 +216,7 @@ class Viewer:
     _backend_robot_names = set()
     _camera_motion = None
     _camera_travelling = None
-    _camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
+    _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_ABS_XYZRPY)
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -299,7 +309,7 @@ class Viewer:
         # Reset some class attribute if backend not available
         if not is_backend_running:
             Viewer._backend_robot_names = set()
-            Viewer._camera_xyzrpy = DEFAULT_CAMERA_ABS_XYZRPY
+            Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_ABS_XYZRPY)
             Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
@@ -356,11 +366,15 @@ class Viewer:
             raise RuntimeError(
                 "Impossible to create backend or connect to it.") from e
 
+        # Set default camera pose
+        if self.is_backend_parent:
+            self.set_camera_transform()
+
         # Refresh the viewer since the positions of the meshes and their
         # visibility mode are not properly set at this point.
         self.refresh()
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor.
 
         .. note::
@@ -368,7 +382,7 @@ class Viewer:
         """
         self.close()
 
-    def __must_be_open(fct: Callable):
+    def __must_be_open(fct: Callable) -> Callable:
         @wraps(fct)
         def fct_safe(*args, **kwargs):
             self = None
@@ -385,7 +399,7 @@ class Viewer:
     @__must_be_open
     def _setup(self,
                robot: jiminy.Robot,
-               urdf_rgba: Optional[Tuple4FType] = None):
+               urdf_rgba: Optional[Tuple4FType] = None) -> None:
         """Load (or reload) robot in viewer.
 
         .. note::
@@ -717,6 +731,9 @@ class Viewer:
             # Update color tag if any, create one otherwise
             material = visual.find('material')
             if material is not None:
+                name = material.get('name')
+                if name is not None:
+                    material = root.find(f"./material[@name='{name}']")
                 material.find('color').set('rgba', color_tag)
             else:
                 material = ET.SubElement(visual, 'material', name='')
@@ -1171,13 +1188,13 @@ class Viewer:
                             geom, model_type)
                         self._client.viewer[nodeName].set_transform(T)
 
-            # Update the camera placement
+            # Update the camera placement if necessary
             if Viewer._camera_travelling is not None:
                 if Viewer._camera_travelling['viewer'] is self:
                     self.set_camera_transform(
                         *Viewer._camera_travelling['pose'],
                         relative=Viewer._camera_travelling['frame'])
-            else:
+            elif Viewer._camera_motion is not None:
                 self.set_camera_transform()
 
             # Refreshing viewer backend manually is necessary for gepetto-gui
@@ -1240,7 +1257,6 @@ class Viewer:
                            check for the robot actually have a freeflyer.
         :param wait: Whether or not to wait for rendering to finish.
         """
-        camera_xyzrpy_orig = deepcopy(Viewer._camera_xyzrpy)
         t = [s.t for s in evolution_robot]
         i = 0
         init_time = time.time()
@@ -1253,7 +1269,6 @@ class Viewer:
             i = bisect_right(t, t_simu)
             sleep(s.t - t_simu)
             wait = False  # It is enough to wait for the first timestep only
-        Viewer._camera_xyzrpy = camera_xyzrpy_orig
 
 
 class TrajectoryDataType(TypedDict, total=False):
@@ -1405,19 +1420,13 @@ def play_trajectories(trajectory_data: Union[
         if len(trajectory_data) == 1:
             urdf_rgba = [None]
         else:
-            colors = [
-                [0.4, 0.7, 0.3, 1.0],    # Green
-                [0.6, 0.0, 0.9, 1.0],    # Purple
-                [1.0, 0.45, 0.0, 1.0],   # Orange
-                [0.2, 0.7, 1.0, 1.0],    # Cyan
-                [0.9, 0.15, 0.15, 1.0],  # Red
-                [1.0, 0.7, 0.0, 1.0],    # Yellow
-                [0.25, 0.25, 1.0, 1.0],  # Blue
-            ]
-            urdf_rgba = list(islice(cycle(colors), len(trajectory_data)))
-    if urdf_rgba and urdf_rgba[0] is not None and not isinstance(
-            urdf_rgba[0], (list, tuple)):
+            urdf_rgba = list(islice(
+                cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
+    if not isinstance(urdf_rgba, list) or isinstance(urdf_rgba[0], float):
         urdf_rgba = [urdf_rgba]
+    for i, color in enumerate(urdf_rgba):
+        if isinstance(color, str):
+            urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
     assert len(urdf_rgba) == len(trajectory_data)
 
     if viewers is not None:
@@ -1430,7 +1439,7 @@ def play_trajectories(trajectory_data: Union[
             viewers = None
         else:
             for viewer in viewers:
-                if not viewer.is_open():
+                if viewer is None or not viewer.is_open():
                     viewers = None
                     break
 
@@ -1446,10 +1455,11 @@ def play_trajectories(trajectory_data: Union[
         # Create new viewer instances
         viewers = []
         lock = Lock()
+        uniq_id = next(tempfile._get_candidate_names())
         for i, (traj, color) in enumerate(zip(trajectory_data, urdf_rgba)):
             # Create a new viewer instance, and load the robot in it
             robot = traj['robot']
-            robot_name = f"robot_{i}"
+            robot_name = f"{uniq_id}_robot_{i}"
             use_theoretical_model = traj['use_theoretical_model']
             viewer = Viewer(
                 robot,
