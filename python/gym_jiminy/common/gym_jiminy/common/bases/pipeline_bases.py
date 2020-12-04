@@ -551,7 +551,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if self.env.simulator.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
-            np.copyto(self._command, self.env.compute_command(
+            np.core.umath.copyto(self._command, self.env.compute_command(
                 self._observation, self._target))
 
         return self._command

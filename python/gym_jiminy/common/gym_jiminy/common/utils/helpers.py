@@ -64,7 +64,7 @@ def set_value(data: SpaceDictNested,
             set_value(data[field], sub_val)
     elif isinstance(data, np.ndarray):
         try:
-            np.copyto(data, value)
+            np.core.umath.copyto(data, value)
         except TypeError as e:
             raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
     else:
@@ -94,9 +94,9 @@ def _clamp(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
             (k, _clamp(subspace, value[k]))
             for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Box):
-        return np.clip(value, space.low, space.high)
+        return np.core.umath.clip(value, space.low, space.high)
     if isinstance(space, gym.spaces.Discrete):
-        return np.clip(value, 0, space.n)
+        return np.core.umath.clip(value, 0, space.n)
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")

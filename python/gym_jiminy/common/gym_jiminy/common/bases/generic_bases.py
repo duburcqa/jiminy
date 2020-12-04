@@ -218,11 +218,11 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
         :param sensors_data: Current sensor data. Note that it is the raw data,
                              which means that it is not an actual dictionary
                              but it behaves similarly.
-        :param u_command: Output argument to update by reference using
-                          `np.copyto` in order to apply motors torques on the
-                          robot.
+        :param u_command: Output argument to update by reference using `[:]` or
+                          `np.core.umath.copyto` in order to apply motors
+                          torques on the robot.
         """
         # pylint: disable=unused-argument
 
-        np.copyto(u_command, self.compute_command(
+        np.core.umath.copyto(u_command, self.compute_command(
             self.get_observation(bypass=True), self._action))

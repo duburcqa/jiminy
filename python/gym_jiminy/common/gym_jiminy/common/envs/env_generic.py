@@ -486,7 +486,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
         # Update the observation
-        self._observation = self.compute_observation()
+        set_value(self._observation, self.compute_observation())
 
         # Make sure the state is valid, otherwise there `compute_observation`
         # and s`_refresh_observation_space` are probably inconsistent.
@@ -557,7 +557,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Update the action to perform if necessary
         if action is not None:
-            np.copyto(self._action, action)
+            np.core.umath.copyto(self._action, action)
 
         # Try to perform a single simulation step
         is_step_failed = True
