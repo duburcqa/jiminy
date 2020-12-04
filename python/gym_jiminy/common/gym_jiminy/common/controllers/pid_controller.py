@@ -120,8 +120,8 @@ class PDController(BaseControllerBlock):
                           for name in self.robot.motors_names]
         vel_fieldnames = [f"targetVelocity{name}"
                           for name in self.robot.motors_names]
-        return OrderedDict([(encoder.fieldnames[0], pos_fieldnames),
-                            (encoder.fieldnames[1], vel_fieldnames)])
+        return OrderedDict(zip(
+            encoder.fieldnames, (pos_fieldnames, vel_fieldnames)))
 
     def compute_command(self,
                         measure: SpaceDictNested,

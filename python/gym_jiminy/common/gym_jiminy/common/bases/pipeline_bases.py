@@ -12,7 +12,6 @@ It implements:
       unified environment.
 """
 from copy import deepcopy
-from collections import OrderedDict
 from typing import Optional, Union, Tuple, Dict, Any, List, Callable
 
 import numpy as np
@@ -354,12 +353,12 @@ class ObservedJiminyEnv(BasePipelineWrapper):
             features = self.observer.compute_observation(obs)
             if self.augment_observation:
                 obs.setdefault(
-                    'features', OrderedDict())[self.observer_name] = features
+                    'features', {})[self.observer_name] = features
             else:
                 obs = features
         else:
             if not self.augment_observation:
-                obs = OrderedDict()  # Nothing new to observe.
+                obs = {}  # Nothing new to observe.
 
         return obs
 
@@ -577,7 +576,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         # Add target to observation if requested
         if self.augment_observation:
-            obs.setdefault('targets', OrderedDict())[
+            obs.setdefault('targets', {})[
                 self.controller_name] = self._action
 
         return obs

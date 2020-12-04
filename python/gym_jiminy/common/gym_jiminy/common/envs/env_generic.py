@@ -939,11 +939,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         # Assertion(s) for type checker
         assert self._desired_goal is not None
 
-        return OrderedDict(
-            observation=super().compute_observation(),
-            achieved_goal=self._get_achieved_goal(),
-            desired_goal=self._desired_goal.copy()
-        )
+        return {'observation': super().compute_observation(),
+                'achieved_goal': self._get_achieved_goal(),
+                'desired_goal': self._desired_goal.copy()}
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[

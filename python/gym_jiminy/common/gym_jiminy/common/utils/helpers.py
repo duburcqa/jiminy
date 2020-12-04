@@ -1,6 +1,5 @@
 """ TODO: Write documentation.
 """
-from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence
 
 import numpy as np
@@ -23,7 +22,7 @@ def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     if isinstance(space, gym.spaces.Box):
         return np.zeros(space.shape, dtype=space.dtype)
     if isinstance(space, gym.spaces.Dict):
-        value = OrderedDict()
+        value = {}
         for field, subspace in space.spaces.items():
             value[field] = zeros(subspace)
         return value
@@ -77,7 +76,7 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
     are still references.
     """
     if isinstance(data, dict):
-        value = data.__class__()
+        value = {}
         for field, sub_data in data.items():
             value[field] = copy(sub_data)
         return value
@@ -90,7 +89,7 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     if isinstance(space, gym.spaces.Box):
         return np.core.umath.clip(value, space.low, space.high)
     if isinstance(space, gym.spaces.Dict):
-        return OrderedDict(
+        return dict(
             (k, clip(subspace, value[k]))
             for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Discrete):
