@@ -25,7 +25,7 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral
 
-from ..utils import clip, zeros, fill, set_value, SpaceDictNested
+from ..utils import zeros, fill, set_value, SpaceDictNested
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 

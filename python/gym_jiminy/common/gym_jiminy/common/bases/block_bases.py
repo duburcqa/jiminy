@@ -12,8 +12,6 @@ from typing import Optional, Any, List
 
 import gym
 
-import jiminy_py.core as jiminy
-
 from ..utils import FieldDictNested, SpaceDictNested
 from ..envs import BaseJiminyEnv
 from .generic_bases import ControllerInterface, ObserverInterface

@@ -20,7 +20,7 @@ import gym
 from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
 from ..utils import (
-    _is_breakpoint, clip, zeros, fill, set_value, register_variables,
+    _is_breakpoint, zeros, fill, set_value, register_variables,
     SpaceDictNested)
 from ..envs import BaseJiminyEnv
 from .block_bases import BaseControllerBlock, BaseObserverBlock
