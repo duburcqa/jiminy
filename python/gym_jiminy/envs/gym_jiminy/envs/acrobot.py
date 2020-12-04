@@ -129,7 +129,8 @@ class AcrobotJiminyGoalEnv(BaseJiminyGoalEnv):
             desired and achieved goals are observable.
         """
         obs = super().compute_observation()
-        obs['observation'] = obs['observation']['state']
+        state = obs['observation']['state']
+        obs['observation'] = np.concatenate((state['Q'], state['V']))
         return obs
 
     def _refresh_action_space(self) -> None:

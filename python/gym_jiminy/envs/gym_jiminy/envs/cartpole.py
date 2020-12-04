@@ -176,7 +176,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     def compute_observation(self) -> None:
         # @copydoc BaseJiminyEnv::compute_observation
-        return super().compute_observation()['state']
+        return np.concatenate(self.simulator.state)
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
