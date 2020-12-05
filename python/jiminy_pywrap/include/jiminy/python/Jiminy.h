@@ -787,7 +787,8 @@ namespace python
             static bp::object getData(AbstractSensorBase & self)
             {
                 // Be careful, it removes the const qualifier, so that the data can be modified from Python
-                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue =
+                    const_cast<AbstractSensorBase const &>(self).get();
                 bp::handle<> valuePy(getNumpyReference(sensorDataValue));
                 return bp::object(valuePy);
             }
@@ -800,7 +801,8 @@ namespace python
                 s << "idx: " << self.getIdx() << "\n";
                 s << "data:\n    ";
                 std::vector<std::string> const & fieldnames = self.getFieldnames();
-                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue =
+                    const_cast<AbstractSensorBase const &>(self).get();
                 for (uint32_t i=0; i<fieldnames.size(); ++i)
                 {
                     std::string const & field = fieldnames[i];
@@ -1612,22 +1614,22 @@ namespace python
                 ;
         }
 
-        static bp::object getPosition(stepperState_t & self)
+        static bp::object getPosition(stepperState_t const & self)
         {
             return convertToPython<std::vector<vectorN_t> >(self.qSplit);
         }
 
-        static bp::object getVelocity(stepperState_t & self)
+        static bp::object getVelocity(stepperState_t const & self)
         {
             return convertToPython<std::vector<vectorN_t> >(self.vSplit);
         }
 
-        static bp::object getAcceleration(stepperState_t & self)
+        static bp::object getAcceleration(stepperState_t const & self)
         {
             return convertToPython<std::vector<vectorN_t> >(self.aSplit);
         }
 
-        static std::string repr(stepperState_t & self)
+        static std::string repr(stepperState_t const & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");

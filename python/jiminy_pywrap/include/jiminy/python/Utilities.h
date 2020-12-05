@@ -143,10 +143,28 @@ namespace python
 
     template<typename T>
     std::enable_if_t<is_eigen<T>::value, bp::object>
+    convertToPython(T & data)
+    {
+        return bp::object(bp::handle<>(getNumpyReference(data)));
+    }
+
+    template<typename T>
+    std::enable_if_t<is_eigen<T>::value, bp::object>
     convertToPython(T const & data)
     {
-        PyObject * vecPyPtr = getNumpyReference(const_cast<T &>(data));
-        return bp::object(bp::handle<>(PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY)));
+        return bp::object(bp::handle<>(getNumpyReference(data)));
+    }
+
+    template<typename T>
+    std::enable_if_t<is_vector<T>::value, bp::object>
+    convertToPython(T & data)
+    {
+        bp::list dataPy;
+        for (auto & val : data)
+        {
+            dataPy.append(convertToPython(val));
+        }
+        return dataPy;
     }
 
     template<typename T>
