@@ -409,14 +409,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
-        # Make sure the environment is properly setup
-        self._setup()
-
         # Initialize shared memories.
         # It must be done because the robot may have changed.
         self.stepper_state = self.simulator.stepper_state
         self.system_state = self.simulator.system_state
         self.sensors_data = dict(self.robot.sensors_data)
+
+        # Make sure the environment is properly setup
+        self._setup()
 
         # Set default action.
         # It will be used for the initial step.
@@ -485,9 +485,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         set_value(self._observation, self.compute_observation())
 
         # Make sure the state is valid, otherwise there `compute_observation`
-        # and s`_refresh_observation_space` are probably inconsistent.
+        # and `_refresh_observation_space` are probably inconsistent.
         try:
-            is_obs_valid = self.observation_space.contains(self._observation)
+            is_obs_valid = self.observation_space.contains(
+                self.get_observation())
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
@@ -912,37 +913,22 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  simulator: Optional[Simulator],
                  step_dt: float,
                  debug: bool = False) -> None:
-        # Define some internal buffers
-        self._desired_goal: Optional[np.ndarray] = None
-
         # Initialize base class
         super().__init__(simulator, step_dt, debug)
 
-    def _refresh_observation_space(self) -> None:
-        # Assertion(s) for type checker
-        assert isinstance(self._desired_goal, np.ndarray), (
-            "`BaseJiminyGoalEnv` only supports np.ndarray goal space for now.")
-
-        # Initialize the original observation space first
-        super()._refresh_observation_space()
-
         # Append default desired and achieved goal spaces to observation space
+        goal_space = self._get_goal_space()
         self.observation_space = gym.spaces.Dict(OrderedDict(
             observation=self.observation_space,
-            desired_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64),
-            achieved_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64)))
+            desired_goal=goal_space,
+            achieved_goal=goal_space))
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
-        # Assertion(s) for type checker
-        assert self._desired_goal is not None
-
-        return {'observation': super().compute_observation(),
+    def get_observation(self) -> SpaceDictNested:
+        """ TODO: Write documentation.
+        """
+        return {'observation': super().get_observation(),
                 'achieved_goal': self._get_achieved_goal(),
-                'desired_goal': self._desired_goal.copy()}
+                'desired_goal': self._desired_goal}
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -954,6 +940,17 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
     # methods to override:
     # ----------------------------
+
+    def _get_goal_space(self) -> gym.Space:
+        """Get goal space.
+
+        .. note::
+            This method is called internally at init to define the observation
+            space. It is called BEFORE `super().reset` so non goal-env-specific
+            internal buffers are NOT up-to-date. This method must be overloaded
+            while implementing a goal environment.
+        """
+        raise NotImplementedError
 
     def _sample_goal(self) -> SpaceDictNested:
         """Sample a goal randomly.
@@ -982,7 +979,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     def is_done(self,  # type: ignore[override]
                 achieved_goal: Optional[SpaceDictNested] = None,
                 desired_goal: Optional[SpaceDictNested] = None) -> bool:
-        """Determine whether a desired goal has been achieved.
+        """Determine whether a termination condition has been reached.
 
         By default, it uses the termination condition inherited from normal
         environment.
