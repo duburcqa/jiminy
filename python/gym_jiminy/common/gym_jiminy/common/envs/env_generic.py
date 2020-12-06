@@ -494,7 +494,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Initialize the observation.
         self.refresh_observation()
 
-        # Make sure the state is valid, otherwise there `compute_observation`
+        # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
         try:
             is_obs_valid = self.observation_space.contains(
@@ -503,7 +503,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `compute_observation` is "
+                "The observation returned by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
                 "`_refresh_observation_space`.")
 
@@ -751,7 +751,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is called internally by `reset` method at the very end,
             just before computing and returning the initial observation. This
-            method, alongside `compute_observation`, must be overwritten in
+            method, alongside `refresh_observation`, must be overwritten in
             order to define a custom observation space.
         """
         self.observation_space = gym.spaces.Dict(OrderedDict(
@@ -875,7 +875,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         lower or upper limit.
 
         .. note::
-            This method is called right after calling `compute_observation`, so
+            This method is called right after calling `refresh_observation`, so
             that the internal buffer '_observation' is up-to-date. It can be
             overloaded to implement a custom termination condition for the
             simulation.
@@ -992,7 +992,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
-            This method can be called by `compute_observation` to get the
+            This method can be called by `refresh_observation` to get the
             currently achieved goal. This method must be overloaded while
             implementing a goal environment.
 
@@ -1009,7 +1009,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         environment.
 
         .. note::
-            This method is called right after calling `compute_observation`, so
+            This method is called right after calling `refresh_observation`, so
             that the internal buffer '_observation' is up-to-date. This method
             can be overloaded while implementing a goal environment.
 

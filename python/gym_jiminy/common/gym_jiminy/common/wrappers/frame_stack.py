@@ -181,9 +181,9 @@ class StackedJiminyEnv(BasePipelineWrapper):
             raise ValueError(
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         # Get environment observation
-        obs = super().compute_observation()
+        super().refresh_observation()
 
         # Update observed features if necessary
         t = self.stepper_state.t
@@ -192,5 +192,4 @@ class StackedJiminyEnv(BasePipelineWrapper):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
-            return self.wrapper.compute_observation(obs)
-        return self.wrapper.observation(obs)
+            self.wrapper.compute_observation(self._observation)
