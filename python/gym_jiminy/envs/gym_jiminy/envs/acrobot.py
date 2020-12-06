@@ -121,8 +121,8 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
             high=np.concatenate([s.high for s in state_subspaces]),
             dtype=np.result_type(*[s.dtype for s in state_subspaces]))
 
-    def compute_observation(self) -> None:
-        """Compute the observation based on the current simulation state.
+    def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
+        """Update the observation based on the current simulation state.
 
         Only the state is observable, while by default, the current time,
         state, and sensors data are available.

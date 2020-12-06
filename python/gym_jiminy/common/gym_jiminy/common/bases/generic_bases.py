@@ -34,33 +34,18 @@ class ObserverInterface:
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(*args, **kwargs)  # type: ignore[call-arg]
 
-    def refresh_observation(self) -> None:
-        """Refresh the observation.
-
-        .. warning::
-            This is an internal method that is not intended to be called
-            manually. In most cases, it is not necessary to overloaded this
-            method, and  doing so may lead to unexpected behavior if not done
-            carefully.
-        """
-        set_value(self._observation, self.compute_observation())
-
-    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
+    def get_observation(self) -> SpaceDictNested:
         """Get post-processed observation.
 
-        By default, it does not perform any post-processing for the sake of
-        efficiency. One is responsible to clipping the observation if necessary
-        to make sure it does not violate the lower and upper bounds. This can
-        be done either by overloading this method, or in the case of pipeline
-        design, by adding a clipping  observation block at the very end.
+        By default, it does not perform any post-processing. One is responsible
+        for clipping the observation if necessary to make sure it does not
+        violate the lower and upper bounds. This can be done either by
+        overloading this method, or in the case of pipeline design, by adding a
+        clipping observation block at the very end.
 
         .. warning::
             In most cases, it is not necessary to overloaded this method, and
             doing so may lead to unexpected behavior if not done carefully.
-
-        :param bypass: Whether to nor to bypass post-processing and return
-                       the original observation instead (yet recursively
-                       shadow copied).
         """
         return copy(self._observation)
 
@@ -72,11 +57,16 @@ class ObserverInterface:
         """
         raise NotImplementedError
 
-    def compute_observation(self,
-                            *args: Any,
-                            **kwargs: Any) -> SpaceDictNested:
-        """Compute the observation based on the current simulation state and
-        lower-level measure.
+    def refresh_observation(self, *args: Any, **kwargs: Any) -> None:
+        """Update the observation based on the current simulation state.
+
+        .. warning:
+            When overloading this method, one is expected to use the internal
+            buffer `_observation` to store the observation by updating it by
+            reference. It may be error prone and tricky to get use to it, but
+            it is computionally optimal because it avoids allocating memory and
+            redundant calculus. Additionally, it enables to retrieve the
+            observation later on by calling `get_observation`.
 
         :param args: Extra arguments that may be useful to derived
                      implementations.
@@ -123,8 +113,7 @@ class ControllerInterface:
 
     def compute_command(self,
                         measure: SpaceDictNested,
-                        action: SpaceDictNested
-                        ) -> SpaceDictNested:
+                        action: SpaceDictNested) -> SpaceDictNested:
         """Compute the command to send to the subsequent block, based on the
         current target and observation of the environment.
 
@@ -137,7 +126,10 @@ class ControllerInterface:
         """
         raise NotImplementedError
 
-    def compute_reward(self, *args: Any, **kwargs: Any) -> float:
+    def compute_reward(self,
+                       *args: Any,
+                       info: Dict[str, Any],
+                       **kwargs: Any) -> float:
         """Compute reward at current episode state.
 
         By default, it always returns 0.0. It must be overloaded to implement
@@ -150,6 +142,7 @@ class ControllerInterface:
 
         :param args: Extra arguments that may be useful for derived
                      environments, for example `Gym.GoalEnv`.
+        :param info: Dictionary of extra information for monitoring.
         :param kwargs: Extra keyword arguments. See 'args'.
 
         :returns: Total reward.
@@ -158,7 +151,7 @@ class ControllerInterface:
 
         return 0.0
 
-    def compute_reward_terminal(self, info: Dict[str, Any]) -> float:
+    def compute_reward_terminal(self, *, info: Dict[str, Any]) -> float:
         """Compute terminal reward at current episode final state.
 
         .. note::
@@ -180,12 +173,14 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
+    engine: Optional[jiminy.EngineMultiRobot]
     stepper_state: Optional[jiminy.StepperState]
     system_state: Optional[jiminy.SystemState]
     sensors_data: Optional[Dict[str, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Define some attributes
+        self.engine = None
         self.stepper_state = None
         self.system_state = None
         self.sensors_data = None
@@ -211,8 +206,10 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                            sensors_data: jiminy.sensorsData,
                            u_command: np.ndarray) -> None:
         """This method is the main entry-point to interact with the simulator.
-        It is design to apply motors efforts on the robot, but in practice it
-        also updates the observation before computing the command.
+
+        .. note:
+            It is design to apply motors efforts on the robot, but internally,
+            it updates the observation before computing the command.
 
         .. warning::
             This method is not supposed to be called manually nor overloaded.
@@ -232,7 +229,4 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
                           `np.core.umath.copyto` in order to apply motors
                           torques on the robot.
         """
-        # pylint: disable=unused-argument
-
-        np.core.umath.copyto(u_command, self.compute_command(
-            self.get_observation(bypass=True), self._action))
+        raise NotImplementedError

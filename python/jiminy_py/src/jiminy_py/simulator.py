@@ -322,9 +322,7 @@ class Simulator:
         """
         hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Failed to start the simulation. Probably because the "
-                "initial state is invalid.")
+            raise RuntimeError("Failed to start the simulation.")
 
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):

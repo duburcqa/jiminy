@@ -69,21 +69,21 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
                             unsafe: bool = False) -> None:
         r"""Set the observer callback function.
 
-        By default, the observer update period is the same of the controller.
-        One is responsible to implement custom breakpoint point management if
-        it must be different.
+        By default, the observer update period is the same of the observer. One
+        is responsible to implement custom breakpoint point management if it
+        must be different.
 
         :param compute_command:
             .. raw:: html
 
-                Controller entry-point, implemented as a callback function.
-                It must have the following signature:
+                Observer entry-point, implemented as a callback function. It
+                must have the following signature:
 
-            | controller_handle\(**t**: float,
-            |                    **q**: np.ndarray,
-            |                    **v**: np.ndarray,
-            |                    **sensors_data**: jiminy_py.core.sensorsData
-            |                    \) -> None
+            | observer_handle\(**t**: float,
+            |                  **q**: np.ndarray,
+            |                  **v**: np.ndarray,
+            |                  **sensors_data**: jiminy_py.core.sensorsData
+            |                  \) -> None
         :param unsafe: Whether or not to check if the handle is valid.
         """
         try:
@@ -107,8 +107,8 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         :param compute_command:
             .. raw:: html
 
-                Controller entry-point, implemented as a callback function.
-                It must have the following signature:
+                Controller entry-point, implemented as a callback function. It
+                must have the following signature:
 
             | controller_handle\(**t**: float,
             |                    **q**: np.ndarray,

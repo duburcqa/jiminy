@@ -135,6 +135,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         return self.simulator.robot
 
+    def _controller_handle(self,
+                           t: float,
+                           q: np.ndarray,
+                           v: np.ndarray,
+                           sensors_data: jiminy.sensorsData,
+                           u_command: np.ndarray) -> None:
+        np.core.umath.copyto(u_command, self.compute_command(
+            self.get_observation(), self._action))
+
     def _get_time_space(self) -> gym.Space:
         """Get time space.
         """
@@ -411,8 +420,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Initialize shared memories.
         # It must be done because the robot may have changed.
-        self.stepper_state = self.simulator.stepper_state
-        self.system_state = self.simulator.system_state
+        self.engine = self.simulator.engine
+        self.stepper_state = self.engine.stepper_state
+        self.system_state = self.engine.system_state
         self.sensors_data = dict(self.robot.sensors_data)
 
         # Make sure the environment is properly setup
@@ -481,8 +491,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Start the engine
         self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
-        # Update the observation
-        set_value(self._observation, self.compute_observation())
+        # Initialize the observation.
+        self.refresh_observation()
 
         # Make sure the state is valid, otherwise there `compute_observation`
         # and `_refresh_observation_space` are probably inconsistent.
@@ -548,7 +558,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                   not), and a dictionary of extra information
         """
         # Make sure a simulation is already running
-        if not self.simulator.is_simulation_running:
+        if not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
@@ -615,7 +625,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
-        if not self.simulator.is_simulation_running:
+        if not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` at least one "
                 "before getting log.")
@@ -809,23 +819,38 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None: # type: ignore[override]
         """Compute the observation based on the current state of the robot.
+
+        .. note::
+            There is no way in the current implementation to discriminate the
+            initialization of the observation buffer from the next one. A
+            workaround is to check if the simulation already stated. Even
+            though it is not the same rigorousely speaking, it does the job of
+            preserving efficiency.
 
         .. warning::
             In practice, it updates the internal buffer directly for the sake
             of efficiency.
+
+        :param full_refresh: Whether or not to do a full refresh. This is
+                             usually done once, when calling `reset` method.
         """
         # pylint: disable=arguments-differ
 
         # Assertion(s) for type checker
-        assert self.stepper_state is not None and self.sensors_data is not None
+        assert self.stepper_state is not None
 
         self._observation['t'][0] = self.stepper_state.t
-        if self.simulator.use_theoretical_model and self.robot.is_flexible:
+        if not self.engine.is_simulation_running:
             (self._observation['state']['Q'],
              self._observation['state']['V']) = self.simulator.state
-        return self._observation
+            self._observation['sensors'] = self.sensors_data
+        else:
+            if self.simulator.use_theoretical_model and self.robot.is_flexible:
+                position, velocity = self.simulator.state
+                np.core.umath.copyto(self._observation['state']['Q'], position)
+                np.core.umath.copyto(self._observation['state']['V'], velocity)
 
     def compute_command(self,
                         measure: SpaceDictNested,
@@ -833,10 +858,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it does not perform any processing for the sake of
-        efficiency. One is responsible of overloading this method to clip the
-        action if necessary to make sure it does not violate the lower and
-        upper bounds.
+        By default, it does not perform any processing. One is responsible of
+        overloading this method to clip the action if necessary to make sure it
+        does not violate the lower and upper bounds.
 
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.

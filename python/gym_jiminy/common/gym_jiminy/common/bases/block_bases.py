@@ -174,9 +174,8 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
             "The observer update period must be lower than or equal to the "
             "environment simulation timestep.")
 
-    def compute_observation(self,  # type: ignore[override]
-                            measure: SpaceDictNested
-                            ) -> SpaceDictNested:
+    def refresh_observation(self,  # type: ignore[override]
+                            measure: SpaceDictNested) -> None:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 

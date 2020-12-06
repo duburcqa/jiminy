@@ -186,8 +186,8 @@ class StackedJiminyEnv(BasePipelineWrapper):
         obs = super().compute_observation()
 
         # Update observed features if necessary
-        t = self.simulator.stepper_state.t
-        if self.simulator.is_simulation_running and \
+        t = self.stepper_state.t
+        if self.engine.is_simulation_running and \
                 _is_breakpoint(t, self.observe_dt, self._dt_eps):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:

@@ -17,6 +17,7 @@ from typing import Optional, Union, Tuple, Dict, Any, List, Callable
 import numpy as np
 import gym
 
+import jiminy_py.core as jiminy
 from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
 from ..utils import (
@@ -65,6 +66,15 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         return super().__dir__() + self.env.__dir__()
 
+    def _controller_handle(self,
+                           t: float,
+                           q: np.ndarray,
+                           v: np.ndarray,
+                           sensors_data: jiminy.sensorsData,
+                           u_command: np.ndarray) -> None:
+        np.core.umath.copyto(u_command, self.compute_command(
+            self.env.get_observation(), self._action))
+
     def _get_block_index(self) -> int:
         """Get the index of the block. It corresponds the "deepness" of the
         block, namely how many blocks deriving from the same wrapper type than
@@ -79,19 +89,6 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
             i += isinstance(block, self.__class__)
             block = block.env
         return i
-
-    def get_observation(self, bypass: bool = False) -> SpaceDictNested:
-        """Get post-processed observation.
-
-        By default, it either forward the environment's observation without any
-        processing, or return a recursively shadow copied block observation.
-
-        :param bypass: Whether to nor to return the original environment's
-                       observation or the post-processed computed features.
-        """
-        if bypass:
-            return self.env.get_observation()
-        return super().get_observation()
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -109,7 +106,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                                 Optional: None by default.
         :param kwargs: Extra keyword arguments to comply with OpenAI Gym API.
         """
-        # pylint: disable=arguments-differ,unused-argument
+        # pylint: disable=unused-argument
 
         # Define chained controller hook
         def register() -> Tuple[ObserverHandleType, ControllerHandleType]:
@@ -188,14 +185,14 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         # Reset some internal buffers
         fill(self._action, 0.0)
         fill(self._command, 0.0)
-        fill(self._observation, 0.0)
 
         # Refresh some proxies for fast lookup
+        self.engine = self.env.engine
         self.stepper_state = self.env.stepper_state
         self.system_state = self.env.system_state
         self.sensors_data = self.env.sensors_data
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the unified observation.
 
         By default, it forwards the observation computed by the environment.
@@ -204,13 +201,11 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         # pylint: disable=arguments-differ
 
-        self.env.refresh_observation()
-        return self.get_observation(bypass=True)
+        return self.env.refresh_observation()
 
     def compute_command(self,
                         measure: SpaceDictNested,
-                        action: SpaceDictNested
-                        ) -> SpaceDictNested:
+                        action: SpaceDictNested) -> SpaceDictNested:
         """Compute the motors efforts to apply on the robot.
 
         By default, it forwards the command computed by the environment.
@@ -332,7 +327,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         self.observe_dt = self.observer.observe_dt
         self.control_dt = self.env.control_dt
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute high-level features based on the current wrapped
         environment's observation.
 
@@ -350,22 +345,21 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         # pylint: disable=arguments-differ
 
         # Get environment observation
-        obs = super().compute_observation()
+        super().refresh_observation()
 
         # Update observed features if necessary
         t = self.stepper_state.t
         if _is_breakpoint(t, self.observe_dt, self._dt_eps):
-            features = self.observer.compute_observation(obs)
-            if self.augment_observation:
-                obs.setdefault(
-                    'features', {})[self.observer_name] = features
-            else:
-                obs = features
-        else:
-            if not self.augment_observation:
-                obs = {}  # Nothing new to observe.
-
-        return obs
+            obs = self.env.get_observation()
+            self.observer.refresh_observation(obs)
+            if not self.engine.is_simulation_running:
+                features = self.observer.get_observation()
+                if self.augment_observation:
+                    self._observation = obs
+                    self._observation.setdefault('features', {})[
+                        self.observer_name] = features
+                else:
+                    self._observation = features
 
 
 class ControlledJiminyEnv(BasePipelineWrapper):
@@ -552,7 +546,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # update the command of the right period. Ultimately, this is done
         # automatically by the engine, which is calling `_controller_handle` at
         # the right period.
-        if self.env.simulator.is_simulation_running:
+        if self.engine.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
             np.core.umath.copyto(self._command, self.env.compute_command(
@@ -560,7 +554,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
 
         return self._command
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the unified observation based on the current wrapped
         environment's observation and controller's target.
 
@@ -577,14 +571,14 @@ class ControlledJiminyEnv(BasePipelineWrapper):
                   controllers targets if requested.
         """
         # Get environment observation
-        obs = super().compute_observation()
+        super().refresh_observation()
 
         # Add target to observation if requested
-        if self.augment_observation:
-            obs.setdefault('targets', {})[
-                self.controller_name] = self._action
-
-        return obs
+        if not self.engine.is_simulation_running:
+            self._observation = self.env.get_observation()
+            if self.augment_observation:
+                self._observation.setdefault('targets', {})[
+                    self.controller_name] = self._action
 
     def compute_reward(self, *args: Any, **kwargs: Any) -> float:
         return self.controller.compute_reward(*args, **kwargs)

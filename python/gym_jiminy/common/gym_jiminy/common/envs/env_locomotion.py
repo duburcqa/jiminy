@@ -430,7 +430,7 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
         return reward_total
 
-    def compute_reward_terminal(self, info: Dict[str, Any]) -> float:
+    def compute_reward_terminal(self, *, info: Dict[str, Any]) -> float:
         """Compute the reward at the end of the episode.
 
         It computes the terminal reward associated with each individual
