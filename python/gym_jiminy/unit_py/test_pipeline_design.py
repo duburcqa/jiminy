@@ -127,10 +127,11 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertTrue(np.all(imu_data_ref == imu_data_obs))
-        state_ref = np.concatenate((env.simulator.engine.system_state.q,
-                                    env.simulator.engine.system_state.v))
+        state_ref = {'Q': env.simulator.engine.system_state.q,
+                     'V': env.simulator.engine.system_state.v}
         state_obs = obs['state']
-        self.assertTrue(np.all(state_ref == state_obs))
+        self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
+        self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
 
     def test_step_state(self):
         """ TODO: Write documentation
@@ -152,10 +153,11 @@ class PipelineDesign(unittest.TestCase):
         imu_data_ref = env.simulator.robot.sensors_data['ImuSensor']
         imu_data_obs = obs['sensors']['ImuSensor'][-1]
         self.assertFalse(np.all(imu_data_ref == imu_data_obs))
-        state_ref = np.concatenate((env.simulator.engine.system_state.q,
-                                    env.simulator.engine.system_state.v))
+        state_ref = {'Q': env.simulator.engine.system_state.q,
+                     'V': env.simulator.engine.system_state.v}
         state_obs = obs['state']
-        self.assertTrue(np.all(state_ref == state_obs))
+        self.assertTrue(np.all(state_ref['Q'] == state_obs['Q']))
+        self.assertTrue(np.all(state_ref['V'] == state_obs['V']))
 
         # Step manually to reach the next stacking breakpoint
         env.simulator.step(stack_dt - env.step_dt % stack_dt)

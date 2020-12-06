@@ -557,11 +557,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
-        # Assertion(s) for type checker
-        assert self.engine is not None
-
         # Make sure a simulation is already running
-        if not self.engine.is_simulation_running:
+        if self.engine is None or not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
@@ -628,10 +625,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
-        # Assertion(s) for type checker
-        assert self.engine is not None
-
-        if not self.engine.is_simulation_running:
+        if self.engine is None or not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` at least one "
                 "before getting log.")

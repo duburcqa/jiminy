@@ -66,7 +66,8 @@ class PipelineControlAtlas(unittest.TestCase):
 
         # Check that the joint velocity target is zero
         velocity_target = np.stack([
-            log_data['.'.join(('HighLevelController', name))]
+            log_data['.'.join((
+                'HighLevelController', self.env.controller_name, name))]
             for name in self.env.controller.get_fieldnames()['V']], axis=-1)
         self.assertTrue(np.all(np.abs(velocity_target[-1000:]) < 1e-9))
 

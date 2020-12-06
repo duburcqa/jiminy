@@ -186,7 +186,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         assert self.engine is not None and self.stepper_state is not None
 
         # Get environment observation
-        super().refresh_observation()
+        self.env.refresh_observation()
 
         # Update observed features if necessary
         t = self.stepper_state.t
@@ -195,4 +195,6 @@ class StackedJiminyEnv(BasePipelineWrapper):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
+            obs = self.env.get_observation()
+            self._observation = obs
             self.wrapper.compute_observation(self._observation)
