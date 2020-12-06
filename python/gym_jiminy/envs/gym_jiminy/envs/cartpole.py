@@ -174,9 +174,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
                                high=self.velocity_random_range)
         return qpos, qvel
 
-    def compute_observation(self) -> None:
-        # @copydoc BaseJiminyEnv::compute_observation
-        return super().compute_observation()['state']
+    def refresh_observation(self) -> None:
+        # @copydoc BaseJiminyEnv::refresh_observation
+        np.core.umath.copyto(
+            self._observation, np.concatenate(self.simulator.state))
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.
@@ -185,7 +186,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
     def compute_reward(self,  # type: ignore[override]
-                       info: Dict[str, Any]) -> float:
+                       *, info: Dict[str, Any]) -> float:
         """ TODO: Write documentation.
 
         Add a small positive reward as long as the termination condition has

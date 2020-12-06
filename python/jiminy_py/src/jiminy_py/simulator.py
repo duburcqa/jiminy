@@ -86,6 +86,11 @@ class Simulator:
                 "Invalid robot or controller. Make sure they are both "
                 "initialized.")
 
+        # Create shared memory for efficiency
+        self.stepper_state = self.engine.stepper_state
+        self.system_state = self.engine.system_state
+        self.sensors_data = self.robot.sensors_data
+
         # Viewer management
         self._viewer = None
         self._is_viewer_available = False
@@ -218,31 +223,27 @@ class Simulator:
         return super().__dir__() + self.engine.__dir__()
 
     @property
-    def state(self) -> np.ndarray:
+    def state(self) -> Tuple[np.ndarray, np.ndarray]:
         """Getter of the current state of the robot.
 
         .. warning::
             Return a reference whenever it is possible, which is
             computationally efficient but unsafe.
         """
-        if self.engine.is_simulation_running:
-            q = self.engine.system_state.q
-            v = self.engine.system_state.v
-            if self.robot.is_flexible and self.use_theoretical_model:
-                q = self.robot.get_rigid_configuration_from_flexible(q)
-                v = self.robot.get_rigid_velocity_from_flexible(v)
-            else:
-                return q, v
+        q = self.system_state.q
+        v = self.system_state.v
+        if self.use_theoretical_model and self.robot.is_flexible:
+            q = self.robot.get_rigid_configuration_from_flexible(q)
+            v = self.robot.get_rigid_velocity_from_flexible(v)
         else:
-            raise RuntimeError(
-                "No simulation running. Impossible to get current state.")
+            return q, v
 
     @property
     def pinocchio_model(self) -> pin.Model:
         """Getter of the pinocchio model, depending on the value of
            'use_theoretical_model'.
         """
-        if self.robot.is_flexible and self.use_theoretical_model:
+        if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_model_th
         else:
             return self.robot.pinocchio_model
@@ -252,7 +253,7 @@ class Simulator:
         """Getter of the pinocchio data, depending on the value of
            'use_theoretical_model'.
         """
-        if self.robot.is_flexible and self.use_theoretical_model:
+        if self.use_theoretical_model and self.robot.is_flexible:
             return self.robot.pinocchio_data_th
         else:
             return self.robot.pinocchio_data
@@ -321,17 +322,15 @@ class Simulator:
         """
         hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
-            raise RuntimeError(
-                "Failed to start the simulation. Probably because the "
-                "initial state is invalid.")
+            raise RuntimeError("Failed to start the simulation.")
 
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
             self.controller.refresh_observation(
-                self.engine.stepper_state.t,
-                self.engine.system_state.q,
-                self.engine.system_state.v,
-                self.robot.sensors_data)
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
     def step(self, step_dt: float = -1) -> None:
         """Integrate system dynamics from current state for a given duration.
@@ -351,10 +350,10 @@ class Simulator:
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
             self.controller.refresh_observation(
-                self.engine.stepper_state.t,
-                self.engine.system_state.q,
-                self.engine.system_state.v,
-                self.robot.sensors_data)
+                self.stepper_state.t,
+                self.system_state.q,
+                self.system_state.v,
+                self.sensors_data)
 
     def run(self,
             tf: float,

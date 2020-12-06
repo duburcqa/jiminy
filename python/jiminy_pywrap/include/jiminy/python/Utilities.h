@@ -126,13 +126,14 @@ namespace python
     template<typename T>
     std::enable_if_t<!is_vector<T>::value
                   && !is_eigen<T>::value, bp::object>
-    convertToPython(T const & data)
+    convertToPython(T const & data, bool const & copy = true)
     {
         return bp::object(data);
     }
 
     template<>
-    bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData)
+    bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData,
+                                                    bool const & copy)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["jointName"] = flexibleJointData.jointName;
@@ -143,20 +144,48 @@ namespace python
 
     template<typename T>
     std::enable_if_t<is_eigen<T>::value, bp::object>
-    convertToPython(T const & data)
+    convertToPython(T & data, bool const & copy = true)
     {
-        PyObject * vecPyPtr = getNumpyReference(const_cast<T &>(data));
-        return bp::object(bp::handle<>(PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY)));
+        PyObject * vecPyPtr = getNumpyReference(data);
+        if (copy)
+        {
+            vecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+        }
+        return bp::object(bp::handle<>(vecPyPtr));
+    }
+
+    template<typename T>
+    std::enable_if_t<is_eigen<T>::value, bp::object>
+    convertToPython(T const & data, bool const & copy = true)
+    {
+        PyObject * vecPyPtr = getNumpyReference(data);
+        if (copy)
+        {
+            vecPyPtr = PyArray_FROM_OF(vecPyPtr, NPY_ARRAY_ENSURECOPY);
+        }
+        return bp::object(bp::handle<>(vecPyPtr));
     }
 
     template<typename T>
     std::enable_if_t<is_vector<T>::value, bp::object>
-    convertToPython(T const & data)
+    convertToPython(T & data, bool const & copy = true)
+    {
+        bp::list dataPy;
+        for (auto & val : data)
+        {
+            dataPy.append(convertToPython(val, copy));
+        }
+        return dataPy;
+    }
+
+    template<typename T>
+    std::enable_if_t<is_vector<T>::value, bp::object>
+    convertToPython(T const & data, bool const & copy = true)
     {
         bp::list dataPy;
         for (auto const & val : data)
         {
-            dataPy.append(convertToPython(val));
+            dataPy.append(convertToPython(val, copy));
         }
         return dataPy;
     }
@@ -164,18 +193,27 @@ namespace python
     class AppendBoostVariantToPython : public boost::static_visitor<bp::object>
     {
     public:
+        AppendBoostVariantToPython(bool const & copy) :
+        copy_(copy)
+        {
+            // Empty on purpose
+        }
+
         template <typename T>
         bp::object operator()(T const & value) const
         {
-            return convertToPython<T>(value);
+            return convertToPython<T>(value, copy_);
         }
+
+    public:
+        bool copy_;
     };
 
     template<>
-    bp::object convertToPython(configHolder_t const & config)
+    bp::object convertToPython(configHolder_t const & config, bool const & copy)
     {
         bp::dict configPyDict;
-        AppendBoostVariantToPython visitor;
+        AppendBoostVariantToPython visitor(copy);
         for (auto const & configField : config)
         {
             std::string const & name = configField.first;

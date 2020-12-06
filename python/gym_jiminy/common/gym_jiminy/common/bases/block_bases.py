@@ -12,8 +12,6 @@ from typing import Optional, Any, List
 
 import gym
 
-import jiminy_py.core as jiminy
-
 from ..utils import FieldDictNested, SpaceDictNested
 from ..envs import BaseJiminyEnv
 from .generic_bases import ControllerInterface, ObserverInterface
@@ -48,6 +46,10 @@ class BlockInterface:
         self.env = env
         self.update_ratio = update_ratio
 
+        # Define some attributes
+        self.observation_space = None
+        self.action_space = None
+
         # Call super to allow mixing interfaces through multiple inheritance
         super().__init__(**kwargs)  # type: ignore[call-arg]
 
@@ -57,7 +59,7 @@ class BlockInterface:
 
         # Assertion(s) for type checker
         assert (self.observation_space is not None and
-                self.action_space is not None)
+                self.action_space is not None)  # type: ignore[unreachable]
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
@@ -74,12 +76,6 @@ class BlockInterface:
         to get consistent autocompletion wrt `getattr`.
         """
         return super().__dir__() + self.env.__dir__()  # type: ignore[operator]
-
-    @property
-    def system_state(self) -> jiminy.SystemState:
-        """Get low-level engine system state of the associated environment.
-        """
-        return self.simulator.engine.system_state
 
     # methods to override:
     # ----------------------------
@@ -178,9 +174,8 @@ class BaseObserverBlock(ObserverInterface, BlockInterface):
             "The observer update period must be lower than or equal to the "
             "environment simulation timestep.")
 
-    def compute_observation(self,  # type: ignore[override]
-                            measure: SpaceDictNested
-                            ) -> SpaceDictNested:
+    def refresh_observation(self,  # type: ignore[override]
+                            measure: SpaceDictNested) -> None:
         """Compute observed features based on the current simulation state and
         lower-level measure.
 

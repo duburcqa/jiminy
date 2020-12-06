@@ -612,8 +612,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PyMotorVisitor::setOptions<TMotor>)
-                    .def("get_options", &AbstractMotorBase::getOptions,
-                                        bp::return_value_policy<bp::return_by_value>())
+                    .def("get_options", &AbstractMotorBase::getOptions)
 
                     .add_property("is_initialized", bp::make_function(&AbstractMotorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
@@ -770,8 +769,7 @@ namespace python
             {
                 cl
                     .def("set_options", &PySensorVisitor::setOptions<TSensor>)
-                    .def("get_options", &AbstractSensorBase::getOptions,
-                                        bp::return_value_policy<bp::return_by_value>())
+                    .def("get_options", &AbstractSensorBase::getOptions)
 
                     .add_property("is_initialized", bp::make_function(&AbstractSensorBase::getIsInitialized,
                                                     bp::return_value_policy<bp::copy_const_reference>()))
@@ -787,7 +785,8 @@ namespace python
             static bp::object getData(AbstractSensorBase & self)
             {
                 // Be careful, it removes the const qualifier, so that the data can be modified from Python
-                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue =
+                    const_cast<AbstractSensorBase const &>(self).get();
                 bp::handle<> valuePy(getNumpyReference(sensorDataValue));
                 return bp::object(valuePy);
             }
@@ -800,7 +799,8 @@ namespace python
                 s << "idx: " << self.getIdx() << "\n";
                 s << "data:\n    ";
                 std::vector<std::string> const & fieldnames = self.getFieldnames();
-                Eigen::Ref<vectorN_t const> const & sensorDataValue = const_cast<AbstractSensorBase const &>(self).get();
+                Eigen::Ref<vectorN_t const> const & sensorDataValue =
+                    const_cast<AbstractSensorBase const &>(self).get();
                 for (uint32_t i=0; i<fieldnames.size(); ++i)
                 {
                     std::string const & field = fieldnames[i];
@@ -1368,8 +1368,7 @@ namespace python
                                            (bp::arg("self"), "fieldnames", "values"))
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
-                .def("get_options", &AbstractController::getOptions,
-                                    bp::return_value_policy<bp::return_by_value>())
+                .def("get_options", &AbstractController::getOptions)
                 ;
         }
 
@@ -1612,22 +1611,22 @@ namespace python
                 ;
         }
 
-        static bp::object getPosition(stepperState_t & self)
+        static bp::object getPosition(stepperState_t const & self)
         {
-            return convertToPython<std::vector<vectorN_t> >(self.qSplit);
+            return convertToPython<std::vector<vectorN_t> >(self.qSplit, false);
         }
 
-        static bp::object getVelocity(stepperState_t & self)
+        static bp::object getVelocity(stepperState_t const & self)
         {
-            return convertToPython<std::vector<vectorN_t> >(self.vSplit);
+            return convertToPython<std::vector<vectorN_t> >(self.vSplit, false);
         }
 
-        static bp::object getAcceleration(stepperState_t & self)
+        static bp::object getAcceleration(stepperState_t const & self)
         {
-            return convertToPython<std::vector<vectorN_t> >(self.aSplit);
+            return convertToPython<std::vector<vectorN_t> >(self.aSplit, false);
         }
 
-        static std::string repr(stepperState_t & self)
+        static std::string repr(stepperState_t const & self)
         {
             std::stringstream s;
             Eigen::IOFormat HeavyFmt(5, 1, ", ", "", "", "", "[", "]\n");
@@ -1859,8 +1858,7 @@ namespace python
                                                 "frame_name", "force_function"))
                 .def("remove_forces", &PyEngineMultiRobotVisitor::removeForces)
 
-                .def("get_options", &EngineMultiRobot::getOptions,
-                                    bp::return_value_policy<bp::return_by_value>())
+                .def("get_options", &EngineMultiRobot::getOptions)
                 .def("set_options", &PyEngineMultiRobotVisitor::setOptions)
 
                 .def("get_system", bp::make_function(&PyEngineMultiRobotVisitor::getSystem,
@@ -2002,7 +2000,7 @@ namespace python
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
                 aSplit
             );
-            return convertToPython<std::vector<vectorN_t> >(aSplit);
+            return convertToPython<std::vector<vectorN_t> >(aSplit, true);
         }
 
         static void registerForceImpulse(EngineMultiRobot       & self,

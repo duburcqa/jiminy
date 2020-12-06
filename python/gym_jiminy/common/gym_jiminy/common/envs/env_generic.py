@@ -25,7 +25,7 @@ from jiminy_py.controller import (
 
 from pinocchio import neutral
 
-from ..utils import _clamp, zeros, fill, set_value, SpaceDictNested
+from ..utils import zeros, fill, set_value, SpaceDictNested
 from ..bases import ObserverControllerInterface
 from .play import loop_interactive
 
@@ -105,9 +105,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._log_data: Optional[Dict[str, np.ndarray]] = None
         self.log_path: Optional[str] = None
 
-        # Initialize sensors data shared memory
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
-
         # Information about the learning process
         self._info: Dict[str, Any] = {}
 
@@ -130,7 +127,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space)
-        self._state = (np.zeros(self.robot.nq), np.zeros(self.robot.nv))
         self._observation = zeros(self.observation_space)
 
     @property
@@ -138,6 +134,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """ Get robot.
         """
         return self.simulator.robot
+
+    def _controller_handle(self,
+                           t: float,
+                           q: np.ndarray,
+                           v: np.ndarray,
+                           sensors_data: jiminy.sensorsData,
+                           u_command: np.ndarray) -> None:
+        np.core.umath.copyto(u_command, self.compute_command(
+            self.get_observation(), self._action))
 
     def _get_time_space(self) -> gym.Space:
         """Get time space.
@@ -196,20 +201,17 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Define bounds of the state space
         if use_theoretical_model:
-            state_limit_lower = np.concatenate((
-                position_limit_lower[joints_position_idx],
-                -velocity_limit[joints_velocity_idx]))
-            state_limit_upper = np.concatenate((
-                position_limit_upper[joints_position_idx],
-                velocity_limit[joints_velocity_idx]))
-        else:
-            state_limit_lower = np.concatenate((
-                position_limit_lower, -velocity_limit))
-            state_limit_upper = np.concatenate((
-                position_limit_upper, velocity_limit))
+            position_limit_lower = position_limit_lower[joints_position_idx]
+            position_limit_upper = position_limit_upper[joints_position_idx]
+            velocity_limit = velocity_limit[joints_velocity_idx]
 
-        return gym.spaces.Box(
-            low=state_limit_lower, high=state_limit_upper, dtype=np.float64)
+        return gym.spaces.Dict(
+            Q=gym.spaces.Box(low=position_limit_lower,
+                             high=position_limit_upper,
+                             dtype=np.float64),
+            V=gym.spaces.Box(low=-velocity_limit,
+                             high=velocity_limit,
+                             dtype=np.float64))
 
     def _get_sensors_space(self) -> gym.Space:
         """Get sensor space.
@@ -278,10 +280,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                     sensor_position_lower = -np.pi
                     sensor_position_upper = np.pi
                 else:
-                    sensor_position_lower = state_space.low[joint.idx_q]
-                    sensor_position_upper = state_space.high[joint.idx_q]
-                sensor_velocity_limit = state_space.high[
-                    self.robot.nq + joint.idx_v]
+                    sensor_position_lower = state_space['Q'].low[joint.idx_q]
+                    sensor_position_upper = state_space['Q'].high[joint.idx_q]
+                sensor_velocity_limit = state_space['V'].high[joint.idx_v]
 
                 # Update the bounds accordingly
                 sensor_space_lower[encoder.type][0, sensor_idx] = \
@@ -417,12 +418,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
+        # Initialize shared memories.
+        # It must be done because the robot may have changed.
+        self.engine = self.simulator.engine
+        self.stepper_state = self.engine.stepper_state
+        self.system_state = self.engine.system_state
+        self.sensors_data = dict(self.robot.sensors_data)
+
         # Make sure the environment is properly setup
         self._setup()
-
-        # Re-initialize sensors data shared memory.
-        # It must be done because the robot may have changed.
-        self._sensors_data = OrderedDict(self.robot.sensors_data)
 
         # Set default action.
         # It will be used for the initial step.
@@ -468,10 +472,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 observer_handle, controller_handle = handles
         if observer_handle is None:
             observer_handle = self._observer_handle
-        self.simulator.controller.set_observer_handle(observer_handle)
+        self.simulator.controller.set_observer_handle(
+            observer_handle, unsafe=True)
         if controller_handle is None:
             controller_handle = self._controller_handle
-        self.simulator.controller.set_controller_handle(controller_handle)
+        self.simulator.controller.set_controller_handle(
+            controller_handle, unsafe=True)
 
         # Sample the initial state and reset the low-level engine
         qpos, qvel = self._sample_state()
@@ -485,18 +491,19 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Start the engine
         self.simulator.start(qpos, qvel, self.simulator.use_theoretical_model)
 
-        # Update the observation
-        self._observation = self.compute_observation()
+        # Initialize the observation.
+        self.refresh_observation()
 
-        # Make sure the state is valid, otherwise there `compute_observation`
-        # and s`_refresh_observation_space` are probably inconsistent.
+        # Make sure the state is valid, otherwise there `refresh_observation`
+        # and `_refresh_observation_space` are probably inconsistent.
         try:
-            is_obs_valid = self.observation_space.contains(self._observation)
+            is_obs_valid = self.observation_space.contains(
+                self.get_observation())
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `compute_observation` is "
+                "The observation returned by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
                 "`_refresh_observation_space`.")
 
@@ -551,13 +558,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                   not), and a dictionary of extra information
         """
         # Make sure a simulation is already running
-        if not self.simulator.is_simulation_running:
+        if self.engine is None or not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
         # Update the action to perform if necessary
         if action is not None:
-            np.copyto(self._action, action)
+            np.core.umath.copyto(self._action, action)
 
         # Try to perform a single simulation step
         is_step_failed = True
@@ -618,7 +625,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
-        if not self.simulator.is_simulation_running:
+        if self.engine is None or not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` at least one "
                 "before getting log.")
@@ -744,7 +751,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is called internally by `reset` method at the very end,
             just before computing and returning the initial observation. This
-            method, alongside `compute_observation`, must be overwritten in
+            method, alongside `refresh_observation`, must be overwritten in
             order to define a custom observation space.
         """
         self.observation_space = gym.spaces.Dict(OrderedDict(
@@ -812,19 +819,39 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
+
+        .. note::
+            There is no way in the current implementation to discriminate the
+            initialization of the observation buffer from the next one. A
+            workaround is to check if the simulation already stated. Even
+            though it is not the same rigorousely speaking, it does the job of
+            preserving efficiency.
+
+        .. warning::
+            In practice, it updates the internal buffer directly for the sake
+            of efficiency.
+
+        :param full_refresh: Whether or not to do a full refresh. This is
+                             usually done once, when calling `reset` method.
         """
         # pylint: disable=arguments-differ
 
-        # Update some internal buffers
-        if self.simulator.is_simulation_running:
-            self._state = self.simulator.state
+        # Assertion(s) for type checker
+        assert (self.engine is not None and self.stepper_state is not None and
+                isinstance(self._observation, dict))
 
-        return OrderedDict(
-            t=np.array([self.simulator.stepper_state.t]),
-            state=np.concatenate(self._state),
-            sensors=self._sensors_data)
+        self._observation['t'][0] = self.stepper_state.t
+        if not self.engine.is_simulation_running:
+            (self._observation['state']['Q'],
+             self._observation['state']['V']) = self.simulator.state
+            self._observation['sensors'] = self.sensors_data
+        else:
+            if self.simulator.use_theoretical_model and self.robot.is_flexible:
+                position, velocity = self.simulator.state
+                np.core.umath.copyto(self._observation['state']['Q'], position)
+                np.core.umath.copyto(self._observation['state']['V'], velocity)
 
     def compute_command(self,
                         measure: SpaceDictNested,
@@ -832,15 +859,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         ) -> np.ndarray:
         """Compute the motors efforts to apply on the robot.
 
-        By default, it just clamps the target to make sure it does not violate
-        the lower and upper bounds. There is no further processing whatsoever
-        since the target is the command by default.
+        By default, it does not perform any processing. One is responsible of
+        overloading this method to clip the action if necessary to make sure it
+        does not violate the lower and upper bounds.
 
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
         set_value(self._action, action)
-        return _clamp(self.action_space, action)
+        return self._action
 
     def is_done(self, *args: Any, **kwargs: Any) -> bool:
         """Determine whether the episode is over.
@@ -849,7 +876,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         lower or upper limit.
 
         .. note::
-            This method is called right after calling `compute_observation`, so
+            This method is called right after calling `refresh_observation`, so
             that the internal buffer '_observation' is up-to-date. It can be
             overloaded to implement a custom termination condition for the
             simulation.
@@ -911,39 +938,25 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
                  simulator: Optional[Simulator],
                  step_dt: float,
                  debug: bool = False) -> None:
-        # Define some internal buffers
-        self._desired_goal: Optional[np.ndarray] = None
-
         # Initialize base class
         super().__init__(simulator, step_dt, debug)
 
-    def _refresh_observation_space(self) -> None:
-        # Assertion(s) for type checker
-        assert isinstance(self._desired_goal, np.ndarray), (
-            "`BaseJiminyGoalEnv` only supports np.ndarray goal space for now.")
-
-        # Initialize the original observation space first
-        super()._refresh_observation_space()
-
         # Append default desired and achieved goal spaces to observation space
+        goal_space = self._get_goal_space()
         self.observation_space = gym.spaces.Dict(OrderedDict(
             observation=self.observation_space,
-            desired_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64),
-            achieved_goal=gym.spaces.Box(
-                -np.inf, np.inf, shape=self._desired_goal.shape,
-                dtype=np.float64)))
+            desired_goal=goal_space,
+            achieved_goal=goal_space))
 
-    def compute_observation(self) -> SpaceDictNested:  # type: ignore[override]
-        # Assertion(s) for type checker
-        assert self._desired_goal is not None
+        # Define some internal buffers
+        self._desired_goal = zeros(goal_space)
 
-        return OrderedDict(
-            observation=super().compute_observation(),
-            achieved_goal=self._get_achieved_goal(),
-            desired_goal=self._desired_goal.copy()
-        )
+    def get_observation(self) -> SpaceDictNested:
+        """ TODO: Write documentation.
+        """
+        return {'observation': super().get_observation(),
+                'achieved_goal': self._get_achieved_goal(),
+                'desired_goal': self._desired_goal}
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[
@@ -955,6 +968,17 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
 
     # methods to override:
     # ----------------------------
+
+    def _get_goal_space(self) -> gym.Space:
+        """Get goal space.
+
+        .. note::
+            This method is called internally at init to define the observation
+            space. It is called BEFORE `super().reset` so non goal-env-specific
+            internal buffers are NOT up-to-date. This method must be overloaded
+            while implementing a goal environment.
+        """
+        raise NotImplementedError
 
     def _sample_goal(self) -> SpaceDictNested:
         """Sample a goal randomly.
@@ -972,7 +996,7 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
         """Compute the achieved goal based on current state of the robot.
 
         .. note::
-            This method can be called by `compute_observation` to get the
+            This method can be called by `refresh_observation` to get the
             currently achieved goal. This method must be overloaded while
             implementing a goal environment.
 
@@ -983,13 +1007,13 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     def is_done(self,  # type: ignore[override]
                 achieved_goal: Optional[SpaceDictNested] = None,
                 desired_goal: Optional[SpaceDictNested] = None) -> bool:
-        """Determine whether a desired goal has been achieved.
+        """Determine whether a termination condition has been reached.
 
         By default, it uses the termination condition inherited from normal
         environment.
 
         .. note::
-            This method is called right after calling `compute_observation`, so
+            This method is called right after calling `refresh_observation`, so
             that the internal buffer '_observation' is up-to-date. This method
             can be overloaded while implementing a goal environment.
 

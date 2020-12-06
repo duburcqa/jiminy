@@ -1,6 +1,5 @@
 """ TODO: Write documentation.
 """
-from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence
 
 import numpy as np
@@ -20,13 +19,13 @@ FieldDictNested = Union[  # type: ignore
 def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     """Set to zero data from `Gym.Space`.
     """
+    if isinstance(space, gym.spaces.Box):
+        return np.zeros(space.shape, dtype=space.dtype)
     if isinstance(space, gym.spaces.Dict):
-        value = OrderedDict()
+        value = {}
         for field, subspace in space.spaces.items():
             value[field] = zeros(subspace)
         return value
-    if isinstance(space, gym.spaces.Box):
-        return np.zeros(space.shape, dtype=space.dtype)
     if isinstance(space, gym.spaces.Discrete):
         return 0
     raise NotImplementedError(
@@ -37,11 +36,11 @@ def fill(data: SpaceDictNested,
          fill_value: float) -> None:
     """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
     """
-    if isinstance(data, dict):
+    if isinstance(data, np.ndarray):
+        data.fill(fill_value)
+    elif isinstance(data, dict):
         for sub_data in data.values():
             fill(sub_data, fill_value)
-    elif isinstance(data, np.ndarray):
-        data.fill(fill_value)
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported by this method.")
@@ -59,14 +58,14 @@ def set_value(data: SpaceDictNested,
         If 'data' is a dictionary, 'value' must be a subtree of 'data',
         whose leaf values must be broadcastable with the ones of 'data'.
     """
-    if isinstance(data, dict):
-        for field, sub_val in value.items():
-            set_value(data[field], sub_val)
-    elif isinstance(data, np.ndarray):
+    if isinstance(data, np.ndarray):
         try:
-            np.copyto(data, value)
+            np.core.umath.copyto(data, value)
         except TypeError as e:
             raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
+    elif isinstance(data, dict):
+        for field, sub_val in value.items():
+            set_value(data[field], sub_val)
     else:
         raise NotImplementedError(
             f"Data of type {type(data)} is not supported by this method.")
@@ -77,26 +76,24 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
     are still references.
     """
     if isinstance(data, dict):
-        value = data.__class__()
+        value = {}
         for field, sub_data in data.items():
             value[field] = copy(sub_data)
         return value
     return data
 
 
-def _clamp(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
-    """Clamp an element from Gym.Space to make sure it is within bounds.
-
-    :meta private:
+def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
+    """Clamp value from Gym.Space to make sure it is within bounds.
     """
-    if isinstance(space, gym.spaces.Dict):
-        return OrderedDict(
-            (k, _clamp(subspace, value[k]))
-            for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Box):
-        return np.clip(value, space.low, space.high)
+        return np.core.umath.clip(value, space.low, space.high)
+    if isinstance(space, gym.spaces.Dict):
+        return dict(
+            (k, clip(subspace, value[k]))
+            for k, subspace in space.spaces.items())
     if isinstance(space, gym.spaces.Discrete):
-        return np.clip(value, 0, space.n)
+        return value  # No need to clip Discrete space.
     raise NotImplementedError(
         f"Gym.Space of type {type(space)} is not supported by this "
         "method.")
@@ -134,7 +131,7 @@ def register_variables(controller: jiminy.AbstractController,
 
     :returns: Whether or not the registration has been successful.
     """
-    assert data is not None and len(field) == len(data), (
+    assert field and len(field) == len(data), (
         "field and data are inconsistent.")
     if isinstance(field, dict):
         is_success = True
@@ -142,16 +139,17 @@ def register_variables(controller: jiminy.AbstractController,
             hresult = register_variables(
                 controller, subfield, value, namespace)
             is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
-    elif (isinstance(field, (list, tuple)) and
-            isinstance(field[0], (list, tuple))):
+    elif isinstance(field[0], str):
+        if namespace is not None:
+            field = [".".join((namespace, name)) for name in field]
+        hresult = controller.register_variables(field, data)
+        is_success = (hresult == jiminy.hresult_t.SUCCESS)
+    elif isinstance(field[0], (list, tuple)):
         is_success = True
         for subfield, value in zip(field, data):
             hresult = register_variables(
                 controller, subfield, value, namespace)
             is_success = is_success and (hresult == jiminy.hresult_t.SUCCESS)
     else:
-        if namespace is not None:
-            field = [".".join((namespace, name)) for name in field]
-        hresult = controller.register_variables(field, data)
-        is_success = (hresult == jiminy.hresult_t.SUCCESS)
+        raise ValueError(f"Unsupported field type '{type(field)}'.")
     return is_success

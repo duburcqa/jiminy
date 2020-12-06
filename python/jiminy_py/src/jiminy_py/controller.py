@@ -65,46 +65,50 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         self.close_progress_bar()
 
     def set_observer_handle(self,
-                            observer_handle: ObserverHandleType) -> None:
+                            observer_handle: ObserverHandleType,
+                            unsafe: bool = False) -> None:
         r"""Set the observer callback function.
 
-        By default, the observer update period is the same of the controller.
-        One is responsible to implement custom breakpoint point management if
-        it must be different.
+        By default, the observer update period is the same of the observer. One
+        is responsible to implement custom breakpoint point management if it
+        must be different.
 
         :param compute_command:
             .. raw:: html
 
-                Controller entry-point, implemented as a callback function.
-                It must have the following signature:
+                Observer entry-point, implemented as a callback function. It
+                must have the following signature:
 
-            | controller_handle\(**t**: float,
-            |                    **q**: np.ndarray,
-            |                    **v**: np.ndarray,
-            |                    **sensors_data**: jiminy_py.core.sensorsData
-            |                    \) -> None
+            | observer_handle\(**t**: float,
+            |                  **q**: np.ndarray,
+            |                  **v**: np.ndarray,
+            |                  **sensors_data**: jiminy_py.core.sensorsData
+            |                  \) -> None
+        :param unsafe: Whether or not to check if the handle is valid.
         """
         try:
-            t = 0.0
-            y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
-            sensors_data = self.robot.sensors_data
-            observer_handle(t, y, dy, sensors_data)
-            self.__observer_handle = observer_handle
+            if not unsafe:
+                t = 0.0
+                y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
+                sensors_data = self.robot.sensors_data
+                observer_handle(t, y, dy, sensors_data)
         except Exception as e:
             raise RuntimeError(
                 "The observer handle has wrong signature. It is expected:"
                 "\ncontroller_handle(t, y, dy, sensorsData) -> None"
                 ) from e
+        self.__observer_handle = observer_handle
 
     def set_controller_handle(self,
-                              controller_handle: ControllerHandleType) -> None:
+                              controller_handle: ControllerHandleType,
+                              unsafe: bool = False) -> None:
         r"""Set the controller callback function.
 
         :param compute_command:
             .. raw:: html
 
-                Controller entry-point, implemented as a callback function.
-                It must have the following signature:
+                Controller entry-point, implemented as a callback function. It
+                must have the following signature:
 
             | controller_handle\(**t**: float,
             |                    **q**: np.ndarray,
@@ -112,19 +116,21 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
             |                    **sensors_data**: jiminy_py.core.sensorsData,
             |                    **u_command**: np.ndarray
             |                    \) -> None
+        :param unsafe: Whether or not to check if the handle is valid.
         """
         try:
-            t = 0.0
-            y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
-            sensors_data = self.robot.sensors_data
-            u_command = np.zeros(self.robot.nmotors)
-            controller_handle(t, y, dy, sensors_data, u_command)
-            self.__controller_handle = controller_handle
+            if not unsafe:
+                t = 0.0
+                y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
+                sensors_data = self.robot.sensors_data
+                u_command = np.zeros(self.robot.nmotors)
+                controller_handle(t, y, dy, sensors_data, u_command)
         except Exception as e:
             raise RuntimeError(
                 "The controller handle has wrong signature. It is expected:"
                 "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
                 ) from e
+        self.__controller_handle = controller_handle
 
     def __compute_command(self,
                           t: float,

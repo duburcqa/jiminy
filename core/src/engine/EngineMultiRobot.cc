@@ -673,20 +673,156 @@ namespace jiminy
         auto systemDataIt = systemsDataHolder_.begin();
         for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
         {
+            // Propagate the user-defined gravity at Pinocchio model level
+            systemIt->robot->pncModel_.gravity = engineOptions_->world.gravity;
+
+            // Propage the user-defined motor inertia at Pinocchio model level
+            systemIt->robot->pncModel_.rotorInertia = systemIt->robot->getMotorsInertias();
+
+            /* Reinitialize the system state buffers, since the robot kinematic may have changed.
+               For example, it may happens if one activates or deactivates the flexibility between
+               two successive simulations. */
+            systemDataIt->state.initialize(*(systemIt->robot));
+            systemDataIt->statePrev.initialize(*(systemIt->robot));
+        }
+
+        // Initialize the ode solver
+        auto systemOde = [this](float64_t              const & t,
+                                std::vector<vectorN_t> const & q,
+                                std::vector<vectorN_t> const & v,
+                                std::vector<vectorN_t>       & a) -> void
+                         {
+                             this->computeSystemDynamics(t, q, v, a);
+                         };
+        std::vector<Robot const *> robots;
+        robots.reserve(systems_.size());
+        std::transform(systems_.begin(), systems_.end(),
+                        std::back_inserter(robots),
+                        [](auto const & sys) -> Robot const *
+                        {
+                            return sys.robot.get();
+                        });
+        if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
+        {
+            stepper_ = std::unique_ptr<AbstractStepper>(
+                new RungeKuttaDOPRIStepper(systemOde,
+                                            robots,
+                                            engineOptions_->stepper.tolAbs,
+                                            engineOptions_->stepper.tolRel));
+        }
+        else if (engineOptions_->stepper.odeSolver == "runge_kutta_4")
+        {
+            stepper_ = std::unique_ptr<AbstractStepper>(
+                new RungeKutta4Stepper(systemOde, robots));
+        }
+        else if (engineOptions_->stepper.odeSolver == "explicit_euler")
+        {
+            stepper_ = std::unique_ptr<AbstractStepper>(
+                new ExplicitEulerStepper(systemOde, robots));
+        }
+
+        // Set the initial time step
+        float64_t const dt = SIMULATION_INITIAL_TIMESTEP;
+
+        // Initialize the stepper state
+        float64_t const t = 0.0;
+        stepperState_.reset(dt, qSplit, vSplit, aSplit);
+
+        // Synchronize the individual system states with the global stepper state
+        syncSystemsStateWithStepper();
+
+        // Update the frame indices associated with the coupling forces
+        for (auto & force : forcesCoupling_)
+        {
+            getFrameIdx(systems_[force.systemIdx1].robot->pncModel_,
+                        force.frameName1,
+                        force.frameIdx1);
+            getFrameIdx(systems_[force.systemIdx2].robot->pncModel_,
+                        force.frameName2,
+                        force.frameIdx2);
+        }
+
+        systemIt = systems_.begin();
+        systemDataIt = systemsDataHolder_.begin();
+        for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+        {
+            // Update the frame indices associated with the impulse forces and force profiles
+            for (auto & force : systemDataIt->forcesProfile)
+            {
+                getFrameIdx(systemIt->robot->pncModel_,
+                            force.frameName,
+                            force.frameIdx);
+            }
+            for (auto & force : systemDataIt->forcesImpulse)
+            {
+                getFrameIdx(systemIt->robot->pncModel_,
+                            force.frameName,
+                            force.frameIdx);
+            }
+
+            // Initialize the impulse force breakpoint point iterator
+            systemDataIt->forcesImpulseBreakNextIt = systemDataIt->forcesImpulseBreaks.begin();
+
+            // Reset the active set of impulse forces
+            std::fill(systemDataIt->forcesImpulseActive.begin(),
+                        systemDataIt->forcesImpulseActive.end(),
+                        false);
+
+            // Activate every force impulse starting at t=0
+            auto forcesImpulseActiveIt = systemDataIt->forcesImpulseActive.begin();
+            auto forcesImpulseIt = systemDataIt->forcesImpulse.begin();
+            for ( ; forcesImpulseIt != systemDataIt->forcesImpulse.end() ;
+                ++forcesImpulseActiveIt, ++forcesImpulseIt)
+            {
+                if (forcesImpulseIt->t < STEPPER_MIN_TIMESTEP)
+                {
+                    *forcesImpulseActiveIt = true;
+                }
+            }
+
+            // Compute the forward kinematics for each system
+            vectorN_t const & q = systemDataIt->state.q;
+            vectorN_t const & v = systemDataIt->state.v;
+            vectorN_t const & a = systemDataIt->state.a;
+            computeForwardKinematics(*systemIt, q, v, a);
+
+            // Make sure that the contact forces are bounded.
+            // TODO: One should rather use something like 10 * m * g instead of a fix threshold
+            float64_t forceMax = 0.0;
+            auto const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
+            for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
+            {
+                pinocchio::Force fext = computeContactDynamicsAtFrame(*systemIt, contactFramesIdx[i]);
+                forceMax = std::max(forceMax, fext.linear().norm());
+            }
+
+            std::vector<int32_t> const & collisionBodiesIdx = systemIt->robot->getCollisionBodiesIdx();
+            std::vector<std::vector<int32_t> > const & collisionPairsIdx = systemIt->robot->getCollisionPairsIdx();
+            for (uint32_t i=0; i < collisionBodiesIdx.size(); ++i)
+            {
+                for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
+                {
+                    int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
+                    pinocchio::Force fext = computeContactDynamicsAtBody(*systemIt, collisionPairIdx);
+                    forceMax = std::max(forceMax, fext.linear().norm());
+                }
+            }
+
+            if (forceMax > 1e5)
+            {
+                PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
+                            "which is forbidden for the sake of numerical stability. Please "
+                            "update the initial state.");
+                return hresult_t::ERROR_BAD_INPUT;
+            }
+        }
+
+        systemIt = systems_.begin();
+        systemDataIt = systemsDataHolder_.begin();
+        for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
+        {
             if (returnCode == hresult_t::SUCCESS)
             {
-                // Propagate the user-defined gravity at Pinocchio model level
-                systemIt->robot->pncModel_.gravity = engineOptions_->world.gravity;
-
-                // Propage the user-defined motor inertia at Pinocchio model level
-                systemIt->robot->pncModel_.rotorInertia = systemIt->robot->getMotorsInertias();
-
-                /* Reinitialize the system state buffers, since the robot kinematic may have changed.
-                   For example, it may happens if one activates or deactivates the flexibility between
-                   two successive simulations. */
-                systemDataIt->state.initialize(*(systemIt->robot));
-                systemDataIt->statePrev.initialize(*(systemIt->robot));
-
                 // Lock the robot. At this point it is no longer possible to change the robot anymore.
                 returnCode = systemIt->robot->getLock(systemDataIt->robotLock);
             }
@@ -694,137 +830,6 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Initialize the ode solver
-            auto systemOde = [this](float64_t              const & t,
-                                    std::vector<vectorN_t> const & q,
-                                    std::vector<vectorN_t> const & v,
-                                    std::vector<vectorN_t>       & a) -> void
-                             {
-                                 this->computeSystemDynamics(t, q, v, a);
-                             };
-            std::vector<Robot const *> robots;
-            robots.reserve(systems_.size());
-            std::transform(systems_.begin(), systems_.end(),
-                           std::back_inserter(robots),
-                           [](auto const & sys) -> Robot const *
-                           {
-                               return sys.robot.get();
-                           });
-            if (engineOptions_->stepper.odeSolver == "runge_kutta_dopri5")
-            {
-                stepper_ = std::unique_ptr<AbstractStepper>(
-                    new RungeKuttaDOPRIStepper(systemOde,
-                                               robots,
-                                               engineOptions_->stepper.tolAbs,
-                                               engineOptions_->stepper.tolRel));
-            }
-            else if (engineOptions_->stepper.odeSolver == "runge_kutta_4")
-            {
-                stepper_ = std::unique_ptr<AbstractStepper>(
-                    new RungeKutta4Stepper(systemOde, robots));
-            }
-            else if (engineOptions_->stepper.odeSolver == "explicit_euler")
-            {
-                stepper_ = std::unique_ptr<AbstractStepper>(
-                    new ExplicitEulerStepper(systemOde, robots));
-            }
-
-            // Set the initial time step
-            float64_t const dt = SIMULATION_INITIAL_TIMESTEP;
-
-            // Initialize the stepper state
-            float64_t const t = 0.0;
-            stepperState_.reset(dt, qSplit, vSplit, aSplit);
-
-            // Synchronize the individual system states with the global stepper state
-            syncSystemsStateWithStepper();
-
-            // Update the frame indices associated with the coupling forces
-            for (auto & force : forcesCoupling_)
-            {
-                getFrameIdx(systems_[force.systemIdx1].robot->pncModel_,
-                            force.frameName1,
-                            force.frameIdx1);
-                getFrameIdx(systems_[force.systemIdx2].robot->pncModel_,
-                            force.frameName2,
-                            force.frameIdx2);
-            }
-
-            systemIt = systems_.begin();
-            systemDataIt = systemsDataHolder_.begin();
-            for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
-            {
-                // Update the frame indices associated with the impulse forces and force profiles
-                for (auto & force : systemDataIt->forcesProfile)
-                {
-                    getFrameIdx(systemIt->robot->pncModel_,
-                                force.frameName,
-                                force.frameIdx);
-                }
-                for (auto & force : systemDataIt->forcesImpulse)
-                {
-                    getFrameIdx(systemIt->robot->pncModel_,
-                                force.frameName,
-                                force.frameIdx);
-                }
-
-                // Initialize the impulse force breakpoint point iterator
-                systemDataIt->forcesImpulseBreakNextIt = systemDataIt->forcesImpulseBreaks.begin();
-
-                // Reset the active set of impulse forces
-                std::fill(systemDataIt->forcesImpulseActive.begin(),
-                          systemDataIt->forcesImpulseActive.end(),
-                          false);
-
-                // Compute the forward kinematics for each system
-                vectorN_t const & q = systemDataIt->state.q;
-                vectorN_t const & v = systemDataIt->state.v;
-                vectorN_t const & a = systemDataIt->state.a;
-                computeForwardKinematics(*systemIt, q, v, a);
-
-                // Make sure that the contact forces are bounded.
-                // TODO: One should rather use something like 10 * m * g instead of a fix threshold
-                float64_t forceMax = 0.0;
-                auto const & contactFramesIdx = systemIt->robot->getContactFramesIdx();
-                for (uint32_t i=0; i < contactFramesIdx.size(); ++i)
-                {
-                    pinocchio::Force fext = computeContactDynamicsAtFrame(*systemIt, contactFramesIdx[i]);
-                    forceMax = std::max(forceMax, fext.linear().norm());
-                }
-
-                std::vector<int32_t> const & collisionBodiesIdx = systemIt->robot->getCollisionBodiesIdx();
-                std::vector<std::vector<int32_t> > const & collisionPairsIdx = systemIt->robot->getCollisionPairsIdx();
-                for (uint32_t i=0; i < collisionBodiesIdx.size(); ++i)
-                {
-                    for (uint32_t j=0; j < collisionPairsIdx[i].size(); ++j)
-                    {
-                        int32_t const & collisionPairIdx = collisionPairsIdx[i][j];
-                        pinocchio::Force fext = computeContactDynamicsAtBody(*systemIt, collisionPairIdx);
-                        forceMax = std::max(forceMax, fext.linear().norm());
-                    }
-                }
-
-                if (forceMax > 1e5)
-                {
-                    PRINT_ERROR("The initial force exceeds 1e5 for at least one contact point, "
-                                "which is forbidden for the sake of numerical stability. Please "
-                                "update the initial state.");
-                    return hresult_t::ERROR_BAD_INPUT;
-                }
-
-                // Activate every force impulse starting at t=0
-                auto forcesImpulseActiveIt = systemDataIt->forcesImpulseActive.begin();
-                auto forcesImpulseIt = systemDataIt->forcesImpulse.begin();
-                for ( ; forcesImpulseIt != systemDataIt->forcesImpulse.end() ;
-                    ++forcesImpulseActiveIt, ++forcesImpulseIt)
-                {
-                    if (forcesImpulseIt->t < STEPPER_MIN_TIMESTEP)
-                    {
-                        *forcesImpulseActiveIt = true;
-                    }
-                }
-            }
-
             // Compute the internal and external forces applied on every systems
             computeAllForces(t, qSplit, vSplit);
 
@@ -888,14 +893,9 @@ namespace jiminy
             {
                 systemData.statePrev = systemData.state;
             }
-        }
 
-        // At this point, consider that the simulation is running
-        isSimulationRunning_ = true;
-
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            stop();
+            // At this point, consider that the simulation is running
+            isSimulationRunning_ = true;
         }
 
         return returnCode;
@@ -1500,16 +1500,17 @@ namespace jiminy
             dt = stepSize;
         }
 
-        if (returnCode != hresult_t::SUCCESS)
-        {
-            stop();
-        }
-
         return returnCode;
     }
 
     void EngineMultiRobot::stop(void)
     {
+        // Release the lock on the robots
+        for (auto & systemData : systemsDataHolder_)
+        {
+            systemData.robotLock.reset(nullptr);
+        }
+
         // Make sure that a simulation running
         if (!isSimulationRunning_)
         {
@@ -1518,12 +1519,6 @@ namespace jiminy
 
         // Log current buffer content as final point of the log data
         updateTelemetry();
-
-        // Release the lock on the robots
-        for (auto & systemData : systemsDataHolder_)
-        {
-            systemData.robotLock.reset(nullptr);
-        }
 
         /* Reset the telemetry.
            Note that calling ``stop` or  `reset` does NOT clear
