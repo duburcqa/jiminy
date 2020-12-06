@@ -182,6 +182,9 @@ class StackedJiminyEnv(BasePipelineWrapper):
                 "`StackedJiminyEnv` does not support time-continuous update.")
 
     def refresh_observation(self) -> None:  # type: ignore[override]
+        # Assertion(s) for type checker
+        assert self.engine is not None and self.stepper_state is not None
+
         # Get environment observation
         super().refresh_observation()
 

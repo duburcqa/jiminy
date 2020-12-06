@@ -557,6 +557,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :returns: Next observation, reward, status of the episode (done or
                   not), and a dictionary of extra information
         """
+        # Assertion(s) for type checker
+        assert self.engine is not None
+
         # Make sure a simulation is already running
         if not self.engine.is_simulation_running:
             raise RuntimeError(
@@ -625,6 +628,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
+        # Assertion(s) for type checker
+        assert self.engine is not None
+
         if not self.engine.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` at least one "
@@ -819,7 +825,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         return qpos, qvel
 
-    def refresh_observation(self) -> None: # type: ignore[override]
+    def refresh_observation(self) -> None:  # type: ignore[override]
         """Compute the observation based on the current state of the robot.
 
         .. note::
@@ -839,7 +845,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # pylint: disable=arguments-differ
 
         # Assertion(s) for type checker
-        assert self.stepper_state is not None
+        assert (self.engine is not None and self.stepper_state is not None and
+                isinstance(self._observation, dict))
 
         self._observation['t'][0] = self.stepper_state.t
         if not self.engine.is_simulation_running:
@@ -946,6 +953,9 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
             observation=self.observation_space,
             desired_goal=goal_space,
             achieved_goal=goal_space))
+
+        # Define some internal buffers
+        self._desired_goal = zeros(goal_space)
 
     def get_observation(self) -> SpaceDictNested:
         """ TODO: Write documentation.

@@ -384,6 +384,9 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         # pylint: disable=arguments-differ
 
+        # Assertion(s) for type checker
+        assert self.system_state is not None
+
         if self.system_state.q[2] < self._height_neutral * 0.75:
             return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:

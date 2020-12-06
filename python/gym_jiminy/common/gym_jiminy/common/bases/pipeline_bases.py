@@ -106,7 +106,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
                                 Optional: None by default.
         :param kwargs: Extra keyword arguments to comply with OpenAI Gym API.
         """
-        # pylint: disable=unused-argument
+        # pylint: disable=unused-argument,arguments-differ
 
         # Define chained controller hook
         def register() -> Tuple[ObserverHandleType, ControllerHandleType]:
@@ -201,7 +201,7 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         # pylint: disable=arguments-differ
 
-        return self.env.refresh_observation()
+        self.env.refresh_observation()
 
     def compute_command(self,
                         measure: SpaceDictNested,
@@ -343,6 +343,9 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         :returns: Updated part of the observation only for efficiency.
         """
         # pylint: disable=arguments-differ
+
+        # Assertion(s) for type checker
+        assert self.engine is not None and self.stepper_state is not None
 
         # Get environment observation
         super().refresh_observation()
@@ -529,6 +532,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param measure: Observation of the environment.
         :param action: High-level target to achieve.
         """
+        # Assertion(s) for type checker
+        assert self.engine is not None and self.stepper_state is not None
+
         # Backup the action
         set_value(self._action, action)
 
@@ -570,6 +576,9 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :returns: Original environment observation, eventually including
                   controllers targets if requested.
         """
+        # Assertion(s) for type checker
+        assert self.engine is not None
+
         # Get environment observation
         super().refresh_observation()
 

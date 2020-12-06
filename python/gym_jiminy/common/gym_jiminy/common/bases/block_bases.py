@@ -59,7 +59,7 @@ class BlockInterface:
 
         # Assertion(s) for type checker
         assert (self.observation_space is not None and
-                self.action_space is not None)
+                self.action_space is not None)  # type: ignore[unreachable]
 
     def __getattr__(self, name: str) -> Any:
         """Fallback attribute getter.
