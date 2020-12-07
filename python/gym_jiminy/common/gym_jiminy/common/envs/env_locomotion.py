@@ -384,9 +384,10 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
-        assert self.system_state is not None
-
+        if not self.simulator.is_simulation_running:
+            raise RuntimeError(
+                "No simulation running. Please start one before calling this "
+                "method.")
         if self.system_state.q[2] < self._height_neutral * 0.75:
             return True
         if self.simulator.stepper_state.t >= self.simu_duration_max:
@@ -407,9 +408,6 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         :returns: Total reward.
         """
         # pylint: disable=arguments-differ
-
-        # Assertion(s) for type checker
-        assert self.system_state is not None
 
         reward_dict = info.setdefault('reward', {})
 

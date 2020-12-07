@@ -234,7 +234,7 @@ def build_pipeline(env_config: EnvConfig,
 def load_pipeline(fullpath: str) -> Type[BasePipelineWrapper]:
     """ TODO: Write documentation.
     """
-    file_ext = ''.join(pathlib.Path(fullpath).suffixes)
+    file_ext = pathlib.Path(fullpath).suffix
     with open(fullpath, 'r') as f:
         if file_ext == '.json':
             return build_pipeline(**json.load(f))

@@ -48,6 +48,7 @@ DEFAULT_CAMERA_REL_XYZRPY = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
 DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
+DEFAULT_LOGO_SIZE = (150, 150)
 
 DEFAULT_URDF_COLORS = {
     'green': (0.4, 0.7, 0.3, 1.0),
@@ -1327,6 +1328,9 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
             'use_theoretical_model': use_theoretical_model}
 
 
+ColorType = Union[Tuple4FType, str]
+
+
 def play_trajectories(trajectory_data: Union[
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
                       replay_speed: float = 1.0,
@@ -1340,12 +1344,14 @@ def play_trajectories(trajectory_data: Union[
                       xyz_offset: Optional[Union[
                           Tuple3FType, Sequence[Tuple3FType]]] = None,
                       urdf_rgba: Optional[Union[
-                          Tuple4FType, Sequence[Tuple4FType]]] = None,
+                          ColorType, Sequence[ColorType]]] = None,
                       backend: Optional[str] = None,
                       window_name: str = 'jiminy',
                       scene_name: str = 'world',
                       close_backend: Optional[bool] = None,
                       delete_robot_on_close: Optional[bool] = None,
+                      legend: Optional[Union[str, Sequence[str]]] = None,
+                      logo_fullpath: Optional[str] = None,
                       verbose: bool = True) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
 
@@ -1391,7 +1397,8 @@ def play_trajectories(trajectory_data: Union[
                        Optional: None by default.
     :param urdf_rgba: List of RGBA code defining the color for each robot. It
                       will apply to every link. None to disable.
-                      Optional: Original colors of each link. No alpha.
+                      Optional: Original color if single robot, default color
+                      cycle otherwise.
     :param backend: Backend, one of 'meshcat' or 'gepetto-gui'. If None,
                     'meshcat' is used in notebook environment and 'gepetto-gui'
                     otherwise.
@@ -1408,6 +1415,16 @@ def play_trajectories(trajectory_data: Union[
     :param delete_robot_on_close: Whether or not to delete the robot from the
                                   viewer when closing it.
                                   Optional: True by default.
+    :param legend: List of text defining the legend for each robot. `urdf_rgba`
+                   must be specified to enable this option. The legend is not
+                   persistent but disabled after replay. This option is only
+                   supported by meshcat backend. None to disable.
+                   Optional: No legend if no color by default, the robots names
+                   otherwise.
+    :param logo_fullpath: Add logo/watermark to the viewer. The logo is not
+                          persistent but disabled after replay. This option is
+                          only supported by meshcat backend. None to disable.
+                          Optional: No logo by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
 
@@ -1422,7 +1439,8 @@ def play_trajectories(trajectory_data: Union[
         else:
             urdf_rgba = list(islice(
                 cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
-    if not isinstance(urdf_rgba, list) or isinstance(urdf_rgba[0], float):
+    if not isinstance(urdf_rgba, (list, tuple)) or \
+            isinstance(urdf_rgba[0], float):
         urdf_rgba = [urdf_rgba]
     for i, color in enumerate(urdf_rgba):
         if isinstance(color, str):
@@ -1499,6 +1517,26 @@ def play_trajectories(trajectory_data: Union[
         xyz_offset = len(trajectory_data) * [None]
     xyz_offset = list(xyz_offset)
     assert len(xyz_offset) == len(trajectory_data)
+
+    # Handle meshcat-specific options
+    if Viewer.backend == 'meshcat':
+        # Add legend if suitable
+        if legend is not None:
+            if not isinstance(legend, (list, tuple)):
+                legend = [legend]
+        elif urdf_rgba is not None:
+            legend = [viewer.robot_name for viewer in viewers]
+        if legend is not None:
+            assert len(legend) == len(trajectory_data)
+            for viewer, color, text in zip(viewers, urdf_rgba, legend):
+                rgba = [*[int(e * 255) for e in color[:3]], color[3]]
+                color = f"rgba({','.join(map(str, rgba))}"
+                Viewer._backend_obj.set_legend_item(
+                    viewer.robot_name, color, text)
+
+        # Add logo/watermark if requested
+        if logo_fullpath is not None:
+            Viewer._backend_obj.set_logo(logo_fullpath, *DEFAULT_LOGO_SIZE)
 
     # Do not display trajectories without data
     trajectory_data = list(trajectory_data).copy()  # No deepcopy
@@ -1603,6 +1641,17 @@ def play_trajectories(trajectory_data: Union[
         Viewer.detach_camera()
     if camera_motion is not None:
         Viewer.remove_camera_motion()
+
+    # Handle meshcat-specific options
+    if Viewer.backend == 'meshcat':
+        # Disable legend if it was enabled
+        if legend is not None:
+            for viewer in viewers:
+                Viewer._backend_obj.remove_legend_item(viewer.robot_name)
+
+        # Disable logo/watermark if it was enabled
+        if logo_fullpath is not None:
+            Viewer._backend_obj.remove_logo()
 
     # Close backend if needed
     if close_backend:

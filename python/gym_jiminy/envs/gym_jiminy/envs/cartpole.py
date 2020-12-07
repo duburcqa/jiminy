@@ -123,6 +123,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         # Configure the learning environment
         super().__init__(simulator, STEP_DT, debug=False)
 
+        # Create some proxies for fast access
+        self.__state_view = (self._observation[:self.robot.nq],
+                             self._observation[self.robot.nv:])
+
     def _setup(self) -> None:
         """ TODO: Write documentation.
         """
@@ -176,8 +180,10 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     def refresh_observation(self) -> None:
         # @copydoc BaseJiminyEnv::refresh_observation
-        np.core.umath.copyto(
-            self._observation, np.concatenate(self.simulator.state))
+        if not self.simulator.is_simulation_running:
+            self.__state = (self.system_state.q, self.system_state.v)
+        np.core.umath.copyto(self.__state_view[0], self.__state[0])
+        np.core.umath.copyto(self.__state_view[1], self.__state[1])
 
     def is_done(self) -> bool:
         """ TODO: Write documentation.

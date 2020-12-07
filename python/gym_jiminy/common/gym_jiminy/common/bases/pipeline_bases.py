@@ -18,6 +18,7 @@ import numpy as np
 import gym
 
 import jiminy_py.core as jiminy
+from jiminy_py.simulator import Simulator
 from jiminy_py.controller import ObserverHandleType, ControllerHandleType
 
 from ..utils import (
@@ -53,6 +54,12 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         """
         # Initialize base wrapper and interfaces through multiple inheritance
         super().__init__(env)  # Do not forward extra arguments, if any
+
+        # Refresh some proxies for fast lookup
+        self.simulator: Simulator = self.env.simulator
+        self.stepper_state: jiminy.StepperState = self.env.stepper_state
+        self.system_state: jiminy.SystemState = self.env.system_state
+        self.sensors_data: jiminy.sensorsData = self.env.sensors_data
 
         # Define some internal buffers
         self._dt_eps: Optional[float] = None
@@ -187,9 +194,6 @@ class BasePipelineWrapper(ObserverControllerInterface, gym.Wrapper):
         fill(self._command, 0.0)
 
         # Refresh some proxies for fast lookup
-        self.engine = self.env.engine
-        self.stepper_state = self.env.stepper_state
-        self.system_state = self.env.system_state
         self.sensors_data = self.env.sensors_data
 
     def refresh_observation(self) -> None:  # type: ignore[override]
@@ -344,9 +348,6 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         """
         # pylint: disable=arguments-differ
 
-        # Assertion(s) for type checker
-        assert self.engine is not None and self.stepper_state is not None
-
         # Get environment observation
         super().refresh_observation()
 
@@ -355,7 +356,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
         if _is_breakpoint(t, self.observe_dt, self._dt_eps):
             obs = self.env.get_observation()
             self.observer.refresh_observation(obs)
-            if not self.engine.is_simulation_running:
+            if not self.simulator.is_simulation_running:
                 features = self.observer.get_observation()
                 if self.augment_observation:
                     self._observation = obs
@@ -532,9 +533,6 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :param measure: Observation of the environment.
         :param action: High-level target to achieve.
         """
-        # Assertion(s) for type checker
-        assert self.engine is not None and self.stepper_state is not None
-
         # Backup the action
         set_value(self._action, action)
 
@@ -552,7 +550,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         # update the command of the right period. Ultimately, this is done
         # automatically by the engine, which is calling `_controller_handle` at
         # the right period.
-        if self.engine.is_simulation_running:
+        if self.simulator.is_simulation_running:
             # Do not update command during the first iteration because the
             # action is undefined at this point
             np.core.umath.copyto(self._command, self.env.compute_command(
@@ -576,14 +574,11 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         :returns: Original environment observation, eventually including
                   controllers targets if requested.
         """
-        # Assertion(s) for type checker
-        assert self.engine is not None
-
         # Get environment observation
         super().refresh_observation()
 
         # Add target to observation if requested
-        if not self.engine.is_simulation_running:
+        if not self.simulator.is_simulation_running:
             self._observation = self.env.get_observation()
             if self.augment_observation:
                 self._observation.setdefault('targets', {})[

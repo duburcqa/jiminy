@@ -86,7 +86,8 @@ class Simulator:
                 "Invalid robot or controller. Make sure they are both "
                 "initialized.")
 
-        # Create shared memory for efficiency
+        # Create shared memories and python-native attribute for fast access
+        self.is_simulation_running = False
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
@@ -296,6 +297,9 @@ class Simulator:
                               external forces. It can also be done separately.
                               Optional: Do not remove by default.
         """
+        # Consider the simulation is not longer running already
+        self.is_simulation_running = False
+
         # Reset the backend engine
         self.engine.reset(remove_forces)
 
@@ -320,9 +324,13 @@ class Simulator:
                                      associated with the actual or theoretical
                                      model of the robot.
         """
+        # Call base implementation
         hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
+
+        # Consider the simulation is now running
+        self.is_simulation_running = True
 
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
@@ -354,6 +362,28 @@ class Simulator:
                 self.system_state.q,
                 self.system_state.v,
                 self.sensors_data)
+
+    def stop(self) -> None:
+        """Stop the simulation.
+
+        .. note::
+            It also releases the robot lock. Which is necessary to be able to
+            apply modifications on the robot.
+        """
+        self.engine.stop()
+        self.is_simulation_running = False
+
+    def simulate(self,
+                 t_end: float,
+                 q_init: np.ndarray,
+                 v_init: np.ndarray,
+                 a_init: Optional[np.ndarray] = None,
+                 is_state_theoretical: bool = False) -> None:
+        return_code = self.engine.simulate(
+            t_end, q_init, v_init, a_init, is_state_theoretical)
+        self.is_simulation_running = False
+        if return_code != jiminy.hresult_t.SUCCESS:
+            raise RuntimeError("The simulation failed.")
 
     def run(self,
             tf: float,
@@ -492,12 +522,13 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if hasattr(self, '_viewer') and self._viewer is not None:
-            self._viewer.close()
-            self._is_viewer_available = False
-            self._viewer = None
-        if hasattr(self, '__plot_data') and self.__plot_data is not None:
-            plt.close(self.__plot_data['fig'])
+        if hasattr(self, 'engine'):
+            if self._viewer is not None:
+                self._viewer.close()
+                self._is_viewer_available = False
+                self._viewer = None
+            if self.__plot_data is not None:
+                plt.close(self.__plot_data['fig'])
 
     def plot(self) -> None:
         """Display common simulation data over time.

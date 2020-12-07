@@ -48,7 +48,7 @@ def read_log(fullpath: str,
     """
     # Handling of file file_format
     if file_format is None:
-        file_ext = ''.join(pathlib.Path(fullpath).suffixes)
+        file_ext = pathlib.Path(fullpath).suffix
         if file_ext == '.data':
             file_format = 'binary'
         elif file_ext == '.csv' or file_ext == '.txt':
