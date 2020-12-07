@@ -107,6 +107,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         # Configure the learning environment
         super().__init__(simulator, STEP_DT, debug=False)
 
+        # Create some proxies for fast access
+        self.__state_view = (self._observation[:self.robot.nq],
+                             self._observation[self.robot.nv:])
+
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
 
@@ -131,7 +135,10 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
             For goal env, in addition of the current robot state, both the
             desired and achieved goals are observable.
         """
-        np.concatenate(self.simulator.state, out=self._observation)
+        if not self.simulator.is_simulation_running:
+            self.__state = (self.system_state.q, self.system_state.v)
+        np.core.umath.copyto(self.__state_view[0], self.__state[0])
+        np.core.umath.copyto(self.__state_view[1], self.__state[1])
 
     def _refresh_action_space(self) -> None:
         """Configure the action space of the environment.
