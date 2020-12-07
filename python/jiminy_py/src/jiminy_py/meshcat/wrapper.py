@@ -2,6 +2,7 @@ import os
 import atexit
 import asyncio
 import logging
+import umsgpack
 import threading
 import tornado.ioloop
 from contextlib import redirect_stdout, redirect_stderr
@@ -342,6 +343,31 @@ class MeshcatWrapper:
             while self.comm_manager.n_message < self.comm_manager.n_comm:
                 process_kernel_comm()
         return self.__zmq_socket.recv().decode("utf-8")
+
+    def set_legend_item(self, uniq_id: str, color: str, text: str) -> None:
+        self.__zmq_socket.send_multipart([
+            b"set_property",      # Frontend command. Used by Python zmq server
+            b"",                  # Tree path. Empty path means root
+            umsgpack.packb({      # Backend command. Used by javascript
+                u"type": "legend",
+                u"id": uniq_id,   # Unique identifier of updated legend item
+                u"text": text,    # Any text message support by HTML5
+                u"color": color   # "rgba(0, 0, 0, 0.0)" and "black" supported
+            })
+        ])
+        self.__zmq_socket.recv()  # Receive acknowledgement
+
+    def remove_legend_item(self, uniq_id: str) -> None:
+        self.__zmq_socket.send_multipart([
+            b"set_property",
+            b"",
+            umsgpack.packb({
+                u"type": "legend",
+                u"id": uniq_id,   # Unique identifier of legend item to remove
+                u"text": ""       # Empty message means delete the item, if any
+            })
+        ])
+        self.__zmq_socket.recv()
 
     def start_recording(self, fps: float, width: int, height: int) -> None:
         if not self.recorder.is_open:
