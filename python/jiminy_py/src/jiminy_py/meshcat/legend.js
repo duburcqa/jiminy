@@ -22,7 +22,7 @@ function draggable(el) {
 }
 
 function createLegend(id) {
-    legend = document.createElement("div");
+    var legend = document.createElement("div");
     legend.id = id;
     legend.style.position = "fixed";
     legend.style.top = "20px";
@@ -69,7 +69,7 @@ function setLegendItem(legend, id, text, color) {
 function removeLegendItem(legend, id) {
     var elem = document.getElementById(id);
     if (elem !== null) {
-        legend = elem.parentNode
+        legend = elem.parentNode;
         legend.removeChild(elem);
         if (!legend.childElementCount)
         {

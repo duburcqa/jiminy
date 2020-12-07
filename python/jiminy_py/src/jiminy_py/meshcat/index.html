@@ -34,6 +34,27 @@
                     } else {
                         removeLegendItem(legend, cmd.id);
                     }
+                } else if (cmd.type == "logo") {
+                    var logo = document.getElementById("logo");
+                    if (cmd.data) {
+                        if (logo == null) {
+                            logo = document.createElement("img");
+                            logo.id = "logo";
+                            logo.draggable = false;
+                            logo.style.position = "fixed";
+                            logo.style.bottom = "20px";
+                            logo.style.left = "20px";
+                            logo.style.pointerEvents = "none";
+                            document.body.prepend(logo);
+                        }
+                        logo.setAttribute('src', 'data:image/png;base64,' + cmd.data);
+                        logo.style.width = cmd.width.toString() + "px";
+                        logo.style.height = cmd.height.toString() + "px";
+                    } else {
+                        if (logo !== null) {
+                            document.body.removeChild(logo);
+                        }
+                    }
                 } else {
                     handle_command.call(this, cmd);
                 }
