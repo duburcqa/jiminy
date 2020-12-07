@@ -6,6 +6,7 @@ import numpy as np
 import gym
 
 import jiminy_py.core as jiminy
+from jiminy_py.simulator import Simulator
 
 from ..utils import copy, SpaceDictNested
 
@@ -173,14 +174,14 @@ class ObserverControllerInterface(ObserverInterface, ControllerInterface):
     """Observer plus controller interface for both generic pipeline blocks,
     including environments.
     """
-    engine: Optional[jiminy.EngineMultiRobot]
+    simulator: Optional[Simulator]
     stepper_state: Optional[jiminy.StepperState]
     system_state: Optional[jiminy.SystemState]
     sensors_data: Optional[Dict[str, np.ndarray]]
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # Define some attributes
-        self.engine = None
+        self.simulator = None
         self.stepper_state = None
         self.system_state = None
         self.sensors_data = None

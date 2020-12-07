@@ -90,14 +90,20 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """
         # pylint: disable=unused-argument
 
+        # Initialize the interfaces through multiple inheritance
+        super().__init__()  # Do not forward extra arguments, if any
+
         # Backup some user arguments
-        self.simulator = simulator
+        self.simulator: Simulator = simulator
         self.step_dt = step_dt
         self.enforce_bounded = enforce_bounded
         self.debug = debug
 
-        # Initialize the interfaces through multiple inheritance
-        super().__init__()  # Do not forward extra arguments, if any
+        # Define some proxies for fast access
+        self.engine: jiminy.EngineMultiRobot = self.simulator.engine
+        self.stepper_state: jiminy.StepperState = self.engine.stepper_state
+        self.system_state: jiminy.SystemState = self.engine.system_state
+        self.sensors_data: jiminy.sensorsData = dict(self.robot.sensors_data)
 
         # Internal buffers for physics computations
         self.rg = np.random.RandomState()
@@ -418,11 +424,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
-        # Initialize shared memories.
+        # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
-        self.engine = self.simulator.engine
-        self.stepper_state = self.engine.stepper_state
-        self.system_state = self.engine.system_state
         self.sensors_data = dict(self.robot.sensors_data)
 
         # Make sure the environment is properly setup
@@ -503,14 +506,14 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             is_obs_valid = False
         if not is_obs_valid:
             raise RuntimeError(
-                "The observation returned by `refresh_observation` is "
+                "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
                 "`_refresh_observation_space`.")
 
         if self.is_done():
             raise RuntimeError(
-                "The simulation is already done at `reset`. "
-                "Check the implementation of `is_done` if overloaded.")
+                "The simulation is already done at `reset`. Check the "
+                "implementation of `is_done` if overloaded.")
 
         return self.get_observation()
 
@@ -558,7 +561,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                   not), and a dictionary of extra information
         """
         # Make sure a simulation is already running
-        if self.engine is None or not self.engine.is_simulation_running:
+        if not self.simulator.is_simulation_running:
             raise RuntimeError(
                 "No simulation running. Please call `reset` before `step`.")
 
@@ -625,10 +628,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
         """
-        if self.engine is None or not self.engine.is_simulation_running:
+        if not self.simulator.is_simulation_running:
             raise RuntimeError(
-                "No simulation running. Please call `reset` at least one "
-                "before getting log.")
+                "No simulation running. Please start one before getting log.")
         return self.simulator.get_log()
 
     def render(self,
@@ -839,11 +841,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # pylint: disable=arguments-differ
 
         # Assertion(s) for type checker
-        assert (self.engine is not None and self.stepper_state is not None and
-                isinstance(self._observation, dict))
+        assert isinstance(self._observation, dict)
 
         self._observation['t'][0] = self.stepper_state.t
-        if not self.engine.is_simulation_running:
+        if not self.simulator.is_simulation_running:
             (self._observation['state']['Q'],
              self._observation['state']['V']) = self.simulator.state
             self._observation['sensors'] = self.sensors_data
