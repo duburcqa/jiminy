@@ -1072,21 +1072,21 @@ class Viewer:
             with tempfile.NamedTemporaryFile(suffix=".png") as f:
                 self.save_frame(f.name)
                 img_obj = Image.open(f.name)
-                rgb_array = np.array(img_obj)[:, :, :-1]
-            return rgb_array
+                rgba_array = np.array(img_obj)
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
 
             # Parse the output to remove the html header, and convert it into
             # the desired output format.
-            img_data = base64.decodebytes(str.encode(img_html[23:]))
+            img_data = str.encode(img_html.split(",", 1)[-1])
+            img_raw = base64.decodebytes(img_data)
             if raw_data:
-                return img_data
+                return img_raw
             else:
-                img_obj = Image.open(io.BytesIO(img_data))
-                rgb_array = np.array(img_obj)
-                return rgb_array
+                img_obj = Image.open(io.BytesIO(img_raw))
+                rgba_array = np.array(img_obj)
+            return rgba_array[:, :, :-1]
 
     @__must_be_open
     def save_frame(self,
@@ -1095,8 +1095,7 @@ class Viewer:
                    height: int = DEFAULT_CAPTURE_SIZE) -> None:
         """Save a snapshot in png format.
 
-        :param image_path: Fullpath of the image (.png extension is mandatory
-                           for Gepetto-gui, it is .webp for Meshcat)
+        :param image_path: Fullpath of the image (.png extension is mandatory)
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: DEFAULT_CAPTURE_SIZE by default.
@@ -1104,12 +1103,11 @@ class Viewer:
                        Gepetto-gui for now). None to keep unchanged.
                        Optional: DEFAULT_CAPTURE_SIZE by default.
         """
+        image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend.startswith('gepetto'):
-            image_path = str(pathlib.Path(image_path).with_suffix('.png'))
             self._gui.captureFrame(self._client.windowID, image_path)
         else:
             img_data = self.capture_frame(width, height, raw_data=True)
-            image_path = str(pathlib.Path(image_path).with_suffix('.webp'))
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
@@ -1433,20 +1431,7 @@ def play_trajectories(trajectory_data: Union[
     if not isinstance(trajectory_data, (list, tuple)):
         trajectory_data = [trajectory_data]
 
-    if urdf_rgba is None:
-        if len(trajectory_data) == 1:
-            urdf_rgba = [None]
-        else:
-            urdf_rgba = list(islice(
-                cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
-    if not isinstance(urdf_rgba, (list, tuple)) or \
-            isinstance(urdf_rgba[0], float):
-        urdf_rgba = [urdf_rgba]
-    for i, color in enumerate(urdf_rgba):
-        if isinstance(color, str):
-            urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
-    assert len(urdf_rgba) == len(trajectory_data)
-
+    # Sanitize user-specified viewers
     if viewers is not None:
         # Make sure that viewers is a list
         if not isinstance(viewers, (list, tuple)):
@@ -1465,6 +1450,39 @@ def play_trajectories(trajectory_data: Union[
         if close_backend is None:
             close_backend = False
 
+    # Sanitize user-specified robot offsets
+    if xyz_offset is None:
+        xyz_offset = len(trajectory_data) * [None]
+    assert len(xyz_offset) == len(trajectory_data)
+
+    # Sanitize user-specified robot colors
+    if urdf_rgba is None:
+        if len(trajectory_data) == 1:
+            urdf_rgba = [None]
+        else:
+            urdf_rgba = list(islice(
+                cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
+    if not isinstance(urdf_rgba, (list, tuple)) or \
+            isinstance(urdf_rgba[0], float):
+        urdf_rgba = [urdf_rgba]
+    for i, color in enumerate(urdf_rgba):
+        if isinstance(color, str):
+            urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
+    assert len(urdf_rgba) == len(trajectory_data)
+
+    # Sanitize user-specified legend
+    if legend is not None and not isinstance(legend, (list, tuple)):
+        legend = [legend]
+    if all(color is not None for color in urdf_rgba):
+        if legend is None:
+            legend = [viewer.robot_name for viewer in viewers]
+        else:
+            legend = None
+            logging.warning(
+                "Impossible to display legend if at least one URDF do not "
+                "have custom color.")
+
+    # Instantiate or refresh viewers if necessary
     if viewers is None:
         # Delete robot by default only if not in notebook
         if delete_robot_on_close is None:
@@ -1502,6 +1520,10 @@ def play_trajectories(trajectory_data: Union[
                 viewer._setup(traj['robot'], color)
     assert len(viewers) == len(trajectory_data)
 
+    # # Early return if nothing to replay
+    if all(not len(traj['evolution_robot']) for traj in trajectory_data):
+        return viewers
+
     # Set camera pose or activate camera travelling if requested
     if travelling_frame is not None:
         viewers[0].attach_camera(travelling_frame, camera_xyzrpy)
@@ -1512,20 +1534,8 @@ def play_trajectories(trajectory_data: Union[
     if camera_motion is not None:
         Viewer.add_camera_motion(camera_motion)
 
-    # Handle default robot offset
-    if xyz_offset is None:
-        xyz_offset = len(trajectory_data) * [None]
-    xyz_offset = list(xyz_offset)
-    assert len(xyz_offset) == len(trajectory_data)
-
     # Handle meshcat-specific options
     if Viewer.backend == 'meshcat':
-        # Add legend if suitable
-        if legend is not None:
-            if not isinstance(legend, (list, tuple)):
-                legend = [legend]
-        elif urdf_rgba is not None:
-            legend = [viewer.robot_name for viewer in viewers]
         if legend is not None:
             assert len(legend) == len(trajectory_data)
             for viewer, color, text in zip(viewers, urdf_rgba, legend):
@@ -1538,20 +1548,10 @@ def play_trajectories(trajectory_data: Union[
         if logo_fullpath is not None:
             Viewer._backend_obj.set_logo(logo_fullpath, *DEFAULT_LOGO_SIZE)
 
-    # Do not display trajectories without data
-    trajectory_data = list(trajectory_data).copy()  # No deepcopy
-    for i in reversed(range(len(trajectory_data))):
-        if not trajectory_data[i]['evolution_robot']:
-            del trajectory_data[i]
-            del xyz_offset[i]
-
     # Load robots in gepetto viewer
     for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
-        try:
-            viewer.display(
-                traj['evolution_robot'][0].q, offset)
-        except Viewer._backend_exceptions:
-            break
+        if len(traj['evolution_robot']):
+            viewer.display(traj['evolution_robot'][0].q, offset)
 
     # Wait for the meshes to finish loading if non video recording mode
     if wait_for_client and record_video_path is None:
@@ -1570,33 +1570,41 @@ def play_trajectories(trajectory_data: Union[
     # Replay the trajectory
     if record_video_path is not None:
         # Extract and resample trajectory data at fixed framerate
-        time_max = max([traj['evolution_robot'][-1].t
-                        for traj in trajectory_data])
+        time_max = 0.0
+        for traj in trajectory_data:
+            if len(traj['evolution_robot']):
+                time_max = max([time_max, traj['evolution_robot'][-1].t])
+
         time_evolution = np.arange(
             0.0, time_max, replay_speed / VIDEO_FRAMERATE)
         position_evolutions = []
         for traj in trajectory_data:
-            data_orig = traj['evolution_robot']
-            t_orig = np.array([s.t for s in data_orig])
-            pos_orig = np.stack([s.q for s in data_orig], axis=0)
-            pos_interp = interp1d(
-                t_orig, pos_orig,
-                kind='linear', bounds_error=False,
-                fill_value=(pos_orig[0], pos_orig[-1]), axis=0)
-            position_evolutions.append(pos_interp(time_evolution))
+            if len(traj['evolution_robot']):
+                data_orig = traj['evolution_robot']
+                t_orig = np.array([s.t for s in data_orig])
+                pos_orig = np.stack([s.q for s in data_orig], axis=0)
+                pos_interp = interp1d(
+                    t_orig, pos_orig,
+                    kind='linear', bounds_error=False,
+                    fill_value=(pos_orig[0], pos_orig[-1]), axis=0)
+                position_evolutions.append(pos_interp(time_evolution))
+            else:
+                position_evolutions.append(None)
 
         # Play trajectories without multithreading and record_video
+        is_initialized = False
         for i in tqdm(range(len(time_evolution)),
                       desc="Rendering frames",
                       disable=(not verbose)):
             for viewer, positions, offset in zip(
                     viewers, position_evolutions, xyz_offset):
-                viewer.display(
-                    positions[i], xyz_offset=offset)
+                if positions is not None:
+                    viewer.display(
+                        positions[i], xyz_offset=offset)
             if Viewer.backend != 'meshcat':
                 import cv2
                 frame = viewers[0].capture_frame(VIDEO_SIZE[1], VIDEO_SIZE[0])
-                if i == 0:
+                if not is_initialized:
                     record_video_path = str(
                         pathlib.Path(record_video_path).with_suffix('.mp4'))
                     out = cv2.VideoWriter(
@@ -1604,10 +1612,11 @@ def play_trajectories(trajectory_data: Union[
                         fps=VIDEO_FRAMERATE, frameSize=frame.shape[1::-1])
                 out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
             else:
-                if i == 0:
+                if not is_initialized:
                     viewers[0]._backend_obj.start_recording(
                         VIDEO_FRAMERATE, *VIDEO_SIZE)
                 viewers[0]._backend_obj.add_frame()
+            is_initialized = True
         if Viewer.backend != 'meshcat':
             out.release()
         else:

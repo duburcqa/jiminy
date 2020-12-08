@@ -152,7 +152,6 @@ async def start_video_recording_async(client: HTMLResponse,
             viewer.animator.capturer = new WebMWriter({{
                 quality: 0.99999,  // Lossless codex VP8L is not supported
                 frameRate: {fps}
-
             }});
         }}
     """)
@@ -161,8 +160,9 @@ async def start_video_recording_async(client: HTMLResponse,
 async def add_video_frame_async(client: HTMLResponse) -> Awaitable[None]:
     await client.html.page.evaluate("""
         () => {
-            viewer.renderer.render(viewer.scene, viewer.camera);
-            viewer.animator.capturer.addFrame(viewer.renderer.domElement);
+            captureFrameAndWidgets(viewer).then(function(canvas) {
+                viewer.animator.capturer.addFrame(canvas);
+            });
         }
     """)
 
