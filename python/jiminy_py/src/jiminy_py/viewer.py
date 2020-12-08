@@ -1072,21 +1072,21 @@ class Viewer:
             with tempfile.NamedTemporaryFile(suffix=".png") as f:
                 self.save_frame(f.name)
                 img_obj = Image.open(f.name)
-                rgb_array = np.array(img_obj)[:, :, :-1]
-            return rgb_array
+                rgba_array = np.array(img_obj)
         else:
             # Send capture frame request to the background recorder process
             img_html = Viewer._backend_obj.capture_frame(width, height)
 
             # Parse the output to remove the html header, and convert it into
             # the desired output format.
-            img_data = base64.decodebytes(str.encode(img_html[23:]))
+            img_data = str.encode(img_html.split(",", 1)[-1])
+            img_raw = base64.decodebytes(img_data)
             if raw_data:
-                return img_data
+                return img_raw
             else:
-                img_obj = Image.open(io.BytesIO(img_data))
-                rgb_array = np.array(img_obj)
-                return rgb_array
+                img_obj = Image.open(io.BytesIO(img_raw))
+                rgba_array = np.array(img_obj)
+            return rgba_array[:, :, :-1]
 
     @__must_be_open
     def save_frame(self,
@@ -1095,8 +1095,7 @@ class Viewer:
                    height: int = DEFAULT_CAPTURE_SIZE) -> None:
         """Save a snapshot in png format.
 
-        :param image_path: Fullpath of the image (.png extension is mandatory
-                           for Gepetto-gui, it is .webp for Meshcat)
+        :param image_path: Fullpath of the image (.png extension is mandatory)
         :param width: Width for the image in pixels (not available with
                       Gepetto-gui for now). None to keep unchanged.
                       Optional: DEFAULT_CAPTURE_SIZE by default.
@@ -1104,12 +1103,11 @@ class Viewer:
                        Gepetto-gui for now). None to keep unchanged.
                        Optional: DEFAULT_CAPTURE_SIZE by default.
         """
+        image_path = str(pathlib.Path(image_path).with_suffix('.png'))
         if Viewer.backend.startswith('gepetto'):
-            image_path = str(pathlib.Path(image_path).with_suffix('.png'))
             self._gui.captureFrame(self._client.windowID, image_path)
         else:
             img_data = self.capture_frame(width, height, raw_data=True)
-            image_path = str(pathlib.Path(image_path).with_suffix('.webp'))
             with open(image_path, "wb") as f:
                 f.write(img_data)
 
@@ -1521,11 +1519,16 @@ def play_trajectories(trajectory_data: Union[
     # Handle meshcat-specific options
     if Viewer.backend == 'meshcat':
         # Add legend if suitable
-        if legend is not None:
-            if not isinstance(legend, (list, tuple)):
-                legend = [legend]
-        elif urdf_rgba is not None:
-            legend = [viewer.robot_name for viewer in viewers]
+        if legend is not None and not isinstance(legend, (list, tuple)):
+            legend = [legend]
+        if all(color is not None for color in urdf_rgba):
+            if legend is None:
+                legend = [viewer.robot_name for viewer in viewers]
+            else:
+                legend = None
+                logging.warning(
+                    "Impossible to display legend if at least one URDF do not "
+                    "have custom color.")
         if legend is not None:
             assert len(legend) == len(trajectory_data)
             for viewer, color, text in zip(viewers, urdf_rgba, legend):

@@ -6,11 +6,13 @@
 		<link rel="icon" href="data:;base64,iVBORw0KGgo=">
 	</head>
 	<body>
+        <div id="widgets"></div>
         <div id="meshcat-pane"></div>
 
         <script type="text/javascript" src="main.min.js"></script>
+        <script type="text/javascript" src="html2canvas.min.js"></script>
         <script type="text/javascript" src="webm-writer-0.3.0.js"></script>
-        <script type="text/javascript" src="legend.js"></script>
+        <script type="text/javascript" src="widgets.js"></script>
         <script>
             // Instantiate a new Meshcat viewer
             var viewer = new MeshCat.Viewer(document.getElementById("meshcat-pane"), false);
@@ -24,37 +26,9 @@
                 if (cmd.type == "ready") {
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
-                    var legend = document.getElementById("legend");
-                    if (legend == null) {
-                        createLegend("legend");
-                        legend = document.getElementById("legend");
-                    }
-                    if (cmd.text) {
-                        setLegendItem(legend, cmd.id, cmd.text, cmd.color);
-                    } else {
-                        removeLegendItem(legend, cmd.id);
-                    }
+                    updateLegend(cmd);
                 } else if (cmd.type == "logo") {
-                    var logo = document.getElementById("logo");
-                    if (cmd.data) {
-                        if (logo == null) {
-                            logo = document.createElement("img");
-                            logo.id = "logo";
-                            logo.draggable = false;
-                            logo.style.position = "fixed";
-                            logo.style.bottom = "20px";
-                            logo.style.left = "20px";
-                            logo.style.pointerEvents = "none";
-                            document.body.prepend(logo);
-                        }
-                        logo.setAttribute('src', 'data:image/png;base64,' + cmd.data);
-                        logo.style.width = cmd.width.toString() + "px";
-                        logo.style.height = cmd.height.toString() + "px";
-                    } else {
-                        if (logo !== null) {
-                            document.body.removeChild(logo);
-                        }
-                    }
+                    updateLogo(cmd);
                 } else {
                     handle_command.call(this, cmd);
                 }
@@ -128,12 +102,9 @@
             // not disable controls update while moving the camera using
             // the mouse, which is nice because it enforces the camera
             // to be "straight".
-            viewer.capture_image = function() {
-                viewer.camera.updateProjectionMatrix();
-                viewer.renderer.render(viewer.scene, viewer.camera);
-                viewer.animator.after_render();
-                viewer.needs_render = false;
-                return viewer.renderer.domElement.toDataURL('image/webp', 1.0);
+            viewer.capture_image = async function() {
+                var snapshot_canvas = await captureFrameAndWidgets(viewer);
+                return snapshot_canvas.toDataURL('image/png');  // Export to webp is about 70% slower than png.
             };
             function animate() {
                 if (continue_animating) {
@@ -181,6 +152,14 @@
             #meshcat-pane {
                 width: 100vw;
                 height: 100vh;
+                overflow: hidden;
+            }
+
+            #widgets {
+                width: 100vw;
+                height: 100vh;
+                position: absolute;
+                pointer-events: none;
                 overflow: hidden;
             }
         </style>
