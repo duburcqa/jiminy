@@ -118,9 +118,9 @@ function createLogo(id) {
 }
 
 function setLogo(logo, dataURL, width, height) {
-    logo.setAttribute('src', 'data:image/png;base64,' + dataURL);
-    logo.style.width = width.toString() + "px";
-    logo.style.height = height.toString() + "px";
+    logo.setAttribute('src', dataURL);
+    logo.style.maxWidth = width.toString() + "px";
+    logo.style.mawHeight = height.toString() + "px";
 }
 
 function removeLogo(logo) {

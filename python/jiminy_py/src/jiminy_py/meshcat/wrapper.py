@@ -1,4 +1,5 @@
 import os
+import urllib
 import base64
 import atexit
 import asyncio
@@ -371,23 +372,37 @@ class MeshcatWrapper:
         ])
         self.__zmq_socket.recv()
 
-    def set_logo(self,
-                 image_fullpath: str,
-                 width: int = 100,
-                 height: int = 100) -> None:
-        file_ext = pathlib.Path(image_fullpath).suffix
-        if file_ext != ".png":
-            raise ValueError("Only .png images are supported for now.")
+    def set_logo(self, img_fullpath: str, width: int, height: int) -> None:
+        # Handle file format
+        url = urllib.parse.urlparse(img_fullpath)
+        if all([url.scheme in ["http", "https"], url.netloc, url.path]):
+            img_data = img_fullpath
+        else:
+            # Determine image format
+            file_ext = pathlib.Path(img_fullpath).suffix
+            if file_ext == ".png":
+                img_format = "png"
+            elif file_ext in (".jpeg", ".jpg"):
+                img_format = "jpg"
+            elif file_ext == ".svg":
+                img_format = "svg+xml"
+            else:
+                raise ValueError(
+                    f"Format {file_ext} not supported. It must be either "
+                    "'.png', '.jpeg' or 'svg'.")
 
-        with open(image_fullpath, "rb") as image_file:
-            image_data = base64.b64encode(image_file.read())
+            # Convert image to base64
+            with open(img_fullpath, "rb") as img_file:
+                img_raw = base64.b64encode(img_file.read()).decode('utf-8')
+            img_data = f"data:image/{img_format};base64,{img_raw}"
 
+        # Send ZMQ request to acknowledge reply
         self.__zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
                 u"type": "logo",
-                u"data": image_data.decode('utf-8'),
+                u"data": img_data,
                 u"width": width,
                 u"height": height
             })
