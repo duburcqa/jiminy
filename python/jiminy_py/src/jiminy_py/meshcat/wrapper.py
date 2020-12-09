@@ -372,7 +372,10 @@ class MeshcatWrapper:
         ])
         self.__zmq_socket.recv()
 
-    def set_logo(self, img_fullpath: str, width: int, height: int) -> None:
+    def set_watermark(self,
+                      img_fullpath: str,
+                      width: int,
+                      height: int) -> None:
         # Handle file format
         url = urllib.parse.urlparse(img_fullpath)
         if all([url.scheme in ["http", "https"], url.netloc, url.path]):
@@ -401,7 +404,7 @@ class MeshcatWrapper:
             b"set_property",
             b"",
             umsgpack.packb({
-                u"type": "logo",
+                u"type": "watermark",
                 u"data": img_data,
                 u"width": width,
                 u"height": height
@@ -409,13 +412,13 @@ class MeshcatWrapper:
         ])
         self.__zmq_socket.recv()
 
-    def remove_logo(self) -> None:
+    def remove_watermark(self) -> None:
         self.__zmq_socket.send_multipart([
             b"set_property",
             b"",
             umsgpack.packb({
-                u"type": "logo",
-                u"data": ""   # Empty message means delete the logo, if any
+                u"type": "watermark",
+                u"data": ""   # Empty string means delete the watermark, if any
             })
         ])
         self.__zmq_socket.recv()
