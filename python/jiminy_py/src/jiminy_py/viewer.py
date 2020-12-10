@@ -48,7 +48,7 @@ DEFAULT_CAMERA_REL_XYZRPY = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
 DEFAULT_CAPTURE_SIZE = 500
 VIDEO_FRAMERATE = 30
 VIDEO_SIZE = (1000, 1000)
-DEFAULT_LOGO_SIZE = (150, 150)
+DEFAULT_WATERMARK_MAXSIZE = (150, 150)
 
 DEFAULT_URDF_COLORS = {
     'green': (0.4, 0.7, 0.3, 1.0),
@@ -1349,7 +1349,7 @@ def play_trajectories(trajectory_data: Union[
                       close_backend: Optional[bool] = None,
                       delete_robot_on_close: Optional[bool] = None,
                       legend: Optional[Union[str, Sequence[str]]] = None,
-                      logo_fullpath: Optional[str] = None,
+                      watermark_fullpath: Optional[str] = None,
                       verbose: bool = True) -> Sequence[Viewer]:
     """Replay one or several robot trajectories in a viewer.
 
@@ -1414,15 +1414,16 @@ def play_trajectories(trajectory_data: Union[
                                   viewer when closing it.
                                   Optional: True by default.
     :param legend: List of text defining the legend for each robot. `urdf_rgba`
-                   must be specified to enable this option. The legend is not
+                   must be specified to enable this option. It is not
                    persistent but disabled after replay. This option is only
                    supported by meshcat backend. None to disable.
                    Optional: No legend if no color by default, the robots names
                    otherwise.
-    :param logo_fullpath: Add logo/watermark to the viewer. The logo is not
-                          persistent but disabled after replay. This option is
-                          only supported by meshcat backend. None to disable.
-                          Optional: No logo by default.
+    :param watermark_fullpath: Add watermark to the viewer. It is not
+                               persistent but disabled after replay. This
+                               option is only supported by meshcat backend.
+                               None to disable.
+                               Optional: No watermark by default.
     :param verbose: Add information to keep track of the process.
                     Optional: True by default.
 
@@ -1544,9 +1545,10 @@ def play_trajectories(trajectory_data: Union[
                 Viewer._backend_obj.set_legend_item(
                     viewer.robot_name, color, text)
 
-        # Add logo/watermark if requested
-        if logo_fullpath is not None:
-            Viewer._backend_obj.set_logo(logo_fullpath, *DEFAULT_LOGO_SIZE)
+        # Add watermark if requested
+        if watermark_fullpath is not None:
+            Viewer._backend_obj.set_watermark(
+                watermark_fullpath, *DEFAULT_WATERMARK_MAXSIZE)
 
     # Load robots in gepetto viewer
     for viewer, traj, offset in zip(viewers, trajectory_data, xyz_offset):
@@ -1658,9 +1660,9 @@ def play_trajectories(trajectory_data: Union[
             for viewer in viewers:
                 Viewer._backend_obj.remove_legend_item(viewer.robot_name)
 
-        # Disable logo/watermark if it was enabled
-        if logo_fullpath is not None:
-            Viewer._backend_obj.remove_logo()
+        # Disable watermark if it was enabled
+        if watermark_fullpath is not None:
+            Viewer._backend_obj.remove_watermark()
 
     # Close backend if needed
     if close_backend:
