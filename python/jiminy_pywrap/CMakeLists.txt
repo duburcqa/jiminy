@@ -15,7 +15,18 @@ if(NOT LEGACY_MODE)
 endif()
 
 # Add cpp sources
-set(SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
+set(SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Functors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Robot.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Sensors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Motors.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Controllers.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Constraints.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
+
+# Make sure there is no undefined symbols, otherwise import will fail
+# set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 
 # Make library
 add_library(${PROJECT_NAME} SHARED ${SRC})

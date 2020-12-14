@@ -10,8 +10,15 @@
 #include "numpy/arrayobject.h"
 #define NO_IMPORT_ARRAY
 
-#include "jiminy/python/Jiminy.h"
 #include "jiminy/python/Utilities.h"
+#include "jiminy/python/Engine.h"
+#include "jiminy/python/Constraints.h"
+#include "jiminy/python/Controllers.h"
+#include "jiminy/python/Robot.h"
+#include "jiminy/python/Motors.h"
+#include "jiminy/python/Sensors.h"
+#include "jiminy/python/Functors.h"
+
 #include "jiminy/core/Types.h"
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/engine/PinocchioOverloadAlgorithms.h"
@@ -148,23 +155,27 @@ namespace python
                 "given joint configuration and velocity given as input. "
                 "The result is accessible through data.kinetic_energy.");
 
-        // Expose classes
+        // Expose functors
         TIME_STATE_FCT_EXPOSE(bool_t)
         TIME_STATE_FCT_EXPOSE(pinocchio::Force)
-        HeatMapFunctorVisitor::expose();
-        SensorsDataMapVisitor::expose();
-        PyModelVisitor::expose();
-        PyRobotVisitor::expose();
-        PyConstraintVisitor::expose();
-        PyMotorVisitor::expose();
-        PySensorVisitor::expose();
-        PyAbstractControllerVisitor::expose();
-        PyControllerFunctorVisitor::expose();
-        PyStepperStateVisitor::expose();
-        PySystemStateVisitor::expose();
-        PySystemVisitor::expose();
-        PyEngineMultiRobotVisitor::expose();
-        PyEngineVisitor::expose();
+        exposeHeatMapFunctor();
+
+        // Expose structs and classes
+        exposeSensorsDataMap();
+        exposeModel();
+        exposeRobot();
+        exposeConstraint();
+        exposeAbstractMotor();
+        exposeSimpleMotor();
+        exposeAbstractSensor();
+        exposeBasicSensors();
+        exposeAbstractController();
+        exposeControllerFunctor();
+        exposeStepperState();
+        exposeSystemState();
+        exposeSystem();
+        exposeEngineMultiRobot();
+        exposeEngine();
     }
 
     #undef TIME_STATE_FCT_EXPOSE

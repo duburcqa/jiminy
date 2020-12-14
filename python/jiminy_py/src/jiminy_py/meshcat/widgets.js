@@ -60,7 +60,7 @@ function setLegendItem(legend, id, text, color) {
 
     var label = document.createElement("span");
     label.textContent = text;
-    label.style.fontFamily = "Dejavu Sans";
+    label.style.fontFamily = "'Dejavu Sans', sans-serif";
     label.style.textAlign = "center";
     label.style.alignItems = "center";
 
@@ -105,39 +105,39 @@ function updateLegend(cmd) {
     widgetsNeedRender = true;
 }
 
-// ***************** Logo utilities ******************
+// ***************** Watermark utilities ******************
 
-function createLogo(id) {
-    var logo = document.createElement("img");
-    logo.id = id;
-    logo.draggable = false;
-    logo.style.position = "fixed";
-    logo.style.bottom = "20px";
-    logo.style.left = "20px";
-    widgets.prepend(logo);
+function createWatermark(id) {
+    var watermark = document.createElement("img");
+    watermark.id = id;
+    watermark.draggable = false;
+    watermark.style.position = "fixed";
+    watermark.style.bottom = "20px";
+    watermark.style.left = "20px";
+    widgets.prepend(watermark);
 }
 
-function setLogo(logo, dataURL, width, height) {
-    logo.setAttribute('src', 'data:image/png;base64,' + dataURL);
-    logo.style.width = width.toString() + "px";
-    logo.style.height = height.toString() + "px";
+function setWatermark(watermark, dataURL, width, height) {
+    watermark.setAttribute('src', dataURL);
+    watermark.style.maxWidth = width.toString() + "px";
+    watermark.style.mawHeight = height.toString() + "px";
 }
 
-function removeLogo(logo) {
-    widgets.removeChild(logo);
+function removeWatermark(watermark) {
+    widgets.removeChild(watermark);
 }
 
-function updateLogo(cmd) {
-    var logo = document.getElementById("logo");
+function updateWatermark(cmd) {
+    var watermark = document.getElementById("watermark");
     if (cmd.data) {
-        if (logo == null) {
-            createLogo("logo");
-            logo = document.getElementById("logo");
+        if (watermark == null) {
+            createWatermark("watermark");
+            watermark = document.getElementById("watermark");
         }
-        setLogo(logo, cmd.data, cmd.width, cmd.height);
+        setWatermark(watermark, cmd.data, cmd.width, cmd.height);
     } else {
-        if (logo !== null) {
-            removeLogo(logo);
+        if (watermark !== null) {
+            removeWatermark(watermark);
         }
     }
     widgetsNeedRender = true;

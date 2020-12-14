@@ -27,8 +27,8 @@
                     viewer.connection.send("meshcat:ok");
                 } else if (cmd.type == "legend") {
                     updateLegend(cmd);
-                } else if (cmd.type == "logo") {
-                    updateLogo(cmd);
+                } else if (cmd.type == "watermark") {
+                    updateWatermark(cmd);
                 } else {
                     handle_command.call(this, cmd);
                 }

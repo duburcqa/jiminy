@@ -91,10 +91,7 @@ namespace jiminy
             {
                 rigidJointsNames_.erase(rigidJointsNames_.begin());  // remove the 'root'
             }
-        }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
             // Create the flexible model
             returnCode = generateModelFlexible();
         }

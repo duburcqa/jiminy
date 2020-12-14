@@ -3,6 +3,7 @@
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
 #include "jiminy/core/Types.h"
+#include "jiminy/core/Macros.h"
 
 
 namespace jiminy
