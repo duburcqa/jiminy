@@ -1463,9 +1463,11 @@ def play_trajectories(trajectory_data: Union[
         else:
             urdf_rgba = list(islice(
                 cycle(DEFAULT_URDF_COLORS.values()), len(trajectory_data)))
-    if not isinstance(urdf_rgba, (list, tuple)) or \
+    elif not isinstance(urdf_rgba, (list, tuple)) or \
             isinstance(urdf_rgba[0], float):
         urdf_rgba = [urdf_rgba]
+    elif isinstance(urdf_rgba, tuple):
+        urdf_rgba = list(urdf_rgba)
     for i, color in enumerate(urdf_rgba):
         if isinstance(color, str):
             urdf_rgba[i] = DEFAULT_URDF_COLORS[color]
@@ -1477,11 +1479,11 @@ def play_trajectories(trajectory_data: Union[
     if all(color is not None for color in urdf_rgba):
         if legend is None:
             legend = [viewer.robot_name for viewer in viewers]
-        else:
-            legend = None
-            logging.warning(
-                "Impossible to display legend if at least one URDF do not "
-                "have custom color.")
+    else:
+        legend = None
+        logging.warning(
+            "Impossible to display legend if at least one URDF do not "
+            "have custom color.")
 
     # Instantiate or refresh viewers if necessary
     if viewers is None:
