@@ -100,7 +100,7 @@ class Simulator:
         self.__plot_data: Optional[Dict[str, Any]] = None
 
         # Reset the low-level jiminy engine
-        self.engine.reset()
+        self.reset()
 
     @classmethod
     def build(cls,
@@ -283,7 +283,7 @@ class Simulator:
         engine_options["stepper"]["randomSeed"] = \
             np.array(seed, dtype=np.dtype('uint32'))
         self.engine.set_options(engine_options)
-        self.engine.reset()
+        self.reset()
 
     def reset(self, remove_forces: bool = False):
         """Reset the simulator.
@@ -405,7 +405,7 @@ class Simulator:
                         "inherited from `BaseJiminyObserverController`."
                         ) from e
                 show_progress_bar = False
-        self.engine.simulate(tf, q0, v0, None, is_state_theoretical)
+        self.simulate(tf, q0, v0, None, is_state_theoretical)
         if show_progress_bar is not False:
             self.engine.controller.close_progress_bar()
 
@@ -602,12 +602,14 @@ class Simulator:
         fig_axes = {}
         tab_active = None
         for fig_name, fig_data in data.items():
+            # Compute plot grid arrangement
             n_cols = len(fig_data)
             n_rows = 1
             while n_cols > n_rows + 2:
                 n_rows = n_rows + 1
                 n_cols = int(np.ceil(len(fig_data) / (1.0 * n_rows)))
 
+            # Initialize axes, and early return if none
             axes = []
             ref_ax = None
             for i, plot_name in enumerate(fig_data.keys()):
@@ -620,10 +622,10 @@ class Simulator:
                 else:
                     ref_ax = ax
                 axes.append(ax)
-            fig_axes[fig_name] = axes
-            if tab_active is None:
-                tab_active = fig_name
+            if axes is None:
+                continue
 
+            # Update their content
             for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
                 if isinstance(plot_data, dict):
                     for line_name, line_data in plot_data.items():
@@ -633,6 +635,11 @@ class Simulator:
                     ax.plot(t, plot_data)
                 ax.set_title(plot_name, fontsize='medium')
                 ax.grid()
+
+            # Add them to tab register
+            fig_axes[fig_name] = axes
+            if tab_active is None:
+                tab_active = fig_name
         fig_nav_stack = {key: [] for key in fig_axes.keys()}
         fig_nav_pos = {key: -1 for key in fig_axes.keys()}
 
