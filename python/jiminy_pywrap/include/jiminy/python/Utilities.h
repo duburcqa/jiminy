@@ -49,8 +49,15 @@ namespace python
     template<typename T>
     inline PyObject * getNumpyReferenceFromScalar(T & value)
     {
-        npy_intp dims[1] = {npy_intp(1)};
-        return PyArray_SimpleNewFromData(1, dims, getPyType(value), &value);
+        return PyArray_SimpleNewFromData(0, {}, getPyType(value), &value);
+    }
+
+    template<typename T>
+    PyObject * getNumpyReferenceFromScalar(T const & value)
+    {
+        PyObject * array = getNumpyReferenceFromScalar(const_cast<T &>(value));
+        PyArray_CLEARFLAGS(reinterpret_cast<PyArrayObject *>(array), NPY_ARRAY_WRITEABLE);
+        return array;
     }
 
     template<typename T, int RowsAtCompileTime>

@@ -87,7 +87,7 @@ class Simulator:
                 "initialized.")
 
         # Create shared memories and python-native attribute for fast access
-        self.is_simulation_running = False
+        self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
@@ -297,9 +297,6 @@ class Simulator:
                               external forces. It can also be done separately.
                               Optional: Do not remove by default.
         """
-        # Consider the simulation is not longer running already
-        self.is_simulation_running = False
-
         # Reset the backend engine
         self.engine.reset(remove_forces)
 
@@ -328,9 +325,6 @@ class Simulator:
         hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
-
-        # Consider the simulation is now running
-        self.is_simulation_running = True
 
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
@@ -363,16 +357,6 @@ class Simulator:
                 self.system_state.v,
                 self.sensors_data)
 
-    def stop(self) -> None:
-        """Stop the simulation.
-
-        .. note::
-            It also releases the robot lock. Which is necessary to be able to
-            apply modifications on the robot.
-        """
-        self.engine.stop()
-        self.is_simulation_running = False
-
     def simulate(self,
                  t_end: float,
                  q_init: np.ndarray,
@@ -381,7 +365,6 @@ class Simulator:
                  is_state_theoretical: bool = False) -> None:
         return_code = self.engine.simulate(
             t_end, q_init, v_init, a_init, is_state_theoretical)
-        self.is_simulation_running = False
         if return_code != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("The simulation failed.")
 
