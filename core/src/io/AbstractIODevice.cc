@@ -6,7 +6,7 @@
 
 #include <iostream>
 
-#include "jiminy/core/Macro.h"
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/io/AbstractIODevice.h"
 
 

@@ -1,9 +1,14 @@
-#ifndef JIMINY_PYTHON_UTILITIES_H
-#define JIMINY_PYTHON_UTILITIES_H
+#ifndef UTILITIES_PYTHON_H
+#define UTILITIES_PYTHON_H
 
-// Make sure that the Python C API does not get redefined separately
+// Define Python C API, but do NOT import it to avoid "multiple definitions" error
 #define PY_ARRAY_UNIQUE_SYMBOL JIMINY_ARRAY_API
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #define NO_IMPORT_ARRAY
+#include "numpy/arrayobject.h"
+
+#include "jiminy/core/Types.h"
+#include "jiminy/core/Macros.h"
 
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
@@ -16,6 +21,16 @@ namespace python
 {
     namespace bp = boost::python;
     namespace np = boost::python::numpy;
+
+    // ****************************************************************************
+    // ************************ BOOST PYTHON HELPERS ******************************
+    // ****************************************************************************
+
+    #define BOOST_PYTHON_VISITOR_EXPOSE(class) \
+    void expose ## class (void) \
+    { \
+        Py ## class ## Visitor::expose(); \
+    }
 
     // ****************************************************************************
     // **************************** C++ TO PYTHON *********************************
@@ -32,7 +47,7 @@ namespace python
     /// Convert Eigen scalar/vector/matrix to Numpy array by reference.
 
     template<typename T>
-    PyObject * getNumpyReferenceFromScalar(T & value)
+    inline PyObject * getNumpyReferenceFromScalar(T & value)
     {
         npy_intp dims[1] = {npy_intp(1)};
         return PyArray_SimpleNewFromData(1, dims, getPyType(value), &value);
@@ -132,8 +147,8 @@ namespace python
     }
 
     template<>
-    bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData,
-                                                    bool const & copy)
+    inline bp::object convertToPython<flexibleJointData_t>(flexibleJointData_t const & flexibleJointData,
+                                                           bool const & copy)
     {
         bp::dict flexibilityJointDataPy;
         flexibilityJointDataPy["jointName"] = flexibleJointData.jointName;
@@ -210,7 +225,7 @@ namespace python
     };
 
     template<>
-    bp::object convertToPython(configHolder_t const & config, bool const & copy)
+    inline bp::object convertToPython(configHolder_t const & config, bool const & copy)
     {
         bp::dict configPyDict;
         AppendBoostVariantToPython visitor(copy);
@@ -227,7 +242,7 @@ namespace python
     // ****************************************************************************
 
     /// \brief  Convert a 1D python list into an Eigen vector by value.
-    vectorN_t listPyToEigenVector(bp::list const & listPy)
+    inline vectorN_t listPyToEigenVector(bp::list const & listPy)
     {
         vectorN_t x(len(listPy));
         for (int32_t i = 0; i < len(listPy); ++i)
@@ -239,7 +254,7 @@ namespace python
     }
 
     /// \brief  Convert a 2D python list into an Eigen matrix.
-    matrixN_t listPyToEigenMatrix(bp::list const & listPy)
+    inline matrixN_t listPyToEigenMatrix(bp::list const & listPy)
     {
         int32_t const nRows = len(listPy);
         assert(nRows > 0 && "empty list");
@@ -359,7 +374,7 @@ namespace python
     }
 
     template<>
-    flexibleJointData_t convertFromPython<flexibleJointData_t>(bp::object const & dataPy)
+    inline flexibleJointData_t convertFromPython<flexibleJointData_t>(bp::object const & dataPy)
     {
         flexibleJointData_t flexData;
         bp::dict const flexDataPy = bp::extract<bp::dict>(dataPy);
@@ -433,7 +448,7 @@ namespace python
         return map;
     }
 
-    void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration
+    inline void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration
 
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {
@@ -479,4 +494,4 @@ namespace python
 }  // end of namespace python.
 }  // end of namespace jiminy.
 
-#endif  // JIMINY_PYTHON_UTILITIES_H
+#endif  // UTILITIES_PYTHON_H
