@@ -11,7 +11,7 @@
 #include <unordered_map>
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
-#include "jiminy/core/Macro.h"
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 

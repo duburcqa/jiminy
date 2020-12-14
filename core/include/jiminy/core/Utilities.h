@@ -6,7 +6,7 @@
 
 #include "json/json.h"
 
-#include "jiminy/core/Macro.h"
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 

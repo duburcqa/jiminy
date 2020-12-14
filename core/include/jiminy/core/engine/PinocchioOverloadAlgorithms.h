@@ -20,7 +20,7 @@
 #include "pinocchio/algorithm/rnea.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
-#include "jiminy/core/Macro.h"
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/engine/EngineMultiRobot.h"
 
 namespace jiminy

@@ -3,7 +3,7 @@
 
 #include "jiminy/core/robot/AbstractMotor.h"
 #include "jiminy/core/robot/AbstractSensor.h"
-#include "jiminy/core/Macro.h"
+#include "jiminy/core/Macros.h"
 
 
 namespace jiminy

@@ -60,7 +60,7 @@ function setLegendItem(legend, id, text, color) {
 
     var label = document.createElement("span");
     label.textContent = text;
-    label.style.fontFamily = "Dejavu Sans";
+    label.style.fontFamily = "'Dejavu Sans', sans-serif";
     label.style.textAlign = "center";
     label.style.alignItems = "center";
 

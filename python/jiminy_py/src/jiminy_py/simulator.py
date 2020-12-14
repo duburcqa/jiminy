@@ -87,7 +87,7 @@ class Simulator:
                 "initialized.")
 
         # Create shared memories and python-native attribute for fast access
-        self.is_simulation_running = False
+        self.is_simulation_running = self.engine.is_simulation_running
         self.stepper_state = self.engine.stepper_state
         self.system_state = self.engine.system_state
         self.sensors_data = self.robot.sensors_data
@@ -100,7 +100,7 @@ class Simulator:
         self.__plot_data: Optional[Dict[str, Any]] = None
 
         # Reset the low-level jiminy engine
-        self.engine.reset()
+        self.reset()
 
     @classmethod
     def build(cls,
@@ -283,7 +283,7 @@ class Simulator:
         engine_options["stepper"]["randomSeed"] = \
             np.array(seed, dtype=np.dtype('uint32'))
         self.engine.set_options(engine_options)
-        self.engine.reset()
+        self.reset()
 
     def reset(self, remove_forces: bool = False):
         """Reset the simulator.
@@ -297,9 +297,6 @@ class Simulator:
                               external forces. It can also be done separately.
                               Optional: Do not remove by default.
         """
-        # Consider the simulation is not longer running already
-        self.is_simulation_running = False
-
         # Reset the backend engine
         self.engine.reset(remove_forces)
 
@@ -328,9 +325,6 @@ class Simulator:
         hresult = self.engine.start(q0, v0, None, is_state_theoretical)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("Failed to start the simulation.")
-
-        # Consider the simulation is now running
-        self.is_simulation_running = True
 
         # Update the observer at the end, if suitable
         if isinstance(self.controller, BaseJiminyObserverController):
@@ -363,16 +357,6 @@ class Simulator:
                 self.system_state.v,
                 self.sensors_data)
 
-    def stop(self) -> None:
-        """Stop the simulation.
-
-        .. note::
-            It also releases the robot lock. Which is necessary to be able to
-            apply modifications on the robot.
-        """
-        self.engine.stop()
-        self.is_simulation_running = False
-
     def simulate(self,
                  t_end: float,
                  q_init: np.ndarray,
@@ -381,7 +365,6 @@ class Simulator:
                  is_state_theoretical: bool = False) -> None:
         return_code = self.engine.simulate(
             t_end, q_init, v_init, a_init, is_state_theoretical)
-        self.is_simulation_running = False
         if return_code != jiminy.hresult_t.SUCCESS:
             raise RuntimeError("The simulation failed.")
 
@@ -422,7 +405,7 @@ class Simulator:
                         "inherited from `BaseJiminyObserverController`."
                         ) from e
                 show_progress_bar = False
-        self.engine.simulate(tf, q0, v0, None, is_state_theoretical)
+        self.simulate(tf, q0, v0, None, is_state_theoretical)
         if show_progress_bar is not False:
             self.engine.controller.close_progress_bar()
 
@@ -619,12 +602,14 @@ class Simulator:
         fig_axes = {}
         tab_active = None
         for fig_name, fig_data in data.items():
+            # Compute plot grid arrangement
             n_cols = len(fig_data)
             n_rows = 1
             while n_cols > n_rows + 2:
                 n_rows = n_rows + 1
                 n_cols = int(np.ceil(len(fig_data) / (1.0 * n_rows)))
 
+            # Initialize axes, and early return if none
             axes = []
             ref_ax = None
             for i, plot_name in enumerate(fig_data.keys()):
@@ -637,10 +622,10 @@ class Simulator:
                 else:
                     ref_ax = ax
                 axes.append(ax)
-            fig_axes[fig_name] = axes
-            if tab_active is None:
-                tab_active = fig_name
+            if axes is None:
+                continue
 
+            # Update their content
             for (plot_name, plot_data), ax in zip(fig_data.items(), axes):
                 if isinstance(plot_data, dict):
                     for line_name, line_data in plot_data.items():
@@ -650,6 +635,11 @@ class Simulator:
                     ax.plot(t, plot_data)
                 ax.set_title(plot_name, fontsize='medium')
                 ax.grid()
+
+            # Add them to tab register
+            fig_axes[fig_name] = axes
+            if tab_active is None:
+                tab_active = fig_name
         fig_nav_stack = {key: [] for key in fig_axes.keys()}
         fig_nav_pos = {key: -1 for key in fig_axes.keys()}
 
