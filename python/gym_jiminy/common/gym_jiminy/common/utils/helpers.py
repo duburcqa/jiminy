@@ -27,9 +27,9 @@ def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
             value[field] = zeros(subspace)
         return value
     if isinstance(space, gym.spaces.Discrete):
-        return 0
+        return np.array(0)  # Using np.array of 0 dim to be mutable
     raise NotImplementedError(
-        f"Space of type {type(space)} is not supported by this method.")
+        f"Space of type {type(space)} is not supported.")
 
 
 def fill(data: SpaceDictNested,
@@ -42,8 +42,11 @@ def fill(data: SpaceDictNested,
         for sub_data in data.values():
             fill(sub_data, fill_value)
     else:
-        raise NotImplementedError(
-            f"Data of type {type(data)} is not supported by this method.")
+        if hasattr(data, '__dict__') or hasattr(data, '__slots__'):
+            raise NotImplementedError(
+                f"Data of type {type(data)} is not supported.")
+        else:
+            raise ValueError("Data of immutable type is not supported.")
 
 
 def set_value(data: SpaceDictNested,
@@ -68,7 +71,7 @@ def set_value(data: SpaceDictNested,
             set_value(data[field], sub_val)
     else:
         raise NotImplementedError(
-            f"Data of type {type(data)} is not supported by this method.")
+            f"Data of type {type(data)} is not supported.")
 
 
 def copy(data: SpaceDictNested) -> SpaceDictNested:
