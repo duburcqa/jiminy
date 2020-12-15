@@ -66,13 +66,10 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         return config
 
     @classmethod
-    def _is_success_ppo_training(cls,
-                                 env_name: str,
-                                 env_kwargs: Dict[str, Any]) -> bool:
+    def _ppo_training(cls, env_name: str, env_kwargs: Dict[str, Any]) -> bool:
         """ Run PPO algorithm on a given algorithm and check if the reward
         threshold has been exceeded.
         """
-
         # Create a multiprocess environment
         train_env = make_vec_env(
             env_id=env_name, env_kwargs=env_kwargs, n_envs=int(N_THREADS//2),
@@ -92,6 +89,6 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     def test_cartpole_stable_baselines(self):
         """Solve the Cartpole problem for continuous action space.
         """
-        is_success = self._is_success_ppo_training(
+        is_success = self._ppo_training(
             "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True})
         self.assertTrue(is_success)

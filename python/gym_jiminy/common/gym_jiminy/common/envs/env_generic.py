@@ -499,9 +499,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
+        obs = self.get_observation()
         try:
-            is_obs_valid = self.observation_space.contains(
-                self.get_observation())
+            is_obs_valid = self.observation_space.contains(obs)
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
@@ -515,7 +515,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        return self.get_observation()
+        return obs
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -581,6 +581,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
+        # Get the updated observation
+        obs = self.get_observation()
+
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
@@ -604,7 +607,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Early return in case of low-level engine integration failure.
         # In such a case, it always returns reward = 0.0 and done = True.
         if is_step_failed:
-            return self.get_observation(), 0.0, True, self._info
+            return obs, 0.0, True, self._info
 
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
@@ -623,7 +626,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
-        return self.get_observation(), reward, done, self._info
+        # Check if the observation is out-of-bounds, in debug mode only
+        if self.debug and not self.observation_space.contains(obs):
+            message = "The observation is out-of-bounds."
+            logger.warn(message) if done else logger.error(message)
+
+        return obs, reward, done, self._info
 
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
@@ -867,6 +875,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        # Check if the action is out-of-bounds, in debug mode only
+        if self.debug and not self.action_space.contains(action):
+            logger.warn("The action is out-of-bounds.")
+
         set_value(self._action, action)
         return self._action
 
@@ -891,9 +903,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
-        if not self.observation_space.contains(self._observation):
-            return True
-        return False
+        return not self.observation_space.contains(self._observation)
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:
