@@ -2209,13 +2209,26 @@ namespace jiminy
         }
 
         template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & q,
+             vectorN_t const & v,
+             vectorN_t const & positionLimitMin,
+             vectorN_t const & positionLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Empty on purpose.
+        }
+
+        template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>
                              || is_pinocchio_joint_spherical_v<JointModel>
                              || is_pinocchio_joint_spherical_zyx_v<JointModel>
                              || is_pinocchio_joint_translation_v<JointModel>
                              || is_pinocchio_joint_planar_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
@@ -2227,7 +2240,7 @@ namespace jiminy
              EngineMultiRobot::jointOptions_t const & jointOptions,
              vectorN_t & u)
         {
-            // Empty on purpose
+            PRINT_WARNING("No position bounds implemented for this type of joint.");
         }
     };
 
@@ -2299,7 +2312,7 @@ namespace jiminy
              EngineMultiRobot::jointOptions_t const & jointOptions,
              vectorN_t & u)
         {
-            // Empty on purpose
+            PRINT_WARNING("No velocity bounds implemented for this type of joint.");
         }
     };
 
