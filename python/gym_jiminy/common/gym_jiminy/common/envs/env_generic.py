@@ -63,6 +63,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         'render.modes': ['human', 'rgb_array'],
     }
 
+    observation_space: gym.spaces.Space
+    action_space: gym.spaces.Space
+
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
@@ -127,8 +130,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._refresh_action_space()
 
         # Assertion(s) for type checker
-        assert (self.observation_space is not None and
-                self.action_space is not None)
+        assert (isinstance(self.observation_space, gym.spaces.Space) and
+                isinstance(self.action_space, gym.spaces.Space))
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space)
@@ -628,7 +631,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Check if the observation is out-of-bounds, in debug mode only
         if self.debug and not self.observation_space.contains(obs):
             message = "The observation is out-of-bounds."
-            logger.warn(message) if done else logger.error(message)
+            if done:
+                logger.warn(message)
+            else:
+                logger.error(message)
 
         return obs, reward, done, self._info
 

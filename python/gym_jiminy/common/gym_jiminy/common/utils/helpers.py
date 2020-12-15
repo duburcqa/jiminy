@@ -45,8 +45,7 @@ def fill(data: SpaceDictNested,
         if hasattr(data, '__dict__') or hasattr(data, '__slots__'):
             raise NotImplementedError(
                 f"Data of type {type(data)} is not supported.")
-        else:
-            raise ValueError("Data of immutable type is not supported.")
+        raise ValueError("Data of immutable type is not supported.")
 
 
 def set_value(data: SpaceDictNested,
