@@ -141,7 +141,7 @@ cd "$RootDir/boost"
 
 ### File "project-config.jam" create by bootstrap must be edited manually
 #   to specify Python included dir manually, since it is not detected
-#   sucessfully in some cases.
+#   successfully in some cases.
 PYTHON_VERSION="$(${PYTHON_EXECUTABLE} -c "import sys; print (\"%d.%d\" % (sys.version_info[0], sys.version_info[1]))")"
 PYTHON_ROOT="$(${PYTHON_EXECUTABLE} -c "import sys; print(sys.prefix)")"
 PYTHON_INCLUDE_DIRS="$(${PYTHON_EXECUTABLE} -c "import distutils.sysconfig as sysconfig; print(sysconfig.get_python_inc())")"

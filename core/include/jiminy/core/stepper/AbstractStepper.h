@@ -38,7 +38,7 @@ namespace jiminy
 
         /// \brief Attempt to integrate the system from time t to time t + dt.
         /// \details Each stepper is responsible for implementing its own error checking routine to determine
-        ///          if an integration step was successful or not. On sucess, the value of the state is
+        ///          if an integration step was successful or not. On success, the value of the state is
         ///          updated in place. Regardless of success or failure, the parameter dt can be updated
         ///          by variable step schemes to indicate the next advised dt.
         ///

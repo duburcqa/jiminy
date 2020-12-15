@@ -1081,7 +1081,7 @@ namespace jiminy
         std::vector<vectorN_t> & aSplit = stepperState_.aSplit;
 
         // Successive iteration failure
-        uint32_t sucessiveIterFailed = 0;
+        uint32_t successiveIterFailed = 0;
 
         /* Flag monitoring if the current time step depends of a breakpoint
            or the integration tolerance. It will be used by the restoration
@@ -1116,6 +1116,7 @@ namespace jiminy
         // Perform the integration. Do not simulate extremely small time steps.
         while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
+            // Initialize next breakpoint time to the one recommended by the stepper
             float64_t tNext = t;
 
             // Update the active set and get the next breakpoint of impulse forces
@@ -1252,7 +1253,6 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
-                sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
                     // Log every stepper state only if the user asked for
@@ -1309,7 +1309,7 @@ namespace jiminy
                     }
 
                     // Break the loop in case of too many successive failed inner iteration
-                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
                     }
@@ -1323,6 +1323,9 @@ namespace jiminy
 
                     if (stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest))
                     {
+                        // Reset successive iteration failure counter
+                        successiveIterFailed = 0;
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1368,7 +1371,7 @@ namespace jiminy
                     else
                     {
                         // Increment the failed iteration counters
-                        ++sucessiveIterFailed;
+                        ++successiveIterFailed;
                         ++stepperState_.iterFailed;
                     }
 
@@ -1397,7 +1400,7 @@ namespace jiminy
                     dtLargest = dt;
 
                     // Break the loop in case of too many successive failed inner iteration
-                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
                     }
@@ -1407,6 +1410,9 @@ namespace jiminy
 
                     if (isStepSuccessful)
                     {
+                        // Reset successive iteration failure counter
+                        successiveIterFailed = 0;
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1435,7 +1441,7 @@ namespace jiminy
                     else
                     {
                         // Increment the failed iteration counter
-                        ++sucessiveIterFailed;
+                        ++successiveIterFailed;
                         ++stepperState_.iterFailed;
                     }
 
@@ -1467,7 +1473,7 @@ namespace jiminy
                 }
             }
 
-            if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+            if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
                 PRINT_ERROR("Too many successive iteration failures. Probably something is "
                             "going wrong with the physics. Aborting integration.");
