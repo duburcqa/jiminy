@@ -90,5 +90,6 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         """Solve the Cartpole problem for continuous action space.
         """
         is_success = self._ppo_training(
-            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True})
+            "gym_jiminy.envs:jiminy-cartpole-v0",
+            {'continuous': True, 'debug': True})
         self.assertTrue(is_success)

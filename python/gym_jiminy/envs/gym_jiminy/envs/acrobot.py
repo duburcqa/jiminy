@@ -61,7 +61,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
              Reinforcement learning: An introduction.
              Cambridge: MIT press, 1998.
     """
-    def __init__(self, continuous: bool = False):
+    def __init__(self, continuous: bool = False, debug: bool = False) -> None:
         """
         :param continuous: Whether or not the action space is continuous. If
                            not continuous, the action space has only 3 states,
@@ -105,7 +105,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
             self._tipIdx].translation[[2]])
 
         # Configure the learning environment
-        super().__init__(simulator, STEP_DT, debug=False)
+        super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
         # Create some proxies for fast access
         self.__state_view = (self._observation[:self.robot.nq],

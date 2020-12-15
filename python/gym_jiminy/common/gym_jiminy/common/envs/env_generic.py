@@ -66,7 +66,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
-                 enforce_bounded: Optional[bool] = False,
+                 enforce_bounded_spaces: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs: Any) -> None:
         r"""
@@ -76,12 +76,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
-        :param enforce_bounded: Whether or not to enforce finite bounds for the
-                                observation and action spaces. If so, then
-                                '\*_MAX' are used whenever it is necessary.
-                                Note that whose bounds are very spread to make
-                                sure it is suitable for the vast majority of
-                                systems.
+        :param enforce_bounded_spaces:
+            Whether or not to enforce finite bounds for the observation and
+            action spaces. If so, then '\*_MAX' are used whenever it is
+            necessary. Note that whose bounds are very spread to make sure it
+            is suitable for the vast majority of systems.
         :param debug: Whether or not the debug mode must be enabled. Doing it
                       enables telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
@@ -96,7 +95,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Backup some user arguments
         self.simulator: Simulator = simulator
         self.step_dt = step_dt
-        self.enforce_bounded = enforce_bounded
+        self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
         # Define some proxies for fast access
@@ -186,7 +185,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         velocity_limit = self.robot.velocity_limit
 
         # Replace inf bounds of the state space if requested
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             if self.robot.has_freeflyer:
                 position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
                 position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
@@ -319,7 +318,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
             sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
 
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             # Replace inf bounds of the contact sensor space
             if contact.type in sensors_data.keys():
                 sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
@@ -368,7 +367,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         effort_limit = self.robot.effort_limit
 
         # Replace inf bounds of the effort limit if requested
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             for motor_name in self.robot.motors_names:
                 motor = self.robot.get_motor(motor_name)
                 motor_options = motor.get_options()

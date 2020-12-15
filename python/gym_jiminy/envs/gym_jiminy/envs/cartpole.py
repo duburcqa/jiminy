@@ -74,7 +74,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     Considered solved when the average reward is greater than or equal to 195.0
     over 100 consecutive trials.
     """
-    def __init__(self, continuous: bool = False):
+    def __init__(self, continuous: bool = False, debug: bool = False) -> None:
         """
         :param continuous: Whether or not the action space is continuous. If
                            not continuous, the action space has only 3 states,
@@ -121,7 +121,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 
         # Configure the learning environment
-        super().__init__(simulator, STEP_DT, debug=False)
+        super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
         # Create some proxies for fast access
         self.__state_view = (self._observation[:self.robot.nq],
