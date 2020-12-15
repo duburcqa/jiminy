@@ -8,7 +8,7 @@ project(hdf5_external)
 # TGZ overwrites some global cmake flags for no reason, and official GIT repo does
 # not have fPIC enabled by default, making the whole build process fail. So zlib is
 # installed manually and set add dependency of hdf5
-EXTERNALPROJECT_ADD(zlib_external
+externalproject_add(zlib_external
      GIT_REPOSITORY    https://github.com/madler/zlib.git
      GIT_TAG           v1.2.11
      GIT_SHALLOW       TRUE
@@ -22,10 +22,11 @@ EXTERNALPROJECT_ADD(zlib_external
           -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_INSTALL_PREFIX}
           -DCMAKE_C_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
-     INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
+          -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
 
      ${zlib_NINJA}
 
+     INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
      UPDATE_COMMAND ""  # For some reason, it is required to avoid rebuild systematically everything...
      UPDATE_DISCONNECTED ${BUILD_OFFLINE}
 )
@@ -42,9 +43,9 @@ ExternalProject_Add_Step(
      DEPENDEES install
      COMMAND ${CMAKE_COMMAND} -E copy ${zlib_BUILD_LIB_PATH} ${zlib_PATH}
 )
- 
+
 # Download, build and install hdf5.
-EXTERNALPROJECT_ADD(${PROJECT_NAME}
+externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/HDFGroup/hdf5.git
      GIT_TAG           hdf5_1_12-initial  # 'hdf5-1_10_6' and 'hdf5_1_12-initial' are the latest versions not requiring CMake >= 3.12.
      GIT_SHALLOW       TRUE

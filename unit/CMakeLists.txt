@@ -23,7 +23,7 @@ target_link_libraries(${PROJECT_NAME} ${LIBRARY_NAME}_core)
 
 # Configure gtest dependency
 add_dependencies(${PROJECT_NAME} gtest_external)
-EXTERNALPROJECT_GET_PROPERTY(gtest_external SOURCE_DIR)
+externalproject_get_property(gtest_external SOURCE_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
      $<BUILD_INTERFACE:${SOURCE_DIR}/googletest/include>
      $<BUILD_INTERFACE:${SOURCE_DIR}/googlemock/include>
