@@ -2948,7 +2948,7 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Format not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
+            PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
             return hresult_t::ERROR_BAD_INPUT;
         }
     }
