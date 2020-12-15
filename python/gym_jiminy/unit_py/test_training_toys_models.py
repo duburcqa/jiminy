@@ -86,9 +86,8 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Run the learning process
         return train(train_agent, max_timesteps=100000)
 
-    def test_stable_baselines(self):
-        """Solve some classic control problems for both continuous and discrete
-        action spaces.
+    def test_cartpole_stable_baselines(self):
+        """Solve cartpole for both continuous and discrete action spaces.
         """
         is_success = self._ppo_training(
             "gym_jiminy.envs:jiminy-cartpole-v0",
@@ -98,6 +97,10 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
             "gym_jiminy.envs:jiminy-cartpole-v0",
             {'continuous': False, 'debug': True})
         self.assertTrue(is_success)
+
+    def test_acrobot_stable_baselines(self):
+        """Solve acrobot for both continuous and discrete action spaces.
+        """
         is_success = self._ppo_training(
             "gym_jiminy.envs:jiminy-acrobot-v0",
             {'continuous': True, 'debug': True})
