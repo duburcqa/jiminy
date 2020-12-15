@@ -109,7 +109,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         # Create some proxies for fast access
         self.__state_view = (self._observation[:self.robot.nq],
-                             self._observation[self.robot.nv:])
+                             self._observation[-self.robot.nv:])
 
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
