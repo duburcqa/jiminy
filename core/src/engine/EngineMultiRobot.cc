@@ -2121,30 +2121,27 @@ namespace jiminy
         system.controller->computeCommand(t, q, v, u);
     }
 
-    template<typename Scalar, int Options, int axis>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const &,
-                                           pinocchio::Inertia const & Isubtree)
+    template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
+    static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel<Scalar, Options, axis> >
+                         || is_pinocchio_joint_revolute_unbounded_v<JointModel<Scalar, Options, axis> >, float64_t>
+    getSubtreeInertiaProj(JointModel<Scalar, Options, axis> const & model,
+                          pinocchio::Inertia                const & Isubtree)
     {
         return Isubtree.inertia()(axis, axis);
     }
 
-    template<typename Scalar, int Options>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteUnalignedTpl<Scalar, Options> const & model,
-                                           pinocchio::Inertia const & Isubtree)
+    template<typename JointModel>
+    static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                         || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, float64_t>
+    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
     {
         return model.axis.dot(Isubtree.inertia() * model.axis);
     }
 
-    template<typename Scalar, int Options, int axis>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const &,
-                                           pinocchio::Inertia const & Isubtree)
-    {
-        return Isubtree.mass();
-    }
-
-    template<typename Scalar, int Options>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticUnalignedTpl<Scalar, Options> const & model,
-                                           pinocchio::Inertia const & Isubtree)
+    template<typename JointModel>
+    static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>
+                         || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, float64_t>
+    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
     {
         return Isubtree.mass();
     }
@@ -2245,6 +2242,8 @@ namespace jiminy
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
                              || is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_prismatic_v<JointModel>
                              || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
@@ -2291,8 +2290,6 @@ namespace jiminy
                              || is_pinocchio_joint_spherical_zyx_v<JointModel>
                              || is_pinocchio_joint_translation_v<JointModel>
                              || is_pinocchio_joint_planar_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
