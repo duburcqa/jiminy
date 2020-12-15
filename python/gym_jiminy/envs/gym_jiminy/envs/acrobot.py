@@ -190,6 +190,29 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         desired_goal = HEIGHT_REL_DEFAULT_THRESHOLD * self._tipPosZMax
         return bool(achieved_goal > desired_goal)
 
+    def compute_command(self,
+                        measure: SpaceDictNested,
+                        action: np.ndarray
+                        ) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        Convert a discrete action into its actual value if necessary, then add
+        noise to the action is enable.
+
+        :param measure: Observation of the environment.
+        :param action: Desired motors efforts.
+        """
+        # Call base implementation
+        action = super().compute_command(measure, action)
+
+        # Compute the actual torque to apply
+        if not self.continuous:
+            action = self.AVAIL_TORQUE[action]
+        if ACTION_NOISE > 0.0:
+            action += self.rg.uniform(-ACTION_NOISE, ACTION_NOISE)
+
+        return action
+
     def compute_reward(self,  # type: ignore[override]
                        info: Dict[str, Any]) -> float:
         """Compute reward at current episode state.
@@ -203,24 +226,6 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         else:
             reward = -1.0
         return reward
-
-    def step(self,
-             action: Optional[np.ndarray] = None
-             ) -> Tuple[SpaceDictNested, float, bool, Dict[str, Any]]:
-        """Run a simulation step for a given action.
-
-        Convert a discrete action into its actual value if necessary, then add
-        noise to the action is enable.
-        """
-        if action is not None:
-            # Compute the actual torque to apply
-            if not self.continuous:
-                action = self.AVAIL_TORQUE[action]
-            if ACTION_NOISE > 0.0:
-                action += self.rg.uniform(-ACTION_NOISE, ACTION_NOISE)
-
-        # Perform the step
-        return super().step(action)
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
         """Render the robot at current sate.
