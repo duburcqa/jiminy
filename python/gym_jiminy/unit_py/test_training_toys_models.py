@@ -47,7 +47,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config['batch_size'] = 128
         config['learning_rate'] = 1.0e-3
         config['n_epochs'] = 8
-        config['gamma'] = 0.99
+        config['gamma'] = 0.995
         config['gae_lambda'] = 0.95
         config['target_kl'] = None
         config['ent_coef'] = 0.01
@@ -60,38 +60,59 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         # Policy model config
         config['policy_kwargs'] = {
             'net_arch': [dict(pi=[64, 64], vf=[64, 64])],
-            'activation_fn': nn.Tanh
+            'activation_fn': nn.Tanh,
+            'optimizer_kwargs': {
+                'eps': 0.0
+            }
         }
 
         return config
 
     @classmethod
-    def _is_success_ppo_training(cls,
-                                 env_name: str,
-                                 env_kwargs: Dict[str, Any]) -> bool:
+    def _ppo_training(cls,
+                      env_name: str,
+                      env_kwargs: Dict[str, Any],
+                      agent_kwargs: Dict[str, Any]) -> bool:
         """ Run PPO algorithm on a given algorithm and check if the reward
         threshold has been exceeded.
         """
-
         # Create a multiprocess environment
         train_env = make_vec_env(
             env_id=env_name, env_kwargs=env_kwargs, n_envs=int(N_THREADS//2),
-            vec_env_cls=SubprocVecEnv, seed=0)
+            vec_env_cls=SubprocVecEnv, seed=SEED)
         test_env = make_vec_env(
             env_id=env_name, env_kwargs=env_kwargs, n_envs=1,
-            vec_env_cls=DummyVecEnv, seed=0)
+            vec_env_cls=DummyVecEnv, seed=SEED)
 
         # Create the learning agent according to the chosen algorithm
         config = cls._get_default_config_stable_baselines()
+        config.update(agent_kwargs)
         train_agent = PPO('MlpPolicy', train_env, **config, verbose=False)
         train_agent.eval_env = test_env
 
         # Run the learning process
-        return train(train_agent, max_timesteps=100000)
+        return train(train_agent, max_timesteps=150000)
 
     def test_cartpole_stable_baselines(self):
-        """Solve the Cartpole problem for continuous action space.
+        """Solve cartpole for both continuous and discrete action spaces.
         """
-        is_success = self._is_success_ppo_training(
-            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True})
+        is_success = self._ppo_training(
+            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': True},
+            {'learning_rate': 1.0e-3})
+        self.assertTrue(is_success)
+        is_success = self._ppo_training(
+            "gym_jiminy.envs:jiminy-cartpole-v0", {'continuous': False},
+            {'learning_rate': 1.0e-3})
+        self.assertTrue(is_success)
+
+    def test_acrobot_stable_baselines(self):
+        """Solve acrobot for both continuous and discrete action spaces.
+        """
+        is_success = self._ppo_training(
+            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': True},
+            {'learning_rate': 1.0e-4})
+        self.assertTrue(is_success)
+        is_success = self._ppo_training(
+            "gym_jiminy.envs:jiminy-acrobot-v0", {'continuous': False},
+            {'learning_rate': 2.0e-4})
         self.assertTrue(is_success)

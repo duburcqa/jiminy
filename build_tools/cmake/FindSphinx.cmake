@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.10)
 
 #Look for an executable called sphinx-build
 find_program(SPHINX_EXECUTABLE

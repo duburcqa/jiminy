@@ -14,16 +14,16 @@ if(NOT LEGACY_MODE)
     endif()
 endif()
 
-# Add cpp sources
+# Add cpp sources (in binary dir, since the sources are pre-processed to substitute docstring)
 set(SRC
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Functors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Robot.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Sensors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Motors.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Controllers.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Constraints.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Engine.cc"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/Module.cc")
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Functors.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Robot.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Sensors.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Motors.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Controllers.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Constraints.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Engine.cc"
+    "${CMAKE_CURRENT_BINARY_DIR}/src/Module.cc")
 
 # Make sure there is no undefined symbols, otherwise import will fail
 # set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
@@ -46,7 +46,7 @@ pythonDocstingSubstitution()
 # Set include directory (build folder because of the substitution)
 target_include_directories(${PROJECT_NAME} PUBLIC
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/${PROJECT_NAME}/include/>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/>"
 )
 
 # Link with other libraries

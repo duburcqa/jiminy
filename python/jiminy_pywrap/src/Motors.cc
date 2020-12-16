@@ -3,8 +3,6 @@
 #include "jiminy/python/Motors.h"
 
 #include <boost/python.hpp>
-#include <boost/python/def.hpp>
-#include <boost/python/dict.hpp>
 
 
 namespace jiminy

@@ -63,10 +63,13 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         'render.modes': ['human', 'rgb_array'],
     }
 
+    observation_space: gym.spaces.Space
+    action_space: gym.spaces.Space
+
     def __init__(self,
                  simulator: Simulator,
                  step_dt: float,
-                 enforce_bounded: Optional[bool] = False,
+                 enforce_bounded_spaces: Optional[bool] = False,
                  debug: bool = False,
                  **kwargs: Any) -> None:
         r"""
@@ -76,12 +79,11 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                         independent from the controller and observation update
                         periods. The latter are configured via
                         `engine.set_options`.
-        :param enforce_bounded: Whether or not to enforce finite bounds for the
-                                observation and action spaces. If so, then
-                                '\*_MAX' are used whenever it is necessary.
-                                Note that whose bounds are very spread to make
-                                sure it is suitable for the vast majority of
-                                systems.
+        :param enforce_bounded_spaces:
+            Whether or not to enforce finite bounds for the observation and
+            action spaces. If so, then '\*_MAX' are used whenever it is
+            necessary. Note that whose bounds are very spread to make sure it
+            is suitable for the vast majority of systems.
         :param debug: Whether or not the debug mode must be enabled. Doing it
                       enables telemetry recording.
         :param kwargs: Extra keyword arguments that may be useful for derived
@@ -96,7 +98,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Backup some user arguments
         self.simulator: Simulator = simulator
         self.step_dt = step_dt
-        self.enforce_bounded = enforce_bounded
+        self.enforce_bounded_spaces = enforce_bounded_spaces
         self.debug = debug
 
         # Define some proxies for fast access
@@ -128,8 +130,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._refresh_action_space()
 
         # Assertion(s) for type checker
-        assert (self.observation_space is not None and
-                self.action_space is not None)
+        assert (isinstance(self.observation_space, gym.spaces.Space) and
+                isinstance(self.action_space, gym.spaces.Space))
 
         # Initialize some internal buffers
         self._action = zeros(self.action_space)
@@ -186,7 +188,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         velocity_limit = self.robot.velocity_limit
 
         # Replace inf bounds of the state space if requested
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             if self.robot.has_freeflyer:
                 position_limit_lower[:3] = -FREEFLYER_POS_TRANS_MAX
                 position_limit_upper[:3] = +FREEFLYER_POS_TRANS_MAX
@@ -319,7 +321,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             sensor_space_lower[imu.type][quat_imu_idx, :] = -1.0 - 1e-12
             sensor_space_upper[imu.type][quat_imu_idx, :] = 1.0 + 1e-12
 
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             # Replace inf bounds of the contact sensor space
             if contact.type in sensors_data.keys():
                 sensor_space_lower[contact.type][:, :] = -SENSOR_FORCE_MAX
@@ -368,7 +370,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         effort_limit = self.robot.effort_limit
 
         # Replace inf bounds of the effort limit if requested
-        if self.enforce_bounded:
+        if self.enforce_bounded_spaces:
             for motor_name in self.robot.motors_names:
                 motor = self.robot.get_motor(motor_name)
                 motor_options = motor.get_options()
@@ -499,9 +501,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
 
         # Make sure the state is valid, otherwise there `refresh_observation`
         # and `_refresh_observation_space` are probably inconsistent.
+        obs = self.get_observation()
         try:
-            is_obs_valid = self.observation_space.contains(
-                self.get_observation())
+            is_obs_valid = self.observation_space.contains(obs)
         except AttributeError:
             is_obs_valid = False
         if not is_obs_valid:
@@ -515,7 +517,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 "The simulation is already done at `reset`. Check the "
                 "implementation of `is_done` if overloaded.")
 
-        return self.get_observation()
+        return obs
 
     def seed(self, seed: Optional[int] = None) -> Sequence[np.uint32]:
         """Specify the seed of the environment.
@@ -581,6 +583,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         except RuntimeError as e:
             logger.error("Unrecoverable Jiminy engine exception:\n" + str(e))
 
+        # Get the updated observation
+        obs = self.get_observation()
+
         # Check if the simulation is over.
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
@@ -604,7 +609,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Early return in case of low-level engine integration failure.
         # In such a case, it always returns reward = 0.0 and done = True.
         if is_step_failed:
-            return self.get_observation(), 0.0, True, self._info
+            return obs, 0.0, True, self._info
 
         # Compute reward and extra information
         reward = self.compute_reward(info=self._info)
@@ -613,7 +618,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if done and self._num_steps_beyond_done == 0:
             # Write log file if simulation is over (debug mode only)
             if self.debug:
-                self.simulator.write_log(self.log_path, format="data")
+                self.simulator.write_log(self.log_path, format="binary")
 
             # Extract log data from the simulation, which could be used
             # for computing terminal reward.
@@ -623,7 +628,15 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             if self.enable_reward_terminal:
                 reward += self.compute_reward_terminal(info=self._info)
 
-        return self.get_observation(), reward, done, self._info
+        # Check if the observation is out-of-bounds, in debug mode only
+        if self.debug and not self.observation_space.contains(obs):
+            message = "The observation is out-of-bounds."
+            if done:
+                logger.warn(message)
+            else:
+                logger.error(message)
+
+        return obs, reward, done, self._info
 
     def get_log(self) -> Tuple[Dict[str, np.ndarray], Dict[str, str]]:
         """Get log of recorded variable since the beginning of the episode.
@@ -867,6 +880,10 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param measure: Observation of the environment.
         :param action: Desired motors efforts.
         """
+        # Check if the action is out-of-bounds, in debug mode only
+        if self.debug and not self.action_space.contains(action):
+            logger.warn("The action is out-of-bounds.")
+
         set_value(self._action, action)
         return self._action
 
@@ -891,9 +908,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
-        if not self.observation_space.contains(self._observation):
-            return True
-        return False
+        return not self.observation_space.contains(self._observation)
 
     @staticmethod
     def _key_to_action(key: str) -> np.ndarray:

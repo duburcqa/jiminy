@@ -74,7 +74,7 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
     Considered solved when the average reward is greater than or equal to 195.0
     over 100 consecutive trials.
     """
-    def __init__(self, continuous: bool = False):
+    def __init__(self, continuous: bool = False, debug: bool = False) -> None:
         """
         :param continuous: Whether or not the action space is continuous. If
                            not continuous, the action space has only 3 states,
@@ -121,11 +121,11 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
             DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
 
         # Configure the learning environment
-        super().__init__(simulator, STEP_DT, debug=False)
+        super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
         # Create some proxies for fast access
         self.__state_view = (self._observation[:self.robot.nq],
-                             self._observation[self.robot.nv:])
+                             self._observation[-self.robot.nv:])
 
     def _setup(self) -> None:
         """ TODO: Write documentation.
@@ -191,6 +191,26 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         x, theta, _, _ = self.get_observation()
         return (abs(x) > X_THRESHOLD) or (abs(theta) > THETA_THRESHOLD)
 
+    def compute_command(self,
+                        measure: SpaceDictNested,
+                        action: np.ndarray
+                        ) -> np.ndarray:
+        """Compute the motors efforts to apply on the robot.
+
+        Convert a discrete action into its actual value if necessary.
+
+        :param measure: Observation of the environment.
+        :param action: Desired motors efforts.
+        """
+        # Call base implementation
+        action = super().compute_command(measure, action)
+
+        # Compute the actual torque to apply
+        if not self.continuous:
+            action = self.AVAIL_FORCE[action]
+
+        return action
+
     def compute_reward(self,  # type: ignore[override]
                        *, info: Dict[str, Any]) -> float:
         """ TODO: Write documentation.
@@ -204,16 +224,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         if not self._num_steps_beyond_done:  # True for both None and 0
             reward += 1.0
         return reward
-
-    def compute_command(self,
-                        measure: SpaceDictNested,
-                        action: np.ndarray
-                        ) -> np.ndarray:
-        """ TODO: Write documentation.
-        """
-        if not self.continuous and action is not None:
-            return self.AVAIL_FORCE[action]
-        return action
 
     def render(self, mode: str = 'human', **kwargs) -> Optional[np.ndarray]:
         if not self.simulator._is_viewer_available:

@@ -23,7 +23,7 @@
       <axis xyz="0 1 0"/>
       <parent link="world"/>
       <child link="FirstArm"/>
-      <limit effort="1.0" velocity="12.566"/> <!-- velocity=4*np.pi  -->
+      <limit effort="1000.0" velocity="12.566"/> <!-- velocity=4*np.pi  -->
     </joint>
     <link name="FirstArm">
         <visual>

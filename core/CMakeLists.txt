@@ -94,7 +94,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # jsoncpp is installed on the system as an external project, those side-projects must
 # simply call find_package(jsoncpp) and it will be included automatically.
 add_dependencies(${PROJECT_NAME} jsoncpp_external hdf5_external)
-EXTERNALPROJECT_GET_PROPERTY(jsoncpp_external INSTALL_DIR)
+externalproject_get_property(jsoncpp_external INSTALL_DIR)
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
     $<BUILD_INTERFACE:${INSTALL_DIR}/include>
 )

@@ -29,5 +29,4 @@ def train(train_agent: BaseAlgorithm,
     # Run the learning process
     train_agent.learn(total_timesteps=max_timesteps, callback=eval_callback)
 
-    return_code = train_agent.num_timesteps < max_timesteps
-    return return_code
+    return train_agent.num_timesteps < max_timesteps

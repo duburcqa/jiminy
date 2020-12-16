@@ -1081,7 +1081,7 @@ namespace jiminy
         std::vector<vectorN_t> & aSplit = stepperState_.aSplit;
 
         // Successive iteration failure
-        uint32_t sucessiveIterFailed = 0;
+        uint32_t successiveIterFailed = 0;
 
         /* Flag monitoring if the current time step depends of a breakpoint
            or the integration tolerance. It will be used by the restoration
@@ -1116,6 +1116,7 @@ namespace jiminy
         // Perform the integration. Do not simulate extremely small time steps.
         while ((tEnd - t > STEPPER_MIN_TIMESTEP) && (returnCode == hresult_t::SUCCESS))
         {
+            // Initialize next breakpoint time to the one recommended by the stepper
             float64_t tNext = t;
 
             // Update the active set and get the next breakpoint of impulse forces
@@ -1252,7 +1253,6 @@ namespace jiminy
                 tNext += dtNextGlobal;
 
                 // Compute the next step using adaptive step method
-                sucessiveIterFailed = 0;
                 while (tNext - t > EPS)
                 {
                     // Log every stepper state only if the user asked for
@@ -1309,7 +1309,7 @@ namespace jiminy
                     }
 
                     // Break the loop in case of too many successive failed inner iteration
-                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
                     }
@@ -1323,6 +1323,9 @@ namespace jiminy
 
                     if (stepper_->tryStep(qSplit, vSplit, aSplit, t, dtLargest))
                     {
+                        // Reset successive iteration failure counter
+                        successiveIterFailed = 0;
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1368,7 +1371,7 @@ namespace jiminy
                     else
                     {
                         // Increment the failed iteration counters
-                        ++sucessiveIterFailed;
+                        ++successiveIterFailed;
                         ++stepperState_.iterFailed;
                     }
 
@@ -1397,7 +1400,7 @@ namespace jiminy
                     dtLargest = dt;
 
                     // Break the loop in case of too many successive failed inner iteration
-                    if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+                    if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
                     {
                         break;
                     }
@@ -1407,6 +1410,9 @@ namespace jiminy
 
                     if (isStepSuccessful)
                     {
+                        // Reset successive iteration failure counter
+                        successiveIterFailed = 0;
+
                         // Synchronize the individual system states
                         syncSystemsStateWithStepper();
 
@@ -1435,7 +1441,7 @@ namespace jiminy
                     else
                     {
                         // Increment the failed iteration counter
-                        ++sucessiveIterFailed;
+                        ++successiveIterFailed;
                         ++stepperState_.iterFailed;
                     }
 
@@ -1467,7 +1473,7 @@ namespace jiminy
                 }
             }
 
-            if (sucessiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
+            if (successiveIterFailed > engineOptions_->stepper.successiveIterFailedMax)
             {
                 PRINT_ERROR("Too many successive iteration failures. Probably something is "
                             "going wrong with the physics. Aborting integration.");
@@ -2121,30 +2127,27 @@ namespace jiminy
         system.controller->computeCommand(t, q, v, u);
     }
 
-    template<typename Scalar, int Options, int axis>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteTpl<Scalar, Options, axis> const &,
-                                           pinocchio::Inertia const & Isubtree)
+    template<template<typename, int, int> class JointModel, typename Scalar, int Options, int axis>
+    static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel<Scalar, Options, axis> >
+                         || is_pinocchio_joint_revolute_unbounded_v<JointModel<Scalar, Options, axis> >, float64_t>
+    getSubtreeInertiaProj(JointModel<Scalar, Options, axis> const & model,
+                          pinocchio::Inertia                const & Isubtree)
     {
         return Isubtree.inertia()(axis, axis);
     }
 
-    template<typename Scalar, int Options>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelRevoluteUnalignedTpl<Scalar, Options> const & model,
-                                           pinocchio::Inertia const & Isubtree)
+    template<typename JointModel>
+    static std::enable_if_t<is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                         || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, float64_t>
+    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
     {
         return model.axis.dot(Isubtree.inertia() * model.axis);
     }
 
-    template<typename Scalar, int Options, int axis>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticTpl<Scalar, Options, axis> const &,
-                                           pinocchio::Inertia const & Isubtree)
-    {
-        return Isubtree.mass();
-    }
-
-    template<typename Scalar, int Options>
-    static float64_t getSubtreeInertiaProj(pinocchio::JointModelPrismaticUnalignedTpl<Scalar, Options> const & model,
-                                           pinocchio::Inertia const & Isubtree)
+    template<typename JointModel>
+    static std::enable_if_t<is_pinocchio_joint_prismatic_v<JointModel>
+                         || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, float64_t>
+    getSubtreeInertiaProj(JointModel const & model, pinocchio::Inertia const & Isubtree)
     {
         return Isubtree.mass();
     }
@@ -2212,13 +2215,26 @@ namespace jiminy
         }
 
         template<typename JointModel>
+        static std::enable_if_t<is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>, void>
+        algo(pinocchio::JointModelBase<JointModel> const & joint,
+             pinocchio::Data const & pncData,
+             vectorN_t const & q,
+             vectorN_t const & v,
+             vectorN_t const & positionLimitMin,
+             vectorN_t const & positionLimitMax,
+             EngineMultiRobot::jointOptions_t const & jointOptions,
+             vectorN_t & u)
+        {
+            // Empty on purpose.
+        }
+
+        template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_freeflyer_v<JointModel>
                              || is_pinocchio_joint_spherical_v<JointModel>
                              || is_pinocchio_joint_spherical_zyx_v<JointModel>
                              || is_pinocchio_joint_translation_v<JointModel>
                              || is_pinocchio_joint_planar_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
@@ -2230,7 +2246,7 @@ namespace jiminy
              EngineMultiRobot::jointOptions_t const & jointOptions,
              vectorN_t & u)
         {
-            // Empty on purpose
+            PRINT_WARNING("No position bounds implemented for this type of joint.");
         }
     };
 
@@ -2245,6 +2261,8 @@ namespace jiminy
         template<typename JointModel>
         static std::enable_if_t<is_pinocchio_joint_revolute_v<JointModel>
                              || is_pinocchio_joint_revolute_unaligned_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
+                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_prismatic_v<JointModel>
                              || is_pinocchio_joint_prismatic_unaligned_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
@@ -2291,8 +2309,6 @@ namespace jiminy
                              || is_pinocchio_joint_spherical_zyx_v<JointModel>
                              || is_pinocchio_joint_translation_v<JointModel>
                              || is_pinocchio_joint_planar_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_v<JointModel>
-                             || is_pinocchio_joint_revolute_unbounded_unaligned_v<JointModel>
                              || is_pinocchio_joint_mimic_v<JointModel>
                              || is_pinocchio_joint_composite_v<JointModel>, void>
         algo(pinocchio::JointModelBase<JointModel> const & joint,
@@ -2302,7 +2318,7 @@ namespace jiminy
              EngineMultiRobot::jointOptions_t const & jointOptions,
              vectorN_t & u)
         {
-            // Empty on purpose
+            PRINT_WARNING("No velocity bounds implemented for this type of joint.");
         }
     };
 
@@ -2932,7 +2948,7 @@ namespace jiminy
         }
         else
         {
-            PRINT_ERROR("Format not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
+            PRINT_ERROR("Format '", format, "' not recognized. It must be either 'binary', 'csv', or 'hdf5'.");
             return hresult_t::ERROR_BAD_INPUT;
         }
     }

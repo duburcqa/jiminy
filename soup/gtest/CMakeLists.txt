@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(gtest_external)
 
 # Download and build gtest.
-EXTERNALPROJECT_ADD(${PROJECT_NAME}
+externalproject_add(${PROJECT_NAME}
      GIT_REPOSITORY    https://github.com/google/googletest.git
      GIT_TAG           release-1.10.0
      GIT_SHALLOW       TRUE
@@ -16,6 +16,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
           -DCMAKE_CXX_FLAGS:STRING=${CMAKE_COMPILE_FLAGS_EXTERNAL}
           -Dgtest_force_shared_crt=ON  # This option is required on Github Windows CI for some reasons..
           ${EXTERNALPROJECT_BUILD_TYPE_CMD}
+          -Wno-dev  # Silent Cmake warnings about deprecated support of Cmake < 2.8.12
 
      ${gtest_NINJA}
      ${gtest_main_NINJA}
@@ -28,7 +29,7 @@ EXTERNALPROJECT_ADD(${PROJECT_NAME}
 )
 
 # Get the path of the generated libraries
-ExternalProject_Get_property(${PROJECT_NAME} BINARY_DIR)
+externalproject_get_property(${PROJECT_NAME} BINARY_DIR)
 set(${PROJECT_NAME}_LIB_DIR "${BINARY_DIR}/lib")
 if(NOT WIN32)
      set(gtest_PATH_Debug "${${PROJECT_NAME}_LIB_DIR}/libgtestd.a")
