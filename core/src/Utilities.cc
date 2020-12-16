@@ -519,7 +519,7 @@ namespace jiminy
 
 	void resetRandGenerators(uint32_t const & seed)
 	{
-		srand(seed); // Eigen relies on srand for genering random matrix
+		srand(seed);  // Eigen relies on srand for genering random matrix
         generator_.seed(seed);
         r4_nor_setup();
 	}
@@ -810,7 +810,7 @@ namespace jiminy
     hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")}); // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:
@@ -857,7 +857,7 @@ namespace jiminy
     hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")}); // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:

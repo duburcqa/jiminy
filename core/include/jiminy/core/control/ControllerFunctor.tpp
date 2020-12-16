@@ -54,7 +54,7 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
-        internalDynamicsFct_(t, q, v, sensorsData_, u); // The sensor data are already up-to-date
+        internalDynamicsFct_(t, q, v, sensorsData_, u);  // The sensor data are already up-to-date
 
         return hresult_t::SUCCESS;
     }

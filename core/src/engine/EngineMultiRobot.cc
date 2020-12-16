@@ -61,7 +61,7 @@ namespace jiminy
         telemetrySender_.configureObject(telemetryData_, ENGINE_OBJECT_NAME);
     }
 
-    EngineMultiRobot::~EngineMultiRobot(void) = default; // Cannot be default in the header since some types are incomplete at this point
+    EngineMultiRobot::~EngineMultiRobot(void) = default;  // Cannot be default in the header since some types are incomplete at this point
 
     hresult_t EngineMultiRobot::addSystem(std::string const & systemName,
                                           std::shared_ptr<Robot> robot,
@@ -1040,7 +1040,7 @@ namespace jiminy
             {
                 stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
             }
-            returnCode = step(stepSize); // Automatic dt adjustment
+            returnCode = step(stepSize);  // Automatic dt adjustment
         }
 
         // Stop the simulation. New variables can be registered again, and the lock on the robot is released
@@ -1275,7 +1275,7 @@ namespace jiminy
                 /* Get the time of the next breakpoint for the ODE solver:
                    a breakpoint occurs if we reached tEnd, if an external force
                    is applied, or if we need to update the sensors / controller. */
-                float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
+                float64_t dtNextGlobal;  // dt to apply for the next stepper step because of the various breakpoints
                 float64_t const dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
@@ -2067,7 +2067,7 @@ namespace jiminy
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
-        float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame(2) - zGround) * nGround(2);  // First-order projection (exact assuming flat surface)
 
         // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
@@ -2815,7 +2815,7 @@ namespace jiminy
             auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
             std::copy(header.begin() + 1,
                     indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(file, ", ")); // Discard the first one (start constant flag)
+                    std::ostream_iterator<std::string>(file, ", "));  // Discard the first one (start constant flag)
             std::copy(indexConstantEnd - 1,
                     indexConstantEnd,
                     std::ostream_iterator<std::string>(file, "\n"));
@@ -2824,7 +2824,7 @@ namespace jiminy
                     std::ostream_iterator<std::string>(file, ", "));
             std::copy(header.end() - 2,
                     header.end() - 1,
-                    std::ostream_iterator<std::string>(file, "\n")); // Discard the last one (start data flag)
+                    std::ostream_iterator<std::string>(file, "\n"));  // Discard the last one (start data flag)
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             file << logMatrix.format(CSVFormat);
 

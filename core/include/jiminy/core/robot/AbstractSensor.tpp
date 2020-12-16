@@ -133,7 +133,7 @@ namespace jiminy
         sharedHolder_->data_.resize(2);
         for (matrixN_t & data : sharedHolder_->data_)
         {
-            data = matrixN_t::Zero(getSize(), sharedHolder_->num_); // Do NOT use setZero since the size may be ill-defined
+            data = matrixN_t::Zero(getSize(), sharedHolder_->num_);  // Do NOT use setZero since the size may be ill-defined
         }
         sharedHolder_->dataMeasured_.setZero();
 

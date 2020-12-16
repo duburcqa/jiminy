@@ -102,12 +102,12 @@ int main(int argc, char_t * argv[])
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-4;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("dtMax")) = 3.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("dtRestoreThresholdRel")) = 0.2;
-    boost::get<int32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("iterMax")) = 100000U; // -1 to disable
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("timeout")) = -1; // -1 to disable
+    boost::get<int32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("iterMax")) = 100000U;  // -1 to disable
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("timeout")) = -1;  // -1 to disable
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("sensorsUpdatePeriod")) = 1.0e-3;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("controllerUpdatePeriod")) = 1.0e-3;
     boost::get<bool_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("logInternalStepperSteps")) = false;
-    boost::get<uint32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("randomSeed")) = 0U; // Use time(nullptr) for random seed.
+    boost::get<uint32_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("randomSeed")) = 0U;  // Use time(nullptr) for random seed.
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("stiffness")) = 1e6;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("damping")) = 2000.0;
     boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("contacts")).at("frictionDry")) = 5.0;

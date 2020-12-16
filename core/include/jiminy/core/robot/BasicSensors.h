@@ -37,7 +37,7 @@ namespace jiminy
     private:
         std::string frameName_;
         int32_t frameIdx_;
-        quaternion_t sensorRotationBias_; ///< Sensor rotation bias.
+        quaternion_t sensorRotationBias_;  ///< Sensor rotation bias.
     };
 
     class ContactSensor : public AbstractSensorTpl<ContactSensor>
