@@ -101,9 +101,12 @@ def read_log(fullpath: str,
     elif file_format == 'hdf5':
         with h5py.File(fullpath, 'r') as file:
             constants_dict = {}
-            for key, value in dict(file['constants'].attrs).items():
+            for key, dataset in file['constants'].items():
+                value = dataset[()]
                 if isinstance(value, bytes):
                     constants_dict[key] = value.decode()
+                else:
+                    constants_dict[key] = value
             data_dict = {'Global.Time': file['Global.Time'][()]}
             for key, value in file['variables'].items():
                 data_dict[key] = value['value'][()]

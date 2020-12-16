@@ -2899,9 +2899,9 @@ namespace jiminy
 
                 H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
                 H5::StrType stringType(H5::PredType::C_S1, hsize_t(constantDescr.size() - (delimiterIdx + 1)));
-                H5::Attribute constantAttrib = constantsGroup.createAttribute(
+                H5::DataSet constantDataSet = constantsGroup.createDataSet(
                     key, stringType, constantSpace);
-                constantAttrib.write(stringType, value);
+                constantDataSet.write(value, stringType);
             }
 
             /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.

@@ -5,7 +5,7 @@ This file describes the content of the so-called `tlmc` format. `tlmc` stands fo
 
 The examples in this document are made using the `h5py` library ; `file` is an `h5py.File` object.
 
-The telemetry of the robot outputs two different types of object: constants, wich are (key, value) pairs, and variables.
+The telemetry of the robot outputs two different types of object: constants, which are (key, value) pairs, and variables.
 Variables each have a unique name, and consists of two time series: one for time, one for values. Variables can have various basic types, and can have metadata associated to them.
 
 The `tlmc` will be organized as follow:
@@ -14,7 +14,7 @@ The `tlmc` will be organized as follow:
 
  - The root group shall contain an attribute 'START_TIME', which stores a long specifying the absolute start time of the log, in second relative to the UNIX epoch.
 
- - A group `constants` will store the original telemetry constants in its attribute dictionary. As a reminder, only string type constant is supported.
+ - A group `constants` will store the original telemetry constants as `constantName` single element datasets.
 
  - A second group `variables` will store the variables.
     - Each subgroup `variableName` represents a variable, originally named `variableName`. Each variable group contains:
