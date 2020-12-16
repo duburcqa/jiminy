@@ -489,7 +489,7 @@ namespace python
             // Early return if empty
             if (logData.header.empty())
             {
-                return bp::make_tuple(bp::dict(), bp::dict());
+                return bp::make_tuple(variables, constants);
             }
 
             // Get constants
@@ -502,21 +502,19 @@ namespace python
             }
 
             // Get Global.Time
+            bp::object timePy;
             if (!logData.timestamps.empty())
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
-                PyObject * valuePyTime(getNumpyReference(timeBuffer));
-                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
-                    PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
-                Py_XDECREF(valuePyTime);
+                timePy = convertToPython(timeBuffer);
             }
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
-                    PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
+                timePy = bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
             }
+            variables[logData.header[lastConstantIdx + 1]] = timePy;
 
             // Get intergers
             if (!logData.intData.empty())
@@ -531,16 +529,7 @@ namespace python
                     {
                         intVector[j] = logData.intData[j][i];
                     }
-
-                    /* One must make copies with PyArray_FROM_OF instead of using
-                       raw pointer for floatMatrix and setting NPY_ARRAY_OWNDATA
-                       because otherwise Python is not able to free the memory
-                       associated with each columns independently. Moreover, one
-                       must decrease manually the counter reference for some reasons... */
-                    PyObject * valuePyInt(getNumpyReference(intVector));
-                    variables[header_i] = bp::object(bp::handle<>(
-                        PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
-                    Py_XDECREF(valuePyInt);
+                    variables[header_i] = convertToPython(intVector);
                 }
             }
             else
@@ -568,11 +557,7 @@ namespace python
                     {
                         floatVector[j] = logData.floatData[j][i];
                     }
-
-                    PyObject * valuePyFloat(getNumpyReference(floatVector));
-                    variables[header_i] = bp::object(bp::handle<>(
-                        PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
-                    Py_XDECREF(valuePyFloat);
+                    variables[header_i] = convertToPython(floatVector);
                 }
             }
             else
