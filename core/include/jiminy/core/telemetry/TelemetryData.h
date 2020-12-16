@@ -27,7 +27,7 @@ namespace jiminy
     std::string const START_LINE_TOKEN("StartLine");     ///< Marker of the beginning of a line of data.
     std::string const START_DATA("StartData");           ///< Marker of the beginning of the data section.
 
-    std::size_t const CONSTANTS_MEM_SIZE = 16U * 1024U;
+    std::size_t const CONSTANTS_MEM_SIZE = 1024U * 1024U;
     std::size_t const INTEGERS_MEM_SIZE  = 32U * 1024U;
     std::size_t const FLOATS_MEM_SIZE    = 42U * 1024U;
 
