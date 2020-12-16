@@ -354,19 +354,19 @@ namespace jiminy
                 // Generate the log fieldnames
                 systemDataIt->positionFieldnames =
                     addCircumfix(systemIt->robot->getPositionFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->velocityFieldnames =
                     addCircumfix(systemIt->robot->getVelocityFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (returnCode == hresult_t::SUCCESS)
@@ -897,15 +897,15 @@ namespace jiminy
             {
                 // Backup Robot's input arguments
                 std::string const telemetryUrdfPath = addCircumfix(
-                    "urdf_path", system.name, "", TELEMETRY_DELIMITER);
+                    "urdf_path", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 telemetrySender_.registerConstant(
                     telemetryUrdfPath, system.robot->getUrdfPath());
                 std::string const telemetrHasFreeflyer = addCircumfix(
-                    "has_freeflyer", system.name, "", TELEMETRY_DELIMITER);
+                    "has_freeflyer", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 telemetrySender_.registerConstant(
                     telemetrHasFreeflyer, std::to_string(system.robot->getHasFreeflyer()));
                 std::string const telemetryMeshPackageDirs = addCircumfix(
-                    "mesh_package_dirs", system.name, "", TELEMETRY_DELIMITER);
+                    "mesh_package_dirs", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 std::string meshPackageDirsString;
                 for (std::string const & dir : system.robot->getMeshPackageDirs())
                 {
@@ -916,7 +916,7 @@ namespace jiminy
 
                 // Backup the Pinocchio Model related to the current simulation
                 std::string const telemetryModelName = addCircumfix(
-                    "pinocchio_model", system.name, "", TELEMETRY_DELIMITER);
+                    "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 std::string modelString = system.robot->pncModel_.saveToString();
                 telemetrySender_.registerConstant(telemetryModelName, modelString);
             }
@@ -926,7 +926,7 @@ namespace jiminy
             for (auto const & system : systems_)
             {
                 std::string const telemetryRobotOptions = addCircumfix(
-                    "system", system.name, "", TELEMETRY_DELIMITER);
+                    "system", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 configHolder_t systemOptions;
                 systemOptions["robot"] = system.robot->getOptions();
                 systemOptions["controller"] = system.controller->getOptions();
@@ -2893,7 +2893,7 @@ namespace jiminy
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
                 std::string const & constantDescr = logData.header[i];
-                int32_t const delimiterIdx = constantDescr.find("=");
+                int32_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
                 std::string const key = constantDescr.substr(0, delimiterIdx);
                 char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
 
@@ -3044,10 +3044,10 @@ namespace jiminy
 
             // Extract the number of integers and floats from the list of logged constants
             std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-            int32_t delimiter = headerNumIntEntries.find("=");
+            int32_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
             int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
             std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
-            delimiter = headerNumFloatEntries.find("=");
+            delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
             int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
 
             // Deduce the parameters required to parse the whole binary log file

@@ -108,7 +108,7 @@ namespace jiminy
                 std::string objectName = CONTROLLER_OBJECT_NAME;
                 if (!objectPrefixName.empty())
                 {
-                    objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
+                    objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                 }
                 telemetrySender_.configureObject(std::move(telemetryData), objectName);
                 for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)

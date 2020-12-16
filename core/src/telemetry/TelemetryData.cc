@@ -6,6 +6,8 @@
 
 #include <iostream>
 
+#include "jiminy/core/Constants.h"
+
 #include "jiminy/core/telemetry/TelemetryData.h"
 
 
@@ -85,7 +87,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        std::string const fullConstant = variableNameIn + "=" + constantValueIn;
+        std::string const fullConstant = variableNameIn + TELEMETRY_CONSTANT_DELIMITER + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
             PRINT_ERROR("Maximum number of registration exceeded.");

@@ -207,7 +207,7 @@ namespace jiminy
     {
         if (areFieldnamesGrouped_)
         {
-            return getType() + TELEMETRY_DELIMITER + name_;
+            return getType() + TELEMETRY_FIELDNAME_DELIMITER + name_;
         }
         else
         {
