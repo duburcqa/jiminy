@@ -50,10 +50,10 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        char_t * const namePos = memAddress + header->nextFreeNameOffset; // Compute record address
+        char_t * const namePos = memAddress + header->nextFreeNameOffset;  // Compute record address
         memcpy(namePos, variableName.data(), variableName.size());
         header->nextFreeNameOffset += variableName.size();
-        header->nextFreeNameOffset += 1U; // Null-terminated.
+        header->nextFreeNameOffset += 1U;  // Null-terminated.
 
         char_t * const dataPos = memAddress + header->nextFreeDataOffset;
         entriesMap_[variableName] = static_cast<void *>(dataPos);

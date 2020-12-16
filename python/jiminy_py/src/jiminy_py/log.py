@@ -99,13 +99,14 @@ def read_log(fullpath: str,
         # removing spaces present before the keys.
         data_dict = {k.strip(): np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
-        file = h5py.File(fullpath, 'r')
-        constants_dict = {}
-        for key, value in dict(file['constants'].attrs).items():
-            constants_dict[key] = value.decode()
-        data_dict = {'Global.Time': file['Global.Time'][()]}
-        for key, value in file['variables'].items():
-            data_dict[key] = value['value'][()]
+        with h5py.File(fullpath, 'r') as file:
+            constants_dict = {}
+            for key, value in dict(file['constants'].attrs).items():
+                if isinstance(value, bytes):
+                    constants_dict[key] = value.decode()
+            data_dict = {'Global.Time': file['Global.Time'][()]}
+            for key, value in file['variables'].items():
+                data_dict[key] = value['value'][()]
 
     return data_dict, constants_dict
 
@@ -153,8 +154,8 @@ def plot_log():
 
     # If no plotting commands, display the list of headers instead
     if len(plotting_commands) == 0:
-        print("Available data:")
-        print("\n - ".join(log_data.keys()))
+        print("Available data:", *map(
+            lambda s: f"- {s}", log_data.keys()), sep="\n")
         exit(0)
 
     # Load comparision logs, if any.

@@ -8,7 +8,7 @@
 
 namespace jiminy
 {
-    std::string const CONTROLLER_OBJECT_NAME("HighLevelController"); ///< Name of the telemetry object
+    std::string const CONTROLLER_OBJECT_NAME("HighLevelController");  ///< Name of the telemetry object
 
     class TelemetryData;
     class Robot;
@@ -90,7 +90,7 @@ namespace jiminy
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
         hresult_t registerVariable(std::vector<std::string> const & fieldnames,
-                                   Eigen::Ref<vectorN_t>            values); // Make a "copy" to support both vectorN_t and reference
+                                   Eigen::Ref<vectorN_t>            values);  // Make a "copy" to support both vectorN_t and reference
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///

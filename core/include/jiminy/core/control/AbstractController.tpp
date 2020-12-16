@@ -52,17 +52,24 @@ namespace jiminy
 
         // Check in local cache before.
         auto constantIt = std::find_if(registeredConstants_.begin(),
-                                        registeredConstants_.end(),
-                                        [&fieldName](auto const & element)
-                                        {
-                                            return element.first == fieldName;
-                                        });
+                                       registeredConstants_.end(),
+                                       [&fieldName](auto const & element)
+                                       {
+                                           return element.first == fieldName;
+                                       });
         if (constantIt != registeredConstants_.end())
         {
             PRINT_ERROR("Constant already registered.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        registeredConstants_.emplace_back(fieldName, to_string(value));
+        if constexpr (std::is_same_v<T, std::string>)
+        {
+            registeredConstants_.emplace_back(fieldName, value);
+        }
+        else
+        {
+            registeredConstants_.emplace_back(fieldName, to_string(value));
+        }
 
         return hresult_t::SUCCESS;
     }

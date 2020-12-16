@@ -6,6 +6,7 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/contact-dynamics.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
+#include "pinocchio/serialization/model.hpp"
 
 #include "H5Cpp.h"
 
@@ -60,7 +61,7 @@ namespace jiminy
         telemetrySender_.configureObject(telemetryData_, ENGINE_OBJECT_NAME);
     }
 
-    EngineMultiRobot::~EngineMultiRobot(void) = default; // Cannot be default in the header since some types are incomplete at this point
+    EngineMultiRobot::~EngineMultiRobot(void) = default;  // Cannot be default in the header since some types are incomplete at this point
 
     hresult_t EngineMultiRobot::addSystem(std::string const & systemName,
                                           std::shared_ptr<Robot> robot,
@@ -559,7 +560,7 @@ namespace jiminy
         std::vector<vectorN_t> vSplit;
         qSplit.reserve(systems_.size());
         vSplit.reserve(systems_.size());
-        for (auto & system : systems_)
+        for (auto const & system : systems_)
         {
             auto qInitIt = qInit.find(system.name);
             auto vInitIt = vInit.find(system.name);
@@ -611,7 +612,7 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            for (auto & system : systems_)
+            for (auto const & system : systems_)
             {
                 auto aInitIt = aInit->find(system.name);
                 if (aInitIt == aInit->end())
@@ -882,17 +883,64 @@ namespace jiminy
             // Synchronize the global stepper state with the individual system states
             syncStepperStateWithSystems();
 
-            // Lock the telemetry. At this point it is no longer possible to register new variables.
-            configureTelemetry();
-
-            // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
-
             // Initialize the last system states
             for (auto & systemData : systemsDataHolder_)
             {
                 systemData.statePrev = systemData.state;
             }
+
+            // Lock the telemetry. At this point it is no longer possible to register new variables.
+            configureTelemetry();
+
+            // Log systems data
+            for (auto const & system : systems_)
+            {
+                // Backup Robot's input arguments
+                std::string const telemetryUrdfPath = addCircumfix(
+                    "urdf_path", system.name, "", TELEMETRY_DELIMITER);
+                telemetrySender_.registerConstant(
+                    telemetryUrdfPath, system.robot->getUrdfPath());
+                std::string const telemetrHasFreeflyer = addCircumfix(
+                    "has_freeflyer", system.name, "", TELEMETRY_DELIMITER);
+                telemetrySender_.registerConstant(
+                    telemetrHasFreeflyer, std::to_string(system.robot->getHasFreeflyer()));
+                std::string const telemetryMeshPackageDirs = addCircumfix(
+                    "mesh_package_dirs", system.name, "", TELEMETRY_DELIMITER);
+                std::string meshPackageDirsString;
+                for (std::string const & dir : system.robot->getMeshPackageDirs())
+                {
+                    meshPackageDirsString += dir + '\n';
+                }
+                telemetrySender_.registerConstant(
+                    telemetryMeshPackageDirs, meshPackageDirsString);
+
+                // Backup the Pinocchio Model related to the current simulation
+                std::string const telemetryModelName = addCircumfix(
+                    "pinocchio_model", system.name, "", TELEMETRY_DELIMITER);
+                std::string modelString = system.robot->pncModel_.saveToString();
+                telemetrySender_.registerConstant(telemetryModelName, modelString);
+            }
+
+            // Log all options
+            configHolder_t allOptions;
+            for (auto const & system : systems_)
+            {
+                std::string const telemetryRobotOptions = addCircumfix(
+                    "system", system.name, "", TELEMETRY_DELIMITER);
+                configHolder_t systemOptions;
+                systemOptions["robot"] = system.robot->getOptions();
+                systemOptions["controller"] = system.controller->getOptions();
+                allOptions[telemetryRobotOptions] = systemOptions;
+            }
+            allOptions["engine"] = engineOptionsHolder_;
+            Json::Value allOptionsJson = convertToJson(allOptions);
+            Json::StreamWriterBuilder jsonWriter;
+            jsonWriter["indentation"] = "";
+            std::string const allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
+            telemetrySender_.registerConstant("options", allOptionsString);
+
+            // Write the header: this locks the registration of new variables
+            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
             // At this point, consider that the simulation is running
             isSimulationRunning_ = true;
@@ -992,7 +1040,7 @@ namespace jiminy
             {
                 stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
             }
-            returnCode = step(stepSize); // Automatic dt adjustment
+            returnCode = step(stepSize);  // Automatic dt adjustment
         }
 
         // Stop the simulation. New variables can be registered again, and the lock on the robot is released
@@ -1227,7 +1275,7 @@ namespace jiminy
                 /* Get the time of the next breakpoint for the ODE solver:
                    a breakpoint occurs if we reached tEnd, if an external force
                    is applied, or if we need to update the sensors / controller. */
-                float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
+                float64_t dtNextGlobal;  // dt to apply for the next stepper step because of the various breakpoints
                 float64_t const dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
@@ -2019,7 +2067,7 @@ namespace jiminy
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
-        float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame(2) - zGround) * nGround(2);  // First-order projection (exact assuming flat surface)
 
         // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
@@ -2767,7 +2815,7 @@ namespace jiminy
             auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
             std::copy(header.begin() + 1,
                     indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(file, ", ")); // Discard the first one (start constant flag)
+                    std::ostream_iterator<std::string>(file, ", "));  // Discard the first one (start constant flag)
             std::copy(indexConstantEnd - 1,
                     indexConstantEnd,
                     std::ostream_iterator<std::string>(file, "\n"));
@@ -2776,7 +2824,7 @@ namespace jiminy
                     std::ostream_iterator<std::string>(file, ", "));
             std::copy(header.end() - 2,
                     header.end() - 1,
-                    std::ostream_iterator<std::string>(file, "\n")); // Discard the last one (start data flag)
+                    std::ostream_iterator<std::string>(file, "\n"));  // Discard the last one (start data flag)
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             file << logMatrix.format(CSVFormat);
 

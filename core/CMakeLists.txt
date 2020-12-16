@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.10)
 project(${LIBRARY_NAME}_core VERSION ${BUILD_VERSION})
 
 # Find dependencies
-find_package(Boost REQUIRED COMPONENTS system filesystem date_time thread)
+find_package(Boost REQUIRED COMPONENTS system filesystem serialization date_time thread)
 
 if(NOT LEGACY_MODE)
     find_package(urdfdom REQUIRED NO_MODULE NO_CMAKE_SYSTEM_PATH) # It is impossible to specify the version because it is not exported in cmake config files...

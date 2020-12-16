@@ -25,9 +25,9 @@ namespace jiminy
 
         struct robotConstraint_t
         {
-            std::string name_; ///< Name of the constraint.
-            std::shared_ptr<AbstractConstraint> constraint_; ///< The constraint itself.
-            uint32_t dim_; ///< Dimension of the constraint.
+            std::string name_;  ///< Name of the constraint.
+            std::shared_ptr<AbstractConstraint> constraint_;  ///< The constraint itself.
+            uint32_t dim_;  ///< Dimension of the constraint.
 
             robotConstraint_t(std::string const & name,
                               std::shared_ptr<AbstractConstraint> constraint):
@@ -207,7 +207,7 @@ namespace jiminy
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
         sensorsSharedHolder_t sensorsSharedHolder_;
-        vectorN_t zeroAccelerationVector_; ///< A vector of zeros of the dimension the size of the velocity vector - for computing constraints.
+        vectorN_t zeroAccelerationVector_;  ///< A vector of zeros of the dimension the size of the velocity vector - for computing constraints.
     };
 }
 

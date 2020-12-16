@@ -143,8 +143,8 @@ namespace jiminy
 
         // Compute quaternion
         matrix3_t const & rot = robot_->pncData_.oMf[frameIdx_].rotation();
-        quaternion_t const quat(rot); // Convert a rotation matrix to a quaternion
-        data().head<4>() = quat.coeffs(); // (x,y,z,w)
+        quaternion_t const quat(rot);  // Convert a rotation matrix to a quaternion
+        data().head<4>() = quat.coeffs();  // (x,y,z,w)
 
         // Compute gyroscope signal
         pinocchio::Motion const velocity = pinocchio::getFrameVelocity(robot_->pncModel_, robot_->pncData_, frameIdx_);

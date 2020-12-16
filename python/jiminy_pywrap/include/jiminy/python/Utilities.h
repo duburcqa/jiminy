@@ -454,7 +454,7 @@ namespace python
         return map;
     }
 
-    inline void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration
+    inline void convertFromPython(bp::object const & configPy, configHolder_t & config);  // Forward declaration
 
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {

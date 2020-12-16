@@ -21,7 +21,7 @@ namespace jiminy
     registeredVariables_(),
     registeredConstants_()
     {
-        AbstractController::setOptions(getDefaultControllerOptions()); // Clarify that the base implementation is called
+        AbstractController::setOptions(getDefaultControllerOptions());  // Clarify that the base implementation is called
     }
 
     hresult_t AbstractController::initialize(Robot const * robot)

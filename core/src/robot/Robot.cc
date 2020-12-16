@@ -338,7 +338,7 @@ namespace jiminy
             {
                 sensorsSharedHolder_.emplace(std::make_pair(
                     sensorType, std::make_shared<SensorSharedDataHolder_t>()));
-                sensorTelemetryOptions_.emplace(std::make_pair(sensorType, true)); // Enable the telemetry by default
+                sensorTelemetryOptions_.emplace(std::make_pair(sensorType, true));  // Enable the telemetry by default
             }
 
             // Attach the sensor
@@ -1515,7 +1515,7 @@ namespace jiminy
 
     vectorN_t Robot::getEffortLimit(void) const
     {
-        vectorN_t effortLimit = vectorN_t::Constant(pncModel_.nv, qNAN); // Do NOT use robot_->pncModel_.effortLimit, since we don't care about effort limits for non-physical joints
+        vectorN_t effortLimit = vectorN_t::Constant(pncModel_.nv, qNAN);  // Do NOT use robot_->pncModel_.effortLimit, since we don't care about effort limits for non-physical joints
         for (auto const & motor : motorsHolder_)
         {
             auto const & motorOptions = motor->baseMotorOptions_;

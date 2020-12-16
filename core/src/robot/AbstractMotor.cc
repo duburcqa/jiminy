@@ -80,7 +80,7 @@ namespace jiminy
         {
             int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
             sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval(); // eval to avoid aliasing
+                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
         }
         sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 

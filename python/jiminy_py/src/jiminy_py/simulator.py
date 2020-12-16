@@ -733,13 +733,16 @@ class Simulator:
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Get the options of robot (including controller), and engine.
         """
-        options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
-        robot_options = options['robot']
-        robot_options['model'] = self.robot.get_model_options()
-        robot_options['motors'] = self.robot.get_motors_options()
-        robot_options['sensors'] = self.robot.get_sensors_options()
-        robot_options['telemetry'] = self.robot.get_telemetry_options()
-        robot_options['controller'] = self.get_controller_options()
+        options = OrderedDict(
+            system=OrderedDict(robot=OrderedDict(), controller=OrderedDict()),
+            engine=OrderedDict())
+        robot_options = options['system']['robot']
+        robot_options_copy = self.robot.get_options()
+        robot_options['model'] = robot_options_copy['model']
+        robot_options['motors'] = robot_options_copy['motors']
+        robot_options['sensors'] = robot_options_copy['sensors']
+        robot_options['telemetry'] = robot_options_copy['telemetry']
+        options['system']['controller'] = self.get_controller_options()
         engine_options = options['engine']
         engine_options_copy = self.engine.get_options()
         engine_options['stepper'] = engine_options_copy['stepper']
@@ -753,8 +756,8 @@ class Simulator:
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """Set the options of robot (including controller), and engine.
         """
-        controller_options = options['robot'].pop('controller')
-        self.robot.set_options(options['robot'])
+        controller_options = options['system']['controller']
+        self.robot.set_options(options['system']['robot'])
         self.set_controller_options(controller_options)
         self.engine.set_options(options['engine'])
 

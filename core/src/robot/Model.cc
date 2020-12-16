@@ -478,7 +478,7 @@ namespace jiminy
                     std::string newName =
                         removeSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
                     flexibleJointsNames_.emplace_back(newName);
-                    insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName); // Ignore return code, as check has already been done.
+                    insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName);  // Ignore return code, as check has already been done.
                 }
             }
         }
@@ -682,7 +682,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
             positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
 
             if (mdlOptions_->joints.enablePositionLimit)

@@ -288,7 +288,7 @@ namespace jiminy
         hresult_t detach(void);
 
     public:
-        std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_; ///< Structure with the parameters of the motor
+        std::unique_ptr<abstractMotorOptions_t const> baseMotorOptions_;  ///< Structure with the parameters of the motor
 
     protected:
         configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
