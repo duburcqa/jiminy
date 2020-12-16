@@ -6,7 +6,7 @@ from csv import DictReader
 from textwrap import dedent
 from itertools import cycle
 from collections import OrderedDict
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Any
 
 import h5py
 import numpy as np
@@ -68,20 +68,20 @@ def read_log(fullpath: str,
 
     if file_format == 'binary':
         # Read binary file using C++ parser.
-        data_dict, constants_dict = Engine.read_log_binary(fullpath)
+        data_dict, const_dict = Engine.read_log_binary(fullpath)
     elif file_format == 'csv':
         # Read text csv file.
-        constants_dict = {}
+        const_dict = {}
         with open(fullpath, 'r') as log:
-            constants_str = next(log).split(', ')
-            for c in constants_str:
+            const_str = next(log).split(', ')
+            for c in const_str:
                 # Extract the name and value of the constant.
                 # Note that newline is stripped at the end of the value.
                 name, value = c.split('=')
                 value = value.strip('\n')
 
                 # Gather the constants in a dictionary.
-                constants_dict[name] = value.strip('\n')
+                const_dict[name] = value.strip('\n')
 
             # Read data from the log file, skipping the first line, namely the
             # constants definition.
@@ -99,19 +99,29 @@ def read_log(fullpath: str,
         # removing spaces present before the keys.
         data_dict = {k.strip(): np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
+        # Helper to process some particular constants
+        def set_constant(const_dict: Dict[str, Any],
+                         key: str,
+                         value: str) -> None:
+            if isinstance(value, bytes):
+                const_dict[key] = value.decode()
+            else:
+                const_dict[key] = value
+
         with h5py.File(fullpath, 'r') as file:
-            constants_dict = {}
+            # Load constants
+            const_dict = {}
             for key, dataset in file['constants'].items():
-                value = dataset[()]
-                if isinstance(value, bytes):
-                    constants_dict[key] = value.decode()
-                else:
-                    constants_dict[key] = value
+                set_constant(const_dict, key, dataset[()])
+            for key, value in dict(file['constants'].attrs).items():
+                set_constant(const_dict, key, value)
+
+            # Load variables (1D time-series)
             data_dict = {'Global.Time': file['Global.Time'][()]}
             for key, value in file['variables'].items():
                 data_dict[key] = value['value'][()]
 
-    return data_dict, constants_dict
+    return data_dict, const_dict
 
 
 def plot_log():

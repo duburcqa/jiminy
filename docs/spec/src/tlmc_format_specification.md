@@ -14,12 +14,12 @@ The `tlmc` will be organized as follow:
 
  - The root group shall contain an attribute 'START_TIME', which stores a long specifying the absolute start time of the log, in second relative to the UNIX epoch.
 
- - A group `constants` will store the original telemetry constants as `constantName` single element datasets.
+ - A group `constants` will store the original telemetry constants either as `constantName` 0D datasets or in its attribute dictionary.
 
  - A second group `variables` will store the variables.
     - Each subgroup `variableName` represents a variable, originally named `variableName`. Each variable group contains:
         - A `value` 1D dataset representing the variable's values through time.
-        - A `time` 1D dataset representing the time instants relative to the 'START_TIME' file constant. This dataset will contain an attribute `unit` specifying the ratio to SI unit (i.e. 1 second). For instance when using nanoseconds, `file["variables/myvariable/time"].attrs["unit"]` evaluates to `1e-9`.
+        - A `time` 1D dataset representing the time instants relative to the 'START_TIME' file constant. This dataset will contain an attribute `unit` specifying the ratio to SI unit (i.e. 1 second). For instance when using nanoseconds, `file["variables/myvariable/time"].attrs["unit"]` evaluates to `1.0e-9`.
         - Variable-specific metadata stored in the group's attribute.
 
 For storage efficiency, all datasets will be stored using the 'gzip' filter with compression level of 4, and the 'shuffle' filter. The chunk size is equal to the number of timestamps to maxing-out reading performances. These are enabled in `h5py` using the following flags:
