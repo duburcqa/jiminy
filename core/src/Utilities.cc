@@ -588,7 +588,7 @@ namespace jiminy
         fieldnames.reserve(size);
         for (uint32_t i=0; i<size; ++i)
         {
-            fieldnames.push_back(baseName + TELEMETRY_DELIMITER + std::to_string(i));
+            fieldnames.push_back(baseName + TELEMETRY_FIELDNAME_DELIMITER + std::to_string(i));
         }
         return fieldnames;
     }

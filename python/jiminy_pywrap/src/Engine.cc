@@ -497,7 +497,7 @@ namespace python
                 logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
-                int32_t const delimiter = logData.header[i].find("=");
+                int32_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
                 constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
             }
 

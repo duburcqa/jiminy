@@ -67,7 +67,7 @@ namespace jiminy
                                                          int64_t     const & initialValue)
     {
         int64_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
@@ -84,7 +84,7 @@ namespace jiminy
                                                            float64_t   const & initialValue)
     {
         float64_t * positionInBuffer = nullptr;
-        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + fieldNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + fieldNameIn;
 
         hresult_t returnCode = telemetryData_->registerVariable(fullFieldName, positionInBuffer);
         if (returnCode == hresult_t::SUCCESS)
@@ -113,7 +113,7 @@ namespace jiminy
     hresult_t TelemetrySender::registerConstant(std::string const & variableNameIn,
                                                 std::string const & valueIn)
     {
-        std::string const fullFieldName = objectName_ + TELEMETRY_DELIMITER + variableNameIn;
+        std::string const fullFieldName = objectName_ + TELEMETRY_FIELDNAME_DELIMITER + variableNameIn;
         return telemetryData_->registerConstant(fullFieldName, valueIn);
     }
 

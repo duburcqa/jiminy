@@ -23,7 +23,8 @@ namespace jiminy
     extern std::string const FREE_FLYER_PREFIX_BASE_NAME;
     extern std::string const FLEXIBLE_JOINT_SUFFIX;
 
-    extern std::string const TELEMETRY_DELIMITER;
+    extern std::string const TELEMETRY_FIELDNAME_DELIMITER;
+    extern std::string const TELEMETRY_CONSTANT_DELIMITER;
     extern int64_t const TELEMETRY_MIN_BUFFER_SIZE;
     extern float64_t const TELEMETRY_DEFAULT_TIME_UNIT;
 
