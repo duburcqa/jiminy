@@ -7,7 +7,7 @@ import pinocchio as pin
 from pinocchio.rpy import rpyToMatrix, matrixToRpy
 
 from . import core as jiminy
-from .viewer import TrajectoryDataType
+from .replay import TrajectoryDataType
 
 
 logger = logging.getLogger(__name__)
