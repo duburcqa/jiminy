@@ -20,7 +20,8 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
-from .viewer import Viewer, play_logfiles
+from .viewer import Viewer
+from .replay import play_logfiles
 
 
 SENSORS_FIELDS = {
@@ -490,7 +491,7 @@ class Simulator:
         """Replay the current episode until now.
 
         :param kwargs: Extra keyword arguments for delegation to
-                       `viewer.play_trajectories` method.
+                       `replay.play_trajectories` method.
         """
         log_data, _ = self.get_log()
         if not log_data:
