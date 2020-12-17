@@ -105,7 +105,7 @@ namespace jiminy
         {
             if (telemetryData)
             {
-                std::string objectName = CONTROLLER_OBJECT_NAME;
+                std::string objectName = CONTROLLER_TELEMETRY_NAMESPACE;
                 if (!objectPrefixName.empty())
                 {
                     objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;

@@ -15,7 +15,7 @@
 namespace jiminy
 {
     TelemetrySender::TelemetrySender(void) :
-    objectName_(DEFAULT_OBJECT_NAME),
+    objectName_(DEFAULT_TELEMETRY_NAMESPACE),
     telemetryData_(nullptr),
     intBufferPosition_(),
     floatBufferPosition_()

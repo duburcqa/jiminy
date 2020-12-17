@@ -8,7 +8,7 @@
 
 namespace jiminy
 {
-    std::string const CONTROLLER_OBJECT_NAME("HighLevelController");  ///< Name of the telemetry object
+    std::string const CONTROLLER_TELEMETRY_NAMESPACE("HighLevelController");  ///< Namespace of the telemetry object
 
     class TelemetryData;
     class Robot;

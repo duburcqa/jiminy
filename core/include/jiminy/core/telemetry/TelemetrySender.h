@@ -20,7 +20,7 @@ namespace jiminy
 {
     class TelemetryData;
 
-    std::string const DEFAULT_OBJECT_NAME("Uninitialized Object");
+    std::string const DEFAULT_TELEMETRY_NAMESPACE("Uninitialized Object");
 
     ////////////////////////////////////////////////////////////////////////
     /// \class TelemetrySender
