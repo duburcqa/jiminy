@@ -682,7 +682,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Replay the current episode until now.
 
         :param kwargs: Extra keyword arguments for delegation to
-                       `viewer.play_trajectories` method.
+                       `replay.play_trajectories` method.
         """
         self.simulator.replay(**{'verbose': False, **kwargs})
 

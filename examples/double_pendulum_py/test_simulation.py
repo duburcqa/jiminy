@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import jiminy_py.core as jiminy
-from jiminy_py.viewer import extract_viewer_data_from_log, play_trajectories
+from jiminy_py.replay import play_logfiles
 
 
 # ################################ User parameters #######################################
@@ -90,10 +90,9 @@ print("Simulation time: %03.0fms" %((end - start)*1.0e3))
 log_data, log_constants = engine.get_log()
 print('%i log points' % log_data['Global.Time'].shape)
 print(log_constants)
-trajectory_data_log = extract_viewer_data_from_log(log_data, robot)
 
-# Save the log in CSV
-engine.write_log(os.path.join(tempfile.gettempdir(), "log.csv"), format="csv")
+# Save the log in HDF5
+engine.write_log(os.path.join(tempfile.gettempdir(), "log.hdf5"), format="hdf5")
 
 # ############################ Display the results ######################################
 
@@ -105,7 +104,7 @@ plt.grid()
 plt.show()
 
 # Display the simulation trajectory and the reference
-play_trajectories([trajectory_data_log],
-                  replay_speed=0.5,
-                  camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
-                  delete_robot_on_close=False)
+play_logfiles(robot, log_data,
+              replay_speed=0.5,
+              camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
+              delete_robot_on_close=False)

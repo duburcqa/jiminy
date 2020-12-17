@@ -99,26 +99,24 @@ def read_log(fullpath: str,
         # removing spaces present before the keys.
         data_dict = {k.strip(): np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
-        # Helper to process some particular constants
-        def set_constant(const_dict: Dict[str, Any],
-                         key: str,
-                         value: str) -> None:
+        def parse_constant(key: str, value: str) -> Any:
+            """Process some particular constants based on its name or type.
+            """
             if isinstance(value, bytes):
-                const_dict[key] = value.decode()
-            else:
-                const_dict[key] = value
+                return value.decode()
+            return value
 
-        with h5py.File(fullpath, 'r') as file:
+        with h5py.File(fullpath, 'r') as f:
             # Load constants
             const_dict = {}
-            for key, dataset in file['constants'].items():
-                set_constant(const_dict, key, dataset[()])
-            for key, value in dict(file['constants'].attrs).items():
-                set_constant(const_dict, key, value)
+            for key, dataset in f['constants'].items():
+                const_dict[key] = parse_constant(key, dataset[()])
+            for key, value in dict(f['constants'].attrs).items():
+                const_dict[key] = parse_constant(key, value)
 
             # Load variables (1D time-series)
-            data_dict = {'Global.Time': file['Global.Time'][()]}
-            for key, value in file['variables'].items():
+            data_dict = {'Global.Time': f['Global.Time'][()]}
+            for key, value in f['variables'].items():
                 data_dict[key] = value['value'][()]
 
     return data_dict, const_dict
