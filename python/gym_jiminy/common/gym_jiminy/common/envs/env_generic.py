@@ -4,7 +4,7 @@ import os
 import time
 import tempfile
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
 
 import numpy as np
 import gym
@@ -137,11 +137,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._action = zeros(self.action_space)
         self._observation = zeros(self.observation_space)
 
-    @property
-    def robot(self) -> jiminy.Robot:
-        """ Get robot.
+    def __getattr__(self, name: str) -> Any:
+        """Fallback attribute getter.
+
+        It enables to get access to the attribute and methods of the low-level
+        Simulator directly, without having to do it through `simulator`.
+
+        .. note::
+            This method is not meant to be called manually.
         """
-        return self.simulator.robot
+        return getattr(self.simulator, name)
+
+    def __dir__(self) -> List[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return super().__dir__() + self.simulator.__dir__()
 
     def _controller_handle(self,
                            t: float,
