@@ -66,13 +66,13 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
     # Extract the joint positions time evolution
     t = log_data["Global.Time"]
     try:
-        qe = np.stack([log_data["HighLevelController." + s]
+        qe = np.stack([log_data[".".join(("HighLevelController", s))]
                        for s in robot.logfile_position_headers], axis=-1)
     except KeyError:
         model_options['dynamics']['enableFlexibleModel'] = \
             not robot.is_flexible
         robot.set_model_options(model_options)
-        qe = np.stack([log_data["HighLevelController." + s]
+        qe = np.stack([log_data[".".join(("HighLevelController", s))]
                        for s in robot.logfile_position_headers], axis=-1)
 
     # Determine whether the theoretical model of the flexible one must be used

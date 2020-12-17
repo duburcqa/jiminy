@@ -58,7 +58,7 @@ namespace jiminy
         telemetryRecorder_ = std::make_unique<TelemetryRecorder>();
 
         // Initialize the engine-specific telemetry sender
-        telemetrySender_.configureObject(telemetryData_, ENGINE_OBJECT_NAME);
+        telemetrySender_.configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
     }
 
     EngineMultiRobot::~EngineMultiRobot(void) = default;  // Cannot be default in the header since some types are incomplete at this point

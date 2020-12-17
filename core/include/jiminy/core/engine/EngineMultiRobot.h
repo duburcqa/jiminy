@@ -13,7 +13,7 @@
 
 namespace jiminy
 {
-    std::string const ENGINE_OBJECT_NAME("HighLevelController");
+    std::string const ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
     std::set<std::string> const STEPPERS {
         "runge_kutta_4",
