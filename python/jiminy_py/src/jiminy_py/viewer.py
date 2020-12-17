@@ -40,8 +40,8 @@ from .meshcat.meshcat_visualizer import MeshcatVisualizer
 
 
 CAMERA_INV_TRANSFORM_MESHCAT = rpyToMatrix(np.array([-np.pi / 2, 0.0, 0.0]))
-DEFAULT_CAMERA_ABS_XYZRPY = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
-DEFAULT_CAMERA_REL_XYZRPY = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
+DEFAULT_CAMERA_XYZRPY_ABS = [[7.5, 0.0, 1.4], [1.4, 0.0, np.pi / 2]]
+DEFAULT_CAMERA_XYZRPY_REL = [[3.0, -3.0, 1.0], [1.3, 0.0, 0.8]]
 
 DEFAULT_CAPTURE_SIZE = 500
 
@@ -202,7 +202,7 @@ class Viewer:
     _backend_robot_names = set()
     _camera_motion = None
     _camera_travelling = None
-    _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_ABS_XYZRPY)
+    _camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
     _lock = Lock()  # Unique lock for every viewer in same thread by default
 
     def __init__(self,
@@ -295,7 +295,7 @@ class Viewer:
         # Reset some class attribute if backend not available
         if not is_backend_running:
             Viewer._backend_robot_names = set()
-            Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_ABS_XYZRPY)
+            Viewer._camera_xyzrpy = deepcopy(DEFAULT_CAMERA_XYZRPY_ABS)
             Viewer.detach_camera()
 
         # Make sure that the windows, scene and robot names are valid
@@ -1015,7 +1015,7 @@ class Viewer:
 
         # Handling of default camera pose
         if camera_xyzrpy is None:
-            camera_xyzrpy = DEFAULT_CAMERA_REL_XYZRPY
+            camera_xyzrpy = DEFAULT_CAMERA_XYZRPY_REL
 
         Viewer._camera_travelling = {
             'viewer': self, 'frame': frame, 'pose': camera_xyzrpy}
