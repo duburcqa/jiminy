@@ -51,7 +51,8 @@ class PipelineControlAtlas(unittest.TestCase):
 
         # Check that the final posture matches the expected one.
         robot_name = self.env.robot.pinocchio_model.name
-        img_name = '_'.join((robot_name, "standing.png"))
+        img_name = '_'.join((
+            robot_name, f"standing_{self.env.viewer.backend}.png"))
         data_dir = os.path.join(os.path.dirname(__file__), "data")
         img_fullpath = os.path.join(data_dir, img_name)
         # plt.imsave(img_fullpath, rgb_array)
