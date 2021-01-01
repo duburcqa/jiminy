@@ -656,15 +656,15 @@ class BaseJiminyRobot(jiminy.Robot):
                     "numerically stable for now. Replacing it by contact "
                     "points at the vertices.")
 
-                for box_size_info, box_origin_info in zip(
-                        collision_box_sizes_info, collision_box_origin_info):
+                for i, (box_size_info, box_origin_info) in enumerate(zip(
+                        collision_box_sizes_info, collision_box_origin_info)):
                     box_size = list(map(float, box_size_info.split()))
                     box_origin = _origin_info_to_se3(box_origin_info)
                     vertices = [e.flatten() for e in np.meshgrid(*[
                         0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
-                    for i, (x, y, z) in enumerate(zip(*vertices)):
+                    for j, (x, y, z) in enumerate(zip(*vertices)):
                         frame_name = "_".join((
-                            body_name, "CollisionBox", str(i)))
+                            body_name, "CollisionBox", str(i), str(j)))
                         vertex_pos_rel = pin.SE3(
                             np.eye(3), np.array([x, y, z]))
                         frame_transform = box_origin.act(vertex_pos_rel)
@@ -775,7 +775,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     # Create the frame and add it to the robot model
                     frame_name = sensor_descr.pop('frame_name', None)
 
-                    # Create a frame is a frame name has been specified.
+                    # Create a frame if a frame name has been specified.
                     # In such a case, the body name must be specified.
                     if frame_name is None:
                         # Get the body name
