@@ -11,8 +11,8 @@ from tqdm import tqdm
 from scipy.interpolate import interp1d
 from typing_extensions import TypedDict
 
-from . import core as jiminy
-from .state import State
+from .. import core as jiminy
+from ..state import State
 from .viewer import (
     Viewer, Tuple3FType, Tuple4FType, CameraPoseType, CameraMotionType)
 from .meshcat.utilities import interactive_mode

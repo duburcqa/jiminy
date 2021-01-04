@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import jiminy_py.core as jiminy
-from jiminy_py.replay import play_logfiles
+from jiminy_py.viewer import play_logfiles
 
 
 # ################################ User parameters #######################################

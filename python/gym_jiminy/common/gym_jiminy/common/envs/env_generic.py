@@ -679,9 +679,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if mode == 'human':
             return_rgb_array = False
         elif mode == 'rgb_array':
-            # Only Meshcat backend can return rgb array without poping window
             return_rgb_array = True
-            self.simulator.viewer_backend = 'meshcat'
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
         return self.simulator.render(return_rgb_array, **kwargs)
@@ -697,7 +695,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         :param kwargs: Extra keyword arguments for delegation to
                        `replay.play_trajectories` method.
         """
-        self.simulator.replay(**{'verbose': False, **kwargs})
+        self.simulator.viewer(**{'verbose': False, **kwargs})
 
     @loop_interactive()
     def play_interactive(self, key: Optional[str] = None) -> bool:
