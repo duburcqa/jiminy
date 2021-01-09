@@ -1245,11 +1245,14 @@ class Viewer:
         i = 0
         init_time = time.time()
         while i < len(evolution_robot):
-            s = evolution_robot[i]
-            if Viewer._camera_motion is not None:
-                Viewer._camera_xyzrpy = Viewer._camera_motion(s.t)
-            self.display(s.q, xyz_offset, wait)
-            t_simu = (time.time() - init_time) * replay_speed
-            i = bisect_right(t, t_simu)
-            sleep(s.t - t_simu)
-            wait = False  # It is enough to wait for the first timestep only
+            try:
+                s = evolution_robot[i]
+                if Viewer._camera_motion is not None:
+                    Viewer._camera_xyzrpy = Viewer._camera_motion(s.t)
+                self.display(s.q, xyz_offset, wait)
+                t_simu = (time.time() - init_time) * speed_ratio
+                i = bisect_right(t, t_simu)
+                sleep(s.t - t_simu)
+                wait = False  # Waiting for the first timestep is enough
+            except Viewer._backend_exceptions:
+                break
