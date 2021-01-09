@@ -5,7 +5,7 @@ namespace jiminy
 {
     std::string const JOINT_PREFIX_BASE = "current";
     std::string const FREE_FLYER_PREFIX_BASE_NAME = JOINT_PREFIX_BASE + "Freeflyer";
-    std::string const FLEXIBLE_JOINT_SUFFIX = "FlexibleJoint";
+    std::string const FLEXIBLE_JOINT_SUFFIX = "Flexibility";
 
     std::string const TELEMETRY_FIELDNAME_DELIMITER = ".";
     std::string const TELEMETRY_CONSTANT_DELIMITER = "=";

@@ -1962,10 +1962,11 @@ namespace jiminy
 
         /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
            which is doing more computation than necessary. */
+        pncData.oYcrb[0].setZero();
         for (int32_t i = 1; i < pncModel.njoints; ++i)
         {
-            int32_t const & jointIdx = pncModel.joints[i].id();
-            pncData.Ycrb[jointIdx] = pncModel.inertias[jointIdx];
+            pncData.Ycrb[i] = pncModel.inertias[i];
+            pncData.oYcrb[i] = pncData.oMi[i].act(pncModel.inertias[i]);
         }
         for (int32_t i = pncModel.njoints-1; i > 0; --i)
         {
@@ -1975,10 +1976,14 @@ namespace jiminy
             {
                 pncData.Ycrb[parentIdx] += pncData.liMi[jointIdx].act(pncData.Ycrb[jointIdx]);
             }
+            pncData.oYcrb[parentIdx] += pncData.oYcrb[i];
         }
 
         // Now that Ycrb is available, it is possible to extract the center of mass directly
         pinocchio::getComFromCrba(pncModel, pncData);
+        pncData.Ig.mass() = pncData.oYcrb[0].mass();
+        pncData.Ig.lever().setZero();
+        pncData.Ig.inertia() = pncData.oYcrb[0].inertia();
 
         // Update frame placements and collision informations
         pinocchio::updateFramePlacements(pncModel, pncData);
@@ -2680,6 +2685,8 @@ namespace jiminy
                                                     vectorN_t      const & u,
                                                     forceVector_t  const & fext)
     {
+        vectorN_t a;
+
         if (system.robot->hasConstraint())
         {
             // Compute kinematic constraints.
@@ -2705,37 +2712,42 @@ namespace jiminy
                                         v);
 
             // Compute inertia matrix, adding rotor inertia.
-            pinocchio::crba(system.robot->pncModel_,
-                            system.robot->pncData_,
-                            q);
-            for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
-            {
-                // Only support inertia for 1DoF joints.
-                if (system.robot->pncModel_.joints[i].nv() == 1)
-                {
-                    int32_t const & jointIdx = system.robot->pncModel_.joints[i].idx_v();
-                    system.robot->pncData_.M(jointIdx, jointIdx) +=
-                            system.robot->pncModel_.rotorInertia[jointIdx];
-                }
-            }
+            pinocchio_overload::crba(system.robot->pncModel_,
+                                     system.robot->pncData_,
+                                     q);
 
             // Call forward dynamics.
-            return pinocchio::forwardDynamics(system.robot->pncModel_,
-                                              system.robot->pncData_,
-                                              q,
-                                              v,
-                                              uTotal,
-                                              system.robot->getConstraintsJacobian(),
-                                              system.robot->getConstraintsDrift(),
-                                              CONSTRAINT_INVERSION_DAMPING,
-                                              false);
+            a = pinocchio::forwardDynamics(system.robot->pncModel_,
+                                           system.robot->pncData_,
+                                           uTotal,
+                                           system.robot->getConstraintsJacobian(),
+                                           system.robot->getConstraintsDrift(),
+                                           CONSTRAINT_INVERSION_DAMPING);
         }
         else
         {
             // No kinematic constraint: run aba algorithm.
-            return pinocchio_overload::aba(
+            a = pinocchio_overload::aba(
                 system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
+
+        // Compute the internal forces
+        pinocchio_overload::rnea(
+            system.robot->pncModel_, system.robot->pncData_, q, v, a);
+
+        // Using action-reaction law to compute the ground reaction force
+        system.robot->pncData_.f[0].setZero();
+        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+        {
+            int32_t const & parentIdx = system.robot->pncModel_.parents[i];
+            if (parentIdx == 0)
+            {
+                system.robot->pncData_.f[0] += system.robot->pncData_.oMi[i].act(
+                    system.robot->pncData_.f[i]);
+            }
+        }
+
+        return a;
     }
 
     // ===================================================================
