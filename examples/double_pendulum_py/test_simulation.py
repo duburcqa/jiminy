@@ -105,6 +105,6 @@ plt.show()
 
 # Display the simulation trajectory and the reference
 play_logfiles(robot, log_data,
-              replay_speed=0.5,
+              speed_ratio=0.5,
               camera_xyzrpy=[(0.0, 7.0, 0.0), (np.pi/2, 0.0, np.pi)],
               delete_robot_on_close=False)

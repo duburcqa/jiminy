@@ -94,7 +94,7 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
 
 def play_trajectories(trajectory_data: Union[
                           TrajectoryDataType, Sequence[TrajectoryDataType]],
-                      replay_speed: float = 1.0,
+                      speed_ratio: float = 1.0,
                       record_video_path: Optional[str] = None,
                       viewers: Sequence[Viewer] = None,
                       start_paused: bool = False,
@@ -125,8 +125,8 @@ def play_trajectories(trajectory_data: Union[
         available CPU power.
 
     :param trajectory_data: List of `TrajectoryDataType` dicts.
-    :param replay_speed: Speed ratio of the simulation.
-                         Optional: 1.0 by default.
+    :param speed_ratio: Speed ratio of the simulation.
+                        Optional: 1.0 by default.
     :param record_video_path: Fullpath location where to save generated video
                               (.mp4 extension is: mandatory). Must be specified
                               to enable video recording. None to disable.
@@ -343,7 +343,7 @@ def play_trajectories(trajectory_data: Union[
                 time_max = max([time_max, traj['evolution_robot'][-1].t])
 
         time_evolution = np.arange(
-            0.0, time_max, replay_speed / VIDEO_FRAMERATE)
+            0.0, time_max, speed_ratio / VIDEO_FRAMERATE)
         position_evolutions = []
         for traj in trajectory_data:
             if len(traj['evolution_robot']):
@@ -403,7 +403,7 @@ def play_trajectories(trajectory_data: Union[
                 target=replay_thread,
                 args=(viewer,
                       traj['evolution_robot'],
-                      replay_speed,
+                      speed_ratio,
                       offset,
                       wait_for_client)))
         for thread in threads:

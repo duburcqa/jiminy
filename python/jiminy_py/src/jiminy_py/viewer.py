@@ -1226,7 +1226,7 @@ class Viewer:
 
     def replay(self,
                evolution_robot: Sequence[State],
-               replay_speed: float,
+               speed_ratio: float,
                xyz_offset: Optional[np.ndarray] = None,
                wait: bool = False) -> None:
         """Replay a complete robot trajectory at a given real-time ratio.
@@ -1235,8 +1235,8 @@ class Viewer:
             It will alter original robot data if viewer attribute
             `use_theoretical_model` is false.
 
-        :param evolution_robot: List of State object of increasing time
-        :param replay_speed: Real-time ratio
+        :param evolution_robot: List of State object of increasing time.
+        :param speed_ratio: Real-time factor.
         :param xyz_offset: Freeflyer position offset. Note that it does not
                            check for the robot actually have a freeflyer.
         :param wait: Whether or not to wait for rendering to finish.
