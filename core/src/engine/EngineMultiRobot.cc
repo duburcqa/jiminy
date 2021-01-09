@@ -1962,10 +1962,11 @@ namespace jiminy
 
         /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
            which is doing more computation than necessary. */
+        pncData.oYcrb[0].setZero();
         for (int32_t i = 1; i < pncModel.njoints; ++i)
         {
-            int32_t const & jointIdx = pncModel.joints[i].id();
-            pncData.Ycrb[jointIdx] = pncModel.inertias[jointIdx];
+            pncData.Ycrb[i] = pncModel.inertias[i];
+            pncData.oYcrb[i] = pncData.oMi[i].act(pncModel.inertias[i]);
         }
         for (int32_t i = pncModel.njoints-1; i > 0; --i)
         {
@@ -1975,10 +1976,14 @@ namespace jiminy
             {
                 pncData.Ycrb[parentIdx] += pncData.liMi[jointIdx].act(pncData.Ycrb[jointIdx]);
             }
+            pncData.oYcrb[parentIdx] += pncData.oYcrb[i];
         }
 
         // Now that Ycrb is available, it is possible to extract the center of mass directly
         pinocchio::getComFromCrba(pncModel, pncData);
+        pncData.Ig.mass() = pncData.oYcrb[0].mass();
+        pncData.Ig.lever().setZero();
+        pncData.Ig.inertia() = pncData.oYcrb[0].inertia();
 
         // Update frame placements and collision informations
         pinocchio::updateFramePlacements(pncModel, pncData);
