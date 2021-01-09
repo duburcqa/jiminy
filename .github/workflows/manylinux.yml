@@ -10,7 +10,7 @@ on:
 jobs:
   build-test-and-publish-pypi-manylinux:
     name: (manylinux2010) Build and run the unit tests. Then generate and publish the wheels on PyPi.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container: quay.io/pypa/manylinux2010_x86_64
 
     defaults:

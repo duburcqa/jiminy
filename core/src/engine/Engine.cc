@@ -217,6 +217,21 @@ namespace jiminy
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }
 
+    hresult_t Engine::addCouplingForce(std::string const & frameName1,
+                                       std::string const & frameName2,
+                                       forceProfileFunctor_t forceFct)
+    {
+        auto forceCouplingFct = [forceFct](float64_t const & t,
+                                           vectorN_t const & q1,
+                                           vectorN_t const & v1,
+                                           vectorN_t const & q2,
+                                           vectorN_t const & v2)
+                                {
+                                    return forceFct(t, q1, v1);
+                                };
+        return EngineMultiRobot::addCouplingForce("", "", frameName1, frameName2, forceCouplingFct);
+    }
+
     bool_t const & Engine::getIsInitialized(void) const
     {
         return isInitialized_;

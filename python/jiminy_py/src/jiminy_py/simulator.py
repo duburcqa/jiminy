@@ -21,7 +21,7 @@ from .core import (EncoderSensor as encoder,
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
 from .viewer import Viewer
-from .replay import play_logfiles
+from .viewer import play_logfiles
 
 
 SENSORS_FIELDS = {
