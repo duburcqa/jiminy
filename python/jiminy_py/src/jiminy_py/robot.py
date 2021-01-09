@@ -162,7 +162,10 @@ def generate_hardware_description_file(
             child_links.add(child_link)
 
     # Compute the root link and the leaf ones
-    root_link = next(iter(parent_links.difference(child_links)))
+    if parent_links:
+        root_link = next(iter(parent_links.difference(child_links)))
+    else:
+        root_link = None
     leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
@@ -263,7 +266,7 @@ def generate_hardware_description_file(
                 logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if imu.type not in hardware_info['Sensor'].keys():
+    if root_link and imu.type not in hardware_info['Sensor'].keys():
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
             root_link: OrderedDict(
                 body_name=root_link,
@@ -280,8 +283,9 @@ def generate_hardware_description_file(
                     frame_pose=6*[0.0])
             })
 
-            # Add the related body to the collision set
-            collision_bodies_names.add(leaf_link)
+            # Add the related body to the collision set if possible
+            if root.find(f"./link[@name='{leaf_link}']/collision") is not None:
+                collision_bodies_names.add(leaf_link)
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
@@ -563,6 +567,7 @@ class BaseJiminyRobot(jiminy.Robot):
         if hardware_path is None:
             hardware_path = pathlib.Path(
                 self.urdf_path_orig).with_suffix('.hdf')
+        self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
             logger.warning(
                 "Hardware configuration file not found. Not adding any "
