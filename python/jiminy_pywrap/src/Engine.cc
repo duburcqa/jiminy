@@ -684,6 +684,8 @@ namespace python
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function"))
+                .def("add_coupling_force", &PyEngineVisitor::addCouplingForce,
+                                           (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
@@ -745,6 +747,15 @@ namespace python
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
+        }
+
+        static hresult_t addCouplingForce(Engine            & self,
+                                          std::string const & frameName1,
+                                          std::string const & frameName2,
+                                          bp::object  const & forcePy)
+        {
+            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            return self.addCouplingForce(frameName1, frameName2, std::move(forceFct));
         }
 
         static std::shared_ptr<Robot> getRobot(Engine & self)

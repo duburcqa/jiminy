@@ -63,6 +63,9 @@ namespace jiminy
                                        pinocchio::Force const & F);
         hresult_t registerForceProfile(std::string           const & frameName,
                                        forceProfileFunctor_t         forceFct);
+        hresult_t addCouplingForce(std::string const & frameName1,
+                                   std::string const & frameName2,
+                                   forceProfileFunctor_t forceFct);
 
         bool_t const & getIsInitialized(void) const;
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
@@ -75,7 +78,6 @@ namespace jiminy
         using EngineMultiRobot::removeSystem;
         using EngineMultiRobot::setController;
         using EngineMultiRobot::addCouplingForce;
-        using EngineMultiRobot::removeCouplingForces;
         using EngineMultiRobot::start;
         using EngineMultiRobot::simulate;
         using EngineMultiRobot::registerForceImpulse;
