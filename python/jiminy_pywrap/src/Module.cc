@@ -146,6 +146,12 @@ namespace python
                 bp::args("pinocchio_model", "pinocchio_data", "q", "v", "a", "fext"),
                 "Compute the RNEA with external forces, store the result in Data and return it.",
                 bp::return_value_policy<bp::return_by_value>());
+        bp::def("crba",
+                &pinocchio_overload::crba<
+                    float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t>,
+                bp::args("pinocchio_model", "pinocchio_data", "q"),
+                "Computes CRBA, store the result in Data and return it.",
+                bp::return_value_policy<bp::return_by_value>());
         bp::def("computeKineticEnergy",
                 &pinocchio_overload::kineticEnergy<
                     float64_t, 0, pinocchio::JointCollectionDefaultTpl, vectorN_t, vectorN_t>,
