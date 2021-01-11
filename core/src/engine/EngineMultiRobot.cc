@@ -588,10 +588,12 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            // Note that EPS allows to be very slightly out-of-bounds.
-            if ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
-                (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
-                (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
+            // Note that EPS allows to be very slightly out-of-bounds
+            if ((system.robot->mdlOptions_->joints.enablePositionLimit &&
+                 ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
+                  (EPS < system.robot->getPositionLimitMin().array() - q.array()).any())) ||
+                (system.robot->mdlOptions_->joints.enableVelocityLimit &&
+                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any()))
             {
                 PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
