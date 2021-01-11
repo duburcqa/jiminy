@@ -226,6 +226,12 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        if (pncGeometryModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
+        {
+            PRINT_ERROR("Collision geometry not available. Some collision meshes were probably not found.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         // Make sure that no body are duplicates
         if (checkDuplicates(bodyNames))
         {
@@ -1078,9 +1084,8 @@ namespace jiminy
         }
         catch (std::exception const & e)
         {
-            PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
-                        "Raised from exception: ", e.what());
-            return hresult_t::ERROR_BAD_INPUT;
+            PRINT_WARNING("Something is wrong with the URDF. Impossible to load the collision geometries.");
+            return hresult_t::SUCCESS;
         }
 
         try
