@@ -267,7 +267,7 @@ class Simulator:
                   out: np.ndarray) -> None:
         """Callback method for the simulation.
         """
-        out[0] = True
+        out[()] = True
 
     def seed(self, seed: int) -> None:
         """Set the seed of the simulation and reset the simulation.

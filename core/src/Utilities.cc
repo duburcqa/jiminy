@@ -1440,7 +1440,8 @@ namespace jiminy
         Inertia childBodyInertiaInv;
         childBodyInertiaInv.mass() = - childBodyInertiaIn.mass();
         childBodyInertiaInv.lever() = childBodyInertiaIn.lever();
-        childBodyInertiaInv.inertia() = Symmetric3(- childBodyInertiaIn.inertia().data());
+        childBodyInertiaInv.inertia() = Symmetric3(Symmetric3::Vector6(
+            - childBodyInertiaIn.inertia().data()));
         modelInOut.appendBodyToJoint(parentJointIdx,
                                      childBodyInertiaInv,
                                      frame.placement);
