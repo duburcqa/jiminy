@@ -695,7 +695,7 @@ namespace jiminy
                                 std::vector<vectorN_t> const & v,
                                 std::vector<vectorN_t>       & a) -> void
                          {
-                             this->computeSystemDynamics(t, q, v, a);
+                             this->computeSystemsDynamics(t, q, v, a);
                          };
         std::vector<Robot const *> robots;
         robots.reserve(systems_.size());
@@ -1267,7 +1267,7 @@ namespace jiminy
             // Fix the FSAL issue if the dynamics has changed
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
-                computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                 syncSystemsStateWithStepper();
                 hasDynamicsChanged = false;
             }
@@ -1314,7 +1314,7 @@ namespace jiminy
                     // Fix the FSAL issue if the dynamics has changed
                     if (hasDynamicsChanged)
                     {
-                        computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                        computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                         syncSystemsStateWithStepper();
                         hasDynamicsChanged = false;
                     }
@@ -2586,10 +2586,10 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::computeSystemDynamics(float64_t              const & t,
-                                                      std::vector<vectorN_t> const & qSplit,
-                                                      std::vector<vectorN_t> const & vSplit,
-                                                      std::vector<vectorN_t>       & aSplit)
+    hresult_t EngineMultiRobot::computeSystemsDynamics(float64_t              const & t,
+                                                       std::vector<vectorN_t> const & qSplit,
+                                                       std::vector<vectorN_t> const & vSplit,
+                                                       std::vector<vectorN_t>       & aSplit)
     {
         /* - Note that the position of the free flyer is in world frame,
              whereas the velocities and accelerations are relative to

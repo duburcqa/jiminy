@@ -311,8 +311,11 @@ namespace python
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
                                   bp::arg("a_init_list") = bp::object()))
-                .def("compute_system_dynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
-                                                (bp::arg("self"), "t_end", "q_list", "v_list"))
+                .def("compute_forward_kinematics", &EngineMultiRobot::computeForwardKinematics,
+                                                   (bp::arg("system"), "q", "v", "a"))
+                .staticmethod("compute_forward_kinematics")
+                .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
+                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &EngineMultiRobot::writeLog,
@@ -458,13 +461,13 @@ namespace python
                                  aInit);
         }
 
-        static bp::object computeSystemDynamics(EngineMultiRobot       & self,
-                                                float64_t        const & endTime,
-                                                bp::object       const & qSplitPy,
-                                                bp::object       const & vSplitPy)
+        static bp::object computeSystemsDynamics(EngineMultiRobot       & self,
+                                                 float64_t        const & endTime,
+                                                 bp::object       const & qSplitPy,
+                                                 bp::object       const & vSplitPy)
         {
             std::vector<vectorN_t> aSplit;
-            self.computeSystemDynamics(
+            self.computeSystemsDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
