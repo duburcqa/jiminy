@@ -237,8 +237,7 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             q = self.robot.get_rigid_configuration_from_flexible(q)
             v = self.robot.get_rigid_velocity_from_flexible(v)
-        else:
-            return q, v
+        return q, v
 
     @property
     def pinocchio_model(self) -> pin.Model:
