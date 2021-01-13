@@ -439,12 +439,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
+        # Make sure the environment is properly setup
+        self._setup()
+
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
         self.sensors_data = dict(self.robot.sensors_data)
-
-        # Make sure the environment is properly setup
-        self._setup()
 
         # Set default action.
         # It will be used for the initial step.
@@ -734,7 +734,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is called internally by `reset` methods.
         """
-        # Extract some proxies
+        # Get options
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
 
@@ -764,7 +764,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
         engine_options["stepper"]["randomSeed"] = self._seed
 
-        # Set the options
+        # Set options
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 
