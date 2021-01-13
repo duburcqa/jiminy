@@ -16,6 +16,50 @@ FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
 
 
+def sample(low: Union[float, np.ndarray] = -1.0,
+           high: Union[float, np.ndarray] = 1.0,
+           dist: str = 'uniform',
+           scale: Union[float, np.ndarray] = 1.0,
+           enable_log_scale: bool = False,
+           size: Optional[Sequence[int]] = None,
+           rg: Optional[np.random.RandomState] = None):
+    # Make sure the distribution is supported
+    if dist not in ('uniform', 'normal'):
+        raise NotImplementedError(
+            f"'{dist}' distribution type is not supported for now.")
+
+    # Extract mean and deviation from min/max
+    mean = (low + high) / 2
+    dev = scale * (high - low) / 2
+
+    # Get sample shape.
+    # Better use dev than mean since it works even if only scale is array.
+    if isinstance(dev, np.ndarray):
+        if size is None:
+            size = dev.shape
+        else:
+            raise ValueError(
+                "One cannot specify 'size' if 'low' and 'high' are vectors.")
+
+    # Sample from normalized distribution.
+    # Note that some distributions are not normalized by default
+    if rg is None:
+        rg = np.random
+    distrib_fn = getattr(rg, dist)
+    val = distrib_fn(size=size)
+    if dist == 'uniform':
+        val = 2.0 * (val - 0.5)
+
+    # Set mean and deviation
+    val = mean + dev * val
+
+    # Revert log scale if appropriate
+    if enable_log_scale:
+        val = 10 ** val
+
+    return val
+
+
 def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     """Set to zero data from `Gym.Space`.
     """

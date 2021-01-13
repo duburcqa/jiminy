@@ -27,13 +27,13 @@ PID_KP = np.array([
     # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
     200.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
     # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0,
+    1000.0, 1500.0, 4000.0, 4000.0, 10000.0, 1000.0,
     # Neck: [Y]
     1000.0,
     # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
     200.0, 100.0, 100.0, 100.0, 500.0, 10.0, 10.0,
     # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    1000.0, 1500.0, 4000.0, 4000.0, 8000.0, 1000.0])
+    1000.0, 1500.0, 4000.0, 4000.0, 10000.0, 1000.0])
 # PID derivative gains (one per actuated joint)
 PID_KD = np.array([
     # Back: [Z, Y, X]
@@ -41,13 +41,13 @@ PID_KD = np.array([
     # Left arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
     0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
     # Left leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    0.01, 0.002, 0.002, 0.002, 0.002, 0.01,
+    0.01, 0.002, 0.002, 0.002, 0.02, 0.01,
     # Neck: [Y]
     0.01,
     # Right arm: [ElX, ElY, MwX, ShX, ShZ, UwY, LwY]
     0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01,
     # Right leg: [KnY, AkX, HpY, HpX, AkY, HpZ]
-    0.01, 0.002, 0.002, 0.002, 0.002, 0.01])
+    0.01, 0.002, 0.002, 0.002, 0.02, 0.01])
 
 # Reward weight for each individual component that can be optimized
 REWARD_MIXTURE = {

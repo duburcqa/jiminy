@@ -15,15 +15,13 @@ from jiminy_py.simulator import Simulator
 
 import pinocchio as pin
 
-from ..utils import PeriodicGaussianProcess
+from ..utils import sample, PeriodicGaussianProcess
 from .env_generic import BaseJiminyEnv
 
 
-MIN_GROUND_STIFFNESS_LOG = 5.5
-MAX_GROUND_STIFFNESS_LOG = 7.0
-MAX_GROUND_DAMPING_RATIO = 0.5
-MIN_GROUND_FRICTION = 0.8
-MAX_GROUND_FRICTION = 8.0
+GROUND_STIFFNESS_LOG_RANGE = [5.5, 7.0]
+GROUND_DAMPING_RATIO_RANGE = [0.2, 1.0]
+GROUND_FRICTION_RANGE = [0.8, 8.0]
 
 F_XY_IMPULSE_SCALE = 1000.0
 F_XY_PROFILE_SCALE = 50.0
@@ -231,18 +229,17 @@ class WalkerJiminyEnv(BaseJiminyEnv):
         # ============= Add some stochasticity to the environment =============
 
         # Change ground friction and sprint-dumper contact dynamics
-        engine_options['contacts']['stiffness'] = 10 ** (
-            (MAX_GROUND_STIFFNESS_LOG - MIN_GROUND_STIFFNESS_LOG) / 2 *
-            self.std_ratio.get('ground', 0.0) *
-            self.rg.uniform(low=-1.0, high=1.0) +
-            (MAX_GROUND_STIFFNESS_LOG + MIN_GROUND_STIFFNESS_LOG) / 2)
-        engine_options['contacts']['damping'] = (
-            self.rg.uniform(MAX_GROUND_DAMPING_RATIO) *
-            2.0 * np.sqrt(engine_options['contacts']['stiffness']))
-        engine_options['contacts']['frictionDry'] = (
-            (MAX_GROUND_FRICTION - MIN_GROUND_FRICTION) *
-            self.std_ratio.get('ground', 0.0) * self.rg.uniform() +
-            MIN_GROUND_FRICTION)
+        ground_std_ratio = self.std_ratio.get('ground', 0.0)
+        ground_stiffness = sample(
+            *GROUND_STIFFNESS_LOG_RANGE, scale=ground_std_ratio,
+            enable_log_scale=True, rg=self.rg)
+        ground_damping_critic = 2.0 * np.sqrt(
+            ground_stiffness * self.robot.pinocchio_data.mass[0])
+        engine_options['contacts']['stiffness'] = ground_stiffness
+        engine_options['contacts']['damping'] = ground_damping_critic * sample(
+            *GROUND_DAMPING_RATIO_RANGE, scale=ground_std_ratio, rg=self.rg)
+        engine_options['contacts']['frictionDry'] = sample(
+            *GROUND_FRICTION_RANGE, scale=ground_std_ratio, rg=self.rg)
         engine_options['contacts']['frictionViscous'] = \
             engine_options['contacts']['frictionDry']
 
@@ -251,19 +248,21 @@ class WalkerJiminyEnv(BaseJiminyEnv):
             for sensor in (encoder, effort, contact, force, imu):
                 sensors_options = robot_options["sensors"][sensor.type]
                 for sensor_options in sensors_options.values():
-                    sensor_options['delay'] = self.std_ratio['sensors'] * \
-                        self.rg.uniform() * SENSOR_DELAY_SCALE[sensor.type]
-                    sensor_options['noiseStd'] = self.std_ratio['sensors'] * \
-                        self.rg.uniform() * SENSOR_NOISE_SCALE[sensor.type]
+                    sensor_options['delay'] = sample(
+                        0.0, (self.std_ratio['sensors'] *
+                              SENSOR_DELAY_SCALE[sensor.type]), rg=self.rg)
+                    sensor_options['delay'] = sample(
+                        0.0, (self.std_ratio['sensors'] *
+                              SENSOR_NOISE_SCALE[sensor.type]), rg=self.rg)
 
         # Randomize the flexibility parameters
         if 'model' in self.std_ratio.keys():
             dynamics_options = robot_options["model"]["dynamics"]
             for flexibility in dynamics_options["flexibilityConfig"]:
-                flexibility['stiffness'] += self.std_ratio['model'] * \
-                    FLEX_STIFFNESS_SCALE * self.rg.uniform(low=-1.0, high=1.0)
-                flexibility['damping'] += self.std_ratio['model'] * \
-                    FLEX_DAMPING_SCALE * self.rg.uniform(low=-1.0, high=1.0)
+                flexibility['stiffness'] += FLEX_STIFFNESS_SCALE * sample(
+                    scale=self.std_ratio['model'], rg=self.rg)
+                flexibility['damping'] += FLEX_DAMPING_SCALE * sample(
+                    scale=self.std_ratio['model'], rg=self.rg)
 
         # Apply the disturbance to the first actual body
         if 'disturbance' in self.std_ratio.keys():
@@ -286,12 +285,13 @@ class WalkerJiminyEnv(BaseJiminyEnv):
 
             # Schedule some external impulse forces applied on PelvisLink
             for t_ref in np.arange(0.0, self.simu_duration_max, 2.0)[1:]:
-                f_xy_impulse = self.rg.randn(2)
+                f_xy_impulse = sample(dist='normal', size=(2,), rg=self.rg)
                 f_xy_impulse /= np.linalg.norm(f_xy_impulse, ord=2)
-                f_xy_impulse *= self.std_ratio['disturbance'] * \
-                    F_XY_IMPULSE_SCALE * self.rg.uniform()
+                f_xy_impulse *= sample(
+                    0.0, self.std_ratio['disturbance']*F_XY_IMPULSE_SCALE,
+                    rg=self.rg)
                 wrench = np.concatenate((f_xy_impulse, np.zeros(4)))
-                t = t_ref + self.rg.uniform(low=-1.0, high=1.0) * 250e-3
+                t = t_ref + sample(scale=250e-3, rg=self.rg)
                 force_impulse = {
                     'frame_name': frame_name,
                     't': t, 'dt': 10e-3, 'F': wrench

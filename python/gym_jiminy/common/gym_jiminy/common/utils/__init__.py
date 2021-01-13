@@ -2,7 +2,7 @@
 
 from .helpers import (
     SpaceDictNested, FieldDictNested,
-    zeros, fill, set_value, copy, clip,
+    sample, zeros, fill, set_value, copy, clip,
     _is_breakpoint, register_variables)
 from .period_gaussian_process import PeriodicGaussianProcess
 
@@ -10,6 +10,7 @@ from .period_gaussian_process import PeriodicGaussianProcess
 __all__ = [
     'SpaceDictNested',
     'FieldDictNested',
+    'sample',
     'zeros',
     'fill',
     'set_value',
