@@ -391,7 +391,7 @@ namespace python
         }
 
         static systemHolder_t & getSystem(EngineMultiRobot  & self,
-                                              std::string const & systemName)
+                                          std::string const & systemName)
         {
             systemHolder_t * system;
             self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemHolder_t
@@ -692,7 +692,9 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("system", bp::make_function(&PyEngineVisitor::getSystem,
+                                        bp::return_internal_reference<>()))
+                .add_property("robot", &PyEngineVisitor::getRobot)
                 .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
@@ -759,6 +761,13 @@ namespace python
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(frameName1, frameName2, std::move(forceFct));
+        }
+
+        static systemHolder_t & getSystem(Engine & self)
+        {
+            systemHolder_t * system;
+            self.getSystem(system);
+            return *system;
         }
 
         static std::shared_ptr<Robot> getRobot(Engine & self)

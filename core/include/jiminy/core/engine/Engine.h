@@ -68,6 +68,7 @@ namespace jiminy
                                    forceProfileFunctor_t forceFct);
 
         bool_t const & getIsInitialized(void) const;
+        hresult_t getSystem(systemHolder_t * & system);
         hresult_t getRobot(std::shared_ptr<Robot> & robot);
         hresult_t getController(std::shared_ptr<AbstractController> & controller);
         hresult_t getSystemState(systemState_t const * & systemState) const;

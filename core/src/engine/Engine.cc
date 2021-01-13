@@ -237,30 +237,50 @@ namespace jiminy
         return isInitialized_;
     }
 
-    hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
+    hresult_t Engine::getSystem(systemHolder_t * & system)
     {
+        static systemHolder_t systemEmpty;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         if (!isInitialized_)
         {
             PRINT_ERROR("The engine is not initialized.");
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        robot = systems_.begin()->robot;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            system = &(*systems_.begin());
+            return returnCode;
+        }
 
-        return hresult_t::SUCCESS;
+        system = &systemEmpty;
+        return returnCode;
+    }
+
+    hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
+    {
+        systemHolder_t * system;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        returnCode = getSystem(system);
+        robot = system->robot;
+
+        return returnCode;
     }
 
     hresult_t Engine::getController(std::shared_ptr<AbstractController> & controller)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("The engine is not initialized.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
+        systemHolder_t * system;
 
-        controller = systems_.begin()->controller;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
-        return hresult_t::SUCCESS;
+        returnCode = getSystem(system);
+        controller = system->controller;
+
+        return returnCode;
     }
 
     hresult_t Engine::getSystemState(systemState_t const * & systemState) const
