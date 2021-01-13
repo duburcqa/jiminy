@@ -569,10 +569,11 @@ class BaseJiminyRobot(jiminy.Robot):
                 self.urdf_path_orig).with_suffix('.hdf')
         self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
-            logger.warning(
-                "Hardware configuration file not found. Not adding any "
-                "hardware to the robot.\n Default file can be generated "
-                "automatically using 'generate_hardware_description_file'.")
+            if hardware_path:
+                logger.warning(
+                    "Hardware configuration file not found. Not adding any "
+                    "hardware to the robot.\n Default file can be generated "
+                    "using 'generate_hardware_description_file' method.")
             return
         hardware_info = toml.load(hardware_path)
         self.extra_info = hardware_info.pop('Global')
@@ -718,7 +719,10 @@ class BaseJiminyRobot(jiminy.Robot):
                 # Compute the minimal volume bounding box, then add new frames
                 # to the robot model at its vertices and register contact
                 # points at their location.
-                mesh = trimesh.load(mesh_path)
+                try:
+                    mesh = trimesh.load(mesh_path)
+                except ValueError:  # Mesh file is not available
+                    continue
                 box = mesh.bounding_box_oriented
                 for i in range(8):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))

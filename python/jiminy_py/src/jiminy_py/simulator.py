@@ -237,8 +237,7 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             q = self.robot.get_rigid_configuration_from_flexible(q)
             v = self.robot.get_rigid_velocity_from_flexible(v)
-        else:
-            return q, v
+        return q, v
 
     @property
     def pinocchio_model(self) -> pin.Model:
@@ -267,7 +266,7 @@ class Simulator:
                   out: np.ndarray) -> None:
         """Callback method for the simulation.
         """
-        out[0] = True
+        out[()] = True
 
     def seed(self, seed: int) -> None:
         """Set the seed of the simulation and reset the simulation.
