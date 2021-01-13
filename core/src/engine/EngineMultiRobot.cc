@@ -2596,9 +2596,9 @@ namespace jiminy
              the parent body frame. */
 
         // Make sure that a simulation is running
-        if (systems_.empty())
+        if (!isSimulationRunning_)
         {
-            PRINT_ERROR("No system to simulate. Please add one before computing system dynamics.");
+            PRINT_ERROR("No simulation running. Please start it before calling this method.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 

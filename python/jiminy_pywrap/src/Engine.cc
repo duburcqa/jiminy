@@ -311,8 +311,8 @@ namespace python
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
                                   bp::arg("a_init_list") = bp::object()))
-                .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
-                                              (bp::arg("self"), "t_end", "q_list", "v_list"))
+                .def("compute_system_dynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
+                                                (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &EngineMultiRobot::writeLog,
