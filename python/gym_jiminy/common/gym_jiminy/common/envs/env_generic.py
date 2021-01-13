@@ -642,12 +642,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Check if the observation is out-of-bounds, in debug mode only
-        if self.debug and not self.observation_space.contains(obs):
-            message = "The observation is out-of-bounds."
-            if done:
-                logger.warn(message)
-            else:
-                logger.error(message)
+        if not done and self.debug and \
+                not self.observation_space.contains(obs):
+            logger.warning("The observation is out-of-bounds.")
 
         return obs, reward, done, self._info
 
