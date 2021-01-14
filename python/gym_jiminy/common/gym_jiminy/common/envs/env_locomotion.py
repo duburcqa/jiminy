@@ -19,9 +19,9 @@ from ..utils import sample, PeriodicGaussianProcess
 from .env_generic import BaseJiminyEnv
 
 
-GROUND_STIFFNESS_LOG_RANGE = [5.5, 7.0]
-GROUND_DAMPING_RATIO_RANGE = [0.2, 1.0]
-GROUND_FRICTION_RANGE = [0.8, 8.0]
+GROUND_STIFFNESS_LOG_RANGE = (5.5, 7.0)
+GROUND_DAMPING_RATIO_RANGE = (0.2, 1.0)
+GROUND_FRICTION_RANGE = (0.8, 8.0)
 
 F_XY_IMPULSE_SCALE = 1000.0
 F_XY_PROFILE_SCALE = 50.0

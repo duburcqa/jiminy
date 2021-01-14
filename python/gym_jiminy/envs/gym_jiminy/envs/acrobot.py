@@ -21,7 +21,7 @@ DTHETA_RANDOM_MAX = 0.1
 # Relative height of tip to consider an episode successful for normal env
 HEIGHT_REL_DEFAULT_THRESHOLD = 0.5
 # Range of rel. height of tip to consider an episode successful for goal env
-HEIGHT_REL_GOAL_THRESHOLD_RANGE = [-0.2, 0.98]
+HEIGHT_REL_GOAL_THRESHOLD_RANGE = (-0.2, 0.98)
 # Standard deviation of the noise added to the action
 ACTION_NOISE = 0.0
 
