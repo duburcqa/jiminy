@@ -466,7 +466,7 @@ namespace python
                                                  bp::object       const & qSplitPy,
                                                  bp::object       const & vSplitPy)
         {
-            std::vector<vectorN_t> aSplit;
+            static std::vector<vectorN_t> aSplit;
             self.computeSystemsDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
