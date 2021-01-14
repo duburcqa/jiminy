@@ -153,6 +153,7 @@ namespace jiminy
             pinocchio::SE3 const jointFramePlacement = parentFramePlacement.act(framePlacement);
             pinocchio::Frame const frame(frameName, parentJointId, parentFrameId, jointFramePlacement, frameType);
             pncModelRigidOrig_.addFrame(frame);
+            pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
         }
 
         /* Add the frame to the the original flexible model.
@@ -201,6 +202,7 @@ namespace jiminy
             // Remove the frame from the the original rigid model
             pncModelRigidOrig_.frames.erase(pncModelRigidOrig_.frames.begin() + frameId);
             pncModelRigidOrig_.nframes--;
+            pncDataRigidOrig_ = pinocchio::Data(pncModelRigidOrig_);
 
             // Remove the frame from the the original flexible model
             getFrameIdx(pncModelFlexibleOrig_, frameName, frameId);
