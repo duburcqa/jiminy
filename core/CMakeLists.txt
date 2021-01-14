@@ -123,7 +123,7 @@ else()
 endif()
 target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
-target_link_libraries(${PROJECT_NAME} "${Boost_LIBRARIES}")
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} -ldl)  # Link some libraries that are not automatically linked with HDF5
 endif()
