@@ -442,6 +442,12 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Make sure the environment is properly setup
         self._setup()
 
+        # Make sure the low-level engine has not changed,
+        # otherwise some proxies would be corrupted.
+        if self.engine is not self.simulator.engine:
+            raise RuntimeError(
+                "The memory address of the low-level has changed.")
+
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
         self.sensors_data = dict(self.robot.sensors_data)
@@ -523,7 +529,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space`.")
+                "`_refresh_observation_space` at initialization.")
 
         if self.is_done():
             raise RuntimeError(
