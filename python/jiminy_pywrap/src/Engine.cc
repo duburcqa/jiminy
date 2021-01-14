@@ -311,8 +311,11 @@ namespace python
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
                                   bp::arg("a_init_list") = bp::object()))
-                .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
-                                              (bp::arg("self"), "t_end", "q_list", "v_list"))
+                .def("compute_forward_kinematics", &EngineMultiRobot::computeForwardKinematics,
+                                                   (bp::arg("system"), "q", "v", "a"))
+                .staticmethod("compute_forward_kinematics")
+                .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
+                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &EngineMultiRobot::writeLog,
@@ -388,7 +391,7 @@ namespace python
         }
 
         static systemHolder_t & getSystem(EngineMultiRobot  & self,
-                                              std::string const & systemName)
+                                          std::string const & systemName)
         {
             systemHolder_t * system;
             self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemHolder_t
@@ -458,13 +461,13 @@ namespace python
                                  aInit);
         }
 
-        static bp::object computeSystemDynamics(EngineMultiRobot       & self,
-                                                float64_t        const & endTime,
-                                                bp::object       const & qSplitPy,
-                                                bp::object       const & vSplitPy)
+        static bp::object computeSystemsDynamics(EngineMultiRobot       & self,
+                                                 float64_t        const & endTime,
+                                                 bp::object       const & qSplitPy,
+                                                 bp::object       const & vSplitPy)
         {
             std::vector<vectorN_t> aSplit;
-            self.computeSystemDynamics(
+            self.computeSystemsDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
@@ -689,7 +692,9 @@ namespace python
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("system", bp::make_function(&PyEngineVisitor::getSystem,
+                                        bp::return_internal_reference<>()))
+                .add_property("robot", &PyEngineVisitor::getRobot)
                 .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
@@ -756,6 +761,13 @@ namespace python
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             return self.addCouplingForce(frameName1, frameName2, std::move(forceFct));
+        }
+
+        static systemHolder_t & getSystem(Engine & self)
+        {
+            systemHolder_t * system;
+            self.getSystem(system);
+            return *system;
         }
 
         static std::shared_ptr<Robot> getRobot(Engine & self)

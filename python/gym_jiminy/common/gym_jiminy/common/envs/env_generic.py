@@ -439,12 +439,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
+        # Make sure the environment is properly setup
+        self._setup()
+
+        # Make sure the low-level engine has not changed,
+        # otherwise some proxies would be corrupted.
+        if self.engine is not self.simulator.engine:
+            raise RuntimeError(
+                "The memory address of the low-level has changed.")
+
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
         self.sensors_data = dict(self.robot.sensors_data)
-
-        # Make sure the environment is properly setup
-        self._setup()
 
         # Set default action.
         # It will be used for the initial step.
@@ -523,7 +529,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space`.")
+                "`_refresh_observation_space` at initialization.")
 
         if self.is_done():
             raise RuntimeError(
@@ -642,12 +648,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Check if the observation is out-of-bounds, in debug mode only
-        if self.debug and not self.observation_space.contains(obs):
-            message = "The observation is out-of-bounds."
-            if done:
-                logger.warn(message)
-            else:
-                logger.error(message)
+        if not done and self.debug and \
+                not self.observation_space.contains(obs):
+            logger.warning("The observation is out-of-bounds.")
 
         return obs, reward, done, self._info
 
@@ -734,7 +737,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is called internally by `reset` methods.
         """
-        # Extract some proxies
+        # Get options
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
 
@@ -764,7 +767,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
         engine_options["stepper"]["randomSeed"] = self._seed
 
-        # Set the options
+        # Set options
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 

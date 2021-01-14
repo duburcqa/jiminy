@@ -422,10 +422,14 @@ namespace jiminy
         bool_t const & getIsSimulationRunning(void) const;
         float64_t getMaxSimulationDuration(void) const;
 
-        hresult_t computeSystemDynamics(float64_t              const & t,
-                                        std::vector<vectorN_t> const & qSplit,
-                                        std::vector<vectorN_t> const & vSplit,
-                                        std::vector<vectorN_t>       & aSplit);
+        static void computeForwardKinematics(systemHolder_t  & system,
+                                             vectorN_t const & q,
+                                             vectorN_t const & v,
+                                             vectorN_t const & a);
+        hresult_t computeSystemsDynamics(float64_t              const & t,
+                                         std::vector<vectorN_t> const & qSplit,
+                                         std::vector<vectorN_t> const & vSplit,
+                                         std::vector<vectorN_t>       & aSplit);
 
     protected:
         hresult_t configureTelemetry(void);
@@ -436,11 +440,6 @@ namespace jiminy
 
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
-
-        static void computeForwardKinematics(systemHolder_t  & system,
-                                             vectorN_t const & q,
-                                             vectorN_t const & v,
-                                             vectorN_t const & a);
 
         /// \brief Compute the force resulting from ground contact on a given body.
         ///
