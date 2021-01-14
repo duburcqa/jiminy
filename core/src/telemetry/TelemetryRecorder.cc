@@ -283,7 +283,7 @@ namespace jiminy
                 auto const lastConstantIt = std::find(logData.header.begin(), logData.header.end(), START_COLUMNS);
                 for (auto constantIt = logData.header.begin() ; constantIt != lastConstantIt ; ++constantIt)
                 {
-                    int32_t const delimiter = constantIt->find("=");
+                    int32_t const delimiter = constantIt->find(TELEMETRY_CONSTANT_DELIMITER);
                     if (constantIt->substr(0, delimiter) == TIME_UNIT)
                     {
                         timeUnit = std::stof(constantIt->substr(delimiter + 1));

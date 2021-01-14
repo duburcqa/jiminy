@@ -13,7 +13,7 @@
 
 namespace jiminy
 {
-    std::string const ENGINE_OBJECT_NAME("HighLevelController");
+    std::string const ENGINE_TELEMETRY_NAMESPACE("HighLevelController");
 
     std::set<std::string> const STEPPERS {
         "runge_kutta_4",
@@ -21,8 +21,7 @@ namespace jiminy
         "explicit_euler"
     };
 
-    float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12; ///< Damping factor used to perform matrix pseudo-inverse
-                                                            /// when computing forward dynamics with constraints.
+    float64_t const CONSTRAINT_INVERSION_DAMPING = 1.0e-12;  ///< Damping factor used to perform matrix pseudo-inverse when computing forward dynamics with constraints.
 
     class Robot;
     class AbstractController;
@@ -75,7 +74,7 @@ namespace jiminy
         uint32_t iterFailed;
         float64_t t;
         float64_t tPrev;
-        float64_t tError; ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
+        float64_t tError;  ///< Internal buffer used for Kahan algorithm storing the residual sum of errors
         float64_t dt;
         float64_t dtLargest;
         float64_t dtLargestPrev;
@@ -96,7 +95,7 @@ namespace jiminy
             config["frictionStictionRatio"] = 0.5;
             config["stiffness"] = 1.0e6;
             config["damping"] = 2.0e3;
-            config["transitionEps"] = 1.0e-3; // [m]
+            config["transitionEps"] = 1.0e-3;  // [m]
 
             return config;
         };
@@ -128,14 +127,14 @@ namespace jiminy
             configHolder_t config;
             config["verbose"] = false;
             config["randomSeed"] = 0U;
-            config["odeSolver"] = std::string("runge_kutta_dopri5"); // ["runge_kutta_dopri5", "runge_kutta_4", "explicit_euler"]
+            config["odeSolver"] = std::string("runge_kutta_dopri5");  // ["runge_kutta_dopri5", "runge_kutta_4", "explicit_euler"]
             config["tolAbs"] = 1.0e-5;
             config["tolRel"] = 1.0e-4;
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
-            config["iterMax"] = -1; // <= 0: disable
-            config["timeout"] = 0.0; // <= 0.0: disable
+            config["iterMax"] = -1;  // <= 0: disable
+            config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
             config["logInternalStepperSteps"] = false;
@@ -423,10 +422,14 @@ namespace jiminy
         bool_t const & getIsSimulationRunning(void) const;
         float64_t getMaxSimulationDuration(void) const;
 
-        hresult_t computeSystemDynamics(float64_t              const & t,
-                                        std::vector<vectorN_t> const & qSplit,
-                                        std::vector<vectorN_t> const & vSplit,
-                                        std::vector<vectorN_t>       & aSplit);
+        static void computeForwardKinematics(systemHolder_t  & system,
+                                             vectorN_t const & q,
+                                             vectorN_t const & v,
+                                             vectorN_t const & a);
+        hresult_t computeSystemsDynamics(float64_t              const & t,
+                                         std::vector<vectorN_t> const & qSplit,
+                                         std::vector<vectorN_t> const & vSplit,
+                                         std::vector<vectorN_t>       & aSplit);
 
     protected:
         hresult_t configureTelemetry(void);
@@ -437,11 +440,6 @@ namespace jiminy
 
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
-
-        static void computeForwardKinematics(systemHolder_t  & system,
-                                             vectorN_t const & q,
-                                             vectorN_t const & v,
-                                             vectorN_t const & a);
 
         /// \brief Compute the force resulting from ground contact on a given body.
         ///

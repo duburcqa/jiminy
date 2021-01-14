@@ -218,9 +218,14 @@ namespace jiminy
                               vectorN_t        const & position,
                               bool_t                 & isValid);
 
-    hresult_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
-                                       std::string      const & childJointNameIn,
-                                       std::string      const & newJointNameIn);
+    hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model       & modelInOut,
+                                                  std::string      const & childJointNameIn,
+                                                  std::string      const & newJointNameIn);
+
+    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model         & modelInOut,
+                                                   std::string        const & frameNameIn,
+                                                   pinocchio::Inertia const & childBodyInertiaIn,
+                                                   std::string        const & newJointNameIn);
 
     /// \brief Convert a force expressed in the global frame of a specific frame to its parent joint frame.
     ///

@@ -4,7 +4,7 @@ import os
 import time
 import tempfile
 from collections import OrderedDict
-from typing import Optional, Tuple, Sequence, Dict, Any, Callable
+from typing import Optional, Tuple, Sequence, Dict, Any, Callable, List
 
 import numpy as np
 import gym
@@ -137,11 +137,24 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         self._action = zeros(self.action_space)
         self._observation = zeros(self.observation_space)
 
-    @property
-    def robot(self) -> jiminy.Robot:
-        """ Get robot.
+    def __getattr__(self, name: str) -> Any:
+        """Fallback attribute getter.
+
+        It enables to get access to the attribute and methods of the low-level
+        Simulator directly, without having to do it through `simulator`.
+
+        .. note::
+            This method is not meant to be called manually.
         """
-        return self.simulator.robot
+        return getattr(self.simulator, name)
+
+    def __dir__(self) -> List[str]:
+        """Attribute lookup.
+
+        It is mainly used by autocomplete feature of Ipython. It is overloaded
+        to get consistent autocompletion wrt `getattr`.
+        """
+        return super().__dir__() + self.simulator.__dir__()
 
     def _controller_handle(self,
                            t: float,
@@ -426,12 +439,18 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Reset the simulator
         self.simulator.reset()
 
+        # Make sure the environment is properly setup
+        self._setup()
+
+        # Make sure the low-level engine has not changed,
+        # otherwise some proxies would be corrupted.
+        if self.engine is not self.simulator.engine:
+            raise RuntimeError(
+                "The memory address of the low-level has changed.")
+
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
         self.sensors_data = dict(self.robot.sensors_data)
-
-        # Make sure the environment is properly setup
-        self._setup()
 
         # Set default action.
         # It will be used for the initial step.
@@ -510,7 +529,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
             raise RuntimeError(
                 "The observation computed by `refresh_observation` is "
                 "inconsistent with the observation space defined by "
-                "`_refresh_observation_space`.")
+                "`_refresh_observation_space` at initialization.")
 
         if self.is_done():
             raise RuntimeError(
@@ -629,12 +648,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
                 reward += self.compute_reward_terminal(info=self._info)
 
         # Check if the observation is out-of-bounds, in debug mode only
-        if self.debug and not self.observation_space.contains(obs):
-            message = "The observation is out-of-bounds."
-            if done:
-                logger.warn(message)
-            else:
-                logger.error(message)
+        if not done and self.debug and \
+                not self.observation_space.contains(obs):
+            logger.warn("The observation is out-of-bounds.")
 
         return obs, reward, done, self._info
 
@@ -666,9 +682,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if mode == 'human':
             return_rgb_array = False
         elif mode == 'rgb_array':
-            # Only Meshcat backend can return rgb array without poping window
             return_rgb_array = True
-            self.simulator.viewer_backend = 'meshcat'
         else:
             raise ValueError(f"Rendering mode {mode} not supported.")
         return self.simulator.render(return_rgb_array, **kwargs)
@@ -682,7 +696,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         """Replay the current episode until now.
 
         :param kwargs: Extra keyword arguments for delegation to
-                       `viewer.play_trajectories` method.
+                       `replay.play_trajectories` method.
         """
         self.simulator.replay(**{'verbose': False, **kwargs})
 
@@ -723,7 +737,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is called internally by `reset` methods.
         """
-        # Extract some proxies
+        # Get options
         robot_options = self.robot.get_options()
         engine_options = self.simulator.engine.get_options()
 
@@ -753,7 +767,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options["stepper"]["logInternalStepperSteps"] = self.debug
         engine_options["stepper"]["randomSeed"] = self._seed
 
-        # Set the options
+        # Set options
         self.robot.set_options(robot_options)
         self.simulator.engine.set_options(engine_options)
 

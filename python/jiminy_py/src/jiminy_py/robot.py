@@ -162,7 +162,10 @@ def generate_hardware_description_file(
             child_links.add(child_link)
 
     # Compute the root link and the leaf ones
-    root_link = next(iter(parent_links.difference(child_links)))
+    if parent_links:
+        root_link = next(iter(parent_links.difference(child_links)))
+    else:
+        root_link = None
     leaf_links = list(child_links.difference(parent_links))
 
     # Parse the gazebo plugins, if any.
@@ -263,7 +266,7 @@ def generate_hardware_description_file(
                 logger.warning(f"Unsupported Gazebo plugin '{plugin}'")
 
     # Add IMU sensor to the root link if no Gazebo IMU sensor has been found
-    if imu.type not in hardware_info['Sensor'].keys():
+    if root_link and imu.type not in hardware_info['Sensor'].keys():
         hardware_info['Sensor'].setdefault(imu.type, {}).update({
             root_link: OrderedDict(
                 body_name=root_link,
@@ -280,8 +283,9 @@ def generate_hardware_description_file(
                     frame_pose=6*[0.0])
             })
 
-            # Add the related body to the collision set
-            collision_bodies_names.add(leaf_link)
+            # Add the related body to the collision set if possible
+            if root.find(f"./link[@name='{leaf_link}']/collision") is not None:
+                collision_bodies_names.add(leaf_link)
 
     # Specify collision bodies and ground model in global config options
     hardware_info['Global']['collisionBodiesNames'] = \
@@ -563,11 +567,13 @@ class BaseJiminyRobot(jiminy.Robot):
         if hardware_path is None:
             hardware_path = pathlib.Path(
                 self.urdf_path_orig).with_suffix('.hdf')
+        self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
-            logger.warning(
-                "Hardware configuration file not found. Not adding any "
-                "hardware to the robot.\n Default file can be generated "
-                "automatically using 'generate_hardware_description_file'.")
+            if hardware_path:
+                logger.warning(
+                    "Hardware configuration file not found. Not adding any "
+                    "hardware to the robot.\n Default file can be generated "
+                    "using 'generate_hardware_description_file' method.")
             return
         hardware_info = toml.load(hardware_path)
         self.extra_info = hardware_info.pop('Global')
@@ -656,15 +662,15 @@ class BaseJiminyRobot(jiminy.Robot):
                     "numerically stable for now. Replacing it by contact "
                     "points at the vertices.")
 
-                for box_size_info, box_origin_info in zip(
-                        collision_box_sizes_info, collision_box_origin_info):
+                for i, (box_size_info, box_origin_info) in enumerate(zip(
+                        collision_box_sizes_info, collision_box_origin_info)):
                     box_size = list(map(float, box_size_info.split()))
                     box_origin = _origin_info_to_se3(box_origin_info)
                     vertices = [e.flatten() for e in np.meshgrid(*[
                         0.5 * v * np.array([-1.0, 1.0]) for v in box_size])]
-                    for i, (x, y, z) in enumerate(zip(*vertices)):
+                    for j, (x, y, z) in enumerate(zip(*vertices)):
                         frame_name = "_".join((
-                            body_name, "CollisionBox", str(i)))
+                            body_name, "CollisionBox", str(i), str(j)))
                         vertex_pos_rel = pin.SE3(
                             np.eye(3), np.array([x, y, z]))
                         frame_transform = box_origin.act(vertex_pos_rel)
@@ -713,7 +719,10 @@ class BaseJiminyRobot(jiminy.Robot):
                 # Compute the minimal volume bounding box, then add new frames
                 # to the robot model at its vertices and register contact
                 # points at their location.
-                mesh = trimesh.load(mesh_path)
+                try:
+                    mesh = trimesh.load(mesh_path)
+                except ValueError:  # Mesh file is not available
+                    continue
                 box = mesh.bounding_box_oriented
                 for i in range(8):
                     frame_name = "_".join((body_name, "BoundingBox", str(i)))
@@ -775,7 +784,7 @@ class BaseJiminyRobot(jiminy.Robot):
                     # Create the frame and add it to the robot model
                     frame_name = sensor_descr.pop('frame_name', None)
 
-                    # Create a frame is a frame name has been specified.
+                    # Create a frame if a frame name has been specified.
                     # In such a case, the body name must be specified.
                     if frame_name is None:
                         # Get the body name

@@ -21,7 +21,7 @@ namespace jiminy
     registeredVariables_(),
     registeredConstants_()
     {
-        AbstractController::setOptions(getDefaultControllerOptions()); // Clarify that the base implementation is called
+        AbstractController::setOptions(getDefaultControllerOptions());  // Clarify that the base implementation is called
     }
 
     hresult_t AbstractController::initialize(Robot const * robot)
@@ -105,10 +105,10 @@ namespace jiminy
         {
             if (telemetryData)
             {
-                std::string objectName = CONTROLLER_OBJECT_NAME;
+                std::string objectName = CONTROLLER_TELEMETRY_NAMESPACE;
                 if (!objectPrefixName.empty())
                 {
-                    objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
+                    objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                 }
                 telemetrySender_.configureObject(std::move(telemetryData), objectName);
                 for (std::pair<std::string, float64_t const *> const & registeredVariable : registeredVariables_)

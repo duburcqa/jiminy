@@ -157,7 +157,7 @@ namespace python
                                                            bool const & copy)
     {
         bp::dict flexibilityJointDataPy;
-        flexibilityJointDataPy["jointName"] = flexibleJointData.jointName;
+        flexibilityJointDataPy["frameName"] = flexibleJointData.frameName;
         flexibilityJointDataPy["stiffness"] = flexibleJointData.stiffness;
         flexibilityJointDataPy["damping"] = flexibleJointData.damping;
         return flexibilityJointDataPy;
@@ -384,7 +384,7 @@ namespace python
     {
         flexibleJointData_t flexData;
         bp::dict const flexDataPy = bp::extract<bp::dict>(dataPy);
-        flexData.jointName = convertFromPython<std::string>(flexDataPy["jointName"]);
+        flexData.frameName = convertFromPython<std::string>(flexDataPy["frameName"]);
         flexData.stiffness = convertFromPython<vectorN_t>(flexDataPy["stiffness"]);
         flexData.damping = convertFromPython<vectorN_t>(flexDataPy["damping"]);
         return flexData;
@@ -454,7 +454,7 @@ namespace python
         return map;
     }
 
-    inline void convertFromPython(bp::object const & configPy, configHolder_t & config); // Forward declaration
+    inline void convertFromPython(bp::object const & configPy, configHolder_t & config);  // Forward declaration
 
     class AppendPythonToBoostVariant : public boost::static_visitor<>
     {

@@ -10,7 +10,7 @@ from gym import spaces
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import SpaceDictNested
+from gym_jiminy.common.utils import sample, SpaceDictNested
 from gym_jiminy.common.envs import BaseJiminyEnv
 
 
@@ -21,13 +21,13 @@ X_THRESHOLD = 2.4
 # Maximum absolute angle of the pole before considering the episode failed
 THETA_THRESHOLD = 12.0 * np.pi / 180.0
 # Sampling range for cart position
-X_RANDOM_RANGE = 0.05
+X_RANDOM_MAX = 0.05
 # Sampling range for pole angle
-THETA_RANDOM_RANGE = 0.05
+THETA_RANDOM_MAX = 0.05
 # Sampling range for cart linear velocity
-DX_RANDOM_RANGE = 0.05
+DX_RANDOM_MAX = 0.05
 # Sampling range for pole angular velocity
-DTHETA_RANDOM_RANGE = 0.05
+DTHETA_RANDOM_MAX = 0.05
 
 
 class CartPoleJiminyEnv(BaseJiminyEnv):
@@ -114,12 +114,6 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
         if not self.continuous:
             self.AVAIL_FORCE = [-motor.effort_limit, motor.effort_limit]
 
-        # Bounds of hypercube associated with initial state of robot
-        self.position_random_range = np.array([
-            X_RANDOM_RANGE, THETA_RANDOM_RANGE])
-        self.velocity_random_range = np.array([
-            DX_RANDOM_RANGE, DTHETA_RANDOM_RANGE])
-
         # Configure the learning environment
         super().__init__(simulator, step_dt=STEP_DT, debug=debug)
 
@@ -171,11 +165,13 @@ class CartPoleJiminyEnv(BaseJiminyEnv):
 
     def _sample_state(self) -> Tuple[np.ndarray, np.ndarray]:
         """ TODO: Write documentation.
+
+        Bounds of hypercube associated with initial state of robot.
         """
-        qpos = self.rg.uniform(low=-self.position_random_range,
-                               high=self.position_random_range)
-        qvel = self.rg.uniform(low=-self.velocity_random_range,
-                               high=self.velocity_random_range)
+        qpos = sample(scale=np.array([
+            X_RANDOM_MAX, THETA_RANDOM_MAX]), rg=self.rg)
+        qvel = sample(scale=np.array([
+            DX_RANDOM_MAX, DTHETA_RANDOM_MAX]), rg=self.rg)
         return qpos, qvel
 
     def refresh_observation(self) -> None:

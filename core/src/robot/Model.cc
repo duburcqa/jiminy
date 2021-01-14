@@ -9,6 +9,8 @@
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/center-of-mass.hpp"
 
+#include "urdf_parser/urdf_parser.h"
+
 #include "jiminy/core/Utilities.h"
 #include "jiminy/core/Constants.h"
 
@@ -221,6 +223,12 @@ namespace jiminy
         if (!isInitialized_)
         {
             PRINT_ERROR("Model not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (pncGeometryModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
+        {
+            PRINT_ERROR("Collision geometry not available. Some collision meshes were probably not found.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -446,51 +454,89 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    static pinocchio::Inertia convertFromUrdf(::urdf::Inertial const & Y)
+    {
+        pinocchio::Inertia inertia;
+
+        inertia.mass() = Y.mass;
+
+        ::urdf::Vector3 const & p = Y.origin.position;
+        inertia.lever() = (vector3_t() << p.x, p.y, p.z).finished();
+
+        ::urdf::Rotation const & q = Y.origin.rotation;
+        matrix3_t const R = Eigen::Quaterniond(q.w, q.x, q.y, q.z).matrix();
+        matrix3_t I;
+        I << Y.ixx, Y.ixy, Y.ixz,
+             Y.ixy, Y.iyy, Y.iyz,
+             Y.ixz, Y.iyz, Y.izz;
+        I = R * I * R.transpose();
+        inertia.inertia() = pinocchio::Symmetric3(I);
+
+        return inertia;
+    }
+
+    static pinocchio::Inertia getChildBodyInertiaFromUrdf(std::string const & urdfPath,
+                                                          std::string const & frameName)
+    {
+        ::urdf::ModelInterfaceSharedPtr urdfTree = ::urdf::parseURDFFile(urdfPath);
+        ::urdf::JointConstSharedPtr joint = urdfTree->getJoint(frameName);
+        std::string const & child_link_name = joint->child_link_name;
+        ::urdf::LinkConstSharedPtr child_link = urdfTree->getLink(child_link_name);
+        return convertFromUrdf(*child_link->inertial);
+    }
+
     hresult_t Model::generateModelFlexible(void)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
             PRINT_ERROR("Model not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        flexibleJointsNames_.clear();
+        flexibleJointsModelIdx_.clear();
+        pncModelFlexibleOrig_ = pncModelRigidOrig_;
+        for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
         {
-            flexibleJointsNames_.clear();
-            flexibleJointsModelIdx_.clear();
-            pncModelFlexibleOrig_ = pncModelRigidOrig_;
-            for(flexibleJointData_t const & flexibleJoint : mdlOptions_->dynamics.flexibilityConfig)
+            // Check if joint name exists
+            std::string const & frameName = flexibleJoint.frameName;
+            if (!pncModel_.existFrame(frameName))
             {
-                std::string const & jointName = flexibleJoint.jointName;
-
-                // Look if given joint exists in the joint list.
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    int32_t jointIdx;
-                    returnCode = getJointPositionIdx(pncModel_, jointName, jointIdx);
-                }
-
-                // Add joints to model
-                if (returnCode == hresult_t::SUCCESS)
-                {
-                    std::string newName =
-                        removeSuffix(jointName, "Joint") + FLEXIBLE_JOINT_SUFFIX;
-                    flexibleJointsNames_.emplace_back(newName);
-                    insertFlexibilityInModel(pncModelFlexibleOrig_, jointName, newName); // Ignore return code, as check has already been done.
-                }
+                return hresult_t::ERROR_GENERIC;
             }
+
+            // Add joint to model, differently depending on its type
+            int32_t frameIdx;
+            ::jiminy::getFrameIdx(pncModelFlexibleOrig_, frameName, frameIdx);
+            std::string flexName = frameName + FLEXIBLE_JOINT_SUFFIX;
+            if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::FIXED_JOINT)
+            {
+                // Get the child inertia from the urdf, since it cannot be recovered from the model
+                // https://github.com/stack-of-tasks/pinocchio/issues/741
+                pinocchio::Inertia const childInertia = getChildBodyInertiaFromUrdf(urdfPath_, frameName);
+
+                // Insert flexible joint at fixed frame, splitting "composite" body inertia
+                insertFlexibilityAtFixedFrameInModel(
+                    pncModelFlexibleOrig_, frameName, childInertia, flexName);
+            }
+            else if (pncModelFlexibleOrig_.frames[frameIdx].type == pinocchio::JOINT)
+            {
+                insertFlexibilityBeforeJointInModel(pncModelFlexibleOrig_, frameName, flexName);
+            }
+            else
+            {
+                PRINT_ERROR("Flexible joint can only be inserted at fixed or joint frames.");
+                return hresult_t::ERROR_GENERIC;
+            }
+
+            flexibleJointsNames_.emplace_back(flexName);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            getJointsModelIdx(pncModelFlexibleOrig_,
-                              flexibleJointsNames_,
-                              flexibleJointsModelIdx_);
-        }
+        getJointsModelIdx(pncModelFlexibleOrig_,
+                          flexibleJointsNames_,
+                          flexibleJointsModelIdx_);
 
-        return returnCode;
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Model::generateModelBiased(void)
@@ -682,7 +728,7 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Get the joint position limits from the URDF or the user options
-            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF); // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
+            positionLimitMin_ = vectorN_t::Constant(pncModel_.nq, -INF);  // Do NOT use robot_->pncModel_.(lower|upper)PositionLimit
             positionLimitMax_ = vectorN_t::Constant(pncModel_.nq, +INF);
 
             if (mdlOptions_->joints.enablePositionLimit)
@@ -1046,9 +1092,8 @@ namespace jiminy
         }
         catch (std::exception const & e)
         {
-            PRINT_ERROR("Something is wrong with the URDF. Impossible to load the collision geometries.\n"
-                        "Raised from exception: ", e.what());
-            return hresult_t::ERROR_BAD_INPUT;
+            PRINT_WARNING("Something is wrong with the URDF. Impossible to load the collision geometries.");
+            return hresult_t::SUCCESS;
         }
 
         try
@@ -1147,7 +1192,7 @@ namespace jiminy
         // Compute the rigid state based on the flexible state
         int32_t idxRigid = 0;
         int32_t idxFlex = 0;
-        for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxRigid, ++idxFlex)
+        for (; idxFlex < pncModelFlexibleOrig_.njoints; ++idxFlex)
         {
             std::string const & jointRigidName = pncModelRigidOrig_.names[idxRigid];
             std::string const & jointFlexName = pncModelFlexibleOrig_.names[idxFlex];
@@ -1160,10 +1205,7 @@ namespace jiminy
                     qRigid.segment(jointRigid.idx_q(), jointRigid.nq()) =
                         qFlex.segment(jointFlex.idx_q(), jointFlex.nq());
                 }
-            }
-            else
-            {
-                ++idxFlex;
+                ++idxRigid;
             }
         }
 

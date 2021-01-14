@@ -20,7 +20,8 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
-from .viewer import Viewer, play_logfiles
+from .viewer import Viewer
+from .viewer import play_logfiles
 
 
 SENSORS_FIELDS = {
@@ -93,7 +94,7 @@ class Simulator:
         self.sensors_data = self.robot.sensors_data
 
         # Viewer management
-        self._viewer = None
+        self.viewer = None
         self._is_viewer_available = False
 
         # Plot data holder
@@ -236,8 +237,7 @@ class Simulator:
         if self.use_theoretical_model and self.robot.is_flexible:
             q = self.robot.get_rigid_configuration_from_flexible(q)
             v = self.robot.get_rigid_velocity_from_flexible(v)
-        else:
-            return q, v
+        return q, v
 
     @property
     def pinocchio_model(self) -> pin.Model:
@@ -266,7 +266,7 @@ class Simulator:
                   out: np.ndarray) -> None:
         """Callback method for the simulation.
         """
-        out[0] = True
+        out[()] = True
 
     def seed(self, seed: int) -> None:
         """Set the seed of the simulation and reset the simulation.
@@ -304,9 +304,9 @@ class Simulator:
         # will have dangling reference to the old robot model.
         if self._is_viewer_available:
             try:
-                self._viewer._setup(self.robot)
+                self.viewer._setup(self.robot)
             except RuntimeError:
-                self._viewer.close()
+                self.viewer.close()
                 self._is_viewer_available = False
 
     def start(self,
@@ -448,57 +448,57 @@ class Simulator:
 
         # Instantiate the robot and viewer client if necessary.
         # A new dedicated scene and window will be created.
-        if not (self._is_viewer_available and self._viewer.is_alive()):
+        if not (self._is_viewer_available and self.viewer.is_alive()):
             # Generate a new unique identifier if necessary
-            if self._viewer is None:
+            if self.viewer is None:
                 uniq_id = next(tempfile._get_candidate_names())
                 robot_name = f"{uniq_id}_robot"
                 scene_name = f"{uniq_id}_scene"
                 window_name = f"{uniq_id}_window"
             else:
-                robot_name = self._viewer.robot_name
-                scene_name = self._viewer.scene_name
-                window_name = self._viewer.window_name
+                robot_name = self.viewer.robot_name
+                scene_name = self.viewer.scene_name
+                window_name = self.viewer.window_name
 
             # Create a new viewer client
-            self._viewer = Viewer(self.robot,
-                                  use_theoretical_model=False,
-                                  backend=self.viewer_backend,
-                                  open_gui_if_parent=(not return_rgb_array),
-                                  delete_robot_on_close=True,
-                                  robot_name=robot_name,
-                                  scene_name=scene_name,
-                                  window_name=window_name)
+            self.viewer = Viewer(self.robot,
+                                 use_theoretical_model=False,
+                                 backend=self.viewer_backend,
+                                 open_gui_if_parent=(not return_rgb_array),
+                                 delete_robot_on_close=True,
+                                 robot_name=robot_name,
+                                 scene_name=scene_name,
+                                 window_name=window_name)
             self.viewer_backend = Viewer.backend
-            if self._viewer.is_backend_parent and camera_xyzrpy is None:
+            if self.viewer.is_backend_parent and camera_xyzrpy is None:
                 camera_xyzrpy = [(9.0, 0.0, 2e-5), (np.pi/2, 0.0, np.pi/2)]
-            self._viewer.wait(require_client=False)  # Wait to finish loading
+            self.viewer.wait(require_client=False)  # Wait to finish loading
             self._is_viewer_available = True
 
         # Set the camera pose if requested
         if camera_xyzrpy is not None:
-            self._viewer.set_camera_transform(*camera_xyzrpy)
+            self.viewer.set_camera_transform(*camera_xyzrpy)
 
         # Try refreshing the viewer
-        self._viewer.refresh()
+        self.viewer.refresh()
 
         # Compute rgb array if needed
         if return_rgb_array:
-            return self._viewer.capture_frame(width, height)
+            return self.viewer.capture_frame(width, height)
 
     def replay(self, **kwargs: Any) -> None:
         """Replay the current episode until now.
 
         :param kwargs: Extra keyword arguments for delegation to
-                       `viewer.play_trajectories` method.
+                       `replay.play_trajectories` method.
         """
         log_data, _ = self.get_log()
         if not log_data:
             raise RuntimeError(
                 "Nothing to replay. Please run a simulation before calling "
                 "`replay` method.")
-        self._viewer = play_logfiles(
-            [self.robot], [log_data], viewers=[self._viewer],
+        self.viewer = play_logfiles(
+            [self.robot], [log_data], viewers=[self.viewer],
             **{'verbose': True, 'backend': self.viewer_backend, **kwargs})[0]
         self._is_viewer_available = True
 
@@ -506,10 +506,10 @@ class Simulator:
         """Close the connection with the renderer.
         """
         if hasattr(self, 'engine'):
-            if self._viewer is not None:
-                self._viewer.close()
+            if self.viewer is not None:
+                self.viewer.close()
                 self._is_viewer_available = False
-                self._viewer = None
+                self.viewer = None
             if self.__plot_data is not None:
                 plt.close(self.__plot_data['fig'])
 
@@ -733,13 +733,16 @@ class Simulator:
     def get_options(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """Get the options of robot (including controller), and engine.
         """
-        options = OrderedDict(robot=OrderedDict(), engine=OrderedDict())
-        robot_options = options['robot']
-        robot_options['model'] = self.robot.get_model_options()
-        robot_options['motors'] = self.robot.get_motors_options()
-        robot_options['sensors'] = self.robot.get_sensors_options()
-        robot_options['telemetry'] = self.robot.get_telemetry_options()
-        robot_options['controller'] = self.get_controller_options()
+        options = OrderedDict(
+            system=OrderedDict(robot=OrderedDict(), controller=OrderedDict()),
+            engine=OrderedDict())
+        robot_options = options['system']['robot']
+        robot_options_copy = self.robot.get_options()
+        robot_options['model'] = robot_options_copy['model']
+        robot_options['motors'] = robot_options_copy['motors']
+        robot_options['sensors'] = robot_options_copy['sensors']
+        robot_options['telemetry'] = robot_options_copy['telemetry']
+        options['system']['controller'] = self.get_controller_options()
         engine_options = options['engine']
         engine_options_copy = self.engine.get_options()
         engine_options['stepper'] = engine_options_copy['stepper']
@@ -753,8 +756,8 @@ class Simulator:
                     options: Dict[str, Dict[str, Dict[str, Any]]]) -> None:
         """Set the options of robot (including controller), and engine.
         """
-        controller_options = options['robot'].pop('controller')
-        self.robot.set_options(options['robot'])
+        controller_options = options['system']['controller']
+        self.robot.set_options(options['system']['robot'])
         self.set_controller_options(controller_options)
         self.engine.set_options(options['engine'])
 

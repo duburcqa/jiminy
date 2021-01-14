@@ -48,13 +48,13 @@ class PipelineControlAtlas(unittest.TestCase):
 
         # Get the final posture of the robot as an RGB array
         rgb_array = self.env.render(mode='rgb_array')
-        # plt.imsave("atlas_standing_meshcat.png", rgb_array)
 
         # Check that the final posture matches the expected one.
         robot_name = self.env.robot.pinocchio_model.name
-        img_name = '_'.join((robot_name, "standing_meshcat.png"))
+        img_name = '_'.join((robot_name, "standing.png"))
         data_dir = os.path.join(os.path.dirname(__file__), "data")
         img_fullpath = os.path.join(data_dir, img_name)
+        # plt.imsave(img_fullpath, rgb_array)
         rgba_array_rel_orig = plt.imread(img_fullpath)
         rgb_array_abs_orig = (
             rgba_array_rel_orig[..., :3] * 255).astype(np.uint8)

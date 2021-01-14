@@ -96,7 +96,7 @@ namespace jiminy
             vectorN_t const noiseStd;   ///< Standard deviation of the noise of the sensor
             vectorN_t const bias;       ///< Bias of the sensor
             float64_t const delay;      ///< Delay of the sensor
-            uint32_t  const delayInterpolationOrder; ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
+            uint32_t  const delayInterpolationOrder;  ///< Order of the interpolation used to compute delayed sensor data. [0: Zero-order holder, 1: Linear interpolation]
 
             abstractSensorOptions_t(configHolder_t const & options) :
             noiseStd(boost::get<vectorN_t>(options.at("noiseStd"))),

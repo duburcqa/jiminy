@@ -2,6 +2,8 @@
 /// adding support for rotor inertia for 1DoF (prismatic, revolute) joints.
 ///
 /// Based on https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/aba.hxx
+///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/rnea.hxx
+///          https://github.com/stack-of-tasks/pinocchio/blob/820d0f85fbabddce20924a6e0f781fb2be5029e9/src/algorithm/crba.hxx
 /// Copyright (c) 2014-2020, CNRS
 /// Copyright (c) 2018-2020, INRIA
 
@@ -18,6 +20,7 @@
 #include "pinocchio/algorithm/joint-configuration.hpp"
 #include "pinocchio/algorithm/aba.hpp"
 #include "pinocchio/algorithm/rnea.hpp"
+#include "pinocchio/algorithm/crba.hpp"
 #include "pinocchio/algorithm/energy.hpp"
 
 #include "jiminy/core/Macros.h"
@@ -30,8 +33,8 @@ namespace pinocchio_overload
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
              typename ConfigVectorType, typename TangentVectorType>
     inline Scalar
-    kineticEnergy(pinocchio::ModelTpl<Scalar,Options,JointCollectionTpl> const & model,
-                  pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>        & data,
+    kineticEnergy(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
+                  pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
                   Eigen::MatrixBase<ConfigVectorType>                    const & q,
                   Eigen::MatrixBase<TangentVectorType>                   const & v,
                   bool_t                                                 const & update_kinematics)
@@ -55,6 +58,32 @@ namespace pinocchio_overload
         pinocchio::rnea(model, data, q, v, a, fext);
         data.tau += model.rotorInertia.asDiagonal() * a;
         return data.tau;
+    }
+
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+             typename ConfigVectorType, typename TangentVectorType1, typename TangentVectorType2>
+    inline const typename pinocchio::DataTpl<Scalar,Options,JointCollectionTpl>::TangentVectorType &
+    rnea(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
+         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>        & data,
+         Eigen::MatrixBase<ConfigVectorType>                    const & q,
+         Eigen::MatrixBase<TangentVectorType1>                  const & v,
+         Eigen::MatrixBase<TangentVectorType2>                  const & a)
+    {
+        pinocchio::rnea(model, data, q, v, a);
+        data.tau += model.rotorInertia.asDiagonal() * a;
+        return data.tau;
+    }
+
+    template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl,
+             typename ConfigVectorType>
+    inline const typename pinocchio::DataTpl<Scalar, Options, JointCollectionTpl>::MatrixXs &
+    crba(pinocchio::ModelTpl<Scalar, Options, JointCollectionTpl> const & model,
+         pinocchio::DataTpl<Scalar, Options, JointCollectionTpl> & data,
+         Eigen::MatrixBase<ConfigVectorType> const & q)
+    {
+        pinocchio::crba(model, data, q);
+        data.M += model.rotorInertia.asDiagonal();
+        return data.M;
     }
 
     template<typename Scalar, int Options, template<typename, int> class JointCollectionTpl>

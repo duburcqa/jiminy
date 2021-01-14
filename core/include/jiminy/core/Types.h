@@ -97,22 +97,22 @@ namespace jiminy
     // Flexible joints
     struct flexibleJointData_t
     {
-        std::string jointName;
+        std::string frameName;
         vectorN_t stiffness;
         vectorN_t damping;
 
         flexibleJointData_t(void) :
-        jointName(),
+        frameName(),
         stiffness(),
         damping()
         {
             // Empty.
         };
 
-        flexibleJointData_t(std::string const & jointNameIn,
+        flexibleJointData_t(std::string const & frameNameIn,
                             vectorN_t   const & stiffnessIn,
                             vectorN_t   const & dampingIn) :
-        jointName(jointNameIn),
+        frameName(frameNameIn),
         stiffness(stiffnessIn),
         damping(dampingIn)
         {
@@ -121,7 +121,7 @@ namespace jiminy
 
         inline bool_t operator==(flexibleJointData_t const & other) const
         {
-            return (this->jointName == other.jointName
+            return (this->frameName == other.frameName
                  && this->stiffness == other.stiffness
                  && this->damping == other.damping);
         };

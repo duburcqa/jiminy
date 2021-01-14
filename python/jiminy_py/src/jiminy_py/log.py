@@ -6,7 +6,7 @@ from csv import DictReader
 from textwrap import dedent
 from itertools import cycle
 from collections import OrderedDict
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Any
 
 import h5py
 import numpy as np
@@ -68,20 +68,20 @@ def read_log(fullpath: str,
 
     if file_format == 'binary':
         # Read binary file using C++ parser.
-        data_dict, constants_dict = Engine.read_log_binary(fullpath)
+        data_dict, const_dict = Engine.read_log_binary(fullpath)
     elif file_format == 'csv':
         # Read text csv file.
-        constants_dict = {}
+        const_dict = {}
         with open(fullpath, 'r') as log:
-            constants_str = next(log).split(', ')
-            for c in constants_str:
+            const_str = next(log).split(', ')
+            for c in const_str:
                 # Extract the name and value of the constant.
                 # Note that newline is stripped at the end of the value.
                 name, value = c.split('=')
                 value = value.strip('\n')
 
                 # Gather the constants in a dictionary.
-                constants_dict[name] = value.strip('\n')
+                const_dict[name] = value.strip('\n')
 
             # Read data from the log file, skipping the first line, namely the
             # constants definition.
@@ -99,15 +99,27 @@ def read_log(fullpath: str,
         # removing spaces present before the keys.
         data_dict = {k.strip(): np.array(v) for k, v in data.items()}
     elif file_format == 'hdf5':
-        file = h5py.File(fullpath, 'r')
-        constants_dict = {}
-        for key, value in dict(file['constants'].attrs).items():
-            constants_dict[key] = value.decode()
-        data_dict = {'Global.Time': file['Global.Time'][()]}
-        for key, value in file['variables'].items():
-            data_dict[key] = value['value'][()]
+        def parse_constant(key: str, value: str) -> Any:
+            """Process some particular constants based on its name or type.
+            """
+            if isinstance(value, bytes):
+                return value.decode()
+            return value
 
-    return data_dict, constants_dict
+        with h5py.File(fullpath, 'r') as f:
+            # Load constants
+            const_dict = {}
+            for key, dataset in f['constants'].items():
+                const_dict[key] = parse_constant(key, dataset[()])
+            for key, value in dict(f['constants'].attrs).items():
+                const_dict[key] = parse_constant(key, value)
+
+            # Load variables (1D time-series)
+            data_dict = {'Global.Time': f['Global.Time'][()]}
+            for key, value in f['variables'].items():
+                data_dict[key] = value['value'][()]
+
+    return data_dict, const_dict
 
 
 def plot_log():
@@ -153,8 +165,8 @@ def plot_log():
 
     # If no plotting commands, display the list of headers instead
     if len(plotting_commands) == 0:
-        print("Available data:")
-        print("\n - ".join(log_data.keys()))
+        print("Available data:", *map(
+            lambda s: f"- {s}", log_data.keys()), sep="\n")
         exit(0)
 
     # Load comparision logs, if any.

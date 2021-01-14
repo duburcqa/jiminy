@@ -6,6 +6,8 @@
 
 #include <iostream>
 
+#include "jiminy/core/Constants.h"
+
 #include "jiminy/core/telemetry/TelemetryData.h"
 
 
@@ -39,7 +41,7 @@ namespace jiminy
         std::memset(constantsMem_.address(), 0, CONSTANTS_MEM_SIZE);
         constantsHeader_->startNameSection = sizeof(struct memHeader);
         constantsHeader_->nextFreeNameOffset = sizeof(struct memHeader);
-        constantsHeader_->startDataSection = CONSTANTS_MEM_SIZE; // Set to the end, because it make no sense for constants to have a data section.
+        constantsHeader_->startDataSection = CONSTANTS_MEM_SIZE;  // Set to the end, because it make no sense for constants to have a data section.
         constantsHeader_->nextFreeDataOffset = CONSTANTS_MEM_SIZE;
         constantsHeader_->isRegisteringAvailable = true;
 
@@ -85,7 +87,7 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        std::string const fullConstant = variableNameIn + "=" + constantValueIn;
+        std::string const fullConstant = variableNameIn + TELEMETRY_CONSTANT_DELIMITER + constantValueIn;
         if ((header->nextFreeNameOffset + static_cast<int64_t>(fullConstant.size()) + 1) >= header->startDataSection)
         {
             PRINT_ERROR("Maximum number of registration exceeded.");
@@ -98,10 +100,10 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        char_t * const namePos = memAddress + header->nextFreeNameOffset; // Compute record address
+        char_t * const namePos = memAddress + header->nextFreeNameOffset;  // Compute record address
         memcpy(namePos, fullConstant.data(), fullConstant.size());
         header->nextFreeNameOffset += fullConstant.size();
-        header->nextFreeNameOffset += 1U; // Null-terminated.
+        header->nextFreeNameOffset += 1U;  // Null-terminated.
 
         return hresult_t::SUCCESS;
     }

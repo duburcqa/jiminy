@@ -109,53 +109,60 @@ class Capsule(Geometry):
 
 
 class MeshcatVisualizer(BaseVisualizer):
-    """A Pinocchio display using Meshcat
+    """A Pinocchio display using Meshcat.
 
     Based on https://github.com/stack-of-tasks/pinocchio/blob/master/bindings/python/pinocchio/visualize/meshcat_visualizer.py
     Copyright (c) 2014-2020, CNRS
     Copyright (c) 2018-2020, INRIA
     """  # noqa: E501
+    def initViewer(self,
+                   viewer: meshcat.Visualizer = None,
+                   loadModel: bool = False,
+                   mustOpen: bool = False):
+        """Start a new MeshCat server and client.
+        Note: the server can also be started separately using the
+        "meshcat-server" command in a terminal: this enables the server to
+        remain active after the current script ends.
+        """
+        self.root_name = None
+        self.visual_group = None
+        self.collision_group = None
+        self.display_visuals = False
+        self.display_collisions = False
+        self.viewer = viewer
+
+        if viewer is None:
+            self.viewer = meshcat.Visualizer()
+
+        if mustOpen:
+            self.viewer.open()
+
+        if loadModel:
+            self.loadViewerModel(rootNodeName=self.model.name)
+
     def getViewerNodeName(self,
                           geometry_object: hppfcl.CollisionGeometry,
                           geometry_type: pin.GeometryType):
         """Return the name of the geometry object inside the viewer.
         """
         if geometry_type is pin.GeometryType.VISUAL:
-            return self.viewerVisualGroupName + '/' + geometry_object.name
+            return '/'.join((self.visual_group, geometry_object.name))
         elif geometry_type is pin.GeometryType.COLLISION:
-            return self.viewerCollisionGroupName + '/' + geometry_object.name
-
-    def initViewer(self,
-                   viewer: meshcat.Visualizer = None,
-                   must_open: bool = False,
-                   loadModel: bool = False):
-        """Start a new MeshCat server and client.
-        Note: the server can also be started separately using the
-        "meshcat-server" command in a terminal: this enables the server to
-        remain active after the current script ends.
-        """
-        self.viewer = meshcat.Visualizer() if viewer is None else viewer
-
-        if must_open:
-            self.viewer.open()
-
-        if loadModel:
-            self.loadViewerModel()
+            return '/'.join((self.collision_group, geometry_object.name))
 
     def loadPrimitive(self, geometry_object: hppfcl.CollisionGeometry):
-        # Cylinders need to be rotated
-        R = np.array([[1.,  0.,  0.,  0.],
-                      [0.,  0., -1.,  0.],
-                      [0.,  1.,  0.,  0.],
-                      [0.,  0.,  0.,  1.]])
-        RotatedCylinder = type("RotatedCylinder",
-                               (meshcat.geometry.Cylinder,),
-                               {"intrinsic_transform": lambda self: R})
-
         geom = geometry_object.geometry
         if isinstance(geom, hppfcl.Capsule):
             obj = Capsule(2. * geom.halfLength, geom.radius)
         elif isinstance(geom, hppfcl.Cylinder):
+            # Cylinders need to be rotated
+            R = np.array([[1.,  0.,  0.,  0.],
+                          [0.,  0., -1.,  0.],
+                          [0.,  1.,  0.,  0.],
+                          [0.,  0.,  0.,  1.]])
+            RotatedCylinder = type("RotatedCylinder",
+                                   (meshcat.geometry.Cylinder,),
+                                   {"intrinsic_transform": lambda self: R})
             obj = RotatedCylinder(2. * geom.halfLength, geom.radius)
         elif isinstance(geom, hppfcl.Box):
             obj = meshcat.geometry.Box(npToTuple(2. * geom.halfSide))
@@ -163,20 +170,22 @@ class MeshcatVisualizer(BaseVisualizer):
             obj = meshcat.geometry.Sphere(geom.radius)
         elif isinstance(geom, hppfcl.Cone):
             obj = Cone(2. * geom.halfLength, geom.radius)
-        elif isinstance(geom, hppfcl.Convex):
-            vertices = np.vstack([geom.points(i)
-                                  for i in range(geom.num_points)])
-            faces = np.vstack([np.array(list(geom.polygons(i)))
-                               for i in range(geom.num_polygons)])
+        elif isinstance(geom, (hppfcl.Convex, hppfcl.BVHModelOBBRSS)):
+            # Extract vertices and faces from geometry
+            if isinstance(geom, hppfcl.Convex):
+                vertices = np.vstack([geom.points(i)
+                                      for i in range(geom.num_points)])
+                faces = np.vstack([np.array(list(geom.polygons(i)))
+                                   for i in range(geom.num_polygons)])
+            else:
+                vertices = np.vstack([geom.vertices(i)
+                                      for i in range(geom.num_vertices)])
+                faces = np.vstack([np.array(list(geom.tri_indices(i)))
+                                   for i in range(geom.num_tris)])
+
+            # Create primitive triangle geometry
             obj = TriangularMeshGeometry(vertices, faces)
             geometry_object.meshScale = np.ones(3)  # It is already at scale !
-        elif isinstance(geom, hppfcl.BVHModelOBBRSS):
-            vertices = np.vstack([geom.vertices(i)
-                                  for i in range(geom.num_vertices)])
-            faces = np.vstack([np.array(list(geom.tri_indices(i)))
-                               for i in range(geom.num_tris)])
-            obj = TriangularMeshGeometry(vertices, faces)
-            geometry_object.meshScale = np.ones(3)  # Same
         else:
             msg = "Unsupported geometry type for %s (%s)" % (
                 geometry_object.name, type(geom))
@@ -221,6 +230,7 @@ class MeshcatVisualizer(BaseVisualizer):
         """Load a single geometry object"""
         node_name = self.getViewerNodeName(geometry_object, geometry_type)
 
+        # Create meshcat object based on the geometry
         try:
             if isinstance(geometry_object.geometry, hppfcl.ShapeBase) or \
                     not os.path.exists(geometry_object.meshPath):
@@ -234,9 +244,9 @@ class MeshcatVisualizer(BaseVisualizer):
                    "%s") % (geometry_object.name, e)
             warnings.warn(msg, category=UserWarning, stacklevel=2)
             return
+
+        # Set material color from URDF
         material = Material()
-        # Set material color from URDF, converting for triplet of doubles to a
-        # single int.
         if color is None:
             meshColor = geometry_object.meshColor
         else:
@@ -244,16 +254,18 @@ class MeshcatVisualizer(BaseVisualizer):
         material.color = (int(meshColor[0] * 255) * 256 ** 2 +
                           int(meshColor[1] * 255) * 256 +
                           int(meshColor[2] * 255))
+
         # Add transparency, if needed.
         if float(meshColor[3]) < 1.0:
             material.transparent = True
             material.opacity = float(meshColor[3])
-        # Create meshcat object
+
+        # Add meshcat object to the scene
         v = self.viewer[node_name]
         v.set_object(obj, material)
 
     def loadViewerModel(self,
-                        rootNodeName: str = "pinocchio",
+                        rootNodeName: str,
                         color: Optional[np.ndarray] = None):
         """Load the robot in a MeshCat viewer.
         Parameters:
@@ -262,20 +274,17 @@ class MeshcatVisualizer(BaseVisualizer):
             color present in the urdf. The format is a list of four RGBA floats
             (between 0 and 1)
         """
-        # Set viewer to use to gepetto-gui.
-        self.viewerRootNodeName = rootNodeName
+        self.root_name = rootNodeName
 
-        # Load robot visual meshes in MeshCat
-        self.viewerVisualGroupName = "/".join((
-            self.viewerRootNodeName, "visuals"))
+        # Load robot visual meshes
+        self.visual_group = "/".join((self.root_name, "visuals"))
         for visual in self.visual_model.geometryObjects:
             self.loadViewerGeometryObject(
                 visual, pin.GeometryType.VISUAL, color)
         self.displayVisuals(True)
 
-        # Load robot collision meshes in MeshCat
-        self.viewerCollisionGroupName = "/".join((
-            self.viewerRootNodeName, "collisions"))
+        # Load robot collision meshes
+        self.collision_group = "/".join((self.root_name, "collisions"))
         for collision in self.collision_model.geometryObjects:
             self.loadViewerGeometryObject(
                 collision, pin.GeometryType.COLLISION, color)
@@ -326,7 +335,7 @@ class MeshcatVisualizer(BaseVisualizer):
             self.display_collisions = False
             return
 
-        self.viewer[self.viewerCollisionGroupName].set_property(
+        self.viewer[self.collision_group].set_property(
             "visible", visibility)
 
     def displayVisuals(self, visibility: bool):
@@ -337,5 +346,5 @@ class MeshcatVisualizer(BaseVisualizer):
             self.display_visuals = False
             return
 
-        self.viewer[self.viewerVisualGroupName].set_property(
+        self.viewer[self.visual_group].set_property(
             "visible", visibility)

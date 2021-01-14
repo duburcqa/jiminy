@@ -217,35 +217,70 @@ namespace jiminy
         return EngineMultiRobot::registerForceProfile("", frameName, forceFct);
     }
 
+    hresult_t Engine::addCouplingForce(std::string const & frameName1,
+                                       std::string const & frameName2,
+                                       forceProfileFunctor_t forceFct)
+    {
+        auto forceCouplingFct = [forceFct](float64_t const & t,
+                                           vectorN_t const & q1,
+                                           vectorN_t const & v1,
+                                           vectorN_t const & q2,
+                                           vectorN_t const & v2)
+                                {
+                                    return forceFct(t, q1, v1);
+                                };
+        return EngineMultiRobot::addCouplingForce("", "", frameName1, frameName2, forceCouplingFct);
+    }
+
     bool_t const & Engine::getIsInitialized(void) const
     {
         return isInitialized_;
     }
 
-    hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
+    hresult_t Engine::getSystem(systemHolder_t * & system)
     {
+        static systemHolder_t systemEmpty;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
         if (!isInitialized_)
         {
             PRINT_ERROR("The engine is not initialized.");
-            return hresult_t::ERROR_BAD_INPUT;
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
-        robot = systems_.begin()->robot;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            system = &(*systems_.begin());
+            return returnCode;
+        }
 
-        return hresult_t::SUCCESS;
+        system = &systemEmpty;
+        return returnCode;
+    }
+
+    hresult_t Engine::getRobot(std::shared_ptr<Robot> & robot)
+    {
+        systemHolder_t * system;
+
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        returnCode = getSystem(system);
+        robot = system->robot;
+
+        return returnCode;
     }
 
     hresult_t Engine::getController(std::shared_ptr<AbstractController> & controller)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("The engine is not initialized.");
-            return hresult_t::ERROR_BAD_INPUT;
-        }
+        systemHolder_t * system;
 
-        controller = systems_.begin()->controller;
+        hresult_t returnCode = hresult_t::SUCCESS;
 
-        return hresult_t::SUCCESS;
+        returnCode = getSystem(system);
+        controller = system->controller;
+
+        return returnCode;
     }
 
     hresult_t Engine::getSystemState(systemState_t const * & systemState) const

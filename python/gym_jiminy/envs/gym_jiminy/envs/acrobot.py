@@ -8,22 +8,20 @@ import gym
 import jiminy_py.core as jiminy
 from jiminy_py.simulator import Simulator
 
-from gym_jiminy.common.utils import SpaceDictNested
+from gym_jiminy.common.utils import sample, SpaceDictNested
 from gym_jiminy.common.envs import BaseJiminyEnv, BaseJiminyGoalEnv
 
 
 # Stepper update period
 STEP_DT = 0.2
 # Range of uniform sampling distribution of joint angles
-THETA_RANDOM_RANGE = 0.1
+THETA_RANDOM_MAX = 0.1
 # Range of uniform sampling distribution of joint velocities
-DTHETA_RANDOM_RANGE = 0.1
+DTHETA_RANDOM_MAX = 0.1
 # Relative height of tip to consider an episode successful for normal env
 HEIGHT_REL_DEFAULT_THRESHOLD = 0.5
-# Mim relative height of tip to consider an episode successful for goal env
-HEIGHT_REL_MIN_GOAL_THRESHOLD = -0.2
-# Max relative height of tip to consider an episode successful for goal env
-HEIGHT_REL_MAX_GOAL_THRESHOLD = 0.98
+# Range of rel. height of tip to consider an episode successful for goal env
+HEIGHT_REL_GOAL_THRESHOLD_RANGE = (-0.2, 0.98)
 # Standard deviation of the noise added to the action
 ACTION_NOISE = 0.0
 
@@ -159,14 +157,12 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
 
         See documentation: https://gym.openai.com/envs/Acrobot-v1/.
         """
-        theta1, theta2 = self.rg.uniform(low=-THETA_RANDOM_RANGE,
-                                         high=THETA_RANDOM_RANGE,
-                                         size=(2,))
+        theta1, theta2 = sample(
+            scale=THETA_RANDOM_MAX, size=(2,), rg=self.rg)
         qpos = np.array([np.cos(theta1), np.sin(theta1),
                          np.cos(theta2), np.sin(theta2)])
-        qvel = self.rg.uniform(low=-DTHETA_RANDOM_RANGE,
-                               high=DTHETA_RANDOM_RANGE,
-                               size=(2,))
+        qvel = sample(
+            scale=DTHETA_RANDOM_MAX, size=(2,), rg=self.rg)
         return qpos, qvel
 
     def _get_achieved_goal(self) -> np.ndarray:
@@ -209,7 +205,7 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         if not self.continuous:
             action = self.AVAIL_TORQUE[action]
         if ACTION_NOISE > 0.0:
-            action += self.rg.uniform(-ACTION_NOISE, ACTION_NOISE)
+            action += sample(scale=ACTION_NOISE, rg=self.rg)
 
         return action
 
@@ -252,10 +248,8 @@ class AcrobotJiminyGoalEnv(AcrobotJiminyEnv, BaseJiminyGoalEnv):
         The goal is sampled using a uniform distribution in range
         [HEIGHT_REL_MIN_GOAL_THRESHOLD, HEIGHT_REL_MAX_GOAL_THRESHOLD].
         """
-        return self.rg.uniform(
-            low=HEIGHT_REL_MIN_GOAL_THRESHOLD,
-            high=HEIGHT_REL_MAX_GOAL_THRESHOLD,
-            size=(1,)) * self._tipPosZMax
+        return self._tipPosZMax * sample(
+            *HEIGHT_REL_GOAL_THRESHOLD_RANGE, size=(1,), rg=self.rg)
 
     def _get_achieved_goal(self) -> np.ndarray:
         """Compute achieved goal based on current state of the robot.

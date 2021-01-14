@@ -112,14 +112,10 @@ namespace python
                 .add_property("q", &PySystemStateVisitor::getPosition)
                 .add_property("v", &PySystemStateVisitor::getVelocity)
                 .add_property("a", &PySystemStateVisitor::getAcceleration)
-                .add_property("u", bp::make_getter(&systemState_t::u,
-                                   bp::return_internal_reference<>()))
-                .add_property("u_motor", bp::make_getter(&systemState_t::uMotor,
-                                         bp::return_internal_reference<>()))
-                .add_property("u_command", bp::make_getter(&systemState_t::uCommand,
-                                           bp::return_internal_reference<>()))
-                .add_property("u_internal", bp::make_getter(&systemState_t::uInternal,
-                                            bp::return_internal_reference<>()))
+                .add_property("u", &PySystemStateVisitor::getTotalEffort)
+                .add_property("u_motor", &PySystemStateVisitor::getMotorEffort)
+                .add_property("u_command", &PySystemStateVisitor::getCommandEffort)
+                .add_property("u_internal", &PySystemStateVisitor::getInternalEffort)
                 .add_property("f_external", bp::make_getter(&systemState_t::fExternal,
                                             bp::return_internal_reference<>()))
                 .def("__repr__", &PySystemStateVisitor::repr)
@@ -142,6 +138,30 @@ namespace python
         {
             // Do not use automatic converter for efficiency
             return convertToPython<vectorN_t>(self.a, false);
+        }
+
+        static bp::object getTotalEffort(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.u, false);
+        }
+
+        static bp::object getMotorEffort(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.uMotor, false);
+        }
+
+        static bp::object getCommandEffort(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.uCommand, false);
+        }
+
+        static bp::object getInternalEffort(systemState_t const & self)
+        {
+            // Do not use automatic converter for efficiency
+            return convertToPython<vectorN_t>(self.uInternal, false);
         }
 
         static std::string repr(systemState_t & self)
@@ -291,8 +311,11 @@ namespace python
                 .def("simulate", &PyEngineMultiRobotVisitor::simulate,
                                  (bp::arg("self"), "t_end", "q_init_list", "v_init_list",
                                   bp::arg("a_init_list") = bp::object()))
-                .def("computeSystemDynamics", &PyEngineMultiRobotVisitor::computeSystemDynamics,
-                                              (bp::arg("self"), "t_end", "q_list", "v_list"))
+                .def("compute_forward_kinematics", &EngineMultiRobot::computeForwardKinematics,
+                                                   (bp::arg("system"), "q", "v", "a"))
+                .staticmethod("compute_forward_kinematics")
+                .def("compute_systems_dynamics", &PyEngineMultiRobotVisitor::computeSystemsDynamics,
+                                                 (bp::arg("self"), "t_end", "q_list", "v_list"))
 
                 .def("get_log", &PyEngineMultiRobotVisitor::getLog)
                 .def("write_log", &EngineMultiRobot::writeLog,
@@ -368,7 +391,7 @@ namespace python
         }
 
         static systemHolder_t & getSystem(EngineMultiRobot  & self,
-                                              std::string const & systemName)
+                                          std::string const & systemName)
         {
             systemHolder_t * system;
             self.getSystem(systemName, system);  // getSystem is making sure that system is always assigned to a well-defined systemHolder_t
@@ -438,13 +461,13 @@ namespace python
                                  aInit);
         }
 
-        static bp::object computeSystemDynamics(EngineMultiRobot       & self,
-                                                float64_t        const & endTime,
-                                                bp::object       const & qSplitPy,
-                                                bp::object       const & vSplitPy)
+        static bp::object computeSystemsDynamics(EngineMultiRobot       & self,
+                                                 float64_t        const & endTime,
+                                                 bp::object       const & qSplitPy,
+                                                 bp::object       const & vSplitPy)
         {
-            std::vector<vectorN_t> aSplit;
-            self.computeSystemDynamics(
+            static std::vector<vectorN_t> aSplit;
+            self.computeSystemsDynamics(
                 endTime,
                 convertFromPython<std::vector<vectorN_t> >(qSplitPy),
                 convertFromPython<std::vector<vectorN_t> >(vSplitPy),
@@ -489,7 +512,7 @@ namespace python
             // Early return if empty
             if (logData.header.empty())
             {
-                return bp::make_tuple(bp::dict(), bp::dict());
+                return bp::make_tuple(variables, constants);
             }
 
             // Get constants
@@ -497,26 +520,24 @@ namespace python
                 logData.header.begin(), std::find(logData.header.begin(), logData.header.end(), START_COLUMNS));
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
-                int32_t const delimiter = logData.header[i].find("=");
+                int32_t const delimiter = logData.header[i].find(TELEMETRY_CONSTANT_DELIMITER);
                 constants[logData.header[i].substr(0, delimiter)] = logData.header[i].substr(delimiter + 1);
             }
 
             // Get Global.Time
+            bp::object timePy;
             if (!logData.timestamps.empty())
             {
                 vectorN_t timeBuffer = Eigen::Matrix<int64_t, 1, Eigen::Dynamic>::Map(
                     logData.timestamps.data(), logData.timestamps.size()).cast<float64_t>() / logData.timeUnit;
-                PyObject * valuePyTime(getNumpyReference(timeBuffer));
-                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
-                    PyArray_FROM_OF(valuePyTime, NPY_ARRAY_ENSURECOPY)));
-                Py_XDECREF(valuePyTime);
+                timePy = convertToPython(timeBuffer);
             }
             else
             {
                 npy_intp dims[1] = {npy_intp(0)};
-                variables[logData.header[lastConstantIdx + 1]] = bp::object(bp::handle<>(
-                    PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
+                timePy = bp::object(bp::handle<>(PyArray_SimpleNew(1, dims, NPY_FLOAT64)));
             }
+            variables[logData.header[lastConstantIdx + 1]] = timePy;
 
             // Get intergers
             if (!logData.intData.empty())
@@ -531,16 +552,7 @@ namespace python
                     {
                         intVector[j] = logData.intData[j][i];
                     }
-
-                    /* One must make copies with PyArray_FROM_OF instead of using
-                       raw pointer for floatMatrix and setting NPY_ARRAY_OWNDATA
-                       because otherwise Python is not able to free the memory
-                       associated with each columns independently. Moreover, one
-                       must decrease manually the counter reference for some reasons... */
-                    PyObject * valuePyInt(getNumpyReference(intVector));
-                    variables[header_i] = bp::object(bp::handle<>(
-                        PyArray_FROM_OF(valuePyInt, NPY_ARRAY_ENSURECOPY)));
-                    Py_XDECREF(valuePyInt);
+                    variables[header_i] = convertToPython(intVector);
                 }
             }
             else
@@ -568,11 +580,7 @@ namespace python
                     {
                         floatVector[j] = logData.floatData[j][i];
                     }
-
-                    PyObject * valuePyFloat(getNumpyReference(floatVector));
-                    variables[header_i] = bp::object(bp::handle<>(
-                        PyArray_FROM_OF(valuePyFloat, NPY_ARRAY_ENSURECOPY)));
-                    Py_XDECREF(valuePyFloat);
+                    variables[header_i] = convertToPython(floatVector);
                 }
             }
             else
@@ -679,10 +687,14 @@ namespace python
                                                (bp::arg("self"), "frame_name", "t", "dt", "F"))
                 .def("register_force_profile", &PyEngineVisitor::registerForceProfile,
                                                (bp::arg("self"), "frame_name", "force_function"))
+                .def("add_coupling_force", &PyEngineVisitor::addCouplingForce,
+                                           (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
-                .add_property("robot",  &PyEngineVisitor::getRobot)
+                .add_property("system", bp::make_function(&PyEngineVisitor::getSystem,
+                                        bp::return_internal_reference<>()))
+                .add_property("robot", &PyEngineVisitor::getRobot)
                 .add_property("controller", &PyEngineVisitor::getController)
                 .add_property("stepper_state", bp::make_function(&Engine::getStepperState,
                                                bp::return_internal_reference<>()))
@@ -740,6 +752,22 @@ namespace python
         {
             TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
             self.registerForceProfile(frameName, std::move(forceFct));
+        }
+
+        static hresult_t addCouplingForce(Engine            & self,
+                                          std::string const & frameName1,
+                                          std::string const & frameName2,
+                                          bp::object  const & forcePy)
+        {
+            TimeStateFctPyWrapper<pinocchio::Force> forceFct(forcePy);
+            return self.addCouplingForce(frameName1, frameName2, std::move(forceFct));
+        }
+
+        static systemHolder_t & getSystem(Engine & self)
+        {
+            systemHolder_t * system;
+            self.getSystem(system);
+            return *system;
         }
 
         static std::shared_ptr<Robot> getRobot(Engine & self)

@@ -158,7 +158,7 @@ namespace jiminy
         hresult_t addContactPoints(std::vector<std::string> const & frameNames);
         hresult_t removeContactPoints(std::vector<std::string> const & frameNames = {});
 
-        hresult_t setOptions(configHolder_t modelOptions); // Make a copy
+        hresult_t setOptions(configHolder_t modelOptions);  // Make a copy
         configHolder_t getOptions(void) const;
 
         /// This method are not intended to be called manually. The Engine is taking care of it.

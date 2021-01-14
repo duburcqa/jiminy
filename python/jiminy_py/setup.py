@@ -86,6 +86,8 @@ setup(
         # geometries and jiminy_py viewer releases on it for rendering
         # collision bodies.
         "meshcat>=0.0.19",
+        # Standalone mesh visualizer used as Viewer's backend.
+        "panda3d_viewer",
         # Used internally by Viewer to detect running Meshcat servers and avoid
         # orphan child processes.
         "psutil",

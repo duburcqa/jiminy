@@ -6,6 +6,7 @@
 #include "pinocchio/parsers/urdf.hpp"
 #include "pinocchio/algorithm/contact-dynamics.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
+#include "pinocchio/serialization/model.hpp"
 
 #include "H5Cpp.h"
 
@@ -57,10 +58,10 @@ namespace jiminy
         telemetryRecorder_ = std::make_unique<TelemetryRecorder>();
 
         // Initialize the engine-specific telemetry sender
-        telemetrySender_.configureObject(telemetryData_, ENGINE_OBJECT_NAME);
+        telemetrySender_.configureObject(telemetryData_, ENGINE_TELEMETRY_NAMESPACE);
     }
 
-    EngineMultiRobot::~EngineMultiRobot(void) = default; // Cannot be default in the header since some types are incomplete at this point
+    EngineMultiRobot::~EngineMultiRobot(void) = default;  // Cannot be default in the header since some types are incomplete at this point
 
     hresult_t EngineMultiRobot::addSystem(std::string const & systemName,
                                           std::shared_ptr<Robot> robot,
@@ -353,19 +354,19 @@ namespace jiminy
                 // Generate the log fieldnames
                 systemDataIt->positionFieldnames =
                     addCircumfix(systemIt->robot->getPositionFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->velocityFieldnames =
                     addCircumfix(systemIt->robot->getVelocityFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->accelerationFieldnames =
                     addCircumfix(systemIt->robot->getAccelerationFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->commandFieldnames =
                     addCircumfix(systemIt->robot->getCommandFieldnames(),
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
                 systemDataIt->energyFieldname =
                     addCircumfix("energy",
-                                 systemIt->name, "", TELEMETRY_DELIMITER);
+                                 systemIt->name, "", TELEMETRY_FIELDNAME_DELIMITER);
 
                 // Register variables to the telemetry senders
                 if (returnCode == hresult_t::SUCCESS)
@@ -559,7 +560,7 @@ namespace jiminy
         std::vector<vectorN_t> vSplit;
         qSplit.reserve(systems_.size());
         vSplit.reserve(systems_.size());
-        for (auto & system : systems_)
+        for (auto const & system : systems_)
         {
             auto qInitIt = qInit.find(system.name);
             auto vInitIt = vInit.find(system.name);
@@ -587,10 +588,12 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            // Note that EPS allows to be very slightly out-of-bounds.
-            if ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
-                (EPS < system.robot->getPositionLimitMin().array() - q.array()).any() ||
-                (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any())
+            // Note that EPS allows to be very slightly out-of-bounds
+            if ((system.robot->mdlOptions_->joints.enablePositionLimit &&
+                 ((EPS < q.array() - system.robot->getPositionLimitMax().array()).any() ||
+                  (EPS < system.robot->getPositionLimitMin().array() - q.array()).any())) ||
+                (system.robot->mdlOptions_->joints.enableVelocityLimit &&
+                 (EPS < v.array().abs() - system.robot->getVelocityLimit().array()).any()))
             {
                 PRINT_ERROR("The initial configuration or velocity is out-of-bounds for system '", system.name, "'.");
                 return hresult_t::ERROR_BAD_INPUT;
@@ -611,7 +614,7 @@ namespace jiminy
                 return hresult_t::ERROR_BAD_INPUT;
             }
 
-            for (auto & system : systems_)
+            for (auto const & system : systems_)
             {
                 auto aInitIt = aInit->find(system.name);
                 if (aInitIt == aInit->end())
@@ -692,7 +695,7 @@ namespace jiminy
                                 std::vector<vectorN_t> const & v,
                                 std::vector<vectorN_t>       & a) -> void
                          {
-                             this->computeSystemDynamics(t, q, v, a);
+                             this->computeSystemsDynamics(t, q, v, a);
                          };
         std::vector<Robot const *> robots;
         robots.reserve(systems_.size());
@@ -882,17 +885,64 @@ namespace jiminy
             // Synchronize the global stepper state with the individual system states
             syncStepperStateWithSystems();
 
-            // Lock the telemetry. At this point it is no longer possible to register new variables.
-            configureTelemetry();
-
-            // Write the header: this locks the registration of new variables
-            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
-
             // Initialize the last system states
             for (auto & systemData : systemsDataHolder_)
             {
                 systemData.statePrev = systemData.state;
             }
+
+            // Lock the telemetry. At this point it is no longer possible to register new variables.
+            configureTelemetry();
+
+            // Log systems data
+            for (auto const & system : systems_)
+            {
+                // Backup Robot's input arguments
+                std::string const telemetryUrdfPath = addCircumfix(
+                    "urdf_path", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                telemetrySender_.registerConstant(
+                    telemetryUrdfPath, system.robot->getUrdfPath());
+                std::string const telemetrHasFreeflyer = addCircumfix(
+                    "has_freeflyer", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                telemetrySender_.registerConstant(
+                    telemetrHasFreeflyer, std::to_string(system.robot->getHasFreeflyer()));
+                std::string const telemetryMeshPackageDirs = addCircumfix(
+                    "mesh_package_dirs", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                std::string meshPackageDirsString;
+                for (std::string const & dir : system.robot->getMeshPackageDirs())
+                {
+                    meshPackageDirsString += dir + '\n';
+                }
+                telemetrySender_.registerConstant(
+                    telemetryMeshPackageDirs, meshPackageDirsString);
+
+                // Backup the Pinocchio Model related to the current simulation
+                std::string const telemetryModelName = addCircumfix(
+                    "pinocchio_model", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                std::string modelString = system.robot->pncModel_.saveToString();
+                telemetrySender_.registerConstant(telemetryModelName, modelString);
+            }
+
+            // Log all options
+            configHolder_t allOptions;
+            for (auto const & system : systems_)
+            {
+                std::string const telemetryRobotOptions = addCircumfix(
+                    "system", system.name, "", TELEMETRY_FIELDNAME_DELIMITER);
+                configHolder_t systemOptions;
+                systemOptions["robot"] = system.robot->getOptions();
+                systemOptions["controller"] = system.controller->getOptions();
+                allOptions[telemetryRobotOptions] = systemOptions;
+            }
+            allOptions["engine"] = engineOptionsHolder_;
+            Json::Value allOptionsJson = convertToJson(allOptions);
+            Json::StreamWriterBuilder jsonWriter;
+            jsonWriter["indentation"] = "";
+            std::string const allOptionsString = Json::writeString(jsonWriter, allOptionsJson);
+            telemetrySender_.registerConstant("options", allOptionsString);
+
+            // Write the header: this locks the registration of new variables
+            telemetryRecorder_->initialize(telemetryData_.get(), engineOptions_->telemetry.timeUnit);
 
             // At this point, consider that the simulation is running
             isSimulationRunning_ = true;
@@ -992,7 +1042,7 @@ namespace jiminy
             {
                 stepSize = min(engineOptions_->stepper.dtMax, tEnd - stepperState_.t);
             }
-            returnCode = step(stepSize); // Automatic dt adjustment
+            returnCode = step(stepSize);  // Automatic dt adjustment
         }
 
         // Stop the simulation. New variables can be registered again, and the lock on the robot is released
@@ -1217,7 +1267,7 @@ namespace jiminy
             // Fix the FSAL issue if the dynamics has changed
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
-                computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                 syncSystemsStateWithStepper();
                 hasDynamicsChanged = false;
             }
@@ -1227,7 +1277,7 @@ namespace jiminy
                 /* Get the time of the next breakpoint for the ODE solver:
                    a breakpoint occurs if we reached tEnd, if an external force
                    is applied, or if we need to update the sensors / controller. */
-                float64_t dtNextGlobal; // dt to apply for the next stepper step because of the various breakpoints
+                float64_t dtNextGlobal;  // dt to apply for the next stepper step because of the various breakpoints
                 float64_t const dtNextUpdatePeriod = stepperUpdatePeriod_ - std::fmod(t, stepperUpdatePeriod_);
                 if (dtNextUpdatePeriod < SIMULATION_MIN_TIMESTEP)
                 {
@@ -1264,7 +1314,7 @@ namespace jiminy
                     // Fix the FSAL issue if the dynamics has changed
                     if (hasDynamicsChanged)
                     {
-                        computeSystemDynamics(t, qSplit, vSplit, aSplit);
+                        computeSystemsDynamics(t, qSplit, vSplit, aSplit);
                         syncSystemsStateWithStepper();
                         hasDynamicsChanged = false;
                     }
@@ -1914,10 +1964,11 @@ namespace jiminy
 
         /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
            which is doing more computation than necessary. */
+        pncData.oYcrb[0].setZero();
         for (int32_t i = 1; i < pncModel.njoints; ++i)
         {
-            int32_t const & jointIdx = pncModel.joints[i].id();
-            pncData.Ycrb[jointIdx] = pncModel.inertias[jointIdx];
+            pncData.Ycrb[i] = pncModel.inertias[i];
+            pncData.oYcrb[i] = pncData.oMi[i].act(pncModel.inertias[i]);
         }
         for (int32_t i = pncModel.njoints-1; i > 0; --i)
         {
@@ -1927,10 +1978,14 @@ namespace jiminy
             {
                 pncData.Ycrb[parentIdx] += pncData.liMi[jointIdx].act(pncData.Ycrb[jointIdx]);
             }
+            pncData.oYcrb[parentIdx] += pncData.oYcrb[i];
         }
 
         // Now that Ycrb is available, it is possible to extract the center of mass directly
         pinocchio::getComFromCrba(pncModel, pncData);
+        pncData.Ig.mass() = pncData.oYcrb[0].mass();
+        pncData.Ig.lever().setZero();
+        pncData.Ig.inertia() = pncData.oYcrb[0].inertia();
 
         // Update frame placements and collision informations
         pinocchio::updateFramePlacements(pncModel, pncData);
@@ -2019,7 +2074,7 @@ namespace jiminy
         float64_t const & zGround = std::get<float64_t>(ground);
         vector3_t & nGround = std::get<vector3_t>(ground);
         nGround.normalize();  // Make sure the ground normal is normalized
-        float64_t const depth = (posFrame(2) - zGround) * nGround(2); // First-order projection (exact assuming flat surface)
+        float64_t const depth = (posFrame(2) - zGround) * nGround(2);  // First-order projection (exact assuming flat surface)
 
         // Only compute the ground reaction force if the penetration depth is positive
         if (depth < 0.0)
@@ -2531,19 +2586,19 @@ namespace jiminy
         }
     }
 
-    hresult_t EngineMultiRobot::computeSystemDynamics(float64_t              const & t,
-                                                      std::vector<vectorN_t> const & qSplit,
-                                                      std::vector<vectorN_t> const & vSplit,
-                                                      std::vector<vectorN_t>       & aSplit)
+    hresult_t EngineMultiRobot::computeSystemsDynamics(float64_t              const & t,
+                                                       std::vector<vectorN_t> const & qSplit,
+                                                       std::vector<vectorN_t> const & vSplit,
+                                                       std::vector<vectorN_t>       & aSplit)
     {
         /* - Note that the position of the free flyer is in world frame,
              whereas the velocities and accelerations are relative to
              the parent body frame. */
 
         // Make sure that a simulation is running
-        if (systems_.empty())
+        if (!isSimulationRunning_)
         {
-            PRINT_ERROR("No system to simulate. Please add one before computing system dynamics.");
+            PRINT_ERROR("No simulation running. Please start it before calling this method.");
             return hresult_t::ERROR_INIT_FAILED;
         }
 
@@ -2632,6 +2687,8 @@ namespace jiminy
                                                     vectorN_t      const & u,
                                                     forceVector_t  const & fext)
     {
+        vectorN_t a;
+
         if (system.robot->hasConstraint())
         {
             // Compute kinematic constraints.
@@ -2657,37 +2714,42 @@ namespace jiminy
                                         v);
 
             // Compute inertia matrix, adding rotor inertia.
-            pinocchio::crba(system.robot->pncModel_,
-                            system.robot->pncData_,
-                            q);
-            for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
-            {
-                // Only support inertia for 1DoF joints.
-                if (system.robot->pncModel_.joints[i].nv() == 1)
-                {
-                    int32_t const & jointIdx = system.robot->pncModel_.joints[i].idx_v();
-                    system.robot->pncData_.M(jointIdx, jointIdx) +=
-                            system.robot->pncModel_.rotorInertia[jointIdx];
-                }
-            }
+            pinocchio_overload::crba(system.robot->pncModel_,
+                                     system.robot->pncData_,
+                                     q);
 
             // Call forward dynamics.
-            return pinocchio::forwardDynamics(system.robot->pncModel_,
-                                              system.robot->pncData_,
-                                              q,
-                                              v,
-                                              uTotal,
-                                              system.robot->getConstraintsJacobian(),
-                                              system.robot->getConstraintsDrift(),
-                                              CONSTRAINT_INVERSION_DAMPING,
-                                              false);
+            a = pinocchio::forwardDynamics(system.robot->pncModel_,
+                                           system.robot->pncData_,
+                                           uTotal,
+                                           system.robot->getConstraintsJacobian(),
+                                           system.robot->getConstraintsDrift(),
+                                           CONSTRAINT_INVERSION_DAMPING);
         }
         else
         {
             // No kinematic constraint: run aba algorithm.
-            return pinocchio_overload::aba(
+            a = pinocchio_overload::aba(
                 system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
+
+        // Compute the internal forces
+        pinocchio_overload::rnea(
+            system.robot->pncModel_, system.robot->pncData_, q, v, a);
+
+        // Using action-reaction law to compute the ground reaction force
+        system.robot->pncData_.f[0].setZero();
+        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+        {
+            int32_t const & parentIdx = system.robot->pncModel_.parents[i];
+            if (parentIdx == 0)
+            {
+                system.robot->pncData_.f[0] += system.robot->pncData_.oMi[i].act(
+                    system.robot->pncData_.f[i]);
+            }
+        }
+
+        return a;
     }
 
     // ===================================================================
@@ -2767,7 +2829,7 @@ namespace jiminy
             auto indexConstantEnd = std::find(header.begin(), header.end(), START_COLUMNS);
             std::copy(header.begin() + 1,
                     indexConstantEnd - 1,
-                    std::ostream_iterator<std::string>(file, ", ")); // Discard the first one (start constant flag)
+                    std::ostream_iterator<std::string>(file, ", "));  // Discard the first one (start constant flag)
             std::copy(indexConstantEnd - 1,
                     indexConstantEnd,
                     std::ostream_iterator<std::string>(file, "\n"));
@@ -2776,7 +2838,7 @@ namespace jiminy
                     std::ostream_iterator<std::string>(file, ", "));
             std::copy(header.end() - 2,
                     header.end() - 1,
-                    std::ostream_iterator<std::string>(file, "\n")); // Discard the last one (start data flag)
+                    std::ostream_iterator<std::string>(file, "\n"));  // Discard the last one (start data flag)
             Eigen::IOFormat CSVFormat(Eigen::StreamPrecision, Eigen::DontAlignCols, ", ", "\n");
             file << logMatrix.format(CSVFormat);
 
@@ -2845,15 +2907,15 @@ namespace jiminy
             for (int32_t i = 1; i < lastConstantIdx; ++i)
             {
                 std::string const & constantDescr = logData.header[i];
-                int32_t const delimiterIdx = constantDescr.find("=");
+                int32_t const delimiterIdx = constantDescr.find(TELEMETRY_CONSTANT_DELIMITER);
                 std::string const key = constantDescr.substr(0, delimiterIdx);
                 char_t const * value = constantDescr.c_str() + (delimiterIdx + 1);
 
                 H5::DataSpace constantSpace = H5::DataSpace(H5S_SCALAR);  // There is only one string !
                 H5::StrType stringType(H5::PredType::C_S1, hsize_t(constantDescr.size() - (delimiterIdx + 1)));
-                H5::Attribute constantAttrib = constantsGroup.createAttribute(
+                H5::DataSet constantDataSet = constantsGroup.createDataSet(
                     key, stringType, constantSpace);
-                constantAttrib.write(stringType, value);
+                constantDataSet.write(value, stringType);
             }
 
             /* Convert std:vector<std:vector<>> to Eigen Matrix for efficient transpose.
@@ -2996,10 +3058,10 @@ namespace jiminy
 
             // Extract the number of integers and floats from the list of logged constants
             std::string const & headerNumIntEntries = headerBuffer[headerBuffer.size() - 2];
-            int32_t delimiter = headerNumIntEntries.find("=");
+            int32_t delimiter = headerNumIntEntries.find(TELEMETRY_CONSTANT_DELIMITER);
             int32_t NumIntEntries = std::stoi(headerNumIntEntries.substr(delimiter + 1));
             std::string const & headerNumFloatEntries = headerBuffer[headerBuffer.size() - 1];
-            delimiter = headerNumFloatEntries.find("=");
+            delimiter = headerNumFloatEntries.find(TELEMETRY_CONSTANT_DELIMITER);
             int32_t NumFloatEntries = std::stoi(headerNumFloatEntries.substr(delimiter + 1));
 
             // Deduce the parameters required to parse the whole binary log file

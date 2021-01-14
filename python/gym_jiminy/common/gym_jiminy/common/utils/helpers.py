@@ -16,8 +16,82 @@ FieldDictNested = Union[  # type: ignore
     Dict[str, 'FieldDictNested'], ListStrRecursive]  # type: ignore
 
 
+def sample(low: Union[float, np.ndarray] = -1.0,
+           high: Union[float, np.ndarray] = 1.0,
+           dist: str = 'uniform',
+           scale: Union[float, np.ndarray] = 1.0,
+           enable_log_scale: bool = False,
+           size: Optional[Sequence[int]] = None,
+           rg: Optional[np.random.RandomState] = None
+           ) -> Union[float, np.ndarray]:
+    """Randomly sample values from a given distribution.
+
+    .. note:
+        If 'low', 'high', and 'scale' are floats, then the output is float if
+        'size' is None, otherwise it has type `np.ndarray` and shape 'size'.
+        Similarly, if any of 'low', 'high', and 'scale' are `np.ndarray`, then
+        its shape follows the broadcasting rules between these variables.
+
+    :param low: Lower value for bounded distribution, negative-side standard
+                deviation otherwise.
+                Optional: -1.0 by default.
+    :param high: Upper value for bounded distribution, positive-side standard
+                 deviation otherwise.
+                 Optional: 1.0 by default.
+    :param dist: Name of the statistical distribution from which to draw
+                 samples. It must be a member function for `np.random`.
+                 Optional: 'uniform' by default.
+    :param scale: Shrink the standard deviation of the distribution around the
+                  mean by this factor.
+                  Optional: No scaling by default?
+    :param enable_log_scale: The sampled values are power of 10.
+    :param size: Enforce of the sampling size. Only available if 'low', 'high'
+                 and 'scale' are floats. `None` to disable.
+                 Optional: Disable by default.
+    :param rg: Custom random number generator from which to draw samples.
+               Optional: Default to `np.random`.
+    """
+    # Make sure the distribution is supported
+    if dist not in ('uniform', 'normal'):
+        raise NotImplementedError(
+            f"'{dist}' distribution type is not supported for now.")
+
+    # Extract mean and deviation from min/max
+    mean = (low + high) / 2
+    dev = scale * (high - low) / 2
+
+    # Get sample shape.
+    # Better use dev than mean since it works even if only scale is array.
+    if isinstance(dev, np.ndarray):
+        if size is None:
+            size = dev.shape
+        else:
+            raise ValueError(
+                "One cannot specify 'size' if 'low' and 'high' are vectors.")
+
+    # Sample from normalized distribution.
+    # Note that some distributions are not normalized by default
+    if rg is None:
+        rg = np.random
+    distrib_fn = getattr(rg, dist)
+    val = distrib_fn(size=size)
+    if dist == 'uniform':
+        val = 2.0 * (val - 0.5)
+
+    # Set mean and deviation
+    val = mean + dev * val
+
+    # Revert log scale if appropriate
+    if enable_log_scale:
+        val = 10 ** val
+
+    return val
+
+
 def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
-    """Set to zero data from `Gym.Space`.
+    """Allocate data structure from `Gym.Space` and initialize it to zero.
+
+    :param space: Space for which to allocate and initialize data.
     """
     if isinstance(space, gym.spaces.Box):
         return np.zeros(space.shape, dtype=space.dtype)
@@ -35,6 +109,9 @@ def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
 def fill(data: SpaceDictNested,
          fill_value: float) -> None:
     """Set every element of 'data' from `Gym.Space` to scalar 'fill_value'.
+
+    :param data: Data structure to update.
+    :param fill_value: Value used to fill any scalar from the leaves.
     """
     if isinstance(data, np.ndarray):
         data.fill(fill_value)
@@ -59,6 +136,9 @@ def set_value(data: SpaceDictNested,
     .. note::
         If 'data' is a dictionary, 'value' must be a subtree of 'data',
         whose leaf values must be broadcastable with the ones of 'data'.
+
+    :param data: Data structure to partially update.
+    :param value: Unset of data only containing fields to update.
     """
     if isinstance(data, np.ndarray):
         try:
@@ -76,6 +156,8 @@ def set_value(data: SpaceDictNested,
 def copy(data: SpaceDictNested) -> SpaceDictNested:
     """Shadow copy recursively 'data' from `Gym.Space`, so that only leaves
     are still references.
+
+    :param data: Hierarchical data structure to copy without allocation.
     """
     if isinstance(data, dict):
         value = {}
@@ -87,6 +169,9 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
 
 def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     """Clamp value from Gym.Space to make sure it is within bounds.
+
+    :param space: Gym.Space used to determine upper and lower bounds.
+    :param value: Value to clamp.
     """
     if isinstance(space, gym.spaces.Box):
         return np.core.umath.clip(value, space.low, space.high)

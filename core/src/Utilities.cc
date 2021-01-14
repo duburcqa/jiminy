@@ -134,7 +134,7 @@ namespace jiminy
     Json::Value convertToJson<flexibleJointData_t>(flexibleJointData_t const & value)
     {
         Json::Value flex;
-        flex["jointName"] = convertToJson(value.jointName);
+        flex["frameName"] = convertToJson(value.frameName);
         flex["stiffness"] = convertToJson(value.stiffness);
         flex["damping"] = convertToJson(value.damping);
         return flex;
@@ -273,7 +273,7 @@ namespace jiminy
     {
         return {
             flexibleJointData_t{
-                convertFromJson<std::string>(value["jointName"]),
+                convertFromJson<std::string>(value["frameName"]),
                 convertFromJson<vectorN_t>(value["stiffness"]),
                 convertFromJson<vectorN_t>(value["damping"])}
         };
@@ -519,7 +519,7 @@ namespace jiminy
 
 	void resetRandGenerators(uint32_t const & seed)
 	{
-		srand(seed); // Eigen relies on srand for genering random matrix
+		srand(seed);  // Eigen relies on srand for genering random matrix
         generator_.seed(seed);
         r4_nor_setup();
 	}
@@ -588,7 +588,7 @@ namespace jiminy
         fieldnames.reserve(size);
         for (uint32_t i=0; i<size; ++i)
         {
-            fieldnames.push_back(baseName + TELEMETRY_DELIMITER + std::to_string(i));
+            fieldnames.push_back(baseName + TELEMETRY_FIELDNAME_DELIMITER + std::to_string(i));
         }
         return fieldnames;
     }
@@ -810,7 +810,7 @@ namespace jiminy
     hresult_t getJointTypePositionSuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")}); // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:
@@ -857,7 +857,7 @@ namespace jiminy
     hresult_t getJointTypeVelocitySuffixes(joint_t                  const & jointTypeIn,
                                            std::vector<std::string>       & jointTypeSuffixesOut)
     {
-        jointTypeSuffixesOut = std::vector<std::string>({std::string("")}); // If no extra discrimination is needed
+        jointTypeSuffixesOut = std::vector<std::string>({std::string("")});  // If no extra discrimination is needed
         switch (jointTypeIn)
         {
         case joint_t::LINEAR:
@@ -1315,9 +1315,9 @@ namespace jiminy
         }
     }
 
-    hresult_t insertFlexibilityInModel(pinocchio::Model       & modelInOut,
-                                       std::string      const & childJointNameIn,
-                                       std::string      const & newJointNameIn)
+    hresult_t insertFlexibilityBeforeJointInModel(pinocchio::Model       & modelInOut,
+                                                  std::string      const & childJointNameIn,
+                                                  std::string      const & newJointNameIn)
     {
         using namespace pinocchio;
 
@@ -1327,33 +1327,34 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        int32_t const & childIdx = modelInOut.getJointId(childJointNameIn);
+        int32_t const & childJointIdx = modelInOut.getJointId(childJointNameIn);
 
-        // Flexible joint is placed at the same position as the child joint, in its parent frame.
-        SE3 const jointPosition = modelInOut.jointPlacements[childIdx];
+        // Flexible joint is placed at the same position as the child joint, in its parent frame
+        SE3 const jointPosition = modelInOut.jointPlacements[childJointIdx];
 
-        // Create joint.
-        int32_t const newIdx = modelInOut.addJoint(modelInOut.parents[childIdx],
-                                                  JointModelSpherical(),
-                                                  jointPosition,
-                                                  newJointNameIn);
+        // Create flexible joint
+        int32_t const newJointIdx = modelInOut.addJoint(modelInOut.parents[childJointIdx],
+                                                        JointModelSpherical(),
+                                                        jointPosition,
+                                                        newJointNameIn);
 
-        // Set child joint to be a child of the new joint, at the origin.
-        modelInOut.parents[childIdx] = newIdx;
-        modelInOut.jointPlacements[childIdx] = SE3::Identity();
+        // Set child joint to be a child of the new joint, at the origin
+        modelInOut.parents[childJointIdx] = newJointIdx;
+        modelInOut.jointPlacements[childJointIdx] = SE3::Identity();
 
-        // Add new joint to frame list.
+        // Add new joint to frame list
         int32_t const & childFrameIdx = modelInOut.getFrameId(childJointNameIn);
         int32_t const & newFrameIdx = modelInOut.addJointFrame(
-            newIdx, modelInOut.frames[childFrameIdx].previousFrame);
+            newJointIdx, modelInOut.frames[childFrameIdx].previousFrame);
 
-        // Update child joint previousFrame index.
+        // Update child joint previousFrame index
+        modelInOut.frames[childFrameIdx].parent = newJointIdx;
         modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
 
-        // Update new joint subtree to include all the joints below it.
-        for (uint32_t i = 0; i < modelInOut.subtrees[childIdx].size(); ++i)
+        // Update new joint subtree to include all the joints below it
+        for (uint32_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
         {
-            modelInOut.subtrees[newIdx].push_back(modelInOut.subtrees[childIdx][i]);
+            modelInOut.subtrees[newJointIdx].push_back(modelInOut.subtrees[childJointIdx][i]);
         }
 
         /* Add weightless body.
@@ -1365,18 +1366,150 @@ namespace jiminy
         pinocchio::Inertia inertia = pinocchio::Inertia::FromEllipsoid(
             mass, length_semiaxis, length_semiaxis, length_semiaxis);
 
-        modelInOut.appendBodyToJoint(newIdx, inertia, SE3::Identity());
+        modelInOut.appendBodyToJoint(newJointIdx, inertia, SE3::Identity());
 
         /* Pinocchio requires that joints are in increasing order as we move to the
-            leaves of the kinematic tree. Here this is no longer the case, as an
-            intermediate joint was appended at the end. We put back this joint at the
-            correct position, by doing successive permutations. */
-        for (int32_t i = childIdx; i < newIdx; ++i)
+           leaves of the kinematic tree. Here this is no longer the case, as an
+           intermediate joint was appended at the end. We put back this joint at the
+           correct position, by doing successive permutations. */
+        for (int32_t i = childJointIdx; i < newJointIdx; ++i)
         {
-            switchJoints(modelInOut, i, newIdx);
+            switchJoints(modelInOut, i, newJointIdx);
         }
 
         return hresult_t::SUCCESS;
+    }
+
+    hresult_t insertFlexibilityAtFixedFrameInModel(pinocchio::Model         & modelInOut,
+                                                   std::string        const & frameNameIn,
+                                                   pinocchio::Inertia const & childBodyInertiaIn,
+                                                   std::string        const & newJointNameIn)
+    {
+        using namespace pinocchio;
+
+        // Make sure the frame exists and is fixed
+        if (!modelInOut.existFrame(frameNameIn))
+        {
+            PRINT_ERROR("Frame does not exist.");
+            return hresult_t::ERROR_GENERIC;
+        }
+        int32_t frameIdx;
+        ::jiminy::getFrameIdx(modelInOut, frameNameIn, frameIdx);
+        Model::Frame & frame = modelInOut.frames[frameIdx];
+        if (frame.type != FIXED_JOINT)
+        {
+            PRINT_ERROR("Frame must be associated with fixed joint.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        /* Get the parent and child actual joints.
+           To this end, first get the parent joint, then get the list of
+           joints having it as parent, then goes up into the list until
+           the coresponding branch is found in order to identify the actual
+           child in the tree. */
+        uint32_t const parentJointIdx = frame.parent;
+        std::vector<int32_t> childCandidateJointsIdx;
+        for (int32_t i = 1; i < modelInOut.njoints; ++i)
+        {
+            if (modelInOut.parents[i] == parentJointIdx)
+            {
+                childCandidateJointsIdx.push_back(i);
+            }
+        }
+
+        std::vector<int32_t> childJointsIdx;
+        for (int32_t const & childCandidateIdx : childCandidateJointsIdx)
+        {
+            int32_t childFrameIdx;
+            std::string const & childJointName = modelInOut.names[childCandidateIdx];
+            ::jiminy::getFrameIdx(modelInOut, childJointName, childFrameIdx);
+
+            do
+            {
+                childFrameIdx = modelInOut.frames[childFrameIdx].previousFrame;
+                if (childFrameIdx == frameIdx)
+                {
+                    childJointsIdx.push_back(childCandidateIdx);
+                    break;
+                }
+            }
+            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != JOINT);
+        }
+
+        // Remove inertia of child body from composite body
+        Inertia childBodyInertiaInv;
+        childBodyInertiaInv.mass() = - childBodyInertiaIn.mass();
+        childBodyInertiaInv.lever() = childBodyInertiaIn.lever();
+        childBodyInertiaInv.inertia() = Symmetric3(Symmetric3::Vector6(
+            - childBodyInertiaIn.inertia().data()));
+        modelInOut.appendBodyToJoint(parentJointIdx,
+                                     childBodyInertiaInv,
+                                     frame.placement);
+        modelInOut.nbodies--;  // No need to increment the number of bodies
+
+        // Create flexible joint
+        int32_t const newJointIdx = modelInOut.addJoint(parentJointIdx,
+                                                        JointModelSpherical(),
+                                                        frame.placement,
+                                                        newJointNameIn);
+        modelInOut.appendBodyToJoint(newJointIdx, childBodyInertiaIn, SE3::Identity());
+
+        // Add new joint to frame list
+        int32_t const & newFrameIdx = modelInOut.addJointFrame(
+            newJointIdx, frameIdx);
+
+        for (int32_t const & childJointIdx : childJointsIdx)
+        {
+            // Set child joint to be a child of the new joint
+            modelInOut.parents[childJointIdx] = newJointIdx;
+            modelInOut.jointPlacements[childJointIdx] = frame.placement.actInv(
+                modelInOut.jointPlacements[childJointIdx]);
+
+            // Update new joint subtree to include all the joints below it
+            for (uint32_t i = 0; i < modelInOut.subtrees[childJointIdx].size(); ++i)
+            {
+                modelInOut.subtrees[newJointIdx].push_back(
+                    modelInOut.subtrees[childJointIdx][i]);
+            }
+        }
+
+        if (childJointsIdx.size() > 0)
+        {
+            int32_t const & childJointIdx = *std::min_element(
+                childJointsIdx.begin(), childJointsIdx.end());
+
+            // Update child frames parent and previousFrame indices
+            int32_t childFrameIdx;
+            std::string const & childJointName = modelInOut.names[childJointIdx];
+            ::jiminy::getFrameIdx(modelInOut, childJointName, childFrameIdx);
+            do
+            {
+                childFrameIdx = modelInOut.frames[childFrameIdx].previousFrame;
+
+                modelInOut.frames[childFrameIdx].parent = newJointIdx;
+                modelInOut.frames[childFrameIdx].placement = frame.placement.actInv(
+                   modelInOut.frames[childFrameIdx].placement);
+
+                if (childFrameIdx == frameIdx)
+                {
+                    modelInOut.frames[childFrameIdx].previousFrame = newFrameIdx;
+                    break;
+                }
+            }
+            while (childFrameIdx > 0 && modelInOut.frames[childFrameIdx].type != JOINT);
+
+            /* Pinocchio requires that joints are in increasing order as we move to the
+            leaves of the kinematic tree. Here this is no longer the case, as an
+            intermediate joint was appended at the end. We put back this joint at the
+            correct position, by doing successive permutations. */
+            for (int32_t i = childJointIdx; i < newJointIdx; ++i)
+            {
+                switchJoints(modelInOut, i, newJointIdx);
+            }
+        }
+
+        return hresult_t::SUCCESS;
+
     }
 
     pinocchio::Force convertForceGlobalFrameToJoint(pinocchio::Model const & model,

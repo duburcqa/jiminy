@@ -39,7 +39,7 @@ namespace jiminy
                     std::string objectName = getTelemetryName();
                     if (!objectPrefixName.empty())
                     {
-                        objectName = objectPrefixName + TELEMETRY_DELIMITER + objectName;
+                        objectName = objectPrefixName + TELEMETRY_FIELDNAME_DELIMITER + objectName;
                     }
                     telemetrySender_.configureObject(std::move(telemetryData), objectName);
                     returnCode = telemetrySender_.registerVariable(getFieldnames(), get());
