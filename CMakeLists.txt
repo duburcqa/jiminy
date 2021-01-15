@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.5.0)
+set(BUILD_VERSION 1.5.1)
 
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
