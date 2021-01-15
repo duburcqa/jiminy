@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.5.0)
+set(BUILD_VERSION 1.5.1)
 
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
@@ -37,6 +37,7 @@ add_subdirectory(core)
 
 option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 if(BUILD_PYTHON_INTERFACE)
+    include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
     add_subdirectory(python)
 endif()
 

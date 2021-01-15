@@ -22,7 +22,7 @@ if(NOT LEGACY_MODE)
         message(STATUS "Found urdfdom")
     endif()
 
-    find_package(pinocchio 2.4.4 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio >= 2.4.4 is required to support convex mesh collision and display
+    find_package(pinocchio 2.5.2 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.2 introduces 'isNormalized' method
     if(pinocchio_FOUND)
         message(STATUS "Found pinocchio: version ${pinocchio_VERSION}")
     else()
@@ -123,7 +123,7 @@ else()
 endif()
 target_link_libraries_system(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} jsoncpp::jsoncpp hdf5::hdf5_cpp hdf5::hdf5 hdf5::zlib)  # Beware the order is critical !
-target_link_libraries(${PROJECT_NAME} "${Boost_LIBRARIES}")
+target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
 if(NOT WIN32)
     target_link_libraries(${PROJECT_NAME} -ldl)  # Link some libraries that are not automatically linked with HDF5
 endif()
