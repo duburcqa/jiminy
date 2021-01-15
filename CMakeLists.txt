@@ -37,6 +37,7 @@ add_subdirectory(core)
 
 option(BUILD_PYTHON_INTERFACE "Build the Python bindings" ON)
 if(BUILD_PYTHON_INTERFACE)
+    include(${CMAKE_SOURCE_DIR}/build_tools/cmake/setupPython.cmake)
     add_subdirectory(python)
 endif()
 
