@@ -405,9 +405,11 @@ class Simulator:
                         "inherited from `BaseJiminyObserverController`."
                         ) from e
                 show_progress_bar = False
-        self.simulate(tf, q0, v0, None, is_state_theoretical)
-        if show_progress_bar is not False:
-            self.engine.controller.close_progress_bar()
+        try:
+            self.simulate(tf, q0, v0, None, is_state_theoretical)
+        finally:  # Make sure that the progress bar is properly closed
+            if show_progress_bar is not False:
+                self.engine.controller.close_progress_bar()
 
         # Write log
         if log_path is not None:

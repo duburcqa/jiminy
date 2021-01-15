@@ -162,6 +162,7 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         """Reset the progress bar. It must be called manually after calling
         `reset` method to enable automatic progress bar update.
         """
+        self.close_progress_bar()  # Close the existing progress bar, if any
         self.__pbar = tqdm(total=tf, bar_format=(
             "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
             "[{elapsed}<{remaining}]"))
