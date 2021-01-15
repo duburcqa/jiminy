@@ -2,22 +2,25 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index cf984477..db497fb7 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -127,13 +127,13 @@ SET(BOOST_REQUIRED_COMPONENTS filesystem serialization system)
+@@ -127,16 +127,16 @@ SET(BOOST_REQUIRED_COMPONENTS filesystem serialization system)
 
  SET_BOOST_DEFAULT_OPTIONS()
  EXPORT_BOOST_DEFAULT_OPTIONS()
 -ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
  IF(BUILD_PYTHON_INTERFACE)
-   FINDPYTHON()
+   MESSAGE(STATUS "The Python bindings of Pinocchio will be compiled along the main library. If you want to disable this feature, please set the option BUILD_PYTHON_INTERFACE to OFF.")
+   FINDPYTHON(REQUIRED)
    SEARCH_FOR_BOOST_PYTHON(REQUIRED)
    ADD_PROJECT_DEPENDENCY(eigenpy 2.5.0 REQUIRED)
+ ELSE(BUILD_PYTHON_INTERFACE)
+   MESSAGE(STATUS "Pinocchio won't be compiled with its Python bindings. If you want to enable this feature, please set the option BUILD_PYTHON_INTERFACE to ON.")
  ENDIF(BUILD_PYTHON_INTERFACE)
 +ADD_PROJECT_DEPENDENCY(Boost REQUIRED COMPONENTS ${BOOST_REQUIRED_COMPONENTS})
 
  IF(BUILD_WITH_HPP_FCL_SUPPORT)
    ADD_DEFINITIONS(-DPINOCCHIO_WITH_HPP_FCL)
-@@ -141,12 +141,11 @@ IF(BUILD_WITH_HPP_FCL_SUPPORT)
+@@ -144,12 +144,11 @@ IF(BUILD_WITH_HPP_FCL_SUPPORT)
    ADD_PROJECT_DEPENDENCY(hpp-fcl 1.4.0 REQUIRED PKG_CONFIG_REQUIRES "hpp-fcl >= 1.4.0")
    # Check whether hpp-fcl python bindings are available.
    SET(BUILD_WITH_HPP_FCL_PYTHON_BINDINGS FALSE)
@@ -38,12 +41,11 @@ diff --git a/cmake/boost.cmake b/cmake/boost.cmake
 index b2cf262..fbd00f3 100644
 --- a/cmake/boost.cmake
 +++ b/cmake/boost.cmake
-@@ -114,8 +114,11 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
+@@ -101,8 +101,11 @@ MACRO(SEARCH_FOR_BOOST_PYTHON)
    IF(NOT BOOST_PYTHON_FOUND)
      MESSAGE(WARNING "Impossible to check Boost.Python version. Trying with 'python'.")
    ENDIF(NOT BOOST_PYTHON_FOUND)
--
-+
+
 +  unset(Boost_LIBRARIES)
    FIND_PACKAGE(Boost ${BOOST_PYTHON_REQUIRED} COMPONENTS ${BOOST_PYTHON_NAME})
 +  unset(Boost_LIBRARIES)
@@ -51,7 +53,7 @@ index b2cf262..fbd00f3 100644
    STRING(TOUPPER ${BOOST_PYTHON_NAME} UPPERCOMPONENT)
 
    LIST(APPEND LOGGING_WATCHED_VARIABLES
-@@ -164,7 +167,6 @@ MACRO(SEARCH_FOR_BOOST)
+@@ -151,7 +154,6 @@ MACRO(SEARCH_FOR_BOOST)
    FIND_PACKAGE(Boost ${BOOST_REQUIRED})
    STRING(REPLACE "_" "." Boost_SHORT_VERSION ${Boost_LIB_VERSION})
    IF("${Boost_SHORT_VERSION}" VERSION_GREATER "1.70" OR "${Boost_SHORT_VERSION}" VERSION_EQUAL "1.70")
@@ -63,7 +65,7 @@ diff --git a/cmake/python.cmake b/cmake/python.cmake
 index 3286da3..a142198 100644
 --- a/cmake/python.cmake
 +++ b/cmake/python.cmake
-@@ -89,7 +89,9 @@ MACRO(FINDPYTHON)
+@@ -96,7 +96,9 @@ MACRO(FINDPYTHON)
        SET(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
        SET(Python${_PYTHON_VERSION_MAJOR}_EXECUTABLE ${PYTHON_EXECUTABLE})
  
@@ -78,7 +80,7 @@ diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
 index b18e001f..d6ce025d 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
-@@ -14,7 +14,7 @@ ENDIF()
+@@ -17,7 +17,7 @@ ENDIF()
  GET_DIRECTORY_PROPERTY(CURRENT_COMPILE_DEFINITIONS COMPILE_DEFINITIONS)
  
  # Create target libpinocchio.so
