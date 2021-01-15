@@ -22,7 +22,7 @@ if(NOT LEGACY_MODE)
         message(STATUS "Found urdfdom")
     endif()
 
-    find_package(pinocchio 2.4.4 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio >= 2.4.4 is required to support convex mesh collision and display
+    find_package(pinocchio 2.5.2 NO_MODULE NO_CMAKE_SYSTEM_PATH)  # Pinocchio v2.5.2 introduces 'isNormalized' method
     if(pinocchio_FOUND)
         message(STATUS "Found pinocchio: version ${pinocchio_VERSION}")
     else()

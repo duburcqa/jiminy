@@ -1175,32 +1175,13 @@ namespace jiminy
     {
         if (model.nq != position.size())
         {
+            isValid = false;
             PRINT_ERROR("Size of configuration vector inconsistent with model.");
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        // First, check that the position is normalized
-        vectorN_t positionNormalized = position;
-        pinocchio::normalize(model, positionNormalized);
-        if (((positionNormalized.array() - position.array()).abs() > EPS).any())
-        {
-            isValid = false;
-            return hresult_t::SUCCESS;
-        }
+        isValid = pinocchio::isNormalized(model, position);
 
-        /* Normalize is not enough since it does not handle the case where
-           the norm of a joint position is zero. Self difference is used in
-           such a case, because it should be different from zero (since the
-           norm does not make sense in the first place). */
-        vectorN_t selfDifference(model.nv);
-        pinocchio::difference(model, position, position, selfDifference);
-        if ((selfDifference.array().abs() > EPS).any())
-        {
-            isValid = false;
-            return hresult_t::SUCCESS;
-        }
-
-        isValid = true;
         return hresult_t::SUCCESS;
     }
 
@@ -1440,8 +1421,8 @@ namespace jiminy
         Inertia childBodyInertiaInv;
         childBodyInertiaInv.mass() = - childBodyInertiaIn.mass();
         childBodyInertiaInv.lever() = childBodyInertiaIn.lever();
-        childBodyInertiaInv.inertia() = Symmetric3(Symmetric3::Vector6(
-            - childBodyInertiaIn.inertia().data()));
+        childBodyInertiaInv.inertia() = Symmetric3(
+            - childBodyInertiaIn.inertia().data());
         modelInOut.appendBodyToJoint(parentJointIdx,
                                      childBodyInertiaInv,
                                      frame.placement);

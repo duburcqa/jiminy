@@ -456,23 +456,15 @@ namespace jiminy
 
     static pinocchio::Inertia convertFromUrdf(::urdf::Inertial const & Y)
     {
-        pinocchio::Inertia inertia;
-
-        inertia.mass() = Y.mass;
-
         ::urdf::Vector3 const & p = Y.origin.position;
-        inertia.lever() = (vector3_t() << p.x, p.y, p.z).finished();
-
+        vector3_t const com(p.x, p.y, p.z);
         ::urdf::Rotation const & q = Y.origin.rotation;
         matrix3_t const R = Eigen::Quaterniond(q.w, q.x, q.y, q.z).matrix();
         matrix3_t I;
         I << Y.ixx, Y.ixy, Y.ixz,
              Y.ixy, Y.iyy, Y.iyz,
              Y.ixz, Y.iyz, Y.izz;
-        I = R * I * R.transpose();
-        inertia.inertia() = pinocchio::Symmetric3(I);
-
-        return inertia;
+        return {Y.mass, com, R*I*R.transpose()};
     }
 
     static pinocchio::Inertia getChildBodyInertiaFromUrdf(std::string const & urdfPath,
