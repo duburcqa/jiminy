@@ -67,7 +67,7 @@ jobs:
         cmake "$RootDir" -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
               -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
               -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_PREFIX_PATH="$InstallDir" `
-              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON `
+              -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
               -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
               -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
               -DBoost_USE_STATIC_LIBS=ON -DPYTHON_REQUIRED_VERSION="${{ matrix.python-version }}" `
