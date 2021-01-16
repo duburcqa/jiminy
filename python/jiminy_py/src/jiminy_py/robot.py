@@ -116,7 +116,7 @@ def generate_hardware_description_file(
     :param urdf_path: Fullpath of the URDF file.
     :param hardware_path: Fullpath of the hardware description file.
                           Optional: By default, it is the same location than
-                          the URDF file, using '.hdf' extension.
+                          the URDF file, using '*_hardware.toml' extension.
     :param default_update_rate: Default update rate of the sensors and the
                                 controller in Hz. It will be used for sensors
                                 whose the update rate is unspecified. 0.0 for
@@ -423,7 +423,8 @@ def generate_hardware_description_file(
 
     # Write the sensor description file
     if hardware_path is None:
-        hardware_path = pathlib.Path(urdf_path).with_suffix('.hdf')
+        hardware_path = str(pathlib.Path(
+            urdf_path).with_suffix('')) + '_hardware.toml'
     with open(hardware_path, 'w') as f:
         toml.dump(hardware_info, f)
 
@@ -517,10 +518,10 @@ class BaseJiminyRobot(jiminy.Robot):
 
         :param urdf_path: Path of the URDF file of the robot.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '.hdf' file in the same
-                              folder and with the same name. If not found, then
-                              no hardware is added to the robot, which is valid
-                              and can be used for display.
+                              Optional: Looking for '*_hardware.toml' file in
+                              the same folder and with the same name. If not
+                              found, then no hardware is added to the robot,
+                              which is valid and can be used for display.
         :param mesh_path: Path to the folder containing the URDF meshes. It
                           will overwrite any absolute mesh path.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
@@ -565,8 +566,9 @@ class BaseJiminyRobot(jiminy.Robot):
 
         # Load the hardware description file if available
         if hardware_path is None:
-            hardware_path = pathlib.Path(
-                self.urdf_path_orig).with_suffix('.hdf')
+            hardware_path = str(pathlib.Path(
+                self.urdf_path_orig).with_suffix('')) + '_hardware.toml'
+
         self.hardware_path = hardware_path
         if not os.path.exists(hardware_path):
             if hardware_path:

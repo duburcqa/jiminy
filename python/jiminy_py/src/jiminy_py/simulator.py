@@ -118,8 +118,8 @@ class Simulator:
 
         :param urdf_path: Path of the urdf model to be used for the simulation.
         :param hardware_path: Path of Jiminy hardware description toml file.
-                              Optional: Looking for '.hdf' file in the same
-                              folder and with the same name.
+                              Optional: Looking for '*_hardware.toml' file in
+                              the same folder and with the same name.
         :param mesh_path: Path to the folder containing the model meshes.
                           Optional: Env variable 'JIMINY_DATA_PATH' will be
                           used if available.
@@ -130,8 +130,8 @@ class Simulator:
                             imported AFTER loading the hardware description
                             file. It can be automatically generated from an
                             instance by calling `export_config_file` method.
-                            Optional: Looking for '.config' file in the same
-                            folder and with the same name. If not found,
+                            Optional: Looking for '*_options.toml' file in the
+                            same folder and with the same name. If not found,
                             using default configuration.
         :param avoid_instable_collisions: Prevent numerical instabilities by
                                           replacing collision mesh by vertices
@@ -144,12 +144,13 @@ class Simulator:
         """
         # Generate a temporary Hardware Description File if necessary
         if hardware_path is None:
-            hardware_path = pathlib.Path(urdf_path).with_suffix('.hdf')
+            hardware_path = str(pathlib.Path(
+                urdf_path).with_suffix('')) + '_hardware.toml'
             if not os.path.exists(hardware_path):
                 # Create a file that will be closed (thus deleted) at exit
                 urdf_name = os.path.splitext(os.path.basename(urdf_path))[0]
                 fd, hardware_path = tempfile.mkstemp(
-                    prefix=(urdf_name + "_hardware_"), suffix=".hdf")
+                    prefix=f"{urdf_name}_", suffix="_hardware.toml")
                 os.close(fd)
 
                 if not debug:
@@ -250,7 +251,7 @@ class Simulator:
             return self.robot.pinocchio_model
 
     @property
-    def pinocchio_data(self) -> pin.Model:
+    def pinocchio_data(self) -> pin.Data:
         """Getter of the pinocchio data, depending on the value of
            'use_theoretical_model'.
         """
@@ -774,8 +775,12 @@ class Simulator:
             method.
         """
         if config_path is None:
-            config_path = pathlib.Path(
-                self.robot.urdf_path_orig).with_suffix('.config')
+            if isinstance(self.robot, BaseJiminyRobot):
+                urdf_path = self.robot.urdf_path_orig
+            else:
+                urdf_path = self.robot.urdf_path
+            config_path = str(pathlib.Path(
+                urdf_path).with_suffix('')) + '_options.toml'
         with open(config_path, 'w') as f:
             toml.dump(self.get_options(), f, encoder=toml.TomlNumpyEncoder())
 
@@ -790,8 +795,12 @@ class Simulator:
             method.
         """
         if config_path is None:
-            config_path = pathlib.Path(
-                self.robot.urdf_path_orig).with_suffix('.config')
+            if isinstance(self.robot, BaseJiminyRobot):
+                urdf_path = self.robot.urdf_path_orig
+            else:
+                urdf_path = self.robot.urdf_path
+            config_path = str(pathlib.Path(
+                urdf_path).with_suffix('')) + '_options.toml'
             if not os.path.exists(config_path):
                 return
         options = toml.load(config_path)
