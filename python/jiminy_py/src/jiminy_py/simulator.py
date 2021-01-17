@@ -3,15 +3,15 @@ import toml
 import atexit
 import pathlib
 import tempfile
-import numpy as np
 from collections import OrderedDict
+from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
+
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
-from typing import Optional, Union, Type, Dict, Tuple, Sequence, List, Any
 
 import pinocchio as pin
-
 from . import core as jiminy
 from .core import (EncoderSensor as encoder,
                    EffortSensor as effort,
@@ -20,8 +20,12 @@ from .core import (EncoderSensor as encoder,
                    ImuSensor as imu)
 from .robot import generate_hardware_description_file, BaseJiminyRobot
 from .controller import BaseJiminyObserverController
-from .viewer import Viewer
-from .viewer import play_logfiles
+from .viewer import interactive_mode, play_logfiles, Viewer
+
+if interactive_mode():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 SENSORS_FIELDS = {
@@ -58,30 +62,32 @@ class Simulator:
         """
         :param robot: Jiminy robot already initialized.
         :param controller: Jiminy (observer-)controller already initialized.
-                           Optional: `BaseJiminyObserverController` doing
-                           nothing by default.
+                           Optional: None by default.
         :param engine_class: Class of engine to use.
                              Optional: jiminy_py.core.Engine by default.
         :param use_theoretical_model: Whether the state corresponds to the
                                       theoretical model when updating and
                                       fetching the robot's state.
-        :param viewer_backend: Backend of the viewer, eg gepetto-gui or
-                               meshcat.
-                               Optional: It is setup-dependent. See Viewer
+        :param viewer_backend: Backend of the viewer, e.g. panda3d or meshcat.
+                               Optional: It is setup-dependent. See `Viewer`
                                documentation for details about it.
         """
         # Backup the user arguments
         self.use_theoretical_model = use_theoretical_model
         self.viewer_backend = viewer_backend
 
-        # Instantiate and initialize a controller doing nothing if necessary
-        if controller is None:
-            controller = BaseJiminyObserverController()
-            controller.initialize(robot)
+        # Wrap callback in nested function to hide update of progress bar
+        def callback_wrapper(t: float,
+                             *args: Any,
+                             **kwargs: Any) -> None:
+            nonlocal self
+            if self.__pbar is not None:
+                self.__pbar.update(t - self.__pbar.n)
+            self._callback(t, *args, **kwargs)
 
         # Instantiate the low-level Jiminy engine, then initialize it
         self.engine = engine_class()
-        hresult = self.engine.initialize(robot, controller, self._callback)
+        hresult = self.engine.initialize(robot, controller, callback_wrapper)
         if hresult != jiminy.hresult_t.SUCCESS:
             raise RuntimeError(
                 "Invalid robot or controller. Make sure they are both "
@@ -96,6 +102,9 @@ class Simulator:
         # Viewer management
         self.viewer = None
         self._is_viewer_available = False
+
+        # Internal buffer for progress bar management
+        self.__pbar: Optional[tqdm] = None
 
         # Plot data holder
         self.__plot_data: Optional[Dict[str, Any]] = None
@@ -332,8 +341,8 @@ class Simulator:
             raise RuntimeError("Failed to start the simulation.")
 
         # Update the observer at the end, if suitable
-        if isinstance(self.controller, BaseJiminyObserverController):
-            self.controller.refresh_observation(
+        if isinstance(self.engine.controller, BaseJiminyObserverController):
+            self.engine.controller.refresh_observation(
                 self.stepper_state.t,
                 self.system_state.q,
                 self.system_state.v,
@@ -355,8 +364,8 @@ class Simulator:
             raise RuntimeError("Failed to perform the simulation step.")
 
         # Update the observer at the end, if suitable
-        if isinstance(self.controller, BaseJiminyObserverController):
-            self.controller.refresh_observation(
+        if isinstance(self.engine.controller, BaseJiminyObserverController):
+            self.engine.controller.refresh_observation(
                 self.stepper_state.t,
                 self.system_state.q,
                 self.system_state.v,
@@ -400,21 +409,17 @@ class Simulator:
                                   Optional: None by default.
         """
         # Run the simulation
-        if show_progress_bar is not False:
-            try:
-                self.engine.controller.set_progress_bar(tf)
-            except AttributeError as e:
-                if show_progress_bar:
-                    raise RuntimeError(
-                        "'show_progress_bar' can only be used with controller "
-                        "inherited from `BaseJiminyObserverController`."
-                        ) from e
-                show_progress_bar = False
+        if show_progress_bar:
+            self.__pbar = tqdm(total=tf, bar_format=(
+                "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
+                "[{elapsed}<{remaining}]"))
         try:
             self.simulate(tf, q0, v0, None, is_state_theoretical)
         finally:  # Make sure that the progress bar is properly closed
-            if show_progress_bar is not False:
-                self.engine.controller.close_progress_bar()
+            if show_progress_bar:
+                self.__pbar.update(self.__pbar.total - self.__pbar.n)
+                self.__pbar.close()
+                self.__pbar = None
 
         # Write log
         if log_path is not None:
