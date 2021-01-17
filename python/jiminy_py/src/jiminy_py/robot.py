@@ -444,16 +444,20 @@ def _fix_urdf_mesh_path(urdf_path: str,
     # Extract all the mesh path that are not package path, continue if any
     with open(urdf_path, 'r') as urdf_file:
         urdf_contents = urdf_file.read()
+    mesh_tag = "<mesh filename="
     pathlists = {
         filename
-        for filename in re.findall('<mesh filename="(.*)"', urdf_contents)
+        for filename in re.findall(mesh_tag + '"(.*)"', urdf_contents)
         if not filename.startswith('package://')}
     if not pathlists:
         return urdf_path
 
     # If mesh root path already matching, then nothing to do
     if len(pathlists) > 1:
-        mesh_path_orig = os.path.commonpath(pathlists)
+        if all(path.startswith('.') for path in pathlists):
+            mesh_path_orig = '.'
+        else:
+            mesh_path_orig = os.path.commonpath(pathlists)
     else:
         mesh_path_orig = os.path.dirname(next(iter(pathlists)))
     if mesh_path == mesh_path_orig:
@@ -469,7 +473,9 @@ def _fix_urdf_mesh_path(urdf_path: str,
         fixed_urdf_dir, os.path.basename(urdf_path))
 
     # Override the root mesh path with the desired one
-    urdf_contents = urdf_contents.replace(mesh_path_orig, mesh_path)
+    urdf_contents = urdf_contents.replace(
+        '"'.join((mesh_tag, mesh_path_orig)),
+        '"'.join((mesh_tag, mesh_path)))
     with open(fixed_urdf_path, 'w') as f:
         f.write(urdf_contents)
 
