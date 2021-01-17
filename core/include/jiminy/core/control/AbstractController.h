@@ -273,14 +273,14 @@ namespace jiminy
 
     public:
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
+        Robot const * robot_;                   ///< Robot for which to compute the command and internal dynamics must be computed
+        sensorsDataMap_t sensorsData_;
 
     protected:
-        Robot const * robot_;                   ///< Robot for which to compute the command and internal dynamics must be computed
         bool_t isInitialized_;                  ///< Flag to determine whether the controller has been initialized or not
         bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the controller has been initialized or not
         configHolder_t ctrlOptionsHolder_;      ///< Dictionary with the parameters of the controller
         TelemetrySender telemetrySender_;       ///< Telemetry sender of the controller used to register and update telemetry variables
-        sensorsDataMap_t sensorsData_;
 
     private:
         static_map_t<std::string, float64_t const *> registeredVariables_;    ///< Vector of dynamically registered telemetry variables

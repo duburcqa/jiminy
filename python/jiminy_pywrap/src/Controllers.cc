@@ -40,6 +40,8 @@ namespace python
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions)
+                .add_property("robot", bp::make_function(&AbstractController::getRobot,
+                                       bp::return_internal_reference<>()))
                 ;
         }
 
