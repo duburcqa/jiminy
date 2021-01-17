@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot
@@ -21,9 +21,6 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         such a Numba. Doing it is left to the user.
     """
     def __init__(self) -> None:
-        # Define some buffer to help factorizing computations
-        self.robot: Optional[jiminy.Robot] = None
-
         # Define some internal buffers
         self.__must_refresh_observer = True
         self.__controller_handle = \
@@ -40,8 +37,7 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         """
         if self.is_initialized:
             raise RuntimeError("Controller already initialized.")
-        self.robot = robot
-        return_code = super().initialize(self.robot)
+        return_code = super().initialize(robot)
         if return_code == jiminy.hresult_t.SUCCESS:
             raise ValueError(
                 "Impossible to instantiate the controller.  There is "
