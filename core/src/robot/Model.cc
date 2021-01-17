@@ -228,6 +228,11 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        if (bodyNames.empty())
+        {
+            return hresult_t::SUCCESS;  // Nothing to do. Returning early.
+        }
+
         if (pncGeometryModel_.ngeoms == 0)  // If successfully loaded, the ground should be available
         {
             PRINT_ERROR("Collision geometry not available. Some collision meshes were probably not found.");
