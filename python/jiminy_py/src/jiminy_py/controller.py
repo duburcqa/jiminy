@@ -38,9 +38,9 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         if self.is_initialized:
             raise RuntimeError("Controller already initialized.")
         return_code = super().initialize(robot)
-        if return_code == jiminy.hresult_t.SUCCESS:
+        if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError(
-                "Impossible to instantiate the controller.  There is "
+                "Impossible to instantiate the controller. There is "
                 "something wrong with the robot.")
 
     def reset(self) -> None:
