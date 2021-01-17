@@ -1,15 +1,8 @@
 import numpy as np
-from typing import Callable, Optional
+from typing import Callable
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot
-from .viewer import interactive_mode
-
-from tqdm import tqdm as tqdmType
-if interactive_mode():
-    from tqdm.notebook import tqdm
-else:
-    from tqdm import tqdm
 
 
 ObserverHandleType = Callable[[
@@ -28,12 +21,6 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         such a Numba. Doing it is left to the user.
     """
     def __init__(self) -> None:
-        # Define some buffer to help factorizing computations
-        self.robot: Optional[jiminy.Robot] = None
-
-        # Internal buffer for progress bar management
-        self.__pbar: Optional[tqdmType] = None
-
         # Define some internal buffers
         self.__must_refresh_observer = True
         self.__controller_handle = \
@@ -41,8 +28,7 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         self.__observer_handle = lambda t, q, v, sensors_data: None
 
         # Initialize base controller
-        super().__init__(
-            self.__compute_command, self.internal_dynamics)
+        super().__init__(self.__compute_command, self.internal_dynamics)
 
     def initialize(self, robot: BaseJiminyRobot) -> None:
         """Initialize the controller.
@@ -51,11 +37,10 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         """
         if self.is_initialized:
             raise RuntimeError("Controller already initialized.")
-        self.robot = robot
-        return_code = super().initialize(self.robot)
-        if return_code == jiminy.hresult_t.SUCCESS:
+        return_code = super().initialize(robot)
+        if return_code != jiminy.hresult_t.SUCCESS:
             raise ValueError(
-                "Impossible to instantiate the controller.  There is "
+                "Impossible to instantiate the controller. There is "
                 "something wrong with the robot.")
 
     def reset(self) -> None:
@@ -140,8 +125,6 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
                           u: np.ndarray) -> None:
         """Internal controller callback, should not be called directly.
         """
-        if self.__pbar is not None:
-            self.__pbar.update(t - self.__pbar.n)
         if self.__must_refresh_observer:
             self.__observer_handle(t, q, v, sensors_data)
         self.__controller_handle(t, q, v, sensors_data, u)
@@ -157,21 +140,6 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
         if self.__must_refresh_observer:
             self.__observer_handle(t, q, v, sensors_data)
         self.__must_refresh_observer = False
-
-    def set_progress_bar(self, tf: float) -> None:
-        """Reset the progress bar. It must be called manually after calling
-        `reset` method to enable automatic progress bar update.
-        """
-        self.close_progress_bar()  # Close the existing progress bar, if any
-        self.__pbar = tqdm(total=tf, bar_format=(
-            "{percentage:3.0f}%|{bar}| {n:.2f}/{total_fmt} "
-            "[{elapsed}<{remaining}]"))
-
-    def close_progress_bar(self) -> None:
-        if self.__pbar is not None:
-            self.__pbar.update(self.__pbar.total - self.__pbar.n)
-            self.__pbar.close()
-            self.__pbar = None
 
     def internal_dynamics(self,
                           t: float,

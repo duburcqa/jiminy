@@ -107,6 +107,17 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        auto systemIt = std::find_if(systems_.begin(), systems_.end(),
+                                     [&systemName](auto const & sys)
+                                     {
+                                         return (sys.name == systemName);
+                                     });
+        if (systemIt != systems_.end())
+        {
+            PRINT_ERROR("A system with this name has already been added to the engine.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
         // Create and initialize a controller doing nothing
         auto setZeroFunctor = [](float64_t        const & t,
                                  vectorN_t        const & q,
@@ -136,7 +147,8 @@ namespace jiminy
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            // Remove every coupling forces involving the system
+            /* Remove every coupling forces involving the system.
+               Note that it is already checking that the system exists. */
             returnCode = removeCouplingForces(systemName);
         }
 

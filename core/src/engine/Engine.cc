@@ -17,9 +17,9 @@ namespace jiminy
         // Empty on purpose.
     }
 
-    hresult_t Engine::initialize(std::shared_ptr<Robot>              robot,
-                                 std::shared_ptr<AbstractController> controller,
-                                 callbackFunctor_t                   callbackFct)
+    hresult_t Engine::initializeImpl(std::shared_ptr<Robot>              robot,
+                                     std::shared_ptr<AbstractController> controller,
+                                     callbackFunctor_t                   callbackFct)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -33,14 +33,23 @@ namespace jiminy
         if(isInitialized_)
         {
             removeSystem("");  // It cannot fail at this point
+            robot_ = nullptr;
+            controller_ = nullptr;
             isInitialized_ = false;
         }
 
         /* Add the system without associated name, since
            it is irrelevant for a single robot engine. */
-        returnCode = addSystem("", std::move(robot),
-                               std::move(controller),
-                               std::move(callbackFct));
+        if (controller)
+        {
+            returnCode = addSystem("", std::move(robot),
+                                   std::move(controller),
+                                   std::move(callbackFct));
+        }
+        else
+        {
+            returnCode = addSystem("", std::move(robot), std::move(callbackFct));
+        }
 
         if (returnCode == hresult_t::SUCCESS)
         {
@@ -55,26 +64,17 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t Engine::initialize(std::shared_ptr<Robot>              robot,
+                                 std::shared_ptr<AbstractController> controller,
+                                 callbackFunctor_t                   callbackFct)
+    {
+        return initializeImpl(robot, controller, callbackFct);
+    }
+
     hresult_t Engine::initialize(std::shared_ptr<Robot> robot,
                                  callbackFunctor_t      callbackFct)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        /* Add the system without associated name, since
-           it is irrelevant for a single robot engine. */
-        returnCode = addSystem("", std::move(robot), std::move(callbackFct));
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Get some convenience proxies
-            robot_ = systems_.begin()->robot.get();
-            controller_ = systems_.begin()->controller.get();
-
-            // Set the initialization flag
-            isInitialized_ = true;
-        }
-
-        return returnCode;
+        return initializeImpl(robot, std::shared_ptr<AbstractController>(), callbackFct);
     }
 
     hresult_t Engine::setController(std::shared_ptr<AbstractController> controller)

@@ -74,6 +74,10 @@ namespace jiminy
         hresult_t getSystemState(systemState_t const * & systemState) const;
 
     private:
+        hresult_t initializeImpl(std::shared_ptr<Robot>              robot,
+                                 std::shared_ptr<AbstractController> controller,
+                                 callbackFunctor_t                   callbackFct);
+
         // Make private some methods to deter their use
         using EngineMultiRobot::addSystem;
         using EngineMultiRobot::removeSystem;
