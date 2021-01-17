@@ -15,6 +15,63 @@ namespace python
 
     // ***************************** PyAbstractControllerVisitor ***********************************
 
+    // Using an intermediary class is a trick to enable defining bp::base<...> in conjunction with bp::wrapper<...>
+    class AbstractControllerImpl: public AbstractController {};
+
+    class AbstractControllerWrapper: public AbstractControllerImpl, public bp::wrapper<AbstractControllerImpl>
+    {
+    public:
+        void reset(bool_t const & resetDynamicTelemetry)
+        {
+            bp::override func = this->get_override("reset");
+            if (func)
+            {
+                func(resetDynamicTelemetry);
+            }
+            else
+            {
+                AbstractController::reset(resetDynamicTelemetry);
+            }
+        }
+
+        void default_reset(bool_t const & resetDynamicTelemetry)
+        {
+            return this->AbstractController::reset(resetDynamicTelemetry);
+        }
+
+        hresult_t computeCommand(float64_t const & t,
+                                 vectorN_t const & q,
+                                 vectorN_t const & v,
+                                 vectorN_t       & u)
+        {
+            bp::override func = this->get_override("compute_command");
+            if (func)
+            {
+                func(t,
+                     FctPyWrapperArgToPython(q),
+                     FctPyWrapperArgToPython(v),
+                     FctPyWrapperArgToPython(u));
+            }
+            return hresult_t::SUCCESS;
+        }
+
+        hresult_t internalDynamics(float64_t const & t,
+                                   vectorN_t const & q,
+                                   vectorN_t const & v,
+                                   vectorN_t       & u)
+        {
+            bp::override func = this->get_override("internal_dynamics");
+            if (func)
+            {
+                func(t,
+                     FctPyWrapperArgToPython(q),
+                     FctPyWrapperArgToPython(v),
+                     FctPyWrapperArgToPython(u));
+            }
+            return hresult_t::SUCCESS;
+        }
+    };
+
     struct PyAbstractControllerVisitor
         : public bp::def_visitor<PyAbstractControllerVisitor>
     {
@@ -28,6 +85,8 @@ namespace python
             cl
                 .def("initialize", &PyAbstractControllerVisitor::initialize,
                                    (bp::arg("self"), "robot"))
+                .def("reset", &AbstractController::reset,
+                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
                 .add_property("is_initialized", bp::make_function(&AbstractController::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
                 .def("register_variable", &PyAbstractControllerVisitor::registerVariable,
@@ -40,15 +99,17 @@ namespace python
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions)
-                .add_property("robot", bp::make_function(&AbstractController::getRobot,
+                .add_property("robot", bp::make_getter(&AbstractController::robot_,
                                        bp::return_internal_reference<>()))
+                .add_property("sensors_data", bp::make_getter(&AbstractController::sensorsData_,
+                                              bp::return_internal_reference<>()))
                 ;
         }
 
-        static void initialize(AbstractController           & self,
-                               std::shared_ptr<Robot> const & robot)
+        static hresult_t initialize(AbstractController           & self,
+                                    std::shared_ptr<Robot> const & robot)
         {
-            self.initialize(robot.get());
+            return self.initialize(robot.get());
         }
 
         static hresult_t registerVariable(AbstractController       & self,
@@ -183,6 +244,14 @@ namespace python
                        std::shared_ptr<AbstractController>,
                        boost::noncopyable>("AbstractController", bp::no_init)
                 .def(PyAbstractControllerVisitor());
+
+            bp::class_<AbstractControllerWrapper, bp::bases<AbstractController>,
+                       std::shared_ptr<AbstractControllerWrapper>,
+                       boost::noncopyable>("AbstractControllerWrapper")
+                .def("reset", &AbstractController::reset, &AbstractControllerWrapper::default_reset,
+                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
+                .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand))
+                .def("internal_dynamics", bp::pure_virtual(&AbstractController::internalDynamics));
         }
     };
 
