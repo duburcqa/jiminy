@@ -13,11 +13,11 @@ namespace jiminy
     AbstractController::AbstractController(void) :
     baseControllerOptions_(nullptr),
     robot_(nullptr),
+    sensorsData_(),
     isInitialized_(false),
     isTelemetryConfigured_(false),
     ctrlOptionsHolder_(),
     telemetrySender_(),
-    sensorsData_(),
     registeredVariables_(),
     registeredConstants_()
     {

@@ -659,12 +659,10 @@ namespace python
         void visit(PyClass & cl) const
         {
             cl
-                .def("initialize", &PyEngineVisitor::initializeWithoutController,
-                                   (bp::arg("self"), "robot"))
                 .def("initialize", &PyEngineVisitor::initialize,
-                                   (bp::arg("self"), "robot", "controller"))
-                .def("initialize", &PyEngineVisitor::initializeWithCallback,
-                                   (bp::arg("self"), "robot", "controller", "callback_function"))
+                                   (bp::arg("self"), "robot",
+                                    bp::arg("controller") = std::shared_ptr<AbstractController>(),
+                                    bp::arg("callback_function") = bp::object()))
                 .def("set_controller", static_cast<
                         hresult_t (Engine::*)(std::shared_ptr<AbstractController>)
                     >(&Engine::setController),
@@ -703,38 +701,34 @@ namespace python
                 ;
         }
 
-        static hresult_t initializeWithCallback(Engine                                    & self,
-                                                std::shared_ptr<Robot>              const & robot,
-                                                std::shared_ptr<AbstractController> const & controller,
-                                                bp::object                          const & callbackPy)
-        {
-            TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
-            return self.initialize(robot, controller, std::move(callbackFct));
-        }
-
         static hresult_t initialize(Engine                                    & self,
                                     std::shared_ptr<Robot>              const & robot,
-                                    std::shared_ptr<AbstractController> const & controller)
+                                    std::shared_ptr<AbstractController> const & controller,
+                                    bp::object                          const & callbackPy)
         {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            return self.initialize(robot, controller, std::move(callbackFct));
-        }
-
-        static hresult_t initializeWithoutController(Engine                       & self,
-                                                     std::shared_ptr<Robot> const & robot)
-        {
-            callbackFunctor_t callbackFct = [](float64_t const & t,
-                                               vectorN_t const & q,
-                                               vectorN_t const & v) -> bool_t
-                                            {
-                                                return true;
-                                            };
-            return self.initialize(robot, std::move(callbackFct));
+            if (callbackPy.is_none())
+            {
+                callbackFunctor_t callbackFct = [](float64_t const & t,
+                                                vectorN_t const & q,
+                                                vectorN_t const & v) -> bool_t
+                                                {
+                                                    return true;
+                                                };
+                if (controller)
+                {
+                    return self.initialize(robot, controller, std::move(callbackFct));
+                }
+                return self.initialize(robot, std::move(callbackFct));
+            }
+            else
+            {
+                TimeStateFctPyWrapper<bool_t> callbackFct(callbackPy);
+                if (controller)
+                {
+                    return self.initialize(robot, controller, std::move(callbackFct));
+                }
+                return self.initialize(robot, std::move(callbackFct));
+            }
         }
 
         static void registerForceImpulse(Engine            & self,

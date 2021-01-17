@@ -9,13 +9,6 @@ if [ -z ${BUILD_TYPE} ]; then
   echo "BUILD_TYPE is unset. Defaulting to 'Release'."
 fi
 
-### Enable LTO if possible
-if [ $(gcc -dumpversion) -ge 9 ]; then
-  ENABLE_LTO=1
-else
-  ENABLE_LTO=0
-fi
-
 ### Get the fullpath of Jiminy project
 ScriptDir="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
 RootDir="$(dirname $ScriptDir)"
@@ -186,7 +179,7 @@ make install -j2
 mkdir -p "$RootDir/eigenpy/build"
 cd "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${ENABLE_LTO} \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
@@ -232,7 +225,7 @@ make install -j2
 mkdir -p "$RootDir/assimp/build"
 cd "$RootDir/assimp/build"
 cmake "$RootDir/assimp" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${ENABLE_LTO} \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DASSIMP_BUILD_ASSIMP_TOOLS=OFF -DASSIMP_BUILD_ZLIB=ON -DASSIMP_BUILD_TESTS=OFF \
       -DASSIMP_BUILD_SAMPLES=OFF -DBUILD_DOCS=OFF \
       -DBUILD_SHARED_LIBS=OFF -DCMAKE_CXX_FLAGS="-DNDEBUG -O3 -fPIC -s -Wno-strict-overflow -Wno-class-memaccess" -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
@@ -250,7 +243,7 @@ make install -j2
 mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${ENABLE_LTO} \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DQhull_PREFIX="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
@@ -265,7 +258,7 @@ make install -j2
 mkdir -p "$RootDir/pinocchio/build"
 cd "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
-      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=${ENABLE_LTO} \
+      -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \

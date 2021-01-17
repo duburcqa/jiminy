@@ -192,7 +192,7 @@ if (-not (Test-Path -PathType Container "$RootDir/eigenpy/build")) {
 Set-Location -Path "$RootDir/eigenpy/build"
 cmake "$RootDir/eigenpy" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -289,7 +289,7 @@ if (-not (Test-Path -PathType Container "$RootDir/hpp-fcl/build")) {
 Set-Location -Path "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
@@ -308,7 +308,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio/build")) {
 Set-Location -Path "$RootDir/pinocchio/build"
 cmake "$RootDir/pinocchio" -Wno-dev -G "Visual Studio 16 2019" -T "v142" -DCMAKE_GENERATOR_PLATFORM=x64 `
       -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>DLL" `
-      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON `
+      -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF `
       -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" `
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" `
       -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE `
