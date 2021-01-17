@@ -172,7 +172,9 @@ class Simulator:
                          avoid_instable_collisions, verbose=debug)
 
         # Instantiate and initialize the engine
-        simulator = cls(robot, engine_class=jiminy.Engine, **kwargs)
+        simulator = Simulator.__new__(cls)
+        Simulator.__init__(
+            simulator, robot, engine_class=jiminy.Engine, **kwargs)
 
         # Get engine options
         engine_options = simulator.engine.get_options()
