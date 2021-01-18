@@ -247,7 +247,7 @@ namespace python
 
             bp::class_<AbstractControllerWrapper, bp::bases<AbstractController>,
                        std::shared_ptr<AbstractControllerWrapper>,
-                       boost::noncopyable>("AbstractControllerWrapper")
+                       boost::noncopyable>("BaseController")
                 .def("reset", &AbstractController::reset, &AbstractControllerWrapper::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
                 .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand))

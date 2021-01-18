@@ -55,7 +55,7 @@ class Simulator:
     """
     def __init__(self,
                  robot: jiminy.Robot,
-                 controller: Optional[jiminy.ControllerFunctor] = None,
+                 controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
