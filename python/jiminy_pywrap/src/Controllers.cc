@@ -259,18 +259,41 @@ namespace python
 
     // ***************************** PyControllerFunctorVisitor ***********************************
 
+    /* Take advantage of type erasure of std::function to support both
+       lambda functions and python handle wrapper depending whether or not
+       'compute_command' and 'internal_dynamics' has been specified.
+       It is likely to cause a small overhead because the compiler will
+       probably not be able to inline ControllerFctWrapper, as it would have
+       been the case otherwise, but it is the price to pay for versatility. */
+    using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
+
+    class CtrlFunctorImpl: public CtrlFunctor {};
+
+    class CtrlFunctorWrapper: public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
+    {
+    public:
+        void reset(bool_t const & resetDynamicTelemetry)
+        {
+            bp::override func = this->get_override("reset");
+            if (func)
+            {
+                func(resetDynamicTelemetry);
+            }
+            else
+            {
+                CtrlFunctor::reset(resetDynamicTelemetry);
+            }
+        }
+
+        void default_reset(bool_t const & resetDynamicTelemetry)
+        {
+            return this->CtrlFunctor::reset(resetDynamicTelemetry);
+        }
+    };
+
     struct PyControllerFunctorVisitor
         : public bp::def_visitor<PyControllerFunctorVisitor>
     {
-    public:
-        /* Take advantage of type erasure of std::function to support both
-           lambda functions and python handle wrapper depending whether or not
-           'compute_command' and 'internal_dynamics' has been specified.
-           It is likely to cause a small overhead because the compiler will
-           probably not be able to inline ControllerFctWrapper, as it would have
-           been the case otherwise, but it is the price to pay for versatility. */
-        using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose C++ API through the visitor.
@@ -328,6 +351,13 @@ namespace python
                        std::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
                 .def(PyControllerFunctorVisitor());
+
+            bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
+                       std::shared_ptr<CtrlFunctorWrapper>,
+                       boost::noncopyable>("BaseControllerFunctor", bp::no_init)
+                .def(PyControllerFunctorVisitor())  // It seems that '__init__' is not inherited automatically
+                .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
+                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
         }
     };
 

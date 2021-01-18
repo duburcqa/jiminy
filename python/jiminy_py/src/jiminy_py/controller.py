@@ -11,7 +11,7 @@ ControllerHandleType = Callable[[
     float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray], None]
 
 
-class BaseJiminyObserverController(jiminy.ControllerFunctor):
+class BaseJiminyObserverController(jiminy.BaseControllerFunctor):
     """Base class to instantiate a Jiminy observer and/or controller based on
     callables that can be changed on-the-fly.
 
@@ -42,12 +42,6 @@ class BaseJiminyObserverController(jiminy.ControllerFunctor):
             raise ValueError(
                 "Impossible to instantiate the controller. There is "
                 "something wrong with the robot.")
-
-    def reset(self) -> None:
-        """Reset the controller. Not intended to be called manually.
-        """
-        super().reset()
-        self.close_progress_bar()
 
     def set_observer_handle(self,
                             observer_handle: ObserverHandleType,
