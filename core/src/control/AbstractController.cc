@@ -12,7 +12,7 @@ namespace jiminy
 {
     AbstractController::AbstractController(void) :
     baseControllerOptions_(nullptr),
-    robot_(nullptr),
+    robot_(),
     sensorsData_(),
     isInitialized_(false),
     isTelemetryConfigured_(false),
@@ -24,8 +24,16 @@ namespace jiminy
         AbstractController::setOptions(getDefaultControllerOptions());  // Clarify that the base implementation is called
     }
 
-    hresult_t AbstractController::initialize(Robot const * robot)
+    hresult_t AbstractController::initialize(std::weak_ptr<Robot const> robotIn)
     {
+        // Make sure the robot is valid
+        auto robot = robotIn.lock();
+        if (!robot)
+        {
+            PRINT_ERROR("Robot pointer expired or unset.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         if (!robot->getIsInitialized())
         {
             PRINT_ERROR("The robot is not initialized.");
@@ -33,7 +41,7 @@ namespace jiminy
         }
 
         // Backup robot
-        robot_ = robot;
+        robot_ = robotIn;
 
         // Reset the controller completely
         reset(true);
@@ -44,20 +52,20 @@ namespace jiminy
             isInitialized_ = true;
             float64_t t = 0.0;
             vectorN_t q = pinocchio::neutral(robot->pncModel_);
-            vectorN_t v = vectorN_t::Zero(robot_->nv());
-            vectorN_t uCommand = vectorN_t::Zero(robot_->getMotorsNames().size());
-            vectorN_t uInternal = vectorN_t::Zero(robot_->nv());
+            vectorN_t v = vectorN_t::Zero(robot->nv());
+            vectorN_t uCommand = vectorN_t::Zero(robot->getMotorsNames().size());
+            vectorN_t uInternal = vectorN_t::Zero(robot->nv());
             hresult_t returnCode = computeCommand(t, q, v, uCommand);
             if (returnCode == hresult_t::SUCCESS)
             {
-                if (uCommand.size() != (int32_t) robot_->getMotorsNames().size())
+                if (uCommand.size() != (int32_t) robot->getMotorsNames().size())
                 {
                     PRINT_ERROR("'computeCommand' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
                 }
 
                 internalDynamics(t, q, v, uInternal);
-                if (uInternal.size() != robot_->nv())
+                if (uInternal.size() != robot->nv())
                 {
                     PRINT_ERROR("'internalDynamics' returns command with wrong size.");
                     return hresult_t::ERROR_BAD_INPUT;
@@ -72,9 +80,11 @@ namespace jiminy
                         "Raised from exception: ", e.what());
             return hresult_t::ERROR_GENERIC;
         }
+
+        return hresult_t::SUCCESS;
     }
 
-    void AbstractController::reset(bool_t const & resetDynamicTelemetry)
+    hresult_t AbstractController::reset(bool_t const & resetDynamicTelemetry)
     {
         // Reset the telemetry buffer of dynamically registered quantities
         if (resetDynamicTelemetry)
@@ -82,12 +92,22 @@ namespace jiminy
             removeEntries();
         }
 
+        // Make sure the robot still exists
+        auto robot = robot_.lock();
+        if (!robot)
+        {
+            PRINT_ERROR("Robot pointer expired or unset.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         /* Refresh the sensor data proxy.
-           Note that it is necessary to do so since sensors may have been added ore removed. */
-        sensorsData_ = robot_->getSensorsData();
+           Note that it is necessary to do so since sensors may have been added or removed. */
+        sensorsData_ = robot->getSensorsData();
 
         // Update the telemetry flag
         isTelemetryConfigured_ = false;
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t AbstractController::configureTelemetry(std::shared_ptr<TelemetryData> telemetryData,

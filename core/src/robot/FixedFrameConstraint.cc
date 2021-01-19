@@ -19,39 +19,47 @@ namespace jiminy
         // Empty on purpose
     }
 
-    matrixN_t const & FixedFrameConstraint::getJacobian(vectorN_t const & q)
+    hresult_t FixedFrameConstraint::reset(void)
     {
-        jacobian_.setZero();
-        if (isAttached_)
+        // Make sure the model still exists
+        auto model = model_.lock();
+        if (!model)
         {
-            // Get jacobian in local frame because drift is expressed
-            // in local frame by pinocchio.
-            getFrameJacobian(model_->pncModel_,
-                             model_->pncData_,
-                             frameIdx_,
-                             pinocchio::LOCAL,
-                             jacobian_);
+            PRINT_ERROR("Model pointer expired or unset.");
+            return hresult_t::ERROR_GENERIC;
         }
-        return jacobian_;
-    }
 
-    vectorN_t const & FixedFrameConstraint::getDrift(vectorN_t const & q,
-                                                     vectorN_t const & v)
-    {
-        if (isAttached_)
-        {
-            drift_ = getFrameAcceleration(model_->pncModel_,
-                                          model_->pncData_,
-                                          frameIdx_).toVector();
-        }
-        return drift_;
-    }
-
-    hresult_t FixedFrameConstraint::refreshProxies()
-    {
         // Set jacobian / drift to right dimension
-        jacobian_.resize(6, model_->pncModel_.nv);
-        drift_.resize(6);
-        return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        jacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
+        drift_ = vectorN_t::Zero(6);
+
+        return getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+    }
+
+    hresult_t FixedFrameConstraint::computeJacobianAndDrift(vectorN_t const & q,
+                                                            vectorN_t const & v)
+    {
+        if (!isAttached_)
+        {
+            PRINT_ERROR("Constraint not attached to a model.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Assuming the model still exists.
+        auto model = model_.lock();
+
+        // Get jacobian and drift in local frame
+        getFrameJacobian(model->pncModel_,
+                         model->pncData_,
+                         frameIdx_,
+                         pinocchio::LOCAL,
+                         jacobian_);
+
+        drift_ = getFrameAcceleration(model->pncModel_,
+                                      model->pncData_,
+                                      frameIdx_,
+                                      pinocchio::LOCAL).toVector();
+
+        return hresult_t::SUCCESS;
     }
 }

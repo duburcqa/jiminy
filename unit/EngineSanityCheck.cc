@@ -83,7 +83,7 @@ TEST(EngineSanity, EnergyConservation)
         ControllerFunctor<decltype(controllerZeroTorque),
                           decltype(internalDynamics)>
     >(controllerZeroTorque, internalDynamics);
-    controller->initialize(robot.get());
+    controller->initialize(robot);
 
     // Create engine
     auto engine = std::make_shared<Engine>();

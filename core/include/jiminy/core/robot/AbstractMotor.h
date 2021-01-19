@@ -14,6 +14,7 @@
 
 #include <memory>
 
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 
@@ -41,9 +42,9 @@ namespace jiminy
 
         ~MotorSharedDataHolder_t(void) = default;
 
-        vectorN_t data_;                            ///< Buffer with current actual motor effort
-        std::vector<AbstractMotorBase *> motors_;   ///< Vector of pointers to the motors
-        int32_t num_;                               ///< Number of motors
+        vectorN_t data_;                           ///< Buffer with current actual motor effort
+        std::vector<AbstractMotorBase *> motors_;  ///< Vector of pointers to the motors.
+        int32_t num_;                              ///< Number of motors
     };
 
     class AbstractMotorBase: public std::enable_shared_from_this<AbstractMotorBase>
@@ -96,6 +97,9 @@ namespace jiminy
         AbstractMotorBase(AbstractMotorBase const & abstractMotor) = delete;
         AbstractMotorBase & operator = (AbstractMotorBase const & other) = delete;
 
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Constructor
         ///
@@ -121,7 +125,7 @@ namespace jiminy
         /// \remark   This method is not intended to be called manually. The Robot to which the
         ///           motor is added is taking care of it when its own `reset` method is called.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void resetAll(void);
+        virtual hresult_t resetAll(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Get the configuration options of the motor.
@@ -279,8 +283,8 @@ namespace jiminy
         ///
         /// \details  This method must be called before initializing the sensor.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(Robot                   const * robot,
-                         MotorSharedDataHolder_t       * sharedHolder);
+        hresult_t attach(std::weak_ptr<Robot const> robot,
+                         MotorSharedDataHolder_t * sharedHolder);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Detach the sensor from the robot
@@ -294,9 +298,9 @@ namespace jiminy
         configHolder_t motorOptionsHolder_;         ///< Dictionary with the parameters of the motor
         bool_t isInitialized_;                      ///< Flag to determine whether the controller has been initialized or not
         bool_t isAttached_;                         ///< Flag to determine whether the motor is attached to a robot
-        Robot const * robot_;                       ///< Robot for which the command and internal dynamics
+        std::weak_ptr<Robot const> robot_;          ///< Robot for which the command and internal dynamics
         std::string name_;                          ///< Name of the motor
-        int32_t motorIdx_;                           ///< Index of the motor in the measurement buffer
+        int32_t motorIdx_;                          ///< Index of the motor in the measurement buffer
         std::string jointName_;
         int32_t jointModelIdx_;
         joint_t jointType_;
@@ -306,7 +310,7 @@ namespace jiminy
         float64_t rotorInertia_;
 
     private:
-        MotorSharedDataHolder_t * sharedHolder_;    ///< Shared data between every motors associated with the robot
+        MotorSharedDataHolder_t * sharedHolder_;  ///< Shared data between every motors associated with the robot
     };
 }
 

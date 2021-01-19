@@ -11,7 +11,7 @@ namespace jiminy
     motorOptionsHolder_(),
     isInitialized_(false),
     isAttached_(false),
-    robot_(nullptr),
+    robot_(),
     name_(name),
     motorIdx_(-1),
     jointName_(),
@@ -36,12 +36,20 @@ namespace jiminy
         }
     }
 
-    hresult_t AbstractMotorBase::attach(Robot const * robot,
+    hresult_t AbstractMotorBase::attach(std::weak_ptr<Robot const> robot,
                                         MotorSharedDataHolder_t * sharedHolder)
     {
+        // Make sure the motor is not already attached
         if (isAttached_)
         {
             PRINT_ERROR("Motor already attached to a robot. Please 'detach' method before attaching it.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Make sure the robot still exists
+        if (robot.expired())
+        {
+            PRINT_ERROR("Robot pointer expired or unset.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -75,28 +83,34 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Remove associated col in the global data buffer
-        if (motorIdx_ < sharedHolder_->num_ - 1)
+        if (auto robot = robot_.lock())
         {
-            int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
-            sharedHolder_->data_.segment(motorIdx_, motorShift) =
-                sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
-        }
-        sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
+            // Remove associated col in the global data buffer
+            if (motorIdx_ < sharedHolder_->num_ - 1)
+            {
+                int32_t motorShift = sharedHolder_->num_ - motorIdx_ - 1;
+                sharedHolder_->data_.segment(motorIdx_, motorShift) =
+                    sharedHolder_->data_.segment(motorIdx_ + 1, motorShift).eval();  // eval to avoid aliasing
+            }
+            sharedHolder_->data_.conservativeResize(sharedHolder_->num_ - 1);
 
-        // Shift the motor ids
-        for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
-        {
-            --sharedHolder_->motors_[i]->motorIdx_;
-        }
+            // Shift the motor ids
+            for (int32_t i = motorIdx_ + 1; i < sharedHolder_->num_; ++i)
+            {
+                --sharedHolder_->motors_[i]->motorIdx_;
+            }
 
-        // Remove the motor to the shared memory
-        sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
-        --sharedHolder_->num_;
+            // Remove the motor to the shared memory
+            sharedHolder_->motors_.erase(sharedHolder_->motors_.begin() + motorIdx_);
+            --sharedHolder_->num_;
+        }
 
         // Clear the references to the robot and shared data
-        robot_ = nullptr;
+        robot_.reset();
         sharedHolder_ = nullptr;
+
+        // Unset the Id
+        motorIdx_ = -1;
 
         // Update the flag
         isAttached_ = false;
@@ -104,8 +118,15 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    void AbstractMotorBase::resetAll(void)
+    hresult_t AbstractMotorBase::resetAll(void)
     {
+        // Make sure the robot still exists
+        if (robot_.expired())
+        {
+            PRINT_ERROR("Robot has been deleted. Impossible to reset the motors.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         // Clear the shared data buffer
         sharedHolder_->data_.setZero();
 
@@ -113,8 +134,10 @@ namespace jiminy
         for (AbstractMotorBase * motor : sharedHolder_->motors_)
         {
             // Refresh proxies that are robot-dependent
-            motor->refreshProxies();
+            motor->refreshProxies();  //
         }
+
+        return hresult_t::SUCCESS;
     }
 
     hresult_t AbstractMotorBase::setOptions(configHolder_t const & motorOptions)
@@ -136,10 +159,13 @@ namespace jiminy
         motorOptionsHolder_ = motorOptions;
         baseMotorOptions_ = std::make_unique<abstractMotorOptions_t const>(motorOptionsHolder_);
 
-        // Refresh the proxies if the robot is initialized
-        if (internalBuffersMustBeUpdated && robot_->getIsInitialized() && isAttached_)
+        // Refresh the proxies if the robot is initialized if available
+        if (auto robot = robot_.lock())
         {
-            refreshProxies();
+            if (internalBuffersMustBeUpdated && robot->getIsInitialized() && isAttached_)
+            {
+                refreshProxies();
+            }
         }
 
         return hresult_t::SUCCESS;
@@ -154,29 +180,48 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
+        if (!isAttached_)
         {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode =  hresult_t::ERROR_INIT_FAILED;
+            PRINT_ERROR("Motor not attached to any robot. Impossible to refresh proxies.");
+            returnCode = hresult_t::ERROR_INIT_FAILED;
+        }
+
+        auto robot = robot_.lock();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!robot)
+            {
+                PRINT_ERROR("Robot has been deleted. Impossible to refresh proxies.");
+                returnCode = hresult_t::ERROR_GENERIC;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
             if (!isInitialized_)
             {
-                PRINT_ERROR("Motor not initialized. Impossible to refresh model-dependent proxies.");
+                PRINT_ERROR("Motor not initialized. Impossible to refresh proxies.");
                 returnCode = hresult_t::ERROR_INIT_FAILED;
             }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = ::jiminy::getJointModelIdx(robot_->pncModel_, jointName_, jointModelIdx_);
+            if (!robot->getIsInitialized())
+            {
+                PRINT_ERROR("Robot not initialized. Impossible to refresh proxies.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = getJointTypeFromIdx(robot_->pncModel_, jointModelIdx_, jointType_);
+            returnCode = ::jiminy::getJointModelIdx(robot->pncModel_, jointName_, jointModelIdx_);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getJointTypeFromIdx(robot->pncModel_, jointModelIdx_, jointType_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -185,19 +230,19 @@ namespace jiminy
             if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
             {
                 PRINT_ERROR("A motor can only be associated with a 1-dof linear or rotary joint.");
-                returnCode =  hresult_t::ERROR_BAD_INPUT;
+                returnCode = hresult_t::ERROR_BAD_INPUT;
             }
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            ::jiminy::getJointPositionIdx(robot_->pncModel_, jointName_, jointPositionIdx_);
-            ::jiminy::getJointVelocityIdx(robot_->pncModel_, jointName_, jointVelocityIdx_);
+            ::jiminy::getJointPositionIdx(robot->pncModel_, jointName_, jointPositionIdx_);
+            ::jiminy::getJointVelocityIdx(robot->pncModel_, jointName_, jointVelocityIdx_);
 
             // Get the motor effort limits from the URDF or the user options.
             if (baseMotorOptions_->effortLimitFromUrdf)
             {
-                effortLimit_ = robot_->pncModel_.effortLimit[jointVelocityIdx_] * baseMotorOptions_->mechanicalReduction;
+                effortLimit_ = robot->pncModel_.effortLimit[jointVelocityIdx_] * baseMotorOptions_->mechanicalReduction;
             }
             else
             {

@@ -23,12 +23,20 @@ namespace jiminy
     }
 
     template <typename T>
-    hresult_t AbstractSensorTpl<T>::attach(Robot const * robot,
+    hresult_t AbstractSensorTpl<T>::attach(std::weak_ptr<Robot const> robot,
                                            SensorSharedDataHolder_t * sharedHolder)
     {
+        // Make sure the sensor is not already attached
         if (isAttached_)
         {
             PRINT_ERROR("Sensor already attached to a robot. Please 'detach' method before attaching it.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Make sure the robot still exists
+        if (robot.expired())
+        {
+            PRINT_ERROR("Robot pointer expired or unset.");
             return hresult_t::ERROR_GENERIC;
         }
 
@@ -69,49 +77,52 @@ namespace jiminy
             return hresult_t::ERROR_GENERIC;
         }
 
-        // Remove associated col in the shared data buffers
-        if (sensorIdx_ < sharedHolder_->num_ - 1)
+        if (auto robot = robot_.lock())
         {
-            int32_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
+            // Remove associated col in the shared data buffers
+            if (sensorIdx_ < sharedHolder_->num_ - 1)
+            {
+                int32_t sensorShift = sharedHolder_->num_ - sensorIdx_ - 1;
+                for (matrixN_t & data : sharedHolder_->data_)
+                {
+                    data.middleCols(sensorIdx_, sensorShift) =
+                        data.middleCols(sensorIdx_ + 1, sensorShift).eval();
+                }
+                sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
+                    sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
+            }
             for (matrixN_t & data : sharedHolder_->data_)
             {
-                data.middleCols(sensorIdx_, sensorShift) =
-                    data.middleCols(sensorIdx_ + 1, sensorShift).eval();
+                data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
             }
-            sharedHolder_->dataMeasured_.middleCols(sensorIdx_, sensorShift) =
-                sharedHolder_->dataMeasured_.middleCols(sensorIdx_ + 1, sensorShift).eval();
-        }
-        for (matrixN_t & data : sharedHolder_->data_)
-        {
-            data.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
-        }
-        sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
+            sharedHolder_->dataMeasured_.conservativeResize(Eigen::NoChange, sharedHolder_->num_ - 1);
 
-        // Shift the sensor indices
-        for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
-        {
-            AbstractSensorTpl<T> * sensor =
-                static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
-            --sensor->sensorIdx_;
-        }
-
-        // Remove the sensor from the shared memory
-        sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorIdx_);
-        --sharedHolder_->num_;
-
-        // Update delayMax_ proxy
-        if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
-        {
-            sharedHolder_->delayMax_ = 0.0;
-            for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+            // Shift the sensor indices
+            for (int32_t i = sensorIdx_ + 1; i < sharedHolder_->num_; ++i)
             {
-                sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
-                                                    sensor->baseSensorOptions_->delay);
+                AbstractSensorTpl<T> * sensor =
+                    static_cast<AbstractSensorTpl<T> *>(sharedHolder_->sensors_[i]);
+                --sensor->sensorIdx_;
+            }
+
+            // Remove the sensor from the shared memory
+            sharedHolder_->sensors_.erase(sharedHolder_->sensors_.begin() + sensorIdx_);
+            --sharedHolder_->num_;
+
+            // Update delayMax_ proxy
+            if (sharedHolder_->delayMax_ < baseSensorOptions_->delay + EPS)
+            {
+                sharedHolder_->delayMax_ = 0.0;
+                for (AbstractSensorBase * sensor : sharedHolder_->sensors_)
+                {
+                    sharedHolder_->delayMax_ = std::max(sharedHolder_->delayMax_,
+                                                        sensor->baseSensorOptions_->delay);
+                }
             }
         }
 
         // Clear the references to the robot and shared data
-        robot_ = nullptr;
+        robot_.reset();
         sharedHolder_ = nullptr;
 
         // Unset the Id
@@ -124,8 +135,15 @@ namespace jiminy
     }
 
     template <typename T>
-    void AbstractSensorTpl<T>::resetAll(void)
+    hresult_t AbstractSensorTpl<T>::resetAll(void)
     {
+        // Make sure the robot still exists
+        if (robot_.expired())
+        {
+            PRINT_ERROR("Robot has been deleted. Impossible to reset the sensors.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
         // Clear the shared data buffers
         sharedHolder_->time_.resize(2);
         std::fill(sharedHolder_->time_.begin(), sharedHolder_->time_.end(), -1);
@@ -146,6 +164,8 @@ namespace jiminy
             // Reset the telemetry state
             sensor->isTelemetryConfigured_ = false;
         }
+
+        return hresult_t::SUCCESS;
     }
 
     template <typename T>

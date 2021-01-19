@@ -82,7 +82,7 @@ namespace jiminy
         /// \param[in] model    Model on which to apply the constraint.
         /// \return     Error code: attach may fail, including if the constraint is already attached.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        hresult_t attach(Model const * model);
+        hresult_t attach(std::weak_ptr<Model const> model);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief      Detach the constraint from its model.
@@ -90,10 +90,10 @@ namespace jiminy
         void detach(void);
 
     protected:
-        Model const * model_;  ///< Model on which the constraint operates.
-        bool_t isAttached_;    ///< Flag to indicate if the constraint has been attached to a model.
-        matrixN_t jacobian_;   ///< Jacobian of the constraint.
-        vectorN_t drift_;      ///< Drift of the constraint.
+        std::weak_ptr<Model const> model_;  ///< Model on which the constraint operates.
+        bool_t isAttached_;                 ///< Flag to indicate if the constraint has been attached to a model.
+        matrixN_t jacobian_;                ///< Jacobian of the constraint.
+        vectorN_t drift_;                   ///< Drift of the constraint.
     };
 }
 

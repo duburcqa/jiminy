@@ -129,7 +129,7 @@ namespace jiminy
                               };
         auto controller = std::make_shared<ControllerFunctor<
             decltype(setZeroFunctor), decltype(setZeroFunctor)> >(setZeroFunctor, setZeroFunctor);
-        controller->initialize(robot.get());
+        controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
     }
@@ -1846,10 +1846,10 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::getSystem(std::string    const   & systemName,
-                                          systemHolder_t const * & system) const
+    hresult_t EngineMultiRobot::getSystem(std::string const & systemName,
+                                          systemHolder_t * & system)
     {
-        static systemHolder_t const systemEmpty;
+        static systemHolder_t systemEmpty;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1871,20 +1871,6 @@ namespace jiminy
         }
 
         system = &systemEmpty;
-        return returnCode;
-    }
-
-    hresult_t EngineMultiRobot::getSystem(std::string    const   & systemName,
-                                          systemHolder_t       * & system)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        systemHolder_t const * systemConst;
-        returnCode = const_cast<EngineMultiRobot const *>(this)->getSystem(systemName, systemConst);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            system = const_cast<systemHolder_t *>(systemConst);
-        }
 
         return returnCode;
     }

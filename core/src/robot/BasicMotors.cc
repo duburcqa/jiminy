@@ -24,21 +24,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Motor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            jointName_ = jointName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        jointName_ = jointName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            jointName_.clear();
             isInitialized_ = false;
         }
 
