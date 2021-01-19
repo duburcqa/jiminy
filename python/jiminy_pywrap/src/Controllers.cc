@@ -21,20 +21,18 @@ namespace python
     class AbstractControllerWrapper: public AbstractControllerImpl, public bp::wrapper<AbstractControllerImpl>
     {
     public:
-        void reset(bool_t const & resetDynamicTelemetry)
+        hresult_t reset(bool_t const & resetDynamicTelemetry)
         {
             bp::override func = this->get_override("reset");
             if (func)
             {
                 func(resetDynamicTelemetry);
+                return hresult_t::SUCCESS;
             }
-            else
-            {
-                AbstractController::reset(resetDynamicTelemetry);
-            }
+            return AbstractController::reset(resetDynamicTelemetry);
         }
 
-        void default_reset(bool_t const & resetDynamicTelemetry)
+        hresult_t default_reset(bool_t const & resetDynamicTelemetry)
         {
             return this->AbstractController::reset(resetDynamicTelemetry);
         }
@@ -99,8 +97,7 @@ namespace python
                 .def("remove_entries", &AbstractController::removeEntries)
                 .def("set_options", &PyAbstractControllerVisitor::setOptions)
                 .def("get_options", &AbstractController::getOptions)
-                .add_property("robot", bp::make_getter(&AbstractController::robot_,
-                                       bp::return_internal_reference<>()))
+                .add_property("robot", &PyAbstractControllerVisitor::getRobot)
                 .add_property("sensors_data", bp::make_getter(&AbstractController::sensorsData_,
                                               bp::return_internal_reference<>()))
                 ;
@@ -109,7 +106,10 @@ namespace python
         static hresult_t initialize(AbstractController           & self,
                                     std::shared_ptr<Robot> const & robot)
         {
-            return self.initialize(robot.get());
+            /* Cannot use input shared pointer because its reference counter is corrupted for some reason,
+               making it impossible to use it in conjunction with weak_ptr. The only known workaround is
+               using `enable_shared_from_this` trick: https://github.com/boostorg/python/issues/189 */
+            return self.initialize(robot->shared_from_this());
         }
 
         static hresult_t registerVariable(AbstractController       & self,
@@ -235,6 +235,11 @@ namespace python
             self.setOptions(config);
         }
 
+        static std::shared_ptr<Robot> getRobot(AbstractController & self)
+        {
+            return std::const_pointer_cast<Robot>(self.robot_.lock());  // It is not possible to keep constness
+        }
+
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose.
         ///////////////////////////////////////////////////////////////////////////////
@@ -247,7 +252,7 @@ namespace python
 
             bp::class_<AbstractControllerWrapper, bp::bases<AbstractController>,
                        std::shared_ptr<AbstractControllerWrapper>,
-                       boost::noncopyable>("AbstractControllerWrapper")
+                       boost::noncopyable>("BaseController")
                 .def("reset", &AbstractController::reset, &AbstractControllerWrapper::default_reset,
                               (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false))
                 .def("compute_command", bp::pure_virtual(&AbstractController::computeCommand))
@@ -259,18 +264,39 @@ namespace python
 
     // ***************************** PyControllerFunctorVisitor ***********************************
 
+    /* Take advantage of type erasure of std::function to support both
+       lambda functions and python handle wrapper depending whether or not
+       'compute_command' and 'internal_dynamics' has been specified.
+       It is likely to cause a small overhead because the compiler will
+       probably not be able to inline ControllerFctWrapper, as it would have
+       been the case otherwise, but it is the price to pay for versatility. */
+    using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
+
+    class CtrlFunctorImpl: public CtrlFunctor {};
+
+    class CtrlFunctorWrapper: public CtrlFunctorImpl, public bp::wrapper<CtrlFunctorImpl>
+    {
+    public:
+        hresult_t reset(bool_t const & resetDynamicTelemetry)
+        {
+            bp::override func = this->get_override("reset");
+            if (func)
+            {
+                func(resetDynamicTelemetry);
+                return hresult_t::SUCCESS;
+            }
+            return CtrlFunctor::reset(resetDynamicTelemetry);
+        }
+
+        hresult_t default_reset(bool_t const & resetDynamicTelemetry)
+        {
+            return this->CtrlFunctor::reset(resetDynamicTelemetry);
+        }
+    };
+
     struct PyControllerFunctorVisitor
         : public bp::def_visitor<PyControllerFunctorVisitor>
     {
-    public:
-        /* Take advantage of type erasure of std::function to support both
-           lambda functions and python handle wrapper depending whether or not
-           'compute_command' and 'internal_dynamics' has been specified.
-           It is likely to cause a small overhead because the compiler will
-           probably not be able to inline ControllerFctWrapper, as it would have
-           been the case otherwise, but it is the price to pay for versatility. */
-        using CtrlFunctor = ControllerFunctor<ControllerFct, ControllerFct>;
-
     public:
         ///////////////////////////////////////////////////////////////////////////////
         /// \brief Expose C++ API through the visitor.
@@ -283,6 +309,10 @@ namespace python
                                  bp::default_call_policies(),
                                 (bp::arg("compute_command") = bp::object(),  // bp::object() means 'None' in Python
                                  bp::arg("internal_dynamics") = bp::object())))
+                .def("compute_command", &AbstractController::computeCommand,
+                                        (bp::arg("self"), "t", "q", "v", "u"))
+                .def("internal_dynamics", &AbstractController::internalDynamics,
+                                          (bp::arg("self"), "t", "q", "v", "u"));
                 ;
         }
 
@@ -328,6 +358,13 @@ namespace python
                        std::shared_ptr<CtrlFunctor>,
                        boost::noncopyable>("ControllerFunctor", bp::no_init)
                 .def(PyControllerFunctorVisitor());
+
+            bp::class_<CtrlFunctorWrapper, bp::bases<CtrlFunctor>,
+                       std::shared_ptr<CtrlFunctorWrapper>,
+                       boost::noncopyable>("BaseControllerFunctor", bp::no_init)
+                .def(PyControllerFunctorVisitor())  // It seems that '__init__' is not inherited automatically
+                .def("reset", &CtrlFunctor::reset, &CtrlFunctorWrapper::default_reset,
+                              (bp::arg("self"), bp::arg("reset_dynamic_telemetry") = false));
         }
     };
 

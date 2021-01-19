@@ -1,4 +1,5 @@
 import os
+import json
 import toml
 import atexit
 import pathlib
@@ -55,7 +56,7 @@ class Simulator:
     """
     def __init__(self,
                  robot: jiminy.Robot,
-                 controller: Optional[jiminy.ControllerFunctor] = None,
+                 controller: Optional[jiminy.AbstractController] = None,
                  engine_class: Type[jiminy.Engine] = jiminy.Engine,
                  use_theoretical_model: bool = False,
                  viewer_backend: Optional[str] = None):
@@ -517,13 +518,12 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if hasattr(self, 'engine'):
-            if self.viewer is not None:
-                self.viewer.close()
-                self._is_viewer_available = False
-                self.viewer = None
-            if self.__plot_data is not None:
-                plt.close(self.__plot_data['fig'])
+        if self.viewer is not None:
+            self.viewer.close()
+            self._is_viewer_available = False
+            self.viewer = None
+        if self.__plot_data is not None:
+            plt.close(self.__plot_data['fig'])
 
     def plot(self) -> None:
         """Display common simulation data over time.
@@ -557,13 +557,36 @@ class Simulator:
                 return field_values
 
         # Extract log data
-        log_data, _ = self.get_log()
-        t = log_data["Global.Time"]
+        log_data, log_constants = self.get_log()
+
+        # Make sure that the log file is compatible with the current model
+        is_incompatible = False
+        options_old = json.loads(log_constants['HighLevelController.options'])
+        model_options_old = options_old["system"]["robot"]["model"]
+        dyn_options_old = model_options_old['dynamics']
+        model_options = self.robot.get_model_options()
+        dyn_options = model_options['dynamics']
+        if (dyn_options['enableFlexibleModel'] !=
+                dyn_options_old['enableFlexibleModel']):
+            is_incompatible = True
+        elif dyn_options['enableFlexibleModel']:
+            flex_options_old = dyn_options_old["flexibilityConfig"]["value"]
+            flex_options = dyn_options["flexibilityConfig"]
+            if len(flex_options_old) != len(flex_options):
+                is_incompatible = True
+            else:
+                for flex, flex_old in zip(flex_options, flex_options_old):
+                    if flex["frameName"] != flex_old["frameName"]:
+                        is_incompatible = True
+                        break
+        if is_incompatible:
+            raise RuntimeError("Log data are incompatible with current model.")
 
         # Figures data structure as a dictionary
         data = OrderedDict()
 
-        # Get robot positions, velocities, and acceleration
+        # Get time and robot positions, velocities, and acceleration
+        t = log_data["Global.Time"]
         for fields_type in ["Position", "Velocity", "Acceleration"]:
             fieldnames = getattr(
                 self.robot, "logfile_" + fields_type.lower() + "_headers")

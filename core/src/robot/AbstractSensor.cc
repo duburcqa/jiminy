@@ -11,7 +11,7 @@ namespace jiminy
     isInitialized_(false),
     isAttached_(false),
     isTelemetryConfigured_(false),
-    robot_(nullptr),
+    robot_(),
     name_(name),
     telemetrySender_()
     {

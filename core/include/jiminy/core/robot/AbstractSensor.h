@@ -14,6 +14,7 @@
 #define JIMINY_ABSTRACT_SENSOR_H
 
 #include "jiminy/core/telemetry/TelemetrySender.h"
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 #include <boost/circular_buffer.hpp>
@@ -55,12 +56,12 @@ namespace jiminy
         ~SensorSharedDataHolder_t(void) = default;
 
     public:
-        boost::circular_buffer_space_optimized<float64_t> time_;    ///< Circular buffer of the stored timesteps
-        boost::circular_buffer_space_optimized<matrixN_t> data_;    ///< Circular buffer of past sensor real data
-        matrixN_t dataMeasured_;                                    ///< Buffer of current sensor measurement data
-        std::vector<AbstractSensorBase *> sensors_;                 ///< Vector of pointers to the sensors
-        int32_t num_;                                               ///< Number of sensors of that type
-        float64_t delayMax_;                                        ///< Maximum delay over all the sensors
+        boost::circular_buffer_space_optimized<float64_t> time_;  ///< Circular buffer of the stored timesteps
+        boost::circular_buffer_space_optimized<matrixN_t> data_;  ///< Circular buffer of past sensor real data
+        matrixN_t dataMeasured_;                                  ///< Buffer of current sensor measurement data
+        std::vector<AbstractSensorBase *> sensors_;               ///< Vector of pointers to the sensors
+        int32_t num_;                                             ///< Number of sensors of that type
+        float64_t delayMax_;                                      ///< Maximum delay over all the sensors
     };
 
     class AbstractSensorBase: public std::enable_shared_from_this<AbstractSensorBase>
@@ -142,7 +143,7 @@ namespace jiminy
         ///           sensor is added is taking care of it when its own `reset` method is called.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void resetAll(void) = 0;
+        virtual hresult_t resetAll(void) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         /// \brief    Refresh the proxies.
@@ -365,7 +366,7 @@ namespace jiminy
         /// \details  This method must be called before initializing the sensor.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t attach(Robot const * robot,
+        virtual hresult_t attach(std::weak_ptr<Robot const> robot,
                                  SensorSharedDataHolder_t * sharedHolder) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -419,18 +420,18 @@ namespace jiminy
         virtual hresult_t generateMeasurementAll(void) = 0;
 
     public:
-        std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;    ///< Structure with the parameters of the sensor
+        std::unique_ptr<abstractSensorOptions_t const> baseSensorOptions_;  ///< Structure with the parameters of the sensor
 
     protected:
-        configHolder_t sensorOptionsHolder_;    ///< Dictionary with the parameters of the sensor
-        bool_t isInitialized_;                  ///< Flag to determine whether the sensor has been initialized or not
-        bool_t isAttached_;                     ///< Flag to determine whether the sensor is attached to a robot
-        bool_t isTelemetryConfigured_;          ///< Flag to determine whether the telemetry of the sensor has been initialized or not
-        Robot const * robot_;                   ///< Robot for which the command and internal dynamics
-        std::string name_;                      ///< Name of the sensor
+        configHolder_t sensorOptionsHolder_;  ///< Dictionary with the parameters of the sensor
+        bool_t isInitialized_;                ///< Flag to determine whether the sensor has been initialized or not
+        bool_t isAttached_;                   ///< Flag to determine whether the sensor is attached to a robot
+        bool_t isTelemetryConfigured_;        ///< Flag to determine whether the telemetry of the sensor has been initialized or not
+        std::weak_ptr<Robot const> robot_;    ///< Robot for which the command and internal dynamics
+        std::string name_;                    ///< Name of the sensor
 
     private:
-        TelemetrySender telemetrySender_;       ///< Telemetry sender of the sensor used to register and update telemetry variables
+        TelemetrySender telemetrySender_;     ///< Telemetry sender of the sensor used to register and update telemetry variables
     };
 
     template<class T>
@@ -448,7 +449,7 @@ namespace jiminy
         auto shared_from_this() { return shared_from(this); }
         auto shared_from_this() const { return shared_from(this); }
 
-        virtual void resetAll(void) override;
+        virtual hresult_t resetAll(void) override;
         void updateTelemetryAll(void) override final;
 
         virtual hresult_t setOptions(configHolder_t const & sensorOptions) override;
@@ -470,7 +471,7 @@ namespace jiminy
         virtual Eigen::Ref<vectorN_t> data(void) override final;
 
     private:
-        virtual hresult_t attach(Robot const * robot,
+        virtual hresult_t attach(std::weak_ptr<Robot const> robot,
                                  SensorSharedDataHolder_t * sharedHolder) override final;
         virtual hresult_t detach(void) override final;
         virtual std::string getTelemetryName(void) const override final;

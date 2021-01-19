@@ -413,8 +413,6 @@ namespace jiminy
         hresult_t getSystemIdx(std::string const & systemName,
                                int32_t           & systemIdx) const;
         hresult_t getSystem(std::string    const   & systemName,
-                            systemHolder_t const * & system) const;
-        hresult_t getSystem(std::string    const   & systemName,
                             systemHolder_t       * & system);
         hresult_t getSystemState(std::string   const   & systemName,
                                  systemState_t const * & systemState) const;

@@ -72,7 +72,7 @@ namespace jiminy
         /// \return     Return code to determine whether the execution of the method was successful.
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t initialize(Robot const * robot);
+        virtual hresult_t initialize(std::weak_ptr<Robot const> robot);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -246,7 +246,7 @@ namespace jiminy
         ///                                     Optional: False by default
         ///
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual void reset(bool_t const & resetDynamicTelemetry = false);
+        virtual hresult_t reset(bool_t const & resetDynamicTelemetry = false);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         ///
@@ -273,7 +273,7 @@ namespace jiminy
 
     public:
         std::unique_ptr<controllerOptions_t const> baseControllerOptions_;    ///< Structure with the parameters of the controller
-        Robot const * robot_;                   ///< Robot for which to compute the command and internal dynamics must be computed
+        std::weak_ptr<Robot const> robot_;                                    ///< Robot for which to compute the command and internal dynamics must be computed
         sensorsDataMap_t sensorsData_;
 
     protected:

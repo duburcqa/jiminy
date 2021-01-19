@@ -23,22 +23,6 @@ namespace jiminy
         using sensorsGroupHolder_t = std::unordered_map<std::string, sensorsHolder_t>;
         using sensorsSharedHolder_t = std::unordered_map<std::string, std::shared_ptr<SensorSharedDataHolder_t> >;
 
-        struct robotConstraint_t
-        {
-            std::string name_;  ///< Name of the constraint.
-            std::shared_ptr<AbstractConstraint> constraint_;  ///< The constraint itself.
-            uint32_t dim_;  ///< Dimension of the constraint.
-
-            robotConstraint_t(std::string const & name,
-                              std::shared_ptr<AbstractConstraint> constraint):
-                name_(name),
-                constraint_(constraint),
-                dim_(0)
-            {
-                // Empty.
-            }
-        };
-
     public:
         // Disable the copy of the class
         Robot(Robot const & robot) = delete;
@@ -48,15 +32,18 @@ namespace jiminy
         Robot(void);
         virtual ~Robot(void);
 
-        hresult_t initialize(std::string              const & urdfPath,
-                             bool_t                   const & hasFreeflyer = true,
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
+
+        hresult_t initialize(std::string const & urdfPath,
+                             bool_t const & hasFreeflyer = true,
                              std::vector<std::string> const & meshPackageDirs = {});
 
         hresult_t attachMotor(std::shared_ptr<AbstractMotorBase> motor);
         hresult_t getMotor(std::string const & motorName,
                            std::shared_ptr<AbstractMotorBase> & motor);
-        hresult_t getMotor(std::string       const   & motorName,
-                           AbstractMotorBase const * & motor) const;
+        hresult_t getMotor(std::string const & motorName,
+                           std::weak_ptr<AbstractMotorBase const> & motor) const;
         motorsHolder_t const & getMotors(void) const;
         hresult_t detachMotor(std::string const & motorName);
         hresult_t detachMotors(std::vector<std::string> const & motorsNames = {});
@@ -64,9 +51,9 @@ namespace jiminy
         hresult_t getSensor(std::string const & sensorType,
                             std::string const & sensorName,
                             std::shared_ptr<AbstractSensorBase> & sensor);
-        hresult_t getSensor(std::string        const   & sensorType,
-                            std::string        const   & sensorName,
-                            AbstractSensorBase const * & sensor) const;
+        hresult_t getSensor(std::string const & sensorType,
+                            std::string const & sensorName,
+                            std::weak_ptr<AbstractSensorBase const> & sensor) const;
         sensorsGroupHolder_t const & getSensors(void) const;
         hresult_t detachSensor(std::string const & sensorType,
                               std::string const & sensorName);
@@ -102,7 +89,10 @@ namespace jiminy
         /// \param[in] constraintName Name of the constraint to get.
         /// \return ERROR_BAD_INPUT if constraintName does not exist, SUCCESS otherwise.
         hresult_t getConstraint(std::string const & constraintName,
-                                std::shared_ptr<AbstractConstraint> & constraint) const;
+                                std::shared_ptr<AbstractConstraint> & constraint);
+
+        hresult_t getConstraint(std::string const & constraintName,
+                                std::weak_ptr<AbstractConstraint const> & constraint) const;
 
         /// \brief Compute jacobian and drift associated to all the constraints.
         ///
@@ -196,10 +186,10 @@ namespace jiminy
         std::unordered_map<std::string, bool_t> sensorTelemetryOptions_;
         std::vector<std::string> motorsNames_;                                      ///< Name of the motors
         std::unordered_map<std::string, std::vector<std::string> > sensorsNames_;   ///< Name of the sensors
-        std::vector<std::string> commandFieldnames_;                            ///< Fieldnames of the efforts
+        std::vector<std::string> commandFieldnames_;                                ///< Fieldnames of the efforts
         int32_t nmotors_;                                                           ///< The number of motors
 
-        std::vector<robotConstraint_t> constraintsHolder_;
+        static_map_t<std::string, std::shared_ptr<AbstractConstraint> > constraintsHolder_;
         matrixN_t constraintsJacobian_;                                             ///< Matrix holding the jacobian of the constraints.
         vectorN_t constraintsDrift_;                                                ///< Vector holding the drift of the constraints.
 
@@ -207,7 +197,7 @@ namespace jiminy
         MutexLocal mutexLocal_;
         std::shared_ptr<MotorSharedDataHolder_t> motorsSharedHolder_;
         sensorsSharedHolder_t sensorsSharedHolder_;
-        vectorN_t zeroAccelerationVector_;  ///< A vector of zeros of the dimension the size of the velocity vector - for computing constraints.
+        PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion) jointsAcceleration_;  ///< Vector of joints acceleration corresponding to a copy of data.a - temporary buffer for computing constraints.
     };
 }
 

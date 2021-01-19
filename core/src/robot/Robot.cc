@@ -37,7 +37,7 @@ namespace jiminy
     mutexLocal_(),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_(),
-    zeroAccelerationVector_(vectorN_t::Zero(0))
+    jointsAcceleration_()
     {
         // Empty on purpose
     }
@@ -84,6 +84,12 @@ namespace jiminy
             {
                 (*sensorGroup.second.begin())->resetAll();
             }
+        }
+
+        // Reset the constraints
+        for (auto & constraintItem : constraintsHolder_)
+        {
+            constraintItem.second->reset();
         }
 
         // Reset the telemetry flag
@@ -172,7 +178,8 @@ namespace jiminy
         if (returnCode == hresult_t::SUCCESS)
         {
             // Attach the motor
-            returnCode = motor->attach(this, motorsSharedHolder_.get());
+            returnCode = motor->attach(shared_from_this(),
+                                       motorsSharedHolder_.get());
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -189,22 +196,17 @@ namespace jiminy
 
     hresult_t Robot::detachMotor(std::string const & motorName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (!isInitialized_)
         {
             PRINT_ERROR("Robot not initialized.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (getIsLocked())
         {
-            if (getIsLocked())
-            {
-                PRINT_ERROR("Robot is locked, probably because a simulation is running. "
-                            "Please stop it before removing motors.");
-                returnCode = hresult_t::ERROR_GENERIC;
-            }
+            PRINT_ERROR("Robot is locked, probably because a simulation is running. "
+                        "Please stop it before removing motors.");
+            return hresult_t::ERROR_GENERIC;
         }
 
         auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
@@ -212,34 +214,22 @@ namespace jiminy
                                     {
                                         return (elem->getName() == motorName);
                                     });
-        if (returnCode == hresult_t::SUCCESS)
+        if (motorIt == motorsHolder_.end())
         {
-            if (motorIt == motorsHolder_.end())
-            {
-                PRINT_ERROR("No motor with this name exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            PRINT_ERROR("No motor with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Detach the motor
-            returnCode = (*motorIt)->detach();
-        }
+        // Detach the motor
+        (*motorIt)->detach();  // It cannot fail at this point
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Remove the motor from the holder
-            motorsHolder_.erase(motorIt);
-        }
+        // Remove the motor from the holder
+        motorsHolder_.erase(motorIt);
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Refresh the motors proxies
-            refreshMotorsProxies();
-        }
+        // Refresh the motors proxies
+        refreshMotorsProxies();
 
-        return returnCode;
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Robot::detachMotors(std::vector<std::string> const & motorsNames)
@@ -342,7 +332,8 @@ namespace jiminy
             }
 
             // Attach the sensor
-            returnCode = sensor->attach(this, sensorsSharedHolder_[sensorType].get());
+            returnCode = sensor->attach(shared_from_this(),
+                                        sensorsSharedHolder_[sensorType].get());
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -360,77 +351,57 @@ namespace jiminy
     hresult_t Robot::detachSensor(std::string const & sensorType,
                                   std::string const & sensorName)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
         if (getIsLocked())
         {
             PRINT_ERROR("Robot is locked, probably because a simulation is running. "
                         "Please stop it before removing sensors.");
-            returnCode = hresult_t::ERROR_GENERIC;
+            return hresult_t::ERROR_GENERIC;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        if (!isInitialized_)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Robot not initialized.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
+            PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
         auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
-        if (returnCode == hresult_t::SUCCESS)
+        if (sensorGroupIt == sensorsGroupHolder_.end())
         {
-            if (sensorGroupIt == sensorsGroupHolder_.end())
-            {
-                PRINT_ERROR("This type of sensor does not exist.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            PRINT_ERROR("This type of sensor does not exist.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
         sensorsHolder_t::iterator sensorIt;
-        if (returnCode == hresult_t::SUCCESS)
+        sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                sensorGroupIt->second.end(),
+                                [&sensorName](auto const & elem)
+                                {
+                                    return (elem->getName() == sensorName);
+                                });
+        if (sensorIt == sensorGroupIt->second.end())
         {
-            sensorIt = std::find_if(sensorGroupIt->second.begin(),
-                                    sensorGroupIt->second.end(),
-                                    [&sensorName](auto const & elem)
-                                    {
-                                        return (elem->getName() == sensorName);
-                                    });
-            if (sensorIt == sensorGroupIt->second.end())
-            {
-                PRINT_ERROR("No sensor with this type and name exists.");
-                returnCode = hresult_t::ERROR_BAD_INPUT;
-            }
+            PRINT_ERROR("No sensor with this type and name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
         }
 
-        if (returnCode == hresult_t::SUCCESS)
+        // Detach the sensor
+        (*sensorIt)->detach();  // It cannot fail at this point
+
+        // Remove the sensor from its group
+        sensorGroupIt->second.erase(sensorIt);
+
+        // Remove the sensor group if there is no more sensors left
+        if (sensorGroupIt->second.empty())
         {
-            // Detach the motor
-            returnCode = (*sensorIt)->detach();
+            sensorsGroupHolder_.erase(sensorType);
+            sensorsSharedHolder_.erase(sensorType);
+            sensorTelemetryOptions_.erase(sensorType);
         }
 
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Remove the sensor from its group
-            sensorGroupIt->second.erase(sensorIt);
+        // Refresh the sensors proxies
+        refreshSensorsProxies();
 
-            // Remove the sensor group if there is no more sensors left.
-            if (sensorGroupIt->second.empty())
-            {
-                sensorsGroupHolder_.erase(sensorType);
-                sensorsSharedHolder_.erase(sensorType);
-                sensorTelemetryOptions_.erase(sensorType);
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            // Refresh the sensors proxies
-            refreshSensorsProxies();
-        }
-
-        return returnCode;
+        return hresult_t::SUCCESS;
     }
 
     hresult_t Robot::detachSensors(std::string const & sensorType)
@@ -477,7 +448,6 @@ namespace jiminy
         return returnCode;
     }
 
-
     hresult_t Robot::addConstraint(std::string const & constraintName,
                                    std::shared_ptr<AbstractConstraint> constraint)
     {
@@ -487,7 +457,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
@@ -496,10 +466,11 @@ namespace jiminy
         }
         else
         {
-            returnCode = constraint->attach(this);
+            returnCode = constraint->attach(shared_from_this());
             if (returnCode == hresult_t::SUCCESS)
             {
-                constraintsHolder_.push_back(robotConstraint_t(constraintName, constraint));
+                constraintsHolder_.emplace_back(constraintName, constraint);
+                constraint->reset();
             }
         }
 
@@ -519,7 +490,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
@@ -527,7 +498,10 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        constraintIt->constraint_->detach();
+        // Detach the constraint
+        constraintIt->second->detach();  // It cannot fail at this point
+
+        // Remove the constraint from the holder
         constraintsHolder_.erase(constraintIt);
 
         // Required to resize constraintsJacobian_ to the right size.
@@ -537,27 +511,46 @@ namespace jiminy
     }
 
     hresult_t Robot::getConstraint(std::string const & constraintName,
-                                   std::shared_ptr<AbstractConstraint> & constraint) const
+                                   std::shared_ptr<AbstractConstraint> & constraint)
     {
         // Lookup constraint.
         auto constraintIt = std::find_if(constraintsHolder_.begin(),
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
             PRINT_ERROR("No constraint with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        else
-        {
-            constraint = constraintIt->constraint_;
-        }
+
+        constraint = constraintIt->second;
+
         return hresult_t::SUCCESS;
     }
 
+    hresult_t Robot::getConstraint(std::string const & constraintName,
+                                   std::weak_ptr<AbstractConstraint const> & constraint) const
+    {
+        // Lookup constraint.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.first == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
+        {
+            PRINT_ERROR("No constraint with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        constraint = std::const_pointer_cast<AbstractConstraint const>(constraintIt->second);
+
+        return hresult_t::SUCCESS;
+    }
 
     hresult_t Robot::refreshProxies(void)
     {
@@ -596,42 +589,37 @@ namespace jiminy
     hresult_t Robot::refreshConstraintsProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
-        vectorN_t q = pinocchio::neutral(pncModel_);
-        vectorN_t v = vectorN_t::Zero(pncModel_.nv);
 
-        // Resize zeroAccelerationVector_ to the right size
-        zeroAccelerationVector_ = vectorN_t::Zero(pncModel_.nv);
+        // Backup pinocchio::Data.a
+        jointsAcceleration_ = pncData_.a;
 
         uint32_t constraintSize = 0;
-        for (auto & constraint : constraintsHolder_)
+        for (auto & constraintItem : constraintsHolder_)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = constraint.constraint_->refreshProxies();
-            }
+            std::shared_ptr<AbstractConstraint> & constraint = constraintItem.second;
+
             if (returnCode == hresult_t::SUCCESS)
             {
                 // Call constraint on neutral position and zero velocity.
-                matrixN_t J = constraint.constraint_->getJacobian(q);
-                vectorN_t drift = constraint.constraint_->getDrift(q, v);
+                matrixN_t const & J = constraint->getJacobian();
 
-                // Verify dimensions.
+                // Check dimensions consistency
                 if (J.cols() != pncModel_.nv)
                 {
                     PRINT_ERROR("Robot::refreshConstraintsProxies: constraint has "
                                 "inconsistent jacobian and drift (size mismatch).");
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
+
+                // Store constraint size
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    // Store constraint size.
-                    constraint.dim_ = J.rows();
-                    constraintSize += J.rows();
+                    constraintSize += constraint->getDim();
                 }
             }
         }
 
-        // Reset jacobian and drift to 0.
+        // Reset jacobian and drift to 0
         if (returnCode == hresult_t::SUCCESS)
         {
             constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
@@ -711,8 +699,8 @@ namespace jiminy
         return returnCode;
     }
 
-    hresult_t Robot::getMotor(std::string       const   & motorName,
-                              AbstractMotorBase const * & motor) const
+    hresult_t Robot::getMotor(std::string const & motorName,
+                              std::shared_ptr<AbstractMotorBase> & motor)
     {
         if (!isInitialized_)
         {
@@ -731,25 +719,34 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        motor = motorIt->get();
+        motor = *motorIt;
 
         return hresult_t::SUCCESS;
     }
 
     hresult_t Robot::getMotor(std::string const & motorName,
-                              std::shared_ptr<AbstractMotorBase> & motor)
+                              std::weak_ptr<AbstractMotorBase const> & motor) const
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        AbstractMotorBase const * motorConst;
-        returnCode = const_cast<Robot const *>(this)->getMotor(motorName, motorConst);
-
-        if (returnCode == hresult_t::SUCCESS)
+        if (!isInitialized_)
         {
-            motor = std::move(const_cast<AbstractMotorBase *>(motorConst)->shared_from_this());
+            PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
-        return returnCode;
+        auto motorIt = std::find_if(motorsHolder_.begin(), motorsHolder_.end(),
+                                    [&motorName](auto const & elem)
+                                    {
+                                        return (elem->getName() == motorName);
+                                    });
+        if (motorIt == motorsHolder_.end())
+        {
+            PRINT_ERROR("No motor with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        motor = std::const_pointer_cast<AbstractMotorBase const>(*motorIt);
+
+        return hresult_t::SUCCESS;
     }
 
     Robot::motorsHolder_t const & Robot::getMotors(void) const
@@ -757,9 +754,9 @@ namespace jiminy
         return motorsHolder_;
     }
 
-    hresult_t Robot::getSensor(std::string        const   & sensorType,
-                               std::string        const   & sensorName,
-                               AbstractSensorBase const * & sensor) const
+    hresult_t Robot::getSensor(std::string const & sensorType,
+                               std::string const & sensorName,
+                               std::weak_ptr<AbstractSensorBase const> & sensor) const
     {
         if (!isInitialized_)
         {
@@ -786,7 +783,7 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        sensor = sensorIt->get();
+        sensor = std::const_pointer_cast<AbstractSensorBase const>(*sensorIt);
 
         return hresult_t::SUCCESS;
     }
@@ -795,17 +792,34 @@ namespace jiminy
                                std::string const & sensorName,
                                std::shared_ptr<AbstractSensorBase> & sensor)
     {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        AbstractSensorBase const * sensorPtr;
-        returnCode = const_cast<Robot const *>(this)->getSensor(sensorType, sensorName, sensorPtr);
-
-        if (returnCode == hresult_t::SUCCESS)
+        if (!isInitialized_)
         {
-            sensor = std::move(const_cast<AbstractSensorBase *>(sensorPtr)->shared_from_this());
+            PRINT_ERROR("Robot not initialized.");
+            return hresult_t::ERROR_INIT_FAILED;
         }
 
-        return returnCode;
+        auto sensorGroupIt = sensorsGroupHolder_.find(sensorType);
+        if (sensorGroupIt == sensorsGroupHolder_.end())
+        {
+            PRINT_ERROR("This type of sensor does not exist.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        auto sensorIt = std::find_if(sensorGroupIt->second.begin(),
+                                     sensorGroupIt->second.end(),
+                                     [&sensorName](auto const & elem)
+                                     {
+                                         return (elem->getName() == sensorName);
+                                     });
+        if (sensorIt == sensorGroupIt->second.end())
+        {
+            PRINT_ERROR("No sensor with this type and name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        sensor = *sensorIt;
+
+        return hresult_t::SUCCESS;
     }
 
     Robot::sensorsGroupHolder_t const & Robot::getSensors(void) const
@@ -1326,9 +1340,10 @@ namespace jiminy
                                vectorN_t const & a,
                                vectorN_t const & u)
     {
-        // Update kinematic quantities before updating sensors.
-        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
-        pinocchio::updateFramePlacements(pncModel_, pncData_);
+        /* Note that it is assumed that the kinematic quantities have been
+           updated previously to be consistent with (q, v, a, u). If not,
+           one is supposed to call  `pinocchio::forwardKinematics` and
+           `pinocchio::updateFramePlacements` before calling this method. */
 
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
@@ -1342,31 +1357,53 @@ namespace jiminy
     void Robot::computeConstraints(vectorN_t const & q,
                                    vectorN_t const & v)
     {
-        // Compute joint jacobian.
+        /* Note that it is assumed that the kinematic quantities have been
+           updated previously to be consistent with (q, v, a, u). If not,
+           one is supposed to call  `pinocchio::forwardKinematics` before
+           calling this method. */
+
+        // Compute forward kinematics without acceleration to be able to compute drift alter on
+        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
+        {
+            jointsAcceleration_[i] = pncData_.a[i];
+        }
+        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, vectorN_t::Zero(pncModel_.nv));
+
+        // Compute joint jacobian
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
-        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, zeroAccelerationVector_);
 
         uint32_t currentRow = 0;
-        for (auto & constraint : constraintsHolder_)
+        for (auto & constraintItem : constraintsHolder_)
         {
-            matrixN_t J = constraint.constraint_->getJacobian(q);
-            vectorN_t drift = constraint.constraint_->getDrift(q, v);
+            std::shared_ptr<AbstractConstraint> & constraint = constraintItem.second;
 
-            uint32_t constraintDim = J.rows();
-            // Resize matrix if needed.
-            if (constraintDim != constraint.dim_)
+            // Compute constraint jacobian and drift
+            uint32_t constraintDimPrev = constraint->getDim();
+            constraint->computeJacobianAndDrift(q, v);
+
+            // Resize matrix if needed
+            uint32_t constraintDim = constraint->getDim();
+            if (constraintDimPrev != constraintDim)
             {
                 constraintsJacobian_.conservativeResize(
-                    constraintsJacobian_.rows() + constraintDim - constraint.dim_,
+                    constraintsJacobian_.rows() + constraintDim - constraintDimPrev,
                     Eigen::NoChange);
-                constraintsDrift_.conservativeResize(constraintsDrift_.size() + constraintDim - constraint.dim_);
-                constraint.dim_ = constraintDim;
+                constraintsDrift_.conservativeResize(
+                    constraintsDrift_.size() + constraintDim - constraintDimPrev);
             }
-            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = J;
-            constraintsDrift_.segment(currentRow, constraintDim) = drift;
+
+            // Update global jacobian and drift of all constraints
+            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = constraint->getJacobian();
+            constraintsDrift_.segment(currentRow, constraintDim) = constraint->getDrift();
             currentRow += constraintDim;
         }
-     }
+
+        // Restore true acceleration, taking the drift into account
+        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
+        {
+            pncData_.a[i] = jointsAcceleration_[i];
+        }
+    }
 
     sensorsDataMap_t Robot::getSensorsData(void) const
     {

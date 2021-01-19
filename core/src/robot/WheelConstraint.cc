@@ -27,6 +27,24 @@ namespace jiminy
         // Empty on purpose
     }
 
+    hresult_t WheelConstraint::reset(void)
+    {
+        // Make sure the model still exists
+        auto model = model_.lock();
+        if (!model)
+        {
+            PRINT_ERROR("Model pointer expired or unset.");
+            return hresult_t::ERROR_GENERIC;
+        }
+
+        // Set jacobian / drift to right dimension
+        jacobian_ = matrixN_t::Zero(3, model->pncModel_.nv);
+        frameJacobian_ = matrixN_t::Zero(6, model->pncModel_.nv);
+        drift_ = vectorN_t::Zero(3);
+
+        return getFrameIdx(model->pncModel_, frameName_, frameIdx_);
+    }
+
     inline matrix3_t skew(vector3_t const & v)
     {
         matrix3_t skew;
@@ -36,69 +54,49 @@ namespace jiminy
         return skew;
     }
 
-    matrixN_t const & WheelConstraint::getJacobian(vectorN_t const & q)
+    hresult_t WheelConstraint::computeJacobianAndDrift(vectorN_t const & q,
+                                                       vectorN_t const & v)
     {
-        if (isAttached_)
+        if (!isAttached_)
         {
-            // Compute frame jacobian in local frame
-            getFrameJacobian(model_->pncModel_,
-                             model_->pncData_,
-                             frameIdx_,
-                             pinocchio::LOCAL,
-                             frameJacobian_);
-
-            // Compute ground normal in local frame
-            vector3_t const x3 = model_->pncData_.oMf[frameIdx_].rotation().transpose() * normal_;
-
-            // Contact point is at -radius_ x3 in local frame: compute corresponding jacobian
-            jacobian_ = frameJacobian_.topRows(3)
-                + radius_ * skew(x3) * frameJacobian_.bottomRows(3);
-        }
-        else
-        {
-            jacobian_.setZero();
+            PRINT_ERROR("Constraint not attached to a model.");
+            return hresult_t::ERROR_GENERIC;
         }
 
-        return jacobian_;
-    }
+        // Assuming the model still exists.
+        auto model = model_.lock();
 
-    vectorN_t const & WheelConstraint::getDrift(vectorN_t const & q,
-                                                vectorN_t const & v)
-    {
-        if (isAttached_)
-        {
-            // Compute frame drift in local frame.
-            pinocchio::Motion const driftLocal = getFrameAcceleration(model_->pncModel_,
-                                                                      model_->pncData_,
-                                                                      frameIdx_);
+        // Compute ground normal in local frame
+        vector3_t const x3 = model->pncData_.oMf[frameIdx_].rotation().transpose() * normal_;
 
-            // Compute x3 and its derivative.
-            vector3_t const x3 = model_->pncData_.oMf[frameIdx_].rotation().transpose() * normal_;
+        // Compute frame jacobian in local frame
+        getFrameJacobian(model->pncModel_,
+                         model->pncData_,
+                         frameIdx_,
+                         pinocchio::LOCAL,
+                         frameJacobian_);
 
-            vector3_t const omega = getFrameVelocity(model_->pncModel_,
-                                                     model_->pncData_,
-                                                     frameIdx_).angular();
-            vector3_t const dx3 = - omega.cross(x3);
+        // Contact point is at -radius_ x3 in local frame: compute corresponding jacobian
+        jacobian_ = frameJacobian_.topRows(3)
+            + radius_ * skew(x3) * frameJacobian_.bottomRows(3);
 
-            // Compute total drift.
-            drift_ = driftLocal.linear() +
-                     radius_ * skew(x3) * driftLocal.angular() +
-                     radius_ * skew(dx3) * omega;
-        }
-        else
-        {
-            drift_.setZero();
-        }
+        // Compute frame drift in local frame.
+        pinocchio::Motion const driftLocal = getFrameAcceleration(model->pncModel_,
+                                                                  model->pncData_,
+                                                                  frameIdx_,
+                                                                  pinocchio::LOCAL);
 
-        return drift_;
-    }
+        // Compute total drift.
+        vector3_t const omega = getFrameVelocity(model->pncModel_,
+                                                 model->pncData_,
+                                                 frameIdx_,
+                                                 pinocchio::LOCAL).angular();
+        auto dx3 = - omega.cross(x3);  // Using auto to not evaluate the expression
 
-    hresult_t WheelConstraint::refreshProxies()
-    {
-        // Resize the jacobian to the model dimension.
-        jacobian_.resize(3, model_->pncModel_.nv);
-        frameJacobian_.resize(6, model_->pncModel_.nv);
-        drift_.resize(3);
-        return getFrameIdx(model_->pncModel_, frameName_, frameIdx_);
+        drift_ = driftLocal.linear() +
+                 radius_ * skew(x3) * driftLocal.angular() +
+                 radius_ * skew(dx3) * omega;
+
+        return hresult_t::SUCCESS;
     }
 }

@@ -5,12 +5,13 @@
 #include "pinocchio/algorithm/frames.hpp"
 #include "pinocchio/algorithm/geometry.hpp"
 
+#include "jiminy/core/Macros.h"
 #include "jiminy/core/Types.h"
 
 
 namespace jiminy
 {
-    class Model
+    class Model: public std::enable_shared_from_this<Model>
     {
     public:
         virtual configHolder_t getDefaultJointOptions()
@@ -138,6 +139,9 @@ namespace jiminy
     public:
         Model(void);
         virtual ~Model(void) = default;
+
+        auto shared_from_this() { return shared_from(this); }
+        auto shared_from_this() const { return shared_from(this); }
 
         hresult_t initialize(std::string              const & urdfPath,
                              bool_t                   const & hasFreeflyer = true,

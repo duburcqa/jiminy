@@ -6,8 +6,8 @@
 
 namespace jiminy
 {
-    AbstractConstraint::AbstractConstraint() :
-    model_(nullptr),
+    AbstractConstraint::AbstractConstraint(void) :
+    model_(),
     isAttached_(false),
     jacobian_(),
     drift_()
@@ -15,43 +15,56 @@ namespace jiminy
         // Empty on purpose
     }
 
-    matrixN_t const & AbstractConstraint::getJacobian(vectorN_t const & q)
+    AbstractConstraint::~AbstractConstraint(void)
     {
-        return jacobian_;
+        // Detach the constraint before deleting it if necessary
+        if (isAttached_)
+        {
+            detach();
+        }
     }
 
-    vectorN_t const & AbstractConstraint::getDrift(vectorN_t const & q,
-                                                   vectorN_t const & v)
-    {
-        return drift_;
-    }
-
-
-    hresult_t AbstractConstraint::attach(Model const * model)
+    hresult_t AbstractConstraint::attach(std::weak_ptr<Model const> model)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
         if (isAttached_)
         {
-            PRINT_ERROR("Constraint already attached to a robot.");
+            PRINT_ERROR("Constraint already attached to a model.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        // Make sure the model still exists
+        if (model.expired())
+        {
+            PRINT_ERROR("Model pointer expired or unset.");
             return hresult_t::ERROR_GENERIC;
         }
 
         model_ = model;
-
-        // Refresh proxies: this checks for the existence of frameName_ in model_.
-        returnCode = refreshProxies();
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            isAttached_ = true;
-        }
+        isAttached_ = true;
 
         return returnCode;
     }
 
     void AbstractConstraint::detach(void)
     {
-        model_ = nullptr;
+        model_.reset();
         isAttached_ = false;
+    }
+
+    uint32_t AbstractConstraint::getDim(void) const
+    {
+        return jacobian_.rows();
+    }
+
+    matrixN_t const & AbstractConstraint::getJacobian(void) const
+    {
+        return jacobian_;
+    }
+
+    vectorN_t const & AbstractConstraint::getDrift(void) const
+    {
+        return drift_;
     }
 }

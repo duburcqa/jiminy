@@ -10,6 +10,46 @@
 #include "jiminy/core/robot/BasicSensors.h"
 
 
+#define GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY() \
+    if (!isAttached_) \
+    { \
+        PRINT_ERROR("Sensor not attached to any robot. Impossible to refresh proxies."); \
+        returnCode = hresult_t::ERROR_INIT_FAILED; \
+    } \
+     \
+    auto robot = robot_.lock(); \
+    if (returnCode == hresult_t::SUCCESS) \
+    { \
+        if (!robot) \
+        { \
+            PRINT_ERROR("Robot has been deleted. Impossible to refresh proxies."); \
+            returnCode = hresult_t::ERROR_GENERIC; \
+        } \
+    } \
+     \
+    if (!robot->getIsInitialized())  \
+    { \
+        PRINT_ERROR("Robot not initialized. Impossible to refresh proxies."); \
+        returnCode = hresult_t::ERROR_INIT_FAILED; \
+    } \
+     \
+    if (!isInitialized_) \
+    { \
+        PRINT_ERROR("Sensor not initialized. Impossible to refresh proxies."); \
+        returnCode = hresult_t::ERROR_INIT_FAILED; \
+    }
+
+
+#define GET_ROBOT_IF_INITIALIZED() \
+    if (!isInitialized_) \
+    { \
+        PRINT_ERROR("Sensor not initialized. Impossible to update sensor."); \
+        return hresult_t::ERROR_INIT_FAILED; \
+    } \
+     \
+    auto robot = robot_.lock();
+
+
 namespace jiminy
 {
     // ===================== ImuSensor =========================
@@ -35,21 +75,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            frameName_ = frameName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        frameName_ = frameName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            frameName_.clear();
             isInitialized_ = false;
         }
 
@@ -83,24 +115,11 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
-        {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -135,28 +154,26 @@ namespace jiminy
                              vectorN_t const & a,
                              vectorN_t const & uMotor)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_IF_INITIALIZED()
 
         // Compute quaternion
-        matrix3_t const & rot = robot_->pncData_.oMf[frameIdx_].rotation();
+        matrix3_t const & rot = robot->pncData_.oMf[frameIdx_].rotation();
         quaternion_t const quat(rot);  // Convert a rotation matrix to a quaternion
         data().head<4>() = quat.coeffs();  // (x,y,z,w)
 
         // Compute gyroscope signal
-        pinocchio::Motion const velocity = pinocchio::getFrameVelocity(robot_->pncModel_, robot_->pncData_, frameIdx_);
+        pinocchio::Motion const velocity = pinocchio::getFrameVelocity(
+            robot->pncModel_, robot->pncData_, frameIdx_);
         data().segment<3>(4) = velocity.angular();
 
         // Compute accelerometer signal
-        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(robot_->pncModel_, robot_->pncData_, frameIdx_);
+        pinocchio::Motion const acceleration = pinocchio::getFrameAcceleration(
+            robot->pncModel_, robot->pncData_, frameIdx_);
 
         // Accelerometer signal is sensor linear acceleration (not spatial acceleration !) minus gravity
         data().tail<3>() = acceleration.linear() +
                            velocity.angular().cross(velocity.linear()) -
-                           quat.conjugate() * robot_->pncModel_.gravity.linear();
+                           quat.conjugate() * robot->pncModel_.gravity.linear();
 
         return hresult_t::SUCCESS;
     }
@@ -219,21 +236,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            frameName_ = frameName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        frameName_ = frameName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            frameName_.clear();
             isInitialized_ = false;
         }
 
@@ -244,32 +253,19 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
-        {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        std::vector<std::string> const & contactFramesNames = robot_->getContactFramesNames();
+        std::vector<std::string> const & contactFramesNames = robot->getContactFramesNames();
         auto contactFrameNameIt = std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
         if (contactFrameNameIt == contactFramesNames.end())
         {
-            PRINT_ERROR("Sensor frame not associated with any contact point of the robot. Impossible to refresh model-dependent proxies.");
-            return hresult_t::ERROR_BAD_INPUT;
+            PRINT_ERROR("Sensor frame not associated with any contact point of the robot. Impossible to refresh proxies.");
+            returnCode = hresult_t::ERROR_BAD_INPUT;
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
+            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
         }
 
         return returnCode;
@@ -291,15 +287,11 @@ namespace jiminy
                                  vectorN_t const & a,
                                  vectorN_t const & uMotor)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_IF_INITIALIZED()
 
-        std::vector<int32_t> const & contactFramesIdx = robot_->getContactFramesIdx();
+        std::vector<int32_t> const & contactFramesIdx = robot->getContactFramesIdx();
         std::vector<int32_t>::const_iterator it = std::find(contactFramesIdx.begin(), contactFramesIdx.end(), frameIdx_);
-        data() = robot_->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
+        data() = robot->contactForces_[std::distance(contactFramesIdx.begin(), it)].linear();
 
         return hresult_t::SUCCESS;
     }
@@ -326,21 +318,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            frameName_ = frameName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        frameName_ = frameName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            frameName_.clear();
             isInitialized_ = false;
         }
 
@@ -351,29 +335,16 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
+        GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
+
+        if (returnCode == hresult_t::SUCCESS)
         {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            returnCode = ::jiminy::getFrameIdx(robot->pncModel_, frameName_, frameIdx_);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            if (!isInitialized_)
-            {
-                PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.");
-                returnCode = hresult_t::ERROR_INIT_FAILED;
-            }
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            returnCode = ::jiminy::getFrameIdx(robot_->pncModel_, frameName_, frameIdx_);
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            parentJointIdx_ = robot_->pncModel_.frames[frameIdx_].parent;  // parent always returns the parent joint
+            parentJointIdx_ = robot->pncModel_.frames[frameIdx_].parent;  // 'parent' returns the parent joint
         }
 
         return returnCode;
@@ -402,14 +373,10 @@ namespace jiminy
     {
         // Returns the force applied at frame location, in the local frame of the parent joint
 
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_IF_INITIALIZED()
 
-        pinocchio::SE3 const & framePlacement = robot_->pncModel_.frames[frameIdx_].placement;
-        pinocchio::Force f = framePlacement.actInv(robot_->pncData_.f[parentJointIdx_]);  // f is in the local frame of the joint
+        pinocchio::SE3 const & framePlacement = robot->pncModel_.frames[frameIdx_].placement;
+        pinocchio::Force f = framePlacement.actInv(robot->pncData_.f[parentJointIdx_]);  // f is in the local frame of the joint
         data() = f.toVector();
 
         return hresult_t::SUCCESS;
@@ -437,21 +404,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            jointName_ = jointName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        jointName_ = jointName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            jointName_.clear();
             isInitialized_ = false;
         }
 
@@ -462,33 +421,25 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
-        {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
-
-        if (!robot_->pncModel_.existJointName(jointName_))
+        if (!robot->pncModel_.existJointName(jointName_))
         {
             PRINT_ERROR("Sensor attached to a joint that does not exist.");
             returnCode = hresult_t::ERROR_INIT_FAILED;
         }
 
-        jointIdx_ = robot_->pncModel_.getJointId(jointName_);
-
-        getJointTypeFromIdx(robot_->pncModel_, jointIdx_, jointType_);  // No need to catch the return flag, since the joint type will be NONE anyway
-
-        // Motors are only supported for linear and rotary joints
-        if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
+        if (returnCode == hresult_t::SUCCESS)
         {
-            PRINT_ERROR("An encoder sensor can only be associated with a 1-dof linear or rotary joint.");
-            returnCode =  hresult_t::ERROR_BAD_INPUT;
+            jointIdx_ = robot->pncModel_.getJointId(jointName_);
+            getJointTypeFromIdx(robot->pncModel_, jointIdx_, jointType_);
+
+            // Motors are only supported for linear and rotary joints
+            if (jointType_ != joint_t::LINEAR && jointType_ != joint_t::ROTARY && jointType_ != joint_t::ROTARY_UNBOUNDED)
+            {
+                PRINT_ERROR("An encoder sensor can only be associated with a 1-dof linear or rotary joint.");
+                returnCode =  hresult_t::ERROR_BAD_INPUT;
+            }
         }
 
         return returnCode;
@@ -515,13 +466,9 @@ namespace jiminy
                                  vectorN_t const & a,
                                  vectorN_t const & uMotor)
     {
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to set sensor data.");
-            return hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_IF_INITIALIZED()
 
-        auto const & joint = robot_->pncModel_.joints[jointIdx_];
+        auto const & joint = robot->pncModel_.joints[jointIdx_];
         int32_t const & jointPositionIdx = joint.idx_q();
         int32_t const & jointVelocityIdx = joint.idx_v();
         if (jointType_ == joint_t::ROTARY_UNBOUNDED)
@@ -560,21 +507,13 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!isAttached_)
-        {
-            PRINT_ERROR("Sensor not attached to any robot. Impossible to initialize it.");
-            returnCode = hresult_t::ERROR_GENERIC;
-        }
-
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            motorName_ = motorName;
-            isInitialized_ = true;
-            returnCode = refreshProxies();
-        }
+        motorName_ = motorName;
+        isInitialized_ = true;
+        returnCode = refreshProxies();
 
         if (returnCode != hresult_t::SUCCESS)
         {
+            motorName_.clear();
             isInitialized_ = false;
         }
 
@@ -585,27 +524,17 @@ namespace jiminy
     {
         hresult_t returnCode = hresult_t::SUCCESS;
 
-        if (!robot_->getIsInitialized())
-        {
-            PRINT_ERROR("Robot not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
+        GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (!isInitialized_)
-        {
-            PRINT_ERROR("Sensor not initialized. Impossible to refresh model-dependent proxies.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
-        }
-
-        AbstractMotorBase const * motor;
+        std::weak_ptr<AbstractMotorBase const> motor;
         if (returnCode == hresult_t::SUCCESS)
         {
-            returnCode = robot_->getMotor(motorName_, motor);
+            returnCode = robot->getMotor(motorName_, motor);
         }
 
         if (returnCode == hresult_t::SUCCESS)
         {
-            motorIdx_ = motor->getIdx();
+            motorIdx_ = motor.lock()->getIdx();
         }
 
         return returnCode;

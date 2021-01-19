@@ -146,7 +146,9 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is not meant to be called manually.
         """
-        return getattr(self.simulator, name)
+        if hasattr(self, 'simulator'):
+            return getattr(self.simulator, name)
+        raise AttributeError(f"module {__name__} has no attribute {name}.")
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
@@ -436,8 +438,8 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Assertion(s) for type checker
         assert self.observation_space is not None
 
-        # Reset the simulator
-        self.simulator.reset()
+        # Stop the simulator
+        self.simulator.stop()
 
         # Make sure the environment is properly setup
         self._setup()
@@ -447,6 +449,25 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         if self.engine is not self.simulator.engine:
             raise RuntimeError(
                 "The memory address of the low-level has changed.")
+
+        # Enforce the low-level controller.
+        # The backend robot may have changed, for example if it is randomly
+        # generated based on different URDF files. As a result, it is necessary
+        # to instantiate a new low-level controller.
+        # Note that `BaseJiminyObserverController` is used by default in place
+        # of `jiminy.ControllerFunctor`. Although it is less efficient because
+        # it adds an extra layer of indirection, it makes it possible to update
+        # the controller handle without instantiating a new controller, which
+        # is necessary to allow registering telemetry variables before knowing
+        # the controller handle in advance.
+        controller = BaseJiminyObserverController()
+        controller.initialize(self.robot)
+        self.simulator.set_controller(controller)
+
+        # Reset the simulator.
+        # Note that the controller must be set BEFORE calling 'reset', because
+        # otherwise the controller would be corrupted if the robot has changed.
+        self.simulator.reset()
 
         # Re-initialize some shared memories.
         # It must be done because the robot may have changed.
@@ -473,20 +494,6 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         engine_options = self.simulator.engine.get_options()
         self.control_dt = self.observe_dt = \
             float(engine_options['stepper']['controllerUpdatePeriod'])
-
-        # Enforce the low-level controller.
-        # The backend robot may have changed, for example if it is randomly
-        # generated based on different URDF files. As a result, it is necessary
-        # to instantiate a new low-level controller.
-        # Note that `BaseJiminyObserverController` is used by default in place
-        # of `jiminy.ControllerFunctor`. Although it is less efficient because
-        # it adds an extra layer of indirection, it makes it possible to update
-        # the controller handle without instantiating a new controller, which
-        # is necessary to allow registering telemetry variables before knowing
-        # the controller handle in advance.
-        controller = BaseJiminyObserverController()
-        controller.initialize(self.robot)
-        self.simulator.set_controller(controller)
 
         # Run controller hook and set the observer and controller handles
         observer_handle, controller_handle = None, None

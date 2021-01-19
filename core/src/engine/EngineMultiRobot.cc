@@ -87,6 +87,19 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        auto robot_controller = controller->robot_.lock();
+        if (!robot_controller)
+        {
+            PRINT_ERROR("Controller's robot expired or unset.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (robot != robot_controller)
+        {
+            PRINT_ERROR("Controller not initialized for specified robot.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         // TODO: Check that the callback function is working as expected
         systems_.emplace_back(systemName,
                               std::move(robot),
@@ -129,7 +142,7 @@ namespace jiminy
                               };
         auto controller = std::make_shared<ControllerFunctor<
             decltype(setZeroFunctor), decltype(setZeroFunctor)> >(setZeroFunctor, setZeroFunctor);
-        controller->initialize(robot.get());
+        controller->initialize(robot);
 
         return addSystem(systemName, robot, controller, std::move(callbackFct));
     }
@@ -201,11 +214,30 @@ namespace jiminy
             }
         }
 
+        auto robot_controller = controller->robot_.lock();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!robot_controller)
+            {
+                PRINT_ERROR("Controller's robot expired or unset.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+        }
+
         // Make sure that the system for which to set the controller exists
         systemHolder_t * system;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystem(systemName, system);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (system->robot != robot_controller)
+            {
+                PRINT_ERROR("Controller not initialized for robot associated with specified system.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
         }
 
         // Set the controller
@@ -1846,10 +1878,10 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    hresult_t EngineMultiRobot::getSystem(std::string    const   & systemName,
-                                          systemHolder_t const * & system) const
+    hresult_t EngineMultiRobot::getSystem(std::string const & systemName,
+                                          systemHolder_t * & system)
     {
-        static systemHolder_t const systemEmpty;
+        static systemHolder_t systemEmpty;
 
         hresult_t returnCode = hresult_t::SUCCESS;
 
@@ -1871,20 +1903,6 @@ namespace jiminy
         }
 
         system = &systemEmpty;
-        return returnCode;
-    }
-
-    hresult_t EngineMultiRobot::getSystem(std::string    const   & systemName,
-                                          systemHolder_t       * & system)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-
-        systemHolder_t const * systemConst;
-        returnCode = const_cast<EngineMultiRobot const *>(this)->getSystem(systemName, systemConst);
-        if (returnCode == hresult_t::SUCCESS)
-        {
-            system = const_cast<systemHolder_t *>(systemConst);
-        }
 
         return returnCode;
     }
@@ -2693,6 +2711,28 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    struct ForwardKinematicAccelerationAlgo :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicAccelerationAlgo>
+    {
+        typedef boost::fusion::vector<pinocchio::Model const &,
+                                      pinocchio::Data &,
+                                      vectorN_t const &
+                                      > ArgsType;
+
+        template<typename JointModel>
+        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Model const & model,
+                         pinocchio::Data & data,
+                         vectorN_t const & a)
+        {
+            uint32_t const & i = jmodel.id();
+            uint32_t const & parent = model.parents[i];
+            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v()) ;
+            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+        }
+    };
+
     vectorN_t EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
                                                     vectorN_t      const & q,
                                                     vectorN_t      const & v,
@@ -2745,7 +2785,16 @@ namespace jiminy
                 system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
 
-        // Compute the internal forces
+        /* Neither 'aba' nor 'forwardDynamics' are not computed properly the joints
+           acceleration and forces, so they must be updated separately. */
+        system.robot->pncData_.a[0].setZero();
+        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+        {
+            ForwardKinematicAccelerationAlgo::run(
+                system.robot->pncModel_.joints[i], system.robot->pncData_.joints[i],
+                typename ForwardKinematicAccelerationAlgo::ArgsType(
+                    system.robot->pncModel_, system.robot->pncData_, a));
+        }
         pinocchio_overload::rnea(
             system.robot->pncModel_, system.robot->pncData_, q, v, a);
 
