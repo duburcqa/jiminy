@@ -2711,6 +2711,28 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
+    struct ForwardKinematicAccelerationAlgo :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicAccelerationAlgo>
+    {
+        typedef boost::fusion::vector<pinocchio::Model const &,
+                                      pinocchio::Data &,
+                                      vectorN_t const &
+                                      > ArgsType;
+
+        template<typename JointModel>
+        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Model const & model,
+                         pinocchio::Data & data,
+                         vectorN_t const & a)
+        {
+            uint32_t const & i = jmodel.id();
+            uint32_t const & parent = model.parents[i];
+            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v()) ;
+            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+        }
+    };
+
     vectorN_t EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
                                                     vectorN_t      const & q,
                                                     vectorN_t      const & v,
@@ -2763,7 +2785,16 @@ namespace jiminy
                 system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
         }
 
-        // Compute the internal forces
+        /* Neither 'aba' nor 'forwardDynamics' are not computed properly the joints
+           acceleration and forces, so they must be updated separately. */
+        system.robot->pncData_.a[0].setZero();
+        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+        {
+            ForwardKinematicAccelerationAlgo::run(
+                system.robot->pncModel_.joints[i], system.robot->pncData_.joints[i],
+                typename ForwardKinematicAccelerationAlgo::ArgsType(
+                    system.robot->pncModel_, system.robot->pncData_, a));
+        }
         pinocchio_overload::rnea(
             system.robot->pncModel_, system.robot->pncData_, q, v, a);
 

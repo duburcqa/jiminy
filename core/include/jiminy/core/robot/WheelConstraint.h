@@ -44,39 +44,10 @@ namespace jiminy
                         vector3_t   const & wheelAxis);
         virtual ~WheelConstraint(void);
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Compute and return the jacobian of the constraint.
-        ///
-        /// \note     To avoid duplicate kinematic computation, it is assumed that
-        ///           computeJointJacobians and framesForwardKinematics have already
-        ///           been called on model->pncModel_.
-        ///
-        /// \param[in] q    Current joint position.
-        /// \return         Jacobian of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t const & getJacobian(vectorN_t const & q) override final;
+        virtual hresult_t reset(void) override final;
 
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Compute and return the drift of the constraint.
-        ///
-        /// \note     To avoid duplicate kinematic computation, it is assumed that forward kinematics
-        ///           on position, velocity, and zero acceleration, and jacobian computation
-        ///           have already been done on model->pncModel_.
-        ///
-        /// \param[in] q    Current joint position.
-        /// \param[in] v    Current joint velocity.
-        /// \return         Drift of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual vectorN_t const & getDrift(vectorN_t const & q,
-                                           vectorN_t const & v) override final;
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           motor is added is taking care of it when its own `refresh` method is called.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void) override final;
+        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
+                                                  vectorN_t const & v) override final;
 
     private:
         std::string frameName_;     ///< Name of the frame on which the constraint operates.

@@ -37,7 +37,7 @@ namespace jiminy
     mutexLocal_(),
     motorsSharedHolder_(std::make_shared<MotorSharedDataHolder_t>()),
     sensorsSharedHolder_(),
-    zeroAccelerationVector_(vectorN_t::Zero(0))
+    jointsAcceleration_()
     {
         // Empty on purpose
     }
@@ -84,6 +84,12 @@ namespace jiminy
             {
                 (*sensorGroup.second.begin())->resetAll();
             }
+        }
+
+        // Reset the constraints
+        for (auto & constraintItem : constraintsHolder_)
+        {
+            constraintItem.second->reset();
         }
 
         // Reset the telemetry flag
@@ -451,7 +457,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt != constraintsHolder_.end())
         {
@@ -460,10 +466,11 @@ namespace jiminy
         }
         else
         {
-            returnCode = constraint->attach(this);
+            returnCode = constraint->attach(shared_from_this());
             if (returnCode == hresult_t::SUCCESS)
             {
-                constraintsHolder_.push_back(robotConstraint_t(constraintName, constraint));
+                constraintsHolder_.emplace_back(constraintName, constraint);
+                constraint->reset();
             }
         }
 
@@ -483,7 +490,7 @@ namespace jiminy
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
@@ -491,7 +498,10 @@ namespace jiminy
             return hresult_t::ERROR_BAD_INPUT;
         }
 
-        constraintIt->constraint_->detach();
+        // Detach the constraint
+        constraintIt->second->detach();  // It cannot fail at this point
+
+        // Remove the constraint from the holder
         constraintsHolder_.erase(constraintIt);
 
         // Required to resize constraintsJacobian_ to the right size.
@@ -501,27 +511,46 @@ namespace jiminy
     }
 
     hresult_t Robot::getConstraint(std::string const & constraintName,
-                                   std::shared_ptr<AbstractConstraint> & constraint) const
+                                   std::shared_ptr<AbstractConstraint> & constraint)
     {
         // Lookup constraint.
         auto constraintIt = std::find_if(constraintsHolder_.begin(),
                                          constraintsHolder_.end(),
                                          [&constraintName](auto const & element)
                                          {
-                                             return element.name_ == constraintName;
+                                             return element.first == constraintName;
                                          });
         if (constraintIt == constraintsHolder_.end())
         {
             PRINT_ERROR("No constraint with this name exists.");
             return hresult_t::ERROR_BAD_INPUT;
         }
-        else
-        {
-            constraint = constraintIt->constraint_;
-        }
+
+        constraint = constraintIt->second;
+
         return hresult_t::SUCCESS;
     }
 
+    hresult_t Robot::getConstraint(std::string const & constraintName,
+                                   std::weak_ptr<AbstractConstraint const> & constraint) const
+    {
+        // Lookup constraint.
+        auto constraintIt = std::find_if(constraintsHolder_.begin(),
+                                         constraintsHolder_.end(),
+                                         [&constraintName](auto const & element)
+                                         {
+                                             return element.first == constraintName;
+                                         });
+        if (constraintIt == constraintsHolder_.end())
+        {
+            PRINT_ERROR("No constraint with this name exists.");
+            return hresult_t::ERROR_BAD_INPUT;
+        }
+
+        constraint = std::const_pointer_cast<AbstractConstraint const>(constraintIt->second);
+
+        return hresult_t::SUCCESS;
+    }
 
     hresult_t Robot::refreshProxies(void)
     {
@@ -560,42 +589,37 @@ namespace jiminy
     hresult_t Robot::refreshConstraintsProxies(void)
     {
         hresult_t returnCode = hresult_t::SUCCESS;
-        vectorN_t q = pinocchio::neutral(pncModel_);
-        vectorN_t v = vectorN_t::Zero(pncModel_.nv);
 
-        // Resize zeroAccelerationVector_ to the right size
-        zeroAccelerationVector_ = vectorN_t::Zero(pncModel_.nv);
+        // Backup pinocchio::Data.a
+        jointsAcceleration_ = pncData_.a;
 
         uint32_t constraintSize = 0;
-        for (auto & constraint : constraintsHolder_)
+        for (auto & constraintItem : constraintsHolder_)
         {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = constraint.constraint_->refreshProxies();
-            }
+            std::shared_ptr<AbstractConstraint> & constraint = constraintItem.second;
+
             if (returnCode == hresult_t::SUCCESS)
             {
                 // Call constraint on neutral position and zero velocity.
-                matrixN_t J = constraint.constraint_->getJacobian(q);
-                vectorN_t drift = constraint.constraint_->getDrift(q, v);
+                matrixN_t const & J = constraint->getJacobian();
 
-                // Verify dimensions.
+                // Check dimensions consistency
                 if (J.cols() != pncModel_.nv)
                 {
                     PRINT_ERROR("Robot::refreshConstraintsProxies: constraint has "
                                 "inconsistent jacobian and drift (size mismatch).");
                     returnCode = hresult_t::ERROR_GENERIC;
                 }
+
+                // Store constraint size
                 if (returnCode == hresult_t::SUCCESS)
                 {
-                    // Store constraint size.
-                    constraint.dim_ = J.rows();
-                    constraintSize += J.rows();
+                    constraintSize += constraint->getDim();
                 }
             }
         }
 
-        // Reset jacobian and drift to 0.
+        // Reset jacobian and drift to 0
         if (returnCode == hresult_t::SUCCESS)
         {
             constraintsJacobian_ = matrixN_t::Zero(constraintSize, pncModel_.nv);
@@ -1316,9 +1340,10 @@ namespace jiminy
                                vectorN_t const & a,
                                vectorN_t const & u)
     {
-        // Update kinematic quantities before updating sensors.
-        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, a);
-        pinocchio::updateFramePlacements(pncModel_, pncData_);
+        /* Note that it is assumed that the kinematic quantities have been
+           updated previously to be consistent with (q, v, a, u). If not,
+           one is supposed to call  `pinocchio::forwardKinematics` and
+           `pinocchio::updateFramePlacements` before calling this method. */
 
         for (auto const & sensorGroup : sensorsGroupHolder_)
         {
@@ -1332,31 +1357,53 @@ namespace jiminy
     void Robot::computeConstraints(vectorN_t const & q,
                                    vectorN_t const & v)
     {
-        // Compute joint jacobian.
+        /* Note that it is assumed that the kinematic quantities have been
+           updated previously to be consistent with (q, v, a, u). If not,
+           one is supposed to call  `pinocchio::forwardKinematics` before
+           calling this method. */
+
+        // Compute forward kinematics without acceleration to be able to compute drift alter on
+        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
+        {
+            jointsAcceleration_[i] = pncData_.a[i];
+        }
+        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, vectorN_t::Zero(pncModel_.nv));
+
+        // Compute joint jacobian
         pinocchio::computeJointJacobians(pncModel_, pncData_, q);
-        pinocchio::forwardKinematics(pncModel_, pncData_, q, v, zeroAccelerationVector_);
 
         uint32_t currentRow = 0;
-        for (auto & constraint : constraintsHolder_)
+        for (auto & constraintItem : constraintsHolder_)
         {
-            matrixN_t J = constraint.constraint_->getJacobian(q);
-            vectorN_t drift = constraint.constraint_->getDrift(q, v);
+            std::shared_ptr<AbstractConstraint> & constraint = constraintItem.second;
 
-            uint32_t constraintDim = J.rows();
-            // Resize matrix if needed.
-            if (constraintDim != constraint.dim_)
+            // Compute constraint jacobian and drift
+            uint32_t constraintDimPrev = constraint->getDim();
+            constraint->computeJacobianAndDrift(q, v);
+
+            // Resize matrix if needed
+            uint32_t constraintDim = constraint->getDim();
+            if (constraintDimPrev != constraintDim)
             {
                 constraintsJacobian_.conservativeResize(
-                    constraintsJacobian_.rows() + constraintDim - constraint.dim_,
+                    constraintsJacobian_.rows() + constraintDim - constraintDimPrev,
                     Eigen::NoChange);
-                constraintsDrift_.conservativeResize(constraintsDrift_.size() + constraintDim - constraint.dim_);
-                constraint.dim_ = constraintDim;
+                constraintsDrift_.conservativeResize(
+                    constraintsDrift_.size() + constraintDim - constraintDimPrev);
             }
-            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = J;
-            constraintsDrift_.segment(currentRow, constraintDim) = drift;
+
+            // Update global jacobian and drift of all constraints
+            constraintsJacobian_.block(currentRow, 0, constraintDim, pncModel_.nv) = constraint->getJacobian();
+            constraintsDrift_.segment(currentRow, constraintDim) = constraint->getDrift();
             currentRow += constraintDim;
         }
-     }
+
+        // Restore true acceleration, taking the drift into account
+        for (int32_t i = 0 ; i < pncModel_.njoints ; ++i)
+        {
+            pncData_.a[i] = jointsAcceleration_[i];
+        }
+    }
 
     sensorsDataMap_t Robot::getSensorsData(void) const
     {

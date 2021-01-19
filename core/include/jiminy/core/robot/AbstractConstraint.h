@@ -40,40 +40,43 @@ namespace jiminy
         /// \brief      Constructor
         ///////////////////////////////////////////////////////////////////////////////////////////////
         AbstractConstraint();
-        virtual ~AbstractConstraint(void) = default;
+        virtual ~AbstractConstraint(void);
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Compute and return the jacobian of the constraint.
+        /// \brief    Refresh the internal buffers and proxies.
+        ///
+        /// \remark   This method is not intended to be called manually. The Robot to which the
+        ///           constraint is added is taking care of it when its own `reset` method is called.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        virtual hresult_t reset(void) = 0;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Compute the jacobian and drift of the constraint.
         ///
         /// \note     To avoid duplicate kinematic computation, it is assumed that
         ///           computeJointJacobians and framesForwardKinematics has already
         ///           been called on model->pncModel_.
         ///
         /// \param[in] q    Current joint position.
-        /// \return         Jacobian of the constraint.
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual matrixN_t const & getJacobian(vectorN_t const & q);
-
-        ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Compute and return the drift of the constraint.
-        ///
-        /// \note     To avoid duplicate kinematic computation, it is assumed that forward kinematics
-        ///           and jacobian computation has already been done on model->pncModel_.
-        ///
-        /// \param[in] q    Current joint position.
         /// \param[in] v    Current joint velocity.
-        /// \return         Drift of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual vectorN_t const & getDrift(vectorN_t const & q,
-                                           vectorN_t const & v);
+        virtual hresult_t computeJacobianAndDrift(vectorN_t const & q,
+                                                  vectorN_t const & v) = 0;
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        /// \brief    Refresh the proxies.
-        ///
-        /// \remark   This method is not intended to be called manually. The Robot to which the
-        ///           constraint is added is taking care of it when its own `refresh` method is called.
+        /// \brief    Return the dimension of the constraint.
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        virtual hresult_t refreshProxies(void) = 0;
+        uint32_t getDim(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Return the jacobian of the constraint.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        matrixN_t const & getJacobian(void) const;
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        /// \brief    Return the drift of the constraint.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        vectorN_t const & getDrift(void) const;
 
     private:
         ///////////////////////////////////////////////////////////////////////////////////////////////
