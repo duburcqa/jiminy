@@ -518,13 +518,12 @@ class Simulator:
     def close(self) -> None:
         """Close the connection with the renderer.
         """
-        if hasattr(self, 'engine'):
-            if self.viewer is not None:
-                self.viewer.close()
-                self._is_viewer_available = False
-                self.viewer = None
-            if self.__plot_data is not None:
-                plt.close(self.__plot_data['fig'])
+        if self.viewer is not None:
+            self.viewer.close()
+            self._is_viewer_available = False
+            self.viewer = None
+        if self.__plot_data is not None:
+            plt.close(self.__plot_data['fig'])
 
     def plot(self) -> None:
         """Display common simulation data over time.
