@@ -11,7 +11,7 @@ ControllerHandleType = Callable[[
     float, np.ndarray, np.ndarray, jiminy.sensorsData, np.ndarray], None]
 
 
-class BaseJiminyObserverController(jiminy.BaseControllerFunctor):
+class BaseJiminyObserverController(jiminy.BaseController):
     """Base class to instantiate a Jiminy observer and/or controller based on
     callables that can be changed on-the-fly.
 
@@ -21,14 +21,14 @@ class BaseJiminyObserverController(jiminy.BaseControllerFunctor):
         such a Numba. Doing it is left to the user.
     """
     def __init__(self) -> None:
+        # Initialize base controller
+        super().__init__()
+
         # Define some internal buffers
         self.__must_refresh_observer = True
         self.__controller_handle = \
             lambda t, q, v, sensors_data, u: u.fill(0.0)
         self.__observer_handle = lambda t, q, v, sensors_data: None
-
-        # Initialize base controller
-        super().__init__(self.__compute_command, self.internal_dynamics)
 
     def initialize(self, robot: BaseJiminyRobot) -> None:
         """Initialize the controller.
@@ -111,17 +111,16 @@ class BaseJiminyObserverController(jiminy.BaseControllerFunctor):
                 ) from e
         self.__controller_handle = controller_handle
 
-    def __compute_command(self,
-                          t: float,
-                          q: np.ndarray,
-                          v: np.ndarray,
-                          sensors_data: jiminy.sensorsData,
-                          u: np.ndarray) -> None:
+    def compute_command(self,
+                        t: float,
+                        q: np.ndarray,
+                        v: np.ndarray,
+                        u: np.ndarray) -> None:
         """Internal controller callback, should not be called directly.
         """
         if self.__must_refresh_observer:
-            self.__observer_handle(t, q, v, sensors_data)
-        self.__controller_handle(t, q, v, sensors_data, u)
+            self.__observer_handle(t, q, v, self.sensors_data)
+        self.__controller_handle(t, q, v, self.sensors_data, u)
         self.__must_refresh_observer = True
 
     def refresh_observation(self,
@@ -135,25 +134,19 @@ class BaseJiminyObserverController(jiminy.BaseControllerFunctor):
             self.__observer_handle(t, q, v, sensors_data)
         self.__must_refresh_observer = False
 
-    def internal_dynamics(self,
-                          t: float,
-                          q: np.ndarray,
-                          v: np.ndarray,
-                          sensors_data: jiminy.sensorsData,
-                          u: np.ndarray) -> None:
-        """Internal dynamics of the robot.
 
-        Overload this method to implement a custom internal dynamics for the
-        robot.
+BaseJiminyObserverController.internal_dynamics.__doc__ = \
+    """Internal dynamics of the robot.
 
-        .. warning:::
-            It is likely to result in an overhead of about 100% of the
-            simulation, which is not often not acceptable in production, but
-            still useful for prototyping. One way to solve this issue would be
-            to compile it using CPython.
+    Overload this method to implement a custom internal dynamics for the robot.
 
-        .. note:::
-            This method is time-continuous as it is designed to implement
-            physical laws.
-        """
-        pass
+    .. warning:::
+        It is likely to result in an overhead of about 100% of the simulation,
+        which is not often not acceptable in production, but still useful for
+        prototyping. One way to solve this issue would be to compile it using
+        CPython.
+
+    .. note:::
+        This method is time-continuous as it is designed to implement physical
+        laws.
+    """
