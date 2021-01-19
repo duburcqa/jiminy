@@ -87,6 +87,19 @@ namespace jiminy
             return hresult_t::ERROR_INIT_FAILED;
         }
 
+        auto robot_controller = controller->robot_.lock();
+        if (!robot_controller)
+        {
+            PRINT_ERROR("Controller's robot expired or unset.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
+        if (robot != robot_controller)
+        {
+            PRINT_ERROR("Controller not initialized for specified robot.");
+            return hresult_t::ERROR_INIT_FAILED;
+        }
+
         // TODO: Check that the callback function is working as expected
         systems_.emplace_back(systemName,
                               std::move(robot),
@@ -201,11 +214,30 @@ namespace jiminy
             }
         }
 
+        auto robot_controller = controller->robot_.lock();
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (!robot_controller)
+            {
+                PRINT_ERROR("Controller's robot expired or unset.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
+        }
+
         // Make sure that the system for which to set the controller exists
         systemHolder_t * system;
         if (returnCode == hresult_t::SUCCESS)
         {
             returnCode = getSystem(systemName, system);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            if (system->robot != robot_controller)
+            {
+                PRINT_ERROR("Controller not initialized for robot associated with specified system.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
         }
 
         // Set the controller

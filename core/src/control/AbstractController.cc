@@ -26,6 +26,10 @@ namespace jiminy
 
     hresult_t AbstractController::initialize(std::weak_ptr<Robot const> robotIn)
     {
+        /* Note that it is not possible to reinitialize a controller for a different robot,
+           because otherwise, it would be necessary to check consistency with system at
+           engine level when calling reset. */
+
         // Make sure the robot is valid
         auto robot = robotIn.lock();
         if (!robot)
