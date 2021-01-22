@@ -614,7 +614,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
         done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            self.is_done()
+            not self.is_simulation_running or self.is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
