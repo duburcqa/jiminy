@@ -16,7 +16,8 @@ namespace jiminy
                                              float64_t               & dt)
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
-        state.sumInPlace(dt * f(t, state));
+        stateDerivative = f(t, state);
+        state.sumInPlace(dt * stateDerivative);
 
         // Scheme never considers failure.
         return true;
