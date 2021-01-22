@@ -1107,9 +1107,14 @@ namespace jiminy
         }
 
         // Check if there is something wrong with the integration
-        for (auto const & a : stepperState_.aSplit)
+        auto qIt = stepperState_.qSplit.begin();
+        auto vIt = stepperState_.vSplit.begin();
+        auto aIt = stepperState_.aSplit.begin();
+        for ( ; qIt != stepperState_.qSplit.end(); ++qIt, ++vIt, ++aIt)
         {
-            if ((a.array() != a.array()).any()) // isnan if NOT equal to itself
+            if ((qIt->array() != qIt->array()).any() ||
+                (vIt->array() != vIt->array()).any() ||
+                (aIt->array() != aIt->array()).any()) // isnan if NOT equal to itself
             {
                 PRINT_ERROR("The low-level ode solver failed. Consider increasing the stepper accuracy.");
                 return hresult_t::ERROR_GENERIC;
