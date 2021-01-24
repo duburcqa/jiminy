@@ -13,9 +13,12 @@ from ..utils import _is_breakpoint, zeros, SpaceDictNested
 from ..bases import BasePipelineWrapper
 
 
-class PartialFrameStack(gym.Wrapper):
-    """Observation wrapper that stacks parts of the observations in a rolling
+class FilterFrameStack(gym.Wrapper):
+    """Observation wrapper that stacks filtered observations in a rolling
     manner.
+
+    It combines and extends OpenAI Gym wrappers `FrameStack` and
+    `FilterObservation` to support nested filter keys.
 
     .. note::
         The observation space must be `gym.spaces.Dict`, while, ultimately,
@@ -23,12 +26,12 @@ class PartialFrameStack(gym.Wrapper):
     """
     def __init__(self,  # pylint: disable=unused-argument
                  env: gym.Env,
-                 nested_fields_list: Sequence[Sequence[str]],
+                 nested_filter_keys: Sequence[Sequence[str]],
                  num_stack: int,
                  **kwargs: Any):
         """
         :param env: Environment to wrap.
-        :param nested_fields_list: List of nested observation fields to stack.
+        :param nested_filter_keys: List of nested observation fields to stack.
                                    Those fields does not have to be leaves. If
                                    not, then every leaves fields from this root
                                    will be stacked.
@@ -47,8 +50,8 @@ class PartialFrameStack(gym.Wrapper):
                         yield [field]
 
         # Backup user arguments
-        self.nested_fields_list: List[List[str]] = list(
-            map(list, nested_fields_list))  # type: ignore[arg-type]
+        self.nested_filter_keys: List[List[str]] = list(
+            map(list, nested_filter_keys))  # type: ignore[arg-type]
         self.num_stack = num_stack
 
         # Initialize base wrapper
@@ -56,7 +59,7 @@ class PartialFrameStack(gym.Wrapper):
 
         # Get the leaf fields to stack
         self.leaf_fields_list: List[List[str]] = []
-        for fields in self.nested_fields_list:
+        for fields in self.nested_filter_keys:
             root_field = reduce(
                 lambda d, key: d[key], fields, self.env.observation_space)
             if isinstance(root_field, gym.spaces.Dict):
@@ -147,7 +150,7 @@ class StackedJiminyEnv(BasePipelineWrapper):
         super().__init__(env, **kwargs)
 
         # Instantiate wrapper
-        self.wrapper = PartialFrameStack(env, **kwargs)
+        self.wrapper = FilterFrameStack(env, **kwargs)
 
         # Assertion(s) for type checker
         assert self.env.action_space is not None
@@ -192,6 +195,5 @@ class StackedJiminyEnv(BasePipelineWrapper):
             self.__n_last_stack += 1
         if self.__n_last_stack == self.skip_frames_ratio:
             self.__n_last_stack = -1
-            obs = self.env.get_observation()
-            self._observation = obs
+            self._observation = self.env.get_observation()
             self.wrapper.compute_observation(self._observation)

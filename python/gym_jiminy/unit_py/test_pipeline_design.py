@@ -40,7 +40,7 @@ class PipelineDesign(unittest.TestCase):
                 {
                 'wrapper_class': 'gym_jiminy.common.wrappers.StackedJiminyEnv',
                 'wrapper_kwargs': {
-                    'nested_fields_list': [
+                    'nested_filter_keys': [
                         ('t',),
                         ('sensors', 'ImuSensor'),
                         ('targets',)
