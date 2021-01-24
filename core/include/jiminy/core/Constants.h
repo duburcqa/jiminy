@@ -31,10 +31,10 @@ namespace jiminy
     extern uint8_t const DELAY_MIN_BUFFER_RESERVE;  ///< Minimum memory allocation is memory is full and the older data stored is dated less than the desired delay
     extern uint8_t const DELAY_MAX_BUFFER_EXCEED;   ///< Maximum number of data stored allowed to be dated more than the desired delay
 
-    extern float64_t const SIMULATION_MIN_TIMESTEP;
-    extern float64_t const SIMULATION_MAX_TIMESTEP;
-    extern float64_t const SIMULATION_INITIAL_TIMESTEP;
     extern float64_t const STEPPER_MIN_TIMESTEP;
+    extern float64_t const SIMULATION_MIN_TIMESTEP;
+    extern float64_t const SIMULATION_INITIAL_TIMESTEP;
+    extern float64_t const SIMULATION_MAX_TIMESTEP;
 }
 
 #endif  // JIMINY_CONSTANTS_H
