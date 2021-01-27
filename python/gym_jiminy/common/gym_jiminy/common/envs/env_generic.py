@@ -146,9 +146,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is not meant to be called manually.
         """
-        if hasattr(self, 'simulator'):
-            return getattr(self.simulator, name)
-        raise AttributeError(f"module {__name__} has no attribute {name}.")
+        return getattr(super().__getattribute__('simulator'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
