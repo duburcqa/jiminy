@@ -124,7 +124,7 @@ if (-not (Test-Path -PathType Container "$RootDir/pinocchio")) {
 }
 Set-Location -Path "$RootDir/pinocchio"
 git reset --hard
-git checkout --force "v2.5.5"
+git checkout --force "v2.5.6"
 git submodule --quiet foreach --recursive git reset --quiet --hard
 git submodule --quiet update --init --recursive --jobs 8
 dos2unix "$RootDir/build_tools/patch_deps_windows/pinocchio.patch"
