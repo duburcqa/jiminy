@@ -109,6 +109,19 @@ class AcrobotJiminyEnv(BaseJiminyEnv):
         self.__state_view = (self._observation[:self.robot.nq],
                              self._observation[-self.robot.nv:])
 
+    def _setup(self) -> None:
+        """ TODO: Write documentation.
+        """
+        # Call base implementation
+        super()._setup()
+
+        # Increase stepper accuracy for time-continuous control
+        engine_options = self.simulator.engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolRel"] = 1.0e-9
+        engine_options["stepper"]["tolAbs"] = 1.0e-8
+        self.simulator.engine.set_options(engine_options)
+
     def _refresh_observation_space(self) -> None:
         """Configure the observation of the environment.
 
