@@ -52,6 +52,13 @@ class SimulateMultiRobot(unittest.TestCase):
         # Create two identical robots
         engine = jiminy.EngineMultiRobot()
 
+        # Configure the engine
+        engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine.set_options(engine_options)
+
         system_names = ['FirstSystem', 'SecondSystem']
         robots = []
         for i in range(2):

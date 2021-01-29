@@ -96,6 +96,8 @@ class SimulateTwoMasses(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 0.0
         engine_options["stepper"]["controllerUpdatePeriod"] = 0.0
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
 
         # Compare the numerical and analytical solutions
@@ -119,6 +121,8 @@ class SimulateTwoMasses(unittest.TestCase):
         engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 1.0e-3
         engine_options["stepper"]["controllerUpdatePeriod"] = 1.0e-3
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
 
         # Compare the numerical and analytical solutions
@@ -135,6 +139,13 @@ class SimulateTwoMasses(unittest.TestCase):
         engine = jiminy.Engine()
         setup_controller_and_engine(
             engine, self.robot, internal_dynamics=self._spring_force)
+
+        # Configure the engine
+        engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine.set_options(engine_options)
 
         # Define and register the external force:
         # a spring linking the second mass to the origin.
@@ -210,8 +221,11 @@ class SimulateTwoMasses(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6)
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
         engine_options["stepper"]["sensorsUpdatePeriod"] = 1e-3
         engine_options["stepper"]["controllerUpdatePeriod"] = 1e-3
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
 
         # Run simulation: Check is done directly by control law
@@ -225,6 +239,13 @@ class SimulateTwoMasses(unittest.TestCase):
         engine = jiminy.Engine()
         setup_controller_and_engine(
             engine, self.robot, internal_dynamics=self._spring_force)
+
+        # Configure the engine
+        engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine.set_options(engine_options)
 
         # Add a kinematic constraint on the second mass
         constraint = jiminy.FixedFrameConstraint("SecondMass")
@@ -262,6 +283,9 @@ class SimulateTwoMasses(unittest.TestCase):
         # Configure the engine
         engine_options = engine.get_options()
         engine_options["world"]["gravity"] = np.zeros(6) # Turn off gravity
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
         engine.set_options(engine_options)
 
         # Add a kinematic constraints.
@@ -317,6 +341,13 @@ class SimulateTwoMasses(unittest.TestCase):
         # Rebuild the model with a freeflyer
         robots = [jiminy.Robot(), jiminy.Robot()]
         engine = jiminy.EngineMultiRobot()
+
+        # Configure the engine
+        engine_options = engine.get_options()
+        engine_options["stepper"]["solver"] = "runge_kutta_dopri5"
+        engine_options["stepper"]["tolAbs"] = TOLERANCE * 1e-1
+        engine_options["stepper"]["tolRel"] = TOLERANCE * 1e-1
+        engine.set_options(engine_options)
 
         # Define some internal parameters
         systems_names = ['FirstSystem', 'SecondSystem']
