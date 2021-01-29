@@ -279,11 +279,35 @@ namespace python
                                       (bp::arg("self"), "system_name"))
                 .def("set_controller", &EngineMultiRobot::setController,
                                       (bp::arg("self"), "system_name", "controller"))
+
                 .def("add_coupling_force", &PyEngineMultiRobotVisitor::addCouplingForce,
                                            (bp::arg("self"),
                                             "system_name_1", "system_name_2",
                                             "frame_name_1", "frame_name_2",
                                             "force_function"))
+                .def("add_viscoelastic_coupling_force",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(
+                            std::string const &,
+                            std::string const &,
+                            std::string const &,
+                            std::string const &,
+                            float64_t   const &,
+                            float64_t   const &)
+                    >(&EngineMultiRobot::addViscoElasticCouplingForce),
+                    (bp::arg("self"), "system_name_1", "system_name_2",
+                     "frame_name_1", "frame_name_2", "stiffness", "damping"))
+                .def("add_viscoelastic_coupling_force",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(
+                            std::string const &,
+                            std::string const &,
+                            std::string const &,
+                            float64_t   const &,
+                            float64_t   const &)
+                    >(&EngineMultiRobot::addViscoElasticCouplingForce),
+                    (bp::arg("self"), "system_name", "frame_name_1", "frame_name_2",
+                     "stiffness", "damping"))
                 .def("remove_coupling_forces",
                     static_cast<
                         hresult_t (EngineMultiRobot::*)(std::string const &, std::string const &)
@@ -294,6 +318,11 @@ namespace python
                         hresult_t (EngineMultiRobot::*)(std::string const &)
                     >(&EngineMultiRobot::removeCouplingForces),
                     (bp::arg("self"), "system_name"))
+                .def("remove_coupling_forces",
+                    static_cast<
+                        hresult_t (EngineMultiRobot::*)(void)
+                    >(&EngineMultiRobot::removeCouplingForces),
+                    (bp::arg("self")))
 
                 .def("reset",
                     static_cast<
@@ -687,6 +716,12 @@ namespace python
                                                (bp::arg("self"), "frame_name", "force_function"))
                 .def("add_coupling_force", &PyEngineVisitor::addCouplingForce,
                                            (bp::arg("self"), "frame_name_1", "frame_name_2", "force_function"))
+                .def("add_viscoelastic_coupling_force",
+                    static_cast<
+                        hresult_t (Engine::*)(
+                            std::string const &, std::string const &, float64_t const &, float64_t const &)
+                    >(&Engine::addViscoElasticCouplingForce),
+                    (bp::arg("self"), "frame_name_1", "frame_name_2", "stiffness", "damping"))
 
                 .add_property("is_initialized", bp::make_function(&Engine::getIsInitialized,
                                                 bp::return_value_policy<bp::copy_const_reference>()))
