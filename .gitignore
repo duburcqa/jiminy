@@ -4,3 +4,4 @@
 docs/html
 install
 build
+**/log
