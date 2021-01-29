@@ -989,9 +989,10 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     def get_observation(self) -> SpaceDictNested:
         """ TODO: Write documentation.
         """
-        return {'observation': super().get_observation(),
-                'achieved_goal': self._get_achieved_goal(),
-                'desired_goal': self._desired_goal}
+        return OrderedDict(
+            observation=super().get_observation(),
+            achieved_goal=self._get_achieved_goal(),
+            desired_goal=self._desired_goal)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[

@@ -12,6 +12,7 @@ It implements:
       unified environment.
 """
 from copy import deepcopy
+from collections import OrderedDict
 from typing import Optional, Union, Tuple, Dict, Any, List, Callable
 
 import numpy as np
@@ -360,7 +361,7 @@ class ObservedJiminyEnv(BasePipelineWrapper):
                 features = self.observer.get_observation()
                 if self.augment_observation:
                     self._observation = obs
-                    self._observation.setdefault('features', {})[
+                    self._observation.setdefault('features', OrderedDict())[
                         self.observer_name] = features
                 else:
                     self._observation = features
@@ -581,7 +582,7 @@ class ControlledJiminyEnv(BasePipelineWrapper):
         if not self.simulator.is_simulation_running:
             self._observation = self.env.get_observation()
             if self.augment_observation:
-                self._observation.setdefault('targets', {})[
+                self._observation.setdefault('targets', OrderedDict())[
                     self.controller_name] = self._action
 
     def compute_reward(self, *args: Any, **kwargs: Any) -> float:
