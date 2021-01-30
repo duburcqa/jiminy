@@ -24,7 +24,7 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
     """Solve several official Open AI Gym toys models problems simulated in
     Jiminy using PPO algorithm of Stable Baselines 3 RL framework.
 
-    They are solved consistently in less than 100000 timesteps, and in about
+    They are solved consistently in less than 150000 timesteps, and in about
     30000 at best.
 
     .. warning::
@@ -47,14 +47,14 @@ class ToysModelsStableBaselinesPPO(unittest.TestCase):
         config['batch_size'] = 128
         config['learning_rate'] = 1.0e-3
         config['n_epochs'] = 8
-        config['gamma'] = 0.995
+        config['gamma'] = 0.99
         config['gae_lambda'] = 0.95
         config['target_kl'] = None
-        config['ent_coef'] = 0.01
+        config['ent_coef'] = 0.0
         config['vf_coef'] = 0.5
         config['clip_range'] = 0.2
-        config['clip_range_vf'] = float('inf')
-        config['max_grad_norm'] = float('inf')
+        config['clip_range_vf'] = None
+        config['max_grad_norm'] = 0.5
         config['seed'] = SEED
 
         # Policy model config
