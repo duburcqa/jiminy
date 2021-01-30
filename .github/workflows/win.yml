@@ -40,7 +40,7 @@ jobs:
       run: |
         git config --global advice.detachedHead false
         python -m pip install --upgrade pip
-        python -m pip install numpy wheel
+        python -m pip install wheel "numpy<1.20"
         python -m pip uninstall -y pipx  # Uninstall unecessary packages causing conflicts with the new resolver
     - name: Build project dependencies
       run: |
