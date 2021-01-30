@@ -25,9 +25,7 @@ class Getch:
             self.fd = sys.stdin.fileno()
             self.oldterm = termios.tcgetattr(self.fd)
             newattr = termios.tcgetattr(self.fd)
-            newattr[3] = (
-                newattr[3] &  # type: ignore[operator]
-                ~termios.ICANON & ~termios.ECHO)
+            newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
             termios.tcsetattr(self.fd, termios.TCSANOW, newattr)
             self.oldflags = fcntl.fcntl(self.fd, fcntl.F_GETFL)
             newflags = self.oldflags | os.O_NONBLOCK
