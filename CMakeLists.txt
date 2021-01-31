@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Set the build version
-set(BUILD_VERSION 1.5.4)
+set(BUILD_VERSION 1.5.5)
 
 # Add definition of Jiminy version for C++ headers
 add_definitions("-DJIMINY_VERSION=\"${BUILD_VERSION}\"")
@@ -21,9 +21,9 @@ include(${CMAKE_SOURCE_DIR}/build_tools/cmake/buildPythonWheel.cmake)
 
 # Set the compilation flags
 if(NOT WIN32)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -g -ftemplate-backtrace-limit=0 ${WARN_FULL}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -O0 -g -ftemplate-backtrace-limit=0 ${WARN_FULL}")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -DNDEBUG -O3 -Wfatal-errors -Werror ${WARN_FULL} \
-                                 -Wno-non-virtual-dtor -Wno-deprecated-declarations -Wno-unused-parameter")
+                                -Wno-non-virtual-dtor -Wno-deprecated-declarations -Wno-unused-parameter")
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} /EHsc /bigobj -g /Wall")
     # It would be great to have the same quality standard for Windows but
@@ -32,6 +32,7 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} /EHsc /bigobj /permissive- -DNDEBUG -DNOMINMAX /O2 /W2 \
                                  /wd4068 /wd4715 /wd4820 /wd4244 /wd4005 /WX")
 endif()
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELEASE} -g")
 
 # Sub-projects
 add_subdirectory(soup)

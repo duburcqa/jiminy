@@ -85,7 +85,20 @@ namespace Eigen
         RealScalar norm(void) const { return lpNorm<2>(); };
         RealScalar normInf(void) const { return lpNorm<Infinity>(); };
 
+        void setZero(void)
+        {
+            derived().v().setZero();
+            derived().a().setZero();
+        }
+
         #define GENERATE_OPERATOR_MULT(OP,NAME) \
+        StateDerivativeBase & (operator EIGEN_CAT(OP,=))(Scalar const & scalar) \
+        { \
+            v().array() EIGEN_CAT(OP,=) scalar; \
+            a().array() EIGEN_CAT(OP,=) scalar; \
+            return *this; \
+        } \
+         \
         StateDerivativeWrapper<EIGEN_EXPR_BINARYOP_SCALAR_RETURN_TYPE(DataType,Scalar,NAME) const> const \
         (operator OP)(Scalar const & scalar) const \
         { \
@@ -420,24 +433,37 @@ namespace Eigen
         RealScalar norm(void) const { return lpNorm<2>(); };
         RealScalar normInf(void) const { return lpNorm<Infinity>(); };
 
-        template<typename OtherDerived>
-        StateBase & sumInPlace(StateDerivativeBase<OtherDerived> const & velocity)
+        void setZero(void)
+        {
+            derived().q().setZero();
+            derived().v().setZero();
+        }
+
+        template<typename OtherDerived, typename OutDerived>
+        StateBase<OutDerived> & sum(StateDerivativeBase<OtherDerived> const & velocity,
+                                    StateBase<OutDerived>                   & out) const
         {
             // 'Sum' q = q + v, remember q is part of a Lie group (dim(q) != dim(v))
-            assert(robot() == velocity.robot());
-            pinocchio::integrate(robot()->pncModel_, q(), velocity.v(), q());
-            v() += velocity.a();
-            return *this;
+            assert(robot() == velocity.robot() == out.robot());
+            pinocchio::integrate(robot()->pncModel_, q(), velocity.v(), out.q());
+            out.v() = v() + velocity.a();
+            return out;
         }
 
         template<typename OtherDerived>
-        StateDerivative<vectorN_t> difference(StateBase<OtherDerived> const & other) const
+        StateBase & sumInPlace(StateDerivativeBase<OtherDerived> const & velocity)
         {
-            assert(robot() == std::forward<StateBase<OtherDerived> const &>(other).robot());
-            StateDerivative<vectorN_t> dx(robot());
-            pinocchio::difference(robot()->pncModel_, q(), other.q(), dx.v());
-            dx.a() = v() - other.v();
-            return dx;
+            return sum(velocity, *this);
+        }
+
+        template<typename OtherDerived, typename OutDerived>
+        StateDerivativeBase<OutDerived> & difference(StateBase<OtherDerived>         const & position,
+                                                     StateDerivativeBase<OutDerived>       & out) const
+        {
+            assert(robot() == position.robot() == out.robot());
+            pinocchio::difference(robot()->pncModel_, q(), position.q(), out.v());
+            out.a() = v() - position.v();
+            return out;
         }
     };
 
@@ -693,6 +719,14 @@ namespace Eigen
         RealScalar norm(void) const { return lpNorm<2>(); };
         RealScalar normInf(void) const { return lpNorm<Infinity>(); };
 
+        void setZero(void)
+        {
+            for (ValueType & element : vector())
+            {
+                element.setZero();
+            }
+        }
+
         #define GENERATE_OPERATOR_ARITHEMTIC(OP,NAME) \
         auto const (operator OP)(Scalar const & scalar) const \
         { \
@@ -729,6 +763,15 @@ namespace Eigen
                 result.emplace_back(vector_[i] OP vectorIn[i]); \
             } \
             return VectorContainerWrapper<wrappedType>(std::move(result)); \
+        } \
+         \
+        VectorContainerBase & (operator EIGEN_CAT(OP,=))(Scalar const & scalar) \
+        { \
+            for (ValueType & element : vector()) \
+            { \
+                element EIGEN_CAT(OP,=) scalar; \
+            } \
+            return *this; \
         }
 
         GENERATE_OPERATOR_ARITHEMTIC(*,product)
@@ -752,15 +795,6 @@ namespace Eigen
                 vector_[i] EIGEN_CAT(OP,=) vectorIn[i]; \
             } \
             return *this; \
-        } \
-         \
-        VectorContainerBase & (operator EIGEN_CAT(OP,=))(Scalar const & scalar) \
-        { \
-            for (ValueType & element : vector()) \
-            { \
-                element EIGEN_CAT(OP,=) scalar; \
-            } \
-            return *this; \
         }
 
         GENERATE_OPERATOR_COMPOUND(+,sum)
@@ -777,12 +811,12 @@ namespace Eigen
             static inline RealScalar run(VectorContainerBase<Derived> const & container)
             {
                 EIGEN_USING_STD_MATH(pow)
-                RealScalar cumsum = 0.0;
+                RealScalar total = 0.0;
                 for (typename internal::traits<Derived>::ValueType const & element : container.vector())
                 {
-                    cumsum += pow(element.template lpNorm<p>(), p);
+                    total += pow(element.template lpNorm<p>(), p);
                 }
-                return pow(cumsum, RealScalar(1)/p);
+                return pow(total, RealScalar(1)/p);
             }
         };
 
@@ -792,11 +826,13 @@ namespace Eigen
             typedef typename VectorContainerBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(VectorContainerBase<Derived> const & container)
             {
-                return std::accumulate(container.vector().begin(), container.vector().end(), RealScalar(0.0),
-                                       [](RealScalar & cumsum, typename internal::traits<Derived>::ValueType const & element)
-                                       {
-                                           return element.template lpNorm<1>();
-                                       });
+                return std::accumulate(
+                    container.vector().begin(), container.vector().end(), RealScalar(0.0),
+                    [](RealScalar & cumsum, typename internal::traits<Derived>::ValueType const & element)
+                    {
+                        return element.template lpNorm<1>();
+                    }
+                );
             }
         };
 
@@ -806,13 +842,16 @@ namespace Eigen
             typedef typename VectorContainerBase<Derived>::RealScalar RealScalar;
             static inline RealScalar run(VectorContainerBase<Derived> const & container)
             {
-                std::vector<RealScalar> normInfVector;
-                normInfVector.reserve(container.vector().size());
+                RealScalar maxValue = 0.0;
                 for (typename internal::traits<Derived>::ValueType const & element : container.vector())
                 {
-                    normInfVector.emplace_back(element.template lpNorm<Infinity>());
+                    RealScalar value = element.template lpNorm<Infinity>();
+                    if (value > maxValue)
+                    {
+                        maxValue = value;
+                    }
                 }
-                return *std::max_element(normInfVector.begin(), normInfVector.end());
+                return maxValue;
             }
         };
     }
@@ -924,9 +963,11 @@ namespace Eigen
         VectorContainer & operator=(VectorContainerBase<OtherDerived> const & other)
         {
             std::vector<typename internal::traits<OtherDerived>::ValueType> const & vectorIn = other.vector();
-            vector_.clear();
-            vector_.reserve(vectorIn.size());
-            std::copy(vectorIn.begin(), vectorIn.end(), std::back_inserter(vector()));
+            vector_.resize(vectorIn.size());
+            for (uint32_t i = 0; i < vector_.size(); ++i)
+            {
+                vector_[i] = vectorIn[i];
+            }
             return *this;
         }
 
@@ -1141,8 +1182,8 @@ namespace Eigen
             VAR2.reserve(vectorIn.size()); \
             for (uint32_t i = 0; i < vectorIn.size(); ++i) \
             { \
-                VAR1.push_back(std::move(vectorIn[i]. VAR1 ())); \
-                VAR2.push_back(std::move(vectorIn[i]. VAR2 ())); \
+                VAR1.push_back(std::move(vectorIn[i].VAR1())); \
+                VAR2.push_back(std::move(vectorIn[i].VAR2())); \
                 vector_.emplace_back(vectorIn[i].robot(), VAR1[i], VAR2[i]); \
             } \
         } \
@@ -1177,8 +1218,6 @@ namespace Eigen
             for (uint32_t i = 0; i < vector_.size(); ++i) \
             { \
                 assert(vectorIn[i].robot() == vector_[i].robot()); \
-                assert(vectorIn[i].VAR1().size() == VAR1[i].size()); \
-                assert(vectorIn[i].VAR2().size() == VAR2[i].size()); \
                 VAR1[i] = vectorIn[i].VAR1(); \
                 VAR2[i] = vectorIn[i].VAR2(); \
             } \
@@ -1188,13 +1227,12 @@ namespace Eigen
         EIGEN_CAT(BASE,Vector) & operator=(EIGEN_CAT(BASE,Vector) const & other) \
         { \
             std::vector<ValueType> const & vectorIn = other.vector(); \
-            vector_.clear(); \
-            vector_.reserve(vectorIn.size()); \
+            assert(vectorIn.size() == vector_.size()); \
             for (uint32_t i = 0; i < vectorIn.size(); ++i) \
             { \
+                assert(vectorIn[i].robot() == vector_[i].robot()); \
                 VAR1[i] = other.VAR1[i]; \
                 VAR2[i] = other.VAR2[i]; \
-                vector_.emplace_back(vectorIn[i].robot(), VAR1[i], VAR2[i]); \
             } \
             return *this; \
         } \
@@ -1213,52 +1251,94 @@ namespace Eigen
         std::vector<vectorN_t> VAR2; \
     };
 
-    #define StateDerivative_SHARED_ADDON
-
-    #define State_SHARED_ADDON \
+    #define StateDerivative_SHARED_ADDON \
     template<typename Derived, \
-                typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
+             typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
                         typename internal::traits<Derived>::ValueType>::value, void> > \
-    StateVector & sumInPlace(VectorContainerBase<Derived> const & other) \
+    StateDerivativeVector & sumInPlace(VectorContainerBase<Derived> const & other, \
+                                       Scalar const & scale) \
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
-        assert(vector_.size() == vectorIn.size()); \
+        assert(vector_.size() == vectorOut.size()); \
         for (uint32_t i = 0; i < vector_.size(); ++i) \
         { \
-            vector_[i].sumInPlace(vectorIn[i]); \
+            vector_[i] += scale * vectorIn[i]; \
         } \
+        return *this; \
+    }
+
+    #define State_SHARED_ADDON \
+    template<typename Derived, typename OtherDerived, \
+             typename = typename std::enable_if_t< \
+                is_base_of_template<StateDerivativeBase, \
+                                    typename internal::traits<Derived>::ValueType>::value && \
+                is_base_of_template<StateBase, \
+                                    typename internal::traits<OtherDerived>::ValueType>::value, \
+                void> > \
+    VectorContainerBase<OtherDerived> & sum(VectorContainerBase<Derived> const & other, \
+                                            VectorContainerBase<OtherDerived> & out) const \
+    { \
+        std::vector<typename internal::traits<Derived>::ValueType> const & \
+            vectorIn = other.vector(); \
+        std::vector<typename internal::traits<OtherDerived>::ValueType> & \
+            vectorOut = out.vector(); \
+        assert(vectorIn.size() == vectorOut.size()); \
+        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        { \
+            vector_[i].sum(vectorIn[i], vectorOut[i]); \
+        } \
+        return out; \
+    } \
+    \
+    template<typename Derived, \
+             typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
+                        typename internal::traits<Derived>::ValueType>::value, void> > \
+    StateVector & sumInPlace(VectorContainerBase<Derived> const & other) \
+    { \
+        sum(other, *this); \
         return *this; \
     } \
     \
     template<typename Derived, \
-                typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
+             typename = typename std::enable_if_t<is_base_of_template<StateDerivativeBase, \
                         typename internal::traits<Derived>::ValueType>::value, void> > \
-    StateVector sum(VectorContainerBase<Derived> const & other) const \
-    { \
-        StateVector result = *this; \
-        result.sumInPlace(other); \
-        return result; \
-    } \
-    \
-    template<typename Derived, \
-                typename = typename std::enable_if_t<is_base_of_template<StateBase, \
-                        typename internal::traits<Derived>::ValueType>::value, void> > \
-    StateDerivativeVector difference(VectorContainerBase<Derived> const & other) const \
+    StateVector & sumInPlace(VectorContainerBase<Derived> const & other, \
+                             Scalar const & scale) \
     { \
         std::vector<typename internal::traits<Derived>::ValueType> const & \
             vectorIn = other.vector(); \
-        assert(vector_.size() == vectorIn.size()); \
-        std::vector<StateDerivative<vectorN_t> > velocities; \
-        velocities.reserve(vector_.size()); \
+        assert(vector_.size() == vectorOut.size()); \
         for (uint32_t i = 0; i < vector_.size(); ++i) \
         { \
-            velocities.push_back(vector_[i].difference(vectorIn[i])); \
+            vector_[i].sumInPlace(scale * vectorIn[i]); \
         } \
-        return StateDerivativeVector(std::move(velocities)); \
+        return *this; \
+    } \
+    \
+    template<typename Derived, typename OtherDerived, \
+             typename = typename std::enable_if_t< \
+                is_base_of_template<StateBase, \
+                                    typename internal::traits<Derived>::ValueType>::value && \
+                is_base_of_template<StateDerivativeBase, \
+                                    typename internal::traits<OtherDerived>::ValueType>::value, \
+                void> > \
+    VectorContainerBase<OtherDerived> & difference(VectorContainerBase<Derived> const & other, \
+                                                   VectorContainerBase<OtherDerived> & out) const \
+    { \
+        std::vector<typename internal::traits<Derived>::ValueType> const & \
+            vectorIn = other.vector(); \
+        std::vector<typename internal::traits<OtherDerived>::ValueType> & \
+            vectorOut = out.vector(); \
+        assert(vectorIn.size() == vectorOut.size()); \
+        for (uint32_t i = 0; i < vector_.size(); ++i) \
+        { \
+            vector_[i].difference(vectorIn[i], vectorOut[i]); \
+        } \
+        return out; \
     }
 
-    // Disable "-Weffc++" flag while generting this code because it is is buggy...
+    // Disable "-Weffc++" flag while generting this code because it is buggy...
     #pragma GCC diagnostic ignored "-Weffc++"
     GENERATE_SHARED_IMPL(StateDerivative,v,nv,a,nv)
     GENERATE_SHARED_IMPL(State,q,nq,v,nv)

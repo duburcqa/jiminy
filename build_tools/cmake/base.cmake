@@ -25,8 +25,10 @@ set(WARN_FULL "-Wall -Wextra -Weffc++ -pedantic -pedantic-errors \
                -Wmissing-noreturn -Wpacked -Wpointer-arith \
                -Wredundant-decls -Wshadow -Wstack-protector \
                -Wstrict-aliasing=2 -Wswitch-default -Wswitch-enum \
-               -Wunreachable-code -Wunused"
-)
+               -Wunreachable-code -Wunused -Wundef -Wlogical-op \
+               -Wdisabled-optimization -Wmissing-braces -Wtrigraphs \
+               -Wparentheses -Wwrite-strings -Werror=return-type \
+               -Wsequence-point -Wdeprecated")  # -Wconversion
 
 # Shared libraries need PIC
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
