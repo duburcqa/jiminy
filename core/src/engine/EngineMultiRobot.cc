@@ -2855,7 +2855,6 @@ namespace jiminy
             matrixN_t jointJacobian = matrixN_t::Zero(6, model.nv);
             for (int32_t i = 1; i < model.njoints; ++i)
             {
-                jointJacobian.setZero();
                 pinocchio::getJointJacobian(model,
                                             data,
                                             i,

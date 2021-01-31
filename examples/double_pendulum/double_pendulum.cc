@@ -151,7 +151,7 @@ int main(int argc, char_t * argv[])
     timer.toc();
     std::cout << "Write log CSV: " << (timer.dt * 1.0e3) << "ms" << std::endl;
     timer.tic();
-    engine->writeLog((outputDirPath / "log.h5").string(), "hdf5");
+    engine->writeLog((outputDirPath / "log.hdf5").string(), "hdf5");
     timer.toc();
     std::cout << "Write log HDF5: " << (timer.dt * 1.0e3) << "ms" << std::endl;
 
