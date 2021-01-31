@@ -27,16 +27,22 @@
         } \
     } \
      \
-    if (!robot->getIsInitialized())  \
+    if (returnCode == hresult_t::SUCCESS) \
     { \
-        PRINT_ERROR("Robot not initialized. Impossible to refresh proxies."); \
-        returnCode = hresult_t::ERROR_INIT_FAILED; \
+        if (!robot->getIsInitialized())  \
+        { \
+            PRINT_ERROR("Robot not initialized. Impossible to refresh proxies."); \
+            returnCode = hresult_t::ERROR_INIT_FAILED; \
+        } \
     } \
      \
-    if (!isInitialized_) \
+    if (returnCode == hresult_t::SUCCESS) \
     { \
-        PRINT_ERROR("Sensor not initialized. Impossible to refresh proxies."); \
-        returnCode = hresult_t::ERROR_INIT_FAILED; \
+        if (!isInitialized_) \
+        { \
+            PRINT_ERROR("Sensor not initialized. Impossible to refresh proxies."); \
+            returnCode = hresult_t::ERROR_INIT_FAILED; \
+        } \
     }
 
 
@@ -255,12 +261,15 @@ namespace jiminy
 
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        std::vector<std::string> const & contactFramesNames = robot->getContactFramesNames();
-        auto contactFrameNameIt = std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
-        if (contactFrameNameIt == contactFramesNames.end())
+        if (returnCode == hresult_t::SUCCESS)
         {
-            PRINT_ERROR("Sensor frame not associated with any contact point of the robot. Impossible to refresh proxies.");
-            returnCode = hresult_t::ERROR_BAD_INPUT;
+            std::vector<std::string> const & contactFramesNames = robot->getContactFramesNames();
+            auto contactFrameNameIt = std::find(contactFramesNames.begin(), contactFramesNames.end(), frameName_);
+            if (contactFrameNameIt == contactFramesNames.end())
+            {
+                PRINT_ERROR("Sensor frame not associated with any contact point of the robot. Impossible to refresh proxies.");
+                returnCode = hresult_t::ERROR_BAD_INPUT;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)
@@ -423,10 +432,13 @@ namespace jiminy
 
         GET_ROBOT_AND_CHECK_SENSOR_INTEGRITY()
 
-        if (!robot->pncModel_.existJointName(jointName_))
+        if (returnCode == hresult_t::SUCCESS)
         {
-            PRINT_ERROR("Sensor attached to a joint that does not exist.");
-            returnCode = hresult_t::ERROR_INIT_FAILED;
+            if (!robot->pncModel_.existJointName(jointName_))
+            {
+                PRINT_ERROR("Sensor attached to a joint that does not exist.");
+                returnCode = hresult_t::ERROR_INIT_FAILED;
+            }
         }
 
         if (returnCode == hresult_t::SUCCESS)

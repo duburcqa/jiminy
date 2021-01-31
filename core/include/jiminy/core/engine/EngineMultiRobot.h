@@ -133,7 +133,7 @@ namespace jiminy
             config["dtMax"] = SIMULATION_MAX_TIMESTEP;
             config["dtRestoreThresholdRel"] = 0.2;
             config["successiveIterFailedMax"] = 1000U;
-            config["iterMax"] = -1;  // <= 0: disable
+            config["iterMax"] = 0;  // <= 0: disable
             config["timeout"] = 0.0;  // <= 0.0: disable
             config["sensorsUpdatePeriod"] = 0.0;
             config["controllerUpdatePeriod"] = 0.0;
@@ -331,9 +331,21 @@ namespace jiminy
                                    std::string const & frameName1,
                                    std::string const & frameName2,
                                    forceCouplingFunctor_t forceFct);
+        hresult_t addViscoElasticCouplingForce(std::string const & systemName1,
+                                               std::string const & systemName2,
+                                               std::string const & frameName1,
+                                               std::string const & frameName2,
+                                               float64_t   const & stiffness,
+                                               float64_t   const & damping);
+        hresult_t addViscoElasticCouplingForce(std::string const & systemName,
+                                               std::string const & frameName1,
+                                               std::string const & frameName2,
+                                               float64_t   const & stiffness,
+                                               float64_t   const & damping);
         hresult_t removeCouplingForces(std::string const & systemName1,
                                        std::string const & systemName2);
         hresult_t removeCouplingForces(std::string const & systemName);
+        hresult_t removeCouplingForces(void);
 
         /// \brief Reset engine.
         ///

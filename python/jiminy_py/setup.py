@@ -68,7 +68,9 @@ setup(
         # Display elegant and versatile process bar.
         "tqdm",
         # Standard library for matrix algebra.
-        "numpy",
+        # < 1.20 is required to work around major rework not available for
+        # Python3.6, which is still supported for now.
+        "numpy<1.20",
         # Used internally for interpolation and filtering.
         "scipy",
         # Standard library to generate figures.

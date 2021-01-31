@@ -60,9 +60,8 @@ else()
     set(HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB FALSE)
 endif()
 
-set(PYTHON_INSTALL_FLAGS "--use-feature=2020-resolver ")
 if(${HAS_NO_WRITE_PERMISSION_ON_PYTHON_SYS_SITELIB})
-    set(PYTHON_INSTALL_FLAGS "${PYTHON_INSTALL_FLAGS} --user ")
+    set(PYTHON_INSTALL_FLAGS " --user ")
     set(PYTHON_SITELIB "${PYTHON_USER_SITELIB}")
     message(STATUS "No right on Python system site-packages: ${PYTHON_SYS_SITELIB}. Installing on user site as fallback.")
 else()
@@ -127,9 +126,9 @@ function(deployPythonPackage)
     # The input arguments are [TARGET_NAME...]
     foreach(TARGET_NAME IN LISTS ARGN)
         install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} .
-                                        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
-                        execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade --no-deps --force-reinstall .
-                                        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
+                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})
+                      execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} --upgrade --no-deps --force-reinstall .
+                                      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/pypi/${TARGET_NAME})")
     endforeach()
 endfunction()
 
@@ -137,6 +136,6 @@ function(deployPythonPackageDevelop)
     # The input arguments are [TARGET_NAME...]
     foreach(TARGET_NAME IN LISTS ARGN)
         install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} -m pip install ${PYTHON_INSTALL_FLAGS} -e .
-                                        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
+                                      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/${TARGET_NAME})")
     endforeach()
 endfunction()

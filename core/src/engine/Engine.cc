@@ -229,7 +229,17 @@ namespace jiminy
                                 {
                                     return forceFct(t, q1, v1);
                                 };
-        return EngineMultiRobot::addCouplingForce("", "", frameName1, frameName2, forceCouplingFct);
+        return EngineMultiRobot::addCouplingForce(
+            "", "", frameName1, frameName2, forceCouplingFct);
+    }
+
+    hresult_t Engine::addViscoElasticCouplingForce(std::string const & frameName1,
+                                                   std::string const & frameName2,
+                                                   float64_t   const & stiffness,
+                                                   float64_t   const & damping)
+    {
+        return EngineMultiRobot::addViscoElasticCouplingForce(
+            "", "", frameName1, frameName2, stiffness, damping);
     }
 
     bool_t const & Engine::getIsInitialized(void) const

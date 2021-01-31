@@ -146,9 +146,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         .. note::
             This method is not meant to be called manually.
         """
-        if hasattr(self, 'simulator'):
-            return getattr(self.simulator, name)
-        raise AttributeError(f"module {__name__} has no attribute {name}.")
+        return getattr(super().__getattribute__('simulator'), name)
 
     def __dir__(self) -> List[str]:
         """Attribute lookup.
@@ -616,7 +614,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Note that 'done' is always True if the integration failed or if the
         # maximum number of steps will be exceeded next step.
         done = is_step_failed or (self.num_steps + 1 > self.max_steps) or \
-            self.is_done()
+            not self.is_simulation_running or self.is_done()
         self._info = {}
 
         # Check if stepping after done and if it is an undefined behavior
@@ -991,9 +989,10 @@ class BaseJiminyGoalEnv(BaseJiminyEnv, gym.core.GoalEnv):  # Don't change order
     def get_observation(self) -> SpaceDictNested:
         """ TODO: Write documentation.
         """
-        return {'observation': super().get_observation(),
-                'achieved_goal': self._get_achieved_goal(),
-                'desired_goal': self._desired_goal}
+        return OrderedDict(
+            observation=super().get_observation(),
+            achieved_goal=self._get_achieved_goal(),
+            desired_goal=self._desired_goal)
 
     def reset(self,
               controller_hook: Optional[Callable[[], Optional[Tuple[

@@ -242,7 +242,7 @@ def play_trajectories(trajectory_data: Union[
     if all(color is not None for color in urdf_rgba):
         if legend is None:
             legend = [viewer.robot_name for viewer in viewers]
-    else:
+    elif legend is not None:
         legend = None
         logging.warning(
             "Impossible to display legend if at least one URDF do not "

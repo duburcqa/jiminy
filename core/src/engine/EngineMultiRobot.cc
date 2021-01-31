@@ -306,6 +306,86 @@ namespace jiminy
         return returnCode;
     }
 
+    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName1,
+                                                             std::string const & systemName2,
+                                                             std::string const & frameName1,
+                                                             std::string const & frameName2,
+                                                             float64_t   const & stiffness,
+                                                             float64_t   const & damping)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        systemHolder_t * system1;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName1, system1);
+        }
+
+        int32_t frameIdx1;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(system1->robot->pncModel_, frameName1, frameIdx1);
+        }
+
+        systemHolder_t * system2;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getSystem(systemName2, system2);
+        }
+
+        int32_t frameIdx2;
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            returnCode = getFrameIdx(system2->robot->pncModel_, frameName2, frameIdx2);
+        }
+
+        if (returnCode == hresult_t::SUCCESS)
+        {
+            auto forceFct = [=](float64_t const & /*t*/,
+                                vectorN_t const & /*q_1*/,
+                                vectorN_t const & /*v_1*/,
+                                vectorN_t const & /*q_2*/,
+                                vectorN_t const & /*v_2*/) -> pinocchio::Force
+            {
+                pinocchio::SE3 const & oMf1 = system1->robot->pncData_.oMf[frameIdx1];
+                pinocchio::SE3 const & oMf2 = system2->robot->pncData_.oMf[frameIdx2];
+                pinocchio::Motion const oVf1 = getFrameVelocity(system1->robot->pncModel_,
+                                                                system1->robot->pncData_,
+                                                                frameIdx1,
+                                                                pinocchio::WORLD);
+                pinocchio::Motion const oVf2 = getFrameVelocity(system1->robot ->pncModel_,
+                                                                system1->robot->pncData_,
+                                                                frameIdx2,
+                                                                pinocchio::WORLD);
+
+                vector3_t const dir12 = oMf2.translation() - oMf1.translation();
+                if ((dir12.array() > EPS).any())
+                {
+                    auto vel12 = oVf2.linear() - oVf1.linear();
+                    auto vel12Proj = vel12.dot(dir12) * dir12 / dir12.squaredNorm();
+                    return pinocchio::Force(
+                        stiffness * dir12 + damping * vel12Proj, vector3_t::Zero());
+                }
+                return pinocchio::Force::Zero();
+            };
+
+            returnCode = addCouplingForce(
+                systemName1, systemName2, frameName1, frameName2, forceFct);
+        }
+
+        return returnCode;
+    }
+
+    hresult_t EngineMultiRobot::addViscoElasticCouplingForce(std::string const & systemName,
+                                                             std::string const & frameName1,
+                                                             std::string const & frameName2,
+                                                             float64_t   const & stiffness,
+                                                             float64_t   const & damping)
+    {
+        return addViscoElasticCouplingForce(
+            systemName, systemName, frameName1, frameName2, stiffness, damping);
+    }
+
     hresult_t EngineMultiRobot::removeCouplingForces(std::string const & systemName1,
                                                      std::string const & systemName2)
     {
@@ -378,6 +458,23 @@ namespace jiminy
 
         return returnCode;
     }
+
+    hresult_t EngineMultiRobot::removeCouplingForces(void)
+    {
+        hresult_t returnCode = hresult_t::SUCCESS;
+
+        // Make sure that no simulation is running
+        if (isSimulationRunning_)
+        {
+            PRINT_ERROR("A simulation is already running. Stop it before removing coupling forces.");
+            returnCode = hresult_t::ERROR_GENERIC;
+        }
+
+        forcesCoupling_.clear();
+
+        return returnCode;
+    }
+
 
     hresult_t EngineMultiRobot::configureTelemetry(void)
     {
@@ -1107,9 +1204,14 @@ namespace jiminy
         }
 
         // Check if there is something wrong with the integration
-        for (auto const & a : stepperState_.aSplit)
+        auto qIt = stepperState_.qSplit.begin();
+        auto vIt = stepperState_.vSplit.begin();
+        auto aIt = stepperState_.aSplit.begin();
+        for ( ; qIt != stepperState_.qSplit.end(); ++qIt, ++vIt, ++aIt)
         {
-            if ((a.array() != a.array()).any()) // isnan if NOT equal to itself
+            if ((qIt->array() != qIt->array()).any() ||
+                (vIt->array() != vIt->array()).any() ||
+                (aIt->array() != aIt->array()).any()) // isnan if NOT equal to itself
             {
                 PRINT_ERROR("The low-level ode solver failed. Consider increasing the stepper accuracy.");
                 return hresult_t::ERROR_GENERIC;
@@ -2110,7 +2212,6 @@ namespace jiminy
         if (depth < 0.0)
         {
             // Compute the linear velocity of the contact point in world frame.
-            // Note that for Pinocchio >= v2.4.4, it is possible to specify directly the desired reference frame.
             vector3_t const motionFrameLocal = pinocchio::getFrameVelocity(
                 system.robot->pncModel_, system.robot->pncData_, frameIdx).linear();
             matrix3_t const & rotFrame = transformFrameInWorld.rotation();
@@ -2572,9 +2673,9 @@ namespace jiminy
             int32_t const & parentJointIdx1 = system1.robot->pncModel_.frames[frameIdx1].parent;
             fext1[parentJointIdx1] += convertForceGlobalFrameToJoint(
                 system1.robot->pncModel_, system1.robot->pncData_, frameIdx1, force);
-            int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
 
-            // Move force from frame1 to frame2 to apply it to the second system.
+            // Move force from frame1 to frame2 to apply it to the second system
+            int32_t const & parentJointIdx2 = system2.robot->pncModel_.frames[frameIdx2].parent;
             pinocchio::SE3 offset(
                 matrix3_t::Identity(),
                 system1.robot->pncData_.oMf[frameIdx2].translation()
@@ -2741,6 +2842,9 @@ namespace jiminy
     {
         vectorN_t a;
 
+        pinocchio::Model & model = system.robot->pncModel_;
+        pinocchio::Data & data = system.robot->pncData_;
+
         if (system.robot->hasConstraint())
         {
             // Compute kinematic constraints.
@@ -2748,31 +2852,26 @@ namespace jiminy
 
             // Project external forces from cartesian space to joint space.
             vectorN_t uTotal = u;
-            matrixN_t jointJacobian = matrixN_t::Zero(6, system.robot->pncModel_.nv);
-            for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+            matrixN_t jointJacobian = matrixN_t::Zero(6, model.nv);
+            for (int32_t i = 1; i < model.njoints; ++i)
             {
                 jointJacobian.setZero();
-                pinocchio::getJointJacobian(system.robot->pncModel_,
-                                            system.robot->pncData_,
+                pinocchio::getJointJacobian(model,
+                                            data,
                                             i,
                                             pinocchio::LOCAL,
                                             jointJacobian);
                 uTotal += jointJacobian.transpose() * fext[i].toVector();
             }
             // Compute non-linear effects.
-            pinocchio::nonLinearEffects(system.robot->pncModel_,
-                                        system.robot->pncData_,
-                                        q,
-                                        v);
+            pinocchio::nonLinearEffects(model, data, q, v);
 
             // Compute inertia matrix, adding rotor inertia.
-            pinocchio_overload::crba(system.robot->pncModel_,
-                                     system.robot->pncData_,
-                                     q);
+            pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics.
-            a = pinocchio::forwardDynamics(system.robot->pncModel_,
-                                           system.robot->pncData_,
+            a = pinocchio::forwardDynamics(model,
+                                           data,
                                            uTotal,
                                            system.robot->getConstraintsJacobian(),
                                            system.robot->getConstraintsDrift(),
@@ -2781,33 +2880,45 @@ namespace jiminy
         else
         {
             // No kinematic constraint: run aba algorithm.
-            a = pinocchio_overload::aba(
-                system.robot->pncModel_, system.robot->pncData_, q, v, u, fext);
+            a = pinocchio_overload::aba(model, data, q, v, u, fext);
         }
 
-        /* Neither 'aba' nor 'forwardDynamics' are not computed properly the joints
-           acceleration and forces, so they must be updated separately. */
-        system.robot->pncData_.a[0].setZero();
-        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
+        /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
+           acceleration and forces, so it must be done separately:
+           - 1st step: computing the forces based on rnea algorithm
+           - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
+        data.h[0].setZero();
+        data.f[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.h[i] = model.inertias[i] * data.v[i];
+            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
+            data.f[i] = model.inertias[i] * data.a_gf[i] + data.v[i].cross(data.h[i]);
+            #else
+            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
+            #endif
+        }
+        for (int32_t i = model.njoints - 1; i > 0; --i)
+        {
+            int32_t const & parentIdx = model.parents[i];
+            data.h[parentIdx] += data.liMi[i].act(data.h[i]);
+            if (parentIdx > 0)
+            {
+                data.f[parentIdx] += data.liMi[i].act(data.f[i]);
+            }
+            else
+            {
+                // Using action-reaction law to compute the ground reaction force
+                data.f[0] += data.oMi[i].act(data.f[i]);
+            }
+        }
+
+        data.a[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
             ForwardKinematicAccelerationAlgo::run(
-                system.robot->pncModel_.joints[i], system.robot->pncData_.joints[i],
-                typename ForwardKinematicAccelerationAlgo::ArgsType(
-                    system.robot->pncModel_, system.robot->pncData_, a));
-        }
-        pinocchio_overload::rnea(
-            system.robot->pncModel_, system.robot->pncData_, q, v, a);
-
-        // Using action-reaction law to compute the ground reaction force
-        system.robot->pncData_.f[0].setZero();
-        for (int32_t i = 1; i < system.robot->pncModel_.njoints; ++i)
-        {
-            int32_t const & parentIdx = system.robot->pncModel_.parents[i];
-            if (parentIdx == 0)
-            {
-                system.robot->pncData_.f[0] += system.robot->pncData_.oMi[i].act(
-                    system.robot->pncData_.f[i]);
-            }
+                model.joints[i], data.joints[i],
+                typename ForwardKinematicAccelerationAlgo::ArgsType(model, data, a));
         }
 
         return a;

@@ -1,5 +1,6 @@
 """ TODO: Write documentation.
 """
+from collections import OrderedDict
 from typing import Optional, Union, Dict, Sequence
 
 import numpy as np
@@ -96,8 +97,8 @@ def zeros(space: gym.Space) -> Union[SpaceDictNested, int]:
     if isinstance(space, gym.spaces.Box):
         return np.zeros(space.shape, dtype=space.dtype)
     if isinstance(space, gym.spaces.Dict):
-        value = {}
-        for field, subspace in space.spaces.items():
+        value = OrderedDict()
+        for field, subspace in dict.items(space.spaces):
             value[field] = zeros(subspace)
         return value
     if isinstance(space, gym.spaces.Discrete):
@@ -116,7 +117,7 @@ def fill(data: SpaceDictNested,
     if isinstance(data, np.ndarray):
         data.fill(fill_value)
     elif isinstance(data, dict):
-        for sub_data in data.values():
+        for sub_data in dict.values(data):
             fill(sub_data, fill_value)
     else:
         if hasattr(data, '__dict__') or hasattr(data, '__slots__'):
@@ -146,7 +147,7 @@ def set_value(data: SpaceDictNested,
         except TypeError as e:
             raise TypeError(f"Cannot cast '{data}' to '{value}'.") from e
     elif isinstance(data, dict):
-        for field, sub_val in value.items():
+        for field, sub_val in dict.items(value):
             set_value(data[field], sub_val)
     else:
         raise NotImplementedError(
@@ -160,8 +161,8 @@ def copy(data: SpaceDictNested) -> SpaceDictNested:
     :param data: Hierarchical data structure to copy without allocation.
     """
     if isinstance(data, dict):
-        value = {}
-        for field, sub_data in data.items():
+        value = OrderedDict()
+        for field, sub_data in dict.items(data):
             value[field] = copy(sub_data)
         return value
     return data
@@ -176,9 +177,10 @@ def clip(space: gym.Space, value: SpaceDictNested) -> SpaceDictNested:
     if isinstance(space, gym.spaces.Box):
         return np.core.umath.clip(value, space.low, space.high)
     if isinstance(space, gym.spaces.Dict):
-        return dict(
-            (k, clip(subspace, value[k]))
-            for k, subspace in space.spaces.items())
+        out = OrderedDict()
+        for field, subspace in dict.items(space.spaces):
+            out[field] = clip(subspace, value[field])
+        return out
     if isinstance(space, gym.spaces.Discrete):
         return value  # No need to clip Discrete space.
     raise NotImplementedError(

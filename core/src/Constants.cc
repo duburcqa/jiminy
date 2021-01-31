@@ -15,8 +15,8 @@ namespace jiminy
     uint8_t const DELAY_MIN_BUFFER_RESERVE = 20U;
     uint8_t const DELAY_MAX_BUFFER_EXCEED = 20U;
 
-    float64_t const SIMULATION_MIN_TIMESTEP = 1.0 / TELEMETRY_DEFAULT_TIME_UNIT;
-    float64_t const SIMULATION_MAX_TIMESTEP = 5e-3;
-    float64_t const SIMULATION_INITIAL_TIMESTEP = 1e-4;
     float64_t const STEPPER_MIN_TIMESTEP = 1e-10;
+    float64_t const SIMULATION_MIN_TIMESTEP = 1e-6;
+    float64_t const SIMULATION_INITIAL_TIMESTEP = 1e-3;
+    float64_t const SIMULATION_MAX_TIMESTEP = 1e-2;
 }

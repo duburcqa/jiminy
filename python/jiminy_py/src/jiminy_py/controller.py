@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable
+from typing import Callable, Optional
 
 from . import core as jiminy
 from .robot import BaseJiminyRobot
@@ -26,9 +26,10 @@ class BaseJiminyObserverController(jiminy.BaseController):
 
         # Define some internal buffers
         self.__must_refresh_observer = True
-        self.__controller_handle = \
-            lambda t, q, v, sensors_data, u: u.fill(0.0)
-        self.__observer_handle = lambda t, q, v, sensors_data: None
+        self.__observer_handle = None
+        self.has_observer = False
+        self.__controller_handle = None
+        self.has_controller = False
 
     def initialize(self, robot: BaseJiminyRobot) -> None:
         """Initialize the controller.
@@ -44,7 +45,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
                 "something wrong with the robot.")
 
     def set_observer_handle(self,
-                            observer_handle: ObserverHandleType,
+                            observer_handle: Optional[ObserverHandleType],
                             unsafe: bool = False) -> None:
         r"""Set the observer callback function.
 
@@ -66,20 +67,22 @@ class BaseJiminyObserverController(jiminy.BaseController):
         :param unsafe: Whether or not to check if the handle is valid.
         """
         try:
-            if not unsafe:
+            if not unsafe and observer_handle is not None:
                 t = 0.0
                 y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
                 sensors_data = self.robot.sensors_data
                 observer_handle(t, y, dy, sensors_data)
+            self.__observer_handle = observer_handle
+            self.has_observer = observer_handle is not None
         except Exception as e:
             raise RuntimeError(
                 "The observer handle has wrong signature. It is expected:"
                 "\ncontroller_handle(t, y, dy, sensorsData) -> None"
                 ) from e
-        self.__observer_handle = observer_handle
 
     def set_controller_handle(self,
-                              controller_handle: ControllerHandleType,
+                              controller_handle: Optional[
+                                  ControllerHandleType],
                               unsafe: bool = False) -> None:
         r"""Set the controller callback function.
 
@@ -98,18 +101,19 @@ class BaseJiminyObserverController(jiminy.BaseController):
         :param unsafe: Whether or not to check if the handle is valid.
         """
         try:
-            if not unsafe:
+            if not unsafe and controller_handle is not None:
                 t = 0.0
                 y, dy = np.zeros(self.robot.nq), np.zeros(self.robot.nv)
                 sensors_data = self.robot.sensors_data
                 u_command = np.zeros(self.robot.nmotors)
                 controller_handle(t, y, dy, sensors_data, u_command)
+            self.__controller_handle = controller_handle
+            self.has_controller = controller_handle is not None
         except Exception as e:
             raise RuntimeError(
                 "The controller handle has wrong signature. It is expected:"
                 "\ncontroller_handle(t, y, dy, sensorsData, u_command) -> None"
                 ) from e
-        self.__controller_handle = controller_handle
 
     def compute_command(self,
                         t: float,
@@ -118,9 +122,10 @@ class BaseJiminyObserverController(jiminy.BaseController):
                         u: np.ndarray) -> None:
         """Internal controller callback, should not be called directly.
         """
-        if self.__must_refresh_observer:
+        if self.__must_refresh_observer and self.has_observer:
             self.__observer_handle(t, q, v, self.sensors_data)
-        self.__controller_handle(t, q, v, self.sensors_data, u)
+        if self.has_controller:
+            self.__controller_handle(t, q, v, self.sensors_data, u)
         self.__must_refresh_observer = True
 
     def refresh_observation(self,
@@ -130,7 +135,7 @@ class BaseJiminyObserverController(jiminy.BaseController):
                             sensors_data: jiminy.sensorsData) -> None:
         """Refresh observer.
         """
-        if self.__must_refresh_observer:
+        if self.__must_refresh_observer and self.has_observer:
             self.__observer_handle(t, q, v, sensors_data)
         self.__must_refresh_observer = False
 

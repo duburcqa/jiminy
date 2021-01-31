@@ -24,7 +24,7 @@ apt update && \
 apt install -y sudo python3-setuptools python3-pip python3-tk && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade pip && \
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install wheel && \
-sudo -u $(id -nu "$SUDO_UID") python3 -m pip install numpy
+sudo -u $(id -nu "$SUDO_UID") python3 -m pip install "numpy<1.20"
 
 # Install Python 3 toolsuite for testing and documentation generation
 sudo -u $(id -nu "$SUDO_UID") python3 -m pip install --upgrade \

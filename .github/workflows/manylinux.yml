@@ -42,7 +42,7 @@ jobs:
         PYTHON_EXECUTABLE="${pythonLocation}/bin/python${{ matrix.PYTHON_VERSION }}"
         "${PYTHON_EXECUTABLE}" -m pip install --upgrade pip
         "${PYTHON_EXECUTABLE}" -m pip install twine wheel
-        "${PYTHON_EXECUTABLE}" -m pip install cmake numpy
+        "${PYTHON_EXECUTABLE}" -m pip install cmake "numpy<1.20"
         echo "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}" >> $GITHUB_ENV
 
         echo "RootDir=${GITHUB_WORKSPACE}" >> $GITHUB_ENV
