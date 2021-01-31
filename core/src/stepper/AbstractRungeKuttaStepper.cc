@@ -36,24 +36,24 @@ namespace jiminy
 
         for (uint32_t i = 1; i < c_.size(); ++i)
         {
-            stateIncrement_ = dt * A_(i, 0) * ki_[0];
-            for (uint32_t j = 1; j < i; ++j)
+            stateIncrement_.setZero();
+            for (uint32_t j = 0; j < i; ++j)
             {
-                stateIncrement_ += dt * A_(i, j) * ki_[j];
+                stateIncrement_.sumInPlace(ki_[j], dt * A_(i, j));  // Equivalent to `stateIncrement_ += dt * A_(i, j) * ki_[j]` but more efficient because it avoid temporaries
             }
-            stateBuffer_ = state.sum(stateIncrement_);
+            state.sum(stateIncrement_, stateBuffer_);
             ki_[i] = f(t + c_[i] * dt, stateBuffer_);
         }
 
         /* Now we have all the ki's: compute the solution.
            Sum the velocities before summing into position the accuracy is greater
            for summing vectors than for summing velocities into lie groups. */
-        stateIncrement_ = dt * b_[0] * ki_[0];
-        for (uint32_t i = 1; i < ki_.size(); ++i)
+        stateIncrement_.setZero();
+        for (uint32_t i = 0; i < ki_.size(); ++i)
         {
-            stateIncrement_ += dt * b_[i] * ki_[i];
+            stateIncrement_.sumInPlace(ki_[i], dt * b_[i]);
         }
-        candidateSolution_ = state.sum(stateIncrement_);
+        state.sum(stateIncrement_, candidateSolution_);
 
         // Evaluate the solution's error for step adjustment
         bool_t const hasSucceeded = adjustStep(state, candidateSolution_, dt);

@@ -17,7 +17,7 @@ namespace jiminy
     {
         // Simple explicit Euler: x(t + dt) = x(t) + dt dx(t)
         stateDerivative = f(t, state);
-        state.sumInPlace(dt * stateDerivative);
+        state.sumInPlace(stateDerivative, dt);
 
         // Scheme never considers failure.
         return true;
