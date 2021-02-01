@@ -693,15 +693,35 @@ namespace jiminy
         }
     };
 
-    void computeJointsAccelerationsAndForces(systemHolder_t & system)
+    void computeExtraTerms(systemHolder_t & system)
     {
+        pinocchio::Model const & model = system.robot->pncModel_;
+        pinocchio::Data & data = system.robot->pncData_;
+
+        /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
+           which is doing more computation than necessary. */
+        data.oYcrb[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
+        }
+        for (int32_t i = model.njoints-1; i > 0; --i)
+        {
+            int32_t const & jointIdx = model.joints[i].id();
+            int32_t const & parentIdx = model.parents[jointIdx];
+            data.oYcrb[parentIdx] += data.oYcrb[i];
+        }
+
+        // Now that Ycrb is available, it is possible to extract the center of mass directly
+        pinocchio::getComFromCrba(model, data);
+        data.Ig.mass() = data.oYcrb[0].mass();
+        data.Ig.lever().setZero();
+        data.Ig.inertia() = data.oYcrb[0].inertia();
+
         /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
            acceleration and forces, so it must be done separately:
            - 1st step: computing the forces based on rnea algorithm
            - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
-        pinocchio::Model const & model = system.robot->pncModel_;
-        pinocchio::Data & data = system.robot->pncData_;
-
         data.h[0].setZero();
         data.f[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
@@ -737,11 +757,11 @@ namespace jiminy
         }
     }
 
-    void computeAllJointsAccelerationsAndForces(std::vector<systemHolder_t> & systems)
+    void computeAllExtraTerms(std::vector<systemHolder_t> & systems)
     {
         for (auto & system : systems)
         {
-            computeJointsAccelerationsAndForces(system);
+            computeExtraTerms(system);
         }
     }
 
@@ -1131,7 +1151,7 @@ namespace jiminy
                 a = computeAcceleration(*systemIt, q, v, u, fext);
 
                 // Compute joints accelerations and forces
-                computeJointsAccelerationsAndForces(*systemIt);
+                computeExtraTerms(*systemIt);
                 syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
@@ -1529,7 +1549,7 @@ namespace jiminy
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                computeAllJointsAccelerationsAndForces(systems_);
+                computeAllExtraTerms(systems_);
                 syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                 syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
@@ -1578,7 +1598,7 @@ namespace jiminy
                     if (hasDynamicsChanged)
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        computeAllJointsAccelerationsAndForces(systems_);
+                        computeAllExtraTerms(systems_);
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
@@ -1643,7 +1663,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllJointsAccelerationsAndForces(systems_);
+                        computeAllExtraTerms(systems_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -1735,7 +1755,7 @@ namespace jiminy
 
                         /* Compute the actual joint acceleration and forces, based on
                            up-to-date pinocchio::Data. */
-                        computeAllJointsAccelerationsAndForces(systems_);
+                        computeAllExtraTerms(systems_);
 
                         // Synchronize the individual system states
                         syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
@@ -2230,40 +2250,32 @@ namespace jiminy
                                                     vectorN_t      const & a)
     {
         // Create proxies for convenience
-        pinocchio::Model & pncModel = system.robot->pncModel_;
-        pinocchio::Data & pncData = system.robot->pncData_;
+        pinocchio::Model & model = system.robot->pncModel_;
+        pinocchio::Data & data = system.robot->pncData_;
 
         // Update forward kinematics
-        pinocchio::forwardKinematics(pncModel, pncData, q, v, a);
+        pinocchio::forwardKinematics(model, data, q, v, a);
 
-        /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
-           which is doing more computation than necessary. */
-        pncData.oYcrb[0].setZero();
-        for (int32_t i = 1; i < pncModel.njoints; ++i)
+        /* Update manually the subtree (apparent) inertia, since it is only
+           computed by crba, which is doing more computation than necessary.
+           It will be used later for joint bounds dynamics. */
+        for (int32_t i = 1; i < model.njoints; ++i)
         {
-            pncData.Ycrb[i] = pncModel.inertias[i];
-            pncData.oYcrb[i] = pncData.oMi[i].act(pncModel.inertias[i]);
+            data.Ycrb[i] = model.inertias[i];
         }
-        for (int32_t i = pncModel.njoints-1; i > 0; --i)
+        for (int32_t i = model.njoints-1; i > 0; --i)
         {
-            int32_t const & jointIdx = pncModel.joints[i].id();
-            int32_t const & parentIdx = pncModel.parents[jointIdx];
+            int32_t const & jointIdx = model.joints[i].id();
+            int32_t const & parentIdx = model.parents[jointIdx];
             if (parentIdx > 0)
             {
-                pncData.Ycrb[parentIdx] += pncData.liMi[jointIdx].act(pncData.Ycrb[jointIdx]);
+                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
             }
-            pncData.oYcrb[parentIdx] += pncData.oYcrb[i];
         }
 
-        // Now that Ycrb is available, it is possible to extract the center of mass directly
-        pinocchio::getComFromCrba(pncModel, pncData);
-        pncData.Ig.mass() = pncData.oYcrb[0].mass();
-        pncData.Ig.lever().setZero();
-        pncData.Ig.inertia() = pncData.oYcrb[0].inertia();
-
         // Update frame placements and collision informations
-        pinocchio::updateFramePlacements(pncModel, pncData);
-        pinocchio::updateGeometryPlacements(pncModel, pncData,
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::updateGeometryPlacements(model, data,
                                             system.robot->pncGeometryModel_,
                                             *system.robot->pncGeometryData_);
         pinocchio::computeCollisions(system.robot->pncGeometryModel_,
