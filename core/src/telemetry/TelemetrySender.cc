@@ -53,15 +53,6 @@ namespace jiminy
         *(it->second) = value;
     }
 
-    void TelemetrySender::updateValue(std::vector<std::string>    const & fieldnames,
-                                      Eigen::Ref<vectorN_t const> const & values)
-    {
-        for (uint32_t i=0; i < values.size(); ++i)
-        {
-            updateValue(fieldnames[i], values[i]);
-        }
-    }
-
     template<>
     hresult_t TelemetrySender::registerVariable<int64_t>(std::string const & fieldNameIn,
                                                          int64_t     const & initialValue)
@@ -93,20 +84,6 @@ namespace jiminy
             updateValue(fieldNameIn, initialValue);
         }
 
-        return returnCode;
-    }
-
-    hresult_t TelemetrySender::registerVariable(std::vector<std::string> const & fieldnames,
-                                                vectorN_t                const & initialValues)
-    {
-        hresult_t returnCode = hresult_t::SUCCESS;
-        for (uint32_t i=0; i < initialValues.size(); ++i)
-        {
-            if (returnCode == hresult_t::SUCCESS)
-            {
-                returnCode = registerVariable(fieldnames[i], initialValues[i]);
-            }
-        }
         return returnCode;
     }
 

@@ -33,38 +33,40 @@ namespace jiminy
         virtual ~TelemetrySender(void) = default;
 
         ////////////////////////////////////////////////////////////////////////
-        /// \brief      Update specified registered variable in the telemetry buffer.
-        ///
-        /// \param[in]  fieldNameIn  Name of the value to update.
-        /// \param[in]  valueIn      Updated value of the variable.
-        ////////////////////////////////////////////////////////////////////////
-        template <typename T>
-        void updateValue(std::string const & fieldNameIn,
-                         T           const & valueIn);
-
-        void updateValue(std::vector<std::string>    const & fieldnames,
-                         Eigen::Ref<vectorN_t const> const & values);
-
-        ////////////////////////////////////////////////////////////////////////
         /// \brief      Register a variable into the telemetry system..
         ///
         /// \details    A variable must be registered to be taken into account by the telemetry system.
         ///
-        /// \param[in]  fieldNameIn   Name of the field to record in the telemetry system.
+        /// \param[in]  fieldname   Name of the field to record in the telemetry system.
         /// \param[in]  initialValue  Initial value of the newly recored field.
         ////////////////////////////////////////////////////////////////////////
         template<typename T>
-        hresult_t registerVariable(std::string const & fieldNameIn,
+        hresult_t registerVariable(std::string const & fieldname,
                                    T           const & initialValue);
 
-        hresult_t registerVariable(std::vector<std::string> const & fieldnames,
-                                   vectorN_t                const & initialValues);
+        template <typename Derived>
+        hresult_t registerVariable(std::vector<std::string>   const & fieldnames,
+                                   Eigen::MatrixBase<Derived> const & values);
+
+        ////////////////////////////////////////////////////////////////////////
+        /// \brief      Update specified registered variable in the telemetry buffer.
+        ///
+        /// \param[in]  fieldname  Name of the value to update.
+        /// \param[in]  value      Updated value of the variable.
+        ////////////////////////////////////////////////////////////////////////
+        template <typename T>
+        void updateValue(std::string const & fieldname,
+                         T           const & value);
+
+        template <typename Derived>
+        void updateValue(std::vector<std::string>   const & fieldnames,
+                         Eigen::MatrixBase<Derived> const & values);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Configure the object.
         ///
         /// \param[in]  telemetryDataInstance Shared pointer to the telemetry instance
-        /// \param[in]  objectNameIn          Name of the object.
+        /// \param[in]  objectName            Name of the object.
         ///
         /// \remark  Should only be used when default constructor is called for
         ///          later configuration.
@@ -72,7 +74,7 @@ namespace jiminy
         /// \retval   E_EPERM if object is already configured.
         ///////////////////////////////////////////////////////////////////////
         void configureObject(std::shared_ptr<TelemetryData> telemetryDataInstance,
-                             std::string            const & objectNameIn);
+                             std::string const & objectName);
 
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Get the number of registered entries.
@@ -91,14 +93,14 @@ namespace jiminy
         ////////////////////////////////////////////////////////////////////////
         /// \brief     Add an invariant header entry in the log file.
         ///
-        /// \param[in] invariantNameIn  Name of the invariant.
-        /// \param[in] valueIn          Value of the invariant.
+        /// \param[in] invariantName  Name of the invariant.
+        /// \param[in] value          Value of the invariant.
         ///
         /// \retval E_REGISTERING_NOT_AVAILABLE if the registering is closed (the telemetry is already started).
         /// \retval E_ALREADY_REGISTERED        if the constant was already registered.
         ///////////////////////////////////////////////////////////////////////
-        hresult_t registerConstant(std::string const & invariantNameIn,
-                                   std::string const & valueIn);
+        hresult_t registerConstant(std::string const & invariantName,
+                                   std::string const & value);
 
     protected:
         std::string objectName_;  ///< Name of the logged object.
@@ -111,5 +113,7 @@ namespace jiminy
         std::unordered_map<std::string, float64_t *> floatBufferPosition_;
     };
 } // End of jiminy namespace
+
+#include "TelemetrySender.tpp"
 
 #endif  //  JIMINY_TELEMETRY_CLIENT_CLASS_H
