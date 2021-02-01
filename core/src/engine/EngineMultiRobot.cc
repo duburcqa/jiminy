@@ -45,7 +45,9 @@ namespace jiminy
     stepperUpdatePeriod_(-1),
     stepperState_(),
     systemsDataHolder_(),
-    forcesCoupling_()
+    forcesCoupling_(),
+    fPrev_(),
+    aPrev_()
     {
         // Initialize the configuration options to the default.
         setOptions(getDefaultEngineOptions());
@@ -669,6 +671,104 @@ namespace jiminy
         reset(true, resetDynamicForceRegister);
     }
 
+    struct ForwardKinematicAccelerationAlgo :
+    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicAccelerationAlgo>
+    {
+        typedef boost::fusion::vector<pinocchio::Model const &,
+                                      pinocchio::Data &,
+                                      vectorN_t const &
+                                      > ArgsType;
+
+        template<typename JointModel>
+        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
+                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
+                         pinocchio::Model const & model,
+                         pinocchio::Data & data,
+                         vectorN_t const & a)
+        {
+            uint32_t const & i = jmodel.id();
+            uint32_t const & parent = model.parents[i];
+            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v()) ;
+            data.a[i] += data.liMi[i].actInv(data.a[parent]);
+        }
+    };
+
+    void computeJointsAccelerationsAndForces(systemHolder_t & system)
+    {
+        /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
+           acceleration and forces, so it must be done separately:
+           - 1st step: computing the forces based on rnea algorithm
+           - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
+        pinocchio::Model const & model = system.robot->pncModel_;
+        pinocchio::Data & data = system.robot->pncData_;
+
+        data.h[0].setZero();
+        data.f[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            data.h[i] = model.inertias[i] * data.v[i];
+            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
+            data.f[i] = model.inertias[i] * data.a_gf[i] + data.v[i].cross(data.h[i]);
+            #else
+            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
+            #endif
+        }
+        for (int32_t i = model.njoints - 1; i > 0; --i)
+        {
+            int32_t const & parentIdx = model.parents[i];
+            data.h[parentIdx] += data.liMi[i].act(data.h[i]);
+            if (parentIdx > 0)
+            {
+                data.f[parentIdx] += data.liMi[i].act(data.f[i]);
+            }
+            else
+            {
+                // Using action-reaction law to compute the ground reaction force
+                data.f[0] += data.oMi[i].act(data.f[i]);
+            }
+        }
+
+        data.a[0].setZero();
+        for (int32_t i = 1; i < model.njoints; ++i)
+        {
+            ForwardKinematicAccelerationAlgo::run(
+                model.joints[i], data.joints[i],
+                typename ForwardKinematicAccelerationAlgo::ArgsType(model, data, data.ddq));
+        }
+    }
+
+    void computeAllJointsAccelerationsAndForces(std::vector<systemHolder_t> & systems)
+    {
+        for (auto & system : systems)
+        {
+            computeJointsAccelerationsAndForces(system);
+        }
+    }
+
+    void syncAccelerationsAndForces(systemHolder_t const & system,
+                                    ForceVector & f,
+                                    MotionVector & a)
+    {
+        for (int32_t i = 0; i < system.robot->pncModel_.njoints; ++i)
+        {
+            f[i] = system.robot->pncData_.f[i];
+            a[i] = system.robot->pncData_.a[i];
+        }
+    }
+
+    void syncAllAccelerationsAndForces(std::vector<systemHolder_t> const & systems,
+                                       std::vector<ForceVector> & f,
+                                       std::vector<MotionVector> & a)
+    {
+        std::vector<systemHolder_t>::const_iterator systemIt = systems.begin();
+        auto fPrevIt = f.begin();
+        auto aPrevIt = a.begin();
+        for ( ; systemIt != systems.end(); ++systemIt, ++fPrevIt, ++aPrevIt)
+        {
+            syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
+        }
+    }
+
     hresult_t EngineMultiRobot::start(std::map<std::string, vectorN_t> const & qInit,
                                       std::map<std::string, vectorN_t> const & vInit,
                                       std::optional<std::map<std::string, vectorN_t> > const & aInit,
@@ -872,6 +972,18 @@ namespace jiminy
         float64_t const t = 0.0;
         stepperState_.reset(dt, qSplit, vSplit, aSplit);
 
+        // Initialize previous joints forces and accelerations
+        fPrev_.clear();
+        aPrev_.clear();
+        fPrev_.reserve(systems_.size());
+        aPrev_.reserve(systems_.size());
+        for (auto const & system : systems_)
+        {
+            uint32_t njoints = system.robot->pncModel_.njoints;
+            fPrev_.emplace_back(njoints, pinocchio::Force::Zero());
+            aPrev_.emplace_back(njoints, pinocchio::Motion::Zero());
+        }
+
         // Synchronize the individual system states with the global stepper state
         syncSystemsStateWithStepper();
 
@@ -979,6 +1091,8 @@ namespace jiminy
 
             systemIt = systems_.begin();
             systemDataIt = systemsDataHolder_.begin();
+            auto fPrevIt = fPrev_.begin();
+            auto aPrevIt = aPrev_.begin();
             for ( ; systemIt != systems_.end(); ++systemIt, ++systemDataIt)
             {
                 // Get some system state proxies
@@ -1016,8 +1130,9 @@ namespace jiminy
                 // Compute dynamics
                 a = computeAcceleration(*systemIt, q, v, u, fext);
 
-                // Compute the forward kinematics once again, with the updated acceleration
-                computeForwardKinematics(*systemIt, q, v, a);
+                // Compute joints accelerations and forces
+                computeJointsAccelerationsAndForces(*systemIt);
+                syncAccelerationsAndForces(*systemIt, *fPrevIt, *aPrevIt);
 
                 // Update the sensor data once again, with the updated effort and acceleration
                 systemIt->robot->setSensorsData(t, q, v, a, uMotor);
@@ -1414,7 +1529,9 @@ namespace jiminy
             if (stepperUpdatePeriod_ < EPS && hasDynamicsChanged)
             {
                 computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                syncSystemsStateWithStepper();
+                computeAllJointsAccelerationsAndForces(systems_);
+                syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                syncSystemsStateWithStepper(true);
                 hasDynamicsChanged = false;
             }
 
@@ -1461,7 +1578,9 @@ namespace jiminy
                     if (hasDynamicsChanged)
                     {
                         computeSystemsDynamics(t, qSplit, vSplit, aSplit);
-                        syncSystemsStateWithStepper();
+                        computeAllJointsAccelerationsAndForces(systems_);
+                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
+                        syncSystemsStateWithStepper(true);
                         hasDynamicsChanged = false;
                     }
 
@@ -1522,7 +1641,12 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
+                        /* Compute the actual joint acceleration and forces, based on
+                           up-to-date pinocchio::Data. */
+                        computeAllJointsAccelerationsAndForces(systems_);
+
                         // Synchronize the individual system states
+                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper();
 
                         // Increment the iteration counter only for successful steps
@@ -1609,7 +1733,12 @@ namespace jiminy
                         // Reset successive iteration failure counter
                         successiveIterFailed = 0;
 
+                        /* Compute the actual joint acceleration and forces, based on
+                           up-to-date pinocchio::Data. */
+                        computeAllJointsAccelerationsAndForces(systems_);
+
                         // Synchronize the individual system states
+                        syncAllAccelerationsAndForces(systems_, fPrev_, aPrev_);
                         syncSystemsStateWithStepper();
 
                         // Increment the iteration counter
@@ -2062,18 +2191,31 @@ namespace jiminy
         }
     }
 
-    void EngineMultiRobot::syncSystemsStateWithStepper(void)
+    void EngineMultiRobot::syncSystemsStateWithStepper(bool_t const & sync_acceleration_only)
     {
-        auto qSplitIt = stepperState_.qSplit.begin();
-        auto vSplitIt = stepperState_.vSplit.begin();
-        auto aSplitIt = stepperState_.aSplit.begin();
-        auto systemDataIt = systemsDataHolder_.begin();
-        for ( ; systemDataIt != systemsDataHolder_.end();
-             ++systemDataIt, ++qSplitIt, ++vSplitIt, ++aSplitIt)
+        if (sync_acceleration_only)
         {
-            systemDataIt->state.q = *qSplitIt;
-            systemDataIt->state.v = *vSplitIt;
-            systemDataIt->state.a = *aSplitIt;
+            auto aSplitIt = stepperState_.aSplit.begin();
+            auto systemDataIt = systemsDataHolder_.begin();
+            for ( ; systemDataIt != systemsDataHolder_.end();
+                ++systemDataIt, ++aSplitIt)
+            {
+                systemDataIt->state.a = *aSplitIt;
+            }
+        }
+        else
+        {
+            auto qSplitIt = stepperState_.qSplit.begin();
+            auto vSplitIt = stepperState_.vSplit.begin();
+            auto aSplitIt = stepperState_.aSplit.begin();
+            auto systemDataIt = systemsDataHolder_.begin();
+            for ( ; systemDataIt != systemsDataHolder_.end();
+                ++systemDataIt, ++qSplitIt, ++vSplitIt, ++aSplitIt)
+            {
+                systemDataIt->state.q = *qSplitIt;
+                systemDataIt->state.v = *vSplitIt;
+                systemDataIt->state.a = *aSplitIt;
+            }
         }
     }
 
@@ -2758,9 +2900,11 @@ namespace jiminy
         systemDataIt = systemsDataHolder_.begin();
         qIt = qSplit.begin();
         vIt = vSplit.begin();
+        auto fPrevIt = fPrev_.begin();
+        auto aPrevIt = aPrev_.begin();
         auto aIt = aSplit.begin();
         for ( ; systemIt != systems_.end();
-             ++systemIt, ++systemDataIt, ++qIt, ++vIt, ++aIt)
+             ++systemIt, ++systemDataIt, ++qIt, ++vIt, ++aIt, ++fPrevIt, ++aPrevIt)
         {
             // Define some proxies
             vectorN_t & u = systemDataIt->state.u;
@@ -2807,32 +2951,17 @@ namespace jiminy
 
             // Compute the dynamics
             *aIt = computeAcceleration(*systemIt, *qIt, *vIt, u, fext);
+
+            // Restore previous forces and accelerations that has been alterated
+            for (int32_t i = 0; i < systemIt->robot->pncModel_.njoints; ++i)
+            {
+                systemIt->robot->pncData_.f[i] = (*fPrevIt)[i];
+                systemIt->robot->pncData_.a[i] = (*aPrevIt)[i];
+            }
         }
 
         return hresult_t::SUCCESS;
     }
-
-    struct ForwardKinematicAccelerationAlgo :
-    public pinocchio::fusion::JointUnaryVisitorBase<ForwardKinematicAccelerationAlgo>
-    {
-        typedef boost::fusion::vector<pinocchio::Model const &,
-                                      pinocchio::Data &,
-                                      vectorN_t const &
-                                      > ArgsType;
-
-        template<typename JointModel>
-        static void algo(pinocchio::JointModelBase<JointModel> const & jmodel,
-                         pinocchio::JointDataBase<typename JointModel::JointDataDerived> & jdata,
-                         pinocchio::Model const & model,
-                         pinocchio::Data & data,
-                         vectorN_t const & a)
-        {
-            uint32_t const & i = jmodel.id();
-            uint32_t const & parent = model.parents[i];
-            data.a[i]  = jdata.S() * jmodel.jointVelocitySelector(a) + jdata.c() + (data.v[i] ^ jdata.v()) ;
-            data.a[i] += data.liMi[i].actInv(data.a[parent]);
-        }
-    };
 
     vectorN_t EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
                                                     vectorN_t      const & q,
@@ -2880,44 +3009,6 @@ namespace jiminy
         {
             // No kinematic constraint: run aba algorithm.
             a = pinocchio_overload::aba(model, data, q, v, u, fext);
-        }
-
-        /* Neither 'aba' nor 'forwardDynamics' are computed the actual joints
-           acceleration and forces, so it must be done separately:
-           - 1st step: computing the forces based on rnea algorithm
-           - 2nd step: computing the accelerations based on ForwardKinematic algorithm */
-        data.h[0].setZero();
-        data.f[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            data.h[i] = model.inertias[i] * data.v[i];
-            #if PINOCCHIO_MAJOR_VERSION > 2 || (PINOCCHIO_MAJOR_VERSION == 2 && (PINOCCHIO_MINOR_VERSION > 5 || (PINOCCHIO_MINOR_VERSION == 5 && PINOCCHIO_PATCH_VERSION >= 6)))
-            data.f[i] = model.inertias[i] * data.a_gf[i] + data.v[i].cross(data.h[i]);
-            #else
-            data.f[i] = model.inertias[i] * data.a[i] + data.v[i].cross(data.h[i]);
-            #endif
-        }
-        for (int32_t i = model.njoints - 1; i > 0; --i)
-        {
-            int32_t const & parentIdx = model.parents[i];
-            data.h[parentIdx] += data.liMi[i].act(data.h[i]);
-            if (parentIdx > 0)
-            {
-                data.f[parentIdx] += data.liMi[i].act(data.f[i]);
-            }
-            else
-            {
-                // Using action-reaction law to compute the ground reaction force
-                data.f[0] += data.oMi[i].act(data.f[i]);
-            }
-        }
-
-        data.a[0].setZero();
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            ForwardKinematicAccelerationAlgo::run(
-                model.joints[i], data.joints[i],
-                typename ForwardKinematicAccelerationAlgo::ArgsType(model, data, a));
         }
 
         return a;

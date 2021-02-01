@@ -32,6 +32,9 @@ namespace jiminy
 
     using forceCouplingRegister_t = std::vector<forceCoupling_t>;
 
+    using ForceVector = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Force);
+    using MotionVector = typename PINOCCHIO_ALIGNED_STD_VECTOR(pinocchio::Motion);
+
     struct stepperState_t
     {
     public:
@@ -446,7 +449,7 @@ namespace jiminy
         void updateTelemetry(void);
 
         void syncStepperStateWithSystems(void);
-        void syncSystemsStateWithStepper(void);
+        void syncSystemsStateWithStepper(bool_t const & sync_acceleration_only = false);
 
         void reset(bool_t const & resetRandomNumbers,
                    bool_t const & resetDynamicForceRegister);
@@ -584,6 +587,8 @@ namespace jiminy
         stepperState_t stepperState_;
         std::vector<systemDataHolder_t> systemsDataHolder_;
         forceCouplingRegister_t forcesCoupling_;
+        std::vector<ForceVector> fPrev_;
+        std::vector<MotionVector> aPrev_;
     };
 }
 
