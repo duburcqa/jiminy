@@ -19,21 +19,21 @@
 
 using namespace jiminy;
 
-void computeCommand(float64_t                   const & t,
-                    Eigen::Ref<vectorN_t const> const & q,
-                    Eigen::Ref<vectorN_t const> const & v,
-                    sensorsDataMap_t            const & sensorsData,
-                    vectorN_t                         & u)
+void computeCommand(float64_t        const & t,
+                    vectorN_t        const & q,
+                    vectorN_t        const & v,
+                    sensorsDataMap_t const & sensorsData,
+                    vectorN_t              & u)
 {
     // No controller: energy should be preserved.
     u.setZero();
 }
 
-void internalDynamics(float64_t                   const & t,
-                      Eigen::Ref<vectorN_t const> const & q,
-                      Eigen::Ref<vectorN_t const> const & v,
-                      sensorsDataMap_t            const & sensorsData,
-                      vectorN_t                         & u)
+void internalDynamics(float64_t        const & t,
+                      vectorN_t        const & q,
+                      vectorN_t        const & v,
+                      sensorsDataMap_t const & sensorsData,
+                      vectorN_t              & u)
 {
     u.setZero();
 }
