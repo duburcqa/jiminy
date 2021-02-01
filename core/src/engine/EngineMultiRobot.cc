@@ -700,15 +700,28 @@ namespace jiminy
 
         /* Update manually the subtree (apparent) inertia, since it is only computed by crba,
            which is doing more computation than necessary. */
+
+        /* Update manually the subtree (apparent) inertia, since it is only
+           computed by crba, which is doing more computation than necessary.
+           It will be used here for computing the centroidal kinematics, and
+           used later for joint bounds dynamics. Note that, by doing all the
+           computations here instead of 'computeForwardKinematics', we are
+           doing the assumption that it is varying slowly enough to consider
+           it constant during one integration step. */
         data.oYcrb[0].setZero();
         for (int32_t i = 1; i < model.njoints; ++i)
         {
+            data.Ycrb[i] = model.inertias[i];
             data.oYcrb[i] = data.oMi[i].act(model.inertias[i]);
         }
         for (int32_t i = model.njoints-1; i > 0; --i)
         {
             int32_t const & jointIdx = model.joints[i].id();
             int32_t const & parentIdx = model.parents[jointIdx];
+            if (parentIdx > 0)
+            {
+                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
+            }
             data.oYcrb[parentIdx] += data.oYcrb[i];
         }
 
@@ -2255,23 +2268,6 @@ namespace jiminy
 
         // Update forward kinematics
         pinocchio::forwardKinematics(model, data, q, v, a);
-
-        /* Update manually the subtree (apparent) inertia, since it is only
-           computed by crba, which is doing more computation than necessary.
-           It will be used later for joint bounds dynamics. */
-        for (int32_t i = 1; i < model.njoints; ++i)
-        {
-            data.Ycrb[i] = model.inertias[i];
-        }
-        for (int32_t i = model.njoints-1; i > 0; --i)
-        {
-            int32_t const & jointIdx = model.joints[i].id();
-            int32_t const & parentIdx = model.parents[jointIdx];
-            if (parentIdx > 0)
-            {
-                data.Ycrb[parentIdx] += data.liMi[jointIdx].act(data.Ycrb[jointIdx]);
-            }
-        }
 
         // Update frame placements and collision informations
         pinocchio::updateFramePlacements(model, data);
