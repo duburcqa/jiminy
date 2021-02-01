@@ -2928,6 +2928,14 @@ namespace jiminy
                and efforts since they depend on the sensor values themselves. */
             if (engineOptions_->stepper.sensorsUpdatePeriod < SIMULATION_MIN_TIMESTEP)
             {
+                // Restore previous forces and accelerations that has been alterated
+                for (int32_t i = 0; i < systemIt->robot->pncModel_.njoints; ++i)
+                {
+                    systemIt->robot->pncData_.f[i] = (*fPrevIt)[i];
+                    systemIt->robot->pncData_.a[i] = (*aPrevIt)[i];
+                }
+
+                // Update sensors based on previous accelerations and forces.
                 systemIt->robot->setSensorsData(t, *qIt, *vIt, aPrev, uMotorPrev);
             }
 
@@ -2959,13 +2967,6 @@ namespace jiminy
 
             // Compute the dynamics
             *aIt = computeAcceleration(*systemIt, *qIt, *vIt, u, fext);
-
-            // Restore previous forces and accelerations that has been alterated
-            for (int32_t i = 0; i < systemIt->robot->pncModel_.njoints; ++i)
-            {
-                systemIt->robot->pncData_.f[i] = (*fPrevIt)[i];
-                systemIt->robot->pncData_.a[i] = (*aPrevIt)[i];
-            }
         }
 
         return hresult_t::SUCCESS;
