@@ -2971,11 +2971,11 @@ namespace jiminy
         return hresult_t::SUCCESS;
     }
 
-    vectorN_t EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
-                                                    vectorN_t      const & q,
-                                                    vectorN_t      const & v,
-                                                    vectorN_t      const & u,
-                                                    forceVector_t  const & fext)
+    vectorN_t const & EngineMultiRobot::computeAcceleration(systemHolder_t       & system,
+                                                            vectorN_t      const & q,
+                                                            vectorN_t      const & v,
+                                                            vectorN_t      const & u,
+                                                            forceVector_t  const & fext)
     {
         vectorN_t a;
 
@@ -3006,20 +3006,18 @@ namespace jiminy
             pinocchio_overload::crba(model, data, q);
 
             // Call forward dynamics.
-            a = pinocchio::forwardDynamics(model,
-                                           data,
-                                           uTotal,
-                                           system.robot->getConstraintsJacobian(),
-                                           system.robot->getConstraintsDrift(),
-                                           CONSTRAINT_INVERSION_DAMPING);
+            return pinocchio::forwardDynamics(model,
+                                              data,
+                                              uTotal,
+                                              system.robot->getConstraintsJacobian(),
+                                              system.robot->getConstraintsDrift(),
+                                              CONSTRAINT_INVERSION_DAMPING);
         }
         else
         {
             // No kinematic constraint: run aba algorithm.
-            a = pinocchio_overload::aba(model, data, q, v, u, fext);
+            return pinocchio_overload::aba(model, data, q, v, u, fext);
         }
-
-        return a;
     }
 
     // ===================================================================

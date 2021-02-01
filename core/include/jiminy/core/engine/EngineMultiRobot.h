@@ -510,11 +510,11 @@ namespace jiminy
         /// \param[in] u Joint effort.
         /// \param[in] fext External forces applied on the system.
         /// \return System acceleration.
-        vectorN_t computeAcceleration(systemHolder_t       & system,
-                                      vectorN_t      const & q,
-                                      vectorN_t      const & v,
-                                      vectorN_t      const & u,
-                                      forceVector_t  const & fext);
+        vectorN_t const & computeAcceleration(systemHolder_t       & system,
+                                              vectorN_t      const & q,
+                                              vectorN_t      const & v,
+                                              vectorN_t      const & u,
+                                              forceVector_t  const & fext);
 
     public:
         hresult_t getLogDataRaw(logData_t & logData);
