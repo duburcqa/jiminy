@@ -43,10 +43,10 @@ git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
 if (-not (Test-Path -PathType Container "$RootDir/eigen3")) {
-  git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
+  git clone https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 }
 Set-Location -Path "$RootDir/eigen3"
-git checkout --force "3.3.7"
+git checkout --force "3.3.9"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 if (-not (Test-Path -PathType Container "$RootDir/eigenpy")) {

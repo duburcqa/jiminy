@@ -42,11 +42,11 @@ git submodule --quiet update --init --recursive --jobs 8
 
 ### Checkout eigen3
 if [ ! -d "$RootDir/eigen3" ]; then
-  git clone https://github.com/eigenteam/eigen-git-mirror.git "$RootDir/eigen3"
+  git clone https://gitlab.com/libeigen/eigen.git "$RootDir/eigen3"
 fi
 cd "$RootDir/eigen3"
 git reset --hard
-git checkout --force "3.3.7"
+git checkout --force "3.3.9"
 
 ### Checkout eigenpy and its submodules, then apply some patches (generated using `git diff --submodule=diff`)
 if [ ! -d "$RootDir/eigenpy" ]; then
@@ -243,7 +243,7 @@ mkdir -p "$RootDir/hpp-fcl/build"
 cd "$RootDir/hpp-fcl/build"
 cmake "$RootDir/hpp-fcl" -Wno-dev -DCMAKE_CXX_STANDARD=14 -DCMAKE_INSTALL_PREFIX="$InstallDir" \
       -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
-      -DCMAKE_PREFIX_PATH="$InstallDir" -DQhull_PREFIX="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
+      -DCMAKE_PREFIX_PATH="$InstallDir" -DPYTHON_EXECUTABLE="$PYTHON_EXECUTABLE" \
       -DPYTHON_STANDARD_LAYOUT=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBoost_NO_BOOST_CMAKE=TRUE \
       -DBOOST_ROOT="$InstallDir" -DBoost_INCLUDE_DIR="$InstallDir/include" \
       -DBUILD_PYTHON_INTERFACE=ON -DHPP_FCL_HAS_QHULL=ON \
