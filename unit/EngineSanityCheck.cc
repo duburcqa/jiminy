@@ -1,8 +1,10 @@
 // Test the sanity of the simulation engine.
 // The tests in this file verify that the behavior of a simulated system matches
-// real-world physics.
+// real-world physics, and that no memory is allocated by Eigen during a simulation.
 // The test system is a double inverted pendulum.
 #include <gtest/gtest.h>
+
+#define EIGEN_RUNTIME_NO_MALLOC
 
 #include "jiminy/core/engine/Engine.h"
 #include "jiminy/core/robot/BasicMotors.h"
@@ -91,8 +93,8 @@ TEST(EngineSanity, EnergyConservation)
 
     // Configure engine: High accuracy + Continuous-time integration
     configHolder_t simuOptions = engine->getDefaultEngineOptions();
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = 1.0e-11;
-    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = 1.0e-11;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolAbs")) = TOLERANCE * 1.0e-2;
+    boost::get<float64_t>(boost::get<configHolder_t>(simuOptions.at("stepper")).at("tolRel")) = TOLERANCE * 1.0e-2;
     engine->setOptions(simuOptions);
 
     // Run simulation
@@ -102,12 +104,18 @@ TEST(EngineSanity, EnergyConservation)
     float64_t tf = 10.0;
 
     // Run simulation
-    engine->simulate(tf, q0, v0);
+    engine->start(q0, v0);
+    Eigen::internal::set_is_malloc_allowed(false);
+    engine->step(tf);
+    engine->stop();
+    Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
     std::vector<std::string> header;
     matrixN_t data;
     engine->getLogData(header, data);
+    auto timeCont = getLogFieldValue("Global.Time", header, data);
+    ASSERT_DOUBLE_EQ(timeCont[timeCont.size()-1], tf);
     auto energyCont = getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energyCont.size(), 0);
 
@@ -122,10 +130,16 @@ TEST(EngineSanity, EnergyConservation)
     engine->setOptions(simuOptions);
 
     // Run simulation
-    engine->simulate(tf, q0, v0);
+    engine->start(q0, v0);
+    Eigen::internal::set_is_malloc_allowed(false);
+    engine->step(tf);
+    engine->stop();
+    Eigen::internal::set_is_malloc_allowed(true);
 
     // Get system energy
     engine->getLogData(header, data);
+    auto timeDisc = getLogFieldValue("Global.Time", header, data);
+    ASSERT_DOUBLE_EQ(timeDisc[timeDisc.size()-1], tf);
     auto energyDisc = getLogFieldValue("HighLevelController.energy", header, data);
     ASSERT_GT(energyDisc.size(), 0);
 
