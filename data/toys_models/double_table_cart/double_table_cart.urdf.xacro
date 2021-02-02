@@ -1,0 +1,251 @@
+<?xml version="1.0"?>
+<robot name="DoubleTableCart" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Based on Atalante empty model URDF.
+    - Thigh setting: 432mm, Shank setting: 426mm
+  -->
+  <xacro:property name="L_x_F_min" value="5.7e-2"/>
+  <xacro:property name="L_x_F_max" value="29.3e-2"/>
+  <xacro:property name="L_y_F" value="6.1e-2"/>
+  <xacro:property name="m_R" value="74.8"/>
+  <xacro:property name="I_R_xx" value="13.257"/>
+  <xacro:property name="I_R_xy" value="0.064"/>
+  <xacro:property name="I_R_xz" value="1.283"/>
+  <xacro:property name="I_R_yy" value="11.849"/>
+  <xacro:property name="I_R_yz" value="-0.095"/>
+  <xacro:property name="I_R_zz" value="3.343"/>
+  <xacro:property name="z_R" value="72.1e-2"/>
+  <xacro:property name="F_x_R_max" value="2.68e3"/>
+  <xacro:property name="F_y_R_max" value="1.64e3"/>
+  <xacro:property name="v_x_R_max" value="2.23"/>
+  <xacro:property name="v_y_R_max" value="0.79"/>
+  <!-- Based on human model URDF.
+    - Subject Id: 3, Mass=75.4Kg, Height=180cm:
+      https://github.com/robotology/human-gazebo
+  -->
+  <xacro:property name="has_patient" value="true"/>
+  <xacro:property name="m_P_l" value="32.6"/>
+  <xacro:property name="x_P" value="0.4e-2"/>
+  <xacro:property name="I_P_l_xx" value="3.570"/>
+  <xacro:property name="I_P_l_xy" value="0.0"/>
+  <xacro:property name="I_P_l_xz" value="0.110"/>
+  <xacro:property name="I_P_l_yy" value="3.345"/>
+  <xacro:property name="I_P_l_yz" value="0.0"/>
+  <xacro:property name="I_P_l_zz" value="0.328"/>
+  <xacro:property name="m_P_u" value="42.8"/>
+  <xacro:property name="I_P_u_xx" value="3.418"/>
+  <xacro:property name="I_P_u_xy" value="0.0"/>
+  <xacro:property name="I_P_u_xz" value="-0.003"/>
+  <xacro:property name="I_P_u_yy" value="0.886"/>
+  <xacro:property name="I_P_u_yz" value="0.0"/>
+  <xacro:property name="I_P_u_zz" value="2.651"/>
+  <xacro:property name="z_P" value="20.3e-2"/>
+  <xacro:property name="L_x_P_min" value="3.6e-2"/>
+  <xacro:property name="L_x_P_max" value="16.5e-2"/>
+  <xacro:property name="L_y_P" value="6.2e-2"/>
+  <!-- Based on studies about human CoM velocity and acceleration during walking.
+    - https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0185564
+    - https://www.rehab.research.va.gov/jour/2012/496/nataraj496.html
+    - https://ars.els-cdn.com/content/image/1-s2.0-S0966636209001386-gr1.jpg
+    - https://www.researchgate.net/publication/220868959_Multimode_representation_of_motion_data
+    - https://jeb.biologists.org/content/212/16/2668
+  -->
+  <xacro:property name="F_x_P_max" value="2.0e2"/>
+  <xacro:property name="F_y_P_max" value="3.0e2"/>
+  <xacro:property name="v_x_P_max" value="3.0"/>
+  <xacro:property name="v_y_P_max" value="1.0"/>
+
+  <!-- Table -->
+  <link name="Foot">
+    <visual>
+      <geometry>
+        <box size="${L_x_F_min + L_x_F_max} ${2 * L_y_F} 0.01"/>
+      </geometry>
+      <origin xyz="${(L_x_F_max - L_x_F_min) / 2} 0.0 0.005" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <origin xyz="${- L_x_F_min} ${- L_y_F} 0.005" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <collision>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <origin xyz="${L_x_F_max} ${- L_y_F} 0.005" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <collision>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <origin xyz="${- L_x_F_min} ${L_y_F} 0.005" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <collision>
+      <geometry>
+        <sphere radius="0.005"/>
+      </geometry>
+      <origin xyz="${L_x_F_max} ${L_y_F} 0.005" rpy="0.0 0.0 0.0"/>
+    </collision>
+    <inertial>
+      <mass value="0.0"/>
+      <inertia ixx="0.0" ixy="0.0" ixz="0.0" iyy="0.0" iyz="0.0" izz="0.0"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </inertial>
+  </link>
+  <link name="TableTop">
+    <visual>
+      <geometry>
+        <box size="0.90 0.90 0.01"/>
+      </geometry>
+      <origin xyz="0.0 0.0 ${z_R}" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <visual>
+      <geometry>
+        <cylinder length="${z_R - 0.015}" radius="0.03"/>
+      </geometry>
+      <origin xyz="0.0 0.0 ${z_R / 2 + 0.0025}" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <inertial>
+      <!-- Minimal inertia for the table to avoid numerical instabilities -->
+      <mass value="1e-1"/>
+      <inertia ixx="1.0e-4" ixy="1.0e-4" ixz="1.0e-4" iyy="1.0e-4" iyz="1.0e-4" izz="1.0e-4"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </inertial>
+  </link>
+  <joint name="FootTable" type="fixed">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="Foot"/>
+    <child link="TableTop"/>
+  </joint>
+
+  <!-- Robot -->
+  <link name="RobotCart">
+    <visual>
+      <geometry>
+        <box size="0.10 0.10 0.04"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.9 0.0 0.0 1"/>
+      </material>
+      <origin xyz="0.0 0.0 0.025" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <inertial>
+      <mass value="${m_R}"/>
+      <inertia ixx="${I_R_xx}" ixy="${I_R_xy}" ixz="${I_R_xz}" iyy="${I_R_yy}" iyz="${I_R_yz}" izz="${I_R_zz}"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </inertial>
+  </link>
+  <joint name="RobotStrapsToPatient" type="fixed">
+    <origin xyz="${x_P} 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <parent link="RobotCart"/>
+    <child link="RobotStraps"/>
+  </joint>
+  <link name="RobotStraps"/>
+  <link name="RobotPlanarJoint"/>
+  <joint name="TableTopToRobotCartX" type="prismatic">
+    <origin xyz="0.0 0.0 ${z_R}" rpy="0.0 0.0 0.0"/>
+    <axis xyz="1 0 0"/>
+    <parent link="TableTop"/>
+    <child link="RobotPlanarJoint"/>
+    <limit effort="${F_x_R_max}" velocity="${v_x_R_max}" lower="-0.4" upper="0.4"/>
+  </joint>
+  <joint name="TableTopToRobotCartY" type="prismatic">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="RobotPlanarJoint"/>
+    <child link="RobotCart"/>
+    <limit effort="${F_y_R_max}" velocity="${v_y_R_max}" lower="-0.4" upper="0.4"/>
+  </joint>
+
+  <xacro:if value="${has_patient}">
+  <!-- Patient lower body -->
+  <link name="PatientLowerBodyCart">
+    <visual>
+      <geometry>
+        <box size="0.10 0.10 0.04"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.0 0.9 0.0 1"/>
+      </material>
+      <origin xyz="0.0 0.0 0.025" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <visual>
+      <geometry>
+        <cylinder length="${z_P - 0.045}" radius="0.015"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.0 0.9 0.0 1"/>
+      </material>
+      <origin xyz="0.0 0.0 ${z_P / 2 + 0.02}" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <visual>
+      <geometry>
+        <box size="${L_x_P_min + L_x_P_max + 0.10} ${2 * L_y_P + 0.10} 0.01"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0.0 0.9 0.0 1"/>
+      </material>
+      <origin xyz="${(L_x_P_max - L_x_P_min) / 2} 0.0 ${z_P}" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <inertial>
+      <mass value="${m_P_l}"/>
+      <inertia ixx="${I_P_l_xx}" ixy="${I_P_l_xy}" ixz="${I_P_l_xz}" iyy="${I_P_l_yy}" iyz="${I_P_l_yz}" izz="${I_P_l_zz}"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </inertial>
+  </link>
+  <link name="PatientLowerBodyPlanarJoint"/>
+  <joint name="TableTopToPatientLowerBodyCartX" type="prismatic">
+    <origin xyz="0.0 0.0 ${z_R}" rpy="0.0 0.0 0.0"/>
+    <axis xyz="1 0 0"/>
+    <parent link="TableTop"/>
+    <child link="PatientLowerBodyPlanarJoint"/>
+    <limit effort="1000.0" velocity="100.0" lower="-0.4" upper="0.4"/>
+  </joint>
+  <joint name="TableTopToPatientLowerBodyCartY" type="prismatic">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="PatientLowerBodyPlanarJoint"/>
+    <child link="PatientLowerBodyCart"/>
+    <limit effort="1000.0" velocity="100.0" lower="-0.4" upper="0.4"/>
+  </joint>
+
+  <!-- Patient upper body -->
+  <link name="PatientUpperBodyCart">
+    <visual>
+      <geometry>
+        <box size="0.10 0.10 0.04"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 0.9 1"/>
+      </material>
+      <origin xyz="0.0 0.0 0.025" rpy="0.0 0.0 0.0"/>
+    </visual>
+    <inertial>
+      <mass value="${m_P_u}"/>
+      <inertia ixx="${I_P_u_xx}" ixy="${I_P_u_xy}" ixz="${I_P_u_xz}" iyy="${I_P_u_yy}" iyz="${I_P_u_yz}" izz="${I_P_u_zz}"/>
+      <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </inertial>
+  </link>
+  <link name="PatientTableTop"/>
+  <joint name="PatientLowerBodyToTableTop" type="fixed">
+    <origin xyz="0.0 0.0 ${z_P}" rpy="0.0 0.0 0.0"/>
+    <parent link="PatientLowerBodyCart"/>
+    <child link="PatientTableTop"/>
+  </joint>
+  <link name="PatientUpperBodyPlanarJoint"/>
+  <joint name="PatientLowerBodyToPatientUpperBodyCartX" type="prismatic">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="1 0 0"/>
+    <parent link="PatientTableTop"/>
+    <child link="PatientUpperBodyPlanarJoint"/>
+    <limit effort="${F_x_P_max}" velocity="${v_x_P_max}" lower="${- L_x_P_min}" upper="${L_x_P_max}"/>
+  </joint>
+  <joint name="PatientLowerBodyToPatientUpperBodyCartY" type="prismatic">
+    <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    <axis xyz="0 1 0"/>
+    <parent link="PatientUpperBodyPlanarJoint"/>
+    <child link="PatientUpperBodyCart"/>
+    <limit effort="${F_y_P_max}" velocity="${v_y_P_max}" lower="${- L_y_P}" upper="${L_y_P}"/>
+  </joint>
+  </xacro:if>
+</robot>

@@ -1,0 +1,43 @@
+[Global]
+sensorsUpdatePeriod = 0.01
+controllerUpdatePeriod = 0.01
+collisionBodiesNames = []
+contactFramesNames = []
+
+[Motor.SimpleMotor.RobotMassFX]
+joint_name = "TableTopToRobotCartX"
+mechanicalReduction = 1.0
+rotorInertia = 0.0
+frictionViscousPositive = 0.0
+frictionViscousNegative = 0.0
+frictionDryPositive = 0.0
+frictionDryNegative = 0.0
+frictionDrySlope = 0.0
+
+[Motor.SimpleMotor.RobotMassFY]
+joint_name = "TableTopToRobotCartY"
+mechanicalReduction = 1.0
+rotorInertia = 0.0
+frictionViscousPositive = 0.0
+frictionViscousNegative = 0.0
+frictionDryPositive = 0.0
+frictionDryNegative = 0.0
+frictionDrySlope = 0.0
+
+[Sensor.ForceSensor.Foot]
+frame_name = "Foot"
+
+# [Sensor.ImuSensor.RobotCart]
+# frame_name = "RobotCart"
+
+[Sensor.EncoderSensor.RobotMassX]
+joint_name = "TableTopToRobotCartX"
+
+[Sensor.EncoderSensor.RobotMassY]
+joint_name = "TableTopToRobotCartY"
+
+# [Sensor.EffortSensor.RobotMassFX]
+# motor_name = "RobotMassFX"
+
+# [Sensor.EffortSensor.RobotMassFY]
+# motor_name = "RobotMassFY"

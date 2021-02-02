@@ -5,6 +5,8 @@ from .acrobot import AcrobotJiminyEnv, AcrobotJiminyGoalEnv
 from .anymal import ANYmalJiminyEnv, ANYmalPDControlJiminyEnv
 from .atlas import AtlasJiminyEnv, AtlasPDControlJiminyEnv
 from .spotmicro import SpotmicroJiminyEnv
+from .double_table_cart import (
+    DoubleTableCartJiminyEnv, DoubleTableCartJiminyMetaEnv)
 
 
 __all__ = [
@@ -15,7 +17,9 @@ __all__ = [
     'ANYmalPDControlJiminyEnv',
     'AtlasJiminyEnv',
     'AtlasPDControlJiminyEnv',
-    'SpotmicroJiminyEnv'
+    'SpotmicroJiminyEnv',
+    'DoubleTableCartJiminyEnv',
+    'DoubleTableCartJiminyMetaEnv'
 ]
 
 register(
@@ -49,4 +53,12 @@ register(
 register(
     id='jiminy-spotmicro-v0',
     entry_point='gym_jiminy.envs:SpotmicroJiminyEnv'
+)
+register(
+    id='jiminy-double_table_cart-v0',
+    entry_point='gym_jiminy.envs:DoubleTableCartJiminyEnv'
+)
+register(
+    id='jiminy-double_table_cart-meta-v0',
+    entry_point='gym_jiminy.envs:DoubleTableCartJiminyMetaEnv'
 )
