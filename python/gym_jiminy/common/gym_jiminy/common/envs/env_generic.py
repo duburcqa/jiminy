@@ -773,7 +773,7 @@ class BaseJiminyEnv(ObserverControllerInterface, gym.Env):
         # Configure the stepper
         engine_options["stepper"]["iterMax"] = -1
         engine_options["stepper"]["timeout"] = -1
-        engine_options["stepper"]["logInternalStepperSteps"] = self.debug
+        engine_options["stepper"]["logInternalStepperSteps"] = False
         engine_options["stepper"]["randomSeed"] = self._seed
 
         # Set options
