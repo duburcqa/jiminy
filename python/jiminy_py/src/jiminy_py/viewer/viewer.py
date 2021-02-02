@@ -1,6 +1,7 @@
 import os
 import re
 import io
+import sys
 import time
 import shutil
 import base64
@@ -63,11 +64,26 @@ if __import__('platform').system() == 'Linux':
         backends_available['gepetto-gui'] = GepettoVisualizer
 
 
-def _default_backend() -> str:
+def default_backend() -> str:
     """Determine the default backend viewer, depending on the running
     environment and the set of available backends.
+
+    Meshcat will always be prefered in interactive mode, i.e. in Jupyter
+    notebooks, while Panda3d otherwise, unless there is some clues that no
+    X11-server is available on Linux. In such a case, it fallbacks to Meshcat
+    for now, since Nvidia EGL support without X-server of Panda3d is
+    implemented but not provided with the official wheels distributed on Pypi
+    so far. As a result, Panda3d would work, but relying on software rendering,
+    which is know to be unefficient. On the contrary, Meshcat supports Nvidia
+    EGL through bundled Chromium web-browser, but only on Linux-based OS.
     """
-    return 'meshcat'
+    if interactive_mode():
+        return 'meshcat'
+    else:
+        if not sys.platform.startswith('linux') or os.environ.get('DISPLAY'):
+            return 'panda3d'
+        else:
+            return 'meshcat'
 
 
 def _get_backend_exceptions(
@@ -75,7 +91,7 @@ def _get_backend_exceptions(
     """Get the list of exceptions that may be raised by a given backend.
     """
     if backend is None:
-        backend = _default_backend()
+        backend = default_backend()
     if backend == 'gepetto-gui':
         import gepetto
         import omniORB
@@ -104,7 +120,7 @@ logger.addFilter(_DuplicateFilter())
 
 
 def sleep(dt: float) -> None:
-    """Function to provide cross-plateform time sleep with maximum accuracy.
+    """Function to provide cross-platform time sleep with maximum accuracy.
 
     .. warning::
         Use this method with cautious since it relies on busy looping principle
@@ -210,7 +226,7 @@ class Viewer:
         The environment variable 'JIMINY_VIEWER_INTERACTIVE_DISABLE' can be
         used to force disabling interactive display.
     """
-    backend = _default_backend()
+    backend = default_backend()
     _backend_obj = None
     _backend_exceptions = _get_backend_exceptions()
     _backend_proc = None
