@@ -66,7 +66,10 @@ def _default_backend() -> str:
     """Determine the default backend viewer, depending on the running
     environment and the set of available backends.
     """
-    return 'meshcat'
+    if interactive_mode():
+        return 'meshcat'
+    else:
+        return 'panda3d'
 
 
 def _get_backend_exceptions(
