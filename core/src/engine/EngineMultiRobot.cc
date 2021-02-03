@@ -1725,7 +1725,7 @@ namespace jiminy
                 while (tNext - t > EPS)
                 {
                     // Log every stepper state only if the user asked for
-                    if (engineOptions_->stepper.logInternalStepperSteps)
+                    if (successiveIterFailed == 0 && engineOptions_->stepper.logInternalStepperSteps)
                     {
                         updateTelemetry();
                     }
