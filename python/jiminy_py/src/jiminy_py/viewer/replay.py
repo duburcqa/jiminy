@@ -60,36 +60,38 @@ def extract_viewer_data_from_log(log_data: Dict[str, np.ndarray],
               field "evolution_robot" and it is a list of State object. The
               other fields are additional information.
     """
-    # Get the current robot model options
-    model_options = robot.get_model_options()
-
-    # Extract the joint positions time evolution
     t = log_data["Global.Time"]
     try:
+        # Extract the joint positions evolution over time
         qe = np.stack([log_data[".".join(("HighLevelController", s))]
                        for s in robot.logfile_position_headers], axis=-1)
-    except KeyError:
-        model_options['dynamics']['enableFlexibleModel'] = \
-            not robot.is_flexible
+
+        # Determine whether to use the theoretical or flexible model
+        use_theoretical_model = not robot.is_flexible
+
+        # Create state sequence
+        evolution_robot = []
+        for t_i, q_i in zip(t, qe):
+            evolution_robot.append(State(t=t_i, q=q_i))
+
+        viewer_data = {'evolution_robot': evolution_robot,
+                       'robot': robot,
+                       'use_theoretical_model': use_theoretical_model}
+    except KeyError:  # The current options are inconsistent with log data
+        # Toggle flexibilities
+        model_options = robot.get_model_options()
+        dyn_options = model_options['dynamics']
+        dyn_options['enableFlexibleModel'] = not robot.is_flexible
         robot.set_model_options(model_options)
-        qe = np.stack([log_data[".".join(("HighLevelController", s))]
-                       for s in robot.logfile_position_headers], axis=-1)
 
-    # Determine whether the theoretical model of the flexible one must be used
-    use_theoretical_model = not robot.is_flexible
+        # Get viewer data
+        viewer_data = extract_viewer_data_from_log(log_data, robot)
 
-    # Make sure that the flexibilities are enabled
-    model_options['dynamics']['enableFlexibleModel'] = True
-    robot.set_model_options(model_options)
+        # Restore back flexibilities
+        dyn_options['enableFlexibleModel'] = not robot.is_flexible
+        robot.set_model_options(model_options)
 
-    # Create state sequence
-    evolution_robot = []
-    for t_i, q_i in zip(t, qe):
-        evolution_robot.append(State(t=t_i, q=q_i))
-
-    return {'evolution_robot': evolution_robot,
-            'robot': robot,
-            'use_theoretical_model': use_theoretical_model}
+    return viewer_data
 
 
 def play_trajectories(trajectory_data: Union[
